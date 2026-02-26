@@ -1,0 +1,86 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import db from '../db/index.js';
+import { users } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+
+const getSecret = () => process.env.JWT_SECRET || 'seniorcare-secret-key';
+
+function generateToken(user) {
+    return jwt.sign(
+        { id: user.id, email: user.email, role: user.role, name: user.name },
+        getSecret(),
+        { expiresIn: '7d' }
+    );
+}
+
+function setAuthCookie(res, token) {
+    res.cookie('sc_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+}
+
+export const register = async (req, res) => {
+    try {
+        const { email, password, name } = req.body;
+        if (!email || !password || !name) {
+            return res.status(400).json({ error: 'Email, password and name are required' });
+        }
+        const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+        if (existing) {
+            return res.status(409).json({ error: 'Email already registered' });
+        }
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        const [user] = await db.insert(users).values({
+            email, passwordHash, name, role: 'partner'
+        }).returning({
+            id: users.id, email: users.email, name: users.name, role: users.role
+        });
+
+        const token = generateToken(user);
+        setAuthCookie(res, token);
+        res.status(201).json({ user });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+};
+
+export const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const [user] = await db.select().from(users).where(eq(users.email, email));
+        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+        const valid = await bcrypt.compare(password, user.passwordHash);
+        if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+        const token = generateToken(user);
+        setAuthCookie(res, token);
+        res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Login failed' });
+    }
+};
+
+export const me = (req, res) => {
+    const token = req.cookies?.sc_token;
+    if (!token) return res.json({ user: null });
+
+    try {
+        const user = jwt.verify(token, getSecret());
+        res.json({ user });
+    } catch {
+        res.json({ user: null });
+    }
+};
+
+export const logout = (req, res) => {
+    res.clearCookie('sc_token');
+    res.json({ success: true });
+};

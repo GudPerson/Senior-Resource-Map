@@ -18,6 +18,8 @@ export const resources = pgTable('resources', {
   partnerId: serial('partner_id').references(() => users.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   category: categoryEnum('category').notNull(),
+  country: varchar('country', { length: 2 }).notNull().default('US'),
+  postalCode: varchar('postal_code', { length: 20 }).notNull().default(''),
   lat: decimal('lat', { precision: 10, scale: 7 }).notNull(),
   lng: decimal('lng', { precision: 10, scale: 7 }).notNull(),
   address: text('address').notNull(),
