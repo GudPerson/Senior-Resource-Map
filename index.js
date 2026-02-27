@@ -5,7 +5,10 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
-import resourceRoutes from './routes/resources.js';
+import hardAssetsRoutes from './routes/hardAssets.js';
+import softAssetsRoutes from './routes/softAssets.js';
+import tagsRoutes from './routes/tags.js';
+import uploadRoutes from './routes/upload.js';
 import userRoutes from './routes/users.js';
 
 const app = express();
@@ -16,7 +19,10 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
-app.use('/api/resources', resourceRoutes);
+app.use('/api/hard-assets', hardAssetsRoutes);
+app.use('/api/soft-assets', softAssetsRoutes);
+app.use('/api/tags', tagsRoutes);
+app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
