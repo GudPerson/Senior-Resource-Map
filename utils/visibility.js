@@ -1,4 +1,6 @@
 export function isAssetVisible(asset, user) {
+    if (asset.isDeleted) return false;
+
     // Admin always sees everything
     if (user?.role === 'admin') return true;
 

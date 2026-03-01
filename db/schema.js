@@ -32,6 +32,7 @@ export const hardAssets = pgTable('hard_assets', {
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
   hideUntil: timestamp('hide_until'),
+  isDeleted: boolean('is_deleted').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
@@ -49,6 +50,7 @@ export const softAssets = pgTable('soft_assets', {
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
   hideUntil: timestamp('hide_until'),
+  isDeleted: boolean('is_deleted').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 

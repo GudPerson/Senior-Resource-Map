@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import db from '../db/index.js';
 import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-
+import { OAuth2Client } from 'google-auth-library';
+import crypto from 'crypto';
 const getSecret = () => process.env.JWT_SECRET || 'seniorcare-secret-key';
 
 function generateToken(user) {
@@ -90,4 +91,46 @@ export const me = (req, res) => {
 export const logout = (req, res) => {
     res.clearCookie('sc_token');
     res.json({ success: true });
+};
+
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
+
+export const googleAuth = async (req, res) => {
+    try {
+        const { credential } = req.body;
+        if (!credential) return res.status(400).json({ error: 'No credential provided' });
+
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: process.env.VITE_GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        if (!payload) return res.status(401).json({ error: 'Invalid Google token' });
+
+        const { email, name } = payload;
+
+        // Find existing user
+        let [user] = await db.select().from(users).where(eq(users.email, email));
+
+        if (!user) {
+            // Create user
+            const dummyPassword = crypto.randomBytes(16).toString('hex');
+            const passwordHash = await bcrypt.hash(dummyPassword, 10);
+
+            [user] = await db.insert(users).values({
+                email,
+                name: name || email.split('@')[0],
+                passwordHash,
+                role: 'user'
+            }).returning();
+        }
+
+        const token = generateToken(user);
+        setAuthCookie(res, token);
+        res.status(200).json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+
+    } catch (err) {
+        console.error('Google Auth Error:', err);
+        res.status(500).json({ error: 'Google authentication failed' });
+    }
 };

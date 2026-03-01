@@ -12,6 +12,7 @@ import subCategoriesRoutes from './routes/subCategories.js';
 import uploadRoutes from './routes/upload.js';
 import userRoutes from './routes/users.js';
 import favoritesRoutes from './routes/favorites.js';
+import adminRoutes from './routes/admin.js';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -34,6 +35,7 @@ app.use('/api/sub-categories', subCategoriesRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/favorites', favoritesRoutes);
+app.use('/api/admin', adminRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.listen(PORT, () => {

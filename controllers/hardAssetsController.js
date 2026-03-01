@@ -103,6 +103,9 @@ export const getHardAssetById = async (req, res) => {
 
 export const createHardAsset = async (req, res) => {
     try {
+        if (req.user.role === 'user') {
+            return res.status(403).json({ error: 'Only partners and admins can create resources' });
+        }
         const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil } = req.body;
         if (!name || !country || !postalCode || !address) {
             return res.status(400).json({ error: 'name, country, postalCode, address are required' });
@@ -195,7 +198,7 @@ export const deleteHardAsset = async (req, res) => {
             return res.status(403).json({ error: "Cannot delete another partner's hard asset" });
         }
 
-        await db.delete(hardAssets).where(eq(hardAssets.id, id));
+        await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
         res.json({ success: true });
     } catch (err) {
         console.error(err);

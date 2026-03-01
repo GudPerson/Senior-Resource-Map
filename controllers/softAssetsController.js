@@ -62,6 +62,9 @@ export const getSoftAssetById = async (req, res) => {
 
 export const createSoftAsset = async (req, res) => {
     try {
+        if (req.user.role === 'user') {
+            return res.status(403).json({ error: 'Only partners and admins can create resources' });
+        }
         const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags = [], isMemberOnly, isHidden, hideFrom, hideUntil } = req.body;
         if (!name) {
             return res.status(400).json({ error: 'Name is required' });
@@ -167,7 +170,7 @@ export const deleteSoftAsset = async (req, res) => {
             return res.status(403).json({ error: "Cannot delete another partner's soft asset" });
         }
 
-        await db.delete(softAssets).where(eq(softAssets.id, id));
+        await db.update(softAssets).set({ isDeleted: true }).where(eq(softAssets.id, id));
         res.json({ success: true });
     } catch (err) {
         console.error(err);

@@ -26,6 +26,13 @@ export function optionalAuth(req, res, next) {
     next();
 }
 
+export function isAdmin(req, res, next) {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Requires admin privileges' });
+    }
+    next();
+}
+
 export function requireRole(...roles) {
     return (req, res, next) => {
         if (!req.user || !roles.includes(req.user.role)) {
