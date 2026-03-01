@@ -1,7 +1,8 @@
 import db from '../db/index.js';
 import { hardAssets, tags, hardAssetTags, users } from '../db/schema.js';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
+import { syncAssetTags } from '../utils/tags.js';
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -124,16 +125,7 @@ export const createHardAsset = async (req, res) => {
                 hideUntil: hideUntil ? new Date(hideUntil) : null
             }).returning();
 
-            for (const t of newTags) {
-                let [existingTag] = await tx.select().from(tags).where(eq(tags.name, t));
-                if (!existingTag) {
-                    [existingTag] = await tx.insert(tags).values({ name: t }).returning();
-                }
-                await tx.insert(hardAssetTags).values({
-                    hardAssetId: asset.id,
-                    tagId: existingTag.id
-                });
-            }
+            await syncAssetTags(tx, asset.id, 'hard', newTags);
             return asset;
         });
 
@@ -182,17 +174,7 @@ export const updateHardAsset = async (req, res) => {
             }).where(eq(hardAssets.id, id));
 
             if (newTags) {
-                await tx.delete(hardAssetTags).where(eq(hardAssetTags.hardAssetId, id));
-                for (const t of newTags) {
-                    let [existingTag] = await tx.select().from(tags).where(eq(tags.name, t));
-                    if (!existingTag) {
-                        [existingTag] = await tx.insert(tags).values({ name: t }).returning();
-                    }
-                    await tx.insert(hardAssetTags).values({
-                        hardAssetId: id,
-                        tagId: existingTag.id
-                    });
-                }
+                await syncAssetTags(tx, id, 'hard', newTags);
             }
         });
 

@@ -1,7 +1,8 @@
 import db from '../db/index.js';
 import { softAssets, hardAssets, tags, softAssetTags, users, softAssetLocations } from '../db/schema.js';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
+import { syncAssetTags } from '../utils/tags.js';
 
 export const getSoftAssets = async (req, res) => {
     try {
@@ -91,16 +92,7 @@ export const createSoftAsset = async (req, res) => {
                 });
             }
 
-            for (const t of newTags) {
-                let [existingTag] = await tx.select().from(tags).where(eq(tags.name, t));
-                if (!existingTag) {
-                    [existingTag] = await tx.insert(tags).values({ name: t }).returning();
-                }
-                await tx.insert(softAssetTags).values({
-                    softAssetId: asset.id,
-                    tagId: existingTag.id
-                });
-            }
+            await syncAssetTags(tx, asset.id, 'soft', newTags);
             return asset;
         });
 
@@ -154,17 +146,7 @@ export const updateSoftAsset = async (req, res) => {
             }
 
             if (newTags) {
-                await tx.delete(softAssetTags).where(eq(softAssetTags.softAssetId, id));
-                for (const t of newTags) {
-                    let [existingTag] = await tx.select().from(tags).where(eq(tags.name, t));
-                    if (!existingTag) {
-                        [existingTag] = await tx.insert(tags).values({ name: t }).returning();
-                    }
-                    await tx.insert(softAssetTags).values({
-                        softAssetId: id,
-                        tagId: existingTag.id
-                    });
-                }
+                await syncAssetTags(tx, id, 'soft', newTags);
             }
         });
 
