@@ -11,18 +11,23 @@ router.post('/', authenticateToken, upload.single('file'), (req, res) => {
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: 'seniorcare-connect' },
-        (error, result) => {
-            if (error) {
-                console.error('Cloudinary upload error:', error);
-                return res.status(500).json({ error: 'Upload failed' });
+    try {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { folder: 'seniorcare-connect' },
+            (error, result) => {
+                if (error) {
+                    console.error('Cloudinary upload error:', error);
+                    return res.status(500).json({ error: error.message || 'Upload failed' });
+                }
+                res.json({ secure_url: result.secure_url });
             }
-            res.json({ secure_url: result.secure_url });
-        }
-    );
+        );
 
-    uploadStream.end(req.file.buffer);
+        uploadStream.end(req.file.buffer);
+    } catch (err) {
+        console.error('Upload route error:', err);
+        res.status(500).json({ error: err.message || 'Server error during upload' });
+    }
 });
 
 export default router;

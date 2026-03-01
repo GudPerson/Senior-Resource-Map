@@ -14,6 +14,18 @@ export function authenticateToken(req, res, next) {
     }
 }
 
+export function optionalAuth(req, res, next) {
+    const token = req.cookies?.sc_token;
+    if (token) {
+        try {
+            req.user = jwt.verify(token, process.env.JWT_SECRET || 'seniorcare-secret-key');
+        } catch {
+            // Ignore token verification errors for optional auth
+        }
+    }
+    next();
+}
+
 export function requireRole(...roles) {
     return (req, res, next) => {
         if (!req.user || !roles.includes(req.user.role)) {

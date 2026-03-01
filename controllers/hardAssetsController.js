@@ -1,6 +1,7 @@
 import db from '../db/index.js';
 import { hardAssets, tags, hardAssetTags, users } from '../db/schema.js';
 import { eq, desc, inArray } from 'drizzle-orm';
+import { isAssetVisible } from '../utils/visibility.js';
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -32,16 +33,23 @@ export const getHardAssets = async (req, res) => {
             with: {
                 partner: { columns: { name: true } },
                 tags: { with: { tag: true } },
-                softAssets: true,
+                softAssets: {
+                    with: {
+                        softAsset: true
+                    }
+                },
             },
             orderBy: [desc(hardAssets.updatedAt)],
         });
 
-        const formatted = assets.map(a => ({
-            ...a,
-            partnerName: a.partner?.name,
-            tags: a.tags.map(t => t.tag.name),
-        }));
+        const formatted = assets
+            .filter(a => isAssetVisible(a, req.user))
+            .map(a => ({
+                ...a,
+                partnerName: a.partner?.name,
+                tags: a.tags.map(t => t.tag.name),
+                softAssets: a.softAssets.map(sa => sa.softAsset).filter(sa => isAssetVisible(sa, req.user)),
+            }));
 
         res.json(formatted);
     } catch (err) {
@@ -59,7 +67,11 @@ export const getHardAssetById = async (req, res) => {
                 tags: { with: { tag: true } },
                 softAssets: {
                     with: {
-                        tags: { with: { tag: true } }
+                        softAsset: {
+                            with: {
+                                tags: { with: { tag: true } }
+                            }
+                        }
                     }
                 },
             }
@@ -67,14 +79,18 @@ export const getHardAssetById = async (req, res) => {
 
         if (!asset) return res.status(404).json({ error: 'Not found' });
 
+        if (!isAssetVisible(asset, req.user)) return res.status(404).json({ error: 'Not found' });
+
         const formatted = {
             ...asset,
             partnerName: asset.partner?.name,
             tags: asset.tags.map(t => t.tag.name),
-            softAssets: asset.softAssets.map(sa => ({
-                ...sa,
-                tags: sa.tags.map(t => t.tag.name)
-            }))
+            softAssets: asset.softAssets
+                .map(sa => ({
+                    ...sa.softAsset,
+                    tags: sa.softAsset.tags.map(t => t.tag.name)
+                }))
+                .filter(sa => isAssetVisible(sa, req.user))
         };
 
         res.json(formatted);
@@ -86,7 +102,7 @@ export const getHardAssetById = async (req, res) => {
 
 export const createHardAsset = async (req, res) => {
     try {
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [] } = req.body;
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil } = req.body;
         if (!name || !country || !postalCode || !address) {
             return res.status(400).json({ error: 'name, country, postalCode, address are required' });
         }
@@ -99,10 +115,13 @@ export const createHardAsset = async (req, res) => {
         const result = await db.transaction(async (tx) => {
             const [asset] = await tx.insert(hardAssets).values({
                 partnerId: req.user.id,
-                name, country, postalCode,
+                name, country, postalCode, subCategory: subCategory || 'Places',
                 lat: coords.lat.toString(), lng: coords.lng.toString(),
                 address, phone: phone || null, hours: hours || null, description: description || null,
-                logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || []
+                logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
+                isHidden: isHidden || false,
+                hideFrom: hideFrom ? new Date(hideFrom) : null,
+                hideUntil: hideUntil ? new Date(hideUntil) : null
             }).returning();
 
             for (const t of newTags) {
@@ -135,7 +154,7 @@ export const updateHardAsset = async (req, res) => {
             return res.status(403).json({ error: "Cannot edit another partner's hard asset" });
         }
 
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags } = req.body;
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags, subCategory, isHidden, hideFrom, hideUntil } = req.body;
 
         let lat = existing.lat;
         let lng = existing.lng;
@@ -151,10 +170,14 @@ export const updateHardAsset = async (req, res) => {
         await db.transaction(async (tx) => {
             await tx.update(hardAssets).set({
                 name, country, postalCode, lat, lng, address,
+                subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
                 phone: phone || null, hours: hours || null, description: description || null,
                 logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
                 bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
                 galleryUrls: galleryUrls !== undefined ? galleryUrls : existing.galleryUrls,
+                isHidden: isHidden !== undefined ? isHidden : existing.isHidden,
+                hideFrom: hideFrom !== undefined ? (hideFrom ? new Date(hideFrom) : null) : existing.hideFrom,
+                hideUntil: hideUntil !== undefined ? (hideUntil ? new Date(hideUntil) : null) : existing.hideUntil,
                 updatedAt: new Date()
             }).where(eq(hardAssets.id, id));
 

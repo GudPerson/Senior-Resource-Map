@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 import {
     getHardAssets, getHardAssetById,
     createHardAsset, updateHardAsset, deleteHardAsset
@@ -7,8 +7,8 @@ import {
 
 const router = express.Router();
 
-router.get('/', getHardAssets);
-router.get('/:id', getHardAssetById);
+router.get('/', optionalAuth, getHardAssets);
+router.get('/:id', optionalAuth, getHardAssetById);
 
 // Protected routes
 router.post('/', authenticateToken, createHardAsset);

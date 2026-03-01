@@ -51,7 +51,7 @@ export const updateUserRole = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const { role } = req.body;
-        if (!['admin', 'partner'].includes(role)) {
+        if (!['admin', 'partner', 'user'].includes(role)) {
             return res.status(400).json({ error: 'Invalid role' });
         }
         await db.update(users).set({ role }).where(eq(users.id, id));

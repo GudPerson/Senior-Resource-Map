@@ -36,7 +36,7 @@ export const register = async (req, res) => {
         const passwordHash = await bcrypt.hash(password, 12);
 
         const [user] = await db.insert(users).values({
-            email, passwordHash, name, role: 'partner'
+            email, passwordHash, name, role: req.body.role === 'partner' ? 'partner' : 'user'
         }).returning({
             id: users.id, email: users.email, name: users.name, role: users.role
         });
@@ -52,12 +52,19 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, isPartnerLogin } = req.body;
         const [user] = await db.select().from(users).where(eq(users.email, email));
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+        if (isPartnerLogin === true && user.role === 'user') {
+            return res.status(403).json({ error: 'This login page is for Partners and Admins only.' });
+        }
+        if (isPartnerLogin === false && user.role !== 'user') {
+            return res.status(403).json({ error: 'This login page is for Registered Users only.' });
+        }
 
         const token = generateToken(user);
         setAuthCookie(res, token);
