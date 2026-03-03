@@ -1,4 +1,14 @@
-const BASE = import.meta.env.VITE_API_URL || '/api';
+const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
+    ? import.meta.env.VITE_API_URL.trim()
+    : '';
+
+const BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api';
+
+const BASE_CANDIDATES = Array.from(new Set([
+    BASE,
+    '/api',
+    '/.netlify/functions/api',
+]));
 
 function headers(extra = {}) {
     return {
@@ -8,29 +18,37 @@ function headers(extra = {}) {
 }
 
 async function request(method, path, body) {
-    const res = await fetch(`${BASE}${path}`, {
-        method,
-        headers: headers(),
-        credentials: 'include',
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
-    const contentType = res.headers.get('content-type') || '';
-    const isJson = contentType.includes('application/json');
-    const data = isJson ? await res.json() : await res.text();
+    for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+        const base = BASE_CANDIDATES[i];
+        const res = await fetch(`${base}${path}`, {
+            method,
+            headers: headers(),
+            credentials: 'include',
+            ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        });
+        const contentType = res.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await res.json() : await res.text();
 
-    if (!res.ok) {
-        if (isJson && data?.error) throw new Error(data.error);
-        if (!isJson) {
-            throw new Error('API route misconfigured: received HTML instead of JSON. Check VITE_API_URL and /api rewrites.');
+        if (!res.ok) {
+            if (isJson && data?.error) throw new Error(data.error);
+            // Retry on non-JSON responses to survive rewrite/base URL mismatches.
+            if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
+            if (!isJson) {
+                throw new Error('API route misconfigured: received HTML instead of JSON. Check VITE_API_URL and /api rewrites.');
+            }
+            throw new Error('Request failed');
         }
-        throw new Error('Request failed');
+
+        if (!isJson) {
+            if (i < BASE_CANDIDATES.length - 1) continue;
+            throw new Error('API returned non-JSON response unexpectedly.');
+        }
+
+        return data;
     }
 
-    if (!isJson) {
-        throw new Error('API returned non-JSON response unexpectedly.');
-    }
-
-    return data;
+    throw new Error('API request failed.');
 }
 
 export const api = {
@@ -67,14 +85,33 @@ export const api = {
     uploadMedia: async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch(`${BASE}/upload`, {
-            method: 'POST',
-            credentials: 'include',
-            body: formData, // the browser sets multipart/form-data boundary automatically
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Upload failed');
-        return data.secure_url;
+        for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+            const base = BASE_CANDIDATES[i];
+            const res = await fetch(`${base}/upload`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData, // browser sets multipart/form-data boundary automatically
+            });
+            const contentType = res.headers.get('content-type') || '';
+            const isJson = contentType.includes('application/json');
+            const data = isJson ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                if (isJson && data?.error) throw new Error(data.error);
+                if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
+                if (!isJson) throw new Error('Upload API misconfigured: received HTML instead of JSON.');
+                throw new Error('Upload failed');
+            }
+
+            if (!isJson) {
+                if (i < BASE_CANDIDATES.length - 1) continue;
+                throw new Error('Upload API returned non-JSON response unexpectedly.');
+            }
+
+            return data.secure_url;
+        }
+
+        throw new Error('Upload failed');
     },
 
     // Users (admin + profile)

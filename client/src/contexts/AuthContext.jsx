@@ -1,7 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
-const BASE = import.meta.env.VITE_API_URL || '/api';
+const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
+    ? import.meta.env.VITE_API_URL.trim()
+    : '';
+const BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api';
+const BASE_CANDIDATES = Array.from(new Set([BASE, '/api', '/.netlify/functions/api']));
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -10,16 +14,20 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                const res = await fetch(`${BASE}/auth/me`, {
-                    credentials: 'include'
-                });
-                const contentType = res.headers.get('content-type') || '';
-                if (!contentType.includes('application/json')) {
-                    console.error('Auth session endpoint returned non-JSON response.');
+                for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+                    const res = await fetch(`${BASE_CANDIDATES[i]}/auth/me`, {
+                        credentials: 'include'
+                    });
+                    const contentType = res.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        if (i < BASE_CANDIDATES.length - 1) continue;
+                        console.error('Auth session endpoint returned non-JSON response.');
+                        return;
+                    }
+                    const data = await res.json();
+                    if (data.user) setUser(data.user);
                     return;
                 }
-                const data = await res.json();
-                if (data.user) setUser(data.user);
             } catch (err) {
                 console.error('Session check failed', err);
             } finally {
@@ -38,10 +46,22 @@ export function AuthProvider({ children }) {
 
     async function logout() {
         try {
-            await fetch(`${BASE}/auth/logout`, {
-                method: 'POST',
-                credentials: 'include'
-            });
+            let loggedOut = false;
+            for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+                const res = await fetch(`${BASE_CANDIDATES[i]}/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json') && i < BASE_CANDIDATES.length - 1) {
+                    continue;
+                }
+                loggedOut = true;
+                break;
+            }
+            if (!loggedOut) {
+                console.error('Logout endpoint returned unexpected response.');
+            }
         } catch (err) {
             console.error('Logout request failed', err);
         }
