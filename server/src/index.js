@@ -17,15 +17,47 @@ import adminRoutes from './routes/admin.js';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
     'http://localhost:5173',
     'http://localhost:5174',
     process.env.CLIENT_URL
+].filter(Boolean));
+
+const netlifyUrls = [
+    process.env.URL,
+    process.env.DEPLOY_URL,
+    process.env.DEPLOY_PRIME_URL
 ].filter(Boolean);
+
+function isAllowedOrigin(origin) {
+    if (!origin) return true;
+    if (allowedOrigins.has(origin)) return true;
+
+    try {
+        const originHost = new URL(origin).hostname;
+
+        // Allow exact Netlify hosts for production and deploy contexts.
+        const explicitHosts = netlifyUrls.map((u) => new URL(u).hostname);
+        if (explicitHosts.includes(originHost)) return true;
+
+        // Allow branch deploy hosts like "<branch>--<site>.netlify.app".
+        const prodHost = process.env.URL ? new URL(process.env.URL).hostname : '';
+        if (prodHost.endsWith('.netlify.app')) {
+            const siteName = prodHost.replace('.netlify.app', '');
+            if (originHost === `${siteName}.netlify.app` || originHost.endsWith(`--${siteName}.netlify.app`)) {
+                return true;
+            }
+        }
+    } catch {
+        return false;
+    }
+
+    return false;
+}
 
 app.use(cors({
     origin: (origin, cb) => {
-        if (!origin || allowedOrigins.includes(origin)) cb(null, true);
+        if (isAllowedOrigin(origin)) cb(null, true);
         else cb(new Error('Not allowed by CORS'));
     },
     credentials: true
@@ -69,6 +101,13 @@ app.use('/.netlify/functions/api/users', userRoutes);
 app.use('/.netlify/functions/api/favorites', favoritesRoutes);
 app.use('/.netlify/functions/api/admin', adminRoutes);
 app.get('/.netlify/functions/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+app.use((err, req, res, next) => {
+    if (err?.message === 'Not allowed by CORS') {
+        return res.status(403).json({ error: 'Origin not allowed by CORS' });
+    }
+    return next(err);
+});
 
 // Only start listening when running directly (not as a serverless function)
 if (process.env.NETLIFY !== 'true') {
