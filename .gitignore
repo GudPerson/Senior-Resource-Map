@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# env
+.env
+*.env
+client/.env
+server/.env
+
+# Python virtual env
+.venv/
+server/.venv/
+
+# database files
+*.db
+*.db-shm
+*.db-wal
+server/*.db
+server/*.db-shm
+server/*.db-wal
+
+# build output
+dist/
+client/dist/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
