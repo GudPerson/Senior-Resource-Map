@@ -1,0 +1,301 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-scale: 1;
+    /* Light mode default colors */
+    --color-bg: #f8fafc;
+    --color-surface: #ffffff;
+    --color-surface-hover: #f1f5f9;
+    --color-text: #1e293b;
+    --color-text-secondary: #64748b;
+    --color-text-muted: #94a3b8;
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e1;
+    --color-brand: #2563eb;
+    --color-brand-light: #eff6ff;
+    --color-brand-hover: #1d4ed8;
+    --color-input-bg: #f8fafc;
+    --color-badge-bg: #f1f5f9;
+    --color-badge-text: #475569;
+    --color-nav-bg: #ffffff;
+    --color-card-shadow: rgba(0, 0, 0, 0.04);
+    --color-drawer-bg: #ffffff;
+    --color-overlay: rgba(0, 0, 0, 0.2);
+  }
+
+  html {
+    font-size: calc(16px * var(--font-scale));
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ───────────────── HIGH-CONTRAST MODE ───────────────── */
+  html.high-contrast {
+    --color-bg: #0a0a0a;
+    --color-surface: #141414;
+    --color-surface-hover: #1f1f1f;
+    --color-text: #fef08a;
+    --color-text-secondary: #fde047;
+    --color-text-muted: #ca8a04;
+    --color-border: #854d0e;
+    --color-border-strong: #a16207;
+    --color-brand: #facc15;
+    --color-brand-light: #1c1917;
+    --color-brand-hover: #eab308;
+    --color-input-bg: #1c1917;
+    --color-badge-bg: #1c1917;
+    --color-badge-text: #fef08a;
+    --color-nav-bg: #0a0a0a;
+    --color-card-shadow: rgba(250, 204, 21, 0.08);
+    --color-drawer-bg: #141414;
+    --color-overlay: rgba(0, 0, 0, 0.7);
+  }
+
+  /* Apply high contrast to everything via CSS variables */
+  html.high-contrast body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  html.high-contrast * {
+    border-color: var(--color-border) !important;
+  }
+
+  html.high-contrast input,
+  html.high-contrast select,
+  html.high-contrast textarea {
+    background-color: var(--color-input-bg) !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border-strong) !important;
+  }
+
+  html.high-contrast input::placeholder {
+    color: var(--color-text-muted) !important;
+  }
+
+  html.high-contrast button {
+    color: var(--color-text);
+  }
+
+  html.high-contrast a {
+    color: var(--color-brand);
+  }
+
+  html.high-contrast .leaflet-control-attribution {
+    background: var(--color-surface) !important;
+    color: var(--color-text-muted) !important;
+  }
+
+  html.high-contrast .leaflet-popup-content-wrapper {
+    background: var(--color-surface) !important;
+    color: var(--color-text) !important;
+  }
+
+  html.high-contrast .leaflet-popup-tip {
+    background: var(--color-surface) !important;
+  }
+}
+
+@layer components {
+
+  /* ───────────────── BUTTONS ───────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-base transition-all min-h-[44px] min-w-[44px] focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer;
+    background-color: var(--color-brand);
+    color: var(--color-surface);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-brand-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-base transition-all min-h-[44px] focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-surface-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors min-h-[44px] focus:outline-none cursor-pointer;
+  }
+
+  /* ───────────────── CARD ───────────────── */
+  .card {
+    @apply rounded-2xl p-5;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 1px 3px var(--color-card-shadow), 0 1px 2px var(--color-card-shadow);
+    transition: all 0.2s ease;
+  }
+
+  .card:hover {
+    box-shadow: 0 4px 16px var(--color-card-shadow), 0 2px 6px var(--color-card-shadow);
+  }
+
+  /* ───────────────── INPUT FIELD ───────────────── */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-offset-0 min-h-[44px] transition-all;
+    background-color: var(--color-input-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+  }
+
+  .input-field::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .input-field:focus {
+    border-color: var(--color-brand);
+    background-color: var(--color-surface);
+    --tw-ring-color: var(--color-brand);
+  }
+
+  /* ───────────────── NAVIGATION (high-contrast aware) ───────────────── */
+  .hc-nav {
+    background-color: var(--color-nav-bg) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  /* ───────────────── BADGES ───────────────── */
+  .badge-healthcare {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-healthcare-light text-healthcare-dark text-sm font-semibold;
+  }
+
+  .badge-fitness {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-fitness-light text-fitness-dark text-sm font-semibold;
+  }
+
+  .badge-social {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-social-light text-social-dark text-sm font-semibold;
+  }
+
+  .badge-promo {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full bg-promo-light text-promo-dark text-sm font-semibold;
+  }
+}
+
+/* ───────────────── MARKER CLUSTERS ───────────────── */
+.marker-cluster-small {
+  background-color: rgba(181, 226, 140, 0.6);
+}
+
+.marker-cluster-small div {
+  background-color: rgba(110, 204, 57, 0.6);
+}
+
+.marker-cluster-medium {
+  background-color: rgba(241, 211, 87, 0.6);
+}
+
+.marker-cluster-medium div {
+  background-color: rgba(240, 194, 12, 0.6);
+}
+
+.marker-cluster-large {
+  background-color: rgba(253, 156, 115, 0.6);
+}
+
+.marker-cluster-large div {
+  background-color: rgba(241, 128, 23, 0.6);
+}
+
+.marker-cluster {
+  background-clip: padding-box;
+  border-radius: 20px;
+}
+
+.marker-cluster div {
+  width: 30px;
+  height: 30px;
+  margin-left: 5px;
+  margin-top: 5px;
+  text-align: center;
+  border-radius: 15px;
+  font: 12px "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: #333;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-cluster span {
+  line-height: 30px;
+}
+
+/* ───────────────── PULSE ANIMATION ───────────────── */
+.pulse-animation {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+/* ───────────────── MOBILE DRAWER IMPROVEMENTS ───────────────── */
+[vaul-drawer-wrapper] {
+  touch-action: auto !important;
+}
+
+/* Smooth mobile drawer snap */
+[vaul-drawer] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Subtle slide-up animation for mobile drawer content */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-card-enter {
+  animation: slideUp 0.3s ease forwards;
+}
+
+/* Hide scrollbar for cleaner mobile look */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

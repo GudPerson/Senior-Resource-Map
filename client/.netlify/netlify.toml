@@ -1,0 +1,56 @@
+redirectsOrigin = "config"
+plugins = []
+functionsDirectory = "/Users/sweetbuns/.gemini/antigravity/scratch/seniorcare-connect/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
+headers = []
+
+[functions]
+
+[functions."*"]
+included_files = ["server/**"]
+node_bundler = "esbuild"
+
+[build]
+publish = "/Users/sweetbuns/.gemini/antigravity/scratch/seniorcare-connect/client/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "cd client && npm run build"
+functions = "/Users/sweetbuns/.gemini/antigravity/scratch/seniorcare-connect/netlify/functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/api/api/:splat"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

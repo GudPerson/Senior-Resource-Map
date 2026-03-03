@@ -1,0 +1,732 @@
+[
+  {
+    "name": "Lions Befrienders Active Ageing Centre (Clementi)",
+    "lat": 1.309,
+    "lng": 103.7686,
+    "address": "Blk 420A Clementi Ave 1",
+    "country": "SG",
+    "postalCode": "121420",
+    "phone": "+65 6777 5881",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated active ageing centre located in Clementi, managed by Lions Befrienders Service Association.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Active Ageing Centre"
+    ],
+    "programs": [
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      },
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "NTUC Health Senior Day Care (Jurong Spring)",
+    "lat": 1.3482,
+    "lng": 103.7201,
+    "address": "Blk 527 Jurong West St 52",
+    "country": "SG",
+    "postalCode": "640527",
+    "phone": "+65 6316 9331",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated day care centre located in Jurong West, managed by NTUC Health Co-operative.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Day Care Centre"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      },
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "AWWA Dementia Day Care Centre (Ang Mo Kio)",
+    "lat": 1.3739,
+    "lng": 103.8502,
+    "address": "Blk 123 Ang Mo Kio Ave 6",
+    "country": "SG",
+    "postalCode": "560123",
+    "phone": "+65 6511 5200",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated specialised care located in Ang Mo Kio, managed by Asian Women's Welfare Association.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Specialised Care"
+    ],
+    "programs": [
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      },
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "St. Luke's ElderCare (Hougang)",
+    "lat": 1.3585,
+    "lng": 103.886,
+    "address": "212 Hougang Street 21",
+    "country": "SG",
+    "postalCode": "530212",
+    "phone": "+65 6282 1012",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated eldercare centre located in Hougang, managed by St. Luke's ElderCare Ltd.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "ElderCare Centre"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "TOUCH Active Ageing (Toa Payoh)",
+    "lat": 1.3323,
+    "lng": 103.8465,
+    "address": "Blk 149 Toa Payoh Lorong 1",
+    "country": "SG",
+    "postalCode": "310149",
+    "phone": "+65 6251 3432",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated active ageing centre located in Toa Payoh, managed by TOUCH Community Services.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Active Ageing Centre"
+    ],
+    "programs": [
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Fei Yue Active Ageing Centre (Bukit Batok)",
+    "lat": 1.3456,
+    "lng": 103.7432,
+    "address": "Blk 183 Bukit Batok West Ave 8",
+    "country": "SG",
+    "postalCode": "650183",
+    "phone": "+65 6561 2341",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated active ageing centre located in Bukit Batok, managed by Fei Yue Community Services.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Active Ageing Centre"
+    ],
+    "programs": [
+      {
+        "name": "Community Health Screening",
+        "description": "Subsidised blood pressure, cholesterol, and diabetes screening.",
+        "schedule": "First Monday of the month",
+        "tags": [
+          "Healthcare",
+          "Screening"
+        ]
+      },
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      },
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "SARAH Seniors Activity Centre",
+    "lat": 1.2801,
+    "lng": 103.8275,
+    "address": "Blk 105 Jalan Bukit Merah",
+    "country": "SG",
+    "postalCode": "160105",
+    "phone": "+65 6271 1230",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated activity centre located in Bukit Merah, managed by Presbyterian Community Services.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Activity Centre"
+    ],
+    "programs": [
+      {
+        "name": "Rummikub & Mahjong Kaki",
+        "description": "Weekly gathering for mental stimulation and socialization.",
+        "schedule": "Fridays, 2:00 PM",
+        "tags": [
+          "Social",
+          "Games",
+          "Dementia Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Thye Hua Kwan Senior Care Centre (MacPherson)",
+    "lat": 1.3289,
+    "lng": 103.8856,
+    "address": "Blk 91 MacPherson Ave",
+    "country": "SG",
+    "postalCode": "360091",
+    "phone": "+65 6745 5431",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated senior care centre located in MacPherson, managed by Thye Hua Kwan Moral Charities.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Senior Care Centre"
+    ],
+    "programs": [
+      {
+        "name": "Rummikub & Mahjong Kaki",
+        "description": "Weekly gathering for mental stimulation and socialization.",
+        "schedule": "Fridays, 2:00 PM",
+        "tags": [
+          "Social",
+          "Games",
+          "Dementia Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Vanguard Healthcare (Tampines Care Home)",
+    "lat": 1.3468,
+    "lng": 103.9515,
+    "address": "299 Tampines Street 22",
+    "country": "SG",
+    "postalCode": "529299",
+    "phone": "+65 6788 1290",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated nursing home located in Tampines, managed by Vanguard Healthcare.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Nursing Home"
+    ],
+    "programs": [
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Care Corner Active Ageing Centre (Woodlands)",
+    "lat": 1.432,
+    "lng": 103.7915,
+    "address": "Blk 567 Woodlands Drive 16",
+    "country": "SG",
+    "postalCode": "730567",
+    "phone": "+65 6363 4321",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated active ageing centre located in Woodlands, managed by Care Corner Singapore.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Active Ageing Centre"
+    ],
+    "programs": [
+      {
+        "name": "Rummikub & Mahjong Kaki",
+        "description": "Weekly gathering for mental stimulation and socialization.",
+        "schedule": "Fridays, 2:00 PM",
+        "tags": [
+          "Social",
+          "Games",
+          "Dementia Prevention"
+        ]
+      },
+      {
+        "name": "Community Health Screening",
+        "description": "Subsidised blood pressure, cholesterol, and diabetes screening.",
+        "schedule": "First Monday of the month",
+        "tags": [
+          "Healthcare",
+          "Screening"
+        ]
+      },
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Active Ageing Hub (Tiong Bahru)",
+    "lat": 1.2858,
+    "lng": 103.8315,
+    "address": "Blk 23 Tiong Bahru Rd",
+    "country": "SG",
+    "postalCode": "163023",
+    "phone": "+65 6222 1345",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated active ageing hub located in Tiong Bahru, managed by Henderson-Dawson Constituency.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Active Ageing Hub"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sree Narayana Mission Senior Care Centre (Yishun)",
+    "lat": 1.4294,
+    "lng": 103.835,
+    "address": "12 Yishun Ave 5",
+    "country": "SG",
+    "postalCode": "768392",
+    "phone": "+65 6752 5214",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated senior care centre located in Yishun, managed by Sree Narayana Mission.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Senior Care Centre"
+    ],
+    "programs": [
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Metta Day Rehabilitation Centre for the Elderly",
+    "lat": 1.3423,
+    "lng": 103.9518,
+    "address": "32 Simei Street 1",
+    "country": "SG",
+    "postalCode": "529950",
+    "phone": "+65 6580 4688",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated rehabilitation centre located in Simei, managed by Metta Welfare Association.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Rehabilitation Centre"
+    ],
+    "programs": [
+      {
+        "name": "Rummikub & Mahjong Kaki",
+        "description": "Weekly gathering for mental stimulation and socialization.",
+        "schedule": "Fridays, 2:00 PM",
+        "tags": [
+          "Social",
+          "Games",
+          "Dementia Prevention"
+        ]
+      },
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "NTUC Health Nursing Home (Geylang East)",
+    "lat": 1.3185,
+    "lng": 103.8872,
+    "address": "25 Geylang East Central",
+    "country": "SG",
+    "postalCode": "389708",
+    "phone": "+65 6316 2341",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated nursing home located in Geylang, managed by NTUC Health Co-operative.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Nursing Home"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      },
+      {
+        "name": "Community Health Screening",
+        "description": "Subsidised blood pressure, cholesterol, and diabetes screening.",
+        "schedule": "First Monday of the month",
+        "tags": [
+          "Healthcare",
+          "Screening"
+        ]
+      },
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Lions Home for the Elders (Bishan)",
+    "lat": 1.3495,
+    "lng": 103.8505,
+    "address": "9 Bishan Street 13",
+    "country": "SG",
+    "postalCode": "579804",
+    "phone": "+65 6258 1234",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated nursing home located in Bishan, managed by Lions Clubs of Singapore.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Nursing Home"
+    ],
+    "programs": [
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      },
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "O'Joy Care Services",
+    "lat": 1.3135,
+    "lng": 103.8715,
+    "address": "Blk 5 Upper Boon Keng Road",
+    "country": "SG",
+    "postalCode": "380005",
+    "phone": "+65 6386 2311",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated counselling centre located in Kallang, managed by O'Joy Limited.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Counselling Centre"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      },
+      {
+        "name": "Rummikub & Mahjong Kaki",
+        "description": "Weekly gathering for mental stimulation and socialization.",
+        "schedule": "Fridays, 2:00 PM",
+        "tags": [
+          "Social",
+          "Games",
+          "Dementia Prevention"
+        ]
+      },
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sunlove Senior Activity Centre",
+    "lat": 1.3255,
+    "lng": 103.9235,
+    "address": "Blk 72 Chai Chee Street",
+    "country": "SG",
+    "postalCode": "460072",
+    "phone": "+65 6445 1255",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated activity centre located in Bedok, managed by Sunlove Abode for Intellectually-Infirmed Ltd.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Activity Centre"
+    ],
+    "programs": [
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      },
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Radin Mas Active Ageing Centre",
+    "lat": 1.2825,
+    "lng": 103.822,
+    "address": "Blk 123 Bukit Merah View",
+    "country": "SG",
+    "postalCode": "150123",
+    "phone": "+65 6272 5432",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated active ageing centre located in Bukit Merah, managed by Radin Mas Constituency.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Active Ageing Centre"
+    ],
+    "programs": [
+      {
+        "name": "Morning Tai Chi",
+        "description": "Gentle Tai Chi session focusing on mobility and fall prevention.",
+        "schedule": "Every Tuesday, 8:00 AM",
+        "tags": [
+          "Fitness",
+          "Wellness",
+          "Fall Prevention"
+        ]
+      },
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      },
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Orange Valley Nursing Home (Marsiling)",
+    "lat": 1.4445,
+    "lng": 103.7758,
+    "address": "20 Marsiling Lane",
+    "country": "SG",
+    "postalCode": "739152",
+    "phone": "+65 6363 1256",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated nursing home located in Woodlands, managed by Orange Valley Healthcare.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Nursing Home"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      },
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      },
+      {
+        "name": "Rummikub & Mahjong Kaki",
+        "description": "Weekly gathering for mental stimulation and socialization.",
+        "schedule": "Fridays, 2:00 PM",
+        "tags": [
+          "Social",
+          "Games",
+          "Dementia Prevention"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Ren Ci @ Ang Mo Kio",
+    "lat": 1.3715,
+    "lng": 103.8485,
+    "address": "Ang Mo Kio Ave 8",
+    "country": "SG",
+    "postalCode": "569812",
+    "phone": "+65 6355 1321",
+    "hours": "Mon-Fri 9am-6pm",
+    "description": "A dedicated nursing home located in Ang Mo Kio, managed by Ren Ci Hospital.",
+    "tags": [
+      "Senior Care",
+      "Singapore",
+      "Nursing Home"
+    ],
+    "programs": [
+      {
+        "name": "Kopitiam Kopi Talk",
+        "description": "Casual morning coffee sessions to chat and make friends.",
+        "schedule": "Wednesdays, 10:30 AM",
+        "tags": [
+          "Social"
+        ]
+      },
+      {
+        "name": "Digital Literacy for Seniors",
+        "description": "Learn how to use Singpass, WhatsApp, and Zoom.",
+        "schedule": "Thursdays, 2:00 PM - 4:00 PM",
+        "tags": [
+          "Education",
+          "Technology",
+          "SkillsFuture"
+        ]
+      },
+      {
+        "name": "Community Health Screening",
+        "description": "Subsidised blood pressure, cholesterol, and diabetes screening.",
+        "schedule": "First Monday of the month",
+        "tags": [
+          "Healthcare",
+          "Screening"
+        ]
+      }
+    ]
+  }
+]
