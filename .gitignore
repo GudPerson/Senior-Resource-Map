@@ -29,3 +29,6 @@ client/dist/
 .DS_Store
 .vscode/
 .idea/
+
+# tooling artifacts
+.playwright-cli/
