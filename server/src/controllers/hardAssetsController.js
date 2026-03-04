@@ -8,8 +8,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Guard against undefined import.meta.url in bundled serverless environments (Netlify esbuild)
+let __filename, __dirname;
+try {
+    __filename = fileURLToPath(import.meta.url);
+    __dirname = path.dirname(__filename);
+} catch {
+    __dirname = process.cwd();
+}
 const SNAPSHOT_PATH = path.join(__dirname, '../../scripts/sg_senior_facilities_full.json');
 
 const COUNTRY_NAMES = {
