@@ -3,17 +3,26 @@ import { softAssets, hardAssets, tags, softAssetTags, users, softAssetLocations 
 import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
+import { rebuildMapCache } from '../utils/cacheBuilder.js';
 
 export const getSoftAssets = async (req, res) => {
     try {
-        const assets = await db.query.softAssets.findMany({
+        const options = {
             with: {
                 partner: { columns: { name: true } },
                 tags: { with: { tag: true } },
                 locations: { with: { hardAsset: true } },
             },
             orderBy: [desc(softAssets.updatedAt)],
-        });
+        };
+
+        if (req.user?.role === 'regional_admin' || req.user?.role === 'partner') {
+            if (req.user.subregionId) {
+                options.where = eq(softAssets.subregionId, req.user.subregionId);
+            }
+        }
+
+        const assets = await db.query.softAssets.findMany(options);
 
         const formatted = assets
             .filter(a => isAssetVisible(a, req.user))
@@ -77,9 +86,16 @@ export const createSoftAsset = async (req, res) => {
             hardAssetIds = [parseInt(locationId)].filter(id => !isNaN(id));
         }
 
+        // Automatic subregion mapping for regional_admin and partner
+        let finalSubregionId = req.body.subregionId;
+        if (req.user.role === 'regional_admin' || req.user.role === 'partner') {
+            finalSubregionId = req.user.subregionId;
+        }
+
         const result = await db.transaction(async (tx) => {
             const [asset] = await tx.insert(softAssets).values({
                 partnerId: req.user.id,
+                subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
                 name, subCategory: subCategory || 'Programmes', description: description || null, schedule: schedule || null,
                 logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
                 isMemberOnly: isMemberOnly || false,
@@ -99,6 +115,7 @@ export const createSoftAsset = async (req, res) => {
             return asset;
         });
 
+        await rebuildMapCache(req.body.subregionId || req.user.subregionId);
         res.status(201).json(result);
     } catch (err) {
         console.error(err);
@@ -112,8 +129,12 @@ export const updateSoftAsset = async (req, res) => {
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
         if (!existing) return res.status(404).json({ error: 'Not found' });
-        if (req.user.role !== 'admin' && existing.partnerId !== req.user.id) {
-            return res.status(403).json({ error: "Cannot edit another partner's soft asset" });
+        const isOwner = existing.partnerId === req.user.id;
+        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
+        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+
+        if (!isOwner && !isSuper && !isRegional) {
+            return res.status(403).json({ error: "Insufficient permissions to edit this asset" });
         }
 
         const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags, isMemberOnly, isHidden, hideFrom, hideUntil } = req.body;
@@ -153,6 +174,7 @@ export const updateSoftAsset = async (req, res) => {
             }
         });
 
+        await rebuildMapCache(existing.subregionId || req.user.subregionId);
         res.json({ success: true, id });
     } catch (err) {
         console.error(err);
@@ -166,11 +188,16 @@ export const deleteSoftAsset = async (req, res) => {
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
         if (!existing) return res.status(404).json({ error: 'Not found' });
-        if (req.user.role !== 'admin' && existing.partnerId !== req.user.id) {
-            return res.status(403).json({ error: "Cannot delete another partner's soft asset" });
+        const isOwner = existing.partnerId === req.user.id;
+        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
+        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+
+        if (!isOwner && !isSuper && !isRegional) {
+            return res.status(403).json({ error: "Insufficient permissions to delete this asset" });
         }
 
         await db.update(softAssets).set({ isDeleted: true }).where(eq(softAssets.id, id));
+        await rebuildMapCache(existing.subregionId || req.user.subregionId);
         res.json({ success: true });
     } catch (err) {
         console.error(err);

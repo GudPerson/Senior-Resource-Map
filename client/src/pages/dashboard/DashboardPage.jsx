@@ -38,9 +38,9 @@ export default function DashboardPage() {
                         </div>
                         <div className="min-w-0">
                             <p className="font-bold text-slate-900 text-sm truncate">{user?.name}</p>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${user?.role === 'admin' ? 'bg-red-100 text-red-700' : user?.role === 'user' ? 'bg-slate-100 text-slate-700' : 'bg-brand-100 text-brand-700'
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${user?.role === 'super_admin' ? 'bg-red-100 text-red-700' : user?.role === 'regional_admin' ? 'bg-orange-100 text-orange-700' : user?.role === 'partner' ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-700'
                                 }`}>
-                                {user?.role === 'admin' ? '⚡ Admin' : user?.role === 'user' ? '👤 User' : '🤝 Partner'}
+                                {user?.role === 'super_admin' ? '⚡ Super Admin' : user?.role === 'regional_admin' ? '🛡️ Reg. Admin' : user?.role === 'partner' ? '🤝 Partner' : '👤 User'}
                             </span>
                         </div>
                     </div>
@@ -50,7 +50,7 @@ export default function DashboardPage() {
                 <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Overview" id="dash-overview" />
                 <SidebarLink to="/dashboard/resources" icon={BookOpen} label={user?.role === 'user' ? 'My Favorites' : 'My Resources'} id="dash-resources" />
                 <SidebarLink to="/dashboard/profile" icon={User} label="Profile" id="dash-profile" />
-                {user?.role === 'admin' && (
+                {['super_admin', 'regional_admin'].includes(user?.role) && (
                     <SidebarLink to="/dashboard/admin" icon={Shield} label="Admin" id="dash-admin" />
                 )}
 

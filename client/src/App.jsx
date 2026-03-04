@@ -14,7 +14,8 @@ import ResourcePage from './pages/ResourcePage.jsx';
 function ProtectedRoute({ children, requireAdmin }) {
     const { user, isAuth } = useAuth();
     if (!isAuth) return <Navigate to="/login" replace />;
-    if (requireAdmin && user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
+    const adminRoles = ['super_admin', 'regional_admin'];
+    if (requireAdmin && !adminRoles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
     return children;
 }
 

@@ -1,21 +1,32 @@
 import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-export const roleEnum = pgEnum('role', ['admin', 'partner', 'user']);
+export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
+
+export const subregions = pgTable('subregions', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull().unique(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
+  username: varchar('username', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  role: roleEnum('role').notNull().default('user'),
+  role: roleEnum('role').notNull().default('standard'),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   phone: varchar('phone', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+
 export const hardAssets = pgTable('hard_assets', {
   id: serial('id').primaryKey(),
   partnerId: integer('partner_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
   subCategory: varchar('sub_category', { length: 50 }).notNull().default('Active Ageing Centres'),
   lat: decimal('lat', { precision: 10, scale: 7 }).notNull(),
@@ -39,6 +50,7 @@ export const hardAssets = pgTable('hard_assets', {
 export const softAssets = pgTable('soft_assets', {
   id: serial('id').primaryKey(),
   partnerId: integer('partner_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
   subCategory: varchar('sub_category', { length: 50 }).notNull().default('Programmes'),
   description: text('description'),
@@ -53,6 +65,7 @@ export const softAssets = pgTable('soft_assets', {
   isDeleted: boolean('is_deleted').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
 
 export const userFavorites = pgTable('user_favorites', {
   id: serial('id').primaryKey(),

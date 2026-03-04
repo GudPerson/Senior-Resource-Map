@@ -1,8 +1,16 @@
 import db from '../db/index.js';
 import { hardAssets, tags, hardAssetTags, users } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { rebuildMapCache } from '../utils/cacheBuilder.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SNAPSHOT_PATH = path.join(__dirname, '../../scripts/sg_senior_facilities_full.json');
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -30,7 +38,19 @@ async function geocode(postalCode, country) {
 
 export const getHardAssets = async (req, res) => {
     try {
-        const assets = await db.query.hardAssets.findMany({
+        // GUEST ACCESS: Serve from static snapshot to avoid cold starts
+        if (req.user?.role === 'guest') {
+            if (fs.existsSync(SNAPSHOT_PATH)) {
+                try {
+                    const data = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
+                    return res.json(data);
+                } catch (e) {
+                    console.error('Error reading snapshot:', e);
+                }
+            }
+        }
+
+        const options = {
             with: {
                 partner: { columns: { name: true } },
                 tags: { with: { tag: true } },
@@ -41,7 +61,16 @@ export const getHardAssets = async (req, res) => {
                 },
             },
             orderBy: [desc(hardAssets.updatedAt)],
-        });
+        };
+
+        // SCOPING: If user is regional_admin or partner, force filter to their subregion
+        if (req.user?.role === 'regional_admin' || req.user?.role === 'partner') {
+            if (req.user.subregionId) {
+                options.where = eq(hardAssets.subregionId, req.user.subregionId);
+            }
+        }
+
+        const assets = await db.query.hardAssets.findMany(options);
 
         const formatted = assets
             .filter(a => isAssetVisible(a, req.user))
@@ -61,8 +90,9 @@ export const getHardAssets = async (req, res) => {
 
 export const getHardAssetById = async (req, res) => {
     try {
+        const id = parseInt(req.params.id);
         const asset = await db.query.hardAssets.findFirst({
-            where: eq(hardAssets.id, parseInt(req.params.id)),
+            where: eq(hardAssets.id, id),
             with: {
                 partner: { columns: { name: true } },
                 tags: { with: { tag: true } },
@@ -79,8 +109,12 @@ export const getHardAssetById = async (req, res) => {
         });
 
         if (!asset) return res.status(404).json({ error: 'Not found' });
-
         if (!isAssetVisible(asset, req.user)) return res.status(404).json({ error: 'Not found' });
+
+        // Scoping check for regional_admin
+        if (req.subregionScope && asset.subregionId !== req.subregionScope) {
+            return res.status(403).json({ error: 'Asset belongs to another subregion' });
+        }
 
         const formatted = {
             ...asset,
@@ -103,22 +137,32 @@ export const getHardAssetById = async (req, res) => {
 
 export const createHardAsset = async (req, res) => {
     try {
-        if (req.user.role === 'user') {
-            return res.status(403).json({ error: 'Only partners and admins can create resources' });
+        const creator = req.user;
+        if (creator.role === 'standard' || creator.role === 'guest') {
+            return res.status(403).json({ error: 'Insufficient permissions to create resources' });
         }
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil } = req.body;
+
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil, subregionId } = req.body;
+
         if (!name || !country || !postalCode || !address) {
             return res.status(400).json({ error: 'name, country, postalCode, address are required' });
         }
 
+        // Automatic subregion mapping for regional_admin and partner
+        let finalSubregionId = subregionId;
+        if (creator.role === 'regional_admin' || creator.role === 'partner') {
+            finalSubregionId = creator.subregionId;
+        }
+
         const coords = await geocode(postalCode, country);
         if (!coords) {
-            return res.status(400).json({ error: `Could not find location for postal code "${postalCode}" in "${country}". Please check and try again.` });
+            return res.status(400).json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` });
         }
 
         const result = await db.transaction(async (tx) => {
             const [asset] = await tx.insert(hardAssets).values({
-                partnerId: req.user.id,
+                partnerId: creator.id,
+                subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
                 name, country, postalCode, subCategory: subCategory || 'Places',
                 lat: coords.lat.toString(), lng: coords.lng.toString(),
                 address, phone: phone || null, hours: hours || null, description: description || null,
@@ -132,6 +176,7 @@ export const createHardAsset = async (req, res) => {
             return asset;
         });
 
+        await rebuildMapCache(req.body.subregionId || req.user.subregionId);
         res.status(201).json(result);
     } catch (err) {
         console.error(err);
@@ -145,11 +190,17 @@ export const updateHardAsset = async (req, res) => {
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
         if (!existing) return res.status(404).json({ error: 'Not found' });
-        if (req.user.role !== 'admin' && existing.partnerId !== req.user.id) {
-            return res.status(403).json({ error: "Cannot edit another partner's hard asset" });
+
+        // Authorization check
+        const isOwner = existing.partnerId === req.user.id;
+        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
+        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+
+        if (!isOwner && !isSuper && !isRegional) {
+            return res.status(403).json({ error: "Insufficient permissions to edit this asset" });
         }
 
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags, subCategory, isHidden, hideFrom, hideUntil } = req.body;
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags, subCategory, isHidden, hideFrom, hideUntil, subregionId } = req.body;
 
         let lat = existing.lat;
         let lng = existing.lng;
@@ -166,6 +217,7 @@ export const updateHardAsset = async (req, res) => {
             await tx.update(hardAssets).set({
                 name, country, postalCode, lat, lng, address,
                 subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
+                subregionId: (isSuper && subregionId !== undefined) ? subregionId : existing.subregionId,
                 phone: phone || null, hours: hours || null, description: description || null,
                 logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
                 bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
@@ -181,6 +233,7 @@ export const updateHardAsset = async (req, res) => {
             }
         });
 
+        await rebuildMapCache(req.body.subregionId || existing.subregionId || req.user.subregionId);
         res.json({ success: true, id });
     } catch (err) {
         console.error(err);
@@ -194,11 +247,17 @@ export const deleteHardAsset = async (req, res) => {
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
         if (!existing) return res.status(404).json({ error: 'Not found' });
-        if (req.user.role !== 'admin' && existing.partnerId !== req.user.id) {
-            return res.status(403).json({ error: "Cannot delete another partner's hard asset" });
+
+        const isOwner = existing.partnerId === req.user.id;
+        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
+        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+
+        if (!isOwner && !isSuper && !isRegional) {
+            return res.status(403).json({ error: "Insufficient permissions to delete this asset" });
         }
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
+        await rebuildMapCache(existing.subregionId || req.user.subregionId);
         res.json({ success: true });
     } catch (err) {
         console.error(err);

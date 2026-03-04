@@ -77,6 +77,11 @@ export const api = {
     createSubCategory: (body) => request('POST', '/sub-categories', body),
     deleteSubCategory: (id) => request('DELETE', `/sub-categories/${id}`),
 
+    // Subregions
+    getSubregions: () => request('GET', '/subregions'),
+    createSubregion: (body) => request('POST', '/subregions', body),
+    deleteSubregion: (id) => request('DELETE', `/subregions/${id}`),
+
     // Admin
     exportFullDB: () => request('GET', '/admin/export'),
     importCSV: (body) => request('POST', '/admin/import', body),
@@ -116,7 +121,10 @@ export const api = {
 
     // Users (admin + profile)
     getUsers: () => request('GET', '/users'),
+    createUser: (body) => request('POST', '/users', body),
+    bulkCreateUsers: (body) => request('POST', '/users/bulk', body),
     updateRole: (id, role) => request('PUT', `/users/${id}/role`, { role }),
+
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),
 
@@ -135,4 +143,7 @@ export const api = {
             ...soft.map(s => ({ ...s, category: 'Offerings', address: '— (Service/Program)' }))
         ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     },
+
+    // Public API
+    getMapCache: (subregionId = 'all') => request('GET', `/public/map-cache/${subregionId}`),
 };

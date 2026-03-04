@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth.js';
+import { authenticateToken, optionalAuth, authorize } from '../middleware/auth.js';
 import {
     getSoftAssets, getSoftAssetById,
     createSoftAsset, updateSoftAsset, deleteSoftAsset
@@ -11,8 +11,8 @@ router.get('/', optionalAuth, getSoftAssets);
 router.get('/:id', optionalAuth, getSoftAssetById);
 
 // Protected routes — partner/admin only
-router.post('/', authenticateToken, requireRole('partner', 'admin'), createSoftAsset);
-router.put('/:id', authenticateToken, requireRole('partner', 'admin'), updateSoftAsset);
-router.delete('/:id', authenticateToken, requireRole('partner', 'admin'), deleteSoftAsset);
+router.post('/', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), createSoftAsset);
+router.put('/:id', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), updateSoftAsset);
+router.delete('/:id', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), deleteSoftAsset);
 
 export default router;

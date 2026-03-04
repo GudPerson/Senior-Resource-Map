@@ -21,9 +21,13 @@ export default function AuthPage({ isPartner = false }) {
         setError('');
         setLoading(true);
         try {
+            const loginPayload = isPartner
+                ? { username: form.username, password: form.password, isPartnerLogin: true }
+                : { email: form.email, password: form.password, isPartnerLogin: false };
+
             const res = tab === 'login'
-                ? await api.login({ email: form.email, password: form.password, isPartnerLogin: isPartner })
-                : await api.register({ email: form.email, password: form.password, name: form.name, role: isPartner ? 'partner' : 'user' });
+                ? await api.login(loginPayload)
+                : await api.register({ email: form.email, password: form.password, name: form.name, role: 'user' });
             login(res.user);
             navigate('/dashboard');
         } catch (err) {
@@ -64,20 +68,22 @@ export default function AuthPage({ isPartner = false }) {
                     <p className="text-slate-500 mt-1">{isPartner ? 'Access your partner or admin account' : 'Access your user account'}</p>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex bg-slate-100 rounded-xl p-1 mb-6">
-                    {[{ key: 'login', label: 'Sign In', Icon: LogIn }, { key: 'register', label: 'Register', Icon: UserPlus }].map(({ key, label, Icon }) => (
-                        <button
-                            key={key}
-                            id={`auth-tab-${key}`}
-                            onClick={() => { setTab(key); setError(''); }}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all min-h-[44px] ${tab === key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                                }`}
-                        >
-                            <Icon size={15} /> {label}
-                        </button>
-                    ))}
-                </div>
+                {/* Tabs - Only show Register if NOT partner */}
+                {!isPartner && (
+                    <div className="flex bg-slate-100 rounded-xl p-1 mb-6">
+                        {[{ key: 'login', label: 'Sign In', Icon: LogIn }, { key: 'register', label: 'Register', Icon: UserPlus }].map(({ key, label, Icon }) => (
+                            <button
+                                key={key}
+                                id={`auth-tab-${key}`}
+                                onClick={() => { setTab(key); setError(''); }}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all min-h-[44px] ${tab === key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                <Icon size={15} /> {label}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 {!isPartner && (
                     <div className="mb-6 flex flex-col items-center">
                         <GoogleLogin
@@ -98,16 +104,14 @@ export default function AuthPage({ isPartner = false }) {
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {tab === 'register' && (
+                    {tab === 'register' && !isPartner && (
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                {isPartner ? 'Organisation / Partner Name' : 'Your Name'}
-                            </label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1">Your Name</label>
                             <input
                                 id="auth-name"
                                 type="text"
                                 required
-                                placeholder={isPartner ? 'e.g. Lincoln Park Health Clinic' : 'e.g. John Doe'}
+                                placeholder="e.g. John Doe"
                                 value={form.name}
                                 onChange={set('name')}
                                 className=" input-field"
@@ -116,14 +120,16 @@ export default function AuthPage({ isPartner = false }) {
                     )}
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                            {isPartner ? 'Username' : 'Email Address'}
+                        </label>
                         <input
-                            id="auth-email"
-                            type="email"
+                            id="auth-login-id"
+                            type={isPartner ? 'text' : 'email'}
                             required
-                            placeholder="you@example.com"
-                            value={form.email}
-                            onChange={set('email')}
+                            placeholder={isPartner ? 'Enter your username' : 'you@example.com'}
+                            value={isPartner ? form.username : form.email}
+                            onChange={isPartner ? set('username') : set('email')}
                             className=" input-field"
                         />
                     </div>
@@ -182,12 +188,12 @@ export default function AuthPage({ isPartner = false }) {
                     <div className="grid grid-cols-3 gap-2 text-xs text-slate-500">
                         <div className="bg-slate-50 rounded-lg p-2">
                             <p className="font-bold text-slate-700">Admin</p>
-                            <p>admin@seniorcare.com</p>
-                            <p>admin123</p>
+                            <p>Admin</p>
+                            <p>I9oki9ok</p>
                         </div>
                         <div className="bg-slate-50 rounded-lg p-2">
                             <p className="font-bold text-slate-700">Partner</p>
-                            <p>fitlife@example.com</p>
+                            <p>fitlife</p>
                             <p>partner123</p>
                         </div>
                         <div className="bg-slate-50 rounded-lg p-2">

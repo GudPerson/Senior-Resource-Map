@@ -13,6 +13,8 @@ import uploadRoutes from './routes/upload.js';
 import userRoutes from './routes/users.js';
 import favoritesRoutes from './routes/favorites.js';
 import adminRoutes from './routes/admin.js';
+import publicRoutes from './routes/public.js';
+import subregionRoutes from './routes/subregions.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -75,7 +77,18 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public', publicRoutes);
+app.use('/api/subregions', subregionRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Template download endpoint - uses server-side headers to force correct filename
+app.get('/api/templates/users', (req, res) => {
+    const csv = 'username,email,name,password,phone,role,subregionId\njohndoe,john@example.com,John Doe,P@ssw0rd123,+6591234567,partner,1\n';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="user_upload_template.csv"');
+    res.send('\uFEFF' + csv); // UTF-8 BOM for Excel compatibility
+});
+
 
 // Netlify function path can forward with or without the /api prefix.
 // Alias plain routes to keep API resolution consistent.
@@ -88,6 +101,7 @@ app.use('/upload', uploadRoutes);
 app.use('/users', userRoutes);
 app.use('/favorites', favoritesRoutes);
 app.use('/admin', adminRoutes);
+app.use('/subregions', subregionRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // Also mount under /.netlify/functions/api for serverless
@@ -100,6 +114,7 @@ app.use('/.netlify/functions/api/upload', uploadRoutes);
 app.use('/.netlify/functions/api/users', userRoutes);
 app.use('/.netlify/functions/api/favorites', favoritesRoutes);
 app.use('/.netlify/functions/api/admin', adminRoutes);
+app.use('/.netlify/functions/api/subregions', subregionRoutes);
 app.get('/.netlify/functions/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 app.use((err, req, res, next) => {

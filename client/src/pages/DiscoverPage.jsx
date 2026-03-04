@@ -75,6 +75,11 @@ export default function DiscoverPage() {
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Cache Map State
+    const [cachedLocations, setCachedLocations] = useState([]);
+    const [mapLocations, setMapLocations] = useState([]);
+    const workerRef = useRef(null);
+
     // Search & Filter state
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState('all');
@@ -110,6 +115,13 @@ export default function DiscoverPage() {
     const [flyTarget, setFlyTarget] = useState(null);
 
     const [searchParams] = useSearchParams();
+
+    // Initialize spatial worker
+    useEffect(() => {
+        workerRef.current = new Worker(new URL('../workers/spatialWorker.js', import.meta.url), { type: 'module' });
+        workerRef.current.onmessage = (e) => setMapLocations(e.data);
+        return () => workerRef.current?.terminate();
+    }, []);
 
     // Drag-to-resize split pane
     const startDragging = useCallback((e) => {
@@ -149,13 +161,19 @@ export default function DiscoverPage() {
         Promise.all([
             api.getHardAssets().catch(() => []),
             api.getSoftAssets().catch(() => []),
-            api.getSubCategories().catch(() => [])
-        ]).then(([hard, soft, subcats]) => {
+            api.getSubCategories().catch(() => []),
+            api.getMapCache('all').catch(() => [])
+        ]).then(([hard, soft, subcats, cached]) => {
             const colors = {};
             subcats.forEach(sc => { colors[sc.name] = sc.color || '#94a3b8'; });
             setSubCatColors(colors);
             setHardAssets(hard);
             setSoftAssets(soft);
+
+            const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
+            setCachedLocations(fetchedLocations);
+            setMapLocations(fetchedLocations);
+
             setLoading(false);
             const urlId = parseInt(searchParams.get('id'));
             if (urlId) {
@@ -302,31 +320,31 @@ export default function DiscoverPage() {
         return items;
     }, [combined, search, userLocation, searchRadius, showFavoritesOnly, favorites, user]);
 
-    const mapLocations = useMemo(() => {
-        let items = hardAssets.filter(isPubliclyVisible);
-        if (userLocation && searchRadius < 100) {
-            items = items.filter(ha =>
-                getDistance(userLocation.lat, userLocation.lng, parseFloat(ha.lat), parseFloat(ha.lng)) <= searchRadius
-            );
+    useEffect(() => {
+        if (workerRef.current && cachedLocations.length > 0) {
+            workerRef.current.postMessage({
+                locations: cachedLocations,
+                userLocation,
+                radiusInMeters: searchRadius < 100 ? searchRadius * 1000 : Infinity
+            });
+        }
+    }, [cachedLocations, userLocation, searchRadius]);
+
+    const finalMapLocations = useMemo(() => {
+        let items = mapLocations;
+
+        // Favorites filter
+        if (showFavoritesOnly && user) {
+            items = items.filter(r => favorites.some(f => f.resourceId === r.id && f.resourceType === r.asset_type));
         }
 
-        items = items.filter(ha => {
-            if (showFavoritesOnly && user) {
-                const isHardFav = favorites.some(f => f.resourceId === ha.id && f.resourceType === 'hard');
-                const hasSoftFav = ha.softAssets?.some(sa => favorites.some(f => f.resourceId === sa.id && f.resourceType === 'soft'));
-                if (!isHardFav && !hasSoftFav) return false;
-            }
-            return true;
-        });
-
-        if (!search) return items;
-        const q = search.toLowerCase();
-        return items.filter(ha => {
-            const matchHard = ha.name.toLowerCase().includes(q) || (ha.description || '').toLowerCase().includes(q) || ha.tags?.some(t => t.toLowerCase().includes(q)) || ha.subCategory?.toLowerCase().includes(q);
-            const matchSoft = ha.softAssets?.some(sa => sa.name.toLowerCase().includes(q) || (sa.description || '').toLowerCase().includes(q) || sa.tags?.some(t => t.toLowerCase().includes(q)) || sa.subCategory?.toLowerCase().includes(q));
-            return matchHard || matchSoft;
-        });
-    }, [hardAssets, search, userLocation, searchRadius, showFavoritesOnly, favorites, user]);
+        // Search text
+        if (search) {
+            const q = search.toLowerCase();
+            items = items.filter(r => (r.title || '').toLowerCase().includes(q) || (r.category || '').toLowerCase().includes(q));
+        }
+        return items;
+    }, [mapLocations, search, showFavoritesOnly, favorites, user]);
 
     const handleSelect = useCallback((asset) => {
         if (!asset) { setSelectedId(null); setSelectedAsset(null); return; }
@@ -542,24 +560,24 @@ export default function DiscoverPage() {
                 </Marker>
             )}
             <MarkerClusterGroup chunkedLoading maxClusterRadius={40}>
-                {mapLocations.map(r => {
+                {finalMapLocations.map(r => {
                     const isLocationSelected = selectedId === r.id;
                     return (
                         <Marker
-                            key={r.id}
+                            key={`${r.asset_type}-${r.id}`}
                             position={[parseFloat(r.lat), parseFloat(r.lng)]}
-                            icon={createColoredIcon(isLocationSelected ? '#2563eb' : (subCatColors[r.subCategory] || '#64748b'))}
+                            icon={createColoredIcon(isLocationSelected ? '#2563eb' : (subCatColors[r.category] || '#64748b'))}
                             eventHandlers={{
                                 click: () => {
-                                    handleSelect({ ...r, _type: 'hard' });
+                                    handleSelect({ id: r.id, _type: r.asset_type, lat: r.lat, lng: r.lng });
                                     setIsDrawerOpen(true);
                                 }
                             }}
                         >
                             <Popup className="custom-popup">
                                 <div className="p-1 min-w-[180px]">
-                                    <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1">{r.name}</h3>
-                                    {r.address && <p className="text-xs text-slate-600 mb-2">{r.address}</p>}
+                                    <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1">{r.title}</h3>
+                                    <p className="text-xs text-slate-600 mb-2">{r.category || r.asset_type}</p>
                                     <div className="text-xs font-bold text-brand-600 cursor-pointer" onClick={() => setIsDrawerOpen(true)}>
                                         View details →
                                     </div>
