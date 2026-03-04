@@ -5,18 +5,10 @@ import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 
-// Guard against undefined import.meta.url in bundled serverless environments (Netlify esbuild)
-let __filename, __dirname;
-try {
-    __filename = fileURLToPath(import.meta.url);
-    __dirname = path.dirname(__filename);
-} catch {
-    __dirname = process.cwd();
-}
-const SNAPSHOT_PATH = path.join(__dirname, '../../scripts/sg_senior_facilities_full.json');
+// Use process.cwd() for file paths — the snapshot file is only available locally, not in serverless
+const SNAPSHOT_PATH = path.join(process.cwd(), 'server/scripts/sg_senior_facilities_full.json');
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
