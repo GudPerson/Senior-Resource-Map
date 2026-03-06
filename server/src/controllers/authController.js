@@ -4,7 +4,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { env } from 'hono/adapter';
 import { getDb } from '../db/index.js';
 import { users } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 
 const getSecret = (c) => env(c).JWT_SECRET || 'seniorcare-secret-key';
 
@@ -33,9 +33,52 @@ function setAuthCookie(c, token) {
     });
 }
 
-// Public registration is now disabled.
 export const register = async (c) => {
-    return c.json({ error: 'Public registration is disabled. Please contact an administrator.' }, 403);
+    try {
+        const body = await c.req.json();
+        const { username, email, password, name } = body;
+
+        if (!username || !email || !password || !name) {
+            return c.json({ error: 'Username, email, password, and name are required' }, 400);
+        }
+
+        const db = getDb(env(c));
+
+        // Check if user exists
+        const [existing] = await db.select().from(users).where(
+            or(eq(users.username, username), eq(users.email, email))
+        );
+
+        if (existing) {
+            return c.json({ error: 'Username or email already exists' }, 400);
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        const [user] = await db.insert(users).values({
+            username,
+            email,
+            passwordHash,
+            name,
+            role: 'standard'
+        }).returning();
+
+        const token = await generateToken(user, c);
+        setAuthCookie(c, token);
+
+        return c.json({
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                name: user.name,
+                role: user.role
+            }
+        });
+    } catch (err) {
+        console.error('Registration Error:', err);
+        return c.json({ error: 'Registration failed' }, 500);
+    }
 };
 
 export const login = async (c) => {
