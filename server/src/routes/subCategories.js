@@ -1,8 +1,8 @@
-import { Router } from 'express';
+import { Hono } from 'hono';
 import { getSubCategories, createSubCategory, deleteSubCategory } from '../controllers/subCategoriesController.js';
 import { authenticateToken, authorize } from '../middleware/auth.js';
 
-const router = Router();
+const router = new Hono();
 
 router.get('/', getSubCategories);
 router.post('/', authenticateToken, authorize('admin', 'super_admin'), createSubCategory);

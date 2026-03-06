@@ -1,51 +1,52 @@
-import db from '../db/index.js';
-import { userFavorites, hardAssets, softAssets } from '../db/schema.js';
+import { getDb } from '../db/index.js';
+import { userFavorites } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { env } from 'hono/adapter';
 
-export const getFavorites = async (req, res) => {
+export const getFavorites = async (c) => {
     try {
-        const userId = req.user.id;
-        // Get user's favorites from DB
-        const favorites = await db.select().from(userFavorites).where(eq(userFavorites.userId, userId));
-        res.json(favorites);
+        const user = c.get('user');
+        const db = getDb(env(c));
+        const favorites = await db.select().from(userFavorites).where(eq(userFavorites.userId, user.id));
+        return c.json(favorites);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch favorites' });
+        return c.json({ error: 'Failed to fetch favorites' }, 500);
     }
 };
 
-export const toggleFavorite = async (req, res) => {
+export const toggleFavorite = async (c) => {
     try {
-        const userId = req.user.id;
-        const { resourceType, resourceId } = req.body;
+        const user = c.get('user');
+        const db = getDb(env(c));
+        const body = await c.req.json();
+        const { resourceType, resourceId } = body;
 
         if (!resourceType || !resourceId) {
-            return res.status(400).json({ error: 'resourceType and resourceId are required' });
+            return c.json({ error: 'resourceType and resourceId are required' }, 400);
         }
 
         const [existing] = await db.select().from(userFavorites).where(
             and(
-                eq(userFavorites.userId, userId),
+                eq(userFavorites.userId, user.id),
                 eq(userFavorites.resourceType, resourceType),
                 eq(userFavorites.resourceId, resourceId)
             )
         );
 
         if (existing) {
-            // Un-favorite
             await db.delete(userFavorites).where(eq(userFavorites.id, existing.id));
-            res.json({ success: true, action: 'removed' });
+            return c.json({ success: true, action: 'removed' });
         } else {
-            // Favorite
             await db.insert(userFavorites).values({
-                userId,
+                userId: user.id,
                 resourceType,
                 resourceId
             });
-            res.json({ success: true, action: 'added' });
+            return c.json({ success: true, action: 'added' });
         }
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to toggle favorite' });
+        return c.json({ error: 'Failed to toggle favorite' }, 500);
     }
 };

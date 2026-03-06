@@ -1,43 +1,50 @@
-import db from '../db/index.js';
+import { getDb } from '../db/index.js';
 import { subCategories } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { env } from 'hono/adapter';
 
-export const getSubCategories = async (req, res) => {
+export const getSubCategories = async (c) => {
     try {
+        const db = getDb(env(c));
         const categories = await db.select().from(subCategories);
-        res.json(categories);
+        return c.json(categories);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch sub-categories' });
+        return c.json({ error: 'Failed to fetch sub-categories' }, 500);
     }
 };
 
-export const createSubCategory = async (req, res) => {
+export const createSubCategory = async (c) => {
     try {
-        const { name, type, color } = req.body;
-        if (!name || !type) return res.status(400).json({ error: 'Name and type are required' });
-        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Only admins can create sub-categories' });
+        const user = c.get('user');
+        const db = getDb(env(c));
+        const body = await c.req.json();
+        const { name, type, color } = body;
+        if (!name || !type) return c.json({ error: 'Name and type are required' }, 400);
+        if (user.role !== 'admin' && user.role !== 'super_admin') return c.json({ error: 'Only admins can create sub-categories' }, 403);
 
         const [existing] = await db.select().from(subCategories).where(eq(subCategories.name, name));
-        if (existing) return res.status(400).json({ error: 'Sub-category already exists' });
+        if (existing) return c.json({ error: 'Sub-category already exists' }, 400);
 
         const [created] = await db.insert(subCategories).values({ name, type, color: color || '#3b82f6' }).returning();
-        res.json(created);
+        return c.json(created);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to create sub-category' });
+        return c.json({ error: 'Failed to create sub-category' }, 500);
     }
 };
 
-export const deleteSubCategory = async (req, res) => {
+export const deleteSubCategory = async (c) => {
     try {
-        if (req.user.role !== 'admin') return res.status(403).json({ error: 'Only admins can delete sub-categories' });
+        const user = c.get('user');
+        if (user.role !== 'admin' && user.role !== 'super_admin') return c.json({ error: 'Only admins can delete sub-categories' }, 403);
 
-        const id = parseInt(req.params.id);
+        const db = getDb(env(c));
+        const id = parseInt(c.req.param('id'));
         await db.delete(subCategories).where(eq(subCategories.id, id));
-        res.json({ success: true });
+        return c.json({ success: true });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to delete sub-category' });
+        return c.json({ error: 'Failed to delete sub-category' }, 500);
     }
 };

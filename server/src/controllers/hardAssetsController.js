@@ -1,21 +1,10 @@
-import db from '../db/index.js';
-import { hardAssets, tags, hardAssetTags, users } from '../db/schema.js';
-import { eq, desc, and } from 'drizzle-orm';
+import { getDb } from '../db/index.js';
+import { hardAssets } from '../db/schema.js';
+import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
-import fs from 'fs';
-import path from 'path';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
-
-// Safe directory resolution for local development snapshots
-let baseDir = '';
-try {
-    baseDir = process.cwd();
-} catch (e) {
-    baseDir = '/';
-}
-
-const SNAPSHOT_PATH = path.join(baseDir, 'server/scripts/sg_senior_facilities_full.json');
+import { env } from 'hono/adapter';
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -41,19 +30,10 @@ async function geocode(postalCode, country) {
     return null;
 }
 
-export const getHardAssets = async (req, res) => {
+export const getHardAssets = async (c) => {
     try {
-        // GUEST ACCESS: Serve from static snapshot to avoid cold starts
-        if (req.user?.role === 'guest') {
-            try {
-                if (fs && fs.existsSync && fs.existsSync(SNAPSHOT_PATH)) {
-                    const data = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
-                    return res.json(data);
-                }
-            } catch (fsError) {
-                console.warn('Snapshot skipped: Filesystem not available or file missing');
-            }
-        }
+        const user = c.get('user');
+        const db = getDb(env(c));
 
         const options = {
             with: {
@@ -68,34 +48,37 @@ export const getHardAssets = async (req, res) => {
             orderBy: [desc(hardAssets.updatedAt)],
         };
 
-        // SCOPING: If user is regional_admin or partner, force filter to their subregion
-        if (req.user?.role === 'regional_admin' || req.user?.role === 'partner') {
-            if (req.user.subregionId) {
-                options.where = eq(hardAssets.subregionId, req.user.subregionId);
+        if (user?.role === 'regional_admin' || user?.role === 'partner') {
+            if (user.subregionId) {
+                options.where = eq(hardAssets.subregionId, user.subregionId);
             }
         }
 
         const assets = await db.query.hardAssets.findMany(options);
 
         const formatted = assets
-            .filter(a => isAssetVisible(a, req.user))
+            .filter(a => isAssetVisible(a, user))
             .map(a => ({
                 ...a,
                 partnerName: a.partner?.name,
                 tags: a.tags.map(t => t.tag.name),
-                softAssets: a.softAssets.map(sa => sa.softAsset).filter(sa => isAssetVisible(sa, req.user)),
+                softAssets: a.softAssets.map(sa => sa.softAsset).filter(sa => isAssetVisible(sa, user)),
             }));
 
-        res.json(formatted);
+        return c.json(formatted);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch hard assets' });
+        return c.json({ error: 'Failed to fetch hard assets' }, 500);
     }
 };
 
-export const getHardAssetById = async (req, res) => {
+export const getHardAssetById = async (c) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = parseInt(c.req.param('id'));
+        const user = c.get('user');
+        const subregionScope = c.get('subregionScope');
+        const db = getDb(env(c));
+
         const asset = await db.query.hardAssets.findFirst({
             where: eq(hardAssets.id, id),
             with: {
@@ -113,12 +96,11 @@ export const getHardAssetById = async (req, res) => {
             }
         });
 
-        if (!asset) return res.status(404).json({ error: 'Not found' });
-        if (!isAssetVisible(asset, req.user)) return res.status(404).json({ error: 'Not found' });
+        if (!asset) return c.json({ error: 'Not found' }, 404);
+        if (!isAssetVisible(asset, user)) return c.json({ error: 'Not found' }, 404);
 
-        // Scoping check for regional_admin
-        if (req.subregionScope && asset.subregionId !== req.subregionScope) {
-            return res.status(403).json({ error: 'Asset belongs to another subregion' });
+        if (subregionScope && asset.subregionId !== subregionScope) {
+            return c.json({ error: 'Asset belongs to another subregion' }, 403);
         }
 
         const formatted = {
@@ -130,43 +112,45 @@ export const getHardAssetById = async (req, res) => {
                     ...sa.softAsset,
                     tags: sa.softAsset.tags.map(t => t.tag.name)
                 }))
-                .filter(sa => isAssetVisible(sa, req.user))
+                .filter(sa => isAssetVisible(sa, user))
         };
 
-        res.json(formatted);
+        return c.json(formatted);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch hard asset' });
+        return c.json({ error: 'Failed to fetch hard asset' }, 500);
     }
 };
 
-export const createHardAsset = async (req, res) => {
+export const createHardAsset = async (c) => {
     try {
-        const creator = req.user;
-        if (creator.role === 'standard' || creator.role === 'guest') {
-            return res.status(403).json({ error: 'Insufficient permissions to create resources' });
+        const user = c.get('user');
+        const db = getDb(env(c));
+
+        if (user.role === 'standard' || user.role === 'guest') {
+            return c.json({ error: 'Insufficient permissions to create resources' }, 403);
         }
 
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil, subregionId } = req.body;
+        const body = await c.req.json();
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil, subregionId } = body;
 
         if (!name || !country || !postalCode || !address) {
-            return res.status(400).json({ error: 'name, country, postalCode, address are required' });
+            return c.json({ error: 'name, country, postalCode, address are required' }, 400);
         }
 
-        // Automatic subregion mapping for regional_admin and partner
         let finalSubregionId = subregionId;
-        if (creator.role === 'regional_admin' || creator.role === 'partner') {
-            finalSubregionId = creator.subregionId;
+        if (user.role === 'regional_admin' || user.role === 'partner') {
+            finalSubregionId = user.subregionId;
         }
 
         const coords = await geocode(postalCode, country);
         if (!coords) {
-            return res.status(400).json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` });
+            return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
         }
 
         const result = await db.transaction(async (tx) => {
             const [asset] = await tx.insert(hardAssets).values({
-                partnerId: creator.id,
+                partnerId: user.id,
                 subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
                 name, country, postalCode, subCategory: subCategory || 'Places',
                 lat: coords.lat.toString(), lng: coords.lng.toString(),
@@ -181,38 +165,41 @@ export const createHardAsset = async (req, res) => {
             return asset;
         });
 
-        await rebuildMapCache(req.body.subregionId || req.user.subregionId);
-        res.status(201).json(result);
+        await rebuildMapCache(body.subregionId || user.subregionId, env(c));
+        return c.json(result, 201);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to create hard asset' });
+        return c.json({ error: 'Failed to create hard asset' }, 500);
     }
 };
 
-export const updateHardAsset = async (req, res) => {
+export const updateHardAsset = async (c) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = parseInt(c.req.param('id'));
+        const user = c.get('user');
+        const db = getDb(env(c));
+
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
-        if (!existing) return res.status(404).json({ error: 'Not found' });
+        if (!existing) return c.json({ error: 'Not found' }, 404);
 
-        // Authorization check
-        const isOwner = existing.partnerId === req.user.id;
-        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
-        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+        const isOwner = existing.partnerId === user.id;
+        const isSuper = user.role === 'super_admin' || user.role === 'admin';
+        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
 
         if (!isOwner && !isSuper && !isRegional) {
-            return res.status(403).json({ error: "Insufficient permissions to edit this asset" });
+            return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
         }
 
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags, subCategory, isHidden, hideFrom, hideUntil, subregionId } = req.body;
+        const body = await c.req.json();
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags, subCategory, isHidden, hideFrom, hideUntil, subregionId } = body;
 
         let lat = existing.lat;
         let lng = existing.lng;
         if (postalCode && country && (postalCode !== existing.postalCode || country !== existing.country)) {
             const coords = await geocode(postalCode, country);
             if (!coords) {
-                return res.status(400).json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` });
+                return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
             }
             lat = coords.lat.toString();
             lng = coords.lng.toString();
@@ -238,34 +225,37 @@ export const updateHardAsset = async (req, res) => {
             }
         });
 
-        await rebuildMapCache(req.body.subregionId || existing.subregionId || req.user.subregionId);
-        res.json({ success: true, id });
+        await rebuildMapCache(body.subregionId || existing.subregionId || user.subregionId, env(c));
+        return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to update hard asset' });
+        return c.json({ error: 'Failed to update hard asset' }, 500);
     }
 };
 
-export const deleteHardAsset = async (req, res) => {
+export const deleteHardAsset = async (c) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = parseInt(c.req.param('id'));
+        const user = c.get('user');
+        const db = getDb(env(c));
+
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
-        if (!existing) return res.status(404).json({ error: 'Not found' });
+        if (!existing) return c.json({ error: 'Not found' }, 404);
 
-        const isOwner = existing.partnerId === req.user.id;
-        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
-        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+        const isOwner = existing.partnerId === user.id;
+        const isSuper = user.role === 'super_admin' || user.role === 'admin';
+        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
 
         if (!isOwner && !isSuper && !isRegional) {
-            return res.status(403).json({ error: "Insufficient permissions to delete this asset" });
+            return c.json({ error: "Insufficient permissions to delete this asset" }, 403);
         }
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
-        await rebuildMapCache(existing.subregionId || req.user.subregionId);
-        res.json({ success: true });
+        await rebuildMapCache(existing.subregionId || user.subregionId, env(c));
+        return c.json({ success: true });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to delete hard asset' });
+        return c.json({ error: 'Failed to delete hard asset' }, 500);
     }
 };

@@ -1,79 +1,73 @@
-import jwt from 'jsonwebtoken';
+import { verify } from 'hono/jwt';
+import { getCookie } from 'hono/cookie';
+import { env } from 'hono/adapter';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'seniorcare-secret-key';
+const getSecret = (c) => env(c).JWT_SECRET || 'seniorcare-secret-key';
 
-/**
- * Basic authentication middleware to verify JWT
- */
-export function authenticateToken(req, res, next) {
-    const token = req.cookies?.sc_token;
+export async function authenticateToken(c, next) {
+    const token = getCookie(c, 'sc_token');
 
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    if (!token) return c.json({ error: 'No token provided' }, 401);
 
     try {
-        const user = jwt.verify(token, JWT_SECRET);
-        req.user = user;
-        next();
+        const user = await verify(token, getSecret(c));
+        c.set('user', user);
+        await next();
     } catch {
-        return res.status(403).json({ error: 'Invalid token' });
+        return c.json({ error: 'Invalid token' }, 403);
     }
 }
 
-/**
- * Optional authentication middleware for Guest/Public views
- */
-export function optionalAuth(req, res, next) {
-    const token = req.cookies?.sc_token;
+export async function optionalAuth(c, next) {
+    const token = getCookie(c, 'sc_token');
+
     if (token) {
         try {
-            req.user = jwt.verify(token, JWT_SECRET);
+            const user = await verify(token, getSecret(c));
+            c.set('user', user);
         } catch {
-            // Ignore token verification errors for optional auth
+            // Ignore error
         }
     }
-    // If not user, we can assume guest
-    if (!req.user) {
-        req.user = { role: 'guest' };
+
+    if (!c.get('user')) {
+        c.set('user', { role: 'guest' });
     }
-    next();
+
+    await next();
 }
 
-/**
- * Role-based authorization middleware
- * Supports 3-tier hierarchy: super_admin > regional_admin > partner > standard > guest
- */
 export function authorize(...allowedRoles) {
-    return (req, res, next) => {
-        if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    return async (c, next) => {
+        const user = c.get('user');
+        if (!user) return c.json({ error: 'Unauthorized' }, 401);
 
-        const { role, subregionId } = req.user;
+        const { role, subregionId } = user;
 
         if (!allowedRoles.includes(role)) {
-            return res.status(403).json({ error: 'Insufficient permissions' });
+            return c.json({ error: 'Insufficient permissions' }, 403);
         }
 
-        // Tiered logic: super_admin always clears
-        if (role === 'super_admin') return next();
+        if (role === 'super_admin') {
+            await next();
+            return;
+        }
 
-        // Scope enforcement for regional_admin and partner
         if (role === 'regional_admin' || role === 'partner') {
             if (!subregionId) {
-                return res.status(403).json({ error: 'Account missing required scope (subregion_id)' });
+                return c.json({ error: 'Account missing required scope (subregion_id)' }, 403);
             }
-            // Attach a standard filter object to the request for easy use in controllers
-            req.subregionScope = subregionId;
+            c.set('subregionScope', subregionId);
         }
 
-        next();
+        await next();
     };
 }
 
-/**
- * Legacy admin check, updated for super_admin
- */
-export function isAdmin(req, res, next) {
-    if (!req.user || (req.user.role !== 'super_admin' && req.user.role !== 'admin')) {
-        return res.status(403).json({ error: 'Requires admin privileges' });
+export async function isAdmin(c, next) {
+    const user = c.get('user');
+    if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
+        return c.json({ error: 'Requires admin privileges' }, 403);
     }
-    next();
+    await next();
 }

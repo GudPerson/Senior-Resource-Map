@@ -1,18 +1,19 @@
-import db from '../db/index.js';
-import { hardAssets, softAssets, users, subCategories } from '../db/schema.js';
+import { getDb } from '../db/index.js';
+import { hardAssets, softAssets } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { syncAssetTags } from '../utils/tags.js';
+import { env } from 'hono/adapter';
 
-export const exportFullDB = async (req, res) => {
+export const exportFullDB = async (c) => {
     try {
+        const db = getDb(env(c));
         const hard = await db.select().from(hardAssets).where(eq(hardAssets.isDeleted, false));
         const soft = await db.select().from(softAssets).where(eq(softAssets.isDeleted, false));
 
-        // Enhance with tags or just return as is for simplification in this phase
-        res.json({ hardAssets: hard, softAssets: soft });
+        return c.json({ hardAssets: hard, softAssets: soft });
     } catch (err) {
         console.error('Export Error:', err);
-        res.status(500).json({ error: 'Failed to export database' });
+        return c.json({ error: 'Failed to export database' }, 500);
     }
 };
 
@@ -33,17 +34,21 @@ async function geocodePostal(postalCode) {
     return null;
 }
 
-export const importCSV = async (req, res) => {
+export const importCSV = async (c) => {
     try {
-        const { rows, type } = req.body;
-        if (!rows || !Array.isArray(rows)) return res.status(400).json({ error: 'Invalid CSV format' });
+        const user = c.get('user');
+        const body = await c.req.json();
+        const { rows, type } = body;
 
+        if (!rows || !Array.isArray(rows)) return c.json({ error: 'Invalid CSV format' }, 400);
+
+        const db = getDb(env(c));
         const importedRows = [];
         const errors = [];
 
         await db.transaction(async (tx) => {
             for (const [index, row] of rows.entries()) {
-                const partnerId = parseInt(row.partnerId) || req.user.id;
+                const partnerId = parseInt(row.partnerId) || user.id;
                 const postalCode = String(row.postalCode || '').trim();
 
                 let lat = parseFloat(row.lat);
@@ -72,8 +77,8 @@ export const importCSV = async (req, res) => {
                         partnerId,
                         name: row.name,
                         subCategory: row.subCategory || 'Active Ageing Centres',
-                        lat,
-                        lng,
+                        lat: lat.toString(),
+                        lng: lng.toString(),
                         address,
                         country: 'SG',
                         postalCode: postalCode,
@@ -106,9 +111,9 @@ export const importCSV = async (req, res) => {
             }
         });
 
-        res.json({ message: `Successfully imported ${importedRows.length} rows`, errors });
+        return c.json({ message: `Successfully imported ${importedRows.length} rows`, errors });
     } catch (err) {
         console.error('Import Error:', err);
-        res.status(500).json({ error: 'Database import transaction failed' });
+        return c.json({ error: 'Database import transaction failed' }, 500);
     }
 };

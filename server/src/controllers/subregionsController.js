@@ -1,49 +1,59 @@
-import db from '../db/index.js';
+import { getDb } from '../db/index.js';
 import { subregions } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { env } from 'hono/adapter';
 
-export const getSubregions = async (req, res) => {
+export const getSubregions = async (c) => {
     try {
+        const db = getDb(env(c));
         const list = await db.query.subregions.findMany({
             orderBy: [subregions.name]
         });
-        res.json(list);
+        return c.json(list);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch subregions' });
+        return c.json({ error: 'Failed to fetch subregions' }, 500);
     }
 };
 
-export const createSubregion = async (req, res) => {
+export const createSubregion = async (c) => {
     try {
-        if (req.user?.role !== 'super_admin') {
-            return res.status(403).json({ error: 'Only Super Admins can create subregions' });
+        const user = c.get('user');
+        if (user?.role !== 'super_admin') {
+            return c.json({ error: 'Only Super Admins can create subregions' }, 403);
         }
-        const { name, description } = req.body;
-        if (!name) return res.status(400).json({ error: 'Name is required' });
 
+        const body = await c.req.json();
+        const { name, description } = body;
+        if (!name) return c.json({ error: 'Name is required' }, 400);
+
+        const db = getDb(env(c));
         const [newReg] = await db.insert(subregions).values({
             name,
             description
         }).returning();
 
-        res.status(201).json(newReg);
+        return c.json(newReg, 201);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to create subregion' });
+        return c.json({ error: 'Failed to create subregion' }, 500);
     }
 };
 
-export const deleteSubregion = async (req, res) => {
+export const deleteSubregion = async (c) => {
     try {
-        if (req.user?.role !== 'super_admin') {
-            return res.status(403).json({ error: 'Only Super Admins can delete subregions' });
+        const user = c.get('user');
+        if (user?.role !== 'super_admin') {
+            return c.json({ error: 'Only Super Admins can delete subregions' }, 403);
         }
-        const id = parseInt(req.params.id);
+
+        const id = parseInt(c.req.param('id'));
+        const db = getDb(env(c));
+
         await db.delete(subregions).where(eq(subregions.id, id));
-        res.json({ success: true });
+        return c.json({ success: true });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to delete subregion' });
+        return c.json({ error: 'Failed to delete subregion' }, 500);
     }
 };

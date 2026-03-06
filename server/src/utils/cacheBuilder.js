@@ -1,19 +1,20 @@
 import { sql } from 'drizzle-orm';
-import db from '../db/index.js';
+import { getDb } from '../db/index.js';
 import { dataStore } from './dataStore.js';
 
 /**
  * Rebuilds the edge cache JSON for a specific subregion
  * @param {number|string} subregionId - The ID of the region to update
+ * @param {object} envVars - Edge environment variables context
  */
-export const rebuildMapCache = async (subregionId) => {
+export const rebuildMapCache = async (subregionId, envVars) => {
     if (!subregionId) {
         console.error("rebuildMapCache requires a subregionId");
         return;
     }
 
     try {
-        // Fetch stripped payload (only essential map data) for both asset types
+        const db = getDb(envVars);
         const query = subregionId === 'all'
             ? sql`
                 SELECT id, name as title, sub_category as category, lat, lng, 'hard' as asset_type 
@@ -42,15 +43,12 @@ export const rebuildMapCache = async (subregionId) => {
 
         const { rows } = await db.execute(query);
 
-        // Push to Edge Storage
         const blobKey = `locations-cache-region-${subregionId}.json`;
-
-        await dataStore.setJSON(blobKey, rows);
+        await dataStore.setJSON(blobKey, rows, envVars);
         console.log(`✅ Edge cache updated for subregion ${subregionId}: ${blobKey}`);
 
-        // Always rebuild the global 'all' cache when a specific subregion is updated
         if (subregionId !== 'all') {
-            await rebuildMapCache('all');
+            await rebuildMapCache('all', envVars);
         }
 
     } catch (error) {

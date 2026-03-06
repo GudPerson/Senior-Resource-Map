@@ -1,14 +1,17 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import pkg from 'pg';
-const { Pool } = pkg;
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/seniorcare',
-});
+let dbInstance = null;
 
-const db = drizzle(pool, { schema });
+export function getDb(envVars = {}) {
+  if (dbInstance) return dbInstance;
 
-export default db;
+  const envUrl = envVars.DATABASE_URL || (typeof process !== 'undefined' ? process.env?.DATABASE_URL : null);
+  const sql = neon(envUrl || 'postgres://postgres:postgres@localhost:5432/seniorcare');
+
+  dbInstance = drizzle(sql, { schema });
+  return dbInstance;
+}

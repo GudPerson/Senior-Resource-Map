@@ -1,11 +1,11 @@
-import express from 'express';
+import { Hono } from 'hono';
 import { authenticateToken, optionalAuth, authorize } from '../middleware/auth.js';
 import {
     getSoftAssets, getSoftAssetById,
     createSoftAsset, updateSoftAsset, deleteSoftAsset
 } from '../controllers/softAssetsController.js';
 
-const router = express.Router();
+const router = new Hono();
 
 router.get('/', optionalAuth, getSoftAssets);
 router.get('/:id', optionalAuth, getSoftAssetById);

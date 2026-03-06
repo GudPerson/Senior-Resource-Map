@@ -1,12 +1,16 @@
-import db from '../db/index.js';
-import { softAssets, hardAssets, tags, softAssetTags, users, softAssetLocations } from '../db/schema.js';
+import { getDb } from '../db/index.js';
+import { softAssets, softAssetLocations } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
+import { env } from 'hono/adapter';
 
-export const getSoftAssets = async (req, res) => {
+export const getSoftAssets = async (c) => {
     try {
+        const user = c.get('user');
+        const db = getDb(env(c));
+
         const options = {
             with: {
                 partner: { columns: { name: true } },
@@ -16,35 +20,39 @@ export const getSoftAssets = async (req, res) => {
             orderBy: [desc(softAssets.updatedAt)],
         };
 
-        if (req.user?.role === 'regional_admin' || req.user?.role === 'partner') {
-            if (req.user.subregionId) {
-                options.where = eq(softAssets.subregionId, req.user.subregionId);
+        if (user?.role === 'regional_admin' || user?.role === 'partner') {
+            if (user.subregionId) {
+                options.where = eq(softAssets.subregionId, user.subregionId);
             }
         }
 
         const assets = await db.query.softAssets.findMany(options);
 
         const formatted = assets
-            .filter(a => isAssetVisible(a, req.user))
+            .filter(a => isAssetVisible(a, user))
             .map(a => ({
                 ...a,
                 partnerName: a.partner?.name,
                 tags: a.tags.map(t => t.tag.name),
-                locations: a.locations.map(l => l.hardAsset).filter(l => isAssetVisible(l, req.user)),
-                location: a.locations.length > 0 ? (isAssetVisible(a.locations[0].hardAsset, req.user) ? a.locations[0].hardAsset : null) : null,
+                locations: a.locations.map(l => l.hardAsset).filter(l => isAssetVisible(l, user)),
+                location: a.locations.length > 0 ? (isAssetVisible(a.locations[0].hardAsset, user) ? a.locations[0].hardAsset : null) : null,
             }));
 
-        res.json(formatted);
+        return c.json(formatted);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch soft assets' });
+        return c.json({ error: 'Failed to fetch soft assets' }, 500);
     }
 };
 
-export const getSoftAssetById = async (req, res) => {
+export const getSoftAssetById = async (c) => {
     try {
+        const id = parseInt(c.req.param('id'));
+        const user = c.get('user');
+        const db = getDb(env(c));
+
         const asset = await db.query.softAssets.findFirst({
-            where: eq(softAssets.id, parseInt(req.params.id)),
+            where: eq(softAssets.id, id),
             with: {
                 partner: { columns: { name: true } },
                 tags: { with: { tag: true } },
@@ -52,31 +60,37 @@ export const getSoftAssetById = async (req, res) => {
             }
         });
 
-        if (!isAssetVisible(asset, req.user)) return res.status(404).json({ error: 'Not found' });
+        if (!asset || !isAssetVisible(asset, user)) return c.json({ error: 'Not found' }, 404);
 
         const formatted = {
             ...asset,
             partnerName: asset.partner?.name,
             tags: asset.tags.map(t => t.tag.name),
-            locations: asset.locations.map(l => l.hardAsset).filter(l => isAssetVisible(l, req.user)),
-            location: asset.locations.length > 0 ? (isAssetVisible(asset.locations[0].hardAsset, req.user) ? asset.locations[0].hardAsset : null) : null,
+            locations: asset.locations.map(l => l.hardAsset).filter(l => isAssetVisible(l, user)),
+            location: asset.locations.length > 0 ? (isAssetVisible(asset.locations[0].hardAsset, user) ? asset.locations[0].hardAsset : null) : null,
         };
 
-        res.json(formatted);
+        return c.json(formatted);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to fetch soft asset' });
+        return c.json({ error: 'Failed to fetch soft asset' }, 500);
     }
 };
 
-export const createSoftAsset = async (req, res) => {
+export const createSoftAsset = async (c) => {
     try {
-        if (req.user.role === 'user') {
-            return res.status(403).json({ error: 'Only partners and admins can create resources' });
+        const user = c.get('user');
+        const db = getDb(env(c));
+
+        if (user.role === 'user' || user.role === 'standard' || user.role === 'guest') {
+            return c.json({ error: 'Only partners and admins can create resources' }, 403);
         }
-        const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags = [], isMemberOnly, isHidden, hideFrom, hideUntil } = req.body;
+
+        const body = await c.req.json();
+        const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags = [], isMemberOnly, isHidden, hideFrom, hideUntil } = body;
+
         if (!name) {
-            return res.status(400).json({ error: 'Name is required' });
+            return c.json({ error: 'Name is required' }, 400);
         }
 
         let hardAssetIds = [];
@@ -86,15 +100,14 @@ export const createSoftAsset = async (req, res) => {
             hardAssetIds = [parseInt(locationId)].filter(id => !isNaN(id));
         }
 
-        // Automatic subregion mapping for regional_admin and partner
-        let finalSubregionId = req.body.subregionId;
-        if (req.user.role === 'regional_admin' || req.user.role === 'partner') {
-            finalSubregionId = req.user.subregionId;
+        let finalSubregionId = body.subregionId;
+        if (user.role === 'regional_admin' || user.role === 'partner') {
+            finalSubregionId = user.subregionId;
         }
 
         const result = await db.transaction(async (tx) => {
             const [asset] = await tx.insert(softAssets).values({
-                partnerId: req.user.id,
+                partnerId: user.id,
                 subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
                 name, subCategory: subCategory || 'Programmes', description: description || null, schedule: schedule || null,
                 logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
@@ -115,29 +128,33 @@ export const createSoftAsset = async (req, res) => {
             return asset;
         });
 
-        await rebuildMapCache(req.body.subregionId || req.user.subregionId);
-        res.status(201).json(result);
+        await rebuildMapCache(body.subregionId || user.subregionId, env(c));
+        return c.json(result, 201);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to create soft asset' });
+        return c.json({ error: 'Failed to create soft asset' }, 500);
     }
 };
 
-export const updateSoftAsset = async (req, res) => {
+export const updateSoftAsset = async (c) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = parseInt(c.req.param('id'));
+        const user = c.get('user');
+        const db = getDb(env(c));
+
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
-        if (!existing) return res.status(404).json({ error: 'Not found' });
-        const isOwner = existing.partnerId === req.user.id;
-        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
-        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+        if (!existing) return c.json({ error: 'Not found' }, 404);
+        const isOwner = existing.partnerId === user.id;
+        const isSuper = user.role === 'super_admin' || user.role === 'admin';
+        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
 
         if (!isOwner && !isSuper && !isRegional) {
-            return res.status(403).json({ error: "Insufficient permissions to edit this asset" });
+            return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
         }
 
-        const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags, isMemberOnly, isHidden, hideFrom, hideUntil } = req.body;
+        const body = await c.req.json();
+        const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags, isMemberOnly, isHidden, hideFrom, hideUntil } = body;
 
         await db.transaction(async (tx) => {
             await tx.update(softAssets).set({
@@ -174,33 +191,36 @@ export const updateSoftAsset = async (req, res) => {
             }
         });
 
-        await rebuildMapCache(existing.subregionId || req.user.subregionId);
-        res.json({ success: true, id });
+        await rebuildMapCache(existing.subregionId || user.subregionId, env(c));
+        return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to update soft asset' });
+        return c.json({ error: 'Failed to update soft asset' }, 500);
     }
 };
 
-export const deleteSoftAsset = async (req, res) => {
+export const deleteSoftAsset = async (c) => {
     try {
-        const id = parseInt(req.params.id);
+        const id = parseInt(c.req.param('id'));
+        const user = c.get('user');
+        const db = getDb(env(c));
+
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
-        if (!existing) return res.status(404).json({ error: 'Not found' });
-        const isOwner = existing.partnerId === req.user.id;
-        const isSuper = req.user.role === 'super_admin' || req.user.role === 'admin';
-        const isRegional = req.user.role === 'regional_admin' && existing.subregionId === req.user.subregionId;
+        if (!existing) return c.json({ error: 'Not found' }, 404);
+        const isOwner = existing.partnerId === user.id;
+        const isSuper = user.role === 'super_admin' || user.role === 'admin';
+        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
 
         if (!isOwner && !isSuper && !isRegional) {
-            return res.status(403).json({ error: "Insufficient permissions to delete this asset" });
+            return c.json({ error: "Insufficient permissions to delete this asset" }, 403);
         }
 
         await db.update(softAssets).set({ isDeleted: true }).where(eq(softAssets.id, id));
-        await rebuildMapCache(existing.subregionId || req.user.subregionId);
-        res.json({ success: true });
+        await rebuildMapCache(existing.subregionId || user.subregionId, env(c));
+        return c.json({ success: true });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to delete soft asset' });
+        return c.json({ error: 'Failed to delete soft asset' }, 500);
     }
 };

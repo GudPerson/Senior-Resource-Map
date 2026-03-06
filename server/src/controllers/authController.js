@@ -1,71 +1,69 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import db from '../db/index.js';
+import { sign, verify } from 'hono/jwt';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { env } from 'hono/adapter';
+import { getDb } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { OAuth2Client } from 'google-auth-library';
-import crypto from 'crypto';
 
-const getSecret = () => process.env.JWT_SECRET || 'seniorcare-secret-key';
+const getSecret = (c) => env(c).JWT_SECRET || 'seniorcare-secret-key';
 
-function generateToken(user) {
-    return jwt.sign(
+async function generateToken(user, c) {
+    return await sign(
         {
             id: user.id,
             username: user.username,
             email: user.email,
             role: user.role,
             name: user.name,
-            subregionId: user.subregionId
+            subregionId: user.subregionId,
+            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
         },
-        getSecret(),
-        { expiresIn: '7d' }
+        getSecret(c)
     );
 }
 
-function setAuthCookie(res, token) {
-    res.cookie('sc_token', token, {
+function setAuthCookie(c, token) {
+    setCookie(c, 'sc_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        secure: env(c).NODE_ENV === 'production',
+        sameSite: 'Lax',
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+        path: '/',
     });
 }
 
-/**
- * Public registration is now disabled. 
- * Use userController.createUser for managed registration.
- */
-export const register = async (req, res) => {
-    res.status(403).json({ error: 'Public registration is disabled. Please contact an administrator.' });
+// Public registration is now disabled.
+export const register = async (c) => {
+    return c.json({ error: 'Public registration is disabled. Please contact an administrator.' }, 403);
 };
 
-export const login = async (req, res) => {
+export const login = async (c) => {
     try {
-        const { username, email, password, isPartnerLogin } = req.body;
+        const body = await c.req.json();
+        const { username, email, password, isPartnerLogin } = body;
 
-        // Support both username and email for login
         const loginId = username || email;
+        const db = getDb(env(c));
         const [user] = await db.select().from(users).where(
             loginId.includes('@') ? eq(users.email, loginId) : eq(users.username, loginId)
         );
 
-        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+        if (!user) return c.json({ error: 'Invalid credentials' }, 401);
 
         const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+        if (!valid) return c.json({ error: 'Invalid credentials' }, 401);
 
-        // Logic for specialized login pages
         if (isPartnerLogin === true) {
             const adminRoles = ['super_admin', 'regional_admin', 'partner'];
             if (!adminRoles.includes(user.role)) {
-                return res.status(403).json({ error: 'This login page is for Partners and Admins only.' });
+                return c.json({ error: 'This login page is for Partners and Admins only.' }, 403);
             }
         }
 
-        const token = generateToken(user);
-        setAuthCookie(res, token);
-        res.json({
+        const token = await generateToken(user, c);
+        setAuthCookie(c, token);
+        return c.json({
             user: {
                 id: user.id,
                 username: user.username,
@@ -77,54 +75,54 @@ export const login = async (req, res) => {
         });
     } catch (err) {
         console.error('Login Error:', err);
-        res.status(500).json({ error: 'Login failed' });
+        return c.json({ error: 'Login failed' }, 500);
     }
 };
 
-export const me = (req, res) => {
-    const token = req.cookies?.sc_token;
-    if (!token) return res.json({ user: null });
+export const me = async (c) => {
+    const token = getCookie(c, 'sc_token');
+    if (!token) return c.json({ user: null });
 
     try {
-        const user = jwt.verify(token, getSecret());
-        res.json({ user });
+        const user = await verify(token, getSecret(c));
+        return c.json({ user });
     } catch {
-        res.json({ user: null });
+        return c.json({ user: null });
     }
 };
 
-export const logout = (req, res) => {
-    res.clearCookie('sc_token');
-    res.json({ success: true });
+export const logout = (c) => {
+    deleteCookie(c, 'sc_token', { path: '/' });
+    return c.json({ success: true });
 };
 
-const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
-
-export const googleAuth = async (req, res) => {
+export const googleAuth = async (c) => {
     try {
-        const { credential } = req.body;
-        if (!credential) return res.status(400).json({ error: 'No credential provided' });
+        const body = await c.req.json();
+        const { credential } = body;
+        if (!credential) return c.json({ error: 'No credential provided' }, 400);
 
-        const ticket = await client.verifyIdToken({
-            id_token: credential, // Fix case sensitivity if needed, ticket usually has idToken or credential
-            audience: process.env.VITE_GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        if (!payload) return res.status(401).json({ error: 'Invalid Google token' });
+        // Verify with Google's native REST endpoint instead of heavy google-auth-library
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        const payload = await response.json();
+
+        if (!response.ok || !payload || payload.aud !== env(c).VITE_GOOGLE_CLIENT_ID) {
+            return c.json({ error: 'Invalid Google token' }, 401);
+        }
 
         const { email, name } = payload;
+        const db = getDb(env(c));
 
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
         if (!user) {
-            const dummyPassword = crypto.randomBytes(16).toString('hex');
+            const dummyPassword = crypto.getRandomValues(new Uint8Array(16)).join('');
             const passwordHash = await bcrypt.hash(dummyPassword, 10);
 
             const baseUsername = email.split('@')[0];
             let finalUsername = baseUsername;
             let counter = 1;
 
-            // Uniqueness check for Google generated username
             while (true) {
                 const [existing] = await db.select().from(users).where(eq(users.username, finalUsername));
                 if (!existing) break;
@@ -136,13 +134,13 @@ export const googleAuth = async (req, res) => {
                 email,
                 name: name || baseUsername,
                 passwordHash,
-                role: 'standard' // Default for Google Sign-in
+                role: 'standard'
             }).returning();
         }
 
-        const token = generateToken(user);
-        setAuthCookie(res, token);
-        res.status(200).json({
+        const token = await generateToken(user, c);
+        setAuthCookie(c, token);
+        return c.json({
             user: {
                 id: user.id,
                 username: user.username,
@@ -155,6 +153,6 @@ export const googleAuth = async (req, res) => {
 
     } catch (err) {
         console.error('Google Auth Error:', err);
-        res.status(500).json({ error: 'Google authentication failed' });
+        return c.json({ error: 'Google authentication failed' }, 500);
     }
 };

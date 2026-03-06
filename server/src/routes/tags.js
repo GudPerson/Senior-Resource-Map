@@ -1,7 +1,7 @@
-import express from 'express';
+import { Hono } from 'hono';
 import { getTags } from '../controllers/tagsController.js';
 
-const router = express.Router();
+const router = new Hono();
 
 router.get('/', getTags);
 

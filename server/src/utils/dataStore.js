@@ -2,19 +2,14 @@
  * Generic data store abstraction for Netlify Blobs or Cloudflare KV
  */
 class DataStore {
-    constructor() {
-        this.isCloudflare = !!process.env.CF_PAGES || !!process.env.CLOUDFLARE_CONTEXT;
-        this.isNetlify = !!process.env.NETLIFY;
-    }
-
-    async getJSON(key, context = {}) {
-        if (this.isNetlify) {
+    async getJSON(key, envVars = {}) {
+        if (envVars.NETLIFY_SITE_ID && envVars.NETLIFY_API_TOKEN) {
             try {
                 const { getStore } = await import('@netlify/blobs');
                 const store = getStore({
                     name: 'map-cache',
-                    siteID: process.env.NETLIFY_SITE_ID,
-                    token: process.env.NETLIFY_API_TOKEN,
+                    siteID: envVars.NETLIFY_SITE_ID,
+                    token: envVars.NETLIFY_API_TOKEN,
                 });
                 return await store.getJSON(key);
             } catch (err) {
@@ -23,26 +18,23 @@ class DataStore {
             }
         }
 
-        if (this.isCloudflare) {
-            // Context should contain the KV binding if passed from middleware/handler
-            const kv = context.env?.MAP_CACHE || context.MAP_CACHE;
-            if (kv) {
-                const data = await kv.get(key);
-                return data ? JSON.parse(data) : null;
-            }
+        const kv = envVars.MAP_CACHE;
+        if (kv) {
+            const data = await kv.get(key);
+            return data ? JSON.parse(data) : null;
         }
 
         return null;
     }
 
-    async setJSON(key, value, context = {}) {
-        if (this.isNetlify) {
+    async setJSON(key, value, envVars = {}) {
+        if (envVars.NETLIFY_SITE_ID && envVars.NETLIFY_API_TOKEN) {
             try {
                 const { getStore } = await import('@netlify/blobs');
                 const store = getStore({
                     name: 'map-cache',
-                    siteID: process.env.NETLIFY_SITE_ID,
-                    token: process.env.NETLIFY_API_TOKEN,
+                    siteID: envVars.NETLIFY_SITE_ID,
+                    token: envVars.NETLIFY_API_TOKEN,
                 });
                 await store.setJSON(key, value);
                 return true;
@@ -52,12 +44,10 @@ class DataStore {
             }
         }
 
-        if (this.isCloudflare) {
-            const kv = context.env?.MAP_CACHE || context.MAP_CACHE;
-            if (kv) {
-                await kv.put(key, JSON.stringify(value));
-                return true;
-            }
+        const kv = envVars.MAP_CACHE;
+        if (kv) {
+            await kv.put(key, JSON.stringify(value));
+            return true;
         }
 
         return false;

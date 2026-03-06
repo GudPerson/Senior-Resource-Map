@@ -1,8 +1,8 @@
-import express from 'express';
+import { Hono } from 'hono';
 import { getSubregions, createSubregion, deleteSubregion } from '../controllers/subregionsController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router = new Hono();
 
 router.get('/', getSubregions);
 router.post('/', authenticateToken, createSubregion);

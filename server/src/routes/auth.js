@@ -1,9 +1,7 @@
-import express from 'express';
+import { Hono } from 'hono';
 import * as authController from '../controllers/authController.js';
 
-const router = express.Router();
-
-// router.post('/register', authController.register); // Removed as per new restricted registration requirement
+const router = new Hono();
 
 router.post('/login', authController.login);
 router.get('/me', authController.me);
