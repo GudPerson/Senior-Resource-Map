@@ -33,7 +33,7 @@ async function geocode(postalCode, country) {
 export const getHardAssets = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const options = {
             with: {
@@ -77,7 +77,7 @@ export const getHardAssetById = async (c) => {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
         const subregionScope = c.get('subregionScope');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const asset = await db.query.hardAssets.findFirst({
             where: eq(hardAssets.id, id),
@@ -125,7 +125,7 @@ export const getHardAssetById = async (c) => {
 export const createHardAsset = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         if (user.role === 'standard' || user.role === 'guest') {
             return c.json({ error: 'Insufficient permissions to create resources' }, 403);
@@ -177,7 +177,7 @@ export const updateHardAsset = async (c) => {
     try {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
@@ -237,7 +237,7 @@ export const deleteHardAsset = async (c) => {
     try {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 

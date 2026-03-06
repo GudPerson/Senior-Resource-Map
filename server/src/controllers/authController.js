@@ -43,7 +43,7 @@ export const register = async (c) => {
             return c.json({ error: 'Email, password, and name are required' }, 400);
         }
 
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         // Auto-generate username from email if not provided
         if (!username) {
@@ -102,7 +102,7 @@ export const login = async (c) => {
             return c.json({ error: 'Username/email and password are required' }, 400);
         }
 
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const isEmail = loginId.includes('@');
 
         // Try exact match first
@@ -189,7 +189,7 @@ export const googleAuth = async (c) => {
         }
 
         const { email, name } = payload;
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         let [user] = await db.select().from(users).where(eq(users.email, email));
 

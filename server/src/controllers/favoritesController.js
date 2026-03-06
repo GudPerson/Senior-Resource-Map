@@ -6,7 +6,7 @@ import { env } from 'hono/adapter';
 export const getFavorites = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const favorites = await db.select().from(userFavorites).where(eq(userFavorites.userId, user.id));
         return c.json(favorites);
     } catch (err) {
@@ -18,7 +18,7 @@ export const getFavorites = async (c) => {
 export const toggleFavorite = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const body = await c.req.json();
         const { resourceType, resourceId } = body;
 

@@ -6,7 +6,7 @@ import { env } from 'hono/adapter';
 
 export const exportFullDB = async (c) => {
     try {
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const hard = await db.select().from(hardAssets).where(eq(hardAssets.isDeleted, false));
         const soft = await db.select().from(softAssets).where(eq(softAssets.isDeleted, false));
 
@@ -42,7 +42,7 @@ export const importCSV = async (c) => {
 
         if (!rows || !Array.isArray(rows)) return c.json({ error: 'Invalid CSV format' }, 400);
 
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const importedRows = [];
         const errors = [];
 

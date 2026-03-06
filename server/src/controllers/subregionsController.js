@@ -5,7 +5,7 @@ import { env } from 'hono/adapter';
 
 export const getSubregions = async (c) => {
     try {
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const list = await db.query.subregions.findMany({
             orderBy: [subregions.name]
         });
@@ -27,7 +27,7 @@ export const createSubregion = async (c) => {
         const { name, description } = body;
         if (!name) return c.json({ error: 'Name is required' }, 400);
 
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const [newReg] = await db.insert(subregions).values({
             name,
             description
@@ -48,7 +48,7 @@ export const deleteSubregion = async (c) => {
         }
 
         const id = parseInt(c.req.param('id'));
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         await db.delete(subregions).where(eq(subregions.id, id));
         return c.json({ success: true });

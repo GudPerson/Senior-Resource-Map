@@ -6,7 +6,7 @@ import { env } from 'hono/adapter';
 export const getTags = async (c) => {
     try {
         const q = c.req.query('q') || '';
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const allTags = await db.select().from(tags).where(ilike(tags.name, `%${q}%`)).limit(20);
         return c.json(allTags.map(t => t.name));
     } catch (err) {

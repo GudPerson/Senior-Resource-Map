@@ -5,7 +5,7 @@ import { env } from 'hono/adapter';
 
 export const getSubCategories = async (c) => {
     try {
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const categories = await db.select().from(subCategories);
         return c.json(categories);
     } catch (err) {
@@ -17,7 +17,7 @@ export const getSubCategories = async (c) => {
 export const createSubCategory = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const body = await c.req.json();
         const { name, type, color } = body;
         if (!name || !type) return c.json({ error: 'Name and type are required' }, 400);
@@ -39,7 +39,7 @@ export const deleteSubCategory = async (c) => {
         const user = c.get('user');
         if (user.role !== 'admin' && user.role !== 'super_admin') return c.json({ error: 'Only admins can delete sub-categories' }, 403);
 
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const id = parseInt(c.req.param('id'));
         await db.delete(subCategories).where(eq(subCategories.id, id));
         return c.json({ success: true });

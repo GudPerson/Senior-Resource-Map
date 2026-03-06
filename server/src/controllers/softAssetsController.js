@@ -9,7 +9,7 @@ import { env } from 'hono/adapter';
 export const getSoftAssets = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const options = {
             with: {
@@ -49,7 +49,7 @@ export const getSoftAssetById = async (c) => {
     try {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const asset = await db.query.softAssets.findFirst({
             where: eq(softAssets.id, id),
@@ -80,7 +80,7 @@ export const getSoftAssetById = async (c) => {
 export const createSoftAsset = async (c) => {
     try {
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         if (user.role === 'user' || user.role === 'standard' || user.role === 'guest') {
             return c.json({ error: 'Only partners and admins can create resources' }, 403);
@@ -140,7 +140,7 @@ export const updateSoftAsset = async (c) => {
     try {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
@@ -203,7 +203,7 @@ export const deleteSoftAsset = async (c) => {
     try {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 

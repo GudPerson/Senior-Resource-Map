@@ -9,7 +9,7 @@ export const createUser = async (c) => {
         const body = await c.req.json();
         const { username, email, password, name, role, subregionId, phone } = body;
         const creator = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         if (creator.role === 'super_admin') {
             // unrestricted
@@ -64,7 +64,7 @@ export const bulkCreateUsers = async (c) => {
         const body = await c.req.json();
         const { rows } = body;
         const creator = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const results = { message: 'Bulk import processed', successful: 0, failed: 0, errors: [] };
 
         if (!Array.isArray(rows)) {
@@ -122,7 +122,7 @@ export const bulkCreateUsers = async (c) => {
 export const getUsers = async (c) => {
     try {
         const creator = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         let query = db.select({
             id: users.id,
             username: users.username,
@@ -152,7 +152,7 @@ export const updateProfile = async (c) => {
         const body = await c.req.json();
         const { name, phone, password } = body;
         const user = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
         const updates = {};
 
         if (name) updates.name = name;
@@ -188,7 +188,7 @@ export const updateUserRole = async (c) => {
         const id = parseInt(c.req.param('id'));
         const body = await c.req.json();
         const { role, subregionId } = body;
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         const updates = {};
         if (role) updates.role = role;
@@ -215,7 +215,7 @@ export const deleteUser = async (c) => {
     try {
         const id = parseInt(c.req.param('id'));
         const creator = c.get('user');
-        const db = getDb(env(c));
+        const db = getDb(c.env);
 
         if (id === creator.id) return c.json({ error: 'Cannot delete yourself.' }, 400);
 
