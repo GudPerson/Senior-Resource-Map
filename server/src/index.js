@@ -73,6 +73,7 @@ app.get('/api/debug-env', (c) => {
         envKeys: keys,
         hasDb,
         dbHost: maskedDb,
+        branch: env?.CF_PAGES_BRANCH || 'unknown',
         runtime: typeof globalThis.process !== 'undefined' ? 'node' : 'edge'
     });
 });
