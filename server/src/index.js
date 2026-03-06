@@ -55,8 +55,26 @@ app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISO
 app.get('/api/debug-env', (c) => {
     const { env } = c;
     const keys = env ? Object.keys(env) : [];
-    const hasDb = !!(env?.DATABASE_URL);
-    return c.json({ envKeys: keys, hasDb, runtime: typeof globalThis.process !== 'undefined' ? 'node' : 'edge' });
+    const dbUrl = env?.DATABASE_URL || '';
+    const hasDb = !!dbUrl;
+
+    // Masked URL: postgresql://user:***@host/db
+    let maskedDb = 'not set';
+    if (dbUrl) {
+        try {
+            const url = new URL(dbUrl);
+            maskedDb = `${url.protocol}//${url.username}:***@${url.host}${url.pathname}`;
+        } catch (e) {
+            maskedDb = 'invalid format';
+        }
+    }
+
+    return c.json({
+        envKeys: keys,
+        hasDb,
+        dbHost: maskedDb,
+        runtime: typeof globalThis.process !== 'undefined' ? 'node' : 'edge'
+    });
 });
 
 const isNode = typeof globalThis.process !== 'undefined' && globalThis.process.release?.name === 'node';
