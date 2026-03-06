@@ -38,6 +38,11 @@ function isAllowedOrigin(origin) {
     try {
         const originHost = new URL(origin).hostname;
 
+        // Allow Cloudflare Pages
+        if (originHost.endsWith('.pages.dev')) {
+            return true;
+        }
+
         // Allow exact Netlify hosts for production and deploy contexts.
         const explicitHosts = netlifyUrls.map((u) => new URL(u).hostname);
         if (explicitHosts.includes(originHost)) return true;
