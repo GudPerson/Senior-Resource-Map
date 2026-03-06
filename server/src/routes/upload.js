@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { authenticateToken, authorize } from '../middleware/auth.js';
-import { env } from 'hono/adapter';
 
 const router = new Hono();
 
@@ -28,7 +27,7 @@ router.post('/', authenticateToken, authorize('partner', 'regional_admin', 'admi
             return c.json({ error: 'No file uploaded' }, 400);
         }
 
-        const envVars = env(c);
+        const envVars = c.env;
         const cloudName = envVars.CLOUDINARY_CLOUD_NAME;
         const apiKey = envVars.CLOUDINARY_API_KEY;
         const apiSecret = envVars.CLOUDINARY_API_SECRET;

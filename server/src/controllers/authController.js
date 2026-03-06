@@ -1,12 +1,11 @@
 import bcrypt from 'bcryptjs';
 import { sign, verify } from 'hono/jwt';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
-import { env } from 'hono/adapter';
 import { getDb } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { eq, or, sql, ilike } from 'drizzle-orm';
 
-const getSecret = (c) => env(c).JWT_SECRET || 'seniorcare-secret-key';
+const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
 
 async function generateToken(user, c) {
     return await sign(
@@ -26,7 +25,7 @@ async function generateToken(user, c) {
 function setAuthCookie(c, token) {
     setCookie(c, 'sc_token', token, {
         httpOnly: true,
-        secure: env(c).NODE_ENV === 'production',
+        secure: c.env.NODE_ENV === 'production',
         sameSite: 'Lax',
         maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
         path: '/',
@@ -184,7 +183,7 @@ export const googleAuth = async (c) => {
         const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
         const payload = await response.json();
 
-        if (!response.ok || !payload || payload.aud !== env(c).VITE_GOOGLE_CLIENT_ID) {
+        if (!response.ok || !payload || payload.aud !== c.env.VITE_GOOGLE_CLIENT_ID) {
             return c.json({ error: 'Invalid Google token' }, 401);
         }
 

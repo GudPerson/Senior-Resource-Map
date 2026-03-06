@@ -4,7 +4,6 @@ import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
-import { env } from 'hono/adapter';
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -165,7 +164,7 @@ export const createHardAsset = async (c) => {
             return asset;
         });
 
-        await rebuildMapCache(body.subregionId || user.subregionId, env(c));
+        await rebuildMapCache(body.subregionId || user.subregionId, c.env);
         return c.json(result, 201);
     } catch (err) {
         console.error(err);
@@ -225,7 +224,7 @@ export const updateHardAsset = async (c) => {
             }
         });
 
-        await rebuildMapCache(body.subregionId || existing.subregionId || user.subregionId, env(c));
+        await rebuildMapCache(body.subregionId || existing.subregionId || user.subregionId, c.env);
         return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
@@ -252,7 +251,7 @@ export const deleteHardAsset = async (c) => {
         }
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
-        await rebuildMapCache(existing.subregionId || user.subregionId, env(c));
+        await rebuildMapCache(existing.subregionId || user.subregionId, c.env);
         return c.json({ success: true });
     } catch (err) {
         console.error(err);

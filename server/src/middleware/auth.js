@@ -1,8 +1,7 @@
 import { verify } from 'hono/jwt';
 import { getCookie } from 'hono/cookie';
-import { env } from 'hono/adapter';
 
-const getSecret = (c) => env(c).JWT_SECRET || 'seniorcare-secret-key';
+const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
 
 export async function authenticateToken(c, next) {
     const token = getCookie(c, 'sc_token');

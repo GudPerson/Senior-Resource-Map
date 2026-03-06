@@ -4,7 +4,6 @@ import { eq, desc } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
-import { env } from 'hono/adapter';
 
 export const getSoftAssets = async (c) => {
     try {
@@ -128,7 +127,7 @@ export const createSoftAsset = async (c) => {
             return asset;
         });
 
-        await rebuildMapCache(body.subregionId || user.subregionId, env(c));
+        await rebuildMapCache(body.subregionId || user.subregionId, c.env);
         return c.json(result, 201);
     } catch (err) {
         console.error(err);
@@ -191,7 +190,7 @@ export const updateSoftAsset = async (c) => {
             }
         });
 
-        await rebuildMapCache(existing.subregionId || user.subregionId, env(c));
+        await rebuildMapCache(existing.subregionId || user.subregionId, c.env);
         return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
@@ -217,7 +216,7 @@ export const deleteSoftAsset = async (c) => {
         }
 
         await db.update(softAssets).set({ isDeleted: true }).where(eq(softAssets.id, id));
-        await rebuildMapCache(existing.subregionId || user.subregionId, env(c));
+        await rebuildMapCache(existing.subregionId || user.subregionId, c.env);
         return c.json({ success: true });
     } catch (err) {
         console.error(err);
