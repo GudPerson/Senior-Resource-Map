@@ -1,0 +1,11 @@
+[site]
+  compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "MAP_CACHE"
+# Replace this ID with your actual KV namespace ID from the Cloudflare Dashboard
+id = "2a6899a5-a6a5-4598-8be0-9195b0583b6c" 
+
+[[routes]]
+pattern = "/api/*"
+script = "functions/[[path]].js"
