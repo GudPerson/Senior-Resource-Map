@@ -1,0 +1,62 @@
+
+ ⛅️ wrangler 4.71.0
+───────────────────
+
+Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+Using secrets defined in client/.env
+Your Worker has access to the following bindings:
+Binding                                                           Resource                  Mode
+env.MAP_CACHE (2a6899a5a6a5440590166ab8e1d3a2d8)                  KV Namespace              local
+env.VITE_GOOGLE_CLIENT_ID ("(hidden)")                            Environment Variable      local
+env.VITE_API_URL ("(hidden)")                                     Environment Variable      local
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 4 errors:[0m
+
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "http"[0m
+  
+      node_modules/@hono/node-server/dist/index.mjs:2:49:
+  [37m      2 │ import { createServer as createServerHTTP } from [32m"http"[37m;
+          ╵                                                  [32m~~~~~~[0m
+  
+    The package "http" wasn't found on the file system but is built into node.
+    - Add the "nodejs_compat" compatibility flag to your project.
+    
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "http2"[0m
+  
+      node_modules/@hono/node-server/dist/index.mjs:5:58:
+  [37m      5 │ import { Http2ServerRequest as Http2ServerRequest2 } from [32m"http2"[37m;
+          ╵                                                           [32m~~~~~~~[0m
+  
+    The package "http2" wasn't found on the file system but is built into node.
+    - Add the "nodejs_compat" compatibility flag to your project.
+    
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "stream"[0m
+  
+      node_modules/@hono/node-server/dist/index.mjs:9:25:
+  [37m      9 │ import { Readable } from [32m"stream"[37m;
+          ╵                          [32m~~~~~~~~[0m
+  
+    The package "stream" wasn't found on the file system but is built into node.
+    - Add the "nodejs_compat" compatibility flag to your project.
+    
+  
+  
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "crypto"[0m
+  
+      node_modules/@hono/node-server/dist/index.mjs:333:19:
+  [37m      333 │ import crypto from [32m"crypto"[37m;
+            ╵                    [32m~~~~~~~~[0m
+  
+    The package "crypto" wasn't found on the file system but is built into node.
+    - Add the "nodejs_compat" compatibility flag to your project.
+    
+  
+  
+
+
+🪵  Logs were written to "/Users/sweetbuns/Library/Preferences/.wrangler/logs/wrangler-2026-03-06_15-22-53_690.log"
