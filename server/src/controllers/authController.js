@@ -36,21 +36,32 @@ function setAuthCookie(c, token) {
 export const register = async (c) => {
     try {
         const body = await c.req.json();
-        const { username, email, password, name } = body;
+        const { email, password, name } = body;
+        let { username } = body;
 
-        if (!username || !email || !password || !name) {
-            return c.json({ error: 'Username, email, password, and name are required' }, 400);
+        if (!email || !password || !name) {
+            return c.json({ error: 'Email, password, and name are required' }, 400);
         }
 
         const db = getDb(env(c));
 
-        // Check if user exists
-        const [existing] = await db.select().from(users).where(
-            or(eq(users.username, username), eq(users.email, email))
-        );
+        // Auto-generate username from email if not provided
+        if (!username) {
+            const baseUsername = email.split('@')[0];
+            let finalUsername = baseUsername;
+            let counter = 1;
+            while (true) {
+                const [existing] = await db.select().from(users).where(eq(users.username, finalUsername));
+                if (!existing) break;
+                finalUsername = `${baseUsername}${counter++}`;
+            }
+            username = finalUsername;
+        }
 
-        if (existing) {
-            return c.json({ error: 'Username or email already exists' }, 400);
+        // Check if email already exists
+        const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
+        if (existingEmail) {
+            return c.json({ error: 'Email already exists' }, 400);
         }
 
         const passwordHash = await bcrypt.hash(password, 12);
