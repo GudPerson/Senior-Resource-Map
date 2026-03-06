@@ -52,6 +52,13 @@ app.route('/api/subregions', subregionRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+app.get('/api/debug-env', (c) => {
+    const { env } = c;
+    const keys = env ? Object.keys(env) : [];
+    const hasDb = !!(env?.DATABASE_URL);
+    return c.json({ envKeys: keys, hasDb, runtime: typeof globalThis.process !== 'undefined' ? 'node' : 'edge' });
+});
+
 const isNode = typeof globalThis.process !== 'undefined' && globalThis.process.release?.name === 'node';
 
 if (isNode && globalThis.process.env?.NODE_ENV !== 'production') {
