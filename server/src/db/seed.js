@@ -300,10 +300,10 @@ async function seed() {
         console.log('   Partner: contact@sata.com.sg / partner123');
         console.log('');
         console.log(`📍 Created ${locations.length} locations and ${programs.length} offerings/programs`);
-        process.exit(0);
+        if (typeof globalThis.process !== 'undefined') globalThis.process.exit(0);
     } catch (err) {
         console.error('❌ Seeding failed:', err);
-        process.exit(1);
+        if (typeof globalThis.process !== 'undefined') globalThis.process.exit(1);
     }
 }
 

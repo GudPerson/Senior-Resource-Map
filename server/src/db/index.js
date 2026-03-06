@@ -8,7 +8,7 @@ let dbInstance = null;
 export function getDb(envVars = {}) {
   if (dbInstance) return dbInstance;
 
-  const envUrl = envVars.DATABASE_URL || (typeof process !== 'undefined' ? process.env?.DATABASE_URL : null);
+  const envUrl = envVars.DATABASE_URL || (typeof globalThis.process !== 'undefined' ? globalThis.process.env?.DATABASE_URL : null);
   const sql = neon(envUrl || 'postgres://postgres:postgres@localhost:5432/seniorcare');
 
   dbInstance = drizzle(sql, { schema });

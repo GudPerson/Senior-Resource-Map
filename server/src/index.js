@@ -52,18 +52,24 @@ app.route('/api/subregions', subregionRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
-if (process.env.NODE_ENV !== 'production' && process.env.CF_PAGES !== '1') {
-    import('@hono/node-server').then(({ serve }) => {
-        const port = process.env.PORT || 4000;
-        serve({
-            fetch: app.fetch,
-            port
-        }, (info) => {
-            console.log(`🏥 SeniorCare Connect API running on http://localhost:${info.port}`);
-        });
-    }).catch(err => {
-        // Ignore in environments where node-server is not needed
-    });
+const isNode = typeof globalThis.process !== 'undefined' && globalThis.process.release?.name === 'node';
+
+if (isNode && globalThis.process.env?.NODE_ENV !== 'production') {
+    const startNodeServer = async () => {
+        try {
+            const { serve } = await import('@hono/node-server');
+            const port = globalThis.process.env?.PORT || 4000;
+            serve({
+                fetch: app.fetch,
+                port
+            }, (info) => {
+                console.log(`🏥 SeniorCare Connect API running on http://localhost:${info.port}`);
+            });
+        } catch (err) {
+            // Ignore in environments where node-server is not needed
+        }
+    };
+    startNodeServer();
 }
 
 export default app;
