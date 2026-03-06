@@ -98,10 +98,34 @@ export const login = async (c) => {
         const { username, email, password, isPartnerLogin } = body;
 
         const loginId = username || email;
+        if (!loginId || !password) {
+            return c.json({ error: 'Username/email and password are required' }, 400);
+        }
+
         const db = getDb(env(c));
-        const [user] = await db.select().from(users).where(
-            loginId.includes('@') ? ilike(users.email, loginId) : ilike(users.username, loginId)
+        const isEmail = loginId.includes('@');
+
+        // Try exact match first
+        let [user] = await db.select().from(users).where(
+            isEmail ? eq(users.email, loginId) : eq(users.username, loginId)
         );
+
+        // Fallback: case-insensitive lookup
+        if (!user) {
+            [user] = await db.select().from(users).where(
+                isEmail ? eq(users.email, loginId.toLowerCase()) : eq(users.username, loginId)
+            );
+        }
+
+        // Last resort: fetch by lowercase comparison
+        if (!user) {
+            const allUsers = await db.select().from(users);
+            user = allUsers.find(u =>
+                isEmail
+                    ? u.email.toLowerCase() === loginId.toLowerCase()
+                    : u.username.toLowerCase() === loginId.toLowerCase()
+            );
+        }
 
         if (!user) return c.json({ error: 'Invalid credentials' }, 401);
 
