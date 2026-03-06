@@ -4,7 +4,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { env } from 'hono/adapter';
 import { getDb } from '../db/index.js';
 import { users } from '../db/schema.js';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 
 const getSecret = (c) => env(c).JWT_SECRET || 'seniorcare-secret-key';
 
@@ -100,7 +100,9 @@ export const login = async (c) => {
         const loginId = username || email;
         const db = getDb(env(c));
         const [user] = await db.select().from(users).where(
-            loginId.includes('@') ? eq(users.email, loginId) : eq(users.username, loginId)
+            loginId.includes('@')
+                ? sql`lower(${users.email}) = lower(${loginId})`
+                : sql`lower(${users.username}) = lower(${loginId})`
         );
 
         if (!user) return c.json({ error: 'Invalid credentials' }, 401);
