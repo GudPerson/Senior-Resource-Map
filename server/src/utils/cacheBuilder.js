@@ -1,13 +1,6 @@
-import { getStore } from '@netlify/blobs';
 import { sql } from 'drizzle-orm';
 import db from '../db/index.js';
-
-// Initialize the Netlify Blobs store
-const getCacheStore = () => getStore({
-    name: 'map-cache',
-    siteID: process.env.NETLIFY_SITE_ID,
-    token: process.env.NETLIFY_API_TOKEN,
-});
+import { dataStore } from './dataStore.js';
 
 /**
  * Rebuilds the edge cache JSON for a specific subregion
@@ -50,10 +43,9 @@ export const rebuildMapCache = async (subregionId) => {
         const { rows } = await db.execute(query);
 
         // Push to Edge Storage
-        const store = getCacheStore();
         const blobKey = `locations-cache-region-${subregionId}.json`;
 
-        await store.setJSON(blobKey, rows);
+        await dataStore.setJSON(blobKey, rows);
         console.log(`✅ Edge cache updated for subregion ${subregionId}: ${blobKey}`);
 
         // Always rebuild the global 'all' cache when a specific subregion is updated

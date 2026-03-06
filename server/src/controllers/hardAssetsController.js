@@ -7,8 +7,15 @@ import fs from 'fs';
 import path from 'path';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 
-// Use process.cwd() for file paths — the snapshot file is only available locally, not in serverless
-const SNAPSHOT_PATH = path.join(process.cwd(), 'server/scripts/sg_senior_facilities_full.json');
+// Safe directory resolution for local development snapshots
+let baseDir = '';
+try {
+    baseDir = process.cwd();
+} catch (e) {
+    baseDir = '/';
+}
+
+const SNAPSHOT_PATH = path.join(baseDir, 'server/scripts/sg_senior_facilities_full.json');
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -38,13 +45,13 @@ export const getHardAssets = async (req, res) => {
     try {
         // GUEST ACCESS: Serve from static snapshot to avoid cold starts
         if (req.user?.role === 'guest') {
-            if (fs.existsSync(SNAPSHOT_PATH)) {
-                try {
+            try {
+                if (fs && fs.existsSync && fs.existsSync(SNAPSHOT_PATH)) {
                     const data = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
                     return res.json(data);
-                } catch (e) {
-                    console.error('Error reading snapshot:', e);
                 }
+            } catch (fsError) {
+                console.warn('Snapshot skipped: Filesystem not available or file missing');
             }
         }
 
