@@ -13,8 +13,7 @@ export async function authenticateToken(c, next) {
 
     try {
         const secret = getSecret(c);
-        // console.log('[Auth] Verifying token with secret length:', secret?.length);
-        const user = await verify(token, secret);
+        const user = await verify(token, secret, 'HS256');
         c.set('user', user);
         await next();
     } catch (err) {
@@ -29,7 +28,7 @@ export async function optionalAuth(c, next) {
 
     if (token) {
         try {
-            const user = await verify(token, getSecret(c));
+            const user = await verify(token, getSecret(c), 'HS256');
             c.set('user', user);
         } catch {
             // Ignore error

@@ -18,7 +18,8 @@ async function generateToken(user, c) {
             subregionId: user.subregionId,
             exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
         },
-        getSecret(c)
+        getSecret(c),
+        'HS256'
     );
 }
 
