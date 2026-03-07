@@ -6,13 +6,19 @@ const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
 export async function authenticateToken(c, next) {
     const token = getCookie(c, 'sc_token');
 
-    if (!token) return c.json({ error: 'No token provided' }, 401);
+    if (!token) {
+        console.log('[Auth] No token cookie found');
+        return c.json({ error: 'No token provided' }, 401);
+    }
 
     try {
-        const user = await verify(token, getSecret(c));
+        const secret = getSecret(c);
+        // console.log('[Auth] Verifying token with secret length:', secret?.length);
+        const user = await verify(token, secret);
         c.set('user', user);
         await next();
-    } catch {
+    } catch (err) {
+        console.error('[Auth] JWT Verification failed:', err.message);
         return c.json({ error: 'Invalid token' }, 403);
     }
 }

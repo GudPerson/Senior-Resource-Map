@@ -2,7 +2,6 @@ import { getDb } from '../db/index.js';
 import { hardAssets, softAssets } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { syncAssetTags } from '../utils/tags.js';
-import { env } from 'hono/adapter';
 
 export const exportFullDB = async (c) => {
     try {

@@ -1,7 +1,6 @@
 import { getDb } from '../db/index.js';
 import { userFavorites } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { env } from 'hono/adapter';
 
 export const getFavorites = async (c) => {
     try {

@@ -1,7 +1,6 @@
 import { getDb } from '../db/index.js';
 import { subCategories } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { env } from 'hono/adapter';
 
 export const getSubCategories = async (c) => {
     try {

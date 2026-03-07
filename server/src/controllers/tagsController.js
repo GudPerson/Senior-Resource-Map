@@ -1,7 +1,6 @@
 import { getDb } from '../db/index.js';
 import { tags } from '../db/schema.js';
 import { ilike } from 'drizzle-orm';
-import { env } from 'hono/adapter';
 
 export const getTags = async (c) => {
     try {

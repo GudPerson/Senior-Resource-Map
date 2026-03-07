@@ -2,7 +2,6 @@ import { getDb } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { env } from 'hono/adapter';
 
 export const createUser = async (c) => {
     try {
