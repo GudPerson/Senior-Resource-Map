@@ -3,7 +3,6 @@ import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
 import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download } from 'lucide-react';
 import Papa from 'papaparse';
-import { saveAs } from 'file-saver';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 
@@ -18,23 +17,40 @@ export default function AdminPage() {
 
     const [loading, setLoading] = useState(true);
     const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
-    const [newSubregion, setNewSubregion] = useState({ name: '', description: '' });
+    const [newSubregion, setNewSubregion] = useState({ subregionCode: '', name: '', description: '' });
+    const [selectedSubregions, setSelectedSubregions] = useState([]);
+    const [subregionFeedback, setSubregionFeedback] = useState(null);
+    const [pendingSubregionDelete, setPendingSubregionDelete] = useState(null);
+    const [subregionDeleteLoading, setSubregionDeleteLoading] = useState(false);
 
     async function loadAll() {
         setLoading(true);
         try {
-            const [res, usr, subCats, regs] = await Promise.all([
+            const results = await Promise.allSettled([
                 api.getResources(),
                 api.getUsers(),
                 api.getSubCategories(),
                 api.getSubregions()
             ]);
-            setResources(res);
-            setUsers(usr);
-            setSubCategories(subCats);
-            setSubregions(regs);
+
+            if (results[0].status === 'fulfilled') setResources(results[0].value);
+            if (results[1].status === 'fulfilled') setUsers(results[1].value);
+            if (results[2].status === 'fulfilled') setSubCategories(results[2].value);
+            if (results[3].status === 'fulfilled') {
+                const regs = results[3].value;
+                setSubregions(regs);
+                setSelectedSubregions((prev) => prev.filter((id) => regs.some((reg) => reg.id === id)));
+            }
+
+            // Inform of partial failures (e.g. permission issues for Users tab)
+            const rejected = results.filter(r => r.status === 'rejected');
+            if (rejected.length > 0 && rejected.length < 4) {
+                console.warn('Some admin modules failed to load (likely permissions):', rejected);
+            } else if (rejected.length === 4) {
+                alert('Admin data load failed entirely. Please check your login session.');
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Core load error:', err);
         } finally {
             setLoading(false);
         }
@@ -42,21 +58,37 @@ export default function AdminPage() {
 
     useEffect(() => { loadAll(); }, []);
 
-    async function handleDeleteResource(id) {
+    async function handleDeleteResource(id, category) {
         if (!confirm('Delete this resource permanently?')) return;
-        await api.deleteResource(id);
-        await loadAll();
+        try {
+            if (category === 'Places') {
+                await api.deleteHardAsset(id);
+            } else {
+                await api.deleteSoftAsset(id);
+            }
+            await loadAll();
+        } catch (err) {
+            alert('Delete failed: ' + err.message);
+        }
     }
 
     async function handleRoleChange(userId, newRole) {
-        await api.updateRole(userId, newRole);
-        await loadAll();
+        try {
+            await api.updateRole(userId, newRole);
+            await loadAll();
+        } catch (err) {
+            alert(err.message);
+        }
     }
 
     async function handleDeleteUser(id) {
         if (!confirm('Delete this user and all their resources?')) return;
-        await api.deleteUser(id);
-        await loadAll();
+        try {
+            await api.deleteUser(id);
+            await loadAll();
+        } catch (err) {
+            alert(err.message);
+        }
     }
 
     async function handleAddSubCategory(e) {
@@ -72,25 +104,42 @@ export default function AdminPage() {
 
     async function handleDeleteSubCategory(id) {
         if (!confirm('Delete this sub-category? (Assets using it will fall back to Defaults)')) return;
-        await api.deleteSubCategory(id);
-        await loadAll();
-    }
-
-    async function handleAddSubregion(e) {
-        e.preventDefault();
         try {
-            await api.createSubregion(newSubregion);
-            setNewSubregion({ name: '', description: '' });
+            await api.deleteSubCategory(id);
             await loadAll();
         } catch (err) {
             alert(err.message);
         }
     }
 
-    async function handleDeleteSubregion(id) {
-        if (!confirm('Delete this subregion? Users and assets in this region will be set to Global.')) return;
-        await api.deleteSubregion(id);
-        await loadAll();
+    async function handleAddSubregion(e) {
+        e.preventDefault();
+        setLoading(true);
+        setSubregionFeedback(null);
+        console.log('Submitting subregion:', newSubregion);
+        try {
+            const res = await api.createSubregion(newSubregion);
+            console.log('Subregion created:', res);
+            setNewSubregion({ subregionCode: '', name: '', description: '' });
+            await loadAll();
+            setSubregionFeedback({ type: 'success', message: `Subregion "${res.subregionCode || res.id}" added successfully.` });
+        } catch (err) {
+            console.error('Subregion add failed:', err);
+            setSubregionFeedback({
+                type: 'error',
+                message: err.message || 'Unable to add subregion. Please try again.'
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function promptSingleSubregionDelete(subregion) {
+        setPendingSubregionDelete({
+            mode: 'single',
+            id: subregion.id,
+            label: subregion.subregionCode || subregion.id
+        });
     }
 
     async function handleExportCSV() {
@@ -98,22 +147,12 @@ export default function AdminPage() {
             setLoading(true);
             const data = await api.exportFullDB();
 
-            const hardData = (data.hardAssets && data.hardAssets.length > 0) ? data.hardAssets : null;
-            if (hardData) {
-                const hardCSV = Papa.unparse(hardData);
-                downloadFile(hardCSV, 'hard_assets_export.csv', 'text/csv');
-            } else {
-                handleDownloadPlacesTemplate();
+            if (data.hardAssets?.length > 0) {
+                downloadFile('\uFEFF' + Papa.unparse(data.hardAssets), 'hard_assets_export.csv', 'text/csv;charset=utf-8');
             }
-
-            const softData = (data.softAssets && data.softAssets.length > 0) ? data.softAssets : null;
-            if (softData) {
-                const softCSV = Papa.unparse(softData);
-                downloadFile(softCSV, 'soft_assets_export.csv', 'text/csv');
-            } else {
-                handleDownloadOfferingsTemplate();
+            if (data.softAssets?.length > 0) {
+                downloadFile('\uFEFF' + Papa.unparse(data.softAssets), 'soft_assets_export.csv', 'text/csv;charset=utf-8');
             }
-
             alert('Export complete');
         } catch (err) {
             alert('Export failed: ' + err.message);
@@ -125,30 +164,49 @@ export default function AdminPage() {
     function handleDownloadPlacesTemplate() {
         const headers = ['id', 'name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerUsername', 'subregionId'];
         const demoRow = ['', 'Example AAC', 'Active Ageing Centres', '123456', '+6591234567', '9am-6pm', 'A great place for seniors', 'wellness, active', '', ''];
-        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-        saveAs(blob, 'places_upload_template.csv');
+        downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'places_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
     function handleDownloadOfferingsTemplate() {
         const headers = ['id', 'name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerUsername', 'subregionId', 'linkedPlaceIds'];
         const demoRow = ['', 'Morning Yoga', 'Programmes', 'Gentle yoga for seniors', 'Mon/Wed 9am', 'false', 'fitness, health', '', '', ''];
-        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-        saveAs(blob, 'offerings_upload_template.csv');
+        downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'offerings_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
     function handleDownloadUserTemplate() {
         const headers = ['username', 'email', 'name', 'password', 'phone', 'role', 'subregionIds'];
         const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', 'partner', '1,2'];
-        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-        saveAs(blob, 'user_upload_template.csv');
+        downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
-    function downloadFile(content, fileName, mimeType) {
-        const blob = new Blob([content], { type: mimeType });
-        saveAs(blob, fileName);
+    function downloadFile(content, fileName, mimeType = 'text/csv;charset=utf-8') {
+        try {
+            console.log('Preparing download link for:', fileName);
+
+            // Standard approach using a blob and a temporary anchor
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.setAttribute('download', fileName);
+            link.setAttribute('target', '_blank');
+
+            // Append to body to ensure it's in the DOM for Chrome/Safari
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 5000);
+
+            alert(`Export initiated: ${fileName}`);
+        } catch (err) {
+            console.error('Download failed:', err);
+            alert('Export failed. Please check browser console for details.');
+        }
     }
 
     function handleImportCSV(e, type) {
@@ -203,6 +261,119 @@ export default function AdminPage() {
                 setLoading(false);
             }
         });
+    }
+
+    function handleDownloadSubregionTemplate() {
+        const headers = ['id', 'subregionId', 'name', 'description'];
+        const demoRow = ['', 'SR-JW', 'Jurong West', 'Residential area in the west'];
+        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
+        downloadFile('\uFEFF' + csv, 'subregion_upload_template.csv', 'text/csv;charset=utf-8');
+    }
+
+    function handleBulkSubregionUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setLoading(true);
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const res = await api.bulkCreateSubregions({ rows: results.data });
+                    alert(`Import processed: ${res.successful} successful, ${res.failed} failed.${res.errors.length > 0 ? '\n\nErrors:\n' + res.errors.join('\n') : ''}`);
+                    await loadAll();
+                } catch (err) {
+                    alert('Bulk upload failed: ' + err.message);
+                } finally {
+                    setLoading(false);
+                    e.target.value = null;
+                }
+            },
+            error: (err) => {
+                alert('File parsing error: ' + err.message);
+                setLoading(false);
+            }
+        });
+    }
+
+    function promptBulkDeleteSubregions() {
+        if (selectedSubregions.length === 0) return;
+        setPendingSubregionDelete({
+            mode: 'bulk',
+            ids: [...selectedSubregions],
+            count: selectedSubregions.length
+        });
+    }
+
+    async function handleConfirmSubregionDelete() {
+        if (!pendingSubregionDelete) return;
+        try {
+            setSubregionDeleteLoading(true);
+            setLoading(true);
+            setSubregionFeedback(null);
+            if (pendingSubregionDelete.mode === 'single') {
+                const res = await api.deleteSubregion(pendingSubregionDelete.id);
+                const deletedLabel = res?.deleted?.subregionCode || res?.deleted?.id || pendingSubregionDelete.label;
+                await loadAll();
+                setSubregionFeedback({ type: 'success', message: `Subregion "${deletedLabel}" deleted.` });
+            } else {
+                const res = await api.bulkDeleteSubregions(pendingSubregionDelete.ids);
+                setSelectedSubregions([]);
+                await loadAll();
+                setSubregionFeedback({
+                    type: 'success',
+                    message: `${res?.deletedCount || 0} subregion(s) deleted successfully.`
+                });
+            }
+        } catch (err) {
+            console.error('Subregion delete failed:', err);
+            setSubregionFeedback({ type: 'error', message: err.message || 'Delete failed.' });
+        } finally {
+            setPendingSubregionDelete(null);
+            setSubregionDeleteLoading(false);
+            setLoading(false);
+        }
+    }
+
+    function handleExportSelectedSubregions() {
+        const selectedData = selectedSubregions.length > 0
+            ? subregions.filter(s => selectedSubregions.includes(s.id))
+            : subregions;
+
+        if (selectedData.length === 0) {
+            alert('No subregions to export');
+            return;
+        }
+
+        const toExport = selectedData.map(s => ({
+            id: s.id,
+            subregionId: s.subregionCode || '',
+            name: s.name,
+            description: s.description || ''
+        }));
+
+        const csv = Papa.unparse({
+            fields: ['id', 'subregionId', 'name', 'description'],
+            data: toExport.map(s => [s.id, s.subregionId, s.name, s.description])
+        });
+
+        const fileName = `subregions_export_${new Date().toISOString().split('T')[0]}.csv`;
+        downloadFile('\uFEFF' + csv, fileName, 'text/csv;charset=utf-8');
+    }
+
+    function toggleSubregionSelection(id) {
+        setSelectedSubregions(prev =>
+            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+        );
+    }
+
+    function toggleSelectAllSubregions() {
+        if (selectedSubregions.length === subregions.length) {
+            setSelectedSubregions([]);
+        } else {
+            setSelectedSubregions(subregions.map(s => s.id));
+        }
     }
 
     return (
@@ -285,7 +456,7 @@ export default function AdminPage() {
                                         <td className="px-4 py-3">
                                             <button
                                                 id={`admin-delete-resource-${r.id}`}
-                                                onClick={() => handleDeleteResource(r.id)}
+                                                onClick={() => handleDeleteResource(r.id, r.category)}
                                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                                                 title="Delete"
                                             >
@@ -304,43 +475,117 @@ export default function AdminPage() {
             ) : tab === 'subregions' ? (
                 /* ======== Subregions Table ======== */
                 <div className="space-y-6">
-                    <form onSubmit={handleAddSubregion} className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                        <input
-                            required
-                            placeholder="Subregion Name (e.g. Jurong)"
-                            value={newSubregion.name}
-                            onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
-                            className="input-field flex-1"
-                        />
-                        <input
-                            placeholder="Description"
-                            value={newSubregion.description}
-                            onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
-                            className="input-field flex-1"
-                        />
-                        <button type="submit" className="btn-primary sm:w-auto w-full">Add Subregion</button>
-                    </form>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <form onSubmit={handleAddSubregion} className="flex-1 flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <input
+                                required
+                                placeholder="Subregion ID (e.g. SR-AMK)"
+                                value={newSubregion.subregionCode}
+                                onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
+                                className="input-field w-40 sm:w-44"
+                                title="Unique subregion identifier"
+                            />
+                            <input
+                                required
+                                placeholder="Name (e.g. Jurong)"
+                                value={newSubregion.name}
+                                onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
+                                className="input-field flex-1"
+                            />
+                            <input
+                                placeholder="Description"
+                                value={newSubregion.description}
+                                onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
+                                className="input-field flex-1"
+                            />
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                {loading ? 'Adding...' : 'Add Subregion'}
+                            </button>
+                        </form>
+
+                        <div className="flex gap-2 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm flex-1 sm:flex-none">
+                                <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionUpload} />
+                                <Upload size={16} />
+                                Upload CSV
+                            </label>
+                            <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center p-2" title="Download Template">
+                                <Download size={18} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {subregionFeedback && (
+                        <div
+                            className={`rounded-xl border px-4 py-3 text-sm font-semibold ${subregionFeedback.type === 'error'
+                                    ? 'bg-red-50 text-red-700 border-red-200'
+                                    : 'bg-green-50 text-green-700 border-green-200'
+                                }`}
+                        >
+                            {subregionFeedback.message}
+                        </div>
+                    )}
+
+                    {selectedSubregions.length > 0 && (
+                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedSubregions.length} selected</span>
+                            <div className="flex-1"></div>
+                            <button type="button" onClick={handleExportSelectedSubregions} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
+                                <Download size={14} /> Export Selected
+                            </button>
+                            <button type="button" onClick={promptBulkDeleteSubregions} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
+                                <Trash2 size={14} /> Delete Selected
+                            </button>
+                        </div>
+                    )}
 
                     <div className="card overflow-hidden p-0">
                         <table className="hc-table w-full text-left">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-500">
+                                    <th className="px-4 py-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={subregions.length > 0 && selectedSubregions.length === subregions.length}
+                                            onChange={toggleSelectAllSubregions}
+                                            className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                    </th>
                                     <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
-                                    <th className="px-4 py-3 font-semibold w-24">Actions</th>
+                                    <th className="px-4 py-3 font-semibold w-24 text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {subregions.map(reg => (
-                                    <tr key={reg.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-4 py-3 text-slate-500 font-mono text-xs">{reg.id}</td>
-                                        <td className="px-4 py-3 font-semibold text-slate-900">{reg.name}</td>
-                                        <td className="px-4 py-3 text-slate-500 text-sm">{reg.description || '—'}</td>
+                                    <tr key={reg.id} className={`hover:bg-slate-50 transition-colors ${selectedSubregions.includes(reg.id) ? 'bg-blue-50/30' : ''}`}>
                                         <td className="px-4 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSubregions.includes(reg.id)}
+                                                onChange={() => toggleSubregionSelection(reg.id)}
+                                                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-500 font-mono text-xs" title={`DB ID: ${reg.id}`}>
+                                            {reg.subregionCode || reg.id}
+                                        </td>
+                                        <td className="px-4 py-3 font-semibold text-slate-900">{reg.name}</td>
+                                        <td className="px-4 py-3 text-slate-500 text-sm truncate max-w-[200px]">{reg.description || '—'}</td>
+                                        <td className="px-4 py-3 flex justify-center">
                                             <button
-                                                onClick={() => handleDeleteSubregion(reg.id)}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    promptSingleSubregionDelete(reg);
+                                                }}
+                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center relative z-10"
                                                 title="Delete subregion"
                                             >
                                                 <Trash2 size={16} />
@@ -354,6 +599,37 @@ export default function AdminPage() {
                             <div className="text-center py-12 text-slate-400">No subregions defined.</div>
                         )}
                     </div>
+
+                    {pendingSubregionDelete && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                            <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                                <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
+                                <p className="mt-2 text-sm text-slate-600">
+                                    {pendingSubregionDelete.mode === 'single'
+                                        ? `Delete subregion "${pendingSubregionDelete.label}"? Users and assets in this region will be set to Global.`
+                                        : `Delete ${pendingSubregionDelete.count} selected subregion(s)? Users and assets in these regions will be set to Global.`}
+                                </p>
+                                <div className="mt-5 flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => !subregionDeleteLoading && setPendingSubregionDelete(null)}
+                                        disabled={subregionDeleteLoading}
+                                        className="btn-secondary"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleConfirmSubregionDelete}
+                                        disabled={subregionDeleteLoading}
+                                        className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 disabled:opacity-50"
+                                    >
+                                        {subregionDeleteLoading ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : tab === 'subcats' ? (
                 /* ======== SubCategories Table ======== */
@@ -600,7 +876,8 @@ export default function AdminPage() {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

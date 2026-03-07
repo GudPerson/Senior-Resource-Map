@@ -5,6 +5,7 @@ export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partne
 
 export const subregions = pgTable('subregions', {
   id: serial('id').primaryKey(),
+  subregionCode: varchar('subregion_code', { length: 80 }).unique(),
   name: varchar('name', { length: 255 }).notNull().unique(),
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow(),

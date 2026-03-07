@@ -80,6 +80,8 @@ export const api = {
     // Subregions
     getSubregions: () => request('GET', '/subregions'),
     createSubregion: (body) => request('POST', '/subregions', body),
+    bulkCreateSubregions: (body) => request('POST', '/subregions/bulk', body),
+    bulkDeleteSubregions: (ids) => request('POST', '/subregions/bulk-delete', { ids }),
     deleteSubregion: (id) => request('DELETE', `/subregions/${id}`),
 
     // Admin
