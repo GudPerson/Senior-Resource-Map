@@ -98,20 +98,44 @@ export default function AdminPage() {
             setLoading(true);
             const data = await api.exportFullDB();
 
-            if (data.hardAssets && data.hardAssets.length > 0) {
-                const hardCSV = Papa.unparse(data.hardAssets);
+            const hardData = (data.hardAssets && data.hardAssets.length > 0) ? data.hardAssets : null;
+            if (hardData) {
+                const hardCSV = Papa.unparse(hardData);
                 downloadFile(hardCSV, 'hard_assets_export.csv', 'text/csv');
+            } else {
+                handleDownloadPlacesTemplate();
             }
-            if (data.softAssets && data.softAssets.length > 0) {
-                const softCSV = Papa.unparse(data.softAssets);
+
+            const softData = (data.softAssets && data.softAssets.length > 0) ? data.softAssets : null;
+            if (softData) {
+                const softCSV = Papa.unparse(softData);
                 downloadFile(softCSV, 'soft_assets_export.csv', 'text/csv');
+            } else {
+                handleDownloadOfferingsTemplate();
             }
+
             alert('Export complete');
         } catch (err) {
             alert('Export failed: ' + err.message);
         } finally {
             setLoading(false);
         }
+    }
+
+    function handleDownloadPlacesTemplate() {
+        const headers = ['name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerId'];
+        const demoRow = ['Example AAC', 'Active Ageing Centres', '123456', '+6591234567', '9am-6pm', 'A great place for seniors', 'wellness, active', ''];
+        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        saveAs(blob, 'places_upload_template.csv');
+    }
+
+    function handleDownloadOfferingsTemplate() {
+        const headers = ['name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerId'];
+        const demoRow = ['Morning Yoga', 'Programmes', 'Gentle yoga for seniors', 'Mon/Wed 9am', 'false', 'fitness, health', ''];
+        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        saveAs(blob, 'offerings_upload_template.csv');
     }
 
     function handleDownloadUserTemplate() {
@@ -542,6 +566,12 @@ export default function AdminPage() {
                                     <input type="file" accept=".csv" className="hidden" onChange={(e) => handleImportCSV(e, 'hard')} />
                                     Choose Places CSV
                                 </label>
+                                <button
+                                    onClick={handleDownloadPlacesTemplate}
+                                    className="btn-ghost flex items-center justify-center gap-2 text-xs w-full"
+                                >
+                                    <Download size={14} /> Download Template
+                                </button>
                             </div>
 
                             <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col items-center justify-center text-center gap-3">
@@ -550,6 +580,12 @@ export default function AdminPage() {
                                     <input type="file" accept=".csv" className="hidden" onChange={(e) => handleImportCSV(e, 'soft')} />
                                     Choose Offerings CSV
                                 </label>
+                                <button
+                                    onClick={handleDownloadOfferingsTemplate}
+                                    className="btn-ghost flex items-center justify-center gap-2 text-xs w-full"
+                                >
+                                    <Download size={14} /> Download Template
+                                </button>
                             </div>
                         </div>
                     </div>
