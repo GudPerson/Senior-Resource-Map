@@ -4,8 +4,8 @@ export function isAssetVisible(asset, user) {
     // super_admin always sees everything
     if (user?.role === 'super_admin' || user?.role === 'admin') return true;
 
-    // regional_admin sees anything in their subregion
-    if (user?.role === 'regional_admin' && asset.subregionId === user.subregionId) return true;
+    // regional_admin sees anything in their subregions
+    if (user?.role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) return true;
 
     // Partner (owner) always sees their own assets
     if (user && user.id === asset.partnerId) return true;

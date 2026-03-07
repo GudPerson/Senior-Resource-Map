@@ -1,15 +1,28 @@
 import { getDb } from '../db/index.js';
-import { hardAssets, softAssets, users } from '../db/schema.js';
+import { hardAssets, softAssets, users, softAssetLocations } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { syncAssetTags } from '../utils/tags.js';
 
 export const exportFullDB = async (c) => {
     try {
         const db = getDb(c.env);
-        const hard = await db.select().from(hardAssets).where(eq(hardAssets.isDeleted, false));
-        const soft = await db.select().from(softAssets).where(eq(softAssets.isDeleted, false));
+        const hard = await db.query.hardAssets.findMany({
+            where: eq(hardAssets.isDeleted, false),
+            with: { partner: { columns: { username: true } } }
+        });
+        const soft = await db.query.softAssets.findMany({
+            where: eq(softAssets.isDeleted, false),
+            with: { partner: { columns: { username: true } }, locations: true }
+        });
 
-        return c.json({ hardAssets: hard, softAssets: soft });
+        const mappedHard = hard.map(h => ({ ...h, partnerUsername: h.partner?.username }));
+        const mappedSoft = soft.map(s => ({
+            ...s,
+            partnerUsername: s.partner?.username,
+            linkedPlaceIds: s.locations.map(l => l.hardAssetId).join(',')
+        }));
+
+        return c.json({ hardAssets: mappedHard, softAssets: mappedSoft });
     } catch (err) {
         console.error('Export Error:', err);
         return c.json({ error: 'Failed to export database' }, 500);
@@ -69,57 +82,118 @@ export const importCSV = async (c) => {
                 let lng = parseFloat(row.lng);
                 let address = row.address || '';
 
+                let subregionId = row.subregionId ? parseInt(row.subregionId) : user.subregionIds?.[0] || null;
+                const rowId = row.id ? parseInt(row.id) : null;
+
                 if (type === 'hard') {
                     if (!/^\d{6}$/.test(postalCode)) {
                         errors.push(`Row ${index + 1}: Invalid 6-digit postal code format (${postalCode})`);
                         continue;
                     }
 
-                    if (isNaN(lat) || isNaN(lng) || !address) {
-                        const geo = await geocodePostal(postalCode);
-                        if (geo) {
-                            lat = geo.lat;
-                            lng = geo.lng;
-                            address = address || geo.address;
-                        } else {
-                            errors.push(`Row ${index + 1}: Could not geocode postal code ${postalCode}`);
-                            continue;
+                    if (isNaN(lat) || isNaN(lng) || !address || row.postalCode !== postalCode) {
+                        // Re-geocode if lat/lng missing, or if we assume it's an update and lat/lng could be from old record?
+                        // Let's just regeocode to ensure safety if address is missing
+                        if (isNaN(lat) || isNaN(lng) || !address) {
+                            const geo = await geocodePostal(postalCode);
+                            if (geo) {
+                                lat = geo.lat;
+                                lng = geo.lng;
+                                address = address || geo.address;
+                            } else {
+                                errors.push(`Row ${index + 1}: Could not geocode postal code ${postalCode}`);
+                                continue;
+                            }
                         }
                     }
 
-                    const [asset] = await tx.insert(hardAssets).values({
-                        partnerId,
-                        name: row.name,
-                        subCategory: row.subCategory || 'Active Ageing Centres',
-                        lat: lat.toString(),
-                        lng: lng.toString(),
-                        address,
-                        country: 'SG',
-                        postalCode: postalCode,
-                        phone: row.phone || null,
-                        hours: row.hours || null,
-                        description: row.description || null
-                    }).returning();
+                    let asset;
+                    if (rowId) {
+                        [asset] = await tx.update(hardAssets).set({
+                            partnerId,
+                            name: row.name,
+                            subCategory: row.subCategory || 'Active Ageing Centres',
+                            lat: lat.toString(),
+                            lng: lng.toString(),
+                            address,
+                            country: 'SG',
+                            postalCode: postalCode,
+                            phone: row.phone || null,
+                            hours: row.hours || null,
+                            description: row.description || null,
+                            subregionId: subregionId || undefined // Only update subregionId if supplied via row, mostly
+                        }).where(eq(hardAssets.id, rowId)).returning();
 
-                    const tagsArray = row.tags ? row.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-                    if (tagsArray.length > 0) {
-                        await syncAssetTags(tx, asset.id, 'hard', tagsArray);
+                        if (!asset) {
+                            errors.push(`Row ${index + 1}: Hard asset with ID ${rowId} not found for updating. Skipping.`);
+                            continue;
+                        }
+                    } else {
+                        [asset] = await tx.insert(hardAssets).values({
+                            partnerId,
+                            name: row.name,
+                            subCategory: row.subCategory || 'Active Ageing Centres',
+                            lat: lat.toString(),
+                            lng: lng.toString(),
+                            address,
+                            country: 'SG',
+                            postalCode: postalCode,
+                            phone: row.phone || null,
+                            hours: row.hours || null,
+                            description: row.description || null,
+                            subregionId
+                        }).returning();
                     }
+
+                    const tagsArray = row.tags ? String(row.tags).split(',').map(t => t.trim()).filter(Boolean) : [];
+                    await syncAssetTags(tx, asset.id, 'hard', tagsArray);
+
                     importedRows.push(asset);
                 } else if (type === 'soft') {
-                    const [asset] = await tx.insert(softAssets).values({
-                        partnerId,
-                        name: row.name,
-                        subCategory: row.subCategory || 'Programmes',
-                        description: row.description || null,
-                        schedule: row.schedule || null,
-                        isMemberOnly: String(row.isMemberOnly).toLowerCase() === 'true'
-                    }).returning();
+                    let asset;
+                    if (rowId) {
+                        [asset] = await tx.update(softAssets).set({
+                            partnerId,
+                            name: row.name,
+                            subCategory: row.subCategory || 'Programmes',
+                            description: row.description || null,
+                            schedule: row.schedule || null,
+                            isMemberOnly: String(row.isMemberOnly).toLowerCase() === 'true',
+                            subregionId: subregionId || undefined
+                        }).where(eq(softAssets.id, rowId)).returning();
 
-                    const tagsArray = row.tags ? row.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-                    if (tagsArray.length > 0) {
-                        await syncAssetTags(tx, asset.id, 'soft', tagsArray);
+                        if (!asset) {
+                            errors.push(`Row ${index + 1}: Soft asset with ID ${rowId} not found for updating. Skipping.`);
+                            continue;
+                        }
+                    } else {
+                        [asset] = await tx.insert(softAssets).values({
+                            partnerId,
+                            name: row.name,
+                            subCategory: row.subCategory || 'Programmes',
+                            description: row.description || null,
+                            schedule: row.schedule || null,
+                            isMemberOnly: String(row.isMemberOnly).toLowerCase() === 'true',
+                            subregionId
+                        }).returning();
                     }
+
+                    const tagsArray = row.tags ? String(row.tags).split(',').map(t => t.trim()).filter(Boolean) : [];
+                    await syncAssetTags(tx, asset.id, 'soft', tagsArray);
+
+                    // Handle linkedPlaceIds
+                    if (row.linkedPlaceIds !== undefined) {
+                        await tx.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, asset.id));
+                        const placeIds = String(row.linkedPlaceIds).split(',').map(id => id.trim()).filter(Boolean);
+                        if (placeIds.length > 0) {
+                            const linkValues = placeIds.map(hId => ({
+                                softAssetId: asset.id,
+                                hardAssetId: parseInt(hId)
+                            }));
+                            await tx.insert(softAssetLocations).values(linkValues);
+                        }
+                    }
+
                     importedRows.push(asset);
                 }
             }

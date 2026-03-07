@@ -1,14 +1,16 @@
 import { getDb } from '../db/index.js';
-import { users } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { users, userSubregions } from '../db/schema.js';
+import { eq, and, inArray } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 export const createUser = async (c) => {
     try {
         const body = await c.req.json();
-        const { username, email, password, name, role, subregionId, phone } = body;
+        const { username, email, password, name, role, subregionIds = [], phone } = body;
         const creator = c.get('user');
         const db = getDb(c.env);
+
+        let finalSubregionIds = Array.isArray(subregionIds) ? subregionIds : [subregionIds].filter(Boolean);
 
         if (creator.role === 'super_admin') {
             // unrestricted
@@ -17,8 +19,8 @@ export const createUser = async (c) => {
             if (role !== 'partner') {
                 return c.json({ error: 'Regional admins can only create Partner roles.' }, 403);
             }
-            if (parseInt(subregionId) !== parseInt(creator.subregionId)) {
-                return c.json({ error: 'Regional admins can only create Partners within their own subregion.' }, 403);
+            if (!finalSubregionIds.every(id => creator.subregionIds?.includes(parseInt(id)))) {
+                return c.json({ error: 'Regional admins can only assign regions they manage.' }, 403);
             }
         }
         else {
@@ -39,7 +41,6 @@ export const createUser = async (c) => {
             passwordHash,
             name,
             role,
-            subregionId: subregionId ? parseInt(subregionId) : null,
             phone
         }).returning({
             id: users.id,
@@ -47,9 +48,15 @@ export const createUser = async (c) => {
             email: users.email,
             name: users.name,
             role: users.role,
-            subregionId: users.subregionId,
             phone: users.phone
         });
+
+        if (finalSubregionIds.length > 0) {
+            const values = finalSubregionIds.map(id => ({ userId: newUser.id, subregionId: parseInt(id) }));
+            await db.insert(userSubregions).values(values);
+        }
+
+        newUser.subregionIds = finalSubregionIds.map(id => parseInt(id));
 
         return c.json(newUser, 201);
     } catch (err) {
@@ -72,7 +79,14 @@ export const bulkCreateUsers = async (c) => {
 
         for (const row of rows) {
             try {
-                const { username, email, password, name, role, subregionId, phone } = row;
+                const { username, email, password, name, role, subregionIds: rawSubregionIds, phone } = row;
+
+                let subregionIds = [];
+                if (typeof rawSubregionIds === 'string') {
+                    subregionIds = rawSubregionIds.split(',').map(id => id.trim()).filter(Boolean);
+                } else if (Array.isArray(rawSubregionIds)) {
+                    subregionIds = rawSubregionIds;
+                }
 
                 if (!username) throw new Error('Username is required');
                 if (!email) throw new Error('Email is required');
@@ -81,9 +95,11 @@ export const bulkCreateUsers = async (c) => {
                     if (role && role !== 'partner') {
                         throw new Error(`Regional admins can only create partners. Skipping ${email}`);
                     }
-                    const finalSubregionId = subregionId || creator.subregionId;
-                    if (parseInt(finalSubregionId) !== parseInt(creator.subregionId)) {
-                        throw new Error(`Subregion mismatch for ${email}. You can only create users in your own region.`);
+                    if (subregionIds.length === 0) {
+                        subregionIds = creator.subregionIds || [];
+                    }
+                    if (!subregionIds.every(id => creator.subregionIds?.includes(parseInt(id)))) {
+                        throw new Error(`Subregion mismatch for ${email}. You can only create users in your own regions.`);
                     }
                 }
 
@@ -95,15 +111,19 @@ export const bulkCreateUsers = async (c) => {
 
                 const passwordHash = await bcrypt.hash(password || 'SRM2024!temp', 12);
 
-                await db.insert(users).values({
+                const [newUser] = await db.insert(users).values({
                     username,
                     email,
                     passwordHash,
                     name: name || username,
                     role: role || (creator.role === 'regional_admin' ? 'partner' : 'standard'),
-                    subregionId: subregionId ? parseInt(subregionId) : (creator.role === 'regional_admin' ? creator.subregionId : null),
                     phone
-                });
+                }).returning();
+
+                if (subregionIds && subregionIds.length > 0) {
+                    const values = subregionIds.map(id => ({ userId: newUser.id, subregionId: parseInt(id) }));
+                    await db.insert(userSubregions).values(values);
+                }
                 results.successful++;
             } catch (err) {
                 results.failed++;
@@ -122,26 +142,43 @@ export const getUsers = async (c) => {
     try {
         const creator = c.get('user');
         const db = getDb(c.env);
-        let query = db.select({
-            id: users.id,
-            username: users.username,
-            email: users.email,
-            name: users.name,
-            role: users.role,
-            subregionId: users.subregionId,
-            phone: users.phone,
-            createdAt: users.createdAt,
-        }).from(users);
+
+        let usersData = await db.query.users.findMany({
+            columns: {
+                id: true,
+                username: true,
+                email: true,
+                name: true,
+                role: true,
+                phone: true,
+                createdAt: true,
+            },
+            with: {
+                subregions: {
+                    columns: {
+                        subregionId: true
+                    }
+                }
+            }
+        });
 
         if (creator.role === 'regional_admin') {
-            query = query.where(eq(users.subregionId, creator.subregionId));
+            usersData = usersData.filter(u =>
+                u.subregions.some(r => creator.subregionIds?.includes(r.subregionId))
+            );
         } else if (creator.role === 'partner') {
-            query = query.where(eq(users.id, creator.id));
+            usersData = usersData.filter(u => u.id === creator.id);
         }
 
-        const rows = await query;
+        const rows = usersData.map(u => {
+            const row = { ...u, subregionIds: u.subregions.map(r => r.subregionId) };
+            delete row.subregions;
+            return row;
+        });
+
         return c.json(rows);
     } catch (err) {
+        console.error('getUsers Error:', err);
         return c.json({ error: 'Failed to fetch users.' }, 500);
     }
 };
@@ -169,7 +206,6 @@ export const updateProfile = async (c) => {
             email: users.email,
             name: users.name,
             role: users.role,
-            subregionId: users.subregionId,
             phone: users.phone,
         }).from(users).where(eq(users.id, user.id));
 
@@ -186,26 +222,37 @@ export const updateUserRole = async (c) => {
 
         const id = parseInt(c.req.param('id'));
         const body = await c.req.json();
-        const { role, subregionId } = body;
+        const { role, subregionIds } = body;
         const db = getDb(c.env);
 
-        const updates = {};
-        if (role) updates.role = role;
-        if (subregionId !== undefined) updates.subregionId = subregionId;
+        if (role) {
+            await db.update(users).set({ role }).where(eq(users.id, id));
+        }
 
-        await db.update(users).set(updates).where(eq(users.id, id));
+        if (subregionIds !== undefined) {
+            await db.delete(userSubregions).where(eq(userSubregions.userId, id));
+            const finalSubregionIds = Array.isArray(subregionIds) ? subregionIds : [subregionIds].filter(Boolean);
+            if (finalSubregionIds.length > 0) {
+                const values = finalSubregionIds.map(subId => ({ userId: id, subregionId: parseInt(subId) }));
+                await db.insert(userSubregions).values(values);
+            }
+        }
 
         const [updated] = await db.select({
             id: users.id,
             email: users.email,
             name: users.name,
             role: users.role,
-            subregionId: users.subregionId,
         }).from(users).where(eq(users.id, id));
 
         if (!updated) return c.json({ error: 'User not found.' }, 404);
+
+        const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
+        updated.subregionIds = userSubs.map(s => s.subregionId);
+
         return c.json(updated);
     } catch (err) {
+        console.error('updateUserRole Error:', err);
         return c.json({ error: 'Failed to update user status.' }, 500);
     }
 };
@@ -219,13 +266,15 @@ export const deleteUser = async (c) => {
         if (id === creator.id) return c.json({ error: 'Cannot delete yourself.' }, 400);
 
         if (creator.role === 'regional_admin') {
-            const [target] = await db.select().from(users).where(and(eq(users.id, id), eq(users.subregionId, creator.subregionId)));
-            if (!target) return c.json({ error: 'Permission denied or user not found in your region.' }, 403);
+            const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
+            const hasCommonRegion = userSubs.some(s => creator.subregionIds?.includes(s.subregionId));
+            if (!hasCommonRegion) return c.json({ error: 'Permission denied or user not found in your regions.' }, 403);
         }
 
         await db.delete(users).where(eq(users.id, id));
         return c.json({ success: true });
     } catch (err) {
+        console.error('deleteUser Error:', err);
         return c.json({ error: 'Failed to delete user.' }, 500);
     }
 };

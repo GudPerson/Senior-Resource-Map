@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { sign, verify } from 'hono/jwt';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { getDb } from '../db/index.js';
-import { users } from '../db/schema.js';
+import { users, userSubregions } from '../db/schema.js';
 import { eq, or, sql, ilike } from 'drizzle-orm';
 
 const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
@@ -15,7 +15,7 @@ async function generateToken(user, c) {
             email: user.email,
             role: user.role,
             name: user.name,
-            subregionId: user.subregionId,
+            subregionIds: user.subregionIds || [],
             exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
         },
         getSecret(c),
@@ -139,6 +139,9 @@ export const login = async (c) => {
             }
         }
 
+        const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
+        user.subregionIds = userSubs.map(s => s.subregionId);
+
         const token = await generateToken(user, c);
         setAuthCookie(c, token);
         return c.json({
@@ -148,7 +151,7 @@ export const login = async (c) => {
                 email: user.email,
                 name: user.name,
                 role: user.role,
-                subregionId: user.subregionId
+                subregionIds: user.subregionIds
             }
         });
     } catch (err) {

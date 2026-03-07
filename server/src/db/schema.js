@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
@@ -17,7 +17,6 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   role: roleEnum('role').notNull().default('standard'),
-  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   phone: varchar('phone', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
@@ -102,11 +101,28 @@ export const softAssetLocations = pgTable('soft_asset_locations', {
   hardAssetId: integer('hard_asset_id').references(() => hardAssets.id, { onDelete: 'cascade' }).notNull(),
 });
 
+export const userSubregions = pgTable('user_subregions', {
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
+});
+
 // Drizzle ORM Relations Hook-ups
+export const userSubregionsRelations = relations(userSubregions, ({ one }) => ({
+  user: one(users, {
+    fields: [userSubregions.userId],
+    references: [users.id],
+  }),
+  subregion: one(subregions, {
+    fields: [userSubregions.subregionId],
+    references: [subregions.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   hardAssets: many(hardAssets),
   softAssets: many(softAssets),
   favorites: many(userFavorites),
+  subregions: many(userSubregions),
 }));
 
 export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({

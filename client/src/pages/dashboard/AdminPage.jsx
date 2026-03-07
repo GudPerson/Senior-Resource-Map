@@ -123,24 +123,24 @@ export default function AdminPage() {
     }
 
     function handleDownloadPlacesTemplate() {
-        const headers = ['name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerUsername'];
-        const demoRow = ['Example AAC', 'Active Ageing Centres', '123456', '+6591234567', '9am-6pm', 'A great place for seniors', 'wellness, active', ''];
+        const headers = ['id', 'name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerUsername', 'subregionId'];
+        const demoRow = ['', 'Example AAC', 'Active Ageing Centres', '123456', '+6591234567', '9am-6pm', 'A great place for seniors', 'wellness, active', '', ''];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
         saveAs(blob, 'places_upload_template.csv');
     }
 
     function handleDownloadOfferingsTemplate() {
-        const headers = ['name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerUsername'];
-        const demoRow = ['Morning Yoga', 'Programmes', 'Gentle yoga for seniors', 'Mon/Wed 9am', 'false', 'fitness, health', ''];
+        const headers = ['id', 'name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerUsername', 'subregionId', 'linkedPlaceIds'];
+        const demoRow = ['', 'Morning Yoga', 'Programmes', 'Gentle yoga for seniors', 'Mon/Wed 9am', 'false', 'fitness, health', '', '', ''];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
         saveAs(blob, 'offerings_upload_template.csv');
     }
 
     function handleDownloadUserTemplate() {
-        const headers = ['username', 'email', 'name', 'password', 'phone', 'role', 'subregionId'];
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', 'partner', '1'];
+        const headers = ['username', 'email', 'name', 'password', 'phone', 'role', 'subregionIds'];
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', 'partner', '1,2'];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
         saveAs(blob, 'user_upload_template.csv');
@@ -443,7 +443,7 @@ export default function AdminPage() {
                                 <ul className="text-xs text-slate-600 space-y-1">
                                     <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code></li>
                                     <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
-                                    <li>• Scope: <code className="bg-slate-200 px-1 rounded">role</code>, <code className="bg-slate-200 px-1 rounded">subregionId</code></li>
+                                    <li>• Scope: <code className="bg-slate-200 px-1 rounded">role</code>, <code className="bg-slate-200 px-1 rounded">subregionIds</code> (comma separated)</li>
                                 </ul>
                             </div>
 
@@ -557,6 +557,16 @@ export default function AdminPage() {
                                 <h2 className="text-lg font-bold text-slate-900">Bulk Import Resources</h2>
                                 <p className="text-sm text-slate-500">Must include header row. Places require valid SG Postal Code.</p>
                             </div>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-xl p-4 mt-4 border border-slate-100">
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">CSV Features</h3>
+                            <ul className="text-xs text-slate-600 space-y-1">
+                                <li>• Supply <code className="bg-slate-200 px-1 rounded">id</code> to update an existing record instead of creating a new one.</li>
+                                <li>• <code className="bg-slate-200 px-1 rounded">subregionId</code> overrides the uploader's default assigned region.</li>
+                                <li>• <code className="bg-slate-200 px-1 rounded">partnerUsername</code> overrides the uploader as the owner.</li>
+                                <li>• Offerings can define comma-separated <code className="bg-slate-200 px-1 rounded">linkedPlaceIds</code> to map to Places.</li>
+                            </ul>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">

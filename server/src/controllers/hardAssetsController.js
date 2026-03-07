@@ -1,6 +1,6 @@
 import { getDb } from '../db/index.js';
 import { hardAssets } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
@@ -48,8 +48,8 @@ export const getHardAssets = async (c) => {
         };
 
         if (user?.role === 'regional_admin' || user?.role === 'partner') {
-            if (user.subregionId) {
-                options.where = eq(hardAssets.subregionId, user.subregionId);
+            if (user.subregionIds && user.subregionIds.length > 0) {
+                options.where = inArray(hardAssets.subregionId, user.subregionIds);
             }
         }
 
@@ -139,7 +139,7 @@ export const createHardAsset = async (c) => {
 
         let finalSubregionId = subregionId;
         if (user.role === 'regional_admin' || user.role === 'partner') {
-            finalSubregionId = user.subregionId;
+            finalSubregionId = user.subregionIds?.[0];
         }
 
         const coords = await geocode(postalCode, country);
@@ -164,7 +164,7 @@ export const createHardAsset = async (c) => {
             return asset;
         });
 
-        await rebuildMapCache(body.subregionId || user.subregionId, c.env);
+        await rebuildMapCache(body.subregionId || user.subregionIds?.[0], c.env);
         return c.json(result, 201);
     } catch (err) {
         console.error(err);
@@ -184,7 +184,7 @@ export const updateHardAsset = async (c) => {
 
         const isOwner = existing.partnerId === user.id;
         const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
+        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
@@ -244,14 +244,14 @@ export const deleteHardAsset = async (c) => {
 
         const isOwner = existing.partnerId === user.id;
         const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
+        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to delete this asset" }, 403);
         }
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
-        await rebuildMapCache(existing.subregionId || user.subregionId, c.env);
+        await rebuildMapCache(existing.subregionId || user.subregionIds?.[0], c.env);
         return c.json({ success: true });
     } catch (err) {
         console.error(err);

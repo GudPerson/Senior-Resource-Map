@@ -1,6 +1,6 @@
 import { getDb } from '../db/index.js';
 import { softAssets, softAssetLocations } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
@@ -20,8 +20,8 @@ export const getSoftAssets = async (c) => {
         };
 
         if (user?.role === 'regional_admin' || user?.role === 'partner') {
-            if (user.subregionId) {
-                options.where = eq(softAssets.subregionId, user.subregionId);
+            if (user.subregionIds && user.subregionIds.length > 0) {
+                options.where = inArray(softAssets.subregionId, user.subregionIds);
             }
         }
 
@@ -101,7 +101,7 @@ export const createSoftAsset = async (c) => {
 
         let finalSubregionId = body.subregionId;
         if (user.role === 'regional_admin' || user.role === 'partner') {
-            finalSubregionId = user.subregionId;
+            finalSubregionId = user.subregionIds?.[0]; // Default to first region for partners/regional admins
         }
 
         const result = await db.transaction(async (tx) => {
@@ -127,7 +127,9 @@ export const createSoftAsset = async (c) => {
             return asset;
         });
 
-        await rebuildMapCache(body.subregionId || user.subregionId, c.env);
+        try {
+            await rebuildMapCache(body.subregionId || user.subregionIds?.[0], c.env);
+        } catch (e) { console.error('Cache err', e); }
         return c.json(result, 201);
     } catch (err) {
         console.error(err);
@@ -146,7 +148,7 @@ export const updateSoftAsset = async (c) => {
         if (!existing) return c.json({ error: 'Not found' }, 404);
         const isOwner = existing.partnerId === user.id;
         const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
+        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
@@ -190,7 +192,9 @@ export const updateSoftAsset = async (c) => {
             }
         });
 
-        await rebuildMapCache(existing.subregionId || user.subregionId, c.env);
+        try {
+            await rebuildMapCache(existing.subregionId || user.subregionIds?.[0], c.env);
+        } catch (e) { console.error('Cache err', e); }
         return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
@@ -209,14 +213,16 @@ export const deleteSoftAsset = async (c) => {
         if (!existing) return c.json({ error: 'Not found' }, 404);
         const isOwner = existing.partnerId === user.id;
         const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && existing.subregionId === user.subregionId;
+        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to delete this asset" }, 403);
         }
 
         await db.update(softAssets).set({ isDeleted: true }).where(eq(softAssets.id, id));
-        await rebuildMapCache(existing.subregionId || user.subregionId, c.env);
+        try {
+            await rebuildMapCache(existing.subregionId || user.subregionIds?.[0], c.env);
+        } catch (e) { console.error('Cache err', e); }
         return c.json({ success: true });
     } catch (err) {
         console.error(err);

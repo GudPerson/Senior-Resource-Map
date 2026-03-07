@@ -9,8 +9,18 @@ export default function AdminUserForm({ currentUser }) {
         password: '',
         phone: '',
         role: currentUser?.role === 'regional_admin' ? 'partner' : 'standard',
-        subregionId: currentUser?.subregionId || ''
+        subregionIds: currentUser?.subregionIds || []
     });
+
+    const handleSubregionToggle = (id) => {
+        setFormData(prev => {
+            const current = new Set(prev.subregionIds.map(Number));
+            const numericId = Number(id);
+            if (current.has(numericId)) current.delete(numericId);
+            else current.add(numericId);
+            return { ...prev, subregionIds: Array.from(current) };
+        });
+    };
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
@@ -51,7 +61,7 @@ export default function AdminUserForm({ currentUser }) {
                 password: '',
                 phone: '',
                 role: isRegionalAdmin ? 'partner' : 'standard',
-                subregionId: currentUser?.subregionId || ''
+                subregionIds: currentUser?.subregionIds || []
             });
         } catch (err) {
             setMessage({ type: 'error', text: err.message || 'Failed to create user' });
@@ -146,28 +156,34 @@ export default function AdminUserForm({ currentUser }) {
 
                 {isSuperAdmin ? (
                     <div>
-                        <label className="block text-sm font-medium opacity-70">Subregion Scope</label>
-                        <select
-                            className="input-field w-full mt-1"
-                            required={formData.role === 'regional_admin' || formData.role === 'partner'}
-                            value={formData.subregionId}
-                            onChange={e => setFormData({ ...formData, subregionId: e.target.value })}
-                        >
-                            <option value="">Global (No Scope)</option>
+                        <label className="block text-sm font-medium opacity-70 mb-2">Subregion Scope (Select multiple)</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-slate-200 rounded-xl bg-slate-50">
                             {subregionsList.map(reg => (
-                                <option key={reg.id} value={reg.id}>
-                                    {reg.name}
-                                </option>
+                                <label key={reg.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.subregionIds.map(Number).includes(reg.id)}
+                                        onChange={() => handleSubregionToggle(reg.id)}
+                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span>{reg.name}</span>
+                                </label>
                             ))}
-                        </select>
-                        <p className="text-xs opacity-50 mt-1">Required for Regional Admins and Partners.</p>
+                        </div>
+                        <p className="text-xs opacity-50 mt-2">Required for Regional Admins and Partners.</p>
                     </div>
                 ) : (
                     <div className="bg-slate-50 p-3 rounded-xl text-sm mb-4 border border-slate-100">
                         <span className="opacity-60">Subregion locked to:</span>
-                        <strong className="ml-2 text-slate-800">
-                            {subregionsList.find(r => r.id === parseInt(currentUser?.subregionId))?.name || 'Assigned Region'}
-                        </strong>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {subregionsList
+                                .filter(r => currentUser?.subregionIds?.includes(r.id))
+                                .map(r => (
+                                    <span key={r.id} className="bg-slate-200 px-2 py-1 rounded text-xs font-semibold">{r.name}</span>
+                                ))
+                            }
+                            {(!currentUser?.subregionIds || currentUser.subregionIds.length === 0) && 'Assigned Regions'}
+                        </div>
                     </div>
                 )}
 
