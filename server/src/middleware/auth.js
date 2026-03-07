@@ -19,7 +19,8 @@ export async function authenticateToken(c, next) {
         await next();
     } catch (err) {
         console.error('[Auth] JWT Verification failed:', err.message);
-        return c.json({ error: 'Invalid token' }, 403);
+        // Temporarily expose the error message to the client for debugging
+        return c.json({ error: `Invalid token: ${err.message}` }, 403);
     }
 }
 
