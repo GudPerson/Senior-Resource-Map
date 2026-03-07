@@ -123,7 +123,7 @@ export default function AdminPage() {
     }
 
     function handleDownloadPlacesTemplate() {
-        const headers = ['name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerId'];
+        const headers = ['name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerUsername'];
         const demoRow = ['Example AAC', 'Active Ageing Centres', '123456', '+6591234567', '9am-6pm', 'A great place for seniors', 'wellness, active', ''];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
@@ -131,7 +131,7 @@ export default function AdminPage() {
     }
 
     function handleDownloadOfferingsTemplate() {
-        const headers = ['name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerId'];
+        const headers = ['name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerUsername'];
         const demoRow = ['Morning Yoga', 'Programmes', 'Gentle yoga for seniors', 'Mon/Wed 9am', 'false', 'fitness, health', ''];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });

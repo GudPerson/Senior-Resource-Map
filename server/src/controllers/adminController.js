@@ -1,5 +1,5 @@
 import { getDb } from '../db/index.js';
-import { hardAssets, softAssets } from '../db/schema.js';
+import { hardAssets, softAssets, users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { syncAssetTags } from '../utils/tags.js';
 
@@ -47,7 +47,22 @@ export const importCSV = async (c) => {
 
         await db.transaction(async (tx) => {
             for (const [index, row] of rows.entries()) {
-                const partnerId = parseInt(row.partnerId) || user.id;
+                let partnerId = user.id; // default to uploader
+
+                if (row.partnerUsername) {
+                    const partnerUsernameStr = String(row.partnerUsername).trim();
+                    const [partnerUser] = await tx.select({ id: users.id })
+                        .from(users)
+                        .where(eq(users.username, partnerUsernameStr));
+
+                    if (partnerUser) {
+                        partnerId = partnerUser.id;
+                    } else {
+                        errors.push(`Row ${index + 1}: Partner username '${partnerUsernameStr}' not found. Skipping.`);
+                        continue;
+                    }
+                }
+
                 const postalCode = String(row.postalCode || '').trim();
 
                 let lat = parseFloat(row.lat);
