@@ -38,6 +38,38 @@ function createColoredIcon(color = '#3b82f6') {
     });
 }
 
+function buildDerivedMapLocations(hardAssets = [], softAssets = []) {
+    const hardLocations = hardAssets
+        .filter((asset) => asset?.lat && asset?.lng)
+        .map((asset) => ({
+            id: asset.id,
+            title: asset.name,
+            category: asset.subCategory,
+            lat: asset.lat,
+            lng: asset.lng,
+            asset_type: 'hard',
+        }));
+
+    const softLocations = softAssets.flatMap((asset) => {
+        const linkedLocations = Array.isArray(asset.locations) && asset.locations.length > 0
+            ? asset.locations
+            : (asset.location ? [asset.location] : []);
+
+        return linkedLocations
+            .filter((location) => location?.lat && location?.lng)
+            .map((location) => ({
+                id: asset.id,
+                title: asset.name,
+                category: asset.subCategory,
+                lat: location.lat,
+                lng: location.lng,
+                asset_type: 'soft',
+            }));
+    });
+
+    return [...hardLocations, ...softLocations];
+}
+
 function FlyToMarker({ target, bottomOffsetPx = 0 }) {
     const map = useMap();
     const prevTarget = useRef(null);
@@ -115,6 +147,7 @@ export default function DiscoverPage() {
     const [flyTarget, setFlyTarget] = useState(null);
 
     const [searchParams] = useSearchParams();
+    const derivedMapLocations = useMemo(() => buildDerivedMapLocations(hardAssets, softAssets), [hardAssets, softAssets]);
 
     // Initialize spatial worker
     useEffect(() => {
@@ -170,9 +203,11 @@ export default function DiscoverPage() {
             setHardAssets(hard);
             setSoftAssets(soft);
 
+            const liveLocations = buildDerivedMapLocations(hard, soft);
             const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
-            setCachedLocations(fetchedLocations);
-            setMapLocations(fetchedLocations);
+            const initialLocations = fetchedLocations.length > 0 ? fetchedLocations : liveLocations;
+            setCachedLocations(initialLocations);
+            setMapLocations(initialLocations);
 
             setLoading(false);
             const urlId = parseInt(searchParams.get('id'));
@@ -321,17 +356,18 @@ export default function DiscoverPage() {
     }, [combined, search, userLocation, searchRadius, showFavoritesOnly, favorites, user]);
 
     useEffect(() => {
-        if (workerRef.current && cachedLocations.length > 0) {
+        const sourceLocations = cachedLocations.length > 0 ? cachedLocations : derivedMapLocations;
+        if (workerRef.current && sourceLocations.length > 0) {
             workerRef.current.postMessage({
-                locations: cachedLocations,
+                locations: sourceLocations,
                 userLocation,
                 radiusInMeters: searchRadius < 100 ? searchRadius * 1000 : Infinity
             });
         }
-    }, [cachedLocations, userLocation, searchRadius]);
+    }, [cachedLocations, derivedMapLocations, userLocation, searchRadius]);
 
     const finalMapLocations = useMemo(() => {
-        let items = mapLocations;
+        let items = mapLocations.length > 0 ? mapLocations : derivedMapLocations;
 
         // Favorites filter
         if (showFavoritesOnly && user) {
@@ -344,7 +380,7 @@ export default function DiscoverPage() {
             items = items.filter(r => (r.title || '').toLowerCase().includes(q) || (r.category || '').toLowerCase().includes(q));
         }
         return items;
-    }, [mapLocations, search, showFavoritesOnly, favorites, user]);
+    }, [mapLocations, derivedMapLocations, search, showFavoritesOnly, favorites, user]);
 
     const handleSelect = useCallback((asset) => {
         if (!asset) { setSelectedId(null); setSelectedAsset(null); return; }
@@ -670,4 +706,3 @@ export default function DiscoverPage() {
         </div>
     );
 }
-

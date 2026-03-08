@@ -14,14 +14,20 @@ export default function AdminPage() {
     const { user: currentUser } = useAuth();
     const [subCategories, setSubCategories] = useState([]);
     const [subregions, setSubregions] = useState([]);
+    const [selectedResources, setSelectedResources] = useState([]);
+    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [selectedSubCategories, setSelectedSubCategories] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
     const [newSubregion, setNewSubregion] = useState({ subregionCode: '', name: '', description: '' });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
     const [subregionFeedback, setSubregionFeedback] = useState(null);
+    const [adminFeedback, setAdminFeedback] = useState(null);
     const [pendingSubregionDelete, setPendingSubregionDelete] = useState(null);
     const [subregionDeleteLoading, setSubregionDeleteLoading] = useState(false);
+    const [pendingBulkDelete, setPendingBulkDelete] = useState(null);
+    const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
     const [importReport, setImportReport] = useState(null);
     const [importCopyNotice, setImportCopyNotice] = useState('');
 
@@ -35,9 +41,21 @@ export default function AdminPage() {
                 api.getSubregions()
             ]);
 
-            if (results[0].status === 'fulfilled') setResources(results[0].value);
-            if (results[1].status === 'fulfilled') setUsers(results[1].value);
-            if (results[2].status === 'fulfilled') setSubCategories(results[2].value);
+            if (results[0].status === 'fulfilled') {
+                const items = results[0].value;
+                setResources(items);
+                setSelectedResources((prev) => prev.filter((key) => items.some((item) => getResourceSelectionKey(item) === key)));
+            }
+            if (results[1].status === 'fulfilled') {
+                const items = results[1].value;
+                setUsers(items);
+                setSelectedUsers((prev) => prev.filter((id) => items.some((item) => item.id === id)));
+            }
+            if (results[2].status === 'fulfilled') {
+                const items = results[2].value;
+                setSubCategories(items);
+                setSelectedSubCategories((prev) => prev.filter((id) => items.some((item) => item.id === id)));
+            }
             if (results[3].status === 'fulfilled') {
                 const regs = results[3].value;
                 setSubregions(regs);
@@ -59,6 +77,11 @@ export default function AdminPage() {
     }
 
     useEffect(() => { loadAll(); }, []);
+
+    function getResourceSelectionKey(resource) {
+        const assetType = resource.category === 'Places' ? 'hard' : 'soft';
+        return `${assetType}:${resource.id}`;
+    }
 
     async function handleDeleteResource(id, category) {
         if (!confirm('Delete this resource permanently?')) return;
@@ -111,6 +134,134 @@ export default function AdminPage() {
             await loadAll();
         } catch (err) {
             alert(err.message);
+        }
+    }
+
+    function toggleResourceSelection(resource) {
+        const key = getResourceSelectionKey(resource);
+        setSelectedResources((prev) =>
+            prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+        );
+    }
+
+    function toggleSelectAllResources() {
+        if (selectedResources.length === resources.length) {
+            setSelectedResources([]);
+        } else {
+            setSelectedResources(resources.map((resource) => getResourceSelectionKey(resource)));
+        }
+    }
+
+    function toggleUserSelection(id) {
+        setSelectedUsers((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    }
+
+    function toggleSelectAllUsers() {
+        if (selectedUsers.length === users.length) {
+            setSelectedUsers([]);
+        } else {
+            setSelectedUsers(users.map((user) => user.id));
+        }
+    }
+
+    function toggleSubCategorySelection(id) {
+        setSelectedSubCategories((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    }
+
+    function toggleSelectAllSubCategories() {
+        if (selectedSubCategories.length === subCategories.length) {
+            setSelectedSubCategories([]);
+        } else {
+            setSelectedSubCategories(subCategories.map((category) => category.id));
+        }
+    }
+
+    function promptBulkDelete(type) {
+        const count = type === 'resources'
+            ? selectedResources.length
+            : type === 'users'
+                ? selectedUsers.length
+                : selectedSubCategories.length;
+
+        if (count === 0) return;
+
+        setAdminFeedback(null);
+        setPendingBulkDelete({ type, count });
+    }
+
+    async function handleConfirmBulkDelete() {
+        if (!pendingBulkDelete) return;
+
+        setBulkDeleteLoading(true);
+        setLoading(true);
+        setAdminFeedback(null);
+
+        const failures = [];
+        let deletedCount = 0;
+
+        try {
+            if (pendingBulkDelete.type === 'resources') {
+                const targets = resources.filter((resource) => selectedResources.includes(getResourceSelectionKey(resource)));
+                for (const resource of targets) {
+                    try {
+                        if (resource.category === 'Places') {
+                            await api.deleteHardAsset(resource.id);
+                        } else {
+                            await api.deleteSoftAsset(resource.id);
+                        }
+                        deletedCount += 1;
+                    } catch (err) {
+                        failures.push(`${resource.name}: ${err.message || 'Delete failed.'}`);
+                    }
+                }
+                setSelectedResources([]);
+            } else if (pendingBulkDelete.type === 'users') {
+                const targets = users.filter((user) => selectedUsers.includes(user.id));
+                for (const user of targets) {
+                    try {
+                        await api.deleteUser(user.id);
+                        deletedCount += 1;
+                    } catch (err) {
+                        failures.push(`${user.username || user.name}: ${err.message || 'Delete failed.'}`);
+                    }
+                }
+                setSelectedUsers([]);
+            } else if (pendingBulkDelete.type === 'subcategories') {
+                const targets = subCategories.filter((category) => selectedSubCategories.includes(category.id));
+                for (const category of targets) {
+                    try {
+                        await api.deleteSubCategory(category.id);
+                        deletedCount += 1;
+                    } catch (err) {
+                        failures.push(`${category.name}: ${err.message || 'Delete failed.'}`);
+                    }
+                }
+                setSelectedSubCategories([]);
+            }
+
+            await loadAll();
+
+            setAdminFeedback({
+                type: failures.length > 0 ? (deletedCount > 0 ? 'warning' : 'error') : 'success',
+                message: failures.length > 0
+                    ? `${deletedCount} deleted, ${failures.length} failed.`
+                    : `${deletedCount} item(s) deleted successfully.`,
+                details: failures
+            });
+        } catch (err) {
+            setAdminFeedback({
+                type: 'error',
+                message: err.message || 'Bulk delete failed.',
+                details: []
+            });
+        } finally {
+            setPendingBulkDelete(null);
+            setBulkDeleteLoading(false);
+            setLoading(false);
         }
     }
 
@@ -302,8 +453,8 @@ export default function AdminPage() {
                         return;
                     }
 
-                    // Cloudflare Workers enforce subrequest limits; chunking reduces per-invocation load.
-                    const batchSize = type === 'hard' ? 3 : 5;
+                    // Import one row per request to stay well under Cloudflare Worker subrequest limits.
+                    const batchSize = 1;
                     let importedCount = 0;
                     const allErrors = [];
 
@@ -558,17 +709,56 @@ export default function AdminPage() {
                 ))}
             </div>
 
+            {adminFeedback && (
+                <div
+                    className={`mb-6 rounded-xl border px-4 py-3 text-sm font-semibold ${adminFeedback.type === 'error'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : adminFeedback.type === 'warning'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-green-50 text-green-700 border-green-200'
+                        }`}
+                >
+                    <div>{adminFeedback.message}</div>
+                    {adminFeedback.details?.length > 0 && (
+                        <textarea
+                            readOnly
+                            value={adminFeedback.details.join('\n')}
+                            className="mt-3 w-full min-h-[120px] rounded-lg border border-current/20 bg-white/80 p-3 text-xs font-mono text-slate-700"
+                        />
+                    )}
+                </div>
+            )}
+
             {loading ? (
                 <div className="space-y-3">
                     {[...Array(4)].map((_, i) => <div key={i} className="card h-16 animate-pulse bg-slate-100" />)}
                 </div>
             ) : tab === 'resources' ? (
                 /* ======== Resources Table ======== */
-                <div className=" card overflow-hidden p-0">
+                <div className="space-y-4">
+                    {selectedResources.length > 0 && (
+                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedResources.length} selected</span>
+                            <div className="flex-1"></div>
+                            <button type="button" onClick={() => promptBulkDelete('resources')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
+                                <Trash2 size={14} /> Delete Selected
+                            </button>
+                        </div>
+                    )}
+
+                    <div className=" card overflow-hidden p-0">
                     <div className="overflow-x-auto">
                         <table className="hc-table w-full text-left">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-500">
+                                    <th className="px-4 py-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={resources.length > 0 && selectedResources.length === resources.length}
+                                            onChange={toggleSelectAllResources}
+                                            className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                    </th>
                                     <th className="px-4 py-3 font-semibold">Category</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold hidden md:table-cell">Address</th>
@@ -578,7 +768,15 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {resources.map(r => (
-                                    <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={getResourceSelectionKey(r)} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(getResourceSelectionKey(r)) ? 'bg-blue-50/30' : ''}`}>
+                                        <td className="px-4 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedResources.includes(getResourceSelectionKey(r))}
+                                                onChange={() => toggleResourceSelection(r)}
+                                                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            />
+                                        </td>
                                         <td className="px-4 py-3"><CategoryBadge category={r.category} /></td>
                                         <td className="px-4 py-3 font-semibold text-slate-900">{r.name}</td>
                                         <td className="px-4 py-3 text-slate-500 text-sm hidden md:table-cell">
@@ -603,6 +801,7 @@ export default function AdminPage() {
                     {resources.length === 0 && (
                         <div className="text-center py-12 text-slate-400">No resources in the system.</div>
                     )}
+                    </div>
                 </div>
             ) : tab === 'subregions' ? (
                 /* ======== Subregions Table ======== */
@@ -794,10 +993,28 @@ export default function AdminPage() {
                         <button type="submit" className="btn-primary sm:w-auto w-full">Add Category</button>
                     </form>
 
+                    {selectedSubCategories.length > 0 && (
+                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedSubCategories.length} selected</span>
+                            <div className="flex-1"></div>
+                            <button type="button" onClick={() => promptBulkDelete('subcategories')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
+                                <Trash2 size={14} /> Delete Selected
+                            </button>
+                        </div>
+                    )}
+
                     <div className="card overflow-hidden p-0">
                         <table className="hc-table w-full text-left">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-500">
+                                    <th className="px-4 py-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={subCategories.length > 0 && selectedSubCategories.length === subCategories.length}
+                                            onChange={toggleSelectAllSubCategories}
+                                            className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                    </th>
                                     <th className="px-4 py-3 font-semibold w-24">Type</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold w-24">Actions</th>
@@ -805,7 +1022,15 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {subCategories.map(sc => (
-                                    <tr key={sc.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={sc.id} className={`hover:bg-slate-50 transition-colors ${selectedSubCategories.includes(sc.id) ? 'bg-blue-50/30' : ''}`}>
+                                        <td className="px-4 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSubCategories.includes(sc.id)}
+                                                onChange={() => toggleSubCategorySelection(sc.id)}
+                                                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            />
+                                        </td>
                                         <td className="px-4 py-3"><CategoryBadge category={sc.type === 'hard' ? 'hard' : 'soft'} /></td>
                                         <td className="px-4 py-3 font-semibold text-slate-900 flex items-center gap-2">
                                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sc.color || '#94a3b8' }}></div>
@@ -876,11 +1101,28 @@ export default function AdminPage() {
                     </div>
 
                     <div className=" card overflow-hidden p-0">
+                        {selectedUsers.length > 0 && (
+                            <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border-b border-blue-100 animate-in fade-in slide-in-from-top-2">
+                                <span className="text-sm font-bold text-blue-700 ml-2">{selectedUsers.length} selected</span>
+                                <div className="flex-1"></div>
+                                <button type="button" onClick={() => promptBulkDelete('users')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
+                                    <Trash2 size={14} /> Delete Selected
+                                </button>
+                            </div>
+                        )}
 
                         <div className="overflow-x-auto">
                             <table className="hc-table w-full text-left">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-500">
+                                        <th className="px-4 py-3 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={users.length > 0 && selectedUsers.length === users.length}
+                                                onChange={toggleSelectAllUsers}
+                                                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            />
+                                        </th>
                                         <th className="px-4 py-3 font-semibold">User</th>
                                         <th className="px-4 py-3 font-semibold">Role</th>
                                         <th className="px-4 py-3 font-semibold w-24">Actions</th>
@@ -888,7 +1130,15 @@ export default function AdminPage() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {users.map(u => (
-                                        <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${selectedUsers.includes(u.id) ? 'bg-blue-50/30' : ''}`}>
+                                            <td className="px-4 py-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedUsers.includes(u.id)}
+                                                    onChange={() => toggleUserSelection(u.id)}
+                                                    className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                                />
+                                            </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-col">
                                                     <span className="font-semibold text-slate-900">{u.name}</span>
@@ -1065,6 +1315,39 @@ export default function AdminPage() {
                 </div>
             )
             }
+
+            {pendingBulkDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                        <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                            {pendingBulkDelete.type === 'resources'
+                                ? `Delete ${pendingBulkDelete.count} selected resource(s)?`
+                                : pendingBulkDelete.type === 'users'
+                                    ? `Delete ${pendingBulkDelete.count} selected user(s)?`
+                                    : `Delete ${pendingBulkDelete.count} selected category item(s)?`}
+                        </p>
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => !bulkDeleteLoading && setPendingBulkDelete(null)}
+                                disabled={bulkDeleteLoading}
+                                className="btn-secondary"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmBulkDelete}
+                                disabled={bulkDeleteLoading}
+                                className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 disabled:opacity-50"
+                            >
+                                {bulkDeleteLoading ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
