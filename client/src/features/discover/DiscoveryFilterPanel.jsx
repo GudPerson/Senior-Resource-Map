@@ -24,20 +24,49 @@ export function DiscoveryFilterPanel({
     userLocation,
 }) {
     return (
-        <div className="flex-shrink-0 z-10 sticky top-0" style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-            <div className="hidden lg:flex items-center justify-between p-4 pb-0">
-                <h1 className="text-2xl font-extrabold" style={{ color: 'var(--color-text)' }}>Discover Resources</h1>
+        <div
+            className="flex-shrink-0 z-10 sticky top-0"
+            style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(246,252,251,0.92) 100%)',
+                borderBottom: '1px solid var(--color-border)',
+            }}
+        >
+            <div className="hidden lg:flex items-start justify-between gap-4 p-5 pb-0">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: 'var(--color-brand)' }}>
+                        CareAround SG
+                    </p>
+                    <h1 className="mt-2 text-[2rem] font-extrabold" style={{ color: 'var(--color-text)' }}>Find care around you</h1>
+                    <p className="mt-2 max-w-sm text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
+                        Search nearby support, services, and programmes without leaving the map.
+                    </p>
+                </div>
                 <button
                     onClick={handleLocateMe}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-sm min-h-[44px] transition-all"
-                    style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand)', border: '1px solid var(--color-border)' }}
+                    className="flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm min-h-[48px] transition-all"
+                    style={{
+                        backgroundColor: 'var(--color-brand-light)',
+                        color: 'var(--color-brand-strong)',
+                        border: '1px solid var(--color-border)',
+                        boxShadow: '0 12px 28px rgba(15, 163, 154, 0.08)',
+                    }}
                 >
                     <LocateFixed size={18} />
                     <span>Locate Me</span>
                 </button>
             </div>
 
-            <div className="p-3 lg:p-4 space-y-2">
+            <div className="p-3 lg:p-5 space-y-3">
+                <div className="lg:hidden px-1">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--color-brand)' }}>
+                        CareAround SG
+                    </p>
+                    <h1 className="mt-1 text-2xl font-extrabold" style={{ color: 'var(--color-text)' }}>Find care around you</h1>
+                    <p className="mt-1 text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
+                        Browse nearby care, support, and community programmes.
+                    </p>
+                </div>
+
                 <form onSubmit={handlePostalSearch} className="flex gap-2">
                     <div className="relative flex-1">
                         <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
@@ -50,12 +79,13 @@ export function DiscoveryFilterPanel({
                             placeholder="6-digit Postal Code"
                             value={postalInput}
                             onChange={(event) => setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                            className="w-full pl-9 pr-3 py-2 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 min-h-[40px] transition-all"
+                            className="w-full pl-9 pr-3 py-2.5 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 min-h-[44px] transition-all"
                             style={{
                                 ...INPUT_RING_STYLE,
                                 backgroundColor: 'var(--color-input-bg)',
                                 color: 'var(--color-text)',
                                 border: '1.5px solid var(--color-border)',
+                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
                             }}
                         />
                         {isGeocoding && (
@@ -66,8 +96,8 @@ export function DiscoveryFilterPanel({
                     </div>
                     <button
                         type="submit"
-                        className="px-3 py-2 rounded-xl text-white font-bold text-sm min-h-[40px] flex items-center gap-1.5 flex-shrink-0 transition-all hover:shadow-md"
-                        style={{ backgroundColor: 'var(--color-brand)' }}
+                        className="px-4 py-2 rounded-2xl text-white font-bold text-sm min-h-[44px] flex items-center gap-1.5 flex-shrink-0 transition-all hover:shadow-md"
+                        style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
                     >
                         <Search size={15} />
                         Search
@@ -75,8 +105,8 @@ export function DiscoveryFilterPanel({
                     <button
                         type="button"
                         onClick={handleLocateMe}
-                        className="lg:hidden px-3 py-2 rounded-xl font-bold text-sm min-h-[40px] flex items-center flex-shrink-0 transition-all"
-                        style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand)', border: '1px solid var(--color-border)' }}
+                        className="lg:hidden px-3 py-2 rounded-2xl font-bold text-sm min-h-[44px] flex items-center flex-shrink-0 transition-all"
+                        style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand-strong)', border: '1px solid var(--color-border)' }}
                     >
                         <LocateFixed size={16} />
                     </button>
@@ -86,7 +116,7 @@ export function DiscoveryFilterPanel({
                     <select
                         value={searchRadius}
                         onChange={(event) => setSearchRadius(parseFloat(event.target.value))}
-                        className="px-2 py-2 rounded-xl font-bold focus:outline-none appearance-none cursor-pointer text-xs min-h-[36px] flex-shrink-0"
+                        className="px-3 py-2.5 rounded-2xl font-bold focus:outline-none appearance-none cursor-pointer text-xs min-h-[40px] flex-shrink-0"
                         style={{ backgroundColor: 'var(--color-input-bg)', color: 'var(--color-text)', border: '1.5px solid var(--color-border)' }}
                     >
                         <option value={0.3}>300m</option>
@@ -102,7 +132,7 @@ export function DiscoveryFilterPanel({
                             placeholder="Search names, tags..."
                             value={search}
                             onChange={(event) => onSearchChange(event.target.value)}
-                            className="w-full pl-9 pr-3 py-2 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 min-h-[36px] transition-all"
+                            className="w-full pl-9 pr-3 py-2.5 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 min-h-[40px] transition-all"
                             style={{
                                 ...INPUT_RING_STYLE,
                                 backgroundColor: 'var(--color-input-bg)',
@@ -113,14 +143,14 @@ export function DiscoveryFilterPanel({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 p-0.5 rounded-xl" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
+                <div className="flex items-center gap-1.5 rounded-[20px] p-1" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
                     {['all', 'hard', 'soft'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className="flex-1 py-1.5 rounded-lg text-xs font-bold min-h-[32px] whitespace-nowrap transition-all capitalize"
+                            className="flex-1 py-2 rounded-2xl text-xs font-bold min-h-[38px] whitespace-nowrap transition-all capitalize"
                             style={activeTab === tab
-                                ? { backgroundColor: 'var(--color-surface)', color: 'var(--color-brand)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--color-border)' }
+                                ? { backgroundColor: 'var(--color-surface)', color: 'var(--color-brand-strong)', boxShadow: '0 10px 20px rgba(15, 89, 91, 0.08)', border: '1px solid var(--color-border)' }
                                 : { color: 'var(--color-text-secondary)' }}
                         >
                             {tab === 'all' ? 'All' : tab === 'hard' ? 'Places' : 'Offerings'}
@@ -149,15 +179,15 @@ export function DiscoveryFilterPanel({
                 {locationNotice && (
                     <div
                         className="rounded-xl px-3 py-2 text-xs font-medium"
-                        style={{ backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}
+                        style={{ backgroundColor: '#fff1ef', color: '#b84030', border: '1px solid #f7c2b8' }}
                     >
                         {locationNotice.message}
                     </div>
                 )}
 
                 {userLocation && (
-                    <div className="flex items-center justify-between text-xs font-bold px-1">
-                        <span style={{ color: 'var(--color-brand)' }}>
+                    <div className="flex items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.72)' }}>
+                        <span style={{ color: 'var(--color-brand-strong)' }}>
                             Using {getSearchLocationLabel(searchOrigin)}
                             {searchRadius < 100 ? ` • Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}` : ''}
                         </span>

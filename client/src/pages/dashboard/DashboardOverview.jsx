@@ -9,7 +9,7 @@ export default function DashboardOverview() {
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
                     { label: 'Your Role', value: user?.role === 'user' ? '👤 User' : user?.role === 'admin' ? '⚡ Admin' : '🤝 Partner', color: 'bg-brand-50 text-brand-700' },
-                    { label: 'Portal', value: 'SeniorCare Connect', color: 'bg-green-50 text-green-700' },
+                    { label: 'Portal', value: 'CareAround SG', color: 'bg-green-50 text-green-700' },
                     { label: 'Status', value: '✅ Active', color: 'bg-slate-50 text-slate-700' },
                 ].map(({ label, value, color }) => (
                     <div key={label} className={`card ${color} border-0`}>

@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, LayoutDashboard, Sun, Moon, Activity } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useA11y } from '../../contexts/A11yContext.jsx';
+import BrandLockup from './BrandLockup.jsx';
 
 export default function Navbar() {
     const { user, isAuth, logout } = useAuth();
@@ -28,14 +29,8 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-[56px] sm:h-[64px] gap-2">
 
                     {/* Logo */}
-                    <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shadow-sm" style={{ background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-hover))' }}>
-                            <Activity size={18} className="text-white" />
-                        </div>
-                        <span className="font-bold text-sm sm:text-base leading-tight hidden sm:block" style={{ color: 'var(--color-brand)' }}>
-                            SeniorCare<br />
-                            <span className="font-medium text-xs sm:text-sm" style={{ color: 'var(--color-text-secondary)' }}>Connect</span>
-                        </span>
+                    <Link to="/" className="flex items-center gap-2 flex-shrink-0 min-w-0">
+                        <BrandLockup compact className="min-w-0" />
                     </Link>
 
                     {/* Right controls */}
@@ -49,9 +44,9 @@ export default function Navbar() {
                             aria-pressed={highContrast}
                             className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px]"
                             style={{
-                                backgroundColor: highContrast ? 'var(--color-brand)' : 'var(--color-badge-bg)',
+                                backgroundColor: highContrast ? 'var(--color-brand-strong)' : 'var(--color-badge-bg)',
                                 color: highContrast ? 'var(--color-surface)' : 'var(--color-text-secondary)',
-                                border: `1px solid ${highContrast ? 'var(--color-brand)' : 'var(--color-border)'}`,
+                                border: `1px solid ${highContrast ? 'var(--color-brand-strong)' : 'var(--color-border)'}`,
                             }}
                         >
                             {highContrast ? <Moon size={15} /> : <Sun size={15} />}
@@ -87,7 +82,7 @@ export default function Navbar() {
                             <div className="flex items-center gap-1.5">
                                 <Link
                                     to="/dashboard"
-                                    id="nav-dashboard"
+                                id="nav-dashboard"
                                     className="btn-ghost text-xs sm:text-sm px-2.5 py-2 hidden sm:flex"
                                 >
                                     <LayoutDashboard size={16} />

@@ -14,7 +14,7 @@ import {
 function createUserLocationIcon() {
     return L.divIcon({
         className: '',
-        html: '<div class="pulse-animation" style="width:20px;height:20px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(37,99,235,0.6);"></div>',
+        html: '<div class="pulse-animation" style="width:20px;height:20px;background:#0b6d70;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(11,109,112,0.45);"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
     });
@@ -139,7 +139,7 @@ export function DiscoveryMap({
                         <Marker
                             key={markerKey}
                             position={[parseFloat(resource.lat), parseFloat(resource.lng)]}
-                            icon={createColoredIcon(isLocationSelected ? '#2563eb' : (subCatColors[resource.category] || '#64748b'), markerFavorite)}
+                            icon={createColoredIcon(isLocationSelected ? '#0b6d70' : (subCatColors[resource.category] || '#64748b'), markerFavorite)}
                             eventHandlers={{
                                 click: () => {
                                     onSelectAsset(assetWithMarkerLocation, markerLocation);
@@ -170,7 +170,7 @@ export function DiscoveryMap({
                                     <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1">{resource.title}</h3>
                                     <p className="text-xs text-slate-600 mb-2">{resource.category || resource.asset_type}</p>
                                     <div
-                                        className="text-xs font-bold text-brand-600 cursor-pointer"
+                                        className="text-xs font-bold text-brand-700 cursor-pointer"
                                         onClick={() => onViewDetails(assetWithMarkerLocation, markerLocation)}
                                     >
                                         View details →

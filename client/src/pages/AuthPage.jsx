@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
-import { Activity, LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
+import BrandLockup from '../components/layout/BrandLockup.jsx';
 
 export default function AuthPage({ isPartner = false }) {
     const [tab, setTab] = useState('login');
@@ -56,27 +57,27 @@ export default function AuthPage({ isPartner = false }) {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center px-4 py-12">
-            <div className=" card w-full max-w-md shadow-xl">
+        <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'var(--page-gradient)' }}>
+            <div className="card w-full max-w-md shadow-xl">
 
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-700 flex items-center justify-center shadow-md mx-auto mb-4">
-                        <Activity size={28} className="text-white" />
-                    </div>
-                    <h1 className="text-2xl font-bold text-slate-900">{isPartner ? 'Partner Sign In' : 'Sign In'}</h1>
-                    <p className="text-slate-500 mt-1">{isPartner ? 'Access your partner or admin account' : 'Access your user account'}</p>
+                    <BrandLockup showTagline className="justify-center" textClassName="text-center" />
+                    <h1 className="mt-6 text-3xl font-bold" style={{ color: 'var(--color-text)' }}>{isPartner ? 'Partner Sign In' : 'Sign In'}</h1>
+                    <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                        {isPartner ? 'Access your partner or admin account' : 'Access your user account'}
+                    </p>
                 </div>
 
                 {/* Tabs - Only show Register if NOT partner */}
                 {!isPartner && (
-                    <div className="flex bg-slate-100 rounded-xl p-1 mb-6">
+                    <div className="flex rounded-2xl p-1 mb-6" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
                         {[{ key: 'login', label: 'Sign In', Icon: LogIn }, { key: 'register', label: 'Register', Icon: UserPlus }].map(({ key, label, Icon }) => (
                             <button
                                 key={key}
                                 id={`auth-tab-${key}`}
                                 onClick={() => { setTab(key); setError(''); }}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all min-h-[44px] ${tab === key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all min-h-[44px] ${tab === key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
                                 <Icon size={15} /> {label}
@@ -95,9 +96,9 @@ export default function AuthPage({ isPartner = false }) {
                             text={tab === 'login' ? 'signin_with' : 'signup_with'}
                         />
                         <div className="flex items-center w-full my-6">
-                            <div className="flex-1 border-b border-slate-200"></div>
-                            <div className="px-4 text-sm text-slate-400 font-medium">OR</div>
-                            <div className="flex-1 border-b border-slate-200"></div>
+                            <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
+                            <div className="px-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>OR</div>
+                            <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
                         </div>
                     </div>
                 )}
@@ -106,7 +107,7 @@ export default function AuthPage({ isPartner = false }) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {tab === 'register' && !isPartner && (
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Your Name</label>
+                            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Your Name</label>
                             <input
                                 id="auth-name"
                                 type="text"
@@ -120,7 +121,7 @@ export default function AuthPage({ isPartner = false }) {
                     )}
 
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
                             {isPartner ? 'Username' : 'Email Address'}
                         </label>
                         <input
@@ -134,7 +135,7 @@ export default function AuthPage({ isPartner = false }) {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
+                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Password</label>
                         <div className="relative">
                             <input
                                 id="auth-password"
@@ -157,7 +158,7 @@ export default function AuthPage({ isPartner = false }) {
                     </div>
 
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+                        <div className="rounded-2xl px-4 py-3 text-sm font-medium" style={{ backgroundColor: '#fff1ef', border: '1px solid #f7c2b8', color: '#b84030' }}>
                             {error}
                         </div>
                     )}
@@ -174,7 +175,7 @@ export default function AuthPage({ isPartner = false }) {
                     </button>
                 </form>
 
-                <div className="mt-4 text-center text-sm text-slate-500">
+                <div className="mt-4 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     {isPartner ? (
                         <>Looking for user login? <Link to="/login" className="text-brand-600 font-semibold hover:underline">Click here</Link></>
                     ) : (
@@ -183,21 +184,21 @@ export default function AuthPage({ isPartner = false }) {
                 </div>
 
                 {/* Demo credentials */}
-                <div className="mt-6 pt-5 border-t border-slate-100">
-                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Demo Accounts</p>
-                    <div className="grid grid-cols-3 gap-2 text-xs text-slate-500">
-                        <div className="bg-slate-50 rounded-lg p-2">
-                            <p className="font-bold text-slate-700">Admin</p>
+                <div className="mt-6 pt-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>Demo Accounts</p>
+                    <div className="grid grid-cols-3 gap-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
+                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>Admin</p>
                             <p>Admin</p>
                             <p>I9oki9ok</p>
                         </div>
-                        <div className="bg-slate-50 rounded-lg p-2">
-                            <p className="font-bold text-slate-700">Partner</p>
+                        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
+                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>Partner</p>
                             <p>fitlife</p>
                             <p>partner123</p>
                         </div>
-                        <div className="bg-slate-50 rounded-lg p-2">
-                            <p className="font-bold text-slate-700">User</p>
+                        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
+                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>User</p>
                             <p>user@example.com</p>
                             <p>user123</p>
                         </div>

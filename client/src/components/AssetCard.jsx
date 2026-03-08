@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, CalendarDays, Heart, MapPin, Clock, Navigation, ChevronDown } from 'lucide-react';
+import { ArrowUpRight, Building2, CalendarDays, Heart, MapPin, Clock, Navigation } from 'lucide-react';
 
 function hasValidCoordinates(value) {
     return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
@@ -71,19 +71,28 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
 
     return (
         <article
-            className="card relative group flex flex-col cursor-pointer transition-all"
+            className="card relative group flex flex-col cursor-pointer transition-all overflow-hidden"
             style={{
                 borderWidth: '2px',
                 borderColor: isSelected ? 'var(--color-brand)' : 'var(--color-border)',
-                backgroundColor: isSelected ? 'var(--color-brand-light)' : 'var(--color-surface)',
+                background: isSelected
+                    ? 'linear-gradient(180deg, rgba(231,248,244,0.98) 0%, rgba(255,255,255,0.96) 100%)'
+                    : 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,252,251,0.94) 100%)',
             }}
             onClick={() => setIsExpanded(!isExpanded)}
         >
+            <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-16"
+                style={{
+                    background: 'linear-gradient(180deg, rgba(15,163,154,0.08) 0%, transparent 100%)',
+                }}
+            />
+
             {/* Distance badge */}
             {asset._distance !== undefined && asset._distance !== null && (
                 <div
                     className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-bold z-10 text-white"
-                    style={{ backgroundColor: 'var(--color-brand)', border: '2px solid var(--color-surface)' }}
+                    style={{ backgroundColor: 'var(--color-brand-strong)', border: '2px solid var(--color-surface)' }}
                 >
                     {asset._distance < 1 ? `${Math.round(asset._distance * 1000)}m` : `${asset._distance.toFixed(1)}km`}
                 </div>
@@ -106,8 +115,8 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                 {isLoggedIn && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleFavorite(asset.id, type); }}
-                        className="p-1 -m-1 rounded-full transition-colors flex-shrink-0"
-                        style={{ backgroundColor: isFavorite ? '#fef2f230' : 'transparent' }}
+                        className="p-1.5 -m-1 rounded-full transition-colors flex-shrink-0"
+                        style={{ backgroundColor: isFavorite ? '#fff1ef' : 'transparent' }}
                     >
                         <Heart size={18} className={isFavorite ? 'fill-red-500 text-red-500' : ''} style={!isFavorite ? { color: 'var(--color-text-muted)' } : {}} />
                     </button>
@@ -124,7 +133,7 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                         <img src={asset.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
                     </div>
                 )}
-                <h2 className="text-base font-bold leading-snug hover:underline transition-colors" style={{ color: 'var(--color-text)' }}>
+                <h2 className="text-[1.05rem] font-bold leading-snug hover:underline transition-colors" style={{ color: 'var(--color-text)' }}>
                     {asset.name}
                 </h2>
             </div>
@@ -199,6 +208,33 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                     </button>
                 </div>
             )}
+
+            <div className="mt-3 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onClick?.();
+                    }}
+                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors hover:bg-slate-50"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                >
+                    <MapPin size={15} style={{ color: 'var(--color-brand)' }} />
+                    Inspect
+                </button>
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/resource/${type}/${asset.id}`);
+                    }}
+                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
+                    style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
+                >
+                    Details
+                    <ArrowUpRight size={15} />
+                </button>
+            </div>
         </article>
     );
 });

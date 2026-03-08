@@ -28,29 +28,45 @@ export function DiscoveryResultsList({
                     <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters or search terms.</p>
                 </div>
             ) : (
-                <div className="space-y-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-4 lg:space-y-0">
-                    {filtered.map((resource, index) => (
-                        <div
-                            id={`asset-card-${resource._type}-${resource.id}`}
-                            key={`${resource._type}-${resource.id}`}
-                            className="mobile-card-enter"
-                            style={{ animationDelay: `${index * 0.04}s` }}
-                        >
-                            <AssetCard
-                                asset={resource}
-                                type={resource._type}
-                                isSelected={selectedAsset?.id === resource.id && selectedAsset?._type === resource._type}
-                                onClick={() => onSelectAsset(resource)}
-                                subCatColors={subCatColors}
-                                isFavorite={favorites.some((favorite) => favorite.resourceId === resource.id && favorite.resourceType === resource._type)}
-                                onToggleFavorite={onToggleFavorite}
-                                isLoggedIn={!!user}
-                                onTagClick={onTagClick}
-                                onCategoryClick={onCategoryClick}
-                            />
-                        </div>
-                    ))}
-                </div>
+                <>
+                    <div
+                        className="mb-4 rounded-[24px] border px-4 py-3"
+                        style={{
+                            borderColor: 'var(--color-border)',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(231,248,244,0.9) 100%)',
+                        }}
+                    >
+                        <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                            Discovery Feed
+                        </p>
+                        <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                            Showing {filtered.length} {filtered.length === 1 ? 'resource' : 'resources'}
+                        </p>
+                    </div>
+                    <div className="space-y-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-4 lg:space-y-0">
+                        {filtered.map((resource, index) => (
+                            <div
+                                id={`asset-card-${resource._type}-${resource.id}`}
+                                key={`${resource._type}-${resource.id}`}
+                                className="mobile-card-enter"
+                                style={{ animationDelay: `${index * 0.04}s` }}
+                            >
+                                <AssetCard
+                                    asset={resource}
+                                    type={resource._type}
+                                    isSelected={selectedAsset?.id === resource.id && selectedAsset?._type === resource._type}
+                                    onClick={() => onSelectAsset(resource)}
+                                    subCatColors={subCatColors}
+                                    isFavorite={favorites.some((favorite) => favorite.resourceId === resource.id && favorite.resourceType === resource._type)}
+                                    onToggleFavorite={onToggleFavorite}
+                                    isLoggedIn={!!user}
+                                    onTagClick={onTagClick}
+                                    onCategoryClick={onCategoryClick}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
         </div>
     );

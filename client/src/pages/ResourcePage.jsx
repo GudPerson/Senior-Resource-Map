@@ -145,22 +145,22 @@ export default function ResourcePage() {
     }, [asset, isHard, primaryLocation]);
 
     if (loading) {
-        return <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--page-gradient)' }}>
             <div className="w-12 h-12 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin" />
         </div>;
     }
 
     if (!asset) {
-        return <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        return <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: 'var(--page-gradient)' }}>
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Resource not found</h2>
             <button onClick={() => navigate('/discover')} className="text-brand-600 font-bold hover:underline">Return to Discover</button>
         </div>;
     }
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] bg-slate-50 pb-20">
+        <div className="min-h-[calc(100vh-4rem)] pb-20" style={{ background: 'var(--page-gradient)' }}>
             {/* Header / Banner */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+            <div className="sticky top-0 z-10 border-b shadow-sm" style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderColor: 'var(--color-border)', backdropFilter: 'blur(16px)' }}>
                 <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
                         <ArrowLeft size={24} />
@@ -171,7 +171,7 @@ export default function ResourcePage() {
 
             <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
                 {(asset.bannerUrl || asset.logoUrl) && (
-                    <div className={`w-full ${asset.bannerUrl ? 'h-64 sm:h-80' : 'h-32 sm:h-48'} bg-white rounded-2xl border border-slate-200 overflow-hidden flex items-center justify-center p-4 shadow-sm relative`}>
+                    <div className={`w-full ${asset.bannerUrl ? 'h-64 sm:h-80' : 'h-32 sm:h-48'} rounded-[28px] border overflow-hidden flex items-center justify-center p-4 shadow-sm relative`} style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}>
                         {asset.bannerUrl ? (
                             <img src={asset.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
@@ -180,15 +180,15 @@ export default function ResourcePage() {
                     </div>
                 )}
 
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+                <div className="rounded-[28px] border p-6 sm:p-8 shadow-sm" style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}>
                     <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
                         {asset.logoUrl && asset.bannerUrl && (
-                            <img src={asset.logoUrl} alt="Logo" className="w-20 h-20 rounded-xl border border-slate-200 object-contain bg-white flex-shrink-0" />
+                            <img src={asset.logoUrl} alt="Logo" className="w-20 h-20 rounded-2xl border object-contain bg-white flex-shrink-0" style={{ borderColor: 'var(--color-border)' }} />
                         )}
                         <div>
                             <div
-                                className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-lg bg-white text-sm font-bold border border-slate-200 shadow-sm"
-                                style={{ color: subCatColors[asset.subCategory] || '#334155' }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-full bg-white text-sm font-bold border shadow-sm"
+                                style={{ color: subCatColors[asset.subCategory] || '#334155', borderColor: 'var(--color-border)' }}
                             >
                                 {isHard ? <Building2 size={16} /> : <CalendarDays size={16} />}
                                 {asset.subCategory || (isHard ? 'Place' : 'Offering')}
@@ -196,11 +196,11 @@ export default function ResourcePage() {
                             <h1 className="text-3xl font-bold text-slate-900 leading-tight">{asset.name}</h1>
                             {!isHard && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-sm font-bold border border-brand-100">
-                                        Available in {availablePlaceCount} {availablePlaceCount === 1 ? 'place' : 'places'}
-                                    </span>
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border" style={{ backgroundColor: 'var(--color-brand-light)', color: 'var(--color-brand-strong)', borderColor: 'var(--color-border)' }}>
+                                            Available in {availablePlaceCount} {availablePlaceCount === 1 ? 'place' : 'places'}
+                                        </span>
                                     {sortOrigin && (
-                                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-sm font-medium border border-slate-200">
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border" style={{ backgroundColor: 'var(--color-badge-bg)', color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}>
                                             Sorted nearest to {getSearchLocationLabel(sortOrigin)}
                                         </span>
                                     )}
@@ -291,7 +291,8 @@ export default function ResourcePage() {
                         <div className="mt-8">
                             <button
                                 onClick={() => handleDirections()}
-                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700 transition shadow-sm text-lg"
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white font-bold transition shadow-sm text-lg"
+                                style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
                             >
                                 <Navigation size={20} />
                                 {isHard ? 'Get Directions (Google Maps)' : 'Get Directions to Nearest Place'}
@@ -302,7 +303,7 @@ export default function ResourcePage() {
 
                 {/* Soft assets related to this hard asset */}
                 {isHard && asset.softAssets && asset.softAssets.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div className="rounded-[28px] border p-6 shadow-sm" style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}>
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">Available Offerings & Resources</h2>
                         <div className="grid gap-4">
                             {asset.softAssets.map(sa => (

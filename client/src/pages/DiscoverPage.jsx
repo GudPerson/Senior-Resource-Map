@@ -404,11 +404,20 @@ export default function DiscoverPage() {
     );
 
     return (
-        <div className="relative flex flex-col h-[calc(100vh-4rem)] overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <div
+            className="relative flex flex-col h-[calc(100vh-4rem)] overflow-hidden"
+            style={{ background: 'var(--page-gradient)' }}
+        >
             <div className="hidden lg:flex flex-1 w-full h-full relative">
                 <div
-                    className="flex-shrink-0 h-full shadow-xl z-20 overflow-hidden flex flex-col"
-                    style={{ width: `${listWidth}px`, backgroundColor: 'var(--color-surface)', borderRight: '1px solid var(--color-border)' }}
+                    className="flex-shrink-0 h-full z-20 overflow-hidden flex flex-col"
+                    style={{
+                        width: `${listWidth}px`,
+                        backgroundColor: 'rgba(255,255,255,0.84)',
+                        borderRight: '1px solid var(--color-border)',
+                        boxShadow: '28px 0 54px rgba(15, 89, 91, 0.08)',
+                        backdropFilter: 'blur(18px)',
+                    }}
                 >
                     {filterPanel}
                     {resultsList}
@@ -434,7 +443,10 @@ export default function DiscoverPage() {
                     <button
                         onClick={() => setIsDrawerOpen(true)}
                         className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] text-white px-6 py-3 min-h-[48px] rounded-full shadow-lg font-bold flex items-center gap-2 transition-all active:scale-95"
-                        style={{ backgroundColor: 'var(--color-brand)', boxShadow: '0 4px 20px rgba(37, 99, 235, 0.4)' }}
+                        style={{
+                            background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)',
+                            boxShadow: '0 18px 36px rgba(15, 163, 154, 0.28)',
+                        }}
                     >
                         <Search size={18} /> Browse Directory
                     </button>
@@ -450,8 +462,13 @@ export default function DiscoverPage() {
                 >
                     <Drawer.Portal>
                         <Drawer.Content
-                            className="fixed flex flex-col rounded-t-[16px] h-full max-h-[96%] mt-24 bottom-0 left-0 right-0 z-[501]"
-                            style={{ backgroundColor: 'var(--color-drawer-bg)', boxShadow: '0 -8px 30px rgba(0,0,0,0.15)', borderTop: '1px solid var(--color-border)' }}
+                            className="fixed flex flex-col rounded-t-[24px] h-full max-h-[96%] mt-24 bottom-0 left-0 right-0 z-[501]"
+                            style={{
+                                backgroundColor: 'var(--color-drawer-bg)',
+                                boxShadow: '0 -18px 42px rgba(15, 89, 91, 0.18)',
+                                borderTop: '1px solid var(--color-border)',
+                                backdropFilter: 'blur(18px)',
+                            }}
                         >
                             <VisuallyHidden><Drawer.Title>Directory List</Drawer.Title></VisuallyHidden>
                             <div className="flex justify-center py-2">

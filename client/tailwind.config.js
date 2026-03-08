@@ -5,17 +5,17 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Public Sans', 'system-ui', 'sans-serif'],
       },
 
       colors: {
         brand: {
-          50: '#f0f7ff',
-          100: '#e0effe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          900: '#1e3a5f',
+          50: '#ecfaf7',
+          100: '#d6f4ef',
+          500: '#0fa39a',
+          600: '#0b8780',
+          700: '#0b6d70',
+          900: '#173a3d',
         },
         healthcare: { DEFAULT: '#dc2626', light: '#fee2e2', dark: '#991b1b' },
         fitness: { DEFAULT: '#16a34a', light: '#dcfce7', dark: '#14532d' },
