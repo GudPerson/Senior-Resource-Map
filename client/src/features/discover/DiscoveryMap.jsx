@@ -27,8 +27,8 @@ function MarkerTooltipCard({
     locationCount,
     onKeepTooltipOpen,
     onScheduleTooltipClose,
-    onSelectAsset,
     onToggleFavorite,
+    onViewDetails,
     resource,
     user,
 }) {
@@ -78,7 +78,7 @@ function MarkerTooltipCard({
                 onClick={(event) => {
                     event.stopPropagation();
                     onKeepTooltipOpen(markerKey);
-                    onSelectAsset(markerAsset, markerAsset._markerLocation);
+                    onViewDetails(markerAsset, markerAsset._markerLocation);
                 }}
                 className="mt-3 text-xs font-bold text-brand-600 hover:underline"
             >
@@ -98,6 +98,7 @@ export function DiscoveryMap({
     onScheduleTooltipClose,
     onSelectAsset,
     onToggleFavorite,
+    onViewDetails,
     selectedMarkerKey,
     subCatColors,
     user,
@@ -157,8 +158,8 @@ export function DiscoveryMap({
                                         locationCount={locationCount}
                                         onKeepTooltipOpen={onKeepTooltipOpen}
                                         onScheduleTooltipClose={onScheduleTooltipClose}
-                                        onSelectAsset={onSelectAsset}
                                         onToggleFavorite={onToggleFavorite}
+                                        onViewDetails={onViewDetails}
                                         resource={resource}
                                         user={user}
                                     />
@@ -170,7 +171,7 @@ export function DiscoveryMap({
                                     <p className="text-xs text-slate-600 mb-2">{resource.category || resource.asset_type}</p>
                                     <div
                                         className="text-xs font-bold text-brand-600 cursor-pointer"
-                                        onClick={() => onSelectAsset(assetWithMarkerLocation, markerLocation)}
+                                        onClick={() => onViewDetails(assetWithMarkerLocation, markerLocation)}
                                     >
                                         View details →
                                     </div>

@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useFavorites } from '../hooks/useFavorites.js';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
 import { DiscoveryFilterPanel } from '../features/discover/DiscoveryFilterPanel.jsx';
+import { DiscoveryInspector } from '../features/discover/DiscoveryInspector.jsx';
 import { DiscoveryMap } from '../features/discover/DiscoveryMap.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import {
@@ -37,8 +39,10 @@ export default function DiscoverPage() {
     const [activeSnap, setActiveSnap] = useState(0.55);
 
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const workerRef = useRef(null);
     const tooltipCloseTimeoutRef = useRef(null);
+    const isDesktop = useMediaQuery('(min-width: 1024px)');
     const { isDragging, listWidth, startDragging } = useSplitPaneResize(450);
     const { user } = useAuth();
     const { favorites, toggleFavorite: handleToggleFavorite, isFavorite } = useFavorites(user);
@@ -121,6 +125,13 @@ export default function DiscoverPage() {
             clearTimeout(tooltipCloseTimeoutRef.current);
         }
     }, []);
+
+    useEffect(() => {
+        if (isDesktop) {
+            setIsDrawerOpen(false);
+            setActiveSnap(0.55);
+        }
+    }, [isDesktop]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
@@ -301,8 +312,24 @@ export default function DiscoverPage() {
 
     const handleMapSelect = useCallback((asset, preferredLocation = null) => {
         handleSelect(asset, preferredLocation);
-        setIsDrawerOpen(true);
     }, [handleSelect]);
+
+    const handleOpenResourcePage = useCallback((asset) => {
+        if (!asset) return;
+        navigate(`/resource/${asset._type}/${asset.id}`);
+    }, [navigate]);
+
+    const handleMapDetailAction = useCallback((asset, preferredLocation = null) => {
+        if (!asset) return;
+
+        if (isDesktop) {
+            handleSelect(asset, preferredLocation);
+            return;
+        }
+
+        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
+        navigate(`/resource/${normalizedAsset._type}/${normalizedAsset.id}`);
+    }, [handleSelect, isDesktop, navigate]);
 
     const filterPanel = (
         <DiscoveryFilterPanel
@@ -343,21 +370,37 @@ export default function DiscoverPage() {
     );
 
     const mapView = (
-        <DiscoveryMap
-            activeTooltipKey={activeTooltipKey}
-            bottomOffsetPx={drawerOffsetPx}
-            enrichedMapLocations={enrichedMapLocations}
-            flyTarget={flyTarget}
-            isFavorite={isFavorite}
-            onKeepTooltipOpen={keepTooltipOpen}
-            onScheduleTooltipClose={scheduleTooltipClose}
-            onSelectAsset={handleMapSelect}
-            onToggleFavorite={handleToggleFavorite}
-            selectedMarkerKey={selectedMarkerKey}
-            subCatColors={subCatColors}
-            user={user}
-            userLocation={userLocation}
-        />
+        <div className="relative h-full w-full">
+            <DiscoveryMap
+                activeTooltipKey={activeTooltipKey}
+                bottomOffsetPx={drawerOffsetPx}
+                enrichedMapLocations={enrichedMapLocations}
+                flyTarget={flyTarget}
+                isFavorite={isFavorite}
+                onKeepTooltipOpen={keepTooltipOpen}
+                onScheduleTooltipClose={scheduleTooltipClose}
+                onSelectAsset={handleMapSelect}
+                onToggleFavorite={handleToggleFavorite}
+                onViewDetails={handleMapDetailAction}
+                selectedMarkerKey={selectedMarkerKey}
+                subCatColors={subCatColors}
+                user={user}
+                userLocation={userLocation}
+            />
+            {isDesktop && (
+                <DiscoveryInspector
+                    asset={selectedAsset}
+                    isFavorite={selectedAsset ? isFavorite(selectedAsset.id, selectedAsset._type) : false}
+                    onClose={() => handleSelect(null)}
+                    onOpenResourcePage={handleOpenResourcePage}
+                    onTagClick={setSearch}
+                    onToggleFavorite={handleToggleFavorite}
+                    subCatColors={subCatColors}
+                    user={user}
+                    userLocation={userLocation}
+                />
+            )}
+        </div>
     );
 
     return (
