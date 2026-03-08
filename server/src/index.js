@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import 'dotenv/config';
 
 import authRoutes from './routes/auth.js';
 import hardAssetsRoutes from './routes/hardAssets.js';
