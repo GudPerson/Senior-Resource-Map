@@ -2,11 +2,8 @@ import { tags, hardAssetTags, softAssetTags } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 
 /**
- * Syncs tags for an asset within a transaction.
- * @param {import('drizzle-orm').Transaction} tx - The active database transaction.
- * @param {number} assetId - The ID of the asset.
- * @param {'hard' | 'soft'} assetType - 'hard' or 'soft' asset type.
- * @param {string[]} newTags - Array of tag names to assign.
+ * Syncs tags for an asset using any drizzle executor with select/insert/delete methods.
+ * This intentionally works with the neon-http driver, which does not support transactions.
  */
 export async function syncAssetTags(tx, assetId, assetType, newTags) {
     if (!newTags) return;

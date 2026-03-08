@@ -42,7 +42,7 @@ export function authorize(...allowedRoles) {
         const user = c.get('user');
         if (!user) return c.json({ error: 'Unauthorized' }, 401);
 
-        const { role, subregionId } = user;
+        const { role, subregionId, subregionIds } = user;
 
         if (!allowedRoles.includes(role)) {
             return c.json({ error: 'Insufficient permissions' }, 403);
@@ -54,10 +54,11 @@ export function authorize(...allowedRoles) {
         }
 
         if (role === 'regional_admin' || role === 'partner') {
-            if (!subregionId) {
+            const scopedSubregionId = subregionId || subregionIds?.[0];
+            if (!scopedSubregionId) {
                 return c.json({ error: 'Account missing required scope (subregion_id)' }, 403);
             }
-            c.set('subregionScope', subregionId);
+            c.set('subregionScope', scopedSubregionId);
         }
 
         await next();

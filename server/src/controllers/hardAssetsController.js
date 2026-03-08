@@ -5,6 +5,8 @@ import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 
+const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
+
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
     SG: 'Singapore', MY: 'Malaysia', IN: 'India', PH: 'Philippines',
@@ -147,28 +149,31 @@ export const createHardAsset = async (c) => {
             return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
         }
 
-        const result = await db.transaction(async (tx) => {
-            const [asset] = await tx.insert(hardAssets).values({
-                partnerId: user.id,
-                subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
-                name, country, postalCode, subCategory: subCategory || 'Places',
-                lat: coords.lat.toString(), lng: coords.lng.toString(),
-                address, phone: phone || null, hours: hours || null, description: description || null,
-                logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
-                isHidden: isHidden || false,
-                hideFrom: hideFrom ? new Date(hideFrom) : null,
-                hideUntil: hideUntil ? new Date(hideUntil) : null
-            }).returning();
+        const [asset] = await db.insert(hardAssets).values({
+            partnerId: user.id,
+            subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
+            name, country, postalCode, subCategory: subCategory || 'Places',
+            lat: coords.lat.toString(), lng: coords.lng.toString(),
+            address, phone: phone || null, hours: hours || null, description: description || null,
+            logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
+            isHidden: isHidden || false,
+            hideFrom: hideFrom ? new Date(hideFrom) : null,
+            hideUntil: hideUntil ? new Date(hideUntil) : null
+        }).returning();
 
-            await syncAssetTags(tx, asset.id, 'hard', newTags);
-            return asset;
-        });
+        try {
+            await syncAssetTags(db, asset.id, 'hard', newTags);
+        } catch (syncError) {
+            // Best-effort cleanup because neon-http does not support transactions.
+            await db.delete(hardAssets).where(eq(hardAssets.id, asset.id));
+            throw syncError;
+        }
 
-        await rebuildMapCache(body.subregionId || user.subregionIds?.[0], c.env);
-        return c.json(result, 201);
+        await rebuildMapCache(getCacheRegionId(body.subregionId, finalSubregionId, user.subregionId, user.subregionIds?.[0]), c.env);
+        return c.json(asset, 201);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to create hard asset' }, 500);
+        return c.json({ error: err.message || 'Failed to create hard asset' }, 500);
     }
 };
 
@@ -204,31 +209,29 @@ export const updateHardAsset = async (c) => {
             lng = coords.lng.toString();
         }
 
-        await db.transaction(async (tx) => {
-            await tx.update(hardAssets).set({
-                name, country, postalCode, lat, lng, address,
-                subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
-                subregionId: (isSuper && subregionId !== undefined) ? subregionId : existing.subregionId,
-                phone: phone || null, hours: hours || null, description: description || null,
-                logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
-                bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
-                galleryUrls: galleryUrls !== undefined ? galleryUrls : existing.galleryUrls,
-                isHidden: isHidden !== undefined ? isHidden : existing.isHidden,
-                hideFrom: hideFrom !== undefined ? (hideFrom ? new Date(hideFrom) : null) : existing.hideFrom,
-                hideUntil: hideUntil !== undefined ? (hideUntil ? new Date(hideUntil) : null) : existing.hideUntil,
-                updatedAt: new Date()
-            }).where(eq(hardAssets.id, id));
+        await db.update(hardAssets).set({
+            name, country, postalCode, lat, lng, address,
+            subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
+            subregionId: (isSuper && subregionId !== undefined) ? subregionId : existing.subregionId,
+            phone: phone || null, hours: hours || null, description: description || null,
+            logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
+            bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
+            galleryUrls: galleryUrls !== undefined ? galleryUrls : existing.galleryUrls,
+            isHidden: isHidden !== undefined ? isHidden : existing.isHidden,
+            hideFrom: hideFrom !== undefined ? (hideFrom ? new Date(hideFrom) : null) : existing.hideFrom,
+            hideUntil: hideUntil !== undefined ? (hideUntil ? new Date(hideUntil) : null) : existing.hideUntil,
+            updatedAt: new Date()
+        }).where(eq(hardAssets.id, id));
 
-            if (newTags) {
-                await syncAssetTags(tx, id, 'hard', newTags);
-            }
-        });
+        if (newTags) {
+            await syncAssetTags(db, id, 'hard', newTags);
+        }
 
-        await rebuildMapCache(body.subregionId || existing.subregionId || user.subregionId, c.env);
+        await rebuildMapCache(getCacheRegionId(body.subregionId, existing.subregionId, user.subregionId, user.subregionIds?.[0]), c.env);
         return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to update hard asset' }, 500);
+        return c.json({ error: err.message || 'Failed to update hard asset' }, 500);
     }
 };
 
@@ -251,7 +254,7 @@ export const deleteHardAsset = async (c) => {
         }
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
-        await rebuildMapCache(existing.subregionId || user.subregionIds?.[0], c.env);
+        await rebuildMapCache(getCacheRegionId(existing.subregionId, user.subregionId, user.subregionIds?.[0]), c.env);
         return c.json({ success: true });
     } catch (err) {
         console.error(err);

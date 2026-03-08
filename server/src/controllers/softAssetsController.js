@@ -5,6 +5,8 @@ import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 
+const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
+
 export const getSoftAssets = async (c) => {
     try {
         const user = c.get('user');
@@ -104,36 +106,39 @@ export const createSoftAsset = async (c) => {
             finalSubregionId = user.subregionIds?.[0]; // Default to first region for partners/regional admins
         }
 
-        const result = await db.transaction(async (tx) => {
-            const [asset] = await tx.insert(softAssets).values({
-                partnerId: user.id,
-                subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
-                name, subCategory: subCategory || 'Programmes', description: description || null, schedule: schedule || null,
-                logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
-                isMemberOnly: isMemberOnly || false,
-                isHidden: isHidden || false,
-                hideFrom: hideFrom ? new Date(hideFrom) : null,
-                hideUntil: hideUntil ? new Date(hideUntil) : null
-            }).returning();
+        const [asset] = await db.insert(softAssets).values({
+            partnerId: user.id,
+            subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
+            name, subCategory: subCategory || 'Programmes', description: description || null, schedule: schedule || null,
+            logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
+            isMemberOnly: isMemberOnly || false,
+            isHidden: isHidden || false,
+            hideFrom: hideFrom ? new Date(hideFrom) : null,
+            hideUntil: hideUntil ? new Date(hideUntil) : null
+        }).returning();
 
+        try {
             for (const hid of hardAssetIds) {
-                await tx.insert(softAssetLocations).values({
+                await db.insert(softAssetLocations).values({
                     softAssetId: asset.id,
                     hardAssetId: hid
                 });
             }
 
-            await syncAssetTags(tx, asset.id, 'soft', newTags);
-            return asset;
-        });
+            await syncAssetTags(db, asset.id, 'soft', newTags);
+        } catch (syncError) {
+            // Best-effort cleanup because neon-http does not support transactions.
+            await db.delete(softAssets).where(eq(softAssets.id, asset.id));
+            throw syncError;
+        }
 
         try {
-            await rebuildMapCache(body.subregionId || user.subregionIds?.[0], c.env);
+            await rebuildMapCache(getCacheRegionId(body.subregionId, finalSubregionId, user.subregionId, user.subregionIds?.[0]), c.env);
         } catch (e) { console.error('Cache err', e); }
-        return c.json(result, 201);
+        return c.json(asset, 201);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to create soft asset' }, 500);
+        return c.json({ error: err.message || 'Failed to create soft asset' }, 500);
     }
 };
 
@@ -157,48 +162,46 @@ export const updateSoftAsset = async (c) => {
         const body = await c.req.json();
         const { locationId, locationIds, name, subCategory, description, schedule, logoUrl, bannerUrl, galleryUrls, newTags, isMemberOnly, isHidden, hideFrom, hideUntil } = body;
 
-        await db.transaction(async (tx) => {
-            await tx.update(softAssets).set({
-                name, subCategory: subCategory !== undefined ? subCategory : existing.subCategory, description: description || null, schedule: schedule || null,
-                logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
-                bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
-                galleryUrls: galleryUrls !== undefined ? galleryUrls : existing.galleryUrls,
-                isMemberOnly: isMemberOnly !== undefined ? isMemberOnly : existing.isMemberOnly,
-                isHidden: isHidden !== undefined ? isHidden : existing.isHidden,
-                hideFrom: hideFrom !== undefined ? (hideFrom ? new Date(hideFrom) : null) : existing.hideFrom,
-                hideUntil: hideUntil !== undefined ? (hideUntil ? new Date(hideUntil) : null) : existing.hideUntil,
-                updatedAt: new Date()
-            }).where(eq(softAssets.id, id));
+        await db.update(softAssets).set({
+            name, subCategory: subCategory !== undefined ? subCategory : existing.subCategory, description: description || null, schedule: schedule || null,
+            logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
+            bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
+            galleryUrls: galleryUrls !== undefined ? galleryUrls : existing.galleryUrls,
+            isMemberOnly: isMemberOnly !== undefined ? isMemberOnly : existing.isMemberOnly,
+            isHidden: isHidden !== undefined ? isHidden : existing.isHidden,
+            hideFrom: hideFrom !== undefined ? (hideFrom ? new Date(hideFrom) : null) : existing.hideFrom,
+            hideUntil: hideUntil !== undefined ? (hideUntil ? new Date(hideUntil) : null) : existing.hideUntil,
+            updatedAt: new Date()
+        }).where(eq(softAssets.id, id));
 
-            if (locationIds !== undefined || locationId !== undefined) {
-                let hardAssetIds = [];
-                if (locationIds && Array.isArray(locationIds)) {
-                    hardAssetIds = locationIds.map(lid => parseInt(lid)).filter(lid => !isNaN(lid));
-                } else if (locationId) {
-                    hardAssetIds = [parseInt(locationId)].filter(lid => !isNaN(lid));
-                }
-
-                await tx.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, id));
-                for (const hid of hardAssetIds) {
-                    await tx.insert(softAssetLocations).values({
-                        softAssetId: id,
-                        hardAssetId: hid
-                    });
-                }
+        if (locationIds !== undefined || locationId !== undefined) {
+            let hardAssetIds = [];
+            if (locationIds && Array.isArray(locationIds)) {
+                hardAssetIds = locationIds.map(lid => parseInt(lid)).filter(lid => !isNaN(lid));
+            } else if (locationId) {
+                hardAssetIds = [parseInt(locationId)].filter(lid => !isNaN(lid));
             }
 
-            if (newTags) {
-                await syncAssetTags(tx, id, 'soft', newTags);
+            await db.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, id));
+            for (const hid of hardAssetIds) {
+                await db.insert(softAssetLocations).values({
+                    softAssetId: id,
+                    hardAssetId: hid
+                });
             }
-        });
+        }
+
+        if (newTags) {
+            await syncAssetTags(db, id, 'soft', newTags);
+        }
 
         try {
-            await rebuildMapCache(existing.subregionId || user.subregionIds?.[0], c.env);
+            await rebuildMapCache(getCacheRegionId(body.subregionId, existing.subregionId, user.subregionId, user.subregionIds?.[0]), c.env);
         } catch (e) { console.error('Cache err', e); }
         return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to update soft asset' }, 500);
+        return c.json({ error: err.message || 'Failed to update soft asset' }, 500);
     }
 };
 
@@ -221,7 +224,7 @@ export const deleteSoftAsset = async (c) => {
 
         await db.update(softAssets).set({ isDeleted: true }).where(eq(softAssets.id, id));
         try {
-            await rebuildMapCache(existing.subregionId || user.subregionIds?.[0], c.env);
+            await rebuildMapCache(getCacheRegionId(existing.subregionId, user.subregionId, user.subregionIds?.[0]), c.env);
         } catch (e) { console.error('Cache err', e); }
         return c.json({ success: true });
     } catch (err) {
