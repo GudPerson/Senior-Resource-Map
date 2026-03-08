@@ -233,7 +233,13 @@ export const importCSV = async (c) => {
             }
         }
 
-        return c.json({ message: `Successfully imported ${importedRows.length} rows`, errors });
+        return c.json({
+            message: `Successfully imported ${importedRows.length} rows`,
+            importedCount: importedRows.length,
+            failedCount: errors.length,
+            totalRows: rows.length,
+            errors
+        });
     } catch (err) {
         console.error('Import Error:', err);
         return c.json({ error: err?.message || 'Database import failed' }, 500);

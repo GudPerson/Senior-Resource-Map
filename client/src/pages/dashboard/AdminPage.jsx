@@ -22,6 +22,8 @@ export default function AdminPage() {
     const [subregionFeedback, setSubregionFeedback] = useState(null);
     const [pendingSubregionDelete, setPendingSubregionDelete] = useState(null);
     const [subregionDeleteLoading, setSubregionDeleteLoading] = useState(false);
+    const [importReport, setImportReport] = useState(null);
+    const [importCopyNotice, setImportCopyNotice] = useState('');
 
     async function loadAll() {
         setLoading(true);
@@ -209,28 +211,158 @@ export default function AdminPage() {
         }
     }
 
+    function parseImportedCount(result) {
+        if (Number.isInteger(result?.importedCount)) return result.importedCount;
+        const message = String(result?.message || '');
+        const match = message.match(/Successfully imported\s+(\d+)\s+rows/i);
+        return match ? Number.parseInt(match[1], 10) : 0;
+    }
+
+    function normalizeBatchErrors(batchErrors, rowOffset) {
+        if (!Array.isArray(batchErrors)) return [];
+
+        return batchErrors.map((err) => {
+            const text = String(err || '').trim();
+            const match = text.match(/^Row\s+(\d+):\s*(.*)$/i);
+            if (match) {
+                const mappedRow = rowOffset + Number.parseInt(match[1], 10);
+                return `Row ${mappedRow}: ${match[2]}`;
+            }
+            return `Row ${rowOffset + 1}: ${text}`;
+        });
+    }
+
+    function buildImportReportText(report) {
+        if (!report) return '';
+
+        const lines = [
+            `Import Report - ${report.resourceLabel}`,
+            `File: ${report.fileName}`,
+            `Timestamp: ${new Date(report.timestamp).toLocaleString()}`,
+            `Total rows: ${report.totalRows}`,
+            `Imported: ${report.importedCount}`,
+            `Failed: ${report.failedCount}`,
+            ''
+        ];
+
+        if (report.errors.length > 0) {
+            lines.push('Errors:');
+            lines.push(...report.errors);
+        } else {
+            lines.push('No row-level errors.');
+        }
+
+        return lines.join('\n');
+    }
+
+    async function copyImportReport() {
+        if (!importReport) return;
+        try {
+            await navigator.clipboard.writeText(buildImportReportText(importReport));
+            setImportCopyNotice('Copied to clipboard.');
+        } catch (err) {
+            setImportCopyNotice('Copy failed. You can still select and copy manually below.');
+        }
+    }
+
+    function downloadImportReport() {
+        if (!importReport) return;
+        const content = buildImportReportText(importReport);
+        const datePart = new Date(importReport.timestamp).toISOString().replace(/[:.]/g, '-');
+        const fileName = `import_report_${importReport.resourceType}_${datePart}.txt`;
+        downloadFile(content, fileName, 'text/plain;charset=utf-8');
+    }
+
     function handleImportCSV(e, type) {
         const file = e.target.files[0];
         if (!file) return;
 
+        const resourceLabel = type === 'hard' ? 'Places' : 'Offerings';
+        setImportReport(null);
+        setImportCopyNotice('');
         setLoading(true);
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
-                    const res = await api.importCSV({ rows: results.data, type });
-                    alert(`Import successful: ${res.message}. Errors: ${res.errors?.length ? res.errors.join('\n') : '0'}`);
-                    await loadAll();
+                    const rows = Array.isArray(results.data) ? results.data : [];
+                    if (rows.length === 0) {
+                        setImportReport({
+                            type: 'error',
+                            resourceType: type,
+                            resourceLabel,
+                            fileName: file.name,
+                            timestamp: Date.now(),
+                            totalRows: 0,
+                            importedCount: 0,
+                            failedCount: 0,
+                            errors: ['CSV has no data rows.']
+                        });
+                        return;
+                    }
+
+                    // Cloudflare Workers enforce subrequest limits; chunking reduces per-invocation load.
+                    const batchSize = type === 'hard' ? 3 : 5;
+                    let importedCount = 0;
+                    const allErrors = [];
+
+                    for (let start = 0; start < rows.length; start += batchSize) {
+                        const batchRows = rows.slice(start, start + batchSize);
+                        try {
+                            const res = await api.importCSV({ rows: batchRows, type });
+                            importedCount += parseImportedCount(res);
+                            allErrors.push(...normalizeBatchErrors(res?.errors, start));
+                        } catch (batchErr) {
+                            const end = Math.min(start + batchSize, rows.length);
+                            allErrors.push(`Rows ${start + 1}-${end}: ${batchErr.message || 'Import batch failed.'}`);
+                        }
+                    }
+
+                    if (importedCount > 0) {
+                        await loadAll();
+                    }
+
+                    setImportReport({
+                        type: allErrors.length > 0 ? (importedCount > 0 ? 'warning' : 'error') : 'success',
+                        resourceType: type,
+                        resourceLabel,
+                        fileName: file.name,
+                        timestamp: Date.now(),
+                        totalRows: rows.length,
+                        importedCount,
+                        failedCount: allErrors.length,
+                        errors: allErrors
+                    });
                 } catch (err) {
-                    alert('Import failed: ' + err.message);
+                    setImportReport({
+                        type: 'error',
+                        resourceType: type,
+                        resourceLabel,
+                        fileName: file.name,
+                        timestamp: Date.now(),
+                        totalRows: 0,
+                        importedCount: 0,
+                        failedCount: 1,
+                        errors: [err.message || 'Import failed.']
+                    });
                 } finally {
                     setLoading(false);
                     e.target.value = null; // reset input
                 }
             },
             error: (err) => {
-                alert('File parsing error: ' + err.message);
+                setImportReport({
+                    type: 'error',
+                    resourceType: type,
+                    resourceLabel,
+                    fileName: file.name,
+                    timestamp: Date.now(),
+                    totalRows: 0,
+                    importedCount: 0,
+                    failedCount: 1,
+                    errors: [`File parsing error: ${err.message}`]
+                });
                 setLoading(false);
             }
         });
@@ -842,6 +974,7 @@ export default function AdminPage() {
                                 <li>• <code className="bg-slate-200 px-1 rounded">subregionId</code> overrides the uploader's default assigned region.</li>
                                 <li>• <code className="bg-slate-200 px-1 rounded">partnerUsername</code> overrides the uploader as the owner.</li>
                                 <li>• Offerings can define comma-separated <code className="bg-slate-200 px-1 rounded">linkedPlaceIds</code> to map to Places.</li>
+                                <li>• Imports are processed in small batches to avoid Cloudflare worker subrequest limits.</li>
                             </ul>
                         </div>
 
@@ -874,6 +1007,60 @@ export default function AdminPage() {
                                 </button>
                             </div>
                         </div>
+
+                        {importReport && (
+                            <div
+                                className={`mt-6 rounded-xl border p-4 ${importReport.type === 'success'
+                                        ? 'border-green-200 bg-green-50'
+                                        : importReport.type === 'warning'
+                                            ? 'border-amber-200 bg-amber-50'
+                                            : 'border-red-200 bg-red-50'
+                                    }`}
+                            >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-900">Import Report</h3>
+                                        <p className="text-xs text-slate-600">
+                                            {importReport.resourceLabel} • {importReport.fileName}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={copyImportReport} className="btn-secondary py-1.5 text-xs">Copy</button>
+                                        <button type="button" onClick={downloadImportReport} className="btn-secondary py-1.5 text-xs">Download .txt</button>
+                                        <button type="button" onClick={() => setImportReport(null)} className="btn-ghost py-1.5 text-xs">Clear</button>
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                    <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
+                                        <span className="text-slate-500">Total</span>
+                                        <div className="font-bold text-slate-900">{importReport.totalRows}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
+                                        <span className="text-slate-500">Imported</span>
+                                        <div className="font-bold text-green-700">{importReport.importedCount}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
+                                        <span className="text-slate-500">Errors</span>
+                                        <div className="font-bold text-red-700">{importReport.failedCount}</div>
+                                    </div>
+                                </div>
+
+                                {importCopyNotice && (
+                                    <p className="mt-3 text-xs font-semibold text-slate-700">{importCopyNotice}</p>
+                                )}
+
+                                {importReport.errors.length > 0 ? (
+                                    <textarea
+                                        readOnly
+                                        value={importReport.errors.join('\n')}
+                                        className="mt-3 w-full min-h-[180px] rounded-lg border border-slate-200 bg-white p-3 text-xs font-mono text-slate-700"
+                                    />
+                                ) : (
+                                    <p className="mt-3 text-xs font-semibold text-green-700">No row-level errors.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )
