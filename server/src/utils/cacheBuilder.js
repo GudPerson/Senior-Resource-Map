@@ -20,25 +20,35 @@ export const rebuildMapCache = async (subregionId, envVars) => {
                 SELECT id, name as title, sub_category as category, lat, lng, 'hard' as asset_type 
                 FROM hard_assets 
                 WHERE is_deleted = false
+                  AND lat IS NOT NULL
+                  AND lng IS NOT NULL
                 UNION ALL
                 SELECT s.id, s.name as title, s.sub_category as category, l.lat, l.lng, 'soft' as asset_type 
                 FROM soft_assets s
-                LEFT JOIN soft_asset_locations sl ON s.id = sl.soft_asset_id
-                LEFT JOIN hard_assets l ON sl.hard_asset_id = l.id
+                INNER JOIN soft_asset_locations sl ON s.id = sl.soft_asset_id
+                INNER JOIN hard_assets l ON sl.hard_asset_id = l.id
                 WHERE s.is_deleted = false
+                  AND l.is_deleted = false
+                  AND l.lat IS NOT NULL
+                  AND l.lng IS NOT NULL
             `
             : sql`
                 SELECT id, name as title, sub_category as category, lat, lng, 'hard' as asset_type 
                 FROM hard_assets 
                 WHERE subregion_id = ${subregionId} 
                   AND is_deleted = false
+                  AND lat IS NOT NULL
+                  AND lng IS NOT NULL
                 UNION ALL
                 SELECT s.id, s.name as title, s.sub_category as category, l.lat, l.lng, 'soft' as asset_type 
                 FROM soft_assets s
-                LEFT JOIN soft_asset_locations sl ON s.id = sl.soft_asset_id
-                LEFT JOIN hard_assets l ON sl.hard_asset_id = l.id
+                INNER JOIN soft_asset_locations sl ON s.id = sl.soft_asset_id
+                INNER JOIN hard_assets l ON sl.hard_asset_id = l.id
                 WHERE s.subregion_id = ${subregionId} 
                   AND s.is_deleted = false
+                  AND l.is_deleted = false
+                  AND l.lat IS NOT NULL
+                  AND l.lng IS NOT NULL
             `;
 
         const { rows } = await db.execute(query);

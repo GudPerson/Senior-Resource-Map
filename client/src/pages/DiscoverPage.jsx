@@ -70,6 +70,10 @@ function buildDerivedMapLocations(hardAssets = [], softAssets = []) {
     return [...hardLocations, ...softLocations];
 }
 
+function hasValidCoordinates(item) {
+    return Number.isFinite(parseFloat(item?.lat)) && Number.isFinite(parseFloat(item?.lng));
+}
+
 function FlyToMarker({ target, bottomOffsetPx = 0 }) {
     const map = useMap();
     const prevTarget = useRef(null);
@@ -205,7 +209,7 @@ export default function DiscoverPage() {
 
             const liveLocations = buildDerivedMapLocations(hard, soft);
             const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
-            const initialLocations = fetchedLocations.length > 0 ? fetchedLocations : liveLocations;
+            const initialLocations = (fetchedLocations.length > 0 ? fetchedLocations : liveLocations).filter(hasValidCoordinates);
             setCachedLocations(initialLocations);
             setMapLocations(initialLocations);
 
@@ -356,7 +360,7 @@ export default function DiscoverPage() {
     }, [combined, search, userLocation, searchRadius, showFavoritesOnly, favorites, user]);
 
     useEffect(() => {
-        const sourceLocations = cachedLocations.length > 0 ? cachedLocations : derivedMapLocations;
+        const sourceLocations = (cachedLocations.length > 0 ? cachedLocations : derivedMapLocations).filter(hasValidCoordinates);
         if (workerRef.current && sourceLocations.length > 0) {
             workerRef.current.postMessage({
                 locations: sourceLocations,
@@ -367,7 +371,7 @@ export default function DiscoverPage() {
     }, [cachedLocations, derivedMapLocations, userLocation, searchRadius]);
 
     const finalMapLocations = useMemo(() => {
-        let items = mapLocations.length > 0 ? mapLocations : derivedMapLocations;
+        let items = (mapLocations.length > 0 ? mapLocations : derivedMapLocations).filter(hasValidCoordinates);
 
         // Favorites filter
         if (showFavoritesOnly && user) {
