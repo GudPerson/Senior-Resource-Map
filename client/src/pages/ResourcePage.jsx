@@ -1,7 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Building2, CalendarDays, MapPin, Clock, ArrowLeft, Navigation, Phone } from 'lucide-react';
+import { getDistance } from '../lib/geo.js';
+import {
+    GEOLOCATION_OPTIONS,
+    getSearchLocationLabel,
+    loadSearchLocation,
+    saveSearchLocation,
+} from '../lib/searchLocation.js';
 
 const TagBadge = ({ tag }) => (
     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-300">
@@ -25,12 +32,22 @@ const LinkifiedText = ({ text }) => {
     );
 };
 
+function hasValidCoordinates(value) {
+    return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
+}
+
+function formatDistance(distance) {
+    if (!Number.isFinite(distance)) return null;
+    return distance < 1 ? `${Math.round(distance * 1000)}m away` : `${distance.toFixed(1)}km away`;
+}
+
 export default function ResourcePage() {
     const { type, id } = useParams();
     const navigate = useNavigate();
     const [asset, setAsset] = useState(null);
     const [subCatColors, setSubCatColors] = useState({});
     const [loading, setLoading] = useState(true);
+    const [sortOrigin, setSortOrigin] = useState(() => loadSearchLocation());
 
     useEffect(() => {
         const fetchAsset = async () => {
@@ -53,6 +70,80 @@ export default function ResourcePage() {
         fetchAsset();
     }, [type, id]);
 
+    useEffect(() => {
+        if (type !== 'soft') return undefined;
+        if (sortOrigin) return undefined;
+        if (typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+
+        let cancelled = false;
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                if (cancelled) return;
+                const nextOrigin = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    source: 'geolocation',
+                    updatedAt: Date.now(),
+                };
+                setSortOrigin(nextOrigin);
+                saveSearchLocation(nextOrigin);
+            },
+            () => {},
+            GEOLOCATION_OPTIONS,
+        );
+
+        return () => {
+            cancelled = true;
+        };
+    }, [type, sortOrigin]);
+
+    const isHard = type === 'hard';
+    const softLocations = useMemo(() => {
+        if (isHard || !asset) return [];
+
+        const locations = Array.isArray(asset.locations) && asset.locations.length > 0
+            ? asset.locations
+            : (asset.location ? [asset.location] : []);
+
+        if (!sortOrigin) {
+            return locations;
+        }
+
+        return [...locations]
+            .map((location) => ({
+                ...location,
+                _distance: hasValidCoordinates(location)
+                    ? getDistance(sortOrigin.lat, sortOrigin.lng, Number.parseFloat(location.lat), Number.parseFloat(location.lng))
+                    : null,
+            }))
+            .sort((a, b) => {
+                if (a._distance === null) return 1;
+                if (b._distance === null) return -1;
+                return a._distance - b._distance;
+            });
+    }, [asset, isHard, sortOrigin]);
+
+    const primaryLocation = !asset ? null : (isHard ? asset : (softLocations[0] || asset.location || null));
+    const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
+    const phone = asset?.phone || primaryLocation?.phone;
+    const availablePlaceCount = isHard ? 0 : softLocations.length;
+    const hasDirectionsTarget = isHard
+        ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
+        : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
+
+    const handleDirections = useCallback((customLocation = null) => {
+        const target = customLocation || (isHard ? asset : primaryLocation);
+        if (!target) return;
+
+        const lat = Number.parseFloat(target.lat);
+        const lng = Number.parseFloat(target.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+        } else if (target.address) {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target.address)}`, '_blank', 'noopener,noreferrer');
+        }
+    }, [asset, isHard, primaryLocation]);
+
     if (loading) {
         return <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
             <div className="w-12 h-12 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin" />
@@ -65,23 +156,6 @@ export default function ResourcePage() {
             <button onClick={() => navigate('/discover')} className="text-brand-600 font-bold hover:underline">Return to Discover</button>
         </div>;
     }
-
-    const isHard = type === 'hard';
-    const primaryAddress = isHard ? asset.address : asset.locations?.[0]?.address || asset.location?.address;
-    const phone = asset.phone || (asset.locations?.[0]?.phone || asset.location?.phone);
-
-    const handleDirections = (customLocation = null) => {
-        const target = customLocation || (isHard ? asset : (asset.locations?.[0] || asset.location));
-        if (!target) return;
-
-        const lat = target.lat;
-        const lng = target.lng;
-        if (lat && lng) {
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank', 'noopener,noreferrer');
-        } else if (target.address) {
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target.address)}`, '_blank', 'noopener,noreferrer');
-        }
-    };
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 pb-20">
@@ -120,6 +194,18 @@ export default function ResourcePage() {
                                 {asset.subCategory || (isHard ? 'Place' : 'Offering')}
                             </div>
                             <h1 className="text-3xl font-bold text-slate-900 leading-tight">{asset.name}</h1>
+                            {!isHard && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-sm font-bold border border-brand-100">
+                                        Available in {availablePlaceCount} {availablePlaceCount === 1 ? 'place' : 'places'}
+                                    </span>
+                                    {sortOrigin && (
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-sm font-medium border border-slate-200">
+                                            Sorted nearest to {getSearchLocationLabel(sortOrigin)}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -141,12 +227,19 @@ export default function ResourcePage() {
                                 </div>
                             </div>
                         )}
-                        {!isHard && asset.locations && asset.locations.length > 0 && (
-                            asset.locations.map((loc, idx) => (
+                        {!isHard && softLocations.length > 0 && (
+                            softLocations.map((loc, idx) => (
                                 <div key={loc.id || idx} className="flex items-start gap-3">
                                     <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><MapPin size={22} /></div>
                                     <div>
-                                        <p className="font-bold text-slate-900 mb-1">Place: {loc.name}</p>
+                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                            <p className="font-bold text-slate-900">Place: {loc.name}</p>
+                                            {loc._distance !== undefined && loc._distance !== null && (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+                                                    {formatDistance(loc._distance)}
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-slate-700">{loc.address}</p>
                                         <div className="flex items-center gap-4 mt-2 border-t border-slate-100 pt-2">
                                             <button onClick={() => navigate(`/resource/hard/${loc.id}`)} className="text-brand-600 text-sm font-bold hover:underline block">View Details</button>
@@ -155,6 +248,15 @@ export default function ResourcePage() {
                                     </div>
                                 </div>
                             ))
+                        )}
+                        {!isHard && softLocations.length === 0 && (
+                            <div className="flex items-start gap-3">
+                                <div className="p-2.5 bg-slate-100 rounded-xl text-slate-500 shrink-0"><MapPin size={22} /></div>
+                                <div>
+                                    <p className="font-bold text-slate-900 mb-1">Linked Places</p>
+                                    <p className="text-slate-700">This offering does not have any linked places yet.</p>
+                                </div>
+                            </div>
                         )}
                         {(asset.schedule || asset.hours) && (
                             <div className="flex items-start gap-3">
@@ -185,15 +287,17 @@ export default function ResourcePage() {
                         </div>
                     )}
 
-                    <div className="mt-8">
-                        <button
-                            onClick={handleDirections}
-                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700 transition shadow-sm text-lg"
-                        >
-                            <Navigation size={20} />
-                            Get Directions (Google Maps)
-                        </button>
-                    </div>
+                    {hasDirectionsTarget && (
+                        <div className="mt-8">
+                            <button
+                                onClick={() => handleDirections()}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700 transition shadow-sm text-lg"
+                            >
+                                <Navigation size={20} />
+                                {isHard ? 'Get Directions (Google Maps)' : 'Get Directions to Nearest Place'}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Soft assets related to this hard asset */}

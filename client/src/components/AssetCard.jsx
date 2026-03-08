@@ -2,6 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, CalendarDays, Heart, MapPin, Clock, Navigation, ChevronDown } from 'lucide-react';
 
+function hasValidCoordinates(value) {
+    return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
+}
+
+function getLinkedLocations(asset) {
+    if (!asset) return [];
+    if (Array.isArray(asset.locations) && asset.locations.length > 0) return asset.locations;
+    if (asset.location) return [asset.location];
+    return [];
+}
+
 export const TagBadge = ({ tag, onClick }) => (
     <span
         onClick={onClick}
@@ -34,18 +45,25 @@ export const LinkifiedText = ({ text }) => {
 
 export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatColors = {}, isFavorite, onToggleFavorite, isLoggedIn, onTagClick, onCategoryClick }) => {
     const isHard = type === 'hard';
-    const address = isHard ? asset.address : asset.location?.address;
+    const linkedLocations = isHard ? [] : getLinkedLocations(asset);
+    const displayLocation = isHard ? asset : (asset._displayLocation || linkedLocations[0] || null);
+    const locationCount = isHard ? (asset.address ? 1 : 0) : linkedLocations.length;
+    const address = isHard ? asset.address : displayLocation?.address;
+    const hasDirectionsTarget = isHard
+        ? Boolean(asset.address || hasValidCoordinates(asset))
+        : Boolean(displayLocation && (displayLocation.address || hasValidCoordinates(displayLocation)));
     const [isExpanded, setIsExpanded] = useState(false);
     const navigate = useNavigate();
 
     const handleDirections = (e) => {
         e.stopPropagation();
-        const lat = isHard ? asset.lat : asset.location?.lat;
-        const lng = isHard ? asset.lng : asset.location?.lng;
-        if (lat && lng) {
+        const target = isHard ? asset : displayLocation;
+        const lat = Number.parseFloat(target?.lat);
+        const lng = Number.parseFloat(target?.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank', 'noopener,noreferrer');
-        } else if (address) {
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank', 'noopener,noreferrer');
+        } else if (target?.address) {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target.address)}`, '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -120,7 +138,7 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
 
             {/* Info section */}
             <div className="space-y-1.5 pt-3 mt-auto" style={{ borderTop: '1px solid var(--color-border)' }}>
-                {address && (
+                {(isHard ? Boolean(address) : locationCount > 0) && (
                     <div
                         className={`flex items-start gap-2 text-sm font-medium p-1 -mx-1 rounded-lg transition-colors ${onClick ? 'cursor-pointer' : ''}`}
                         style={{ color: 'var(--color-text-secondary)' }}
@@ -132,7 +150,14 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                         }}
                     >
                         <MapPin size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
-                        <span>{isHard ? address : `Held at: ${address}`}</span>
+                        <div className="min-w-0">
+                            <div>{isHard ? address : `Available in ${locationCount} ${locationCount === 1 ? 'place' : 'places'}`}</div>
+                            {!isHard && displayLocation?.address && (
+                                <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                                    {asset._distance !== undefined && asset._distance !== null && locationCount > 1 ? `Nearest: ${displayLocation.address}` : displayLocation.address}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
                 {(asset.schedule || asset.hours) && (
@@ -162,16 +187,18 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
             )}
 
             {/* Get Directions button */}
-            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
-                <button
-                    onClick={handleDirections}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-bold transition-all text-sm hover:shadow-sm active:scale-[0.98]"
-                    style={{ backgroundColor: 'var(--color-badge-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
-                >
-                    <Navigation size={14} style={{ color: 'var(--color-brand)' }} />
-                    Get Directions
-                </button>
-            </div>
+            {hasDirectionsTarget && (
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <button
+                        onClick={handleDirections}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-bold transition-all text-sm hover:shadow-sm active:scale-[0.98]"
+                        style={{ backgroundColor: 'var(--color-badge-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                    >
+                        <Navigation size={14} style={{ color: 'var(--color-brand)' }} />
+                        Get Directions
+                    </button>
+                </div>
+            )}
         </article>
     );
 });

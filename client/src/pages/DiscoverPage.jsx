@@ -1,17 +1,24 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '../lib/api.js';
-import { Building2, CalendarDays, Search, LocateFixed, MapPin } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Heart, Search, LocateFixed, MapPin } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { getDistance, searchOneMap } from '../lib/geo.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useFavorites } from '../hooks/useFavorites.js';
 import { AssetCard } from '../components/AssetCard.jsx';
+import {
+    clearSearchLocation,
+    GEOLOCATION_OPTIONS,
+    getSearchLocationLabel,
+    loadSearchLocation,
+    saveSearchLocation,
+} from '../lib/searchLocation.js';
 
 // Fix Leaflet default icon path issue with Vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -21,18 +28,40 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function createColoredIcon(color = '#3b82f6') {
+function createColoredIcon(color = '#3b82f6', isFavorite = false) {
     return L.divIcon({
         className: '',
-        html: `<div style="
-        width: 32px; height: 32px;
-        border-radius: 50% 50% 50% 0;
-        background: ${color};
-        transform: rotate(-45deg);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-        border: 3px solid white;
-      "></div>`,
-        iconSize: [32, 32],
+        html: `<div style="position:relative;width:36px;height:36px;">
+            <div style="
+                position:absolute;
+                left:2px;
+                top:2px;
+                width: 32px;
+                height: 32px;
+                border-radius: 50% 50% 50% 0;
+                background: ${color};
+                transform: rotate(-45deg);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+                border: 3px solid white;
+            "></div>
+            ${isFavorite ? `<div style="
+                position:absolute;
+                right:-1px;
+                top:-1px;
+                width:16px;
+                height:16px;
+                border-radius:999px;
+                background:#ffffff;
+                border:1px solid #fecaca;
+                color:#dc2626;
+                font-size:10px;
+                line-height:14px;
+                text-align:center;
+                font-weight:700;
+                box-shadow:0 2px 6px rgba(0,0,0,0.15);
+            ">&#10084;</div>` : ''}
+        </div>`,
+        iconSize: [36, 36],
         iconAnchor: [16, 32],
         popupAnchor: [0, -34],
     });
@@ -42,12 +71,13 @@ function buildDerivedMapLocations(hardAssets = [], softAssets = []) {
     const hardLocations = hardAssets
         .filter((asset) => asset?.lat && asset?.lng)
         .map((asset) => ({
-            id: asset.id,
-            title: asset.name,
-            category: asset.subCategory,
-            lat: asset.lat,
-            lng: asset.lng,
-            asset_type: 'hard',
+                id: asset.id,
+                locationId: asset.id,
+                title: asset.name,
+                category: asset.subCategory,
+                lat: asset.lat,
+                lng: asset.lng,
+                asset_type: 'hard',
         }));
 
     const softLocations = softAssets.flatMap((asset) => {
@@ -59,6 +89,7 @@ function buildDerivedMapLocations(hardAssets = [], softAssets = []) {
             .filter((location) => location?.lat && location?.lng)
             .map((location) => ({
                 id: asset.id,
+                locationId: location.id,
                 title: asset.name,
                 category: asset.subCategory,
                 lat: location.lat,
@@ -72,6 +103,74 @@ function buildDerivedMapLocations(hardAssets = [], softAssets = []) {
 
 function hasValidCoordinates(item) {
     return Number.isFinite(parseFloat(item?.lat)) && Number.isFinite(parseFloat(item?.lng));
+}
+
+function getAssetLocations(asset) {
+    if (!asset) return [];
+    if (asset._type === 'hard' || asset.asset_type === 'hard') return [asset];
+    if (Array.isArray(asset.locations) && asset.locations.length > 0) return asset.locations;
+    if (asset.location) return [asset.location];
+    return [];
+}
+
+function getBestLocation(asset, referencePoint = null) {
+    const locations = getAssetLocations(asset);
+    if (locations.length === 0) return null;
+    if (!referencePoint) return locations[0];
+
+    const validLocations = locations.filter(hasValidCoordinates);
+    if (validLocations.length === 0) return locations[0];
+
+    return validLocations.reduce((best, current) => {
+        const bestDistance = getDistance(referencePoint.lat, referencePoint.lng, parseFloat(best.lat), parseFloat(best.lng));
+        const currentDistance = getDistance(referencePoint.lat, referencePoint.lng, parseFloat(current.lat), parseFloat(current.lng));
+        return currentDistance < bestDistance ? current : best;
+    });
+}
+
+function findLocationForMarker(asset, marker) {
+    if (!asset) return null;
+    if (asset._type === 'hard' || asset.asset_type === 'hard') return asset;
+
+    const locations = getAssetLocations(asset);
+    if (locations.length === 0) return null;
+
+    if (marker?.locationId) {
+        const byId = locations.find((location) => location.id === marker.locationId);
+        if (byId) return byId;
+    }
+
+    const lat = Number.parseFloat(marker?.lat);
+    const lng = Number.parseFloat(marker?.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const byCoordinates = locations.find((location) => {
+            const locationLat = Number.parseFloat(location.lat);
+            const locationLng = Number.parseFloat(location.lng);
+            return Number.isFinite(locationLat)
+                && Number.isFinite(locationLng)
+                && Math.abs(locationLat - lat) < 0.000001
+                && Math.abs(locationLng - lng) < 0.000001;
+        });
+
+        if (byCoordinates) return byCoordinates;
+    }
+
+    return locations[0];
+}
+
+function buildMarkerKey(item) {
+    const type = item?.asset_type || item?._type || 'asset';
+    const id = item?.id ?? 'unknown';
+    const locationId = item?.locationId ?? item?.linkedLocationId;
+    if (locationId) return `${type}-${id}-${locationId}`;
+
+    const lat = Number.parseFloat(item?.lat);
+    const lng = Number.parseFloat(item?.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return `${type}-${id}-${lat.toFixed(6)}-${lng.toFixed(6)}`;
+    }
+
+    return `${type}-${id}`;
 }
 
 function FlyToMarker({ target, bottomOffsetPx = 0 }) {
@@ -110,6 +209,7 @@ export default function DiscoverPage() {
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const storedSearchLocationRef = useRef(loadSearchLocation());
 
     // Cache Map State
     const [cachedLocations, setCachedLocations] = useState([]);
@@ -125,8 +225,9 @@ export default function DiscoverPage() {
     const { favorites, toggleFavorite: handleToggleFavorite, isFavorite } = useFavorites(user);
 
     // Selection state
-    const [selectedId, setSelectedId] = useState(null);
+    const [selectedMarkerKey, setSelectedMarkerKey] = useState(null);
     const [selectedAsset, setSelectedAsset] = useState(null);
+    const [activeTooltipKey, setActiveTooltipKey] = useState(null);
 
     // Mobile drawer state
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -144,14 +245,27 @@ export default function DiscoverPage() {
     const [isDragging, setIsDragging] = useState(false);
 
     // Geo state
-    const [userLocation, setUserLocation] = useState(null);
+    const [userLocation, setUserLocation] = useState(() => {
+        const stored = storedSearchLocationRef.current;
+        return stored ? { lat: stored.lat, lng: stored.lng } : null;
+    });
     const [searchRadius, setSearchRadius] = useState(100); // default = All SG
-    const [postalInput, setPostalInput] = useState('');
+    const [postalInput, setPostalInput] = useState(() => storedSearchLocationRef.current?.source === 'postal' ? storedSearchLocationRef.current.postalCode : '');
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [flyTarget, setFlyTarget] = useState(null);
+    const [searchOrigin, setSearchOrigin] = useState(storedSearchLocationRef.current);
+    const [locationNotice, setLocationNotice] = useState(null);
+    const geolocationRequestRef = useRef(0);
+    const tooltipCloseTimeoutRef = useRef(null);
 
     const [searchParams] = useSearchParams();
     const derivedMapLocations = useMemo(() => buildDerivedMapLocations(hardAssets, softAssets), [hardAssets, softAssets]);
+    const assetLookup = useMemo(() => {
+        const lookup = new Map();
+        hardAssets.forEach((asset) => lookup.set(`hard-${asset.id}`, { ...asset, _type: 'hard' }));
+        softAssets.forEach((asset) => lookup.set(`soft-${asset.id}`, { ...asset, _type: 'soft' }));
+        return lookup;
+    }, [hardAssets, softAssets]);
 
     // Initialize spatial worker
     useEffect(() => {
@@ -218,12 +332,18 @@ export default function DiscoverPage() {
             if (urlId) {
                 const foundHard = hard.find(a => a.id === urlId);
                 if (foundHard) {
-                    setSelectedId(foundHard.id);
+                    setSelectedMarkerKey(buildMarkerKey({ asset_type: 'hard', id: foundHard.id, locationId: foundHard.id, lat: foundHard.lat, lng: foundHard.lng }));
                     setSelectedAsset({ ...foundHard, _type: 'hard' });
                 }
             }
         });
     }, [searchParams]);
+
+    useEffect(() => () => {
+        if (tooltipCloseTimeoutRef.current) {
+            clearTimeout(tooltipCloseTimeoutRef.current);
+        }
+    }, []);
 
     const isPubliclyVisible = (a) => {
         if (a.isHidden) return false;
@@ -240,47 +360,108 @@ export default function DiscoverPage() {
         return true;
     };
 
+    const clearLocationSearch = useCallback(() => {
+        setUserLocation(null);
+        setSearchOrigin(null);
+        setPostalInput('');
+        setLocationNotice(null);
+        clearSearchLocation();
+    }, []);
+
+    const keepTooltipOpen = useCallback((markerKey) => {
+        if (tooltipCloseTimeoutRef.current) {
+            clearTimeout(tooltipCloseTimeoutRef.current);
+        }
+        setActiveTooltipKey(markerKey);
+    }, []);
+
+    const scheduleTooltipClose = useCallback((markerKey) => {
+        if (tooltipCloseTimeoutRef.current) {
+            clearTimeout(tooltipCloseTimeoutRef.current);
+        }
+
+        tooltipCloseTimeoutRef.current = setTimeout(() => {
+            setActiveTooltipKey((current) => current === markerKey ? null : current);
+            tooltipCloseTimeoutRef.current = null;
+        }, 180);
+    }, []);
+
     // Geo handlers
     const handleLocateMe = useCallback(() => {
-        if (!navigator.geolocation) return alert('Geolocation not supported');
+        if (!navigator.geolocation) {
+            setLocationNotice({ type: 'error', message: 'Geolocation is not supported in this browser.' });
+            return;
+        }
+
+        setLocationNotice(null);
+        const requestId = Date.now();
+        geolocationRequestRef.current = requestId;
+        let resolved = false;
+
         navigator.geolocation.getCurrentPosition(
             (pos) => {
+                if (geolocationRequestRef.current !== requestId) return;
+                resolved = true;
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                const nextOrigin = { ...loc, source: 'geolocation', updatedAt: Date.now() };
                 setUserLocation(loc);
+                setSearchOrigin(nextOrigin);
+                setPostalInput('');
+                saveSearchLocation(nextOrigin);
                 const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 15 : searchRadius <= 2 ? 14 : 13;
                 setFlyTarget({ ...loc, zoom });
             },
-            () => alert('Unable to retrieve your location')
+            (error) => {
+                if (geolocationRequestRef.current !== requestId || resolved) return;
+                if (userLocation) return;
+
+                const message = error?.code === 1
+                    ? 'Location access was blocked. Enable it in your browser to sort by nearest results.'
+                    : error?.code === 3
+                        ? 'Location lookup timed out. Please try again.'
+                        : 'Unable to retrieve your location right now.';
+
+                setLocationNotice({ type: 'error', message });
+            },
+            GEOLOCATION_OPTIONS,
         );
-    }, [searchRadius]);
+    }, [searchRadius, userLocation]);
 
     const handlePostalSearch = useCallback(async (e) => {
         e.preventDefault();
         const val = postalInput.trim();
         if (!/^\d{6}$/.test(val)) {
-            alert('Please enter a valid 6-digit Singapore postal code');
+            setLocationNotice({ type: 'error', message: 'Enter a valid 6-digit Singapore postal code.' });
             return;
         }
         setIsGeocoding(true);
+        setLocationNotice(null);
 
         let result = null;
+        let address = '';
 
         // Fallback 1: Check known assets first
         const localMatch = hardAssets.find(ha => ha.postalCode === val);
         if (localMatch) {
             result = { lat: parseFloat(localMatch.lat), lng: parseFloat(localMatch.lng) };
+            address = localMatch.address || '';
         } else {
             // Fallback 2: OneMap Web API
             result = await searchOneMap(val);
+            address = result?.address || '';
         }
 
         setIsGeocoding(false);
         if (result) {
-            setUserLocation({ lat: result.lat, lng: result.lng });
+            const loc = { lat: result.lat, lng: result.lng };
+            const nextOrigin = { ...loc, source: 'postal', postalCode: val, address, updatedAt: Date.now() };
+            setUserLocation(loc);
+            setSearchOrigin(nextOrigin);
+            saveSearchLocation(nextOrigin);
             const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 15 : searchRadius <= 2 ? 14 : 13;
             setFlyTarget({ lat: result.lat, lng: result.lng, zoom });
         } else {
-            alert('Postal code not found. Please try another.');
+            setLocationNotice({ type: 'error', message: `Postal code ${val} could not be located.` });
         }
     }, [postalInput, searchRadius, hardAssets]);
 
@@ -295,39 +476,25 @@ export default function DiscoverPage() {
     }, [hardAssets, softAssets, activeTab]);
 
     const filtered = useMemo(() => {
-        let items = combined;
+        let items = combined.map((resource) => {
+            const displayLocation = resource._type === 'hard' ? resource : getBestLocation(resource, userLocation);
+            const lat = hasValidCoordinates(displayLocation) ? parseFloat(displayLocation.lat) : null;
+            const lng = hasValidCoordinates(displayLocation) ? parseFloat(displayLocation.lng) : null;
+            const distance = userLocation && Number.isFinite(lat) && Number.isFinite(lng)
+                ? getDistance(userLocation.lat, userLocation.lng, lat, lng)
+                : null;
+
+            return {
+                ...resource,
+                _distance: distance,
+                _displayLat: lat,
+                _displayLng: lng,
+                _displayLocation: displayLocation,
+                _locationCount: resource._type === 'soft' ? getAssetLocations(resource).length : 1,
+            };
+        });
 
         if (userLocation) {
-            // Calculate and attach distance to each item
-            items = items.map(r => {
-                let lat, lng;
-                if (r._type === 'hard') {
-                    lat = parseFloat(r.lat);
-                    lng = parseFloat(r.lng);
-                } else {
-                    if (r.locations && r.locations.length > 0) {
-                        let minDist = Infinity;
-                        let bestLoc = r.locations[0];
-                        for (const loc of r.locations) {
-                            const d = getDistance(userLocation.lat, userLocation.lng, parseFloat(loc.lat), parseFloat(loc.lng));
-                            if (d < minDist) {
-                                minDist = d;
-                                bestLoc = loc;
-                            }
-                        }
-                        lat = parseFloat(bestLoc.lat);
-                        lng = parseFloat(bestLoc.lng);
-                    } else if (r.location) {
-                        lat = parseFloat(r.location.lat);
-                        lng = parseFloat(r.location.lng);
-                    }
-                }
-
-                if (!lat || !lng) return { ...r, _distance: null, _displayLat: lat, _displayLng: lng };
-                const dist = getDistance(userLocation.lat, userLocation.lng, lat, lng);
-                return { ...r, _distance: dist, _displayLat: lat, _displayLng: lng };
-            });
-
             // If radius filter is active, filter items
             if (searchRadius < 100) {
                 items = items.filter(r => r._distance !== null && r._distance <= searchRadius);
@@ -386,22 +553,48 @@ export default function DiscoverPage() {
         return items;
     }, [mapLocations, derivedMapLocations, search, showFavoritesOnly, favorites, user]);
 
-    const handleSelect = useCallback((asset) => {
-        if (!asset) { setSelectedId(null); setSelectedAsset(null); return; }
-        setSelectedAsset(asset);
-        const targetLocationId = asset._type === 'hard' ? asset.id : (asset.locations?.[0]?.id || asset.locationId);
-        if (targetLocationId) {
-            setSelectedId(targetLocationId);
-            // Pan map to the selected asset
-            const lat = asset._type === 'hard' ? asset.lat : (asset.locations?.[0]?.lat || asset.location?.lat);
-            const lng = asset._type === 'hard' ? asset.lng : (asset.locations?.[0]?.lng || asset.location?.lng);
-            if (lat && lng) {
-                setFlyTarget({ lat: parseFloat(lat), lng: parseFloat(lng), zoom: 16 });
-            }
+    const enrichedMapLocations = useMemo(() => (
+        finalMapLocations.map((location) => {
+            const asset = assetLookup.get(`${location.asset_type}-${location.id}`);
+            return {
+                ...location,
+                asset: asset || { id: location.id, name: location.title, subCategory: location.category, logoUrl: null, _type: location.asset_type },
+            };
+        })
+    ), [finalMapLocations, assetLookup]);
+
+    const handleSelect = useCallback((asset, preferredLocation = null) => {
+        if (!asset) {
+            setSelectedMarkerKey(null);
+            setSelectedAsset(null);
+            return;
         }
-        const element = document.getElementById(`asset-card-${asset._type}-${asset.id}`);
+
+        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
+        const displayLocation = preferredLocation || normalizedAsset._displayLocation || getBestLocation(normalizedAsset, userLocation);
+        const lat = normalizedAsset._type === 'hard'
+            ? parseFloat(normalizedAsset.lat)
+            : parseFloat(displayLocation?.lat);
+        const lng = normalizedAsset._type === 'hard'
+            ? parseFloat(normalizedAsset.lng)
+            : parseFloat(displayLocation?.lng);
+
+        setSelectedAsset({ ...normalizedAsset, _displayLocation: displayLocation || normalizedAsset._displayLocation || null });
+        setSelectedMarkerKey(buildMarkerKey({
+            asset_type: normalizedAsset._type,
+            id: normalizedAsset.id,
+            locationId: displayLocation?.id || normalizedAsset.locationId,
+            lat,
+            lng,
+        }));
+
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setFlyTarget({ lat, lng, zoom: 16 });
+        }
+
+        const element = document.getElementById(`asset-card-${normalizedAsset._type}-${normalizedAsset.id}`);
         if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, []);
+    }, [userLocation]);
 
     // Shared filter/search header — rendered as JSX, not a nested component
     const filterHeader = (
@@ -518,12 +711,28 @@ export default function DiscoverPage() {
                     </div>
                 )}
 
+                {locationNotice && (
+                    <div
+                        className="rounded-xl px-3 py-2 text-xs font-medium"
+                        style={{
+                            backgroundColor: '#fef2f2',
+                            color: '#b91c1c',
+                            border: '1px solid #fecaca',
+                        }}
+                    >
+                        {locationNotice.message}
+                    </div>
+                )}
+
                 {/* Active filter indicator */}
-                {userLocation && searchRadius < 100 && (
+                {userLocation && (
                     <div className="flex items-center justify-between text-xs font-bold px-1">
-                        <span style={{ color: 'var(--color-brand)' }}>📍 Within {searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}</span>
+                        <span style={{ color: 'var(--color-brand)' }}>
+                            Using {getSearchLocationLabel(searchOrigin)}
+                            {searchRadius < 100 ? ` • Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}` : ''}
+                        </span>
                         <button
-                            onClick={() => { setUserLocation(null); setPostalInput(''); }}
+                            onClick={clearLocationSearch}
                             className="underline"
                             style={{ color: 'var(--color-text-muted)' }}
                         >Clear</button>
@@ -600,25 +809,101 @@ export default function DiscoverPage() {
                 </Marker>
             )}
             <MarkerClusterGroup chunkedLoading maxClusterRadius={40}>
-                {finalMapLocations.map(r => {
-                    const isLocationSelected = selectedId === r.id;
+                {enrichedMapLocations.map((r) => {
+                    const markerKey = buildMarkerKey(r);
+                    const isLocationSelected = selectedMarkerKey === markerKey;
+                    const markerAsset = r.asset?._type ? r.asset : { ...r.asset, _type: r.asset_type };
+                    const markerFavorite = isFavorite(r.id, r.asset_type);
+                    const locationCount = markerAsset?._type === 'soft' ? getAssetLocations(markerAsset).length : 1;
+                    const markerLocation = findLocationForMarker(markerAsset, r);
+
                     return (
                         <Marker
-                            key={`${r.asset_type}-${r.id}`}
+                            key={markerKey}
                             position={[parseFloat(r.lat), parseFloat(r.lng)]}
-                            icon={createColoredIcon(isLocationSelected ? '#2563eb' : (subCatColors[r.category] || '#64748b'))}
+                            icon={createColoredIcon(isLocationSelected ? '#2563eb' : (subCatColors[r.category] || '#64748b'), markerFavorite)}
                             eventHandlers={{
                                 click: () => {
-                                    handleSelect({ id: r.id, _type: r.asset_type, lat: r.lat, lng: r.lng });
+                                    handleSelect(markerAsset, markerLocation || {
+                                        id: r.locationId,
+                                        lat: r.lat,
+                                        lng: r.lng,
+                                    });
+                                    keepTooltipOpen(markerKey);
                                     setIsDrawerOpen(true);
-                                }
+                                },
+                                mouseover: () => keepTooltipOpen(markerKey),
+                                mouseout: () => scheduleTooltipClose(markerKey),
                             }}
                         >
+                            {activeTooltipKey === markerKey && (
+                                <Tooltip direction="top" offset={[0, -26]} opacity={1} interactive permanent className="custom-popup">
+                                    <div
+                                        className="p-1 min-w-[220px]"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseEnter={() => keepTooltipOpen(markerKey)}
+                                        onMouseLeave={() => scheduleTooltipClose(markerKey)}
+                                    >
+                                    <div className="flex items-start gap-3">
+                                        {markerAsset?.logoUrl ? (
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-white flex items-center justify-center p-1 flex-shrink-0">
+                                                <img src={markerAsset.logoUrl} alt="" className="max-w-full max-h-full object-contain" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">
+                                                {r.asset_type === 'hard' ? 'PL' : 'OF'}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-bold text-slate-900 text-sm leading-tight">{r.title}</div>
+                                            <div className="text-xs text-slate-600 mt-0.5">{r.category || r.asset_type}</div>
+                                            {r.asset_type === 'soft' && (
+                                                <div className="text-xs text-slate-500 mt-1">
+                                                    Available in {locationCount} {locationCount === 1 ? 'place' : 'places'}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {user && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    keepTooltipOpen(markerKey);
+                                                    handleToggleFavorite(r.id, r.asset_type);
+                                                }}
+                                                className="p-1 rounded-full hover:bg-slate-100 transition-colors"
+                                                aria-label={markerFavorite ? 'Remove favorite' : 'Add favorite'}
+                                            >
+                                                <Heart size={16} className={markerFavorite ? 'fill-red-500 text-red-500' : 'text-slate-400'} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            keepTooltipOpen(markerKey);
+                                            handleSelect(markerAsset, markerLocation || { id: r.locationId, lat: r.lat, lng: r.lng });
+                                            setIsDrawerOpen(true);
+                                        }}
+                                        className="mt-3 text-xs font-bold text-brand-600 hover:underline"
+                                    >
+                                        View details
+                                    </button>
+                                </div>
+                                </Tooltip>
+                            )}
                             <Popup className="custom-popup">
                                 <div className="p-1 min-w-[180px]">
                                     <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1">{r.title}</h3>
                                     <p className="text-xs text-slate-600 mb-2">{r.category || r.asset_type}</p>
-                                    <div className="text-xs font-bold text-brand-600 cursor-pointer" onClick={() => setIsDrawerOpen(true)}>
+                                    <div
+                                        className="text-xs font-bold text-brand-600 cursor-pointer"
+                                        onClick={() => {
+                                            handleSelect(markerAsset, markerLocation || { id: r.locationId, lat: r.lat, lng: r.lng });
+                                            setIsDrawerOpen(true);
+                                        }}
+                                    >
                                         View details →
                                     </div>
                                 </div>

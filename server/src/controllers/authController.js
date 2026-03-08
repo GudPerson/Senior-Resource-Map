@@ -165,7 +165,7 @@ export const me = async (c) => {
     if (!token) return c.json({ user: null });
 
     try {
-        const user = await verify(token, getSecret(c));
+        const user = await verify(token, getSecret(c), 'HS256');
         return c.json({ user });
     } catch {
         return c.json({ user: null });
