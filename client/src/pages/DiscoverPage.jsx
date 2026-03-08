@@ -257,6 +257,10 @@ export default function DiscoverPage() {
     const [locationNotice, setLocationNotice] = useState(null);
     const geolocationRequestRef = useRef(0);
     const tooltipCloseTimeoutRef = useRef(null);
+    const latestLocationStateRef = useRef({
+        userLocation: storedSearchLocationRef.current ? { lat: storedSearchLocationRef.current.lat, lng: storedSearchLocationRef.current.lng } : null,
+        searchOrigin: storedSearchLocationRef.current,
+    });
 
     const [searchParams] = useSearchParams();
     const derivedMapLocations = useMemo(() => buildDerivedMapLocations(hardAssets, softAssets), [hardAssets, softAssets]);
@@ -345,6 +349,10 @@ export default function DiscoverPage() {
         }
     }, []);
 
+    useEffect(() => {
+        latestLocationStateRef.current = { userLocation, searchOrigin };
+    }, [userLocation, searchOrigin]);
+
     const isPubliclyVisible = (a) => {
         if (a.isHidden) return false;
         const now = new Date();
@@ -365,6 +373,7 @@ export default function DiscoverPage() {
         setSearchOrigin(null);
         setPostalInput('');
         setLocationNotice(null);
+        latestLocationStateRef.current = { userLocation: null, searchOrigin: null };
         clearSearchLocation();
     }, []);
 
@@ -403,17 +412,24 @@ export default function DiscoverPage() {
                 if (geolocationRequestRef.current !== requestId) return;
                 resolved = true;
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                const nextOrigin = { ...loc, source: 'geolocation', updatedAt: Date.now() };
+                const nextOrigin = { ...loc, source: 'geolocation', updatedAt: Date.now(), restored: false };
                 setUserLocation(loc);
                 setSearchOrigin(nextOrigin);
                 setPostalInput('');
+                setLocationNotice(null);
+                latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
                 saveSearchLocation(nextOrigin);
                 const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 15 : searchRadius <= 2 ? 14 : 13;
                 setFlyTarget({ ...loc, zoom });
             },
             (error) => {
                 if (geolocationRequestRef.current !== requestId || resolved) return;
-                if (userLocation) return;
+                const latestLocationState = latestLocationStateRef.current;
+                const hasActiveGeolocation = !!latestLocationState.userLocation && latestLocationState.searchOrigin?.source === 'geolocation';
+                if (hasActiveGeolocation) {
+                    setLocationNotice(null);
+                    return;
+                }
 
                 const message = error?.code === 1
                     ? 'Location access was blocked. Enable it in your browser to sort by nearest results.'

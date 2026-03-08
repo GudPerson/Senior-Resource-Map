@@ -18,6 +18,7 @@ function normalizeLocation(location) {
         postalCode: typeof location.postalCode === 'string' ? location.postalCode : '',
         address: typeof location.address === 'string' ? location.address : '',
         updatedAt: Number.isFinite(location.updatedAt) ? location.updatedAt : Date.now(),
+        restored: location.restored === true,
     };
 }
 
@@ -49,7 +50,7 @@ export function loadSearchLocation() {
             return null;
         }
 
-        return normalized;
+        return { ...normalized, restored: true };
     } catch {
         window.sessionStorage.removeItem(STORAGE_KEY);
         return null;
@@ -65,6 +66,9 @@ export function getSearchLocationLabel(location) {
     if (!location) return '';
     if (location.source === 'postal' && location.postalCode) {
         return `postal code ${location.postalCode}`;
+    }
+    if (location.restored) {
+        return 'your last known location';
     }
     return 'your current location';
 }
