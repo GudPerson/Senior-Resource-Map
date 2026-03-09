@@ -1,17 +1,13 @@
-import { verify } from 'hono/jwt';
-import { getCookie } from 'hono/cookie';
 import { normalizeRole } from '../utils/roles.js';
-
-const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
+import { getRequestToken, verifySessionToken } from '../utils/sessionAuth.js';
 
 export async function authenticateToken(c, next) {
-    const token = getCookie(c, 'sc_token');
+    const token = getRequestToken(c);
 
     if (!token) return c.json({ error: 'No token provided' }, 401);
 
     try {
-        const secret = getSecret(c);
-        const user = await verify(token, secret, 'HS256');
+        const user = await verifySessionToken(token, c);
         c.set('user', user);
         await next();
     } catch (err) {
@@ -20,11 +16,11 @@ export async function authenticateToken(c, next) {
 }
 
 export async function optionalAuth(c, next) {
-    const token = getCookie(c, 'sc_token');
+    const token = getRequestToken(c);
 
     if (token) {
         try {
-            const user = await verify(token, getSecret(c), 'HS256');
+            const user = await verifySessionToken(token, c);
             c.set('user', user);
         } catch {
             // Ignore error

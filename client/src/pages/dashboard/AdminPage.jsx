@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
-import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download } from 'lucide-react';
+import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn } from 'lucide-react';
 import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
@@ -102,6 +102,10 @@ export default function AdminPage() {
         return canManageUser(currentRole, targetUser.role);
     }
 
+    function canOpenUserSpace(targetUser) {
+        return !currentUser?.isImpersonating && canManageUserRecord(targetUser);
+    }
+
     function getManageableUsers() {
         return users.filter((candidate) => canManageUserRecord(candidate));
     }
@@ -139,6 +143,39 @@ export default function AdminPage() {
             await loadAll();
         } catch (err) {
             alert(err.message);
+        }
+    }
+
+    async function handleOpenUserSpace(targetUser) {
+        if (!targetUser || !canOpenUserSpace(targetUser)) return;
+
+        setAdminFeedback(null);
+        const userTab = window.open('', '_blank');
+
+        if (!userTab) {
+            setAdminFeedback({
+                type: 'error',
+                message: 'Popup blocked. Allow popups for this site to open a user space in a new tab.',
+                details: []
+            });
+            return;
+        }
+
+        userTab.document.write('<title>Opening account…</title><body style="font-family: Public Sans, sans-serif; padding: 24px; color: #0f172a;">Opening account…</body>');
+        userTab.document.close();
+
+        try {
+            const session = await api.createImpersonationSession(targetUser.id);
+            const destination = new URL('/dashboard', window.location.origin);
+            destination.hash = `impersonate=${encodeURIComponent(session.token)}`;
+            userTab.location.replace(destination.toString());
+        } catch (err) {
+            userTab.close();
+            setAdminFeedback({
+                type: 'error',
+                message: err.message || 'Unable to open the selected account.',
+                details: []
+            });
         }
     }
 
@@ -1174,7 +1211,7 @@ export default function AdminPage() {
                                         </th>
                                         <th className="px-4 py-3 font-semibold">User</th>
                                         <th className="px-4 py-3 font-semibold">Role</th>
-                                        <th className="px-4 py-3 font-semibold w-24">Actions</th>
+                                        <th className="px-4 py-3 font-semibold w-36">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -1220,14 +1257,26 @@ export default function AdminPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 {canManageUserRecord(u) ? (
-                                                    <button
-                                                        id={`admin-delete-user-${u.id}`}
-                                                        onClick={() => handleDeleteUser(u.id)}
-                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                        title="Delete user"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    <div className="flex items-center gap-1">
+                                                        {canOpenUserSpace(u) ? (
+                                                            <button
+                                                                id={`admin-open-user-space-${u.id}`}
+                                                                onClick={() => handleOpenUserSpace(u)}
+                                                                className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                title="Open user space"
+                                                            >
+                                                                <LogIn size={16} />
+                                                            </button>
+                                                        ) : null}
+                                                        <button
+                                                            id={`admin-delete-user-${u.id}`}
+                                                            onClick={() => handleDeleteUser(u.id)}
+                                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                            title="Delete user"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-xs text-slate-300">—</span>
                                                 )}

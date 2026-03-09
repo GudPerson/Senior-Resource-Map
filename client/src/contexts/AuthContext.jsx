@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
 
 const AuthContext = createContext(null);
 const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
@@ -11,33 +12,58 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
-                    const res = await fetch(`${BASE_CANDIDATES[i]}/auth/me`, {
-                        credentials: 'include'
-                    });
-                    const contentType = res.headers.get('content-type') || '';
-                    if (!contentType.includes('application/json')) {
-                        if (i < BASE_CANDIDATES.length - 1) continue;
-                        console.error('Auth session endpoint returned non-JSON response.');
-                        return;
-                    }
-                    const data = await res.json();
-                    if (data.user) setUser(data.user);
-                    return;
+    const checkSession = useCallback(async (allowImpersonationFallback = true) => {
+        const hasImpersonationToken = Boolean(getImpersonationToken());
+
+        try {
+            for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+                const res = await fetch(`${BASE_CANDIDATES[i]}/auth/me`, {
+                    headers: getSessionAuthHeaders(),
+                    credentials: 'include'
+                });
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    if (i < BASE_CANDIDATES.length - 1) continue;
+                    console.error('Auth session endpoint returned non-JSON response.');
+                    setUser(null);
+                    return null;
                 }
-            } catch (err) {
-                console.error('Session check failed', err);
-            } finally {
-                setLoading(false);
+                const data = await res.json();
+                if (data.user) {
+                    setUser(data.user);
+                    return data.user;
+                }
+                break;
             }
-        };
-        // Run proper check
-        setLoading(true);
-        checkSession();
+
+            if (hasImpersonationToken && allowImpersonationFallback) {
+                clearImpersonationToken();
+                return await checkSession(false);
+            }
+
+            setUser(null);
+            return null;
+        } catch (err) {
+            console.error('Session check failed', err);
+            if (hasImpersonationToken && allowImpersonationFallback) {
+                clearImpersonationToken();
+                return await checkSession(false);
+            }
+            setUser(null);
+            return null;
+        }
     }, []);
+
+    useEffect(() => {
+        const runSessionCheck = async () => {
+            setLoading(true);
+            consumeImpersonationTokenFromHash();
+            await checkSession();
+            setLoading(false);
+        };
+
+        runSessionCheck();
+    }, [checkSession]);
 
 
     function login(userData) {
@@ -45,6 +71,14 @@ export function AuthProvider({ children }) {
     }
 
     async function logout() {
+        if (getImpersonationToken()) {
+            clearImpersonationToken();
+            setLoading(true);
+            await checkSession(false);
+            setLoading(false);
+            return { exitedImpersonation: true };
+        }
+
         try {
             let loggedOut = false;
             for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
@@ -66,12 +100,22 @@ export function AuthProvider({ children }) {
             console.error('Logout request failed', err);
         }
         setUser(null);
+        return { exitedImpersonation: false };
     }
 
     if (loading) return null; // or a spinner
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAuth: !!user }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                login,
+                logout,
+                refreshSession: checkSession,
+                isAuth: !!user,
+                isImpersonating: Boolean(user?.isImpersonating && getImpersonationToken()),
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

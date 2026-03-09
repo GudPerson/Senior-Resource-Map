@@ -4,7 +4,7 @@ import { api } from '../../lib/api.js';
 import { User, Phone, Lock, CheckCircle } from 'lucide-react';
 
 export default function ProfilePage() {
-    const { user, login, token } = useAuth();
+    const { user, login } = useAuth();
     const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', password: '', confirmPassword: '' });
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -22,7 +22,7 @@ export default function ProfilePage() {
             const updates = { name: form.name, phone: form.phone };
             if (form.password) updates.password = form.password;
             const updated = await api.updateMe(updates);
-            login(token, { ...user, ...updated });
+            login({ ...user, ...updated });
             setSuccess(true);
             setForm(f => ({ ...f, password: '', confirmPassword: '' }));
         } catch (err) {

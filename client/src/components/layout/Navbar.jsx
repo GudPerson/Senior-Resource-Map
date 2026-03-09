@@ -5,16 +5,17 @@ import { useA11y } from '../../contexts/A11yContext.jsx';
 import BrandLockup from './BrandLockup.jsx';
 
 export default function Navbar() {
-    const { user, isAuth, logout } = useAuth();
+    const { user, isAuth, isImpersonating, logout } = useAuth();
     const { highContrast, toggleHighContrast, zoomLevel, increaseZoom, decreaseZoom } = useA11y();
     const location = useLocation();
     const navigate = useNavigate();
 
     const isActive = (path) => location.pathname === path;
 
-    function handleLogout() {
-        logout();
-        navigate('/');
+    async function handleLogout() {
+        const impersonationExit = isImpersonating;
+        await logout();
+        navigate(impersonationExit ? '/dashboard' : '/');
     }
 
     return (
@@ -80,6 +81,21 @@ export default function Navbar() {
                         {/* Auth */}
                         {isAuth ? (
                             <div className="flex items-center gap-1.5">
+                                {isImpersonating ? (
+                                    <div
+                                        className="hidden lg:flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold"
+                                        style={{
+                                            backgroundColor: 'rgba(14, 165, 164, 0.1)',
+                                            border: '1px solid rgba(14, 165, 164, 0.2)',
+                                            color: 'var(--color-brand-strong)',
+                                        }}
+                                    >
+                                        <span>Viewing as {user?.name}</span>
+                                        {user?.impersonatedBy?.name ? (
+                                            <span className="opacity-70">via {user.impersonatedBy.name}</span>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                                 <Link
                                     to="/dashboard"
                                 id="nav-dashboard"
@@ -94,7 +110,7 @@ export default function Navbar() {
                                     className="btn-ghost text-xs sm:text-sm px-2.5 py-2"
                                 >
                                     <LogOut size={16} />
-                                    <span className="hidden sm:inline">Logout</span>
+                                    <span className="hidden sm:inline">{isImpersonating ? 'Exit User View' : 'Logout'}</span>
                                 </button>
                             </div>
                         ) : (

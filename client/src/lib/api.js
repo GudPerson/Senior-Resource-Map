@@ -1,3 +1,5 @@
+import { getSessionAuthHeaders } from './sessionAuth.js';
+
 const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
     ? import.meta.env.VITE_API_URL.trim()
     : '';
@@ -13,6 +15,7 @@ const BASE_CANDIDATES = Array.from(new Set([
 function headers(extra = {}) {
     return {
         'Content-Type': 'application/json',
+        ...getSessionAuthHeaders(),
         ...extra,
     };
 }
@@ -56,6 +59,7 @@ export const api = {
     login: (body) => request('POST', '/auth/login', body),
     register: (body) => request('POST', '/auth/register', body),
     googleAuth: (body) => request('POST', '/auth/google', body),
+    createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
     // Hard Assets
     getHardAssets: () => request('GET', '/hard-assets'),
@@ -96,6 +100,7 @@ export const api = {
             const base = BASE_CANDIDATES[i];
             const res = await fetch(`${base}/upload`, {
                 method: 'POST',
+                headers: getSessionAuthHeaders(),
                 credentials: 'include',
                 body: formData, // browser sets multipart/form-data boundary automatically
             });

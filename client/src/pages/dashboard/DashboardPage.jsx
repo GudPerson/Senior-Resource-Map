@@ -22,11 +22,15 @@ function SidebarLink({ to, icon: Icon, label, id }) {
 }
 
 export default function DashboardPage() {
-    const { user, logout } = useAuth();
+    const { user, logout, isImpersonating } = useAuth();
     const navigate = useNavigate();
     const roleMeta = getRoleMeta(user?.role);
 
-    function handleLogout() { logout(); navigate('/'); }
+    async function handleLogout() {
+        const impersonationExit = isImpersonating;
+        await logout();
+        navigate(impersonationExit ? '/dashboard' : '/');
+    }
 
     return (
         <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
@@ -43,6 +47,11 @@ export default function DashboardPage() {
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${roleMeta.pillClassName}`}>
                                 {roleMeta.shortLabel}
                             </span>
+                            {isImpersonating ? (
+                                <p className="mt-1 text-[11px] font-semibold text-brand-700">
+                                    User view via {user?.impersonatedBy?.name || 'admin'}
+                                </p>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -61,7 +70,7 @@ export default function DashboardPage() {
                         onClick={handleLogout}
                         className=" w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all text-base font-semibold min-h-[44px]"
                     >
-                        <LogOut size={20} /> Logout
+                        <LogOut size={20} /> {isImpersonating ? 'Exit User View' : 'Logout'}
                     </button>
                 </div>
             </aside>

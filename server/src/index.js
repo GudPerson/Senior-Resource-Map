@@ -36,6 +36,7 @@ app.use('*', cors({
         return null;
     },
     credentials: true,
+    allowHeaders: ['Content-Type', 'X-Session-Token'],
 }));
 
 app.route('/api/auth', authRoutes);

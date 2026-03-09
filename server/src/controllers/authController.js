@@ -1,36 +1,65 @@
 import bcrypt from 'bcryptjs';
-import { sign, verify } from 'hono/jwt';
-import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { getDb } from '../db/index.js';
 import { users, userSubregions } from '../db/schema.js';
-import { eq, or, sql, ilike } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import { canManageRole, normalizeRole } from '../utils/roles.js';
+import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
 
-const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
+function parseSubregionIds(rawSubregionIds) {
+    const input = Array.isArray(rawSubregionIds)
+        ? rawSubregionIds
+        : [rawSubregionIds].filter(Boolean);
 
-async function generateToken(user, c) {
-    return await sign(
-        {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            name: user.name,
-            subregionIds: user.subregionIds || [],
-            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days
-        },
-        getSecret(c),
-        'HS256'
-    );
+    return [...new Set(
+        input
+            .flatMap((value) => typeof value === 'string' ? value.split(',') : [value])
+            .map((value) => Number.parseInt(String(value).trim(), 10))
+            .filter(Number.isInteger)
+    )];
 }
 
-function setAuthCookie(c, token) {
-    setCookie(c, 'sc_token', token, {
-        httpOnly: true,
-        secure: c.env.NODE_ENV === 'production',
-        sameSite: 'Lax',
-        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-        path: '/',
-    });
+function getScopedSubregionIds(user) {
+    return parseSubregionIds(user?.subregionIds || []);
+}
+
+function sharesScopedSubregion(actor, targetSubregionIds) {
+    const actorScope = new Set(getScopedSubregionIds(actor));
+    return targetSubregionIds.some((id) => actorScope.has(id));
+}
+
+async function loadUserWithSubregions(db, userId) {
+    const [user] = await db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        role: users.role,
+        name: users.name,
+        phone: users.phone,
+    }).from(users).where(eq(users.id, userId));
+
+    if (!user) return null;
+
+    const subregionRows = await db.select().from(userSubregions).where(eq(userSubregions.userId, userId));
+
+    return {
+        ...user,
+        role: normalizeRole(user.role),
+        subregionIds: subregionRows.map((row) => row.subregionId),
+    };
+}
+
+function canImpersonateUser(actor, targetUser) {
+    const actorRole = normalizeRole(actor.role);
+
+    if (actorRole === 'super_admin') {
+        return true;
+    }
+
+    if (!canManageRole(actorRole, targetUser.role)) {
+        return false;
+    }
+
+    return sharesScopedSubregion(actor, targetUser.subregionIds);
 }
 
 export const register = async (c) => {
@@ -74,7 +103,7 @@ export const register = async (c) => {
             role: 'standard'
         }).returning();
 
-        const token = await generateToken(user, c);
+        const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
 
         return c.json({
@@ -142,7 +171,7 @@ export const login = async (c) => {
         const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
         user.subregionIds = userSubs.map(s => s.subregionId);
 
-        const token = await generateToken(user, c);
+        const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
         return c.json({
             user: {
@@ -161,11 +190,11 @@ export const login = async (c) => {
 };
 
 export const me = async (c) => {
-    const token = getCookie(c, 'sc_token');
+    const token = getRequestToken(c);
     if (!token) return c.json({ user: null });
 
     try {
-        const user = await verify(token, getSecret(c), 'HS256');
+        const user = await verifySessionToken(token, c);
         return c.json({ user });
     } catch {
         return c.json({ user: null });
@@ -173,7 +202,7 @@ export const me = async (c) => {
 };
 
 export const logout = (c) => {
-    deleteCookie(c, 'sc_token', { path: '/' });
+    clearAuthCookie(c);
     return c.json({ success: true });
 };
 
@@ -219,7 +248,7 @@ export const googleAuth = async (c) => {
             }).returning();
         }
 
-        const token = await generateToken(user, c);
+        const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
         return c.json({
             user: {
@@ -235,5 +264,69 @@ export const googleAuth = async (c) => {
     } catch (err) {
         console.error('Google Auth Error:', err);
         return c.json({ error: 'Google authentication failed' }, 500);
+    }
+};
+
+export const impersonate = async (c) => {
+    try {
+        const actor = c.get('user');
+        const actorRole = normalizeRole(actor?.role);
+
+        if (!['super_admin', 'regional_admin', 'partner'].includes(actorRole)) {
+            return c.json({ error: 'Insufficient permissions to enter another account.' }, 403);
+        }
+
+        if (actor?.isImpersonating) {
+            return c.json({ error: 'Exit the current user view before opening another account.' }, 403);
+        }
+
+        const targetUserId = Number.parseInt(c.req.param('id'), 10);
+        if (!Number.isInteger(targetUserId)) {
+            return c.json({ error: 'Invalid user id.' }, 400);
+        }
+
+        if (targetUserId === actor.id) {
+            return c.json({ error: 'You are already signed in as this account.' }, 400);
+        }
+
+        const db = getDb(c.env);
+        const targetUser = await loadUserWithSubregions(db, targetUserId);
+
+        if (!targetUser) {
+            return c.json({ error: 'User not found.' }, 404);
+        }
+
+        if (!canImpersonateUser(actor, targetUser)) {
+            return c.json({ error: 'You can only enter accounts directly below your role within your scope.' }, 403);
+        }
+
+        const token = await createSessionToken(targetUser, c, {
+            expiresInSeconds: 60 * 60,
+            extraClaims: {
+                isImpersonating: true,
+                impersonatedBy: {
+                    id: actor.id,
+                    username: actor.username,
+                    name: actor.name,
+                    role: actorRole,
+                },
+            },
+        });
+
+        return c.json({
+            token,
+            user: buildSessionPayload(targetUser, {
+                isImpersonating: true,
+                impersonatedBy: {
+                    id: actor.id,
+                    username: actor.username,
+                    name: actor.name,
+                    role: actorRole,
+                },
+            }),
+        });
+    } catch (err) {
+        console.error('Impersonation Error:', err);
+        return c.json({ error: err.message || 'Unable to enter the selected account.' }, 500);
     }
 };
