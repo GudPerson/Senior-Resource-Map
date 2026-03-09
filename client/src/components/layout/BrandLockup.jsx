@@ -1,4 +1,4 @@
-import careAroundMark from '../../assets/carearound-mark.svg';
+import careAroundMark from '../../assets/carearound-mark.png';
 
 export default function BrandLockup({
     className = '',
@@ -6,11 +6,15 @@ export default function BrandLockup({
     showTagline = false,
     textClassName = '',
 }) {
-    const iconSize = compact ? 'h-10 w-10 sm:h-11 sm:w-11' : 'h-14 w-14';
+    const iconSize = compact ? 'h-10 sm:h-11' : 'h-14';
 
     return (
         <div className={`flex items-center gap-3 ${className}`}>
-            <img src={careAroundMark} alt="CareAround SG" className={`${iconSize} shrink-0`} />
+            <img
+                src={careAroundMark}
+                alt="CareAround SG"
+                className={`${iconSize} w-auto object-contain shrink-0`}
+            />
             <div className={`min-w-0 ${compact ? 'hidden sm:block' : ''} ${textClassName}`}>
                 <div
                     className="truncate text-base font-extrabold sm:text-lg"
