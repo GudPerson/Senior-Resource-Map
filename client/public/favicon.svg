@@ -1,0 +1,33 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="globeFill" x1="40" y1="34" x2="114" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#61E0CB"/>
+      <stop offset="1" stop-color="#0FA39A"/>
+    </linearGradient>
+    <linearGradient id="tileFill" x1="24" y1="118" x2="115" y2="142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D9F3EE"/>
+      <stop offset="1" stop-color="#BEE9E3"/>
+    </linearGradient>
+    <linearGradient id="pinFill" x1="97" y1="18" x2="125" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10C6BB"/>
+      <stop offset="1" stop-color="#0A8D87"/>
+    </linearGradient>
+    <filter id="softShadow" x="10" y="16" width="140" height="130" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#0F595B" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <path d="M24 119L89 103L115 120L88 136L24 119Z" fill="url(#tileFill)"/>
+    <path d="M80.5 102C67.3 102 51.4 91.9 43.2 74.8C31.8 51.3 39.9 27.6 58.9 22.5C73.1 18.7 86.1 25.7 94.2 38.2C100.3 31.1 108.4 26.4 117.2 25.8C128.4 25 137.6 30.5 142.5 39.5C148.7 51 147.4 66.5 136.8 78.2C126.1 90 105 102 80.5 102Z" fill="url(#globeFill)"/>
+    <path d="M54 39C67.2 36.1 80.7 36.2 94 39.2" stroke="#BEE9E3" stroke-width="4" stroke-linecap="round"/>
+    <path d="M47 57C63.7 52.2 80.6 52 97.6 56.5" stroke="#BEE9E3" stroke-width="4" stroke-linecap="round"/>
+    <path d="M56 76C70.8 71.7 85.9 71.9 101.1 76.4" stroke="#BEE9E3" stroke-width="4" stroke-linecap="round"/>
+    <path d="M64 28C58.6 41.7 56.8 56.2 58.7 70.8" stroke="#BEE9E3" stroke-width="4" stroke-linecap="round"/>
+    <path d="M87 27C81.4 42 79.9 57 82.4 71.9" stroke="#BEE9E3" stroke-width="4" stroke-linecap="round"/>
+    <path d="M118 30C127.7 31.2 135.9 36 139.9 43.6C145.4 53.8 144 67.5 134.2 78.3C124 89.5 104.5 100.7 80.5 100.7" stroke="#F5A524" stroke-width="12" stroke-linecap="round"/>
+    <path d="M110.7 13C101.3 13 93.7 20.6 93.7 30C93.7 43.2 110.7 60.8 110.7 60.8C110.7 60.8 127.7 43.2 127.7 30C127.7 20.6 120.1 13 110.7 13Z" fill="url(#pinFill)" stroke="white" stroke-width="5"/>
+    <circle cx="110.7" cy="30.5" r="9.3" fill="white"/>
+    <path d="M110.7 37.1C107.1 35.2 103.4 32.3 103.4 28.6C103.4 25.8 105.5 23.8 108 23.8C109.1 23.8 110 24.2 110.7 24.9C111.4 24.2 112.4 23.8 113.5 23.8C116 23.8 118 25.8 118 28.6C118 32.3 114.3 35.2 110.7 37.1Z" fill="#E96B5A"/>
+  </g>
+</svg>
