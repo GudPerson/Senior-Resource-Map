@@ -3,6 +3,8 @@ import { users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { ASSIGNABLE_ROLES, canManageRole, getCreatableRoles, normalizeRole } from '../utils/roles.js';
+import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { normalizePostalCode } from '../utils/postalBoundaries.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -76,6 +78,19 @@ function validateRoleScope(role, subregionIds) {
     }
 }
 
+function normalizeOptionalPostalCode(value) {
+    if (value === undefined || value === null || String(value).trim() === '') {
+        return '';
+    }
+
+    const postalCode = normalizePostalCode(value);
+    if (!postalCode) {
+        throw accessError('Postal code must be a valid 6-digit code.', 400);
+    }
+
+    return postalCode;
+}
+
 async function loadUserWithSubregions(db, id) {
     const [userRow] = await db.select({
         id: users.id,
@@ -84,6 +99,7 @@ async function loadUserWithSubregions(db, id) {
         name: users.name,
         role: users.role,
         phone: users.phone,
+        postalCode: users.postalCode,
         createdAt: users.createdAt,
     }).from(users).where(eq(users.id, id));
 
@@ -103,6 +119,7 @@ export const createUser = async (c) => {
         const { username, email, password, name, role, subregionIds = [], phone } = body;
         const creator = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
 
         const creatorRole = normalizeRole(creator.role);
         if (getCreatableRoles(creatorRole).length === 0) {
@@ -111,6 +128,7 @@ export const createUser = async (c) => {
 
         const finalRole = resolveRequestedRole(role, creatorRole);
         const finalSubregionIds = resolveScopedSubregions(creator, subregionIds);
+        const postalCode = normalizeOptionalPostalCode(body.postalCode);
         validateRoleScope(finalRole, finalSubregionIds);
 
         const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
@@ -127,14 +145,16 @@ export const createUser = async (c) => {
             passwordHash,
             name,
             role: finalRole,
-            phone
+            phone,
+            postalCode
         }).returning({
             id: users.id,
             username: users.username,
             email: users.email,
             name: users.name,
             role: users.role,
-            phone: users.phone
+            phone: users.phone,
+            postalCode: users.postalCode,
         });
 
         if (finalSubregionIds.length > 0) {
@@ -158,6 +178,7 @@ export const bulkCreateUsers = async (c) => {
         const { rows } = body;
         const creator = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const results = { message: 'Bulk import processed', successful: 0, failed: 0, errors: [] };
 
         if (!Array.isArray(rows)) {
@@ -174,6 +195,7 @@ export const bulkCreateUsers = async (c) => {
             try {
                 const { username, email, password, name, role, subregionIds: rawSubregionIds, phone } = row;
                 let subregionIds = parseSubregionIds(rawSubregionIds);
+                const postalCode = normalizeOptionalPostalCode(row.postalCode ?? row['Postal Code']);
 
                 if (!username) throw new Error('Username is required');
                 if (!email) throw new Error('Email is required');
@@ -196,7 +218,8 @@ export const bulkCreateUsers = async (c) => {
                     passwordHash,
                     name: name || username,
                     role: finalRole,
-                    phone
+                    phone,
+                    postalCode
                 }).returning();
 
                 if (subregionIds && subregionIds.length > 0) {
@@ -221,6 +244,7 @@ export const getUsers = async (c) => {
     try {
         const creator = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const creatorRole = normalizeRole(creator.role);
 
         let usersData = await db.query.users.findMany({
@@ -231,6 +255,7 @@ export const getUsers = async (c) => {
                 name: true,
                 role: true,
                 phone: true,
+                postalCode: true,
                 createdAt: true,
             },
             with: {
@@ -269,10 +294,12 @@ export const updateProfile = async (c) => {
         const { name, phone, password } = body;
         const user = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const updates = {};
 
         if (name) updates.name = name;
         if (phone !== undefined) updates.phone = phone;
+        if (body.postalCode !== undefined) updates.postalCode = normalizeOptionalPostalCode(body.postalCode);
         if (password) {
             updates.passwordHash = await bcrypt.hash(password, 12);
         }
@@ -287,6 +314,7 @@ export const updateProfile = async (c) => {
             name: users.name,
             role: users.role,
             phone: users.phone,
+            postalCode: users.postalCode,
         }).from(users).where(eq(users.id, user.id));
 
         return c.json(updated);
@@ -304,6 +332,7 @@ export const updateUserRole = async (c) => {
         const body = await c.req.json();
         const { role, subregionIds } = body;
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const existingUser = await loadUserWithSubregions(db, id);
 
         if (!existingUser) return c.json({ error: 'User not found.' }, 404);
@@ -334,6 +363,7 @@ export const updateUserRole = async (c) => {
             email: users.email,
             name: users.name,
             role: users.role,
+            postalCode: users.postalCode,
         }).from(users).where(eq(users.id, id));
 
         const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
@@ -352,6 +382,7 @@ export const deleteUser = async (c) => {
         const id = parseInt(c.req.param('id'));
         const creator = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const creatorRole = normalizeRole(creator.role);
 
         if (id === creator.id) return c.json({ error: 'Cannot delete yourself.' }, 400);

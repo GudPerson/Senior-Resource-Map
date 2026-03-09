@@ -1,6 +1,8 @@
 import { getDb } from '../db/index.js';
 import { subregions } from '../db/schema.js';
 import { eq, inArray, or, sql } from 'drizzle-orm';
+import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { parsePostalBoundaryInput, serializePostalBoundaryInput } from '../utils/postalBoundaries.js';
 
 let ensureSubregionSchemaPromise = null;
 
@@ -9,6 +11,7 @@ async function ensureSubregionSchema(db) {
         ensureSubregionSchemaPromise = (async () => {
             await db.execute(sql`ALTER TABLE subregions ADD COLUMN IF NOT EXISTS subregion_code VARCHAR(80)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS subregions_subregion_code_unique ON subregions (subregion_code)`);
+            await ensureBoundarySchema(db);
         })().catch((err) => {
             ensureSubregionSchemaPromise = null;
             throw err;
@@ -82,8 +85,19 @@ function parseCreatePayload(body) {
 
     const subregionCode = normalizeText(body?.subregionCode ?? body?.subregionId);
     const description = normalizeText(body?.description);
+    let postalPatterns = '';
+    try {
+        postalPatterns = serializePostalBoundaryInput(
+            body?.postalPatterns
+            ?? body?.postalCodes
+            ?? body?.postalCodePatterns
+            ?? ''
+        );
+    } catch (err) {
+        return { error: err.message };
+    }
 
-    return { id, name, subregionCode, description };
+    return { id, name, subregionCode, description, postalPatterns };
 }
 
 function parseBulkRow(row) {
@@ -131,7 +145,27 @@ function parseBulkRow(row) {
     }
 
     const description = normalizeText(row?.description ?? row?.Description);
-    return { id, name, subregionCode, description };
+    const rawPostalPatterns = row?.postalPatterns
+        ?? row?.postal_patterns
+        ?? row?.postalCodes
+        ?? row?.['Postal Codes']
+        ?? row?.['Postal Patterns']
+        ?? row?.['Postal Code Patterns'];
+
+    return {
+        id,
+        name,
+        subregionCode,
+        description,
+        postalPatterns: serializePostalBoundaryInput(rawPostalPatterns ?? ''),
+    };
+}
+
+function formatSubregionResponse(subregion) {
+    return {
+        ...subregion,
+        postalPatternsList: parsePostalBoundaryInput(subregion?.postalPatterns).map((pattern) => pattern.normalized),
+    };
 }
 
 export const getSubregions = async (c) => {
@@ -142,7 +176,7 @@ export const getSubregions = async (c) => {
         const list = await db.query.subregions.findMany({
             orderBy: [subregions.name]
         });
-        return c.json(list);
+        return c.json(list.map(formatSubregionResponse));
     } catch (err) {
         console.error(err);
         return c.json({ error: 'Failed to fetch subregions' }, 500);
@@ -164,13 +198,13 @@ export const createSubregion = async (c) => {
             return c.json({ error: payload.error }, 400);
         }
 
-        const { id, name, description, subregionCode } = payload;
+        const { id, name, description, subregionCode, postalPatterns } = payload;
         await assertUniqueSubregionFields(db, { name, subregionCode, ignoreId: id });
 
         let result = null;
         if (id) {
             [result] = await db.update(subregions)
-                .set({ name, description, subregionCode })
+                .set({ name, description, subregionCode, postalPatterns })
                 .where(eq(subregions.id, id))
                 .returning();
 
@@ -179,18 +213,20 @@ export const createSubregion = async (c) => {
                     id,
                     name,
                     description,
-                    subregionCode
+                    subregionCode,
+                    postalPatterns
                 }).returning();
             }
         } else {
             [result] = await db.insert(subregions).values({
                 name,
                 description,
-                subregionCode
+                subregionCode,
+                postalPatterns
             }).returning();
         }
 
-        return c.json(result, 201);
+        return c.json(formatSubregionResponse(result), 201);
     } catch (err) {
         console.error('Create Subregion Error:', err);
         if (err?.status && err.status >= 400 && err.status < 500) {
@@ -223,7 +259,7 @@ export const bulkCreateSubregions = async (c) => {
             const row = rows[index];
             try {
                 const payload = parseBulkRow(row);
-                const { id, name, subregionCode, description } = payload;
+                const { id, name, subregionCode, description, postalPatterns } = payload;
 
                 let target = null;
                 if (id) {
@@ -252,14 +288,14 @@ export const bulkCreateSubregions = async (c) => {
 
                 if (target) {
                     const [updated] = await db.update(subregions)
-                        .set({ name, description, subregionCode })
+                        .set({ name, description, subregionCode, postalPatterns })
                         .where(eq(subregions.id, target.id))
                         .returning();
                     if (!updated) throw new Error('Update failed');
                 } else if (id) {
-                    await db.insert(subregions).values({ id, name, description, subregionCode });
+                    await db.insert(subregions).values({ id, name, description, subregionCode, postalPatterns });
                 } else {
-                    await db.insert(subregions).values({ name, description, subregionCode });
+                    await db.insert(subregions).values({ name, description, subregionCode, postalPatterns });
                 }
 
                 results.successful++;

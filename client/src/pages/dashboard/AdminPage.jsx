@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
-import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn } from 'lucide-react';
+import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil } from 'lucide-react';
 import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import { canChangeUserRoles, canManageUser, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
+import { collectSubregionPostalPatterns, getBoundaryStatus, normalizePostalCode } from '../../lib/postalBoundaries.js';
 
 
 export default function AdminPage() {
@@ -24,8 +25,12 @@ export default function AdminPage() {
 
     const [loading, setLoading] = useState(true);
     const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
-    const [newSubregion, setNewSubregion] = useState({ subregionCode: '', name: '', description: '' });
+    const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '', postalPatterns: '' });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
+    const [resourceSearch, setResourceSearch] = useState('');
+    const [resourceBoundaryFilter, setResourceBoundaryFilter] = useState('all');
+    const [userSearch, setUserSearch] = useState('');
+    const [userBoundaryFilter, setUserBoundaryFilter] = useState('all');
     const [subregionFeedback, setSubregionFeedback] = useState(null);
     const [adminFeedback, setAdminFeedback] = useState(null);
     const [pendingSubregionDelete, setPendingSubregionDelete] = useState(null);
@@ -106,8 +111,64 @@ export default function AdminPage() {
         return !currentUser?.isImpersonating && canManageUserRecord(targetUser);
     }
 
-    function getManageableUsers() {
-        return users.filter((candidate) => canManageUserRecord(candidate));
+    const scopedBoundaryPatterns = useMemo(
+        () => collectSubregionPostalPatterns(subregions, currentUser?.subregionIds || []),
+        [subregions, currentUser?.subregionIds]
+    );
+
+    const boundaryChecksEnabled = currentRole === 'regional_admin' || currentRole === 'partner';
+
+    function getBoundaryBadgeMeta(status) {
+        switch (status) {
+            case 'inside':
+                return { label: 'Inside boundary', className: 'bg-green-50 text-green-700 border-green-200' };
+            case 'outside':
+                return { label: 'Outside boundary', className: 'bg-red-50 text-red-700 border-red-200' };
+            case 'missing-postal':
+                return { label: 'No postal code', className: 'bg-amber-50 text-amber-700 border-amber-200' };
+            case 'no-location':
+                return { label: 'No linked location', className: 'bg-amber-50 text-amber-700 border-amber-200' };
+            default:
+                return { label: 'No boundary set', className: 'bg-slate-100 text-slate-600 border-slate-200' };
+        }
+    }
+
+    function getUserBoundaryStatus(userRecord) {
+        return getBoundaryStatus(userRecord?.postalCode, scopedBoundaryPatterns);
+    }
+
+    function getResourceBoundaryStatus(resource) {
+        if (!boundaryChecksEnabled) return 'no-boundary';
+
+        if (resource.category === 'Places') {
+            return getBoundaryStatus(resource.postalCode, scopedBoundaryPatterns);
+        }
+
+        const locations = Array.isArray(resource.locations) ? resource.locations : [];
+        if (locations.length === 0) return 'no-location';
+
+        const validPostalCodes = locations.map((location) => normalizePostalCode(location.postalCode)).filter(Boolean);
+        if (validPostalCodes.length === 0) return 'missing-postal';
+
+        return validPostalCodes.some((postalCode) => getBoundaryStatus(postalCode, scopedBoundaryPatterns) === 'inside')
+            ? 'inside'
+            : 'outside';
+    }
+
+    function resetSubregionForm() {
+        setNewSubregion({ id: null, subregionCode: '', name: '', description: '', postalPatterns: '' });
+    }
+
+    function handleEditSubregion(subregion) {
+        setSubregionFeedback(null);
+        setNewSubregion({
+            id: subregion.id,
+            subregionCode: subregion.subregionCode || '',
+            name: subregion.name || '',
+            description: subregion.description || '',
+            postalPatterns: subregion.postalPatterns || '',
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function handleDeleteResource(id, category) {
@@ -224,15 +285,14 @@ export default function AdminPage() {
     }
 
     function toggleSelectAllUsers() {
-        const manageableUserIds = getManageableUsers().map((candidate) => candidate.id);
-        if (manageableUserIds.length === 0) {
+        if (manageableVisibleUserIds.length === 0) {
             setSelectedUsers([]);
             return;
         }
-        if (selectedUsers.length === manageableUserIds.length && manageableUserIds.every((id) => selectedUsers.includes(id))) {
+        if (manageableVisibleUserIds.every((id) => selectedUsers.includes(id))) {
             setSelectedUsers([]);
         } else {
-            setSelectedUsers(manageableUserIds);
+            setSelectedUsers((prev) => [...new Set([...prev, ...manageableVisibleUserIds])]);
         }
     }
 
@@ -339,15 +399,17 @@ export default function AdminPage() {
         e.preventDefault();
         setLoading(true);
         setSubregionFeedback(null);
-        console.log('Submitting subregion:', newSubregion);
         try {
             const res = await api.createSubregion(newSubregion);
-            console.log('Subregion created:', res);
-            setNewSubregion({ subregionCode: '', name: '', description: '' });
+            resetSubregionForm();
             await loadAll();
-            setSubregionFeedback({ type: 'success', message: `Subregion "${res.subregionCode || res.id}" added successfully.` });
+            setSubregionFeedback({
+                type: 'success',
+                message: newSubregion.id
+                    ? `Subregion "${res.subregionCode || res.id}" updated successfully.`
+                    : `Subregion "${res.subregionCode || res.id}" added successfully.`,
+            });
         } catch (err) {
-            console.error('Subregion add failed:', err);
             setSubregionFeedback({
                 type: 'error',
                 message: err.message || 'Unable to add subregion. Please try again.'
@@ -397,9 +459,9 @@ export default function AdminPage() {
     }
 
     function handleDownloadUserTemplate() {
-        const headers = ['username', 'email', 'name', 'password', 'phone', 'role', 'subregionIds'];
+        const headers = ['username', 'email', 'name', 'password', 'phone', 'postalCode', 'role', 'subregionIds'];
         const templateRole = creatableRoles[0] || 'standard';
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', templateRole, currentRole === 'super_admin' ? '1,2' : (currentUser?.subregionIds || []).join(',')];
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRole, currentRole === 'super_admin' ? '1,2' : (currentUser?.subregionIds || []).join(',')];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
@@ -618,8 +680,8 @@ export default function AdminPage() {
     }
 
     function handleDownloadSubregionTemplate() {
-        const headers = ['id', 'subregionId', 'name', 'description'];
-        const demoRow = ['', 'SR-JW', 'Jurong West', 'Residential area in the west'];
+        const headers = ['id', 'subregionId', 'name', 'description', 'postalPatterns'];
+        const demoRow = ['', 'SR-JW', 'Jurong West', 'Residential area in the west', '68*, 689286-689399'];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         downloadFile('\uFEFF' + csv, 'subregion_upload_template.csv', 'text/csv;charset=utf-8');
     }
@@ -704,12 +766,13 @@ export default function AdminPage() {
             id: s.id,
             subregionId: s.subregionCode || '',
             name: s.name,
-            description: s.description || ''
+            description: s.description || '',
+            postalPatterns: s.postalPatterns || ''
         }));
 
         const csv = Papa.unparse({
-            fields: ['id', 'subregionId', 'name', 'description'],
-            data: toExport.map(s => [s.id, s.subregionId, s.name, s.description])
+            fields: ['id', 'subregionId', 'name', 'description', 'postalPatterns'],
+            data: toExport.map(s => [s.id, s.subregionId, s.name, s.description, s.postalPatterns])
         });
 
         const fileName = `subregions_export_${new Date().toISOString().split('T')[0]}.csv`;
@@ -730,9 +793,61 @@ export default function AdminPage() {
         }
     }
 
-    const manageableUsers = getManageableUsers();
-    const manageableUserIds = manageableUsers.map((candidate) => candidate.id);
-    const allManageableUsersSelected = manageableUserIds.length > 0 && manageableUserIds.every((id) => selectedUsers.includes(id));
+    const filteredResources = useMemo(() => {
+        const query = resourceSearch.trim().toLowerCase();
+
+        return resources.filter((resource) => {
+            if (boundaryChecksEnabled && resourceBoundaryFilter !== 'all' && getResourceBoundaryStatus(resource) !== resourceBoundaryFilter) {
+                return false;
+            }
+
+            if (!query) return true;
+
+            const haystack = [
+                resource.name,
+                resource.address,
+                resource.partnerName,
+                resource.subCategory,
+                resource.postalCode,
+                ...(Array.isArray(resource.tags) ? resource.tags : []),
+                ...(Array.isArray(resource.locations) ? resource.locations.map((location) => `${location?.name || ''} ${location?.postalCode || ''}`) : []),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(query);
+        });
+    }, [resources, resourceSearch, resourceBoundaryFilter, boundaryChecksEnabled, scopedBoundaryPatterns]);
+
+    const filteredUsers = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+
+        return users.filter((candidate) => {
+            if (boundaryChecksEnabled && userBoundaryFilter !== 'all' && getUserBoundaryStatus(candidate) !== userBoundaryFilter) {
+                return false;
+            }
+
+            if (!query) return true;
+
+            return [
+                candidate.name,
+                candidate.username,
+                candidate.email,
+                candidate.phone,
+                candidate.postalCode,
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+                .includes(query);
+        });
+    }, [users, userSearch, userBoundaryFilter, boundaryChecksEnabled, scopedBoundaryPatterns]);
+
+    const manageableVisibleUserIds = filteredUsers
+        .filter((candidate) => canManageUserRecord(candidate))
+        .map((candidate) => candidate.id);
+    const allManageableUsersSelected = manageableVisibleUserIds.length > 0 && manageableVisibleUserIds.every((id) => selectedUsers.includes(id));
 
     return (
         <div className="p-6 lg:p-8">
@@ -817,6 +932,39 @@ export default function AdminPage() {
             ) : tab === 'resources' ? (
                 /* ======== Resources Table ======== */
                 <div className="space-y-4">
+                    <div className="card p-4 border border-slate-200">
+                        <div className="flex flex-col lg:flex-row gap-3">
+                            <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    value={resourceSearch}
+                                    onChange={(e) => setResourceSearch(e.target.value)}
+                                    placeholder="Search resources, addresses, tags, partner, or postal code"
+                                    className="input-field w-full pl-10"
+                                />
+                            </div>
+                            {boundaryChecksEnabled ? (
+                                <select
+                                    value={resourceBoundaryFilter}
+                                    onChange={(e) => setResourceBoundaryFilter(e.target.value)}
+                                    className="input-field lg:w-48"
+                                >
+                                    <option value="all">All boundary status</option>
+                                    <option value="inside">Inside boundary</option>
+                                    <option value="outside">Outside boundary</option>
+                                    <option value="missing-postal">Missing postal code</option>
+                                    <option value="no-location">No linked location</option>
+                                    <option value="no-boundary">No boundary set</option>
+                                </select>
+                            ) : null}
+                        </div>
+                        {boundaryChecksEnabled ? (
+                            <p className="mt-2 text-xs text-slate-500">
+                                Boundary checks are based on postal patterns assigned to your scoped subregion(s).
+                            </p>
+                        ) : null}
+                    </div>
+
                     {selectedResources.length > 0 && (
                         <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
                             <span className="text-sm font-bold text-blue-700 ml-2">{selectedResources.length} selected</span>
@@ -843,12 +991,15 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 font-semibold">Category</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold hidden md:table-cell">Address</th>
+                                    {boundaryChecksEnabled ? (
+                                        <th className="px-4 py-3 font-semibold hidden lg:table-cell">Boundary</th>
+                                    ) : null}
                                     <th className="px-4 py-3 font-semibold hidden lg:table-cell">Partner</th>
                                     <th className="px-4 py-3 font-semibold w-24">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {resources.map(r => (
+                                {filteredResources.map(r => (
                                     <tr key={getResourceSelectionKey(r)} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(getResourceSelectionKey(r)) ? 'bg-blue-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
@@ -861,8 +1012,19 @@ export default function AdminPage() {
                                         <td className="px-4 py-3"><CategoryBadge category={r.category} /></td>
                                         <td className="px-4 py-3 font-semibold text-slate-900">{r.name}</td>
                                         <td className="px-4 py-3 text-slate-500 text-sm hidden md:table-cell">
-                                            <span className="flex items-center gap-1"><MapPin size={12} />{r.address}</span>
+                                            <span className="flex items-center gap-1">
+                                                <MapPin size={12} />
+                                                {r.address}
+                                                {r.postalCode ? <span className="font-mono text-xs text-slate-400">{r.postalCode}</span> : null}
+                                            </span>
                                         </td>
+                                        {boundaryChecksEnabled ? (
+                                            <td className="px-4 py-3 hidden lg:table-cell">
+                                                <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${getBoundaryBadgeMeta(getResourceBoundaryStatus(r)).className}`}>
+                                                    {getBoundaryBadgeMeta(getResourceBoundaryStatus(r)).label}
+                                                </span>
+                                            </td>
+                                        ) : null}
                                         <td className="px-4 py-3 text-slate-500 text-sm hidden lg:table-cell">{r.partnerName || '—'}</td>
                                         <td className="px-4 py-3">
                                             <button
@@ -879,8 +1041,8 @@ export default function AdminPage() {
                             </tbody>
                         </table>
                     </div>
-                    {resources.length === 0 && (
-                        <div className="text-center py-12 text-slate-400">No resources in the system.</div>
+                    {filteredResources.length === 0 && (
+                        <div className="text-center py-12 text-slate-400">No resources match the current filters.</div>
                     )}
                     </div>
                 </div>
@@ -888,36 +1050,55 @@ export default function AdminPage() {
                 /* ======== Subregions Table ======== */
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row gap-4">
-                        <form onSubmit={handleAddSubregion} className="flex-1 flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                            <input
-                                required
-                                placeholder="Subregion ID (e.g. SR-AMK)"
-                                value={newSubregion.subregionCode}
-                                onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
-                                className="input-field w-40 sm:w-44"
-                                title="Unique subregion identifier"
-                            />
-                            <input
-                                required
-                                placeholder="Name (e.g. Jurong)"
-                                value={newSubregion.name}
-                                onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
-                                className="input-field flex-1"
-                            />
-                            <input
-                                placeholder="Description"
-                                value={newSubregion.description}
-                                onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
-                                className="input-field flex-1"
-                            />
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                {loading ? 'Adding...' : 'Add Subregion'}
-                            </button>
+                        <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div className="grid grid-cols-1 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)_220px] gap-3">
+                                <input
+                                    required
+                                    placeholder="Subregion ID (e.g. SR-AMK)"
+                                    value={newSubregion.subregionCode}
+                                    onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
+                                    className="input-field"
+                                    title="Unique subregion identifier"
+                                />
+                                <input
+                                    required
+                                    placeholder="Name (e.g. Jurong)"
+                                    value={newSubregion.name}
+                                    onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
+                                    className="input-field"
+                                />
+                                <input
+                                    placeholder="Description"
+                                    value={newSubregion.description}
+                                    onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
+                                    className="input-field"
+                                />
+                                <textarea
+                                    placeholder="Postal patterns: 680153, 68*, 689286-689399"
+                                    value={newSubregion.postalPatterns}
+                                    onChange={e => setNewSubregion({ ...newSubregion, postalPatterns: e.target.value })}
+                                    className="input-field min-h-[44px] resize-y"
+                                    rows={2}
+                                />
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Postal boundaries support exact postcodes, prefixes, and ranges. Example: <span className="font-mono">680153, 68*, 689286-689399</span>
+                            </p>
+                            <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                                {newSubregion.id ? (
+                                    <button type="button" onClick={resetSubregionForm} className="btn-secondary sm:w-auto w-full">
+                                        Cancel Edit
+                                    </button>
+                                ) : null}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                    {loading ? (newSubregion.id ? 'Saving...' : 'Adding...') : (newSubregion.id ? 'Save Subregion' : 'Add Subregion')}
+                                </button>
+                            </div>
                         </form>
 
                         <div className="flex gap-2 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
@@ -971,7 +1152,8 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
-                                    <th className="px-4 py-3 font-semibold w-24 text-center">Actions</th>
+                                    <th className="px-4 py-3 font-semibold">Postal Boundary</th>
+                                    <th className="px-4 py-3 font-semibold w-28 text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -990,18 +1172,39 @@ export default function AdminPage() {
                                         </td>
                                         <td className="px-4 py-3 font-semibold text-slate-900">{reg.name}</td>
                                         <td className="px-4 py-3 text-slate-500 text-sm truncate max-w-[200px]">{reg.description || '—'}</td>
-                                        <td className="px-4 py-3 flex justify-center">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    promptSingleSubregionDelete(reg);
-                                                }}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center relative z-10"
-                                                title="Delete subregion"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[280px]">
+                                            {reg.postalPatterns ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(reg.postalPatternsList?.length ? reg.postalPatternsList : reg.postalPatterns.split(',')).map((pattern) => (
+                                                        <span key={`${reg.id}-${pattern}`} className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-1 font-mono text-[11px] text-brand-700">
+                                                            {String(pattern).trim()}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : '—'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex justify-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEditSubregion(reg)}
+                                                    className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors flex items-center justify-center"
+                                                    title="Edit subregion"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        promptSingleSubregionDelete(reg);
+                                                    }}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center relative z-10"
+                                                    title="Delete subregion"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -1156,7 +1359,7 @@ export default function AdminPage() {
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">CSV Requirements</h3>
                                 <ul className="text-xs text-slate-600 space-y-1">
                                     <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code></li>
-                                    <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
+                                    <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code></li>
                                     <li>• Scope: <code className="bg-slate-200 px-1 rounded">role</code>, <code className="bg-slate-200 px-1 rounded">subregionIds</code> (comma separated)</li>
                                 </ul>
                             </div>
@@ -1185,6 +1388,38 @@ export default function AdminPage() {
                         </div>
                     </div>
 
+                    <div className="card p-4 border border-slate-200">
+                        <div className="flex flex-col lg:flex-row gap-3">
+                            <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    value={userSearch}
+                                    onChange={(e) => setUserSearch(e.target.value)}
+                                    placeholder="Search users by name, username, email, phone, or postal code"
+                                    className="input-field w-full pl-10"
+                                />
+                            </div>
+                            {boundaryChecksEnabled ? (
+                                <select
+                                    value={userBoundaryFilter}
+                                    onChange={(e) => setUserBoundaryFilter(e.target.value)}
+                                    className="input-field lg:w-48"
+                                >
+                                    <option value="all">All boundary status</option>
+                                    <option value="inside">Inside boundary</option>
+                                    <option value="outside">Outside boundary</option>
+                                    <option value="missing-postal">Missing postal code</option>
+                                    <option value="no-boundary">No boundary set</option>
+                                </select>
+                            ) : null}
+                        </div>
+                        {boundaryChecksEnabled ? (
+                            <p className="mt-2 text-xs text-slate-500">
+                                Boundary checks compare each user postal code against the postal patterns assigned to your scoped subregion(s).
+                            </p>
+                        ) : null}
+                    </div>
+
                     <div className=" card overflow-hidden p-0">
                         {selectedUsers.length > 0 && (
                             <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border-b border-blue-100 animate-in fade-in slide-in-from-top-2">
@@ -1205,17 +1440,21 @@ export default function AdminPage() {
                                                 type="checkbox"
                                                 checked={allManageableUsersSelected}
                                                 onChange={toggleSelectAllUsers}
-                                                disabled={manageableUserIds.length === 0}
+                                                disabled={manageableVisibleUserIds.length === 0}
                                                 className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                             />
                                         </th>
                                         <th className="px-4 py-3 font-semibold">User</th>
+                                        <th className="px-4 py-3 font-semibold hidden md:table-cell">Postal Code</th>
+                                        {boundaryChecksEnabled ? (
+                                            <th className="px-4 py-3 font-semibold hidden lg:table-cell">Boundary</th>
+                                        ) : null}
                                         <th className="px-4 py-3 font-semibold">Role</th>
                                         <th className="px-4 py-3 font-semibold w-36">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {users.map(u => (
+                                    {filteredUsers.map(u => (
                                         <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${selectedUsers.includes(u.id) ? 'bg-blue-50/30' : ''}`}>
                                             <td className="px-4 py-3">
                                                 <input
@@ -1232,6 +1471,20 @@ export default function AdminPage() {
                                                     <span className="text-xs text-slate-400">@{u.username} • {u.email}</span>
                                                 </div>
                                             </td>
+                                            <td className="px-4 py-3 hidden md:table-cell">
+                                                {u.postalCode ? (
+                                                    <span className="font-mono text-xs text-slate-600">{u.postalCode}</span>
+                                                ) : (
+                                                    <span className="text-sm text-slate-400">—</span>
+                                                )}
+                                            </td>
+                                            {boundaryChecksEnabled ? (
+                                                <td className="px-4 py-3 hidden lg:table-cell">
+                                                    <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${getBoundaryBadgeMeta(getUserBoundaryStatus(u)).className}`}>
+                                                        {getBoundaryBadgeMeta(getUserBoundaryStatus(u)).label}
+                                                    </span>
+                                                </td>
+                                            ) : null}
                                             <td className="px-4 py-3">
                                                 {canEditUserRoles && u.id !== currentUser?.id ? (
                                                     <div className="relative inline-block">
@@ -1286,8 +1539,8 @@ export default function AdminPage() {
                                 </tbody>
                             </table>
                         </div>
-                        {users.length === 0 && (
-                            <div className="text-center py-12 text-slate-400">No users found.</div>
+                        {filteredUsers.length === 0 && (
+                            <div className="text-center py-12 text-slate-400">No users match the current filters.</div>
                         )}
                     </div>
                 </div>

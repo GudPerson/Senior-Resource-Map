@@ -4,6 +4,7 @@ import { users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { canManageRole, normalizeRole } from '../utils/roles.js';
 import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
+import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
@@ -35,6 +36,7 @@ async function loadUserWithSubregions(db, userId) {
         role: users.role,
         name: users.name,
         phone: users.phone,
+        postalCode: users.postalCode,
     }).from(users).where(eq(users.id, userId));
 
     if (!user) return null;
@@ -73,6 +75,7 @@ export const register = async (c) => {
         }
 
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
 
         // Auto-generate username from email if not provided
         if (!username) {
@@ -112,7 +115,8 @@ export const register = async (c) => {
                 username: user.username,
                 email: user.email,
                 name: user.name,
-                role: user.role
+                role: user.role,
+                postalCode: user.postalCode ?? '',
             }
         });
     } catch (err) {
@@ -132,6 +136,7 @@ export const login = async (c) => {
         }
 
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const isEmail = loginId.includes('@');
 
         // Try exact match first
@@ -180,6 +185,7 @@ export const login = async (c) => {
                 email: user.email,
                 name: user.name,
                 role: user.role,
+                postalCode: user.postalCode ?? '',
                 subregionIds: user.subregionIds
             }
         });
@@ -222,6 +228,7 @@ export const googleAuth = async (c) => {
 
         const { email, name } = payload;
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
 
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
@@ -257,6 +264,7 @@ export const googleAuth = async (c) => {
                 email: user.email,
                 name: user.name,
                 role: user.role,
+                postalCode: user.postalCode ?? '',
                 subregionId: user.subregionId
             }
         });
@@ -290,6 +298,7 @@ export const impersonate = async (c) => {
         }
 
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
         const targetUser = await loadUserWithSubregions(db, targetUserId);
 
         if (!targetUser) {

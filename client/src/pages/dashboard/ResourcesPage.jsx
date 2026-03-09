@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Plus, Pencil, Trash2, X, MapPin, Building2, CalendarDays, Clock, Search } from 'lucide-react';
 import AssetForm from '../../components/AssetForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
+import { collectSubregionPostalPatterns, getBoundaryStatus, normalizePostalCode } from '../../lib/postalBoundaries.js';
 
 const TagBadge = ({ tag, onClick }) => (
     <span
@@ -49,6 +50,7 @@ export default function ResourcesPage() {
     const { user } = useAuth();
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
+    const [subregions, setSubregions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
@@ -56,25 +58,76 @@ export default function ResourcesPage() {
     const [modal, setModal] = useState(null); // null | { type: 'create'|'edit', assetType: 'hard'|'soft', data: obj }
     const [deleteId, setDeleteId] = useState(null); // { id, assetType }
     const [searchTerm, setSearchTerm] = useState('');
+    const [boundaryFilter, setBoundaryFilter] = useState('all');
 
-    const filterAsset = (a) => {
+    const normalizedRole = normalizeRole(user?.role);
+    const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner';
+    const scopedBoundaryPatterns = useMemo(
+        () => collectSubregionPostalPatterns(subregions, user?.subregionIds || []),
+        [subregions, user?.subregionIds]
+    );
+
+    function getBoundaryBadgeMeta(status) {
+        switch (status) {
+            case 'inside':
+                return { label: 'Inside boundary', className: 'bg-green-50 text-green-700 border-green-200' };
+            case 'outside':
+                return { label: 'Outside boundary', className: 'bg-red-50 text-red-700 border-red-200' };
+            case 'missing-postal':
+                return { label: 'No postal code', className: 'bg-amber-50 text-amber-700 border-amber-200' };
+            case 'no-location':
+                return { label: 'No linked location', className: 'bg-amber-50 text-amber-700 border-amber-200' };
+            default:
+                return { label: 'No boundary set', className: 'bg-slate-100 text-slate-600 border-slate-200' };
+        }
+    }
+
+    function getAssetBoundaryStatus(asset, assetType) {
+        if (!boundaryChecksEnabled) return 'no-boundary';
+
+        if (assetType === 'hard') {
+            return getBoundaryStatus(asset.postalCode, scopedBoundaryPatterns);
+        }
+
+        const locations = Array.isArray(asset.locations) ? asset.locations : [];
+        if (locations.length === 0) return 'no-location';
+
+        const validPostalCodes = locations.map((location) => normalizePostalCode(location.postalCode)).filter(Boolean);
+        if (validPostalCodes.length === 0) return 'missing-postal';
+
+        return validPostalCodes.some((postalCode) => getBoundaryStatus(postalCode, scopedBoundaryPatterns) === 'inside')
+            ? 'inside'
+            : 'outside';
+    }
+
+    const filterAsset = (a, assetType) => {
+        if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(a, assetType) !== boundaryFilter) {
+            return false;
+        }
+
         if (!searchTerm) return true;
         const q = searchTerm.toLowerCase();
         return (
             a.name?.toLowerCase().includes(q) ||
             a.subCategory?.toLowerCase().includes(q) ||
+            a.postalCode?.toLowerCase().includes(q) ||
+            a.address?.toLowerCase().includes(q) ||
+            a.location?.name?.toLowerCase().includes(q) ||
+            a.locations?.some((location) => `${location?.name || ''} ${location?.postalCode || ''}`.toLowerCase().includes(q)) ||
             a.tags?.some(t => t.toLowerCase().includes(q))
         );
     };
-    const filteredHardAssets = hardAssets.filter(filterAsset);
-    const filteredSoftAssets = softAssets.filter(filterAsset);
+    const filteredHardAssets = hardAssets.filter((asset) => filterAsset(asset, 'hard'));
+    const filteredSoftAssets = softAssets.filter((asset) => filterAsset(asset, 'soft'));
 
     async function load() {
         try {
-            const [hard, soft] = await Promise.all([
+            const [hard, soft, subregionData] = await Promise.all([
                 api.getHardAssets(),
-                api.getSoftAssets()
+                api.getSoftAssets(),
+                api.getSubregions().catch(() => [])
             ]);
+            setSubregions(subregionData);
 
             if (isStandardUserRole(user.role)) {
                 const favs = await api.getFavorites();
@@ -149,15 +202,39 @@ export default function ResourcesPage() {
             </div>
 
             <div className="mb-6 relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input
-                    type="search"
-                    placeholder="Search assets by name, category, or #tag..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full max-w-md pl-9 pr-3 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm"
-                />
+                <div className="flex flex-col lg:flex-row gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="search"
+                            placeholder="Search assets by name, category, postal code, or #tag..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm"
+                        />
+                    </div>
+                    {boundaryChecksEnabled ? (
+                        <select
+                            value={boundaryFilter}
+                            onChange={(e) => setBoundaryFilter(e.target.value)}
+                            className="input-field lg:w-48"
+                        >
+                            <option value="all">All boundary status</option>
+                            <option value="inside">Inside boundary</option>
+                            <option value="outside">Outside boundary</option>
+                            <option value="missing-postal">Missing postal code</option>
+                            <option value="no-location">No linked location</option>
+                            <option value="no-boundary">No boundary set</option>
+                        </select>
+                    ) : null}
+                </div>
             </div>
+
+            {boundaryChecksEnabled ? (
+                <p className="mb-6 text-xs text-slate-500">
+                    Boundary checks use the postal patterns assigned to your scoped subregion(s).
+                </p>
+            ) : null}
 
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-slate-200 mb-6">
@@ -227,6 +304,11 @@ export default function ResourcesPage() {
                                     {(r.subCategory || r.tags?.length > 0 || getHiddenStatus(r).hidden) && (
                                         <div className="flex flex-wrap gap-1.5 mt-2">
                                             <HiddenBadge status={getHiddenStatus(r)} />
+                                            {boundaryChecksEnabled ? (
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${getBoundaryBadgeMeta(getAssetBoundaryStatus(r, 'hard')).className}`}>
+                                                    {getBoundaryBadgeMeta(getAssetBoundaryStatus(r, 'hard')).label}
+                                                </span>
+                                            ) : null}
                                             {r.subCategory && <CategoryBadge category={r.subCategory} onClick={() => setSearchTerm(r.subCategory)} />}
                                             {r.tags?.map(t => <TagBadge key={t} tag={t} onClick={() => setSearchTerm(t)} />)}
                                         </div>
@@ -297,6 +379,11 @@ export default function ResourcesPage() {
                                 {(r.subCategory || r.tags?.length > 0 || getHiddenStatus(r).hidden || r.isMemberOnly) && (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         <HiddenBadge status={getHiddenStatus(r)} />
+                                        {boundaryChecksEnabled ? (
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${getBoundaryBadgeMeta(getAssetBoundaryStatus(r, 'soft')).className}`}>
+                                                {getBoundaryBadgeMeta(getAssetBoundaryStatus(r, 'soft')).label}
+                                            </span>
+                                        ) : null}
                                         {r.isMemberOnly && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-semibold uppercase tracking-wider border border-amber-200">Member-Only</span>}
                                         {r.subCategory && <CategoryBadge category={r.subCategory} onClick={() => setSearchTerm(r.subCategory)} />}
                                         {r.tags?.map(t => <TagBadge key={t} tag={t} onClick={() => setSearchTerm(t)} />)}

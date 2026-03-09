@@ -5,7 +5,7 @@ import { User, Phone, Lock, CheckCircle } from 'lucide-react';
 
 export default function ProfilePage() {
     const { user, login } = useAuth();
-    const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', password: '', confirmPassword: '' });
+    const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', postalCode: user?.postalCode || '', password: '', confirmPassword: '' });
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -19,7 +19,7 @@ export default function ProfilePage() {
         }
         setSaving(true); setError(''); setSuccess(false);
         try {
-            const updates = { name: form.name, phone: form.phone };
+            const updates = { name: form.name, phone: form.phone, postalCode: form.postalCode };
             if (form.password) updates.password = form.password;
             const updated = await api.updateMe(updates);
             login({ ...user, ...updated });
@@ -51,6 +51,11 @@ export default function ProfilePage() {
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1"><Phone size={13} className="inline mr-1" />Phone Number</label>
                         <input id="profile-phone" type="tel" value={form.phone} onChange={set('phone')} placeholder="(312) 555-0000" className=" input-field" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code</label>
+                        <input id="profile-postal-code" type="text" value={form.postalCode} onChange={set('postalCode')} placeholder="680153" className=" input-field" />
+                        <p className="text-xs text-slate-400 mt-1">Optional. Used to check whether you are inside your assigned service boundary.</p>
                     </div>
 
                     <hr className="border-slate-100" />

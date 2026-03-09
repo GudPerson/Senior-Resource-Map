@@ -8,6 +8,7 @@ export const subregions = pgTable('subregions', {
   subregionCode: varchar('subregion_code', { length: 80 }).unique(),
   name: varchar('name', { length: 255 }).notNull().unique(),
   description: text('description'),
+  postalPatterns: text('postal_patterns').notNull().default(''),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -19,6 +20,7 @@ export const users = pgTable('users', {
   name: varchar('name', { length: 255 }).notNull(),
   role: roleEnum('role').notNull().default('standard'),
   phone: varchar('phone', { length: 50 }),
+  postalCode: varchar('postal_code', { length: 20 }).notNull().default(''),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

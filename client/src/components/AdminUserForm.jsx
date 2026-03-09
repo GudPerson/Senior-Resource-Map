@@ -12,6 +12,7 @@ export default function AdminUserForm({ currentUser }) {
         email: '',
         password: '',
         phone: '',
+        postalCode: '',
         role: defaultRole,
         subregionIds: currentUser?.subregionIds || []
     });
@@ -64,6 +65,7 @@ export default function AdminUserForm({ currentUser }) {
                 email: '',
                 password: '',
                 phone: '',
+                postalCode: '',
                 role: defaultRole,
                 subregionIds: currentUser?.subregionIds || []
             });
@@ -126,6 +128,18 @@ export default function AdminUserForm({ currentUser }) {
                             placeholder="+65 9XXX XXXX"
                         />
                     </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium opacity-70">Postal Code</label>
+                    <input
+                        type="text"
+                        className="input-field w-full mt-1"
+                        value={formData.postalCode}
+                        onChange={e => setFormData({ ...formData, postalCode: e.target.value })}
+                        placeholder="680153"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">Optional. Used for subregion boundary checks.</p>
                 </div>
 
                 <div>
