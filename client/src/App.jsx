@@ -8,14 +8,13 @@ import DashboardOverview from './pages/dashboard/DashboardOverview.jsx';
 import ResourcesPage from './pages/dashboard/ResourcesPage.jsx';
 import ProfilePage from './pages/dashboard/ProfilePage.jsx';
 import AdminPage from './pages/dashboard/AdminPage.jsx';
-
 import ResourcePage from './pages/ResourcePage.jsx';
+import { canAccessAdmin } from './lib/roles.js';
 
 function ProtectedRoute({ children, requireAdmin }) {
     const { user, isAuth } = useAuth();
     if (!isAuth) return <Navigate to="/login" replace />;
-    const adminRoles = ['super_admin', 'regional_admin'];
-    if (requireAdmin && !adminRoles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
+    if (requireAdmin && !canAccessAdmin(user?.role)) return <Navigate to="/dashboard" replace />;
     return children;
 }
 

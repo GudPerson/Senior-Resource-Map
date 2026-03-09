@@ -1,17 +1,20 @@
+import { normalizeRole } from './roles.js';
+
 export function isAssetVisible(asset, user) {
     if (asset.isDeleted) return false;
+    const role = normalizeRole(user?.role);
 
     // super_admin always sees everything
-    if (user?.role === 'super_admin' || user?.role === 'admin') return true;
+    if (role === 'super_admin') return true;
 
     // regional_admin sees anything in their subregions
-    if (user?.role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) return true;
+    if (role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) return true;
 
     // Partner (owner) always sees their own assets
     if (user && user.id === asset.partnerId) return true;
 
     // Member-only check
-    if (asset.isMemberOnly && (!user || user.role === 'guest')) return false;
+    if (asset.isMemberOnly && (!user || role === 'guest')) return false;
 
     // Manually hidden (unless you are owner/admin)
     if (asset.isHidden) return false;

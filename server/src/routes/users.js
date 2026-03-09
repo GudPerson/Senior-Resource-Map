@@ -6,19 +6,19 @@ const router = new Hono();
 
 router.post('/',
     authenticateToken,
-    authorize('super_admin', 'regional_admin'),
+    authorize('super_admin', 'regional_admin', 'partner'),
     userController.createUser
 );
 
 router.post('/bulk',
     authenticateToken,
-    authorize('super_admin', 'regional_admin'),
+    authorize('super_admin', 'regional_admin', 'partner'),
     userController.bulkCreateUsers
 );
 
 router.get('/',
     authenticateToken,
-    authorize('super_admin', 'regional_admin'),
+    authorize('super_admin', 'regional_admin', 'partner'),
     userController.getUsers
 );
 
@@ -32,7 +32,7 @@ router.put('/:id/role',
 
 router.delete('/:id',
     authenticateToken,
-    authorize('super_admin', 'regional_admin'),
+    authorize('super_admin', 'regional_admin', 'partner'),
     userController.deleteUser
 );
 

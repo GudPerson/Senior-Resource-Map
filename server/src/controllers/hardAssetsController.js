@@ -4,6 +4,7 @@ import { eq, desc, inArray } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
+import { normalizeRole } from '../utils/roles.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -182,14 +183,15 @@ export const updateHardAsset = async (c) => {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
         const db = getDb(c.env);
+        const role = normalizeRole(user.role);
 
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
 
         const isOwner = existing.partnerId === user.id;
-        const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
+        const isSuper = role === 'super_admin';
+        const isRegional = role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
@@ -240,14 +242,15 @@ export const deleteHardAsset = async (c) => {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
         const db = getDb(c.env);
+        const role = normalizeRole(user.role);
 
         const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
 
         const isOwner = existing.partnerId === user.id;
-        const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
+        const isSuper = role === 'super_admin';
+        const isRegional = role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to delete this asset" }, 403);

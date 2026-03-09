@@ -4,6 +4,7 @@ import { eq, desc, inArray } from 'drizzle-orm';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
+import { normalizeRole } from '../utils/roles.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -11,6 +12,7 @@ export const getSoftAssets = async (c) => {
     try {
         const user = c.get('user');
         const db = getDb(c.env);
+        const role = normalizeRole(user?.role);
 
         const options = {
             with: {
@@ -21,7 +23,7 @@ export const getSoftAssets = async (c) => {
             orderBy: [desc(softAssets.updatedAt)],
         };
 
-        if (user?.role === 'regional_admin' || user?.role === 'partner') {
+        if (role === 'regional_admin' || role === 'partner') {
             if (user.subregionIds && user.subregionIds.length > 0) {
                 options.where = inArray(softAssets.subregionId, user.subregionIds);
             }
@@ -82,8 +84,9 @@ export const createSoftAsset = async (c) => {
     try {
         const user = c.get('user');
         const db = getDb(c.env);
+        const role = normalizeRole(user.role);
 
-        if (user.role === 'user' || user.role === 'standard' || user.role === 'guest') {
+        if (role === 'standard' || role === 'guest') {
             return c.json({ error: 'Only partners and admins can create resources' }, 403);
         }
 
@@ -102,7 +105,7 @@ export const createSoftAsset = async (c) => {
         }
 
         let finalSubregionId = body.subregionId;
-        if (user.role === 'regional_admin' || user.role === 'partner') {
+        if (role === 'regional_admin' || role === 'partner') {
             finalSubregionId = user.subregionIds?.[0]; // Default to first region for partners/regional admins
         }
 
@@ -147,13 +150,14 @@ export const updateSoftAsset = async (c) => {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
         const db = getDb(c.env);
+        const role = normalizeRole(user.role);
 
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
         const isOwner = existing.partnerId === user.id;
-        const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
+        const isSuper = role === 'super_admin';
+        const isRegional = role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
@@ -210,13 +214,14 @@ export const deleteSoftAsset = async (c) => {
         const id = parseInt(c.req.param('id'));
         const user = c.get('user');
         const db = getDb(c.env);
+        const role = normalizeRole(user.role);
 
         const [existing] = await db.select().from(softAssets).where(eq(softAssets.id, id));
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
         const isOwner = existing.partnerId === user.id;
-        const isSuper = user.role === 'super_admin' || user.role === 'admin';
-        const isRegional = user.role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
+        const isSuper = role === 'super_admin';
+        const isRegional = role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
 
         if (!isOwner && !isSuper && !isRegional) {
             return c.json({ error: "Insufficient permissions to delete this asset" }, 403);

@@ -1,7 +1,101 @@
 import { getDb } from '../db/index.js';
 import { users, userSubregions } from '../db/schema.js';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { ASSIGNABLE_ROLES, canManageRole, getCreatableRoles, normalizeRole } from '../utils/roles.js';
+
+function accessError(message, status = 403) {
+    const error = new Error(message);
+    error.status = status;
+    return error;
+}
+
+function parseSubregionIds(rawSubregionIds) {
+    const input = Array.isArray(rawSubregionIds)
+        ? rawSubregionIds
+        : [rawSubregionIds].filter(Boolean);
+
+    return [...new Set(
+        input
+            .flatMap((value) => typeof value === 'string' ? value.split(',') : [value])
+            .map((value) => Number.parseInt(String(value).trim(), 10))
+            .filter(Number.isInteger)
+    )];
+}
+
+function getScopedSubregionIds(user) {
+    return parseSubregionIds(user?.subregionIds || []);
+}
+
+function resolveRequestedRole(requestedRole, creatorRole) {
+    const allowedRoles = getCreatableRoles(creatorRole);
+    const normalizedRole = normalizeRole(requestedRole || allowedRoles[0]);
+
+    if (!ASSIGNABLE_ROLES.includes(normalizedRole)) {
+        throw accessError('Invalid role specified.', 400);
+    }
+
+    if (!allowedRoles.includes(normalizedRole)) {
+        const managerLabel = normalizeRole(creatorRole) === 'regional_admin' ? 'Regional admins' : 'Partners';
+        throw accessError(`${managerLabel} can only create ${allowedRoles[0] === 'partner' ? 'Partner' : 'User'} accounts.`);
+    }
+
+    return normalizedRole;
+}
+
+function resolveScopedSubregions(creator, requestedSubregionIds) {
+    const creatorRole = normalizeRole(creator.role);
+    const scopedSubregionIds = getScopedSubregionIds(creator);
+    const finalSubregionIds = parseSubregionIds(requestedSubregionIds);
+
+    if (creatorRole === 'super_admin') {
+        return finalSubregionIds;
+    }
+
+    const resolvedSubregionIds = finalSubregionIds.length > 0 ? finalSubregionIds : scopedSubregionIds;
+
+    if (resolvedSubregionIds.length === 0) {
+        throw accessError('Account missing required subregion scope.');
+    }
+
+    if (!resolvedSubregionIds.every((id) => scopedSubregionIds.includes(id))) {
+        throw accessError('You can only assign users to subregions within your scope.');
+    }
+
+    return resolvedSubregionIds;
+}
+
+function sharesScopedSubregion(creator, targetSubregionIds) {
+    const creatorScope = new Set(getScopedSubregionIds(creator));
+    return targetSubregionIds.some((id) => creatorScope.has(id));
+}
+
+function validateRoleScope(role, subregionIds) {
+    if (['regional_admin', 'partner'].includes(normalizeRole(role)) && subregionIds.length === 0) {
+        throw accessError('Regional Admin and Partner accounts require at least one subregion.', 400);
+    }
+}
+
+async function loadUserWithSubregions(db, id) {
+    const [userRow] = await db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        phone: users.phone,
+        createdAt: users.createdAt,
+    }).from(users).where(eq(users.id, id));
+
+    if (!userRow) return null;
+
+    const subregionRows = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
+    return {
+        ...userRow,
+        role: normalizeRole(userRow.role),
+        subregionIds: subregionRows.map((row) => row.subregionId),
+    };
+}
 
 export const createUser = async (c) => {
     try {
@@ -10,22 +104,14 @@ export const createUser = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
 
-        let finalSubregionIds = Array.isArray(subregionIds) ? subregionIds : [subregionIds].filter(Boolean);
-
-        if (creator.role === 'super_admin') {
-            // unrestricted
-        }
-        else if (creator.role === 'regional_admin') {
-            if (role !== 'partner') {
-                return c.json({ error: 'Regional admins can only create Partner roles.' }, 403);
-            }
-            if (!finalSubregionIds.every(id => creator.subregionIds?.includes(parseInt(id)))) {
-                return c.json({ error: 'Regional admins can only assign regions they manage.' }, 403);
-            }
-        }
-        else {
+        const creatorRole = normalizeRole(creator.role);
+        if (getCreatableRoles(creatorRole).length === 0) {
             return c.json({ error: 'Insufficient permissions to create users.' }, 403);
         }
+
+        const finalRole = resolveRequestedRole(role, creatorRole);
+        const finalSubregionIds = resolveScopedSubregions(creator, subregionIds);
+        validateRoleScope(finalRole, finalSubregionIds);
 
         const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
         if (existingEmail) return c.json({ error: 'Email already registered.' }, 409);
@@ -40,7 +126,7 @@ export const createUser = async (c) => {
             email,
             passwordHash,
             name,
-            role,
+            role: finalRole,
             phone
         }).returning({
             id: users.id,
@@ -52,16 +138,17 @@ export const createUser = async (c) => {
         });
 
         if (finalSubregionIds.length > 0) {
-            const values = finalSubregionIds.map(id => ({ userId: newUser.id, subregionId: parseInt(id) }));
+            const values = finalSubregionIds.map(id => ({ userId: newUser.id, subregionId: id }));
             await db.insert(userSubregions).values(values);
         }
 
-        newUser.subregionIds = finalSubregionIds.map(id => parseInt(id));
+        newUser.role = normalizeRole(newUser.role);
+        newUser.subregionIds = finalSubregionIds;
 
         return c.json(newUser, 201);
     } catch (err) {
         console.error('Create User Error:', err);
-        return c.json({ error: 'Failed to create user.' }, 500);
+        return c.json({ error: err.message || 'Failed to create user.' }, err.status || 500);
     }
 };
 
@@ -77,31 +164,23 @@ export const bulkCreateUsers = async (c) => {
             return c.json({ error: 'Invalid data format. Expected an array of rows.' }, 400);
         }
 
+        const creatorRole = normalizeRole(creator.role);
+        const creatableRoles = getCreatableRoles(creatorRole);
+        if (creatableRoles.length === 0) {
+            return c.json({ error: 'Insufficient permissions to create users.' }, 403);
+        }
+
         for (const row of rows) {
             try {
                 const { username, email, password, name, role, subregionIds: rawSubregionIds, phone } = row;
-
-                let subregionIds = [];
-                if (typeof rawSubregionIds === 'string') {
-                    subregionIds = rawSubregionIds.split(',').map(id => id.trim()).filter(Boolean);
-                } else if (Array.isArray(rawSubregionIds)) {
-                    subregionIds = rawSubregionIds;
-                }
+                let subregionIds = parseSubregionIds(rawSubregionIds);
 
                 if (!username) throw new Error('Username is required');
                 if (!email) throw new Error('Email is required');
 
-                if (creator.role === 'regional_admin') {
-                    if (role && role !== 'partner') {
-                        throw new Error(`Regional admins can only create partners. Skipping ${email}`);
-                    }
-                    if (subregionIds.length === 0) {
-                        subregionIds = creator.subregionIds || [];
-                    }
-                    if (!subregionIds.every(id => creator.subregionIds?.includes(parseInt(id)))) {
-                        throw new Error(`Subregion mismatch for ${email}. You can only create users in your own regions.`);
-                    }
-                }
+                const finalRole = resolveRequestedRole(role, creatorRole);
+                subregionIds = resolveScopedSubregions(creator, subregionIds);
+                validateRoleScope(finalRole, subregionIds);
 
                 const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
                 if (existingEmail) throw new Error(`${email} already registered`);
@@ -116,12 +195,12 @@ export const bulkCreateUsers = async (c) => {
                     email,
                     passwordHash,
                     name: name || username,
-                    role: role || (creator.role === 'regional_admin' ? 'partner' : 'standard'),
+                    role: finalRole,
                     phone
                 }).returning();
 
                 if (subregionIds && subregionIds.length > 0) {
-                    const values = subregionIds.map(id => ({ userId: newUser.id, subregionId: parseInt(id) }));
+                    const values = subregionIds.map(id => ({ userId: newUser.id, subregionId: id }));
                     await db.insert(userSubregions).values(values);
                 }
                 results.successful++;
@@ -142,6 +221,7 @@ export const getUsers = async (c) => {
     try {
         const creator = c.get('user');
         const db = getDb(c.env);
+        const creatorRole = normalizeRole(creator.role);
 
         let usersData = await db.query.users.findMany({
             columns: {
@@ -162,16 +242,16 @@ export const getUsers = async (c) => {
             }
         });
 
-        if (creator.role === 'regional_admin') {
-            usersData = usersData.filter(u =>
-                u.subregions.some(r => creator.subregionIds?.includes(r.subregionId))
-            );
-        } else if (creator.role === 'partner') {
-            usersData = usersData.filter(u => u.id === creator.id);
+        if (creatorRole !== 'super_admin') {
+            usersData = usersData.filter((u) => {
+                const targetRole = normalizeRole(u.role);
+                const targetSubregionIds = u.subregions.map((r) => r.subregionId);
+                return canManageRole(creatorRole, targetRole) && sharesScopedSubregion(creator, targetSubregionIds);
+            });
         }
 
         const rows = usersData.map(u => {
-            const row = { ...u, subregionIds: u.subregions.map(r => r.subregionId) };
+            const row = { ...u, role: normalizeRole(u.role), subregionIds: u.subregions.map(r => r.subregionId) };
             delete row.subregions;
             return row;
         });
@@ -218,22 +298,33 @@ export const updateProfile = async (c) => {
 export const updateUserRole = async (c) => {
     try {
         const creator = c.get('user');
-        if (creator.role !== 'super_admin') return c.json({ error: 'Only super_admin can update roles.' }, 403);
+        if (normalizeRole(creator.role) !== 'super_admin') return c.json({ error: 'Only super admins can update roles.' }, 403);
 
         const id = parseInt(c.req.param('id'));
         const body = await c.req.json();
         const { role, subregionIds } = body;
         const db = getDb(c.env);
+        const existingUser = await loadUserWithSubregions(db, id);
+
+        if (!existingUser) return c.json({ error: 'User not found.' }, 404);
+
+        if (role && !ASSIGNABLE_ROLES.includes(normalizeRole(role))) {
+            return c.json({ error: 'Invalid role specified.' }, 400);
+        }
+
+        const nextRole = normalizeRole(role || existingUser.role);
+        const nextSubregionIds = subregionIds !== undefined ? parseSubregionIds(subregionIds) : existingUser.subregionIds;
+        validateRoleScope(nextRole, nextSubregionIds);
 
         if (role) {
-            await db.update(users).set({ role }).where(eq(users.id, id));
+            await db.update(users).set({ role: normalizeRole(role) }).where(eq(users.id, id));
         }
 
         if (subregionIds !== undefined) {
             await db.delete(userSubregions).where(eq(userSubregions.userId, id));
-            const finalSubregionIds = Array.isArray(subregionIds) ? subregionIds : [subregionIds].filter(Boolean);
+            const finalSubregionIds = parseSubregionIds(subregionIds);
             if (finalSubregionIds.length > 0) {
-                const values = finalSubregionIds.map(subId => ({ userId: id, subregionId: parseInt(subId) }));
+                const values = finalSubregionIds.map(subId => ({ userId: id, subregionId: subId }));
                 await db.insert(userSubregions).values(values);
             }
         }
@@ -245,9 +336,8 @@ export const updateUserRole = async (c) => {
             role: users.role,
         }).from(users).where(eq(users.id, id));
 
-        if (!updated) return c.json({ error: 'User not found.' }, 404);
-
         const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
+        updated.role = normalizeRole(updated.role);
         updated.subregionIds = userSubs.map(s => s.subregionId);
 
         return c.json(updated);
@@ -262,13 +352,23 @@ export const deleteUser = async (c) => {
         const id = parseInt(c.req.param('id'));
         const creator = c.get('user');
         const db = getDb(c.env);
+        const creatorRole = normalizeRole(creator.role);
 
         if (id === creator.id) return c.json({ error: 'Cannot delete yourself.' }, 400);
 
-        if (creator.role === 'regional_admin') {
-            const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
-            const hasCommonRegion = userSubs.some(s => creator.subregionIds?.includes(s.subregionId));
-            if (!hasCommonRegion) return c.json({ error: 'Permission denied or user not found in your regions.' }, 403);
+        const targetUser = await loadUserWithSubregions(db, id);
+        if (!targetUser) {
+            return c.json({ error: 'User not found.' }, 404);
+        }
+
+        if (creatorRole !== 'super_admin') {
+            if (!canManageRole(creatorRole, targetUser.role)) {
+                return c.json({ error: 'You can only delete accounts directly below your role.' }, 403);
+            }
+
+            if (!sharesScopedSubregion(creator, targetUser.subregionIds)) {
+                return c.json({ error: 'Permission denied or user not found in your scope.' }, 403);
+            }
         }
 
         await db.delete(users).where(eq(users.id, id));

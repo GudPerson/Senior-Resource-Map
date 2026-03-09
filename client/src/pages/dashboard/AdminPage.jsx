@@ -5,13 +5,17 @@ import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload,
 import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
+import { canChangeUserRoles, canManageUser, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 
 export default function AdminPage() {
-    const [tab, setTab] = useState('resources');
+    const { user: currentUser } = useAuth();
+    const currentRole = normalizeRole(currentUser?.role);
+    const availableTabs = getAdminTabs(currentRole);
+    const defaultTab = availableTabs[0] || 'users';
+    const [tab, setTab] = useState(defaultTab);
     const [resources, setResources] = useState([]);
     const [users, setUsers] = useState([]);
-    const { user: currentUser } = useAuth();
     const [subCategories, setSubCategories] = useState([]);
     const [subregions, setSubregions] = useState([]);
     const [selectedResources, setSelectedResources] = useState([]);
@@ -30,6 +34,15 @@ export default function AdminPage() {
     const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
     const [importReport, setImportReport] = useState(null);
     const [importCopyNotice, setImportCopyNotice] = useState('');
+    const canEditUserRoles = canChangeUserRoles(currentRole);
+    const creatableRoles = getCreatableUserRoles(currentRole);
+    const superAdminRoleOptions = getCreatableUserRoles('super_admin');
+
+    useEffect(() => {
+        if (!availableTabs.includes(tab)) {
+            setTab(defaultTab);
+        }
+    }, [availableTabs, defaultTab, tab]);
 
     async function loadAll() {
         setLoading(true);
@@ -83,6 +96,16 @@ export default function AdminPage() {
         return `${assetType}:${resource.id}`;
     }
 
+    function canManageUserRecord(targetUser) {
+        if (!targetUser) return false;
+        if (targetUser.id === currentUser?.id) return false;
+        return canManageUser(currentRole, targetUser.role);
+    }
+
+    function getManageableUsers() {
+        return users.filter((candidate) => canManageUserRecord(candidate));
+    }
+
     async function handleDeleteResource(id, category) {
         if (!confirm('Delete this resource permanently?')) return;
         try {
@@ -98,6 +121,7 @@ export default function AdminPage() {
     }
 
     async function handleRoleChange(userId, newRole) {
+        if (!canEditUserRoles) return;
         try {
             await api.updateRole(userId, newRole);
             await loadAll();
@@ -107,6 +131,8 @@ export default function AdminPage() {
     }
 
     async function handleDeleteUser(id) {
+        const targetUser = users.find((candidate) => candidate.id === id);
+        if (!canManageUserRecord(targetUser)) return;
         if (!confirm('Delete this user and all their resources?')) return;
         try {
             await api.deleteUser(id);
@@ -153,16 +179,23 @@ export default function AdminPage() {
     }
 
     function toggleUserSelection(id) {
+        const targetUser = users.find((candidate) => candidate.id === id);
+        if (!canManageUserRecord(targetUser)) return;
         setSelectedUsers((prev) =>
             prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
         );
     }
 
     function toggleSelectAllUsers() {
-        if (selectedUsers.length === users.length) {
+        const manageableUserIds = getManageableUsers().map((candidate) => candidate.id);
+        if (manageableUserIds.length === 0) {
+            setSelectedUsers([]);
+            return;
+        }
+        if (selectedUsers.length === manageableUserIds.length && manageableUserIds.every((id) => selectedUsers.includes(id))) {
             setSelectedUsers([]);
         } else {
-            setSelectedUsers(users.map((user) => user.id));
+            setSelectedUsers(manageableUserIds);
         }
     }
 
@@ -328,7 +361,8 @@ export default function AdminPage() {
 
     function handleDownloadUserTemplate() {
         const headers = ['username', 'email', 'name', 'password', 'phone', 'role', 'subregionIds'];
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', 'partner', '1,2'];
+        const templateRole = creatableRoles[0] || 'standard';
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', templateRole, currentRole === 'super_admin' ? '1,2' : (currentUser?.subregionIds || []).join(',')];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
@@ -659,6 +693,10 @@ export default function AdminPage() {
         }
     }
 
+    const manageableUsers = getManageableUsers();
+    const manageableUserIds = manageableUsers.map((candidate) => candidate.id);
+    const allManageableUsersSelected = manageableUserIds.length > 0 && manageableUserIds.every((id) => selectedUsers.includes(id));
+
     return (
         <div className="p-6 lg:p-8">
             <div className="flex items-center gap-3 mb-6">
@@ -667,7 +705,13 @@ export default function AdminPage() {
                 </div>
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
-                    <p className="text-slate-500 text-sm">Global oversight of all resources and users</p>
+                    <p className="text-slate-500 text-sm">
+                        {currentRole === 'super_admin'
+                            ? 'Global oversight of all resources and users'
+                            : currentRole === 'regional_admin'
+                                ? 'Manage partners and resources within your region'
+                                : 'Manage user accounts within your organization'}
+                    </p>
                 </div>
             </div>
 
@@ -696,7 +740,7 @@ export default function AdminPage() {
                     { key: 'subregions', label: 'Subregions', Icon: MapPin },
                     { key: 'subcats', label: 'Categories', Icon: BookOpen },
                     { key: 'datatools', label: 'Data Tools', Icon: Database },
-                ].map(({ key, label, Icon }) => (
+                ].filter(({ key }) => availableTabs.includes(key)).map(({ key, label, Icon }) => (
                     <button
                         key={key}
                         id={`admin-tab-${key}`}
@@ -1095,7 +1139,11 @@ export default function AdminPage() {
                                 </button>
                             </div>
                             <p className="text-[10px] text-center text-slate-400 mt-3">
-                                Regional admins can only bulk-upload partners in their region.
+                                {currentRole === 'super_admin'
+                                    ? 'Super admins can bulk-upload any account tier.'
+                                    : currentRole === 'regional_admin'
+                                        ? 'Regional admins can bulk-upload partners in their region.'
+                                        : 'Partners can bulk-upload users in their scope.'}
                             </p>
                         </div>
                     </div>
@@ -1118,8 +1166,9 @@ export default function AdminPage() {
                                         <th className="px-4 py-3 w-10">
                                             <input
                                                 type="checkbox"
-                                                checked={users.length > 0 && selectedUsers.length === users.length}
+                                                checked={allManageableUsersSelected}
                                                 onChange={toggleSelectAllUsers}
+                                                disabled={manageableUserIds.length === 0}
                                                 className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                             />
                                         </th>
@@ -1136,6 +1185,7 @@ export default function AdminPage() {
                                                     type="checkbox"
                                                     checked={selectedUsers.includes(u.id)}
                                                     onChange={() => toggleUserSelection(u.id)}
+                                                    disabled={!canManageUserRecord(u)}
                                                     className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                                 />
                                             </td>
@@ -1146,36 +1196,41 @@ export default function AdminPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <div className="relative inline-block">
-                                                    <select
-                                                        id={`admin-role-${u.id}`}
-                                                        value={u.role}
-                                                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                                        className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors min-h-[36px] ${u.role === 'admin'
-                                                            ? 'bg-red-50 text-red-700 border-red-200'
-                                                            : u.role === 'user'
-                                                                ? 'bg-slate-50 text-slate-700 border-slate-200'
-                                                                : 'bg-brand-50 text-brand-700 border-brand-200'
-                                                            }`}
-                                                    >
-                                                        <option value="standard">Standard</option>
-                                                        <option value="partner">Partner</option>
-                                                        <option value="regional_admin">Regional Admin</option>
-                                                        <option value="super_admin">Super Admin</option>
-
-                                                    </select>
-                                                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
-                                                </div>
+                                                {canEditUserRoles && u.id !== currentUser?.id ? (
+                                                    <div className="relative inline-block">
+                                                        <select
+                                                            id={`admin-role-${u.id}`}
+                                                            value={normalizeRole(u.role)}
+                                                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                                            className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors min-h-[36px] ${getRoleMeta(u.role).controlClassName}`}
+                                                        >
+                                                            {superAdminRoleOptions.map((role) => (
+                                                                <option key={role} value={role}>
+                                                                    {getRoleMeta(role).label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+                                                    </div>
+                                                ) : (
+                                                    <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${getRoleMeta(u.role).controlClassName}`}>
+                                                        {getRoleMeta(u.role).label}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <button
-                                                    id={`admin-delete-user-${u.id}`}
-                                                    onClick={() => handleDeleteUser(u.id)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                    title="Delete user"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                {canManageUserRecord(u) ? (
+                                                    <button
+                                                        id={`admin-delete-user-${u.id}`}
+                                                        onClick={() => handleDeleteUser(u.id)}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                        title="Delete user"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-xs text-slate-300">—</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

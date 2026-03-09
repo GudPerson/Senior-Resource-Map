@@ -1,5 +1,6 @@
 import { verify } from 'hono/jwt';
 import { getCookie } from 'hono/cookie';
+import { normalizeRole } from '../utils/roles.js';
 
 const getSecret = (c) => c.env.JWT_SECRET || 'seniorcare-secret-key';
 
@@ -42,9 +43,10 @@ export function authorize(...allowedRoles) {
         const user = c.get('user');
         if (!user) return c.json({ error: 'Unauthorized' }, 401);
 
-        const { role, subregionId, subregionIds } = user;
+        const role = normalizeRole(user.role);
+        const { subregionId, subregionIds } = user;
 
-        if (!allowedRoles.includes(role)) {
+        if (!allowedRoles.map(normalizeRole).includes(role)) {
             return c.json({ error: 'Insufficient permissions' }, 403);
         }
 
@@ -67,7 +69,7 @@ export function authorize(...allowedRoles) {
 
 export async function isAdmin(c, next) {
     const user = c.get('user');
-    if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
+    if (!user || !['super_admin', 'regional_admin', 'partner'].includes(normalizeRole(user.role))) {
         return c.json({ error: 'Requires admin privileges' }, 403);
     }
     await next();

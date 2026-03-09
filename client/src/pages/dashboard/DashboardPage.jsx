@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { LayoutDashboard, BookOpen, User, Shield, LogOut, Activity, Map } from 'lucide-react';
+import { canAccessAdmin, getRoleMeta, isStandardUserRole } from '../../lib/roles.js';
 
 function SidebarLink({ to, icon: Icon, label, id }) {
     return (
@@ -23,6 +24,7 @@ function SidebarLink({ to, icon: Icon, label, id }) {
 export default function DashboardPage() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const roleMeta = getRoleMeta(user?.role);
 
     function handleLogout() { logout(); navigate('/'); }
 
@@ -38,9 +40,8 @@ export default function DashboardPage() {
                         </div>
                         <div className="min-w-0">
                             <p className="font-bold text-slate-900 text-sm truncate">{user?.name}</p>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${user?.role === 'super_admin' ? 'bg-red-100 text-red-700' : user?.role === 'regional_admin' ? 'bg-orange-100 text-orange-700' : user?.role === 'partner' ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-700'
-                                }`}>
-                                {user?.role === 'super_admin' ? '⚡ Super Admin' : user?.role === 'regional_admin' ? '🛡️ Reg. Admin' : user?.role === 'partner' ? '🤝 Partner' : '👤 User'}
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${roleMeta.pillClassName}`}>
+                                {roleMeta.shortLabel}
                             </span>
                         </div>
                     </div>
@@ -48,9 +49,9 @@ export default function DashboardPage() {
 
                 <SidebarLink to="/discover" icon={Map} label="Discovery Map" id="dash-discover" />
                 <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Overview" id="dash-overview" />
-                <SidebarLink to="/dashboard/resources" icon={BookOpen} label={user?.role === 'user' ? 'My Favorites' : 'My Resources'} id="dash-resources" />
+                <SidebarLink to="/dashboard/resources" icon={BookOpen} label={isStandardUserRole(user?.role) ? 'My Favorites' : 'My Resources'} id="dash-resources" />
                 <SidebarLink to="/dashboard/profile" icon={User} label="Profile" id="dash-profile" />
-                {['super_admin', 'regional_admin'].includes(user?.role) && (
+                {canAccessAdmin(user?.role) && (
                     <SidebarLink to="/dashboard/admin" icon={Shield} label="Admin" id="dash-admin" />
                 )}
 

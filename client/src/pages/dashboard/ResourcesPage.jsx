@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Plus, Pencil, Trash2, X, MapPin, Building2, CalendarDays, Clock, Search } from 'lucide-react';
 import AssetForm from '../../components/AssetForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
+import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
 
 const TagBadge = ({ tag, onClick }) => (
     <span
@@ -75,15 +76,20 @@ export default function ResourcesPage() {
                 api.getSoftAssets()
             ]);
 
-            if (user.role === 'user') {
+            if (isStandardUserRole(user.role)) {
                 const favs = await api.getFavorites();
                 const favHardIds = new Set(favs.filter(f => f.resourceType === 'hard').map(f => f.resourceId));
                 const favSoftIds = new Set(favs.filter(f => f.resourceType === 'soft').map(f => f.resourceId));
                 setHardAssets(hard.filter(r => favHardIds.has(r.id)));
                 setSoftAssets(soft.filter(r => favSoftIds.has(r.id)));
             } else {
-                setHardAssets(user.role === 'admin' ? hard : hard.filter(r => r.partnerId === user.id));
-                setSoftAssets(user.role === 'admin' ? soft : soft.filter(r => r.partnerId === user.id));
+                if (normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin') {
+                    setHardAssets(hard);
+                    setSoftAssets(soft);
+                } else {
+                    setHardAssets(hard.filter(r => r.partnerId === user.id));
+                    setSoftAssets(soft.filter(r => r.partnerId === user.id));
+                }
             }
         } catch (err) {
             console.error(err);
@@ -127,10 +133,10 @@ export default function ResourcesPage() {
         <div className="p-6 lg:p-8 max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{user.role === 'user' ? 'My Favorites' : 'My Assets'}</h1>
-                    <p className="text-slate-500 mt-0.5">{user.role === 'user' ? 'Your saved places and offerings.' : "Manage your organization's places and offerings."}</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{isStandardUserRole(user.role) ? 'My Favorites' : 'My Assets'}</h1>
+                    <p className="text-slate-500 mt-0.5">{isStandardUserRole(user.role) ? 'Your saved places and offerings.' : "Manage your organization's places and offerings."}</p>
                 </div>
-                {user.role !== 'user' && (
+                {!isStandardUserRole(user.role) && (
                     <div className="flex items-center gap-2">
                         <button onClick={() => openCreate('hard')} className="btn-primary bg-white text-slate-700 border-2 border-slate-200 hover:bg-slate-50 shadow-sm whitespace-nowrap">
                             <Plus size={16} /> New Place
@@ -180,9 +186,9 @@ export default function ResourcesPage() {
                         <Building2 size={40} className="mx-auto text-slate-300 mb-3" />
                         <p className="text-slate-600 text-lg font-medium">No places found</p>
                         <p className="text-slate-500 text-sm mt-1 mb-5">Try adjusting your search criteria.</p>
-                        {user.role !== 'user' && !searchTerm && <button onClick={() => openCreate('hard')} className="btn-primary bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-200 mx-auto"><Plus size={16} /> Add Place</button>}
+                        {!isStandardUserRole(user.role) && !searchTerm && <button onClick={() => openCreate('hard')} className="btn-primary bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-200 mx-auto"><Plus size={16} /> Add Place</button>}
                     </div>
-                ) : user.role === 'user' ? (
+                ) : isStandardUserRole(user.role) ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredHardAssets.map(r => (
                             <AssetCard
@@ -209,9 +215,9 @@ export default function ResourcesPage() {
                                     </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <p className="font-bold text-slate-900 text-lg truncate">{r.name}</p>
-                                        {user.role === 'admin' && r.partnerName && (
+                                <div className="flex items-center justify-between">
+                                    <p className="font-bold text-slate-900 text-lg truncate">{r.name}</p>
+                                        {(normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin') && r.partnerName && (
                                             <span className="text-xs text-slate-400">by {r.partnerName}</span>
                                         )}
                                     </div>
@@ -245,9 +251,9 @@ export default function ResourcesPage() {
                         <CalendarDays size={40} className="mx-auto text-slate-300 mb-3" />
                         <p className="text-slate-600 text-lg font-medium">No offerings found</p>
                         <p className="text-slate-500 text-sm mt-1 mb-5">Try adjusting your search criteria.</p>
-                        {user.role !== 'user' && !searchTerm && <button onClick={() => openCreate('soft')} className="btn-primary mx-auto"><Plus size={16} /> Add Offering</button>}
+                        {!isStandardUserRole(user.role) && !searchTerm && <button onClick={() => openCreate('soft')} className="btn-primary mx-auto"><Plus size={16} /> Add Offering</button>}
                     </div>
-                ) : user.role === 'user' ? (
+                ) : isStandardUserRole(user.role) ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredSoftAssets.map(r => (
                             <AssetCard

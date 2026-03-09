@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { getCreatableUserRoles, normalizeRole } from '../lib/roles.js';
 
 export default function AdminUserForm({ currentUser }) {
+    const currentRole = normalizeRole(currentUser?.role);
+    const creatableRoles = getCreatableUserRoles(currentRole);
+    const defaultRole = creatableRoles[0] || 'standard';
     const [formData, setFormData] = useState({
         username: '',
         name: '',
         email: '',
         password: '',
         phone: '',
-        role: currentUser?.role === 'regional_admin' ? 'partner' : 'standard',
+        role: defaultRole,
         subregionIds: currentUser?.subregionIds || []
     });
 
@@ -38,8 +42,9 @@ export default function AdminUserForm({ currentUser }) {
         loadSubregions();
     }, []);
 
-    const isRegionalAdmin = currentUser?.role === 'regional_admin';
-    const isSuperAdmin = currentUser?.role === 'super_admin';
+    const isRegionalAdmin = currentRole === 'regional_admin';
+    const isSuperAdmin = currentRole === 'super_admin';
+    const isPartner = currentRole === 'partner';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -47,9 +52,8 @@ export default function AdminUserForm({ currentUser }) {
         setMessage(null);
 
         try {
-            // Validation: regional_admin can only create partners
-            if (isRegionalAdmin && formData.role !== 'partner') {
-                throw new Error('Regional admins can only create Partner accounts.');
+            if (!creatableRoles.includes(formData.role)) {
+                throw new Error('You cannot create that role.');
             }
 
             await api.createUser(formData);
@@ -60,7 +64,7 @@ export default function AdminUserForm({ currentUser }) {
                 email: '',
                 password: '',
                 phone: '',
-                role: isRegionalAdmin ? 'partner' : 'standard',
+                role: defaultRole,
                 subregionIds: currentUser?.subregionIds || []
             });
         } catch (err) {
@@ -139,18 +143,21 @@ export default function AdminUserForm({ currentUser }) {
                     <label className="block text-sm font-medium opacity-70">Role</label>
                     <select
                         className="input-field w-full mt-1"
-                        disabled={isRegionalAdmin}
+                        disabled={!isSuperAdmin}
                         value={formData.role}
                         onChange={e => setFormData({ ...formData, role: e.target.value })}
                     >
-                        {isSuperAdmin && (
-                            <>
-                                <option value="super_admin">Super Admin</option>
-                                <option value="regional_admin">Regional Admin</option>
-                                <option value="standard">Standard User</option>
-                            </>
-                        )}
-                        <option value="partner">Partner (Asset Owner)</option>
+                        {creatableRoles.map((role) => (
+                            <option key={role} value={role}>
+                                {role === 'super_admin'
+                                    ? 'Super Admin'
+                                    : role === 'regional_admin'
+                                        ? 'Regional Admin'
+                                        : role === 'partner'
+                                            ? 'Partner (Asset Owner)'
+                                            : 'User'}
+                            </option>
+                        ))}
                     </select>
                 </div>
 
@@ -185,6 +192,12 @@ export default function AdminUserForm({ currentUser }) {
                             {(!currentUser?.subregionIds || currentUser.subregionIds.length === 0) && 'Assigned Regions'}
                         </div>
                     </div>
+                )}
+
+                {(isRegionalAdmin || isPartner) && (
+                    <p className="text-xs text-slate-500">
+                        {isRegionalAdmin ? 'Regional admins can create Partner accounts only.' : 'Partners can create User accounts only.'}
+                    </p>
                 )}
 
                 {message && (
