@@ -6,7 +6,12 @@ const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
     ? import.meta.env.VITE_API_URL.trim()
     : '';
 const BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api';
-const BASE_CANDIDATES = Array.from(new Set([BASE, '/api', '/.netlify/functions/api']));
+const DEFAULT_API_BASE = '/api';
+const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
+const resolvedBase = runtimeHost.endsWith('.pages.dev')
+    ? DEFAULT_API_BASE
+    : (BASE || DEFAULT_API_BASE);
+const BASE_CANDIDATES = Array.from(new Set([resolvedBase, DEFAULT_API_BASE]));
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);

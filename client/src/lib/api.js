@@ -5,11 +5,14 @@ const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
     : '';
 
 const BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api';
-
+const DEFAULT_API_BASE = '/api';
+const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
+const resolvedBase = runtimeHost.endsWith('.pages.dev')
+    ? DEFAULT_API_BASE
+    : (BASE || DEFAULT_API_BASE);
 const BASE_CANDIDATES = Array.from(new Set([
-    BASE,
-    '/api',
-    '/.netlify/functions/api',
+    resolvedBase,
+    DEFAULT_API_BASE,
 ]));
 
 function headers(extra = {}) {
@@ -22,6 +25,7 @@ function headers(extra = {}) {
 
 async function request(method, path, body) {
     const isImpersonating = Boolean(getImpersonationToken());
+    const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
         const base = BASE_CANDIDATES[i];
         const res = await fetch(`${base}${path}`, {
@@ -45,7 +49,7 @@ async function request(method, path, body) {
                 throw new Error(data.error);
             }
             // Retry on non-JSON responses to survive rewrite/base URL mismatches.
-            if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
+            if (!isJson && canRetryAcrossBases && i < BASE_CANDIDATES.length - 1) continue;
             if (!isJson) {
                 throw new Error('API route misconfigured: received HTML instead of JSON. Check VITE_API_URL and /api rewrites.');
             }
@@ -53,7 +57,7 @@ async function request(method, path, body) {
         }
 
         if (!isJson) {
-            if (i < BASE_CANDIDATES.length - 1) continue;
+            if (canRetryAcrossBases && i < BASE_CANDIDATES.length - 1) continue;
             throw new Error('API returned non-JSON response unexpectedly.');
         }
 
@@ -120,13 +124,13 @@ export const api = {
 
             if (!res.ok) {
                 if (isJson && data?.error) throw new Error(data.error);
-                if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
-                if (!isJson) throw new Error('Upload API misconfigured: received HTML instead of JSON.');
+                if (!isJson) {
+                    throw new Error('Upload API misconfigured: received HTML instead of JSON.');
+                }
                 throw new Error('Upload failed');
             }
 
             if (!isJson) {
-                if (i < BASE_CANDIDATES.length - 1) continue;
                 throw new Error('Upload API returned non-JSON response unexpectedly.');
             }
 
