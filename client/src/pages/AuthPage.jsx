@@ -182,28 +182,6 @@ export default function AuthPage({ isPartner = false }) {
                         <>Are you a Partner or Admin? <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">Log in here</Link></>
                     )}
                 </div>
-
-                {/* Demo credentials */}
-                <div className="mt-6 pt-5 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>Demo Accounts</p>
-                    <div className="grid grid-cols-3 gap-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
-                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>Admin</p>
-                            <p>Admin</p>
-                            <p>I9oki9ok</p>
-                        </div>
-                        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
-                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>Partner</p>
-                            <p>fitlife</p>
-                            <p>partner123</p>
-                        </div>
-                        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
-                            <p className="font-bold" style={{ color: 'var(--color-text)' }}>User</p>
-                            <p>user@example.com</p>
-                            <p>user123</p>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

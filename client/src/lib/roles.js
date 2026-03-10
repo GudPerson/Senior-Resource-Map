@@ -1,6 +1,16 @@
 const LEGACY_ROLE_MAP = {
     user: 'standard',
+    standard_user: 'standard',
+    standard: 'standard',
+    guest: 'guest',
     admin: 'regional_admin',
+    regional_admin: 'regional_admin',
+    regionaladmin: 'regional_admin',
+    super_admin: 'super_admin',
+    superadmin: 'super_admin',
+    partner: 'partner',
+    partner_asset_owner: 'partner',
+    asset_owner: 'partner',
 };
 
 const ROLE_META = {
@@ -38,7 +48,15 @@ const ROLE_META = {
 
 export function normalizeRole(role) {
     if (!role) return 'guest';
-    return LEGACY_ROLE_MAP[role] || role;
+    const normalized = String(role)
+        .trim()
+        .toLowerCase()
+        .replace(/[()]/g, ' ')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .replace(/_+/g, '_');
+
+    return LEGACY_ROLE_MAP[normalized] || normalized;
 }
 
 export function getRoleMeta(role) {

@@ -1,5 +1,5 @@
 import { getDb } from '../db/index.js';
-import { users, userSubregions } from '../db/schema.js';
+import { subregions, users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { ASSIGNABLE_ROLES, canManageRole, getCreatableRoles, normalizeRole } from '../utils/roles.js';
@@ -24,6 +24,64 @@ function parseSubregionIds(rawSubregionIds) {
             .map((value) => Number.parseInt(String(value).trim(), 10))
             .filter(Number.isInteger)
     )];
+}
+
+function parseSubregionReferences(rawSubregionIds) {
+    const input = Array.isArray(rawSubregionIds)
+        ? rawSubregionIds
+        : [rawSubregionIds].filter(Boolean);
+
+    return [...new Set(
+        input
+            .flatMap((value) => typeof value === 'string' ? value.split(',') : [value])
+            .map((value) => String(value).trim())
+            .filter(Boolean)
+    )];
+}
+
+async function resolveSubregionIds(db, rawSubregionIds) {
+    const references = parseSubregionReferences(rawSubregionIds);
+    if (references.length === 0) return [];
+
+    const numericIds = [];
+    const textRefs = [];
+
+    for (const reference of references) {
+        const numeric = Number.parseInt(reference, 10);
+        if (String(numeric) === reference && Number.isInteger(numeric)) {
+            numericIds.push(numeric);
+        } else {
+            textRefs.push(reference.toLowerCase());
+        }
+    }
+
+    if (textRefs.length === 0) {
+        return [...new Set(numericIds)];
+    }
+
+    const availableSubregions = await db.select({
+        id: subregions.id,
+        subregionCode: subregions.subregionCode,
+        name: subregions.name,
+    }).from(subregions);
+
+    const byCode = new Map();
+    const byName = new Map();
+    for (const item of availableSubregions) {
+        if (item.subregionCode) byCode.set(String(item.subregionCode).trim().toLowerCase(), item.id);
+        if (item.name) byName.set(String(item.name).trim().toLowerCase(), item.id);
+    }
+
+    const resolvedIds = [...numericIds];
+    for (const reference of textRefs) {
+        const resolved = byCode.get(reference) ?? byName.get(reference);
+        if (!resolved) {
+            throw accessError(`Unknown subregion reference: ${reference}`, 400);
+        }
+        resolvedIds.push(resolved);
+    }
+
+    return [...new Set(resolvedIds)];
 }
 
 function getScopedSubregionIds(user) {
@@ -128,7 +186,8 @@ export const createUser = async (c) => {
         }
 
         const finalRole = resolveRequestedRole(role, creatorRole);
-        const finalSubregionIds = resolveScopedSubregions(creator, subregionIds);
+        const requestedSubregionIds = await resolveSubregionIds(db, subregionIds);
+        const finalSubregionIds = resolveScopedSubregions(creator, requestedSubregionIds);
         const postalCode = normalizeOptionalPostalCode(body.postalCode);
         validateRoleScope(finalRole, finalSubregionIds);
 
@@ -195,7 +254,7 @@ export const bulkCreateUsers = async (c) => {
         for (const row of rows) {
             try {
                 const { username, email, password, name, role, subregionIds: rawSubregionIds, phone } = row;
-                let subregionIds = parseSubregionIds(rawSubregionIds);
+                let subregionIds = await resolveSubregionIds(db, rawSubregionIds ?? row.subregions ?? row.subregionCode);
                 const postalCode = normalizeOptionalPostalCode(row.postalCode ?? row['Postal Code']);
 
                 if (!username) throw new Error('Username is required');
@@ -358,7 +417,7 @@ export const updateUserRole = async (c) => {
 
         if (subregionIds !== undefined) {
             await db.delete(userSubregions).where(eq(userSubregions.userId, id));
-            const finalSubregionIds = parseSubregionIds(subregionIds);
+            const finalSubregionIds = await resolveSubregionIds(db, subregionIds);
             if (finalSubregionIds.length > 0) {
                 const values = finalSubregionIds.map(subId => ({ userId: id, subregionId: subId }));
                 await db.insert(userSubregions).values(values);

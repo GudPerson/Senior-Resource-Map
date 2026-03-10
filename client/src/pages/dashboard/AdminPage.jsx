@@ -444,7 +444,11 @@ export default function AdminPage() {
     function handleDownloadUserTemplate() {
         const headers = ['username', 'email', 'name', 'password', 'phone', 'postalCode', 'role', 'subregionIds'];
         const templateRole = creatableRoles[0] || 'standard';
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRole, currentRole === 'super_admin' ? '1,2' : (currentUser?.subregionIds || []).join(',')];
+        const templateRoleLabel = getRoleMeta(templateRole).label;
+        const demoSubregionRef = currentRole === 'super_admin'
+            ? 'SR-CLW1,SR-CLW2'
+            : (currentUser?.subregionIds || []).join(',');
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, demoSubregionRef];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
@@ -1463,6 +1467,8 @@ export default function AdminPage() {
                                     <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code></li>
                                     <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code></li>
                                     <li>• Scope: <code className="bg-slate-200 px-1 rounded">role</code>, <code className="bg-slate-200 px-1 rounded">subregionIds</code> (comma separated)</li>
+                                    <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Regional Admin</code>, <code className="bg-slate-200 px-1 rounded">Partner</code>, <code className="bg-slate-200 px-1 rounded">User</code></li>
+                                    <li>• Subregion refs can be DB IDs, codes, or names, for example <code className="bg-slate-200 px-1 rounded">SR-CLW1</code></li>
                                 </ul>
                             </div>
 
