@@ -1,4 +1,4 @@
-import { getSessionAuthHeaders } from './sessionAuth.js';
+import { getImpersonationToken, getSessionAuthHeaders } from './sessionAuth.js';
 
 const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
     ? import.meta.env.VITE_API_URL.trim()
@@ -21,6 +21,7 @@ function headers(extra = {}) {
 }
 
 async function request(method, path, body) {
+    const isImpersonating = Boolean(getImpersonationToken());
     for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
         const base = BASE_CANDIDATES[i];
         const res = await fetch(`${base}${path}`, {
@@ -34,7 +35,15 @@ async function request(method, path, body) {
         const data = isJson ? await res.json() : await res.text();
 
         if (!res.ok) {
-            if (isJson && data?.error) throw new Error(data.error);
+            if (isJson && data?.error) {
+                if (
+                    isImpersonating &&
+                    (data.error === 'Invalid token' || data.error === 'No token provided')
+                ) {
+                    throw new Error('User view session expired. Exit User View and reopen the account.');
+                }
+                throw new Error(data.error);
+            }
             // Retry on non-JSON responses to survive rewrite/base URL mismatches.
             if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
             if (!isJson) {

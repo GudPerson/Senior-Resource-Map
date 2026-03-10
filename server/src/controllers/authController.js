@@ -6,6 +6,8 @@ import { canManageRole, normalizeRole } from '../utils/roles.js';
 import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 
+const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
+
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
         ? rawSubregionIds
@@ -310,7 +312,7 @@ export const impersonate = async (c) => {
         }
 
         const token = await createSessionToken(targetUser, c, {
-            expiresInSeconds: 60 * 60,
+            expiresInSeconds: IMPERSONATION_SESSION_TTL_SECONDS,
             extraClaims: {
                 isImpersonating: true,
                 impersonatedBy: {

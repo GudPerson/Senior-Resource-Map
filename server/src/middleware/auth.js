@@ -1,8 +1,9 @@
 import { normalizeRole } from '../utils/roles.js';
-import { getRequestToken, verifySessionToken } from '../utils/sessionAuth.js';
+import { getRequestToken, SESSION_HEADER_NAME, verifySessionToken } from '../utils/sessionAuth.js';
 
 export async function authenticateToken(c, next) {
     const token = getRequestToken(c);
+    const hasSessionHeader = Boolean(c.req.header(SESSION_HEADER_NAME));
 
     if (!token) return c.json({ error: 'No token provided' }, 401);
 
@@ -11,6 +12,17 @@ export async function authenticateToken(c, next) {
         c.set('user', user);
         await next();
     } catch (err) {
+        const message = String(err?.message || '').toLowerCase();
+        const isExpired = message.includes('expired') || message.includes('exp');
+
+        if (hasSessionHeader) {
+            return c.json({
+                error: isExpired
+                    ? 'User view session expired. Exit User View and reopen the account.'
+                    : 'User view token is invalid. Exit User View and reopen the account.',
+            }, isExpired ? 401 : 403);
+        }
+
         return c.json({ error: 'Invalid token' }, 403);
     }
 }
