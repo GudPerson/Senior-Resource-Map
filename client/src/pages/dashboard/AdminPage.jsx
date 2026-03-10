@@ -5,7 +5,7 @@ import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload,
 import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
-import { canChangeUserRoles, canManageUser, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
+import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 
 export default function AdminPage() {
@@ -38,6 +38,9 @@ export default function AdminPage() {
     const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
     const [importReport, setImportReport] = useState(null);
     const [importCopyNotice, setImportCopyNotice] = useState('');
+    const [partnerBoundaryModalUser, setPartnerBoundaryModalUser] = useState(null);
+    const [partnerBoundaryData, setPartnerBoundaryData] = useState(null);
+    const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
     const canEditUserRoles = canChangeUserRoles(currentRole);
     const creatableRoles = getCreatableUserRoles(currentRole);
     const superAdminRoleOptions = getCreatableUserRoles('super_admin');
@@ -104,8 +107,7 @@ export default function AdminPage() {
 
     function canManageUserRecord(targetUser) {
         if (!targetUser) return false;
-        if (targetUser.id === currentUser?.id) return false;
-        return canManageUser(currentRole, targetUser.role);
+        return canManageUserRecordByOwnership(currentUser, targetUser);
     }
 
     function canOpenUserSpace(targetUser) {
@@ -176,6 +178,22 @@ export default function AdminPage() {
         }
     }
 
+    function getManagerOptionsForUser(targetUser) {
+        const requiredManagerRole = getRequiredManagerRole(targetUser?.role);
+        if (!requiredManagerRole) return [];
+        return users.filter((candidate) => normalizeRole(candidate.role) === requiredManagerRole);
+    }
+
+    async function handleManagerChange(userId, nextManagerId) {
+        try {
+            const payload = nextManagerId ? Number.parseInt(String(nextManagerId), 10) : null;
+            await api.updateUserManager(userId, payload);
+            await loadAll();
+        } catch (err) {
+            alert(err.message || 'Failed to update user ownership.');
+        }
+    }
+
     async function handleDeleteUser(id) {
         const targetUser = users.find((candidate) => candidate.id === id);
         if (!canManageUserRecord(targetUser)) return;
@@ -219,6 +237,66 @@ export default function AdminPage() {
                 details: []
             });
         }
+    }
+
+    async function openPartnerBoundaryManager(targetUser) {
+        if (!targetUser || normalizeRole(targetUser.role) !== 'partner') return;
+        setPartnerBoundaryFeedback('');
+        setPartnerBoundaryModalUser(targetUser);
+        try {
+            const data = await api.getPartnerBoundaries(targetUser.id);
+            setPartnerBoundaryData(data);
+        } catch (err) {
+            setPartnerBoundaryData(null);
+            setPartnerBoundaryFeedback(err.message || 'Failed to load partner boundary.');
+        }
+    }
+
+    function handleDownloadPartnerBoundaryTemplate() {
+        const csv = Papa.unparse({
+            fields: ['postalCode'],
+            data: [['680153'], ['680574'], ['681809']],
+        });
+        downloadFile(`\uFEFF${csv}`, 'partner_boundary_upload_template.csv', 'text/csv;charset=utf-8');
+    }
+
+    function handleExportPartnerBoundary() {
+        if (!partnerBoundaryData) return;
+        const csv = Papa.unparse({
+            fields: ['partnerUsername', 'postalCode'],
+            data: (partnerBoundaryData.postalCodes || []).map((postalCode) => [partnerBoundaryData.partnerUsername, postalCode]),
+        });
+        downloadFile(`\uFEFF${csv}`, `${partnerBoundaryData.partnerUsername || 'partner'}_boundary_export.csv`, 'text/csv;charset=utf-8');
+    }
+
+    function handlePartnerBoundaryUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file || !partnerBoundaryModalUser) return;
+
+        setLoading(true);
+        setPartnerBoundaryFeedback('');
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const rows = Array.isArray(results.data) ? results.data : [];
+                    const res = await api.bulkUploadPartnerBoundaries(partnerBoundaryModalUser.id, { rows });
+                    setPartnerBoundaryFeedback(`Boundary updated: ${res.assignedPostalCodes || 0} postal code(s) assigned.`);
+                    const refreshed = await api.getPartnerBoundaries(partnerBoundaryModalUser.id);
+                    setPartnerBoundaryData(refreshed);
+                } catch (err) {
+                    setPartnerBoundaryFeedback(err.message || 'Failed to update partner boundary.');
+                } finally {
+                    setLoading(false);
+                    e.target.value = null;
+                }
+            },
+            error: (err) => {
+                setPartnerBoundaryFeedback(`File parsing error: ${err.message}`);
+                setLoading(false);
+            }
+        });
     }
 
     async function handleAddSubCategory(e) {
@@ -442,13 +520,16 @@ export default function AdminPage() {
     }
 
     function handleDownloadUserTemplate() {
-        const headers = ['username', 'email', 'name', 'password', 'phone', 'postalCode', 'role', 'subregionIds'];
+        const headers = ['username', 'email', 'name', 'password', 'phone', 'postalCode', 'role', 'managerUsername', 'subregionIds'];
         const templateRole = creatableRoles[0] || 'standard';
         const templateRoleLabel = getRoleMeta(templateRole).label;
+        const managerHint = currentRole === 'super_admin'
+            ? (templateRole === 'regional_admin' ? currentUser?.username || '' : '')
+            : '';
         const demoSubregionRef = currentRole === 'super_admin'
-            ? 'SR-CLW1,SR-CLW2'
+            ? 'SR-CLW1'
             : (currentUser?.subregionIds || []).join(',');
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, demoSubregionRef];
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, managerHint, demoSubregionRef];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
@@ -1457,7 +1538,7 @@ export default function AdminPage() {
                 /* ======== Users Table ======== */
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                        <AdminUserForm currentUser={currentUser} />
+                        <AdminUserForm currentUser={currentUser} onCreated={loadAll} />
 
                         <div className="card p-6 border border-slate-200">
                             <div className="flex items-center gap-3 mb-4">
@@ -1473,9 +1554,11 @@ export default function AdminPage() {
                             <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">CSV Requirements</h3>
                                 <ul className="text-xs text-slate-600 space-y-1">
-                                    <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code></li>
-                                    <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code></li>
-                                    <li>• Scope: <code className="bg-slate-200 px-1 rounded">role</code>, <code className="bg-slate-200 px-1 rounded">subregionIds</code> (comma separated)</li>
+                                    <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code> for all non-super-admin rows</li>
+                                    <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
+                                    <li>• Role: <code className="bg-slate-200 px-1 rounded">role</code></li>
+                                    <li>• Manager: <code className="bg-slate-200 px-1 rounded">managerUsername</code> is required for super-admin creation of Partners and Users</li>
+                                    <li>• Legacy <code className="bg-slate-200 px-1 rounded">subregionIds</code> is optional and must match the postal-code-derived region if supplied</li>
                                     <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Regional Admin</code>, <code className="bg-slate-200 px-1 rounded">Partner</code>, <code className="bg-slate-200 px-1 rounded">User</code></li>
                                     <li>• Subregion refs can be DB IDs, codes, or names, for example <code className="bg-slate-200 px-1 rounded">SR-CLW1</code></li>
                                 </ul>
@@ -1563,6 +1646,9 @@ export default function AdminPage() {
                                         </th>
                                         <th className="px-4 py-3 font-semibold">User</th>
                                         <th className="px-4 py-3 font-semibold hidden md:table-cell">Postal Code</th>
+                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Derived Region</th>
+                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Managed By</th>
+                                        <th className="px-4 py-3 font-semibold hidden lg:table-cell">Ownership</th>
                                         {boundaryChecksEnabled ? (
                                             <th className="px-4 py-3 font-semibold hidden lg:table-cell">Boundary</th>
                                         ) : null}
@@ -1594,6 +1680,53 @@ export default function AdminPage() {
                                                 ) : (
                                                     <span className="text-sm text-slate-400">—</span>
                                                 )}
+                                            </td>
+                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                {u.derivedSubregionName ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-slate-700">{u.derivedSubregionName}</span>
+                                                        <span className="text-xs text-slate-400">{u.derivedSubregionCode || 'No code'}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-slate-400">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                {canEditUserRoles && getRequiredManagerRole(u.role) ? (
+                                                    <select
+                                                        value={u.managerUserId || ''}
+                                                        onChange={(e) => handleManagerChange(u.id, e.target.value)}
+                                                        className="input-field min-w-[220px] py-2 text-sm"
+                                                    >
+                                                        <option value="">Unassigned</option>
+                                                        {getManagerOptionsForUser(u).map((candidate) => (
+                                                            <option key={candidate.id} value={candidate.id}>
+                                                                {candidate.name} (@{candidate.username})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : u.managerName ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-slate-700">{u.managerName}</span>
+                                                        <span className="text-xs text-slate-400">@{u.managerUsername}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-slate-400">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 hidden lg:table-cell">
+                                                <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${u.ownershipStatus === 'assigned'
+                                                    ? 'border-green-200 bg-green-50 text-green-700'
+                                                    : u.ownershipStatus === 'invalid'
+                                                        ? 'border-red-200 bg-red-50 text-red-700'
+                                                        : 'border-amber-200 bg-amber-50 text-amber-700'
+                                                    }`}>
+                                                    {u.ownershipStatus === 'assigned'
+                                                        ? 'Assigned'
+                                                        : u.ownershipStatus === 'invalid'
+                                                            ? 'Invalid'
+                                                            : 'Unassigned'}
+                                                </span>
                                             </td>
                                             {boundaryChecksEnabled ? (
                                                 <td className="px-4 py-3 hidden lg:table-cell">
@@ -1636,6 +1769,16 @@ export default function AdminPage() {
                                                                 title="Open user space"
                                                             >
                                                                 <LogIn size={16} />
+                                                            </button>
+                                                        ) : null}
+                                                        {(normalizeRole(u.role) === 'partner' && (currentRole === 'super_admin' || currentRole === 'regional_admin')) ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openPartnerBoundaryManager(u)}
+                                                                className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                title="Manage partner boundary"
+                                                            >
+                                                                <MapPin size={16} />
                                                             </button>
                                                         ) : null}
                                                         <button
@@ -1789,6 +1932,69 @@ export default function AdminPage() {
                 </div>
             )
             }
+
+            {partnerBoundaryModalUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">Partner Boundary</h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {partnerBoundaryModalUser.name} (@{partnerBoundaryModalUser.username})
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPartnerBoundaryModalUser(null);
+                                    setPartnerBoundaryData(null);
+                                    setPartnerBoundaryFeedback('');
+                                }}
+                                className="btn-ghost py-1.5 text-xs"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-sm text-slate-600">
+                                Upload the exact postcode set used to target partner-boundary offerings for this partner&apos;s managed members.
+                            </p>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Current boundary: <span className="font-semibold text-slate-700">{partnerBoundaryData?.postalCodeCount || 0}</span> postcode(s)
+                            </p>
+                            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                                <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2">
+                                    <input type="file" accept=".csv" className="hidden" onChange={handlePartnerBoundaryUpload} />
+                                    <Upload size={16} /> Upload Boundary CSV
+                                </label>
+                                <button type="button" onClick={handleDownloadPartnerBoundaryTemplate} className="btn-ghost flex items-center justify-center gap-2">
+                                    <Download size={16} /> Template
+                                </button>
+                                <button type="button" onClick={handleExportPartnerBoundary} className="btn-ghost flex items-center justify-center gap-2" disabled={!partnerBoundaryData}>
+                                    <Download size={16} /> Export
+                                </button>
+                            </div>
+                            {partnerBoundaryFeedback ? (
+                                <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                                    {partnerBoundaryFeedback}
+                                </div>
+                            ) : null}
+                            {partnerBoundaryData?.postalCodes?.length ? (
+                                <div className="mt-4 flex flex-wrap gap-2 max-h-56 overflow-y-auto">
+                                    {partnerBoundaryData.postalCodes.map((postalCode) => (
+                                        <span key={postalCode} className="inline-flex rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
+                                            {postalCode}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-4 text-sm text-slate-500">No partner boundary uploaded yet.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {pendingBulkDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">

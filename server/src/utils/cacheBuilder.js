@@ -20,6 +20,7 @@ export const rebuildMapCache = async (subregionId, envVars) => {
                 SELECT id, name as title, sub_category as category, lat, lng, 'hard' as asset_type 
                 FROM hard_assets 
                 WHERE is_deleted = false
+                  AND is_hidden = false
                   AND lat IS NOT NULL
                   AND lng IS NOT NULL
                 UNION ALL
@@ -28,7 +29,11 @@ export const rebuildMapCache = async (subregionId, envVars) => {
                 INNER JOIN soft_asset_locations sl ON s.id = sl.soft_asset_id
                 INNER JOIN hard_assets l ON sl.hard_asset_id = l.id
                 WHERE s.is_deleted = false
+                  AND s.is_hidden = false
+                  AND s.is_member_only = false
+                  AND s.audience_mode = 'public'
                   AND l.is_deleted = false
+                  AND l.is_hidden = false
                   AND l.lat IS NOT NULL
                   AND l.lng IS NOT NULL
             `
@@ -37,6 +42,7 @@ export const rebuildMapCache = async (subregionId, envVars) => {
                 FROM hard_assets 
                 WHERE subregion_id = ${subregionId} 
                   AND is_deleted = false
+                  AND is_hidden = false
                   AND lat IS NOT NULL
                   AND lng IS NOT NULL
                 UNION ALL
@@ -46,7 +52,11 @@ export const rebuildMapCache = async (subregionId, envVars) => {
                 INNER JOIN hard_assets l ON sl.hard_asset_id = l.id
                 WHERE s.subregion_id = ${subregionId} 
                   AND s.is_deleted = false
+                  AND s.is_hidden = false
+                  AND s.is_member_only = false
+                  AND s.audience_mode = 'public'
                   AND l.is_deleted = false
+                  AND l.is_hidden = false
                   AND l.lat IS NOT NULL
                   AND l.lng IS NOT NULL
             `;

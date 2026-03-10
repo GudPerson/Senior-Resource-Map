@@ -27,6 +27,7 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   role: roleEnum('role').notNull().default('standard'),
+  managerUserId: integer('manager_user_id').references(() => users.id, { onDelete: 'set null' }),
   phone: varchar('phone', { length: 50 }),
   postalCode: varchar('postal_code', { length: 20 }).notNull().default(''),
   createdAt: timestamp('created_at').defaultNow(),
@@ -35,7 +36,8 @@ export const users = pgTable('users', {
 
 export const hardAssets = pgTable('hard_assets', {
   id: serial('id').primaryKey(),
-  partnerId: integer('partner_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
   subCategory: varchar('sub_category', { length: 50 }).notNull().default('Active Ageing Centres'),
@@ -59,7 +61,8 @@ export const hardAssets = pgTable('hard_assets', {
 
 export const softAssets = pgTable('soft_assets', {
   id: serial('id').primaryKey(),
-  partnerId: integer('partner_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
   subCategory: varchar('sub_category', { length: 50 }).notNull().default('Programmes'),
@@ -68,6 +71,7 @@ export const softAssets = pgTable('soft_assets', {
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
   galleryUrls: jsonb('gallery_urls').default('[]'),
+  audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
@@ -117,6 +121,14 @@ export const userSubregions = pgTable('user_subregions', {
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
 });
 
+export const partnerPostalCodes = pgTable('partner_postal_codes', {
+  partnerUserId: integer('partner_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  postalCode: varchar('postal_code', { length: 20 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.partnerUserId, table.postalCode] }),
+}));
+
 // Drizzle ORM Relations Hook-ups
 export const userSubregionsRelations = relations(userSubregions, ({ one }) => ({
   user: one(users, {
@@ -141,16 +153,27 @@ export const subregionPostalCodesRelations = relations(subregionPostalCodes, ({ 
   }),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
+  manager: one(users, {
+    fields: [users.managerUserId],
+    references: [users.id],
+    relationName: 'user_manager',
+  }),
+  managedUsers: many(users, { relationName: 'user_manager' }),
   hardAssets: many(hardAssets),
   softAssets: many(softAssets),
   favorites: many(userFavorites),
   subregions: many(userSubregions),
+  partnerPostalCodes: many(partnerPostalCodes),
 }));
 
 export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({
   partner: one(users, {
     fields: [hardAssets.partnerId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [hardAssets.createdByUserId],
     references: [users.id],
   }),
   softAssets: many(softAssetLocations), // Many-to-Many through softAssetLocations
@@ -162,8 +185,19 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
     fields: [softAssets.partnerId],
     references: [users.id],
   }),
+  creator: one(users, {
+    fields: [softAssets.createdByUserId],
+    references: [users.id],
+  }),
   locations: many(softAssetLocations), // Many-to-Many through softAssetLocations
   tags: many(softAssetTags),    // M:N through soft_asset_tags
+}));
+
+export const partnerPostalCodesRelations = relations(partnerPostalCodes, ({ one }) => ({
+  partner: one(users, {
+    fields: [partnerPostalCodes.partnerUserId],
+    references: [users.id],
+  }),
 }));
 
 export const tagsRelations = relations(tags, ({ many }) => ({

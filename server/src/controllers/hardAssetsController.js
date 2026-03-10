@@ -1,11 +1,13 @@
+import { desc, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
-import { hardAssets } from '../db/schema.js';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { hardAssets, users } from '../db/schema.js';
+import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
+import { normalizeRole } from '../utils/roles.js';
+import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
-import { normalizeRole } from '../utils/roles.js';
-import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
@@ -15,6 +17,12 @@ const COUNTRY_NAMES = {
     SG: 'Singapore', MY: 'Malaysia', IN: 'India', PH: 'Philippines',
     JP: 'Japan', DE: 'Germany', FR: 'France',
 };
+
+function clientError(message, status = 400) {
+    const err = new Error(message);
+    err.status = status;
+    return err;
+}
 
 async function geocode(postalCode, country) {
     const headers = { 'User-Agent': 'SeniorCareConnect/1.0' };
@@ -34,6 +42,91 @@ async function geocode(postalCode, country) {
     return null;
 }
 
+async function loadPartnerUser(db, partnerId) {
+    if (!Number.isInteger(partnerId)) return null;
+
+    const partner = await db.query.users.findFirst({
+        where: eq(users.id, partnerId),
+        columns: {
+            id: true,
+            name: true,
+            username: true,
+            role: true,
+            managerUserId: true,
+        },
+        with: {
+            subregions: {
+                columns: {
+                    subregionId: true,
+                },
+            },
+        },
+    });
+
+    if (!partner) return null;
+    return {
+        ...partner,
+        role: normalizeRole(partner.role),
+        subregionIds: partner.subregions.map((item) => item.subregionId),
+    };
+}
+
+function normalizeOwnershipMode(actorRole, body) {
+    if (actorRole === 'partner') return 'partner';
+    if (body.ownershipMode === 'partner' || body.partnerId) return 'partner';
+    return 'system';
+}
+
+function ensureActorCanCreateInSubregion(actor, subregionId) {
+    const role = normalizeRole(actor.role);
+    if (role === 'super_admin') return;
+    if (!Array.isArray(actor.subregionIds) || !actor.subregionIds.includes(subregionId)) {
+        throw clientError('Derived subregion is outside your allowed scope.', 403);
+    }
+}
+
+async function resolveAssetOwner(db, actor, body, subregionId) {
+    const actorRole = normalizeRole(actor.role);
+    const ownershipMode = normalizeOwnershipMode(actorRole, body);
+
+    if (actorRole === 'partner') {
+        return { ownershipMode: 'partner', owner: actor };
+    }
+
+    if (ownershipMode === 'system') {
+        return { ownershipMode: 'system', owner: null };
+    }
+
+    const partnerId = Number.parseInt(String(body.partnerId ?? ''), 10);
+    if (!Number.isInteger(partnerId)) {
+        throw clientError('A partner owner is required for partner-owned assets.', 400);
+    }
+
+    const owner = await loadPartnerUser(db, partnerId);
+    if (!owner || normalizeRole(owner.role) !== 'partner') {
+        throw clientError('Selected partner owner was not found.', 404);
+    }
+
+    if (!canAssignPartnerOwner(actor, owner, subregionId)) {
+        throw clientError('Selected partner owner is outside your allowed scope.', 403);
+    }
+
+    return { ownershipMode: 'partner', owner };
+}
+
+function formatHardAsset(asset, boundaryContext) {
+    return {
+        ...asset,
+        partnerName: asset.partner?.name || null,
+        partnerRole: asset.partner?.role ? normalizeRole(asset.partner.role) : null,
+        ownershipMode: asset.partnerId ? 'partner' : 'system',
+        creatorName: asset.creator?.name || null,
+        tags: asset.tags.map((t) => t.tag.name),
+        softAssets: asset.softAssets.map((sa) => sa.softAsset),
+        boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
+    };
+}
+
 export const getHardAssets = async (c) => {
     try {
         const user = c.get('user');
@@ -43,12 +136,13 @@ export const getHardAssets = async (c) => {
 
         const options = {
             with: {
-                partner: { columns: { name: true } },
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                creator: { columns: { id: true, name: true } },
                 tags: { with: { tag: true } },
                 softAssets: {
                     with: {
-                        softAsset: true
-                    }
+                        softAsset: true,
+                    },
                 },
             },
             orderBy: [desc(hardAssets.updatedAt)],
@@ -63,209 +157,228 @@ export const getHardAssets = async (c) => {
         const assets = await db.query.hardAssets.findMany(options);
 
         const formatted = assets
-            .filter(a => isAssetVisible(a, user))
-            .map(a => ({
-                ...a,
-                partnerName: a.partner?.name,
-                tags: a.tags.map(t => t.tag.name),
-                softAssets: a.softAssets.map(sa => sa.softAsset).filter(sa => isAssetVisible(sa, user)),
-                boundaryStatus: resolvePostalBoundaryStatus(a.postalCode, boundaryContext),
-            }));
+            .filter((asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }))
+            .map((asset) => formatHardAsset(asset, boundaryContext));
 
         return c.json(formatted);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to fetch hard assets' }, 500);
+        return c.json({ error: err.message || 'Failed to fetch hard assets' }, err.status || 500);
     }
 };
 
 export const getHardAssetById = async (c) => {
     try {
-        const id = parseInt(c.req.param('id'));
+        const id = Number.parseInt(c.req.param('id'), 10);
         const user = c.get('user');
-        const subregionScope = c.get('subregionScope');
         const db = getDb(c.env);
 
         const asset = await db.query.hardAssets.findFirst({
             where: eq(hardAssets.id, id),
             with: {
-                partner: { columns: { name: true } },
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                creator: { columns: { id: true, name: true } },
                 tags: { with: { tag: true } },
                 softAssets: {
                     with: {
                         softAsset: {
                             with: {
-                                tags: { with: { tag: true } }
-                            }
-                        }
-                    }
+                                tags: { with: { tag: true } },
+                            },
+                        },
+                    },
                 },
-            }
+            },
         });
 
-        if (!asset) return c.json({ error: 'Not found' }, 404);
-        if (!isAssetVisible(asset, user)) return c.json({ error: 'Not found' }, 404);
-
-        if (subregionScope && asset.subregionId !== subregionScope) {
-            return c.json({ error: 'Asset belongs to another subregion' }, 403);
+        if (!asset || !isAssetVisible(asset, user, { ownerPartner: asset.partner })) {
+            return c.json({ error: 'Not found' }, 404);
         }
 
         const formatted = {
-            ...asset,
-            partnerName: asset.partner?.name,
-            tags: asset.tags.map(t => t.tag.name),
-            softAssets: asset.softAssets
-                .map(sa => ({
-                    ...sa.softAsset,
-                    tags: sa.softAsset.tags.map(t => t.tag.name)
-                }))
-                .filter(sa => isAssetVisible(sa, user))
+            ...formatHardAsset(asset, await loadScopedBoundaryContext(db, user)),
+            softAssets: asset.softAssets.map((sa) => ({
+                ...sa.softAsset,
+                tags: sa.softAsset.tags.map((t) => t.tag.name),
+            })),
         };
 
         return c.json(formatted);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to fetch hard asset' }, 500);
+        return c.json({ error: err.message || 'Failed to fetch hard asset' }, err.status || 500);
     }
 };
 
 export const createHardAsset = async (c) => {
     try {
         const user = c.get('user');
+        const role = normalizeRole(user.role);
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
 
-        if (user.role === 'standard' || user.role === 'guest') {
+        if (role === 'standard' || role === 'guest') {
             return c.json({ error: 'Insufficient permissions to create resources' }, 403);
         }
 
         const body = await c.req.json();
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil, subregionId } = body;
+        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil } = body;
 
         if (!name || !country || !postalCode || !address) {
             return c.json({ error: 'name, country, postalCode, address are required' }, 400);
         }
 
-        let finalSubregionId = subregionId;
-        if (user.role === 'regional_admin' || user.role === 'partner') {
-            finalSubregionId = user.subregionIds?.[0];
-        }
+        const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+        ensureActorCanCreateInSubregion(user, derivedSubregion.id);
 
+        const { owner } = await resolveAssetOwner(db, user, body, derivedSubregion.id);
         const coords = await geocode(postalCode, country);
         if (!coords) {
             return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
         }
 
         const [asset] = await db.insert(hardAssets).values({
-            partnerId: user.id,
-            subregionId: finalSubregionId ? parseInt(finalSubregionId) : null,
-            name, country, postalCode, subCategory: subCategory || 'Places',
-            lat: coords.lat.toString(), lng: coords.lng.toString(),
-            address, phone: phone || null, hours: hours || null, description: description || null,
-            logoUrl: logoUrl || null, bannerUrl: bannerUrl || null, galleryUrls: galleryUrls || [],
+            partnerId: owner?.id || null,
+            createdByUserId: user.id,
+            subregionId: derivedSubregion.id,
+            name,
+            country,
+            postalCode,
+            subCategory: subCategory || 'Places',
+            lat: coords.lat.toString(),
+            lng: coords.lng.toString(),
+            address,
+            phone: phone || null,
+            hours: hours || null,
+            description: description || null,
+            logoUrl: logoUrl || null,
+            bannerUrl: bannerUrl || null,
+            galleryUrls: galleryUrls || [],
             isHidden: isHidden || false,
             hideFrom: hideFrom ? new Date(hideFrom) : null,
-            hideUntil: hideUntil ? new Date(hideUntil) : null
+            hideUntil: hideUntil ? new Date(hideUntil) : null,
         }).returning();
 
         try {
             await syncAssetTags(db, asset.id, 'hard', newTags);
         } catch (syncError) {
-            // Best-effort cleanup because neon-http does not support transactions.
             await db.delete(hardAssets).where(eq(hardAssets.id, asset.id));
             throw syncError;
         }
 
-        await rebuildMapCache(getCacheRegionId(body.subregionId, finalSubregionId, user.subregionId, user.subregionIds?.[0]), c.env);
+        await rebuildMapCache(getCacheRegionId(derivedSubregion.id), c.env);
         return c.json(asset, 201);
     } catch (err) {
         console.error(err);
-        return c.json({ error: err.message || 'Failed to create hard asset' }, 500);
+        return c.json({ error: err.message || 'Failed to create hard asset' }, err.status || 500);
     }
 };
 
 export const updateHardAsset = async (c) => {
     try {
-        const id = parseInt(c.req.param('id'));
+        const id = Number.parseInt(c.req.param('id'), 10);
         const user = c.get('user');
-        const db = getDb(c.env);
         const role = normalizeRole(user.role);
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db);
 
-        const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
+        const existing = await db.query.hardAssets.findFirst({
+            where: eq(hardAssets.id, id),
+            with: {
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+            },
+        });
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
 
-        const isOwner = existing.partnerId === user.id;
-        const isSuper = role === 'super_admin';
-        const isRegional = role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
-
-        if (!isOwner && !isSuper && !isRegional) {
-            return c.json({ error: "Insufficient permissions to edit this asset" }, 403);
+        if (!actorCanManageAsset(user, existing, existing.partner)) {
+            return c.json({ error: 'Insufficient permissions to edit this asset' }, 403);
         }
 
         const body = await c.req.json();
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags, subCategory, isHidden, hideFrom, hideUntil, subregionId } = body;
+        const nextPostalCode = body.postalCode ?? existing.postalCode;
+        const nextCountry = body.country ?? existing.country;
+        const derivedSubregion = await resolveSingleSubregionByPostal(db, nextPostalCode, 'Postal code');
+        ensureActorCanCreateInSubregion(user, derivedSubregion.id);
+
+        let owner = existing.partner || null;
+        if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
+            if (role === 'partner') {
+                return c.json({ error: 'Partners cannot transfer asset ownership.' }, 403);
+            }
+            const resolved = await resolveAssetOwner(db, user, body, derivedSubregion.id);
+            owner = resolved.owner;
+        }
 
         let lat = existing.lat;
         let lng = existing.lng;
-        if (postalCode && country && (postalCode !== existing.postalCode || country !== existing.country)) {
-            const coords = await geocode(postalCode, country);
+        if (nextPostalCode !== existing.postalCode || nextCountry !== existing.country) {
+            const coords = await geocode(nextPostalCode, nextCountry);
             if (!coords) {
-                return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
+                return c.json({ error: `Could not find location for postal code "${nextPostalCode}" in "${nextCountry}".` }, 400);
             }
             lat = coords.lat.toString();
             lng = coords.lng.toString();
         }
 
         await db.update(hardAssets).set({
-            name, country, postalCode, lat, lng, address,
-            subCategory: subCategory !== undefined ? subCategory : existing.subCategory,
-            subregionId: (isSuper && subregionId !== undefined) ? subregionId : existing.subregionId,
-            phone: phone || null, hours: hours || null, description: description || null,
-            logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
-            bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
-            galleryUrls: galleryUrls !== undefined ? galleryUrls : existing.galleryUrls,
-            isHidden: isHidden !== undefined ? isHidden : existing.isHidden,
-            hideFrom: hideFrom !== undefined ? (hideFrom ? new Date(hideFrom) : null) : existing.hideFrom,
-            hideUntil: hideUntil !== undefined ? (hideUntil ? new Date(hideUntil) : null) : existing.hideUntil,
-            updatedAt: new Date()
+            partnerId: owner?.id || null,
+            subregionId: derivedSubregion.id,
+            name: body.name ?? existing.name,
+            country: nextCountry,
+            postalCode: nextPostalCode,
+            lat,
+            lng,
+            address: body.address ?? existing.address,
+            subCategory: body.subCategory ?? existing.subCategory,
+            phone: body.phone ?? null,
+            hours: body.hours ?? null,
+            description: body.description ?? null,
+            logoUrl: body.logoUrl !== undefined ? body.logoUrl : existing.logoUrl,
+            bannerUrl: body.bannerUrl !== undefined ? body.bannerUrl : existing.bannerUrl,
+            galleryUrls: body.galleryUrls !== undefined ? body.galleryUrls : existing.galleryUrls,
+            isHidden: body.isHidden !== undefined ? body.isHidden : existing.isHidden,
+            hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
+            hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
+            updatedAt: new Date(),
         }).where(eq(hardAssets.id, id));
 
-        if (newTags) {
-            await syncAssetTags(db, id, 'hard', newTags);
+        if (body.newTags) {
+            await syncAssetTags(db, id, 'hard', body.newTags);
         }
 
-        await rebuildMapCache(getCacheRegionId(body.subregionId, existing.subregionId, user.subregionId, user.subregionIds?.[0]), c.env);
+        await rebuildMapCache(getCacheRegionId(existing.subregionId, derivedSubregion.id), c.env);
         return c.json({ success: true, id });
     } catch (err) {
         console.error(err);
-        return c.json({ error: err.message || 'Failed to update hard asset' }, 500);
+        return c.json({ error: err.message || 'Failed to update hard asset' }, err.status || 500);
     }
 };
 
 export const deleteHardAsset = async (c) => {
     try {
-        const id = parseInt(c.req.param('id'));
+        const id = Number.parseInt(c.req.param('id'), 10);
         const user = c.get('user');
         const db = getDb(c.env);
-        const role = normalizeRole(user.role);
+        await ensureBoundarySchema(db);
 
-        const [existing] = await db.select().from(hardAssets).where(eq(hardAssets.id, id));
+        const existing = await db.query.hardAssets.findFirst({
+            where: eq(hardAssets.id, id),
+            with: {
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+            },
+        });
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
-
-        const isOwner = existing.partnerId === user.id;
-        const isSuper = role === 'super_admin';
-        const isRegional = role === 'regional_admin' && user.subregionIds?.includes(existing.subregionId);
-
-        if (!isOwner && !isSuper && !isRegional) {
-            return c.json({ error: "Insufficient permissions to delete this asset" }, 403);
+        if (!actorCanManageAsset(user, existing, existing.partner)) {
+            return c.json({ error: 'Insufficient permissions to delete this asset' }, 403);
         }
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
-        await rebuildMapCache(getCacheRegionId(existing.subregionId, user.subregionId, user.subregionIds?.[0]), c.env);
+        await rebuildMapCache(getCacheRegionId(existing.subregionId), c.env);
         return c.json({ success: true });
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to delete hard asset' }, 500);
+        return c.json({ error: err.message || 'Failed to delete hard asset' }, err.status || 500);
     }
 };

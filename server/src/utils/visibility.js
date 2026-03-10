@@ -1,17 +1,32 @@
 import { normalizeRole } from './roles.js';
 
-export function isAssetVisible(asset, user) {
+export function isAssetVisible(asset, user, options = {}) {
     if (asset.isDeleted) return false;
     const role = normalizeRole(user?.role);
+    const ownerPartner = options.ownerPartner || null;
+    const allowedPartnerAudienceIds = options.allowedPartnerAudienceIds instanceof Set
+        ? options.allowedPartnerAudienceIds
+        : new Set();
 
     // super_admin always sees everything
     if (role === 'super_admin') return true;
 
-    // regional_admin sees anything in their subregions
-    if (role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) return true;
+    const isPartnerBoundaryAsset = asset.audienceMode === 'partner_boundary';
 
-    // Partner (owner) always sees their own assets
+    if (role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) {
+        if (!isPartnerBoundaryAsset) return true;
+        return !asset.partnerId || ownerPartner?.managerUserId === user.id;
+    }
+
     if (user && user.id === asset.partnerId) return true;
+
+    if (isPartnerBoundaryAsset) {
+        if (!user || role === 'guest') return false;
+        if (role === 'standard') {
+            return user.managerUserId === asset.partnerId && allowedPartnerAudienceIds.has(asset.partnerId);
+        }
+        return false;
+    }
 
     // Member-only check
     if (asset.isMemberOnly && (!user || role === 'guest')) return false;

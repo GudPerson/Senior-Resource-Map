@@ -1,16 +1,23 @@
+import bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { subregions, users, userSubregions } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
-import { ASSIGNABLE_ROLES, canManageRole, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
+import { getOwnershipStatus, canDirectlyManageUser, canRoleOwnUser } from '../utils/ownership.js';
+import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
+import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
     error.status = status;
     return error;
+}
+
+function normalizeText(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim();
 }
 
 function parseSubregionIds(rawSubregionIds) {
@@ -84,8 +91,26 @@ async function resolveSubregionIds(db, rawSubregionIds) {
     return [...new Set(resolvedIds)];
 }
 
+function isDuplicateUserImportIssue(message) {
+    const normalized = String(message || '').toLowerCase();
+    return normalized.includes('already registered') || normalized.includes('already taken');
+}
+
 function getScopedSubregionIds(user) {
     return parseSubregionIds(user?.subregionIds || []);
+}
+
+function normalizeRequiredPostalCode(value) {
+    const normalized = normalizePostalCode(value);
+    if (!normalized) {
+        throw accessError('Postal code must be a valid 6-digit code.', 400);
+    }
+    return normalized;
+}
+
+function normalizeOptionalPostalCode(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return '';
+    return normalizeRequiredPostalCode(value);
 }
 
 function resolveRequestedRole(requestedRole, creatorRole) {
@@ -104,83 +129,223 @@ function resolveRequestedRole(requestedRole, creatorRole) {
     return normalizedRole;
 }
 
-function resolveScopedSubregions(creator, requestedSubregionIds) {
-    const creatorRole = normalizeRole(creator.role);
-    const scopedSubregionIds = getScopedSubregionIds(creator);
-    const finalSubregionIds = parseSubregionIds(requestedSubregionIds);
-
-    if (creatorRole === 'super_admin') {
-        return finalSubregionIds;
-    }
-
-    const resolvedSubregionIds = finalSubregionIds.length > 0 ? finalSubregionIds : scopedSubregionIds;
-
-    if (resolvedSubregionIds.length === 0) {
-        throw accessError('Account missing required subregion scope.');
-    }
-
-    if (!resolvedSubregionIds.every((id) => scopedSubregionIds.includes(id))) {
-        throw accessError('You can only assign users to subregions within your scope.');
-    }
-
-    return resolvedSubregionIds;
-}
-
-function sharesScopedSubregion(creator, targetSubregionIds) {
-    const creatorScope = new Set(getScopedSubregionIds(creator));
-    return targetSubregionIds.some((id) => creatorScope.has(id));
-}
-
-function validateRoleScope(role, subregionIds) {
-    if (['regional_admin', 'partner'].includes(normalizeRole(role)) && subregionIds.length === 0) {
-        throw accessError('Regional Admin and Partner accounts require at least one subregion.', 400);
-    }
-}
-
-function normalizeOptionalPostalCode(value) {
-    if (value === undefined || value === null || String(value).trim() === '') {
-        return '';
-    }
-
-    const postalCode = normalizePostalCode(value);
-    if (!postalCode) {
-        throw accessError('Postal code must be a valid 6-digit code.', 400);
-    }
-
-    return postalCode;
-}
-
-function isDuplicateUserImportIssue(message) {
-    const normalized = String(message || '').toLowerCase();
-    return normalized.includes('already registered') || normalized.includes('already taken');
-}
-
 async function loadUserWithSubregions(db, id) {
-    const [userRow] = await db.select({
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        name: users.name,
-        role: users.role,
-        phone: users.phone,
-        postalCode: users.postalCode,
-        createdAt: users.createdAt,
-    }).from(users).where(eq(users.id, id));
+    const userRow = await db.query.users.findFirst({
+        where: eq(users.id, id),
+        columns: {
+            id: true,
+            username: true,
+            email: true,
+            name: true,
+            role: true,
+            phone: true,
+            postalCode: true,
+            createdAt: true,
+            managerUserId: true,
+        },
+        with: {
+            manager: {
+                columns: {
+                    id: true,
+                    name: true,
+                    role: true,
+                    username: true,
+                },
+            },
+            subregions: {
+                columns: {
+                    subregionId: true,
+                },
+                with: {
+                    subregion: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            subregionCode: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
 
     if (!userRow) return null;
 
-    const subregionRows = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
     return {
-        ...userRow,
+        id: userRow.id,
+        username: userRow.username,
+        email: userRow.email,
+        name: userRow.name,
         role: normalizeRole(userRow.role),
-        subregionIds: subregionRows.map((row) => row.subregionId),
+        phone: userRow.phone,
+        postalCode: userRow.postalCode,
+        createdAt: userRow.createdAt,
+        managerUserId: userRow.managerUserId,
+        managerName: userRow.manager?.name || null,
+        managerRole: normalizeRole(userRow.manager?.role),
+        managerUsername: userRow.manager?.username || null,
+        subregionIds: userRow.subregions.map((item) => item.subregionId),
+        derivedSubregionId: userRow.subregions[0]?.subregion?.id || null,
+        derivedSubregionCode: userRow.subregions[0]?.subregion?.subregionCode || null,
+        derivedSubregionName: userRow.subregions[0]?.subregion?.name || null,
+    };
+}
+
+async function loadUserByReference(db, { userId, username }) {
+    const normalizedUsername = normalizeText(username);
+    if (Number.isInteger(userId)) {
+        return await loadUserWithSubregions(db, userId);
+    }
+
+    if (!normalizedUsername) return null;
+
+    const [row] = await db.select({ id: users.id }).from(users).where(eq(users.username, normalizedUsername));
+    if (!row) return null;
+    return await loadUserWithSubregions(db, row.id);
+}
+
+function ensureSubregionWithinManagerScope(managerUser, derivedSubregionId) {
+    if (!managerUser || !derivedSubregionId) return;
+    if (normalizeRole(managerUser.role) === 'super_admin') return;
+    if (!Array.isArray(managerUser.subregionIds) || !managerUser.subregionIds.includes(derivedSubregionId)) {
+        throw accessError('Derived subregion is outside the selected manager scope.', 400);
+    }
+}
+
+function ensureLegacySubregionInputMatches(legacySubregionIds, derivedSubregionId) {
+    if (legacySubregionIds.length === 0) return;
+    if (legacySubregionIds.length !== 1 || legacySubregionIds[0] !== derivedSubregionId) {
+        throw accessError('Provided subregionIds do not match the postal-code-derived subregion.', 400);
+    }
+}
+
+async function resolveManagerForCreate(db, creator, targetRole, body) {
+    const creatorRole = normalizeRole(creator.role);
+    const requestedManagerId = Number.parseInt(String(body.managerUserId ?? ''), 10);
+    const requestedManagerUsername = body.managerUsername;
+    const hasRequestedManagerId = Number.isInteger(requestedManagerId);
+    const hasRequestedManagerUsername = normalizeText(requestedManagerUsername).length > 0;
+
+    if (targetRole === 'super_admin') {
+        return null;
+    }
+
+    if (creatorRole === 'regional_admin') {
+        return creator;
+    }
+
+    if (creatorRole === 'partner') {
+        return creator;
+    }
+
+    if (creatorRole !== 'super_admin') {
+        return null;
+    }
+
+    if (targetRole === 'regional_admin') {
+        if (!hasRequestedManagerId && !hasRequestedManagerUsername) {
+            return creator;
+        }
+    } else if (!hasRequestedManagerId && !hasRequestedManagerUsername) {
+        throw accessError('managerUserId or managerUsername is required for this role.', 400);
+    }
+
+    const manager = await loadUserByReference(db, {
+        userId: hasRequestedManagerId ? requestedManagerId : undefined,
+        username: requestedManagerUsername,
+    });
+
+    if (!manager) {
+        throw accessError('Assigned manager was not found.', 404);
+    }
+
+    if (!canRoleOwnUser(manager.role, targetRole)) {
+        throw accessError('Assigned manager role is invalid for target role.', 400);
+    }
+
+    return manager;
+}
+
+function validateManagerForTarget(managerUser, targetRole, derivedSubregionId) {
+    const normalizedTargetRole = normalizeRole(targetRole);
+
+    if (normalizedTargetRole === 'super_admin') {
+        if (managerUser) {
+            throw accessError('Super Admin accounts cannot have a manager.', 400);
+        }
+        return;
+    }
+
+    if (normalizedTargetRole === 'regional_admin') {
+        if (!managerUser) return;
+        if (normalizeRole(managerUser.role) !== 'super_admin') {
+            throw accessError('Regional Admin accounts may only be assigned to a Super Admin.', 400);
+        }
+        return;
+    }
+
+    if (normalizedTargetRole === 'partner') {
+        if (!managerUser || normalizeRole(managerUser.role) !== 'regional_admin') {
+            throw accessError('Partner accounts must be assigned to a Regional Admin.', 400);
+        }
+        ensureSubregionWithinManagerScope(managerUser, derivedSubregionId);
+        return;
+    }
+
+    if (normalizedTargetRole === 'standard') {
+        if (!managerUser) return;
+        if (normalizeRole(managerUser.role) !== 'partner') {
+            throw accessError('User accounts may only be assigned to a Partner.', 400);
+        }
+        ensureSubregionWithinManagerScope(managerUser, derivedSubregionId);
+    }
+}
+
+async function validateAndResolveDerivedSubregion(db, targetRole, postalCode, legacySubregionIds = []) {
+    if (normalizeRole(targetRole) === 'super_admin') {
+        return null;
+    }
+
+    const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+    ensureLegacySubregionInputMatches(legacySubregionIds, derivedSubregion.id);
+    return derivedSubregion;
+}
+
+async function ensureUniqueUserIdentifiers(db, username, email) {
+    const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
+    if (existingEmail) throw accessError('Email already registered.', 409);
+
+    const [existingUser] = await db.select().from(users).where(eq(users.username, username));
+    if (existingUser) throw accessError('Username already taken.', 409);
+}
+
+function buildUserResponse(userRow, boundaryContext) {
+    return {
+        id: userRow.id,
+        username: userRow.username,
+        email: userRow.email,
+        name: userRow.name,
+        role: normalizeRole(userRow.role),
+        phone: userRow.phone,
+        postalCode: userRow.postalCode,
+        createdAt: userRow.createdAt,
+        managerUserId: userRow.managerUserId || null,
+        managerName: userRow.managerName || null,
+        managerRole: userRow.managerRole || null,
+        managerUsername: userRow.managerUsername || null,
+        subregionIds: userRow.subregionIds || [],
+        derivedSubregionId: userRow.derivedSubregionId || null,
+        derivedSubregionCode: userRow.derivedSubregionCode || null,
+        derivedSubregionName: userRow.derivedSubregionName || null,
+        ownershipStatus: getOwnershipStatus(userRow),
+        boundaryStatus: resolvePostalBoundaryStatus(userRow.postalCode, boundaryContext),
     };
 }
 
 export const createUser = async (c) => {
     try {
         const body = await c.req.json();
-        const { username, email, password, name, role, subregionIds = [], phone } = body;
+        const { username, email, password, name, role, phone } = body;
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
@@ -191,16 +356,16 @@ export const createUser = async (c) => {
         }
 
         const finalRole = resolveRequestedRole(role, creatorRole);
-        const requestedSubregionIds = await resolveSubregionIds(db, subregionIds);
-        const finalSubregionIds = resolveScopedSubregions(creator, requestedSubregionIds);
-        const postalCode = normalizeOptionalPostalCode(body.postalCode);
-        validateRoleScope(finalRole, finalSubregionIds);
+        const legacySubregionIds = await resolveSubregionIds(db, body.subregionIds);
+        const postalCode = normalizeRole(finalRole) === 'super_admin'
+            ? normalizeOptionalPostalCode(body.postalCode)
+            : normalizeRequiredPostalCode(body.postalCode);
 
-        const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
-        if (existingEmail) return c.json({ error: 'Email already registered.' }, 409);
+        const derivedSubregion = await validateAndResolveDerivedSubregion(db, finalRole, postalCode, legacySubregionIds);
+        const managerUser = await resolveManagerForCreate(db, creator, finalRole, body);
+        validateManagerForTarget(managerUser, finalRole, derivedSubregion?.id);
 
-        const [existingUser] = await db.select().from(users).where(eq(users.username, username));
-        if (existingUser) return c.json({ error: 'Username already taken.' }, 409);
+        await ensureUniqueUserIdentifiers(db, username, email);
 
         const passwordHash = await bcrypt.hash(password, 12);
 
@@ -210,27 +375,17 @@ export const createUser = async (c) => {
             passwordHash,
             name,
             role: finalRole,
-            phone,
-            postalCode
-        }).returning({
-            id: users.id,
-            username: users.username,
-            email: users.email,
-            name: users.name,
-            role: users.role,
-            phone: users.phone,
-            postalCode: users.postalCode,
-        });
+            managerUserId: managerUser?.id || null,
+            phone: phone || null,
+            postalCode,
+        }).returning({ id: users.id });
 
-        if (finalSubregionIds.length > 0) {
-            const values = finalSubregionIds.map(id => ({ userId: newUser.id, subregionId: id }));
-            await db.insert(userSubregions).values(values);
+        if (derivedSubregion) {
+            await syncUserDerivedSubregion(db, newUser.id, derivedSubregion.id);
         }
 
-        newUser.role = normalizeRole(newUser.role);
-        newUser.subregionIds = finalSubregionIds;
-
-        return c.json(newUser, 201);
+        const created = await loadUserWithSubregions(db, newUser.id);
+        return c.json(buildUserResponse(created, await loadScopedBoundaryContext(db, creator)), 201);
     } catch (err) {
         console.error('Create User Error:', err);
         return c.json({ error: err.message || 'Failed to create user.' }, err.status || 500);
@@ -244,6 +399,7 @@ export const bulkCreateUsers = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
+
         const results = {
             message: 'Bulk import processed',
             successful: 0,
@@ -265,47 +421,50 @@ export const bulkCreateUsers = async (c) => {
 
         for (const row of rows) {
             try {
-                const { username, email, password, name, role, subregionIds: rawSubregionIds, phone } = row;
-                let subregionIds = await resolveSubregionIds(db, rawSubregionIds ?? row.subregions ?? row.subregionCode);
-                const postalCode = normalizeOptionalPostalCode(row.postalCode ?? row['Postal Code']);
+                const username = normalizeText(row.username);
+                const email = normalizeText(row.email);
+                const finalRole = resolveRequestedRole(row.role, creatorRole);
+                const legacySubregionIds = await resolveSubregionIds(db, row.subregionIds ?? row.subregions ?? row.subregionCode);
+                const postalCode = normalizeRole(finalRole) === 'super_admin'
+                    ? normalizeOptionalPostalCode(row.postalCode ?? row['Postal Code'])
+                    : normalizeRequiredPostalCode(row.postalCode ?? row['Postal Code']);
 
-                if (!username) throw new Error('Username is required');
-                if (!email) throw new Error('Email is required');
+                if (!username) throw accessError('Username is required', 400);
+                if (!email) throw accessError('Email is required', 400);
 
-                const finalRole = resolveRequestedRole(role, creatorRole);
-                subregionIds = resolveScopedSubregions(creator, subregionIds);
-                validateRoleScope(finalRole, subregionIds);
+                const derivedSubregion = await validateAndResolveDerivedSubregion(db, finalRole, postalCode, legacySubregionIds);
+                const managerUser = await resolveManagerForCreate(db, creator, finalRole, {
+                    managerUserId: row.managerUserId,
+                    managerUsername: row.managerUsername,
+                });
+                validateManagerForTarget(managerUser, finalRole, derivedSubregion?.id);
 
-                const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
-                if (existingEmail) throw new Error(`${email} already registered`);
+                await ensureUniqueUserIdentifiers(db, username, email);
 
-                const [existingUser] = await db.select().from(users).where(eq(users.username, username));
-                if (existingUser) throw new Error(`Username ${username} already taken`);
-
-                const passwordHash = await bcrypt.hash(password || 'SRM2024!temp', 12);
-
+                const passwordHash = await bcrypt.hash(normalizeText(row.password) || 'SRM2024!temp', 12);
                 const [newUser] = await db.insert(users).values({
                     username,
                     email,
                     passwordHash,
-                    name: name || username,
+                    name: normalizeText(row.name) || username,
                     role: finalRole,
-                    phone,
-                    postalCode
-                }).returning();
+                    managerUserId: managerUser?.id || null,
+                    phone: normalizeText(row.phone) || null,
+                    postalCode,
+                }).returning({ id: users.id });
 
-                if (subregionIds && subregionIds.length > 0) {
-                    const values = subregionIds.map(id => ({ userId: newUser.id, subregionId: id }));
-                    await db.insert(userSubregions).values(values);
+                if (derivedSubregion) {
+                    await syncUserDerivedSubregion(db, newUser.id, derivedSubregion.id);
                 }
-                results.successful++;
+
+                results.successful += 1;
             } catch (err) {
                 const message = err.message || 'Unknown import error';
                 if (isDuplicateUserImportIssue(message)) {
-                    results.skipped++;
+                    results.skipped += 1;
                     results.skippedItems.push(message);
                 } else {
-                    results.failed++;
+                    results.failed += 1;
                     results.errors.push(message);
                 }
             }
@@ -336,34 +495,49 @@ export const getUsers = async (c) => {
                 phone: true,
                 postalCode: true,
                 createdAt: true,
+                managerUserId: true,
             },
             with: {
+                manager: {
+                    columns: {
+                        id: true,
+                        name: true,
+                        role: true,
+                        username: true,
+                    },
+                },
                 subregions: {
                     columns: {
-                        subregionId: true
-                    }
-                }
-            }
+                        subregionId: true,
+                    },
+                    with: {
+                        subregion: {
+                            columns: {
+                                id: true,
+                                name: true,
+                                subregionCode: true,
+                            },
+                        },
+                    },
+                },
+            },
         });
 
-        if (creatorRole !== 'super_admin') {
-            usersData = usersData.filter((u) => {
-                const targetRole = normalizeRole(u.role);
-                const targetSubregionIds = u.subregions.map((r) => r.subregionId);
-                return canManageRole(creatorRole, targetRole) && sharesScopedSubregion(creator, targetSubregionIds);
-            });
-        }
-
-        const rows = usersData.map(u => {
-            const row = {
-                ...u,
-                role: normalizeRole(u.role),
-                subregionIds: u.subregions.map(r => r.subregionId),
-                boundaryStatus: resolvePostalBoundaryStatus(u.postalCode, boundaryContext),
-            };
-            delete row.subregions;
-            return row;
+        usersData = usersData.filter((candidate) => {
+            if (creatorRole === 'super_admin') return true;
+            return canDirectlyManageUser(creator, candidate);
         });
+
+        const rows = usersData.map((userRow) => buildUserResponse({
+            ...userRow,
+            managerName: userRow.manager?.name || null,
+            managerRole: normalizeRole(userRow.manager?.role),
+            managerUsername: userRow.manager?.username || null,
+            subregionIds: userRow.subregions.map((item) => item.subregionId),
+            derivedSubregionId: userRow.subregions[0]?.subregion?.id || null,
+            derivedSubregionCode: userRow.subregions[0]?.subregion?.subregionCode || null,
+            derivedSubregionName: userRow.subregions[0]?.subregion?.name || null,
+        }, boundaryContext));
 
         return c.json(rows);
     } catch (err) {
@@ -375,95 +549,147 @@ export const getUsers = async (c) => {
 export const updateProfile = async (c) => {
     try {
         const body = await c.req.json();
-        const { name, phone, password } = body;
         const user = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
         const updates = {};
 
-        if (name) updates.name = name;
-        if (phone !== undefined) updates.phone = phone;
-        if (body.postalCode !== undefined) updates.postalCode = normalizeOptionalPostalCode(body.postalCode);
-        if (password) {
-            updates.passwordHash = await bcrypt.hash(password, 12);
+        if (body.name) updates.name = body.name;
+        if (body.phone !== undefined) updates.phone = body.phone;
+        if (body.postalCode !== undefined) {
+            updates.postalCode = normalizeRole(user.role) === 'super_admin'
+                ? normalizeOptionalPostalCode(body.postalCode)
+                : normalizeRequiredPostalCode(body.postalCode);
+        }
+        if (body.password) {
+            updates.passwordHash = await bcrypt.hash(body.password, 12);
         }
 
         if (Object.keys(updates).length > 0) {
             await db.update(users).set(updates).where(eq(users.id, user.id));
         }
 
-        const [updated] = await db.select({
-            id: users.id,
-            email: users.email,
-            name: users.name,
-            role: users.role,
-            phone: users.phone,
-            postalCode: users.postalCode,
-        }).from(users).where(eq(users.id, user.id));
+        if (updates.postalCode && normalizeRole(user.role) !== 'super_admin') {
+            const current = await loadUserWithSubregions(db, user.id);
+            const derivedSubregion = await resolveSingleSubregionByPostal(db, updates.postalCode, 'Postal code');
+            if (current.managerUserId) {
+                const manager = await loadUserWithSubregions(db, current.managerUserId);
+                validateManagerForTarget(manager, current.role, derivedSubregion.id);
+            }
+            await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+        }
 
-        return c.json(updated);
+        const updated = await loadUserWithSubregions(db, user.id);
+        return c.json(buildUserResponse(updated, await loadScopedBoundaryContext(db, updated)));
     } catch (err) {
-        return c.json({ error: 'Failed to update profile.' }, 500);
+        return c.json({ error: err.message || 'Failed to update profile.' }, err.status || 500);
     }
 };
 
 export const updateUserRole = async (c) => {
     try {
         const creator = c.get('user');
-        if (normalizeRole(creator.role) !== 'super_admin') return c.json({ error: 'Only super admins can update roles.' }, 403);
+        if (normalizeRole(creator.role) !== 'super_admin') {
+            return c.json({ error: 'Only super admins can update roles.' }, 403);
+        }
 
-        const id = parseInt(c.req.param('id'));
+        const id = Number.parseInt(c.req.param('id'), 10);
+        if (!Number.isInteger(id)) {
+            return c.json({ error: 'Invalid user id.' }, 400);
+        }
+        if (id === creator.id) {
+            return c.json({ error: 'Super admins cannot change their own role.' }, 400);
+        }
+
         const body = await c.req.json();
-        const { role, subregionIds } = body;
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
-        const existingUser = await loadUserWithSubregions(db, id);
 
+        const existingUser = await loadUserWithSubregions(db, id);
         if (!existingUser) return c.json({ error: 'User not found.' }, 404);
 
-        if (role && !ASSIGNABLE_ROLES.includes(normalizeRole(role))) {
+        const nextRole = normalizeRole(body.role || existingUser.role);
+        if (!ASSIGNABLE_ROLES.includes(nextRole)) {
             return c.json({ error: 'Invalid role specified.' }, 400);
         }
 
-        const nextRole = normalizeRole(role || existingUser.role);
-        const nextSubregionIds = subregionIds !== undefined ? parseSubregionIds(subregionIds) : existingUser.subregionIds;
-        validateRoleScope(nextRole, nextSubregionIds);
+        const nextManagerId = body.managerUserId !== undefined
+            ? Number.parseInt(String(body.managerUserId), 10)
+            : existingUser.managerUserId;
 
-        if (role) {
-            await db.update(users).set({ role: normalizeRole(role) }).where(eq(users.id, id));
+        const managerUser = Number.isInteger(nextManagerId)
+            ? await loadUserWithSubregions(db, nextManagerId)
+            : null;
+
+        const derivedSubregionId = existingUser.derivedSubregionId
+            || (existingUser.postalCode ? (await resolveSingleSubregionByPostal(db, existingUser.postalCode, 'Existing postal code')).id : null);
+
+        validateManagerForTarget(managerUser, nextRole, derivedSubregionId);
+
+        await db.update(users).set({
+            role: nextRole,
+            managerUserId: nextRole === 'super_admin' ? null : (managerUser?.id || null),
+        }).where(eq(users.id, id));
+
+        const updated = await loadUserWithSubregions(db, id);
+        return c.json(buildUserResponse(updated, await loadScopedBoundaryContext(db, creator)));
+    } catch (err) {
+        console.error('updateUserRole Error:', err);
+        return c.json({ error: err.message || 'Failed to update user status.' }, err.status || 500);
+    }
+};
+
+export const updateUserManager = async (c) => {
+    try {
+        const creator = c.get('user');
+        if (normalizeRole(creator.role) !== 'super_admin') {
+            return c.json({ error: 'Only super admins can update user ownership.' }, 403);
         }
 
-        if (subregionIds !== undefined) {
-            await db.delete(userSubregions).where(eq(userSubregions.userId, id));
-            const finalSubregionIds = await resolveSubregionIds(db, subregionIds);
-            if (finalSubregionIds.length > 0) {
-                const values = finalSubregionIds.map(subId => ({ userId: id, subregionId: subId }));
-                await db.insert(userSubregions).values(values);
+        const id = Number.parseInt(c.req.param('id'), 10);
+        if (!Number.isInteger(id)) {
+            return c.json({ error: 'Invalid user id.' }, 400);
+        }
+        if (id === creator.id) {
+            return c.json({ error: 'You cannot reassign yourself.' }, 400);
+        }
+
+        const body = await c.req.json();
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db);
+
+        const targetUser = await loadUserWithSubregions(db, id);
+        if (!targetUser) return c.json({ error: 'User not found.' }, 404);
+
+        let managerUser = null;
+        if (body.managerUserId !== null && body.managerUserId !== undefined && body.managerUserId !== '') {
+            const managerUserId = Number.parseInt(String(body.managerUserId), 10);
+            if (!Number.isInteger(managerUserId)) {
+                return c.json({ error: 'Invalid manager user id.' }, 400);
+            }
+            managerUser = await loadUserWithSubregions(db, managerUserId);
+            if (!managerUser) {
+                return c.json({ error: 'Assigned manager was not found.' }, 404);
             }
         }
 
-        const [updated] = await db.select({
-            id: users.id,
-            email: users.email,
-            name: users.name,
-            role: users.role,
-            postalCode: users.postalCode,
-        }).from(users).where(eq(users.id, id));
+        validateManagerForTarget(managerUser, targetUser.role, targetUser.derivedSubregionId);
 
-        const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, id));
-        updated.role = normalizeRole(updated.role);
-        updated.subregionIds = userSubs.map(s => s.subregionId);
+        await db.update(users).set({
+            managerUserId: managerUser?.id || null,
+        }).where(eq(users.id, id));
 
-        return c.json(updated);
+        const updated = await loadUserWithSubregions(db, id);
+        return c.json(buildUserResponse(updated, await loadScopedBoundaryContext(db, creator)));
     } catch (err) {
-        console.error('updateUserRole Error:', err);
-        return c.json({ error: 'Failed to update user status.' }, 500);
+        console.error('updateUserManager Error:', err);
+        return c.json({ error: err.message || 'Failed to update ownership.' }, err.status || 500);
     }
 };
 
 export const deleteUser = async (c) => {
     try {
-        const id = parseInt(c.req.param('id'));
+        const id = Number.parseInt(c.req.param('id'), 10);
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
@@ -476,14 +702,8 @@ export const deleteUser = async (c) => {
             return c.json({ error: 'User not found.' }, 404);
         }
 
-        if (creatorRole !== 'super_admin') {
-            if (!canManageRole(creatorRole, targetUser.role)) {
-                return c.json({ error: 'You can only delete accounts directly below your role.' }, 403);
-            }
-
-            if (!sharesScopedSubregion(creator, targetUser.subregionIds)) {
-                return c.json({ error: 'Permission denied or user not found in your scope.' }, 403);
-            }
+        if (creatorRole !== 'super_admin' && !canDirectlyManageUser(creator, targetUser)) {
+            return c.json({ error: 'You can only delete accounts directly assigned to you.' }, 403);
         }
 
         await db.delete(users).where(eq(users.id, id));

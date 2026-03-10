@@ -1,12 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
-import { getCreatableUserRoles, normalizeRole } from '../lib/roles.js';
+import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
+import { getCreatableUserRoles, getRequiredManagerRole, normalizeRole } from '../lib/roles.js';
 
-export default function AdminUserForm({ currentUser }) {
-    const currentRole = normalizeRole(currentUser?.role);
-    const creatableRoles = getCreatableUserRoles(currentRole);
-    const defaultRole = creatableRoles[0] || 'standard';
-    const [formData, setFormData] = useState({
+const ROLE_LABELS = {
+    super_admin: 'Super Admin',
+    regional_admin: 'Regional Admin',
+    partner: 'Partner (Asset Owner)',
+    standard: 'User',
+};
+
+function buildInitialForm(defaultRole, currentUser) {
+    return {
         username: '',
         name: '',
         email: '',
@@ -14,40 +19,81 @@ export default function AdminUserForm({ currentUser }) {
         phone: '',
         postalCode: '',
         role: defaultRole,
-        subregionIds: currentUser?.subregionIds || []
-    });
-
-    const handleSubregionToggle = (id) => {
-        setFormData(prev => {
-            const current = new Set(prev.subregionIds.map(Number));
-            const numericId = Number(id);
-            if (current.has(numericId)) current.delete(numericId);
-            else current.add(numericId);
-            return { ...prev, subregionIds: Array.from(current) };
-        });
+        managerUserId: defaultRole === 'regional_admin' ? (currentUser?.id || '') : '',
     };
+}
 
+export default function AdminUserForm({ currentUser, onCreated }) {
+    const currentRole = normalizeRole(currentUser?.role);
+    const creatableRoles = getCreatableUserRoles(currentRole);
+    const defaultRole = creatableRoles[0] || 'standard';
+    const [formData, setFormData] = useState(() => buildInitialForm(defaultRole, currentUser));
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
     const [subregionsList, setSubregionsList] = useState([]);
+    const [usersList, setUsersList] = useState([]);
+
+    const isSuperAdmin = currentRole === 'super_admin';
+    const isRegionalAdmin = currentRole === 'regional_admin';
+    const isPartner = currentRole === 'partner';
+    const requiredManagerRole = getRequiredManagerRole(formData.role);
 
     useEffect(() => {
-        async function loadSubregions() {
+        async function loadContext() {
             try {
-                const data = await api.getSubregions();
-                setSubregionsList(data);
+                const requests = [api.getSubregions()];
+                if (isSuperAdmin) {
+                    requests.push(api.getUsers());
+                }
+
+                const [subregions, users = []] = await Promise.all(requests);
+                setSubregionsList(Array.isArray(subregions) ? subregions : []);
+                setUsersList(Array.isArray(users) ? users : []);
             } catch (err) {
-                console.error('Failed to load subregions:', err);
+                console.error('Failed to load user form context:', err);
             }
         }
-        loadSubregions();
-    }, []);
 
-    const isRegionalAdmin = currentRole === 'regional_admin';
-    const isSuperAdmin = currentRole === 'super_admin';
-    const isPartner = currentRole === 'partner';
+        loadContext();
+    }, [isSuperAdmin]);
 
-    const handleSubmit = async (e) => {
+    useEffect(() => {
+        if (!isSuperAdmin) {
+            setFormData((prev) => ({ ...prev, managerUserId: '' }));
+            return;
+        }
+
+        if (formData.role === 'regional_admin' && !formData.managerUserId) {
+            setFormData((prev) => ({ ...prev, managerUserId: currentUser?.id || '' }));
+            return;
+        }
+
+        if (!requiredManagerRole) {
+            setFormData((prev) => ({ ...prev, managerUserId: '' }));
+        }
+    }, [currentUser?.id, formData.managerUserId, formData.role, isSuperAdmin, requiredManagerRole]);
+
+    const derivedSubregionResult = useMemo(() => {
+        if (normalizeRole(formData.role) === 'super_admin') {
+            return { status: 'not-required', subregion: null, matches: [] };
+        }
+
+        const scopedSubregionIds = isSuperAdmin ? null : currentUser?.subregionIds;
+        return resolveSingleSubregionByPostal(subregionsList, formData.postalCode, scopedSubregionIds);
+    }, [currentUser?.subregionIds, formData.postalCode, formData.role, isSuperAdmin, subregionsList]);
+
+    const managerOptions = useMemo(() => {
+        if (!isSuperAdmin || !requiredManagerRole) return [];
+        return usersList
+            .filter((candidate) => normalizeRole(candidate.role) === requiredManagerRole)
+            .filter((candidate) => candidate.id !== currentUser?.id || requiredManagerRole === 'super_admin');
+    }, [currentUser?.id, isSuperAdmin, requiredManagerRole, usersList]);
+
+    const derivedSubregionLabel = derivedSubregionResult.subregion
+        ? `${derivedSubregionResult.subregion.subregionCode || 'No code'} · ${derivedSubregionResult.subregion.name}`
+        : null;
+
+    async function handleSubmit(e) {
         e.preventDefault();
         setLoading(true);
         setMessage(null);
@@ -57,24 +103,45 @@ export default function AdminUserForm({ currentUser }) {
                 throw new Error('You cannot create that role.');
             }
 
-            await api.createUser(formData);
-            setMessage({ type: 'success', text: 'User created successfully!' });
-            setFormData({
-                username: '',
-                name: '',
-                email: '',
-                password: '',
-                phone: '',
-                postalCode: '',
-                role: defaultRole,
-                subregionIds: currentUser?.subregionIds || []
-            });
+            if (normalizeRole(formData.role) !== 'super_admin' && derivedSubregionResult.status !== 'ok') {
+                if (derivedSubregionResult.status === 'missing') {
+                    throw new Error('Postal code does not match any configured subregion boundary.');
+                }
+                if (derivedSubregionResult.status === 'ambiguous') {
+                    throw new Error('Postal code matches multiple subregions. Fix the boundary data before creating this user.');
+                }
+                throw new Error('Postal code must be a valid 6-digit code.');
+            }
+
+            const payload = {
+                username: formData.username,
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+                phone: formData.phone,
+                postalCode: formData.postalCode,
+                role: formData.role,
+            };
+
+            if (isSuperAdmin && requiredManagerRole) {
+                if (!formData.managerUserId) {
+                    throw new Error(`${ROLE_LABELS[formData.role]} accounts require an assigned manager.`);
+                }
+                payload.managerUserId = Number.parseInt(String(formData.managerUserId), 10);
+            }
+
+            await api.createUser(payload);
+            setMessage({ type: 'success', text: 'User created successfully.' });
+            setFormData(buildInitialForm(defaultRole, currentUser));
+            if (typeof onCreated === 'function') {
+                await onCreated();
+            }
         } catch (err) {
             setMessage({ type: 'error', text: err.message || 'Failed to create user' });
         } finally {
             setLoading(false);
         }
-    };
+    }
 
     return (
         <div className="card p-6 max-w-lg mx-auto mb-8 border border-slate-200">
@@ -89,7 +156,7 @@ export default function AdminUserForm({ currentUser }) {
                             required
                             className="input-field w-full mt-1"
                             value={formData.username}
-                            onChange={e => setFormData({ ...formData, username: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                             placeholder="johndoe123"
                         />
                     </div>
@@ -100,7 +167,7 @@ export default function AdminUserForm({ currentUser }) {
                             required
                             className="input-field w-full mt-1"
                             value={formData.name}
-                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             placeholder="John Doe"
                         />
                     </div>
@@ -114,7 +181,7 @@ export default function AdminUserForm({ currentUser }) {
                             required
                             className="input-field w-full mt-1"
                             value={formData.email}
-                            onChange={e => setFormData({ ...formData, email: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             placeholder="john@example.com"
                         />
                     </div>
@@ -124,22 +191,35 @@ export default function AdminUserForm({ currentUser }) {
                             type="text"
                             className="input-field w-full mt-1"
                             value={formData.phone}
-                            onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             placeholder="+65 9XXX XXXX"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium opacity-70">Postal Code</label>
+                    <label className="block text-sm font-medium opacity-70">Postal Code{normalizeRole(formData.role) !== 'super_admin' ? ' *' : ''}</label>
                     <input
                         type="text"
+                        required={normalizeRole(formData.role) !== 'super_admin'}
                         className="input-field w-full mt-1"
                         value={formData.postalCode}
-                        onChange={e => setFormData({ ...formData, postalCode: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                         placeholder="680153"
                     />
-                    <p className="mt-1 text-xs text-slate-400">Optional. Used to check whether the user falls inside the assigned subregion postal boundary.</p>
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                        {normalizeRole(formData.role) === 'super_admin' ? (
+                            <span className="text-slate-500">Super Admin accounts are global and are not auto-routed to a subregion.</span>
+                        ) : derivedSubregionResult.status === 'ok' ? (
+                            <span className="text-green-700 font-medium">Derived subregion: {derivedSubregionLabel}</span>
+                        ) : derivedSubregionResult.status === 'ambiguous' ? (
+                            <span className="text-amber-700">Postal code matches multiple subregions. Boundary data needs cleanup.</span>
+                        ) : derivedSubregionResult.status === 'missing' ? (
+                            <span className="text-red-700">Postal code does not match any configured subregion boundary.</span>
+                        ) : (
+                            <span className="text-slate-500">Enter a valid 6-digit postal code to derive the user&apos;s subregion automatically.</span>
+                        )}
+                    </div>
                 </div>
 
                 <div>
@@ -149,7 +229,7 @@ export default function AdminUserForm({ currentUser }) {
                         required
                         className="input-field w-full mt-1"
                         value={formData.password}
-                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     />
                 </div>
 
@@ -159,54 +239,41 @@ export default function AdminUserForm({ currentUser }) {
                         className="input-field w-full mt-1"
                         disabled={!isSuperAdmin}
                         value={formData.role}
-                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     >
                         {creatableRoles.map((role) => (
-                            <option key={role} value={role}>
-                                {role === 'super_admin'
-                                    ? 'Super Admin'
-                                    : role === 'regional_admin'
-                                        ? 'Regional Admin'
-                                        : role === 'partner'
-                                            ? 'Partner (Asset Owner)'
-                                            : 'User'}
-                            </option>
+                            <option key={role} value={role}>{ROLE_LABELS[role] || role}</option>
                         ))}
                     </select>
                 </div>
 
-                {isSuperAdmin ? (
+                {isSuperAdmin && requiredManagerRole ? (
                     <div>
-                        <label className="block text-sm font-medium opacity-70 mb-2">Subregion Scope (Select multiple)</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-slate-200 rounded-xl bg-slate-50">
-                            {subregionsList.map(reg => (
-                                <label key={reg.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.subregionIds.map(Number).includes(reg.id)}
-                                        onChange={() => handleSubregionToggle(reg.id)}
-                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span>{reg.name}</span>
-                                </label>
+                        <label className="block text-sm font-medium opacity-70">Managed By ({ROLE_LABELS[requiredManagerRole]})</label>
+                        <select
+                            className="input-field w-full mt-1"
+                            value={formData.managerUserId}
+                            onChange={(e) => setFormData({ ...formData, managerUserId: e.target.value })}
+                        >
+                            <option value="">Select manager</option>
+                            {managerOptions.map((candidate) => (
+                                <option key={candidate.id} value={candidate.id}>
+                                    {candidate.name} (@{candidate.username})
+                                </option>
                             ))}
-                        </div>
-                        <p className="text-xs opacity-50 mt-2">Required for Regional Admins and Partners.</p>
+                        </select>
                     </div>
-                ) : (
-                    <div className="bg-slate-50 p-3 rounded-xl text-sm mb-4 border border-slate-100">
-                        <span className="opacity-60">Subregion locked to:</span>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {subregionsList
-                                .filter(r => currentUser?.subregionIds?.includes(r.id))
-                                .map(r => (
-                                    <span key={r.id} className="bg-slate-200 px-2 py-1 rounded text-xs font-semibold">{r.name}</span>
-                                ))
-                            }
-                            {(!currentUser?.subregionIds || currentUser.subregionIds.length === 0) && 'Assigned Regions'}
+                ) : null}
+
+                {!isSuperAdmin ? (
+                    <div className="bg-slate-50 p-3 rounded-xl text-sm border border-slate-100">
+                        <span className="opacity-60">Ownership:</span>
+                        <div className="mt-2 font-medium text-slate-700">
+                            {isRegionalAdmin ? 'New partner will be managed directly by this regional admin account.' : null}
+                            {isPartner ? 'New user will be managed directly by this partner account.' : null}
                         </div>
                     </div>
-                )}
+                ) : null}
 
                 {(isRegionalAdmin || isPartner) && (
                     <p className="text-xs text-slate-500">
@@ -220,11 +287,7 @@ export default function AdminUserForm({ currentUser }) {
                     </div>
                 )}
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="btn-primary w-full py-2"
-                >
+                <button type="submit" disabled={loading} className="btn-primary w-full py-2">
                     {loading ? 'Creating...' : 'Create Account'}
                 </button>
             </form>

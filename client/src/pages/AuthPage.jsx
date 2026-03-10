@@ -8,7 +8,7 @@ import BrandLockup from '../components/layout/BrandLockup.jsx';
 
 export default function AuthPage({ isPartner = false }) {
     const [tab, setTab] = useState('login');
-    const [form, setForm] = useState({ email: '', password: '', name: '', role: 'user' });
+    const [form, setForm] = useState({ username: '', email: '', password: '', name: '', postalCode: '', role: 'user' });
     const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -28,7 +28,7 @@ export default function AuthPage({ isPartner = false }) {
 
             const res = tab === 'login'
                 ? await api.login(loginPayload)
-                : await api.register({ email: form.email, password: form.password, name: form.name, role: 'user' });
+                : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user' });
             login(res.user);
             navigate('/dashboard');
         } catch (err) {
@@ -42,7 +42,11 @@ export default function AuthPage({ isPartner = false }) {
         setError('');
         setLoading(true);
         try {
-            const res = await api.googleAuth({ credential: credentialResponse.credential });
+            const payload = { credential: credentialResponse.credential };
+            if (tab === 'register') {
+                payload.postalCode = form.postalCode;
+            }
+            const res = await api.googleAuth(payload);
             login(res.user);
             navigate('/dashboard');
         } catch (err) {
@@ -106,18 +110,35 @@ export default function AuthPage({ isPartner = false }) {
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {tab === 'register' && !isPartner && (
-                        <div>
-                            <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Your Name</label>
-                            <input
-                                id="auth-name"
-                                type="text"
-                                required
-                                placeholder="e.g. John Doe"
-                                value={form.name}
-                                onChange={set('name')}
-                                className=" input-field"
-                            />
-                        </div>
+                        <>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Your Name</label>
+                                <input
+                                    id="auth-name"
+                                    type="text"
+                                    required
+                                    placeholder="e.g. John Doe"
+                                    value={form.name}
+                                    onChange={set('name')}
+                                    className=" input-field"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Postal Code</label>
+                                <input
+                                    id="auth-postal-code"
+                                    type="text"
+                                    required
+                                    placeholder="680153"
+                                    value={form.postalCode}
+                                    onChange={set('postalCode')}
+                                    className=" input-field"
+                                />
+                                <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                                    Used to assign your account to the correct service region automatically.
+                                </p>
+                            </div>
+                        </>
                     )}
 
                     <div>

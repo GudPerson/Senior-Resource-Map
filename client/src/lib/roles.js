@@ -98,6 +98,27 @@ export function canManageUser(currentRole, targetRole) {
     return false;
 }
 
+export function canManageUserRecord(currentUser, targetUser) {
+    const currentRole = normalizeRole(currentUser?.role);
+    if (!currentUser || !targetUser) return false;
+    if (currentUser.id === targetUser.id) return false;
+    if (currentRole === 'super_admin') return normalizeRole(targetUser.role) !== 'guest';
+    return Number(targetUser.managerUserId) === Number(currentUser.id) && canManageUser(currentRole, targetUser.role);
+}
+
+export function getRequiredManagerRole(targetRole) {
+    switch (normalizeRole(targetRole)) {
+        case 'regional_admin':
+            return 'super_admin';
+        case 'partner':
+            return 'regional_admin';
+        case 'standard':
+            return 'partner';
+        default:
+            return null;
+    }
+}
+
 export function getAdminTabs(role) {
     switch (normalizeRole(role)) {
         case 'super_admin':

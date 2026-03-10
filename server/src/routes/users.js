@@ -30,6 +30,12 @@ router.put('/:id/role',
     userController.updateUserRole
 );
 
+router.put('/:id/manager',
+    authenticateToken,
+    authorize('super_admin'),
+    userController.updateUserManager
+);
+
 router.delete('/:id',
     authenticateToken,
     authorize('super_admin', 'regional_admin', 'partner'),

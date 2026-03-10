@@ -99,7 +99,9 @@ export default function DiscoverPage() {
 
             const liveLocations = buildDerivedMapLocations(hard, soft);
             const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
-            const initialLocations = (fetchedLocations.length > 0 ? fetchedLocations : liveLocations).filter(hasValidCoordinates);
+            const initialLocations = (user
+                ? liveLocations
+                : (fetchedLocations.length > 0 ? fetchedLocations : liveLocations)).filter(hasValidCoordinates);
             setCachedLocations(initialLocations);
             setMapLocations(initialLocations);
             setLoading(false);
@@ -118,7 +120,7 @@ export default function DiscoverPage() {
             }));
             setSelectedAsset({ ...foundHard, _type: 'hard' });
         });
-    }, [searchParams]);
+    }, [searchParams, user]);
 
     useEffect(() => () => {
         if (tooltipCloseTimeoutRef.current) {

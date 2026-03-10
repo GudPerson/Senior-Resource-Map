@@ -28,6 +28,7 @@ export function buildSessionPayload(user, extraClaims = {}) {
         name: user.name,
         phone: user.phone ?? null,
         postalCode: user.postalCode ?? '',
+        managerUserId: user.managerUserId ?? null,
         subregionIds: Array.isArray(user.subregionIds) ? user.subregionIds : [],
         ...extraClaims,
     };

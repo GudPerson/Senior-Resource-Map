@@ -50,3 +50,29 @@ export function getBoundaryStatus(postalCode, postalCodes) {
     if (!normalizedPostalCode) return 'missing-postal';
     return postalCodes.has(normalizedPostalCode) ? 'inside' : 'outside';
 }
+
+export function resolveSingleSubregionByPostal(subregions, rawPostalCode, scopedSubregionIds = null) {
+    const postalCode = normalizePostalCode(rawPostalCode);
+    if (!postalCode) {
+        return { status: 'invalid', subregion: null, matches: [] };
+    }
+
+    const scope = Array.isArray(scopedSubregionIds) && scopedSubregionIds.length > 0
+        ? new Set(scopedSubregionIds.map(Number))
+        : null;
+
+    const matches = (subregions || []).filter((subregion) => {
+        if (scope && !scope.has(Number(subregion.id))) return false;
+        const postalCodes = Array.isArray(subregion.postalCodesList) ? subregion.postalCodesList : [];
+        return postalCodes.map(normalizePostalCode).includes(postalCode);
+    });
+
+    if (matches.length === 0) {
+        return { status: 'missing', subregion: null, matches: [] };
+    }
+    if (matches.length > 1) {
+        return { status: 'ambiguous', subregion: null, matches };
+    }
+
+    return { status: 'ok', subregion: matches[0], matches };
+}

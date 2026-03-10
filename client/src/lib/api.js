@@ -145,9 +145,15 @@ export const api = {
     createUser: (body) => request('POST', '/users', body),
     bulkCreateUsers: (body) => request('POST', '/users/bulk', body),
     updateRole: (id, role) => request('PUT', `/users/${id}/role`, { role }),
+    updateUserManager: (id, managerUserId) => request('PUT', `/users/${id}/manager`, { managerUserId }),
 
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),
+
+    // Partner boundaries
+    getPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries`),
+    bulkUploadPartnerBoundaries: (partnerId, body) => request('POST', `/partners/${partnerId}/boundaries/bulk`, body),
+    exportPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries/export`),
 
     // Favorites
     getFavorites: () => request('GET', '/favorites'),

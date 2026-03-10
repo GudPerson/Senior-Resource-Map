@@ -1,125 +1,306 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Loader2, Globe, MapPin, Phone, Clock, FileText } from 'lucide-react';
+import { Loader2, Globe, MapPin, Phone, Clock, FileText, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
+import { normalizeRole } from '../lib/roles.js';
 import ImageUpload from './ImageUpload.jsx';
 
-export default function AssetForm({ type = 'hard', initialData, onSave, onCancel, partnerHardAssets = [] }) {
-    const isHard = type === 'hard';
+function formatDateTimeLocal(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
-    const [form, setForm] = useState(() => {
-        const fmtDate = (d) => {
-            if (!d) return '';
-            const dt = new Date(d);
-            const pad = (n) => n.toString().padStart(2, '0');
-            return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-        };
-        if (initialData) return {
+function buildInitialForm(type, initialData, currentUser) {
+    if (initialData) {
+        return {
             ...initialData,
+            ownershipMode: initialData.ownershipMode || (initialData.partnerId ? 'partner' : 'system'),
+            audienceMode: initialData.audienceMode || 'public',
             newTags: initialData.tags || [],
-            locationIds: initialData.locations?.map(l => l.id) || (initialData.locationId ? [initialData.locationId] : []),
-            hideFrom: fmtDate(initialData.hideFrom),
-            hideUntil: fmtDate(initialData.hideUntil)
+            locationIds: initialData.locations?.map((location) => location.id) || [],
+            hideFrom: formatDateTimeLocal(initialData.hideFrom),
+            hideUntil: formatDateTimeLocal(initialData.hideUntil),
+            partnerId: initialData.partnerId || '',
+            subregionId: initialData.subregionId || '',
+            postalCode: initialData.postalCode || '',
         };
-        return isHard ? {
-            name: '', subCategory: 'Places', country: 'SG', postalCode: '', address: '', phone: '', hours: '', description: '', logoUrl: '', bannerUrl: '', newTags: [], isHidden: false, hideFrom: '', hideUntil: ''
-        } : {
-            name: '', subCategory: 'Programmes', locationIds: [], description: '', schedule: '', logoUrl: '', bannerUrl: '', newTags: [], isMemberOnly: false, isHidden: false, hideFrom: '', hideUntil: ''
-        };
-    });
+    }
 
+    if (type === 'hard') {
+        return {
+            name: '',
+            subCategory: 'Places',
+            country: 'SG',
+            postalCode: '',
+            address: '',
+            phone: '',
+            hours: '',
+            description: '',
+            logoUrl: '',
+            bannerUrl: '',
+            galleryUrls: [],
+            newTags: [],
+            isHidden: false,
+            hideFrom: '',
+            hideUntil: '',
+            ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
+            partnerId: '',
+        };
+    }
+
+    return {
+        name: '',
+        subCategory: 'Programmes',
+        locationIds: [],
+        description: '',
+        schedule: '',
+        logoUrl: '',
+        bannerUrl: '',
+        galleryUrls: [],
+        newTags: [],
+        isMemberOnly: false,
+        isHidden: false,
+        hideFrom: '',
+        hideUntil: '',
+        ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
+        partnerId: '',
+        subregionId: normalizeRole(currentUser?.role) === 'partner' ? (currentUser?.subregionIds?.[0] || '') : '',
+        audienceMode: 'public',
+    };
+}
+
+const OWNERSHIP_OPTIONS = [
+    { value: 'system', label: 'System-owned' },
+    { value: 'partner', label: 'Partner-owned' },
+];
+
+export default function AssetForm({
+    type = 'hard',
+    initialData,
+    onSave,
+    onCancel,
+    partnerHardAssets = [],
+    currentUser,
+    partnerOptions = [],
+    subregions = [],
+}) {
+    const isHard = type === 'hard';
+    const currentRole = normalizeRole(currentUser?.role);
+    const [form, setForm] = useState(() => buildInitialForm(type, initialData, currentUser));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
 
-    // Fetch existing tags and subcategories
     useEffect(() => {
-        api.searchTags('').then(tags => {
-            setAvailableTags(tags.map(t => ({ value: t, label: t })));
+        api.searchTags('').then((tags) => {
+            setAvailableTags(tags.map((tag) => ({ value: tag, label: tag })));
         }).catch(console.error);
         api.getSubCategories().then(setAvailableSubCategories).catch(console.error);
     }, []);
 
-    const setField = (key, value) => setForm(f => ({ ...f, [key]: value }));
+    useEffect(() => {
+        if (currentRole === 'partner' && form.ownershipMode !== 'partner') {
+            setForm((prev) => ({ ...prev, ownershipMode: 'partner', partnerId: currentUser?.id || '' }));
+        }
+    }, [currentRole, currentUser?.id, form.ownershipMode]);
 
-    const handleSubmit = async (e) => {
+    useEffect(() => {
+        if (form.ownershipMode !== 'partner' && form.audienceMode === 'partner_boundary') {
+            setForm((prev) => ({ ...prev, audienceMode: 'public' }));
+        }
+    }, [form.audienceMode, form.ownershipMode]);
+
+    const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+    const tagOptions = availableTags;
+    const currentTags = form.newTags.map((tag) => ({ value: tag, label: tag }));
+
+    const partnerSelectOptions = partnerOptions.map((partner) => ({
+        value: partner.id,
+        label: `${partner.name} (@${partner.username})`,
+    }));
+
+    const hardSubregionResult = useMemo(() => {
+        if (!isHard) return { status: 'not-applicable', subregion: null, matches: [] };
+        return resolveSingleSubregionByPostal(subregions, form.postalCode, currentRole === 'super_admin' ? null : currentUser?.subregionIds);
+    }, [currentRole, currentUser?.subregionIds, form.postalCode, isHard, subregions]);
+
+    const linkedLocationOptions = partnerHardAssets.map((asset) => ({
+        value: asset.id,
+        label: `${asset.name} (${asset.address})`,
+    }));
+
+    const selectedLinkedLocations = partnerHardAssets.filter((asset) => (form.locationIds || []).includes(asset.id));
+    const linkedLocationSubregions = [...new Set(selectedLinkedLocations.map((asset) => asset.subregionId).filter(Boolean))];
+    const derivedSoftSubregion = linkedLocationSubregions.length === 1
+        ? subregions.find((subregion) => Number(subregion.id) === Number(linkedLocationSubregions[0])) || null
+        : null;
+
+    const availableTargetSubregions = useMemo(() => {
+        if (currentRole === 'super_admin') return subregions;
+        const scope = new Set((currentUser?.subregionIds || []).map(Number));
+        return subregions.filter((subregion) => scope.has(Number(subregion.id)));
+    }, [currentRole, currentUser?.subregionIds, subregions]);
+
+    const explicitTargetSubregion = availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(form.subregionId)) || null;
+
+    async function handleSubmit(e) {
         e.preventDefault();
         setSaving(true);
         setError('');
+
         try {
             const payload = { ...form };
             if (payload.hideFrom) payload.hideFrom = new Date(payload.hideFrom).toISOString();
             if (payload.hideUntil) payload.hideUntil = new Date(payload.hideUntil).toISOString();
-            if (!isHard) {
-                payload.locationIds = form.locationIds || [];
+
+            if (currentRole === 'partner') {
+                payload.ownershipMode = 'partner';
+                payload.partnerId = currentUser?.id;
             }
-            if (initialData?.id) {
-                isHard ? await api.updateHardAsset(initialData.id, payload) : await api.updateSoftAsset(initialData.id, payload);
+
+            if (payload.ownershipMode !== 'partner') {
+                payload.partnerId = null;
+                if (!isHard) {
+                    payload.audienceMode = 'public';
+                }
+            }
+
+            if (isHard) {
+                if (hardSubregionResult.status !== 'ok') {
+                    if (hardSubregionResult.status === 'missing') {
+                        throw new Error('Postal code does not match any configured subregion boundary.');
+                    }
+                    if (hardSubregionResult.status === 'ambiguous') {
+                        throw new Error('Postal code matches multiple subregions. Resolve the boundary data before saving this place.');
+                    }
+                    throw new Error('Postal code must be a valid 6-digit code.');
+                }
+                delete payload.subregionId;
+                delete payload.locationIds;
+                delete payload.audienceMode;
             } else {
-                isHard ? await api.createHardAsset(payload) : await api.createSoftAsset(payload);
+                payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
+                if (payload.locationIds.length === 0) {
+                    if (currentRole === 'partner') {
+                        payload.subregionId = currentUser?.subregionIds?.[0] || null;
+                    } else {
+                        if (!payload.subregionId) {
+                            throw new Error('Select a target subregion when no linked place is chosen.');
+                        }
+                    }
+                } else {
+                    if (linkedLocationSubregions.length > 1) {
+                        throw new Error('Linked places must all belong to the same subregion.');
+                    }
+                }
+
+                if (payload.audienceMode === 'partner_boundary' && payload.ownershipMode !== 'partner') {
+                    throw new Error('Partner-boundary audience is only allowed for partner-owned offerings.');
+                }
             }
+
+            if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
+                throw new Error('Select a partner owner for partner-owned assets.');
+            }
+
+            if (initialData?.id) {
+                if (isHard) {
+                    await api.updateHardAsset(initialData.id, payload);
+                } else {
+                    await api.updateSoftAsset(initialData.id, payload);
+                }
+            } else if (isHard) {
+                await api.createHardAsset(payload);
+            } else {
+                await api.createSoftAsset(payload);
+            }
+
             onSave();
         } catch (err) {
             setError(err.message || 'Failed to save asset');
             setSaving(false);
+            return;
         }
-    };
 
-    const tagOptions = availableTags;
-    const currentTags = form.newTags.map(t => ({ value: t, label: t }));
+        setSaving(false);
+    }
+
+    const ownershipDisabled = currentRole === 'partner';
+    const selectedPartnerOption = partnerSelectOptions.find((option) => Number(option.value) === Number(form.partnerId)) || null;
+    const selectedLocationOptions = linkedLocationOptions.filter((option) => (form.locationIds || []).includes(option.value));
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-2 gap-5">
-                {/* Media */}
                 <div className="col-span-2 grid grid-cols-2 gap-4">
-                    <ImageUpload
-                        label="Logo / Icon"
-                        value={form.logoUrl}
-                        onChange={(url) => setField('logoUrl', url)}
-                    />
-                    <ImageUpload
-                        label="Hero Banner"
-                        value={form.bannerUrl}
-                        onChange={(url) => setField('bannerUrl', url)}
-                    />
+                    <ImageUpload label="Logo / Icon" value={form.logoUrl} onChange={(url) => setField('logoUrl', url)} />
+                    <ImageUpload label="Hero Banner" value={form.bannerUrl} onChange={(url) => setField('bannerUrl', url)} />
                 </div>
 
                 <div className="col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Name *</label>
-                    <input required value={form.name} onChange={e => setField('name', e.target.value)} placeholder={isHard ? "Place name" : "Offering name"} className="input-field" />
+                    <input required value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder={isHard ? 'Place name' : 'Offering name'} className="input-field" />
                 </div>
 
-                {/* Soft Asset: Location Dropdown */}
+                <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1"><Users size={13} /> Ownership</label>
+                        <select
+                            value={form.ownershipMode}
+                            disabled={ownershipDisabled}
+                            onChange={(e) => setField('ownershipMode', e.target.value)}
+                            className="input-field"
+                        >
+                            {OWNERSHIP_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Partner Owner</label>
+                        {form.ownershipMode === 'partner' ? (
+                            currentRole === 'partner' ? (
+                                <input value={currentUser?.name || ''} readOnly className="input-field bg-slate-50" />
+                            ) : (
+                                <Select
+                                    options={partnerSelectOptions}
+                                    value={selectedPartnerOption}
+                                    onChange={(selected) => setField('partnerId', selected?.value || '')}
+                                    className="react-select-container"
+                                    classNamePrefix="react-select"
+                                    placeholder="Select partner owner..."
+                                />
+                            )
+                        ) : (
+                            <input value="System-owned" readOnly className="input-field bg-slate-50" />
+                        )}
+                    </div>
+                </div>
+
                 {!isHard && (
-                    <div className="col-span-2 grid grid-cols-2 gap-4">
+                    <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Sub-Category *</label>
-                            <select required value={form.subCategory || 'Programmes'} onChange={e => setField('subCategory', e.target.value)} className="input-field">
-                                {availableSubCategories.filter(sc => sc.type === 'soft').map(sc => (
-                                    <option key={sc.id} value={sc.name}>{sc.name}</option>
+                            <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
+                                {availableSubCategories.filter((subcategory) => subcategory.type === 'soft').map((subcategory) => (
+                                    <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
                                 ))}
-                                {availableSubCategories.filter(sc => sc.type === 'soft').length === 0 && (
-                                    <optgroup label="Default">
-                                        <option value="Programmes">Programmes</option>
-                                        <option value="Services">Services</option>
-                                        <option value="Promotions">Promotions</option>
-                                    </optgroup>
-                                )}
                             </select>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Host Locations (Optional)</label>
                             <Select
                                 isMulti
-                                options={partnerHardAssets.map(ha => ({ value: ha.id, label: `${ha.name} (${ha.address})` }))}
-                                value={form.locationIds?.map(id => {
-                                    const matched = partnerHardAssets.find(ha => ha.id === id);
-                                    return matched ? { value: id, label: `${matched.name} (${matched.address})` } : null;
-                                }).filter(Boolean) || []}
-                                onChange={(selected) => setField('locationIds', selected.map(s => s.value))}
+                                options={linkedLocationOptions}
+                                value={selectedLocationOptions}
+                                onChange={(selected) => setField('locationIds', selected.map((item) => item.value))}
                                 className="react-select-container"
                                 classNamePrefix="react-select"
                                 placeholder="Select places..."
@@ -128,33 +309,24 @@ export default function AssetForm({ type = 'hard', initialData, onSave, onCancel
                     </div>
                 )}
 
-
-                {/* Hard Asset: Fields */}
                 {isHard && (
                     <>
                         <div className="col-span-2">
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Sub-Category *</label>
-                            <select required value={form.subCategory || 'Places'} onChange={e => setField('subCategory', e.target.value)} className="input-field">
-                                {availableSubCategories.filter(sc => sc.type === 'hard').map(sc => (
-                                    <option key={sc.id} value={sc.name}>{sc.name}</option>
+                            <select required value={form.subCategory || 'Places'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
+                                {availableSubCategories.filter((subcategory) => subcategory.type === 'hard').map((subcategory) => (
+                                    <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
                                 ))}
-                                {availableSubCategories.filter(sc => sc.type === 'hard').length === 0 && (
-                                    <optgroup label="Default">
-                                        <option value="Active Ageing Centres">Active Ageing Centres</option>
-                                        <option value="Community Hospitals">Community Hospitals</option>
-                                        <option value="Gyms">Gyms</option>
-                                    </optgroup>
-                                )}
                             </select>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Globe size={13} className="inline mr-1" />Country *</label>
-                            <select required value={form.country} onChange={e => setField('country', e.target.value)} className="input-field">
+                            <select required value={form.country} onChange={(e) => setField('country', e.target.value)} className="input-field">
+                                <option value="SG">Singapore</option>
                                 <option value="US">United States</option>
                                 <option value="CA">Canada</option>
                                 <option value="GB">United Kingdom</option>
                                 <option value="AU">Australia</option>
-                                <option value="SG">Singapore</option>
                                 <option value="MY">Malaysia</option>
                                 <option value="IN">India</option>
                                 <option value="PH">Philippines</option>
@@ -162,45 +334,90 @@ export default function AssetForm({ type = 'hard', initialData, onSave, onCancel
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code *</label>
-                            <input required value={form.postalCode} onChange={e => setField('postalCode', e.target.value)} placeholder="60612" className="input-field" />
+                            <input required value={form.postalCode} onChange={(e) => setField('postalCode', e.target.value)} placeholder="680153" className="input-field" />
+                        </div>
+                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                            {hardSubregionResult.status === 'ok' ? (
+                                <span className="text-green-700 font-medium">Derived subregion: {hardSubregionResult.subregion.subregionCode || 'No code'} · {hardSubregionResult.subregion.name}</span>
+                            ) : hardSubregionResult.status === 'ambiguous' ? (
+                                <span className="text-amber-700">Postal code matches multiple subregions. Boundary data needs cleanup before this place can be saved.</span>
+                            ) : hardSubregionResult.status === 'missing' ? (
+                                <span className="text-red-700">Postal code does not match any configured subregion boundary.</span>
+                            ) : (
+                                <span className="text-slate-500">Enter a valid 6-digit postal code to route this place into a subregion automatically.</span>
+                            )}
                         </div>
                         <div className="col-span-2">
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><MapPin size={13} className="inline mr-1" />Street Address *</label>
-                            <input required value={form.address} onChange={e => setField('address', e.target.value)} placeholder="123 Main St, Region" className="input-field" />
+                            <input required value={form.address} onChange={(e) => setField('address', e.target.value)} placeholder="123 Main St" className="input-field" />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Phone size={13} className="inline mr-1" />Phone</label>
-                            <input type="tel" value={form.phone || ''} onChange={e => setField('phone', e.target.value)} placeholder="(312) 555-0000" className="input-field" />
+                            <input type="tel" value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(312) 555-0000" className="input-field" />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Hours</label>
-                            <input value={form.hours || ''} onChange={e => setField('hours', e.target.value)} placeholder="Mon–Fri 9am–5pm" className="input-field" />
+                            <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon–Fri 9am–5pm" className="input-field" />
                         </div>
                     </>
                 )}
 
-                {/* Soft Asset: Schedule Field */}
                 {!isHard && (
-                    <div className="col-span-2">
-                        <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Schedule</label>
-                        <input value={form.schedule || ''} onChange={e => setField('schedule', e.target.value)} placeholder="e.g. Every Tuesday at 10 AM" className="input-field" />
-                    </div>
+                    <>
+                        <div className="col-span-2">
+                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Schedule</label>
+                            <input value={form.schedule || ''} onChange={(e) => setField('schedule', e.target.value)} placeholder="e.g. Every Tuesday at 10 AM" className="input-field" />
+                        </div>
+                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                            {selectedLinkedLocations.length > 0 ? (
+                                linkedLocationSubregions.length === 1 && derivedSoftSubregion ? (
+                                    <span className="text-green-700 font-medium">Target subregion derived from linked places: {derivedSoftSubregion.subregionCode || 'No code'} · {derivedSoftSubregion.name}</span>
+                                ) : (
+                                    <span className="text-amber-700">Linked places span multiple subregions. Keep linked places within one subregion.</span>
+                                )
+                            ) : currentRole === 'partner' ? (
+                                <span className="text-green-700 font-medium">Target subregion fixed to your partner scope.</span>
+                            ) : (
+                                <span>Select a target subregion below when the offering is not linked to a place.</span>
+                            )}
+                        </div>
+                        {selectedLinkedLocations.length === 0 ? (
+                            <div className="col-span-2">
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Target Subregion</label>
+                                {currentRole === 'partner' ? (
+                                    <input
+                                        readOnly
+                                        value={availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(currentUser?.subregionIds?.[0]))?.name || 'Assigned subregion'}
+                                        className="input-field bg-slate-50"
+                                    />
+                                ) : (
+                                    <select className="input-field" value={form.subregionId || ''} onChange={(e) => setField('subregionId', e.target.value)}>
+                                        <option value="">Select target subregion</option>
+                                        {availableTargetSubregions.map((subregion) => (
+                                            <option key={subregion.id} value={subregion.id}>{subregion.subregionCode || subregion.name} · {subregion.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                {explicitTargetSubregion ? (
+                                    <p className="mt-1 text-xs text-green-700 font-medium">Selected subregion: {explicitTargetSubregion.subregionCode || 'No code'} · {explicitTargetSubregion.name}</p>
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </>
                 )}
 
-                {/* Description */}
                 <div className="col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1"><FileText size={13} className="inline mr-1" />Description</label>
-                    <textarea rows={3} value={form.description || ''} onChange={e => setField('description', e.target.value)} placeholder="Brief description of the service or location..." className="input-field resize-none" />
+                    <textarea rows={3} value={form.description || ''} onChange={(e) => setField('description', e.target.value)} placeholder="Brief description..." className="input-field resize-none" />
                 </div>
 
-                {/* Dynamic Tags */}
                 <div className="col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Tags (Press enter to add)</label>
                     <CreatableSelect
                         isMulti
                         options={tagOptions}
                         value={currentTags}
-                        onChange={(selected) => setField('newTags', selected.map(s => s.value))}
+                        onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
                         className="react-select-container"
                         classNamePrefix="react-select"
                         placeholder="Search or create tags..."
@@ -208,7 +425,6 @@ export default function AssetForm({ type = 'hard', initialData, onSave, onCancel
                 </div>
             </div>
 
-            {/* Visibility Settings */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mt-6 space-y-4">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2">
                     <Globe size={16} className="text-brand-600" />
@@ -216,16 +432,28 @@ export default function AssetForm({ type = 'hard', initialData, onSave, onCancel
                 </h3>
 
                 {!isHard && (
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-semibold text-slate-700">Member Only</p>
-                            <p className="text-xs text-slate-500">Require users to be logged in to view this offering</p>
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Audience Mode</label>
+                                <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
+                                    <option value="public">Public</option>
+                                    {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner boundary</option> : null}
+                                </select>
+                                <p className="mt-1 text-xs text-slate-500">Partner-boundary offerings are shown only to managed users inside the partner&apos;s own postcode boundary.</p>
+                            </div>
+                            <div className="flex items-center justify-between border border-slate-200 rounded-xl px-4 py-3 bg-white">
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-700">Member Only</p>
+                                    <p className="text-xs text-slate-500">Require users to be logged in to view this offering</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={Boolean(form.isMemberOnly)} onChange={(e) => setField('isMemberOnly', e.target.checked)} className="sr-only peer" />
+                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                                </label>
+                            </div>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" checked={form.isMemberOnly} onChange={e => setField('isMemberOnly', e.target.checked)} className="sr-only peer" />
-                            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
-                        </label>
-                    </div>
+                    </>
                 )}
 
                 <div className="flex items-center justify-between">
@@ -234,26 +462,24 @@ export default function AssetForm({ type = 'hard', initialData, onSave, onCancel
                         <p className="text-xs text-slate-500">Temporarily or permanently remove from discovery</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={form.isHidden} onChange={e => setField('isHidden', e.target.checked)} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                        <input type="checkbox" checked={Boolean(form.isHidden)} onChange={(e) => setField('isHidden', e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
                     </label>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Scheduled Hide (From)</label>
-                        <input type="datetime-local" value={form.hideFrom} onChange={e => setField('hideFrom', e.target.value)} className="input-field text-sm p-2" />
+                        <input type="datetime-local" value={form.hideFrom} onChange={(e) => setField('hideFrom', e.target.value)} className="input-field text-sm p-2" />
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Scheduled Hide (Until)</label>
-                        <input type="datetime-local" value={form.hideUntil} onChange={e => setField('hideUntil', e.target.value)} className="input-field text-sm p-2" />
+                        <input type="datetime-local" value={form.hideUntil} onChange={(e) => setField('hideUntil', e.target.value)} className="input-field text-sm p-2" />
                     </div>
                 </div>
             </div>
 
-            {isHard && <p className="text-xs text-slate-400">📍 Map coordinates are parsed automatically from country + postal code.</p>}
-
-            {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
+            {error ? <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div> : null}
 
             <div className="flex gap-3 pt-2">
                 <button type="button" onClick={onCancel} className="btn-ghost flex-1 justify-center">Cancel</button>
@@ -261,6 +487,6 @@ export default function AssetForm({ type = 'hard', initialData, onSave, onCancel
                     {saving ? <Loader2 size={18} className="animate-spin" /> : 'Save Asset'}
                 </button>
             </div>
-        </form >
+        </form>
     );
 }

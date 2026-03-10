@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { Plus, Pencil, Trash2, X, MapPin, Building2, CalendarDays, Clock, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, MapPin, Building2, CalendarDays, Clock, Search, Upload, Download } from 'lucide-react';
 import AssetForm from '../../components/AssetForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
+import Papa from 'papaparse';
 
 const TagBadge = ({ tag, onClick }) => (
     <span
@@ -50,6 +51,10 @@ export default function ResourcesPage() {
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [subregions, setSubregions] = useState([]);
+    const [partnerOptions, setPartnerOptions] = useState([]);
+    const [partnerBoundary, setPartnerBoundary] = useState(null);
+    const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
 
     // UI State
     const [activeTab, setActiveTab] = useState('hard'); // 'hard' | 'soft'
@@ -102,10 +107,32 @@ export default function ResourcesPage() {
 
     async function load() {
         try {
-            const [hard, soft] = await Promise.all([
+            const requests = [
                 api.getHardAssets(),
                 api.getSoftAssets(),
-            ]);
+            ];
+
+            if (!isStandardUserRole(user.role)) {
+                requests.push(api.getSubregions().catch(() => []));
+            }
+            if (normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin') {
+                requests.push(api.getUsers().catch(() => []));
+            }
+            if (normalizeRole(user.role) === 'partner') {
+                requests.push(api.getPartnerBoundaries(user.id).catch(() => null));
+            }
+
+            const responses = await Promise.all(requests);
+            let cursor = 0;
+            const hard = responses[cursor++];
+            const soft = responses[cursor++];
+            const fetchedSubregions = !isStandardUserRole(user.role) ? (responses[cursor++] || []) : [];
+            const fetchedUsers = (normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin')
+                ? (responses[cursor++] || [])
+                : [];
+            const fetchedPartnerBoundary = normalizeRole(user.role) === 'partner'
+                ? (responses[cursor++] || null)
+                : null;
 
             if (isStandardUserRole(user.role)) {
                 const favs = await api.getFavorites();
@@ -121,6 +148,23 @@ export default function ResourcesPage() {
                     setHardAssets(hard.filter(r => r.partnerId === user.id));
                     setSoftAssets(soft.filter(r => r.partnerId === user.id));
                 }
+            }
+
+            if (!isStandardUserRole(user.role)) {
+                setSubregions(Array.isArray(fetchedSubregions) ? fetchedSubregions : []);
+            }
+
+            if (normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin') {
+                const partners = Array.isArray(fetchedUsers)
+                    ? fetchedUsers.filter((candidate) => normalizeRole(candidate.role) === 'partner')
+                    : [];
+                setPartnerOptions(partners);
+            } else {
+                setPartnerOptions([]);
+            }
+
+            if (normalizeRole(user.role) === 'partner') {
+                setPartnerBoundary(fetchedPartnerBoundary);
             }
         } catch (err) {
             console.error(err);
@@ -160,6 +204,66 @@ export default function ResourcesPage() {
         }
     }
 
+    function downloadFile(content, fileName, mimeType = 'text/csv;charset=utf-8') {
+        const blob = new Blob([content], { type: mimeType });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }, 1000);
+    }
+
+    function handleDownloadPartnerBoundaryTemplate() {
+        const csv = Papa.unparse({
+            fields: ['postalCode'],
+            data: [['680153'], ['680574'], ['681809']],
+        });
+        downloadFile(`\uFEFF${csv}`, 'partner_boundary_upload_template.csv');
+    }
+
+    function handleExportPartnerBoundary() {
+        if (!partnerBoundary) return;
+        const csv = Papa.unparse({
+            fields: ['partnerUsername', 'postalCode'],
+            data: (partnerBoundary.postalCodes || []).map((postalCode) => [partnerBoundary.partnerUsername, postalCode]),
+        });
+        downloadFile(`\uFEFF${csv}`, `${partnerBoundary.partnerUsername || 'partner'}_boundary_export.csv`);
+    }
+
+    function handlePartnerBoundaryUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file || normalizeRole(user.role) !== 'partner') return;
+
+        setLoading(true);
+        setPartnerBoundaryFeedback('');
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const rows = Array.isArray(results.data) ? results.data : [];
+                    const res = await api.bulkUploadPartnerBoundaries(user.id, { rows });
+                    setPartnerBoundaryFeedback(`Boundary updated: ${res.assignedPostalCodes || 0} postal code(s) assigned.`);
+                    await load();
+                } catch (err) {
+                    setPartnerBoundaryFeedback(err.message || 'Failed to update partner boundary.');
+                } finally {
+                    setLoading(false);
+                    e.target.value = null;
+                }
+            },
+            error: (err) => {
+                setPartnerBoundaryFeedback(`File parsing error: ${err.message}`);
+                setLoading(false);
+            },
+        });
+    }
+
     return (
         <div className="p-6 lg:p-8 max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -178,6 +282,53 @@ export default function ResourcesPage() {
                     </div>
                 )}
             </div>
+
+            {normalizedRole === 'partner' ? (
+                <div className="card border border-slate-200 mb-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900">Partner Boundary</h2>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Upload the exact postcode set used to target partner-boundary offerings to your managed members.
+                            </p>
+                            <p className="text-xs text-slate-500 mt-2">
+                                Current boundary: <span className="font-semibold text-slate-700">{partnerBoundary?.postalCodeCount || 0}</span> postcode(s)
+                            </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2">
+                                <input type="file" accept=".csv" className="hidden" onChange={handlePartnerBoundaryUpload} />
+                                <Upload size={16} /> Upload Boundary CSV
+                            </label>
+                            <button type="button" onClick={handleDownloadPartnerBoundaryTemplate} className="btn-ghost flex items-center justify-center gap-2">
+                                <Download size={16} /> Template
+                            </button>
+                            <button type="button" onClick={handleExportPartnerBoundary} className="btn-ghost flex items-center justify-center gap-2" disabled={!partnerBoundary}>
+                                <Download size={16} /> Export
+                            </button>
+                        </div>
+                    </div>
+                    {partnerBoundary?.postalCodes?.length ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            {partnerBoundary.postalCodes.slice(0, 20).map((postalCode) => (
+                                <span key={postalCode} className="inline-flex rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                                    {postalCode}
+                                </span>
+                            ))}
+                            {partnerBoundary.postalCodes.length > 20 ? (
+                                <span className="inline-flex rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500">
+                                    +{partnerBoundary.postalCodes.length - 20} more
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {partnerBoundaryFeedback ? (
+                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                            {partnerBoundaryFeedback}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
 
             <div className="mb-6 relative">
                 <div className="flex flex-col lg:flex-row gap-3">
@@ -272,9 +423,9 @@ export default function ResourcesPage() {
                                 <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
                                     <p className="font-bold text-slate-900 text-lg truncate">{r.name}</p>
-                                        {(normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin') && r.partnerName && (
-                                            <span className="text-xs text-slate-400">by {r.partnerName}</span>
-                                        )}
+                                        {(normalizeRole(user.role) === 'super_admin' || normalizeRole(user.role) === 'regional_admin') ? (
+                                            <span className="text-xs text-slate-400">{r.partnerName ? `Owner: ${r.partnerName}` : 'Owner: System'}</span>
+                                        ) : null}
                                     </div>
                                     <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
                                         {r.address && <span className="flex items-center gap-1 truncate"><MapPin size={14} />{r.address}</span>}
@@ -362,6 +513,7 @@ export default function ResourcesPage() {
                                                 {getBoundaryBadgeMeta(getAssetBoundaryStatus(r, 'soft')).label}
                                             </span>
                                         ) : null}
+                                        {r.audienceMode === 'partner_boundary' ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 text-brand-700 text-[10px] font-semibold uppercase tracking-wider border border-brand-200">Partner boundary</span> : null}
                                         {r.isMemberOnly && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-semibold uppercase tracking-wider border border-amber-200">Member-Only</span>}
                                         {r.subCategory && <CategoryBadge category={r.subCategory} onClick={() => setSearchTerm(r.subCategory)} />}
                                         {r.tags?.map(t => <TagBadge key={t} tag={t} onClick={() => setSearchTerm(t)} />)}
@@ -405,6 +557,9 @@ export default function ResourcesPage() {
                                 type={modal.assetType}
                                 initialData={modal.data}
                                 partnerHardAssets={hardAssets} // used for SoftAsset location linking
+                                currentUser={user}
+                                partnerOptions={partnerOptions}
+                                subregions={subregions}
                                 onSave={() => { setModal(null); load(); }}
                                 onCancel={() => setModal(null)}
                             />

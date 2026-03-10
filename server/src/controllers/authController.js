@@ -2,9 +2,12 @@ import bcrypt from 'bcryptjs';
 import { getDb } from '../db/index.js';
 import { users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { canManageRole, normalizeRole } from '../utils/roles.js';
+import { normalizeRole } from '../utils/roles.js';
+import { canDirectlyManageUser } from '../utils/ownership.js';
 import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { normalizePostalCode } from '../utils/postalBoundaries.js';
+import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
 
 const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
 
@@ -25,11 +28,6 @@ function getScopedSubregionIds(user) {
     return parseSubregionIds(user?.subregionIds || []);
 }
 
-function sharesScopedSubregion(actor, targetSubregionIds) {
-    const actorScope = new Set(getScopedSubregionIds(actor));
-    return targetSubregionIds.some((id) => actorScope.has(id));
-}
-
 async function loadUserWithSubregions(db, userId) {
     const [user] = await db.select({
         id: users.id,
@@ -39,6 +37,7 @@ async function loadUserWithSubregions(db, userId) {
         name: users.name,
         phone: users.phone,
         postalCode: users.postalCode,
+        managerUserId: users.managerUserId,
     }).from(users).where(eq(users.id, userId));
 
     if (!user) return null;
@@ -59,11 +58,15 @@ function canImpersonateUser(actor, targetUser) {
         return true;
     }
 
-    if (!canManageRole(actorRole, targetUser.role)) {
-        return false;
-    }
+    return canDirectlyManageUser(actor, targetUser);
+}
 
-    return sharesScopedSubregion(actor, targetUser.subregionIds);
+function normalizeRequiredPostalCode(value) {
+    const postalCode = normalizePostalCode(value);
+    if (!postalCode) {
+        throw new Error('Postal code is required and must be a valid 6-digit code.');
+    }
+    return postalCode;
 }
 
 export const register = async (c) => {
@@ -78,6 +81,8 @@ export const register = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
+        const postalCode = normalizeRequiredPostalCode(body.postalCode);
+        const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
 
         // Auto-generate username from email if not provided
         if (!username) {
@@ -105,8 +110,14 @@ export const register = async (c) => {
             email,
             passwordHash,
             name,
-            role: 'standard'
+            role: 'standard',
+            postalCode,
+            managerUserId: null,
         }).returning();
+
+        await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+
+        user.subregionIds = [derivedSubregion.id];
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
@@ -119,6 +130,8 @@ export const register = async (c) => {
                 name: user.name,
                 role: user.role,
                 postalCode: user.postalCode ?? '',
+                subregionIds: user.subregionIds,
+                managerUserId: user.managerUserId ?? null,
             }
         });
     } catch (err) {
@@ -142,13 +155,33 @@ export const login = async (c) => {
         const isEmail = loginId.includes('@');
 
         // Try exact match first
-        let [user] = await db.select().from(users).where(
+        let [user] = await db.select({
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            passwordHash: users.passwordHash,
+            name: users.name,
+            role: users.role,
+            phone: users.phone,
+            postalCode: users.postalCode,
+            managerUserId: users.managerUserId,
+        }).from(users).where(
             isEmail ? eq(users.email, loginId) : eq(users.username, loginId)
         );
 
         // Fallback: case-insensitive lookup
         if (!user) {
-            [user] = await db.select().from(users).where(
+            [user] = await db.select({
+                id: users.id,
+                username: users.username,
+                email: users.email,
+                passwordHash: users.passwordHash,
+                name: users.name,
+                role: users.role,
+                phone: users.phone,
+                postalCode: users.postalCode,
+                managerUserId: users.managerUserId,
+            }).from(users).where(
                 isEmail ? eq(users.email, loginId.toLowerCase()) : eq(users.username, loginId)
             );
         }
@@ -188,7 +221,8 @@ export const login = async (c) => {
                 name: user.name,
                 role: user.role,
                 postalCode: user.postalCode ?? '',
-                subregionIds: user.subregionIds
+                subregionIds: user.subregionIds,
+                managerUserId: user.managerUserId ?? null,
             }
         });
     } catch (err) {
@@ -235,6 +269,8 @@ export const googleAuth = async (c) => {
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
         if (!user) {
+            const postalCode = normalizeRequiredPostalCode(body.postalCode);
+            const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
             const dummyPassword = crypto.getRandomValues(new Uint8Array(16)).join('');
             const passwordHash = await bcrypt.hash(dummyPassword, 10);
 
@@ -253,9 +289,16 @@ export const googleAuth = async (c) => {
                 email,
                 name: name || baseUsername,
                 passwordHash,
-                role: 'standard'
+                role: 'standard',
+                postalCode,
+                managerUserId: null,
             }).returning();
+
+            await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
         }
+
+        const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
+        user.subregionIds = userSubs.map((row) => row.subregionId);
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
@@ -267,7 +310,8 @@ export const googleAuth = async (c) => {
                 name: user.name,
                 role: user.role,
                 postalCode: user.postalCode ?? '',
-                subregionId: user.subregionId
+                subregionIds: user.subregionIds,
+                managerUserId: user.managerUserId ?? null,
             }
         });
 

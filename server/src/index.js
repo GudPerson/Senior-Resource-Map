@@ -12,6 +12,7 @@ import favoritesRoutes from './routes/favorites.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
 import subregionRoutes from './routes/subregions.js';
+import partnerRoutes from './routes/partners.js';
 
 const app = new Hono();
 
@@ -50,6 +51,7 @@ app.route('/api/favorites', favoritesRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/public', publicRoutes);
 app.route('/api/subregions', subregionRoutes);
+app.route('/api/partners', partnerRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
