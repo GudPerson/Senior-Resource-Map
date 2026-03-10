@@ -3,6 +3,7 @@ import { subregionPostalCodes, subregions } from '../db/schema.js';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode, parsePostalCodeListInput, serializePostalCodeList } from '../utils/postalBoundaries.js';
+import { normalizeRole } from '../utils/roles.js';
 
 let ensureSubregionSchemaPromise = null;
 
@@ -216,6 +217,9 @@ function resolveSubregionReference(referenceMaps, row) {
 
         const codeMatch = referenceMaps.byCode.get(subregionCode.toLowerCase());
         if (codeMatch) return codeMatch;
+
+        const nameAliasMatch = referenceMaps.byName.get(subregionCode.toLowerCase());
+        if (nameAliasMatch) return nameAliasMatch;
     }
 
     const rawId = normalizeText(row?.id);
@@ -227,6 +231,9 @@ function resolveSubregionReference(referenceMaps, row) {
 
         const codeMatch = referenceMaps.byCode.get(rawId.toLowerCase());
         if (codeMatch) return codeMatch;
+
+        const nameAliasMatch = referenceMaps.byName.get(rawId.toLowerCase());
+        if (nameAliasMatch) return nameAliasMatch;
     }
 
     const name = normalizeText(row?.name ?? row?.Name ?? row?.subregionName ?? row?.['Sub-region']);
@@ -244,6 +251,12 @@ function chunk(array, size) {
         parts.push(array.slice(i, i + size));
     }
     return parts;
+}
+
+function getScopedSubregionIds(user) {
+    return Array.isArray(user?.subregionIds)
+        ? user.subregionIds.map((value) => Number.parseInt(String(value), 10)).filter(Number.isInteger)
+        : [];
 }
 
 async function syncSubregionPostalCodes(db, subregionId, postalCodes) {
@@ -465,8 +478,9 @@ export const bulkCreateSubregions = async (c) => {
 export const bulkUploadSubregionBoundaries = async (c) => {
     try {
         const user = c.get('user');
-        if (user?.role !== 'super_admin') {
-            return c.json({ error: 'Permission denied' }, 403);
+        const role = normalizeRole(user?.role);
+        if (!['super_admin', 'regional_admin'].includes(role)) {
+            return c.json({ error: 'Only Super Admins and Regional Admins can manage subregion boundaries.' }, 403);
         }
 
         const body = await c.req.json();
@@ -482,6 +496,7 @@ export const bulkUploadSubregionBoundaries = async (c) => {
             .select({ id: subregions.id, subregionCode: subregions.subregionCode, name: subregions.name })
             .from(subregions);
         const referenceMaps = buildSubregionReferenceMaps(existingSubregions);
+        const scopedSubregionIds = new Set(getScopedSubregionIds(user));
 
         const groupedPostalCodes = new Map();
         const errors = [];
@@ -492,6 +507,10 @@ export const bulkUploadSubregionBoundaries = async (c) => {
                 const targetSubregion = resolveSubregionReference(referenceMaps, row);
                 if (!targetSubregion) {
                     throw new Error('Unknown subregion reference. Supply subregionId/subregionCode, dbId, or name.');
+                }
+
+                if (role === 'regional_admin' && !scopedSubregionIds.has(targetSubregion.id)) {
+                    throw new Error(`Subregion "${targetSubregion.subregionCode || targetSubregion.name}" is outside your scope.`);
                 }
 
                 const postalCode = normalizePostalCode(row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode']);

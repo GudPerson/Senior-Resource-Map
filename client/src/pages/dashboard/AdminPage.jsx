@@ -41,6 +41,8 @@ export default function AdminPage() {
     const canEditUserRoles = canChangeUserRoles(currentRole);
     const creatableRoles = getCreatableUserRoles(currentRole);
     const superAdminRoleOptions = getCreatableUserRoles('super_admin');
+    const canManageSubregionMetadata = currentRole === 'super_admin';
+    const canManageSubregionBoundaries = currentRole === 'super_admin' || currentRole === 'regional_admin';
 
     useEffect(() => {
         if (!availableTabs.includes(tab)) {
@@ -376,6 +378,7 @@ export default function AdminPage() {
 
     async function handleAddSubregion(e) {
         e.preventDefault();
+        if (!canManageSubregionMetadata) return;
         setLoading(true);
         setSubregionFeedback(null);
         try {
@@ -399,6 +402,7 @@ export default function AdminPage() {
     }
 
     function promptSingleSubregionDelete(subregion) {
+        if (!canManageSubregionMetadata) return;
         setPendingSubregionDelete({
             mode: 'single',
             id: subregion.id,
@@ -677,6 +681,7 @@ export default function AdminPage() {
     }
 
     function handleBulkSubregionUpload(e) {
+        if (!canManageSubregionMetadata) return;
         const file = e.target.files[0];
         if (!file) return;
 
@@ -735,6 +740,7 @@ export default function AdminPage() {
     }
 
     function promptBulkDeleteSubregions() {
+        if (!canManageSubregionMetadata) return;
         if (selectedSubregions.length === 0) return;
         setPendingSubregionDelete({
             mode: 'bulk',
@@ -744,6 +750,7 @@ export default function AdminPage() {
     }
 
     async function handleConfirmSubregionDelete() {
+        if (!canManageSubregionMetadata) return;
         if (!pendingSubregionDelete) return;
         try {
             setSubregionDeleteLoading(true);
@@ -800,6 +807,7 @@ export default function AdminPage() {
     }
 
     function handleExportSelectedSubregionBoundaries() {
+        if (!canManageSubregionBoundaries) return;
         const selectedData = selectedSubregions.length > 0
             ? subregions.filter((subregion) => selectedSubregions.includes(subregion.id))
             : subregions;
@@ -1096,61 +1104,77 @@ export default function AdminPage() {
                 /* ======== Subregions Table ======== */
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row gap-4">
-                        <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                            <div className="grid grid-cols-1 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                                <input
-                                    required
-                                    placeholder="Subregion ID (e.g. SR-AMK)"
-                                    value={newSubregion.subregionCode}
-                                    onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
-                                    className="input-field"
-                                    title="Unique subregion identifier"
-                                />
-                                <input
-                                    required
-                                    placeholder="Name (e.g. Jurong)"
-                                    value={newSubregion.name}
-                                    onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
-                                    className="input-field"
-                                />
-                                <input
-                                    placeholder="Description"
-                                    value={newSubregion.description}
-                                    onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
-                                    className="input-field"
-                                />
-                            </div>
-                            <p className="mt-2 text-xs text-slate-500">
-                                Manage subregion metadata here. Upload exact 6-digit boundary postal codes using the boundary CSV tool on the right.
-                            </p>
-                            <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                                {newSubregion.id ? (
-                                    <button type="button" onClick={resetSubregionForm} className="btn-secondary sm:w-auto w-full">
-                                        Cancel Edit
+                        {canManageSubregionMetadata ? (
+                            <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <div className="grid grid-cols-1 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                                    <input
+                                        required
+                                        placeholder="Subregion ID (e.g. SR-AMK)"
+                                        value={newSubregion.subregionCode}
+                                        onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
+                                        className="input-field"
+                                        title="Unique subregion identifier"
+                                    />
+                                    <input
+                                        required
+                                        placeholder="Name (e.g. Jurong)"
+                                        value={newSubregion.name}
+                                        onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
+                                        className="input-field"
+                                    />
+                                    <input
+                                        placeholder="Description"
+                                        value={newSubregion.description}
+                                        onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
+                                        className="input-field"
+                                    />
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Manage subregion metadata here. Upload exact 6-digit boundary postal codes using the boundary CSV tool on the right.
+                                </p>
+                                <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                                    {newSubregion.id ? (
+                                        <button type="button" onClick={resetSubregionForm} className="btn-secondary sm:w-auto w-full">
+                                            Cancel Edit
+                                        </button>
+                                    ) : null}
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                        {loading ? (newSubregion.id ? 'Saving...' : 'Adding...') : (newSubregion.id ? 'Save Subregion' : 'Add Subregion')}
                                     </button>
-                                ) : null}
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                    {loading ? (newSubregion.id ? 'Saving...' : 'Adding...') : (newSubregion.id ? 'Save Subregion' : 'Add Subregion')}
-                                </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <h2 className="text-lg font-bold text-slate-900">Subregion Boundaries</h2>
+                                <p className="mt-2 text-sm text-slate-600">
+                                    You can upload and export boundary postal codes for subregions inside your assigned scope.
+                                </p>
+                                <p className="mt-2 text-xs text-slate-500">
+                                    Subregion names, codes, and deletion remain restricted to Super Admin.
+                                </p>
                             </div>
-                        </form>
+                        )}
 
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 min-w-[320px]">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
-                                    <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionUpload} />
-                                    <Upload size={16} />
-                                    Upload Subregions
-                                </label>
-                                <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
-                                    <Download size={16} />
-                                    Metadata Template
-                                </button>
+                                {canManageSubregionMetadata ? (
+                                    <>
+                                        <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
+                                            <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionUpload} />
+                                            <Upload size={16} />
+                                            Upload Subregions
+                                        </label>
+                                        <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
+                                            <Download size={16} />
+                                            Metadata Template
+                                        </button>
+                                    </>
+                                ) : null}
                                 <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
                                     <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionBoundaryUpload} />
                                     <Upload size={16} />
@@ -1182,15 +1206,19 @@ export default function AdminPage() {
                         <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
                             <span className="text-sm font-bold text-blue-700 ml-2">{selectedSubregions.length} selected</span>
                             <div className="flex-1"></div>
-                            <button type="button" onClick={handleExportSelectedSubregions} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
-                                <Download size={14} /> Export Metadata
-                            </button>
+                            {canManageSubregionMetadata ? (
+                                <button type="button" onClick={handleExportSelectedSubregions} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
+                                    <Download size={14} /> Export Metadata
+                                </button>
+                            ) : null}
                             <button type="button" onClick={handleExportSelectedSubregionBoundaries} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
                                 <Download size={14} /> Export Boundaries
                             </button>
-                            <button type="button" onClick={promptBulkDeleteSubregions} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
-                                <Trash2 size={14} /> Delete Selected
-                            </button>
+                            {canManageSubregionMetadata ? (
+                                <button type="button" onClick={promptBulkDeleteSubregions} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
+                                    <Trash2 size={14} /> Delete Selected
+                                </button>
+                            ) : null}
                         </div>
                     )}
 
@@ -1203,6 +1231,7 @@ export default function AdminPage() {
                                             type="checkbox"
                                             checked={subregions.length > 0 && selectedSubregions.length === subregions.length}
                                             onChange={toggleSelectAllSubregions}
+                                            disabled={subregions.length === 0}
                                             className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                         />
                                     </th>
@@ -1210,7 +1239,7 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
                                     <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
-                                    <th className="px-4 py-3 font-semibold w-28 text-center">Actions</th>
+                                    <th className="px-4 py-3 font-semibold w-28 text-center">{canManageSubregionMetadata ? 'Actions' : 'Scope'}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -1251,27 +1280,33 @@ export default function AdminPage() {
                                             ) : 'No boundary uploaded'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className="flex justify-center gap-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleEditSubregion(reg)}
-                                                    className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors flex items-center justify-center"
-                                                    title="Edit subregion"
-                                                >
-                                                    <Pencil size={16} />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        promptSingleSubregionDelete(reg);
-                                                    }}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center relative z-10"
-                                                    title="Delete subregion"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
+                                            {canManageSubregionMetadata ? (
+                                                <div className="flex justify-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleEditSubregion(reg)}
+                                                        className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors flex items-center justify-center"
+                                                        title="Edit subregion"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            promptSingleSubregionDelete(reg);
+                                                        }}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center relative z-10"
+                                                        title="Delete subregion"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="inline-flex rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700">
+                                                    Boundary only
+                                                </span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

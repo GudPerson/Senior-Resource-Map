@@ -85,7 +85,7 @@ export function getAdminTabs(role) {
         case 'super_admin':
             return ['resources', 'users', 'subregions', 'subcats', 'datatools'];
         case 'regional_admin':
-            return ['resources', 'users'];
+            return ['resources', 'users', 'subregions'];
         case 'partner':
             return ['users'];
         default:
