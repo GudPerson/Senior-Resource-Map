@@ -650,7 +650,16 @@ export default function AdminPage() {
             complete: async (results) => {
                 try {
                     const res = await api.bulkCreateUsers({ rows: results.data });
-                    alert(`Import processed: ${res.successful} successful, ${res.failed} failed.${res.errors.length > 0 ? '\n\nErrors:\n' + res.errors.join('\n') : ''}`);
+                    const summary = [
+                        `Import processed: ${res.successful || 0} created, ${res.skipped || 0} skipped, ${res.failed || 0} failed.`,
+                    ];
+                    if (Array.isArray(res.skippedItems) && res.skippedItems.length > 0) {
+                        summary.push(`\nSkipped:\n${res.skippedItems.join('\n')}`);
+                    }
+                    if (Array.isArray(res.errors) && res.errors.length > 0) {
+                        summary.push(`\nErrors:\n${res.errors.join('\n')}`);
+                    }
+                    alert(summary.join(''));
                     await loadAll();
                 } catch (err) {
                     alert('Bulk upload failed: ' + err.message);

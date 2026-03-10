@@ -150,6 +150,11 @@ function normalizeOptionalPostalCode(value) {
     return postalCode;
 }
 
+function isDuplicateUserImportIssue(message) {
+    const normalized = String(message || '').toLowerCase();
+    return normalized.includes('already registered') || normalized.includes('already taken');
+}
+
 async function loadUserWithSubregions(db, id) {
     const [userRow] = await db.select({
         id: users.id,
@@ -239,7 +244,14 @@ export const bulkCreateUsers = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
-        const results = { message: 'Bulk import processed', successful: 0, failed: 0, errors: [] };
+        const results = {
+            message: 'Bulk import processed',
+            successful: 0,
+            skipped: 0,
+            failed: 0,
+            errors: [],
+            skippedItems: [],
+        };
 
         if (!Array.isArray(rows)) {
             return c.json({ error: 'Invalid data format. Expected an array of rows.' }, 400);
@@ -288,8 +300,14 @@ export const bulkCreateUsers = async (c) => {
                 }
                 results.successful++;
             } catch (err) {
-                results.failed++;
-                results.errors.push(err.message);
+                const message = err.message || 'Unknown import error';
+                if (isDuplicateUserImportIssue(message)) {
+                    results.skipped++;
+                    results.skippedItems.push(message);
+                } else {
+                    results.failed++;
+                    results.errors.push(message);
+                }
             }
         }
 
