@@ -55,7 +55,7 @@ export default function ProfilePage() {
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code</label>
                         <input id="profile-postal-code" type="text" value={form.postalCode} onChange={set('postalCode')} placeholder="680153" className=" input-field" />
-                        <p className="text-xs text-slate-400 mt-1">Optional. Used to check whether you are inside your assigned service boundary.</p>
+                        <p className="text-xs text-slate-400 mt-1">Optional. Used to check whether you are inside the postal-code boundary assigned to your subregion.</p>
                     </div>
 
                     <hr className="border-slate-100" />

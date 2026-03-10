@@ -6,7 +6,6 @@ import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import { canChangeUserRoles, canManageUser, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
-import { collectSubregionPostalPatterns, getBoundaryStatus, normalizePostalCode } from '../../lib/postalBoundaries.js';
 
 
 export default function AdminPage() {
@@ -25,7 +24,7 @@ export default function AdminPage() {
 
     const [loading, setLoading] = useState(true);
     const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
-    const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '', postalPatterns: '' });
+    const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '' });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
     const [resourceSearch, setResourceSearch] = useState('');
     const [resourceBoundaryFilter, setResourceBoundaryFilter] = useState('all');
@@ -111,11 +110,6 @@ export default function AdminPage() {
         return !currentUser?.isImpersonating && canManageUserRecord(targetUser);
     }
 
-    const scopedBoundaryPatterns = useMemo(
-        () => collectSubregionPostalPatterns(subregions, currentUser?.subregionIds || []),
-        [subregions, currentUser?.subregionIds]
-    );
-
     const boundaryChecksEnabled = currentRole === 'regional_admin' || currentRole === 'partner';
 
     function getBoundaryBadgeMeta(status) {
@@ -134,29 +128,15 @@ export default function AdminPage() {
     }
 
     function getUserBoundaryStatus(userRecord) {
-        return getBoundaryStatus(userRecord?.postalCode, scopedBoundaryPatterns);
+        return userRecord?.boundaryStatus || 'no-boundary';
     }
 
     function getResourceBoundaryStatus(resource) {
-        if (!boundaryChecksEnabled) return 'no-boundary';
-
-        if (resource.category === 'Places') {
-            return getBoundaryStatus(resource.postalCode, scopedBoundaryPatterns);
-        }
-
-        const locations = Array.isArray(resource.locations) ? resource.locations : [];
-        if (locations.length === 0) return 'no-location';
-
-        const validPostalCodes = locations.map((location) => normalizePostalCode(location.postalCode)).filter(Boolean);
-        if (validPostalCodes.length === 0) return 'missing-postal';
-
-        return validPostalCodes.some((postalCode) => getBoundaryStatus(postalCode, scopedBoundaryPatterns) === 'inside')
-            ? 'inside'
-            : 'outside';
+        return resource?.boundaryStatus || 'no-boundary';
     }
 
     function resetSubregionForm() {
-        setNewSubregion({ id: null, subregionCode: '', name: '', description: '', postalPatterns: '' });
+        setNewSubregion({ id: null, subregionCode: '', name: '', description: '' });
     }
 
     function handleEditSubregion(subregion) {
@@ -166,7 +146,6 @@ export default function AdminPage() {
             subregionCode: subregion.subregionCode || '',
             name: subregion.name || '',
             description: subregion.description || '',
-            postalPatterns: subregion.postalPatterns || '',
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -680,10 +659,21 @@ export default function AdminPage() {
     }
 
     function handleDownloadSubregionTemplate() {
-        const headers = ['id', 'subregionId', 'name', 'description', 'postalPatterns'];
-        const demoRow = ['', 'SR-JW', 'Jurong West', 'Residential area in the west', '68*, 689286-689399'];
+        const headers = ['id', 'subregionId', 'name', 'description'];
+        const demoRow = ['', 'SR-JW', 'Jurong West', 'Residential area in the west'];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         downloadFile('\uFEFF' + csv, 'subregion_upload_template.csv', 'text/csv;charset=utf-8');
+    }
+
+    function handleDownloadSubregionBoundaryTemplate() {
+        const headers = ['subregionId', 'postalCode'];
+        const demoRows = [
+            ['SR-JW', '640101'],
+            ['SR-JW', '640102'],
+            ['SR-JW', '640103'],
+        ];
+        const csv = Papa.unparse({ fields: headers, data: demoRows });
+        downloadFile('\uFEFF' + csv, 'subregion_boundary_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
     function handleBulkSubregionUpload(e) {
@@ -701,6 +691,37 @@ export default function AdminPage() {
                     await loadAll();
                 } catch (err) {
                     alert('Bulk upload failed: ' + err.message);
+                } finally {
+                    setLoading(false);
+                    e.target.value = null;
+                }
+            },
+            error: (err) => {
+                alert('File parsing error: ' + err.message);
+                setLoading(false);
+            }
+        });
+    }
+
+    function handleBulkSubregionBoundaryUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setLoading(true);
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const res = await api.bulkUploadSubregionBoundaries({ rows: results.data });
+                    const errors = Array.isArray(res?.errors) ? res.errors : [];
+                    const extra = [];
+                    if (Number.isInteger(res?.updatedSubregions)) extra.push(`${res.updatedSubregions} subregion(s) updated`);
+                    if (Number.isInteger(res?.assignedPostalCodes)) extra.push(`${res.assignedPostalCodes} postal code(s) assigned`);
+                    alert(`Boundary import processed: ${res.successful} successful, ${res.failed} failed.${extra.length > 0 ? `\n\n${extra.join('\n')}` : ''}${errors.length > 0 ? '\n\nErrors:\n' + errors.join('\n') : ''}`);
+                    await loadAll();
+                } catch (err) {
+                    alert('Boundary upload failed: ' + err.message);
                 } finally {
                     setLoading(false);
                     e.target.value = null;
@@ -767,15 +788,40 @@ export default function AdminPage() {
             subregionId: s.subregionCode || '',
             name: s.name,
             description: s.description || '',
-            postalPatterns: s.postalPatterns || ''
         }));
 
         const csv = Papa.unparse({
-            fields: ['id', 'subregionId', 'name', 'description', 'postalPatterns'],
-            data: toExport.map(s => [s.id, s.subregionId, s.name, s.description, s.postalPatterns])
+            fields: ['id', 'subregionId', 'name', 'description'],
+            data: toExport.map(s => [s.id, s.subregionId, s.name, s.description])
         });
 
         const fileName = `subregions_export_${new Date().toISOString().split('T')[0]}.csv`;
+        downloadFile('\uFEFF' + csv, fileName, 'text/csv;charset=utf-8');
+    }
+
+    function handleExportSelectedSubregionBoundaries() {
+        const selectedData = selectedSubregions.length > 0
+            ? subregions.filter((subregion) => selectedSubregions.includes(subregion.id))
+            : subregions;
+
+        const rows = selectedData.flatMap((subregion) =>
+            (Array.isArray(subregion.postalCodesList) ? subregion.postalCodesList : []).map((postalCode) => ({
+                subregionId: subregion.subregionCode || subregion.id,
+                postalCode,
+            }))
+        );
+
+        if (rows.length === 0) {
+            alert('No boundary postal codes to export.');
+            return;
+        }
+
+        const csv = Papa.unparse({
+            fields: ['subregionId', 'postalCode'],
+            data: rows.map((row) => [row.subregionId, row.postalCode])
+        });
+
+        const fileName = `subregion_boundaries_${new Date().toISOString().split('T')[0]}.csv`;
         downloadFile('\uFEFF' + csv, fileName, 'text/csv;charset=utf-8');
     }
 
@@ -818,7 +864,7 @@ export default function AdminPage() {
 
             return haystack.includes(query);
         });
-    }, [resources, resourceSearch, resourceBoundaryFilter, boundaryChecksEnabled, scopedBoundaryPatterns]);
+    }, [resources, resourceSearch, resourceBoundaryFilter, boundaryChecksEnabled]);
 
     const filteredUsers = useMemo(() => {
         const query = userSearch.trim().toLowerCase();
@@ -842,7 +888,7 @@ export default function AdminPage() {
                 .toLowerCase()
                 .includes(query);
         });
-    }, [users, userSearch, userBoundaryFilter, boundaryChecksEnabled, scopedBoundaryPatterns]);
+    }, [users, userSearch, userBoundaryFilter, boundaryChecksEnabled]);
 
     const manageableVisibleUserIds = filteredUsers
         .filter((candidate) => canManageUserRecord(candidate))
@@ -960,7 +1006,7 @@ export default function AdminPage() {
                         </div>
                         {boundaryChecksEnabled ? (
                             <p className="mt-2 text-xs text-slate-500">
-                                Boundary checks are based on postal patterns assigned to your scoped subregion(s).
+                                Boundary checks are based on the exact postal code set assigned to your scoped subregion(s).
                             </p>
                         ) : null}
                     </div>
@@ -1051,7 +1097,7 @@ export default function AdminPage() {
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row gap-4">
                         <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                            <div className="grid grid-cols-1 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)_220px] gap-3">
+                            <div className="grid grid-cols-1 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)] gap-3">
                                 <input
                                     required
                                     placeholder="Subregion ID (e.g. SR-AMK)"
@@ -1073,16 +1119,9 @@ export default function AdminPage() {
                                     onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
                                     className="input-field"
                                 />
-                                <textarea
-                                    placeholder="Postal patterns: 680153, 68*, 689286-689399"
-                                    value={newSubregion.postalPatterns}
-                                    onChange={e => setNewSubregion({ ...newSubregion, postalPatterns: e.target.value })}
-                                    className="input-field min-h-[44px] resize-y"
-                                    rows={2}
-                                />
                             </div>
                             <p className="mt-2 text-xs text-slate-500">
-                                Postal boundaries support exact postcodes, prefixes, and ranges. Example: <span className="font-mono">680153, 68*, 689286-689399</span>
+                                Manage subregion metadata here. Upload exact 6-digit boundary postal codes using the boundary CSV tool on the right.
                             </p>
                             <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                 {newSubregion.id ? (
@@ -1101,15 +1140,30 @@ export default function AdminPage() {
                             </div>
                         </form>
 
-                        <div className="flex gap-2 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                            <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm flex-1 sm:flex-none">
-                                <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionUpload} />
-                                <Upload size={16} />
-                                Upload CSV
-                            </label>
-                            <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center p-2" title="Download Template">
-                                <Download size={18} />
-                            </button>
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 min-w-[320px]">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
+                                    <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionUpload} />
+                                    <Upload size={16} />
+                                    Upload Subregions
+                                </label>
+                                <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
+                                    <Download size={16} />
+                                    Metadata Template
+                                </button>
+                                <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
+                                    <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionBoundaryUpload} />
+                                    <Upload size={16} />
+                                    Upload Boundaries
+                                </label>
+                                <button onClick={handleDownloadSubregionBoundaryTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
+                                    <Download size={16} />
+                                    Boundary Template
+                                </button>
+                            </div>
+                            <p className="mt-3 text-xs text-slate-500">
+                                Boundary CSV format: <code className="bg-slate-100 px-1 rounded">subregionId</code>, <code className="bg-slate-100 px-1 rounded">postalCode</code>. Uploading replaces the boundary postcode set for each referenced subregion.
+                            </p>
                         </div>
                     </div>
 
@@ -1129,7 +1183,10 @@ export default function AdminPage() {
                             <span className="text-sm font-bold text-blue-700 ml-2">{selectedSubregions.length} selected</span>
                             <div className="flex-1"></div>
                             <button type="button" onClick={handleExportSelectedSubregions} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
-                                <Download size={14} /> Export Selected
+                                <Download size={14} /> Export Metadata
+                            </button>
+                            <button type="button" onClick={handleExportSelectedSubregionBoundaries} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
+                                <Download size={14} /> Export Boundaries
                             </button>
                             <button type="button" onClick={promptBulkDeleteSubregions} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
                                 <Trash2 size={14} /> Delete Selected
@@ -1152,7 +1209,7 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
-                                    <th className="px-4 py-3 font-semibold">Postal Boundary</th>
+                                    <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
                                     <th className="px-4 py-3 font-semibold w-28 text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -1172,16 +1229,26 @@ export default function AdminPage() {
                                         </td>
                                         <td className="px-4 py-3 font-semibold text-slate-900">{reg.name}</td>
                                         <td className="px-4 py-3 text-slate-500 text-sm truncate max-w-[200px]">{reg.description || '—'}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[280px]">
-                                            {reg.postalPatterns ? (
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(reg.postalPatternsList?.length ? reg.postalPatternsList : reg.postalPatterns.split(',')).map((pattern) => (
-                                                        <span key={`${reg.id}-${pattern}`} className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-1 font-mono text-[11px] text-brand-700">
-                                                            {String(pattern).trim()}
-                                                        </span>
-                                                    ))}
+                                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[320px]">
+                                            {reg.postalCodeCount > 0 ? (
+                                                <div className="space-y-2">
+                                                    <div className="text-xs font-semibold text-slate-700">
+                                                        {reg.postalCodeCount} exact postal code{reg.postalCodeCount === 1 ? '' : 's'}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(reg.postalCodesPreview || []).map((postalCode) => (
+                                                            <span key={`${reg.id}-${postalCode}`} className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-1 font-mono text-[11px] text-brand-700">
+                                                                {postalCode}
+                                                            </span>
+                                                        ))}
+                                                        {reg.postalCodeCount > (reg.postalCodesPreview?.length || 0) ? (
+                                                            <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500">
+                                                                +{reg.postalCodeCount - (reg.postalCodesPreview?.length || 0)} more
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
-                                            ) : '—'}
+                                            ) : 'No boundary uploaded'}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center gap-1">
@@ -1415,7 +1482,7 @@ export default function AdminPage() {
                         </div>
                         {boundaryChecksEnabled ? (
                             <p className="mt-2 text-xs text-slate-500">
-                                Boundary checks compare each user postal code against the postal patterns assigned to your scoped subregion(s).
+                                Boundary checks compare each user postal code against the exact postal code set assigned to your scoped subregion(s).
                             </p>
                         ) : null}
                     </div>

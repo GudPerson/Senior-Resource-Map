@@ -12,6 +12,14 @@ export const subregions = pgTable('subregions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const subregionPostalCodes = pgTable('subregion_postal_codes', {
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
+  postalCode: varchar('postal_code', { length: 20 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.subregionId, table.postalCode] }),
+}));
+
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   username: varchar('username', { length: 255 }).notNull().unique(),
@@ -117,6 +125,18 @@ export const userSubregionsRelations = relations(userSubregions, ({ one }) => ({
   }),
   subregion: one(subregions, {
     fields: [userSubregions.subregionId],
+    references: [subregions.id],
+  }),
+}));
+
+export const subregionsRelations = relations(subregions, ({ many }) => ({
+  users: many(userSubregions),
+  postalCodes: many(subregionPostalCodes),
+}));
+
+export const subregionPostalCodesRelations = relations(subregionPostalCodes, ({ one }) => ({
+  subregion: one(subregions, {
+    fields: [subregionPostalCodes.subregionId],
     references: [subregions.id],
   }),
 }));

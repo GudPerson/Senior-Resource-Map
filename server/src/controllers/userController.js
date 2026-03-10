@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { ASSIGNABLE_ROLES, canManageRole, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
+import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -246,6 +247,7 @@ export const getUsers = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db);
         const creatorRole = normalizeRole(creator.role);
+        const boundaryContext = await loadScopedBoundaryContext(db, creator);
 
         let usersData = await db.query.users.findMany({
             columns: {
@@ -276,7 +278,12 @@ export const getUsers = async (c) => {
         }
 
         const rows = usersData.map(u => {
-            const row = { ...u, role: normalizeRole(u.role), subregionIds: u.subregions.map(r => r.subregionId) };
+            const row = {
+                ...u,
+                role: normalizeRole(u.role),
+                subregionIds: u.subregions.map(r => r.subregionId),
+                boundaryStatus: resolvePostalBoundaryStatus(u.postalCode, boundaryContext),
+            };
             delete row.subregions;
             return row;
         });

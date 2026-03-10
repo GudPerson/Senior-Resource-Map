@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Plus, Pencil, Trash2, X, MapPin, Building2, CalendarDays, Clock, Search } from 'lucide-react';
 import AssetForm from '../../components/AssetForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
-import { collectSubregionPostalPatterns, getBoundaryStatus, normalizePostalCode } from '../../lib/postalBoundaries.js';
 
 const TagBadge = ({ tag, onClick }) => (
     <span
@@ -50,7 +49,6 @@ export default function ResourcesPage() {
     const { user } = useAuth();
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
-    const [subregions, setSubregions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
@@ -62,10 +60,6 @@ export default function ResourcesPage() {
 
     const normalizedRole = normalizeRole(user?.role);
     const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner';
-    const scopedBoundaryPatterns = useMemo(
-        () => collectSubregionPostalPatterns(subregions, user?.subregionIds || []),
-        [subregions, user?.subregionIds]
-    );
 
     function getBoundaryBadgeMeta(status) {
         switch (status) {
@@ -83,21 +77,7 @@ export default function ResourcesPage() {
     }
 
     function getAssetBoundaryStatus(asset, assetType) {
-        if (!boundaryChecksEnabled) return 'no-boundary';
-
-        if (assetType === 'hard') {
-            return getBoundaryStatus(asset.postalCode, scopedBoundaryPatterns);
-        }
-
-        const locations = Array.isArray(asset.locations) ? asset.locations : [];
-        if (locations.length === 0) return 'no-location';
-
-        const validPostalCodes = locations.map((location) => normalizePostalCode(location.postalCode)).filter(Boolean);
-        if (validPostalCodes.length === 0) return 'missing-postal';
-
-        return validPostalCodes.some((postalCode) => getBoundaryStatus(postalCode, scopedBoundaryPatterns) === 'inside')
-            ? 'inside'
-            : 'outside';
+        return asset?.boundaryStatus || 'no-boundary';
     }
 
     const filterAsset = (a, assetType) => {
@@ -122,12 +102,10 @@ export default function ResourcesPage() {
 
     async function load() {
         try {
-            const [hard, soft, subregionData] = await Promise.all([
+            const [hard, soft] = await Promise.all([
                 api.getHardAssets(),
                 api.getSoftAssets(),
-                api.getSubregions().catch(() => [])
             ]);
-            setSubregions(subregionData);
 
             if (isStandardUserRole(user.role)) {
                 const favs = await api.getFavorites();
@@ -232,7 +210,7 @@ export default function ResourcesPage() {
 
             {boundaryChecksEnabled ? (
                 <p className="mb-6 text-xs text-slate-500">
-                    Boundary checks use the postal patterns assigned to your scoped subregion(s).
+                    Boundary checks use the exact postal code set assigned to your scoped subregion(s).
                 </p>
             ) : null}
 

@@ -139,7 +139,7 @@ export default function AdminUserForm({ currentUser }) {
                         onChange={e => setFormData({ ...formData, postalCode: e.target.value })}
                         placeholder="680153"
                     />
-                    <p className="mt-1 text-xs text-slate-400">Optional. Used for subregion boundary checks.</p>
+                    <p className="mt-1 text-xs text-slate-400">Optional. Used to check whether the user falls inside the assigned subregion postal boundary.</p>
                 </div>
 
                 <div>

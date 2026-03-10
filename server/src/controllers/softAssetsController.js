@@ -5,6 +5,8 @@ import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { normalizeRole } from '../utils/roles.js';
+import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { loadScopedBoundaryContext, resolveSoftAssetBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -13,6 +15,8 @@ export const getSoftAssets = async (c) => {
         const user = c.get('user');
         const db = getDb(c.env);
         const role = normalizeRole(user?.role);
+        await ensureBoundarySchema(db);
+        const boundaryContext = await loadScopedBoundaryContext(db, user);
 
         const options = {
             with: {
@@ -39,6 +43,7 @@ export const getSoftAssets = async (c) => {
                 tags: a.tags.map(t => t.tag.name),
                 locations: a.locations.map(l => l.hardAsset).filter(l => isAssetVisible(l, user)),
                 location: a.locations.length > 0 ? (isAssetVisible(a.locations[0].hardAsset, user) ? a.locations[0].hardAsset : null) : null,
+                boundaryStatus: resolveSoftAssetBoundaryStatus(a.locations.map((entry) => entry.hardAsset), boundaryContext),
             }));
 
         return c.json(formatted);

@@ -1,8 +1,8 @@
 import { getDb } from '../db/index.js';
-import { subregions } from '../db/schema.js';
-import { eq, inArray, or, sql } from 'drizzle-orm';
+import { subregionPostalCodes, subregions } from '../db/schema.js';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
-import { parsePostalBoundaryInput, serializePostalBoundaryInput } from '../utils/postalBoundaries.js';
+import { normalizePostalCode, parsePostalCodeListInput, serializePostalCodeList } from '../utils/postalBoundaries.js';
 
 let ensureSubregionSchemaPromise = null;
 
@@ -72,6 +72,17 @@ async function assertUniqueSubregionFields(db, { name, subregionCode, ignoreId =
     }
 }
 
+function parseOptionalPostalCodes(rawValue) {
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+        return { provided: false, postalCodes: [] };
+    }
+
+    return {
+        provided: true,
+        postalCodes: parsePostalCodeListInput(rawValue),
+    };
+}
+
 function parseCreatePayload(body) {
     const id = parseOptionalPositiveInteger(body?.id);
     if (Number.isNaN(id)) {
@@ -85,22 +96,29 @@ function parseCreatePayload(body) {
 
     const subregionCode = normalizeText(body?.subregionCode ?? body?.subregionId);
     const description = normalizeText(body?.description);
-    let postalPatterns = '';
+
     try {
-        postalPatterns = serializePostalBoundaryInput(
-            body?.postalPatterns
-            ?? body?.postalCodes
-            ?? body?.postalCodePatterns
-            ?? ''
+        const boundaryPayload = parseOptionalPostalCodes(
+            body?.postalCodes
+            ?? body?.boundaryPostalCodes
+            ?? body?.postalPatterns
+            ?? body?.postalCodeList
         );
+
+        return {
+            id,
+            name,
+            subregionCode,
+            description,
+            postalCodes: boundaryPayload.postalCodes,
+            postalCodesProvided: boundaryPayload.provided,
+        };
     } catch (err) {
         return { error: err.message };
     }
-
-    return { id, name, subregionCode, description, postalPatterns };
 }
 
-function parseBulkRow(row) {
+function parseBulkMetadataRow(row) {
     const rawId = normalizeText(row?.id);
     let id = null;
     let subregionCodeFromId = null;
@@ -108,7 +126,6 @@ function parseBulkRow(row) {
         if (looksLikePositiveInteger(rawId)) {
             id = Number.parseInt(rawId, 10);
         } else {
-            // Allow CSV files that place the human-readable subregion ID code in "id"
             subregionCodeFromId = rawId;
         }
     }
@@ -130,7 +147,6 @@ function parseBulkRow(row) {
         ?? row?.['Sub-region Code']
     ) ?? subregionCodeFromId;
 
-    // Backward compatibility: older CSVs used subregionId as the numeric DB id.
     if (!subregionCode && legacySubregionId) {
         if (!id && looksLikePositiveInteger(legacySubregionId)) {
             id = Number.parseInt(legacySubregionId, 10);
@@ -145,38 +161,161 @@ function parseBulkRow(row) {
     }
 
     const description = normalizeText(row?.description ?? row?.Description);
-    const rawPostalPatterns = row?.postalPatterns
-        ?? row?.postal_patterns
-        ?? row?.postalCodes
-        ?? row?.['Postal Codes']
-        ?? row?.['Postal Patterns']
-        ?? row?.['Postal Code Patterns'];
+
+    const rawPostalCodes = row?.postalCodes
+        ?? row?.postal_codes
+        ?? row?.boundaryPostalCodes
+        ?? row?.['Postal Codes'];
+
+    const boundaryPayload = parseOptionalPostalCodes(rawPostalCodes);
 
     return {
         id,
         name,
         subregionCode,
         description,
-        postalPatterns: serializePostalBoundaryInput(rawPostalPatterns ?? ''),
+        postalCodes: boundaryPayload.postalCodes,
+        postalCodesProvided: boundaryPayload.provided,
     };
 }
 
-function formatSubregionResponse(subregion) {
-    return {
-        ...subregion,
-        postalPatternsList: parsePostalBoundaryInput(subregion?.postalPatterns).map((pattern) => pattern.normalized),
-    };
+function buildSubregionReferenceMaps(list) {
+    const byId = new Map();
+    const byCode = new Map();
+    const byName = new Map();
+
+    for (const subregion of list) {
+        byId.set(String(subregion.id), subregion);
+        if (subregion.subregionCode) byCode.set(subregion.subregionCode.toLowerCase(), subregion);
+        if (subregion.name) byName.set(subregion.name.toLowerCase(), subregion);
+    }
+
+    return { byId, byCode, byName };
+}
+
+function resolveSubregionReference(referenceMaps, row) {
+    const dbId = normalizeText(row?.dbId ?? row?.db_id);
+    if (dbId) {
+        const match = referenceMaps.byId.get(dbId);
+        if (match) return match;
+    }
+
+    const subregionCode = normalizeText(
+        row?.subregionId
+        ?? row?.subregionCode
+        ?? row?.subregion_code
+        ?? row?.code
+        ?? row?.['Subregion ID']
+        ?? row?.['Subregion Code']
+    );
+    if (subregionCode) {
+        if (looksLikePositiveInteger(subregionCode)) {
+            const idMatch = referenceMaps.byId.get(subregionCode);
+            if (idMatch) return idMatch;
+        }
+
+        const codeMatch = referenceMaps.byCode.get(subregionCode.toLowerCase());
+        if (codeMatch) return codeMatch;
+    }
+
+    const rawId = normalizeText(row?.id);
+    if (rawId) {
+        if (looksLikePositiveInteger(rawId)) {
+            const idMatch = referenceMaps.byId.get(rawId);
+            if (idMatch) return idMatch;
+        }
+
+        const codeMatch = referenceMaps.byCode.get(rawId.toLowerCase());
+        if (codeMatch) return codeMatch;
+    }
+
+    const name = normalizeText(row?.name ?? row?.Name ?? row?.subregionName ?? row?.['Sub-region']);
+    if (name) {
+        const nameMatch = referenceMaps.byName.get(name.toLowerCase());
+        if (nameMatch) return nameMatch;
+    }
+
+    return null;
+}
+
+function chunk(array, size) {
+    const parts = [];
+    for (let i = 0; i < array.length; i += size) {
+        parts.push(array.slice(i, i + size));
+    }
+    return parts;
+}
+
+async function syncSubregionPostalCodes(db, subregionId, postalCodes) {
+    const normalizedPostalCodes = [...new Set((postalCodes || []).map((value) => normalizePostalCode(value)).filter(Boolean))]
+        .sort();
+
+    await db.delete(subregionPostalCodes).where(eq(subregionPostalCodes.subregionId, subregionId));
+
+    for (const group of chunk(normalizedPostalCodes, 500)) {
+        if (group.length === 0) continue;
+        await db.insert(subregionPostalCodes).values(
+            group.map((postalCode) => ({ subregionId, postalCode }))
+        );
+    }
+
+    await db.update(subregions)
+        .set({ postalPatterns: serializePostalCodeList(normalizedPostalCodes) })
+        .where(eq(subregions.id, subregionId));
+}
+
+async function loadSubregionsWithPostalCodes(db) {
+    const list = await db.query.subregions.findMany({
+        orderBy: [subregions.name]
+    });
+
+    const postalRows = await db
+        .select({
+            subregionId: subregionPostalCodes.subregionId,
+            postalCode: subregionPostalCodes.postalCode,
+        })
+        .from(subregionPostalCodes)
+        .orderBy(subregionPostalCodes.subregionId, subregionPostalCodes.postalCode);
+
+    const grouped = new Map();
+    for (const row of postalRows) {
+        if (!grouped.has(row.subregionId)) grouped.set(row.subregionId, []);
+        grouped.get(row.subregionId).push(row.postalCode);
+    }
+
+    return list.map((subregion) => {
+        let postalCodes = grouped.get(subregion.id) || [];
+        if (postalCodes.length === 0 && subregion.postalPatterns) {
+            try {
+                postalCodes = parsePostalCodeListInput(subregion.postalPatterns);
+            } catch {
+                postalCodes = [];
+            }
+        }
+
+        return {
+            ...subregion,
+            postalCodesList: postalCodes,
+            postalCodesPreview: postalCodes.slice(0, 6),
+            postalCodeCount: postalCodes.length,
+        };
+    });
 }
 
 export const getSubregions = async (c) => {
     try {
+        const user = c.get('user');
         const db = getDb(c.env);
         await ensureSubregionSchema(db);
 
-        const list = await db.query.subregions.findMany({
-            orderBy: [subregions.name]
-        });
-        return c.json(list.map(formatSubregionResponse));
+        let list = await loadSubregionsWithPostalCodes(db);
+        if (user?.role === 'regional_admin' || user?.role === 'partner') {
+            const scopedIds = Array.isArray(user?.subregionIds)
+                ? user.subregionIds.map((value) => Number.parseInt(String(value), 10)).filter(Number.isInteger)
+                : [];
+            list = list.filter((subregion) => scopedIds.includes(subregion.id));
+        }
+        return c.json(list);
     } catch (err) {
         console.error(err);
         return c.json({ error: 'Failed to fetch subregions' }, 500);
@@ -198,13 +337,13 @@ export const createSubregion = async (c) => {
             return c.json({ error: payload.error }, 400);
         }
 
-        const { id, name, description, subregionCode, postalPatterns } = payload;
+        const { id, name, description, subregionCode, postalCodes, postalCodesProvided } = payload;
         await assertUniqueSubregionFields(db, { name, subregionCode, ignoreId: id });
 
         let result = null;
         if (id) {
             [result] = await db.update(subregions)
-                .set({ name, description, subregionCode, postalPatterns })
+                .set({ name, description, subregionCode })
                 .where(eq(subregions.id, id))
                 .returning();
 
@@ -214,7 +353,6 @@ export const createSubregion = async (c) => {
                     name,
                     description,
                     subregionCode,
-                    postalPatterns
                 }).returning();
             }
         } else {
@@ -222,11 +360,15 @@ export const createSubregion = async (c) => {
                 name,
                 description,
                 subregionCode,
-                postalPatterns
             }).returning();
         }
 
-        return c.json(formatSubregionResponse(result), 201);
+        if (postalCodesProvided) {
+            await syncSubregionPostalCodes(db, result.id, postalCodes);
+        }
+
+        const [formatted] = (await loadSubregionsWithPostalCodes(db)).filter((subregion) => subregion.id === result.id);
+        return c.json(formatted || result, 201);
     } catch (err) {
         console.error('Create Subregion Error:', err);
         if (err?.status && err.status >= 400 && err.status < 500) {
@@ -258,8 +400,8 @@ export const bulkCreateSubregions = async (c) => {
         for (let index = 0; index < rows.length; index++) {
             const row = rows[index];
             try {
-                const payload = parseBulkRow(row);
-                const { id, name, subregionCode, description, postalPatterns } = payload;
+                const payload = parseBulkMetadataRow(row);
+                const { id, name, subregionCode, description, postalCodes, postalCodesProvided } = payload;
 
                 let target = null;
                 if (id) {
@@ -286,16 +428,24 @@ export const bulkCreateSubregions = async (c) => {
                     ignoreId: targetId
                 });
 
+                let resolvedId = target?.id ?? null;
                 if (target) {
                     const [updated] = await db.update(subregions)
-                        .set({ name, description, subregionCode, postalPatterns })
+                        .set({ name, description, subregionCode })
                         .where(eq(subregions.id, target.id))
-                        .returning();
+                        .returning({ id: subregions.id });
                     if (!updated) throw new Error('Update failed');
+                    resolvedId = updated.id;
                 } else if (id) {
-                    await db.insert(subregions).values({ id, name, description, subregionCode, postalPatterns });
+                    const [inserted] = await db.insert(subregions).values({ id, name, description, subregionCode }).returning({ id: subregions.id });
+                    resolvedId = inserted.id;
                 } else {
-                    await db.insert(subregions).values({ name, description, subregionCode, postalPatterns });
+                    const [inserted] = await db.insert(subregions).values({ name, description, subregionCode }).returning({ id: subregions.id });
+                    resolvedId = inserted.id;
+                }
+
+                if (postalCodesProvided && resolvedId) {
+                    await syncSubregionPostalCodes(db, resolvedId, postalCodes);
                 }
 
                 results.successful++;
@@ -309,6 +459,76 @@ export const bulkCreateSubregions = async (c) => {
     } catch (err) {
         console.error(err);
         return c.json({ error: 'Bulk import failed' }, 500);
+    }
+};
+
+export const bulkUploadSubregionBoundaries = async (c) => {
+    try {
+        const user = c.get('user');
+        if (user?.role !== 'super_admin') {
+            return c.json({ error: 'Permission denied' }, 403);
+        }
+
+        const body = await c.req.json();
+        const { rows } = body;
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return c.json({ error: 'Boundary CSV must include at least one row.' }, 400);
+        }
+
+        const db = getDb(c.env);
+        await ensureSubregionSchema(db);
+
+        const existingSubregions = await db
+            .select({ id: subregions.id, subregionCode: subregions.subregionCode, name: subregions.name })
+            .from(subregions);
+        const referenceMaps = buildSubregionReferenceMaps(existingSubregions);
+
+        const groupedPostalCodes = new Map();
+        const errors = [];
+        let successfulRows = 0;
+
+        rows.forEach((row, index) => {
+            try {
+                const targetSubregion = resolveSubregionReference(referenceMaps, row);
+                if (!targetSubregion) {
+                    throw new Error('Unknown subregion reference. Supply subregionId/subregionCode, dbId, or name.');
+                }
+
+                const postalCode = normalizePostalCode(row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode']);
+                if (!postalCode) {
+                    throw new Error('postalCode must be a valid 6-digit code.');
+                }
+
+                if (!groupedPostalCodes.has(targetSubregion.id)) {
+                    groupedPostalCodes.set(targetSubregion.id, new Set());
+                }
+                groupedPostalCodes.get(targetSubregion.id).add(postalCode);
+                successfulRows += 1;
+            } catch (err) {
+                errors.push(`Row ${index + 2}: ${err.message}`);
+            }
+        });
+
+        let updatedSubregions = 0;
+        let assignedPostalCodes = 0;
+
+        for (const [subregionId, postalCodeSet] of groupedPostalCodes.entries()) {
+            const postalCodes = [...postalCodeSet].sort();
+            await syncSubregionPostalCodes(db, subregionId, postalCodes);
+            updatedSubregions += 1;
+            assignedPostalCodes += postalCodes.length;
+        }
+
+        return c.json({
+            successful: successfulRows,
+            failed: errors.length,
+            updatedSubregions,
+            assignedPostalCodes,
+            errors,
+        });
+    } catch (err) {
+        console.error(err);
+        return c.json({ error: err.message || 'Boundary upload failed' }, 500);
     }
 };
 
@@ -373,14 +593,20 @@ export const deleteSubregion = async (c) => {
             ? eq(subregions.id, Number.parseInt(identifier, 10))
             : eq(subregions.subregionCode, identifier);
 
-        const [deleted] = await db
-            .delete(subregions)
-            .where(whereClause)
-            .returning({ id: subregions.id, subregionCode: subregions.subregionCode });
+        const [target] = await db
+            .select({ id: subregions.id, subregionCode: subregions.subregionCode })
+            .from(subregions)
+            .where(whereClause);
 
-        if (!deleted) {
+        if (!target) {
             return c.json({ error: 'Subregion not found.' }, 404);
         }
+
+        await db.delete(subregionPostalCodes).where(eq(subregionPostalCodes.subregionId, target.id));
+        const [deleted] = await db
+            .delete(subregions)
+            .where(eq(subregions.id, target.id))
+            .returning({ id: subregions.id, subregionCode: subregions.subregionCode });
 
         return c.json({ success: true, deleted });
     } catch (err) {

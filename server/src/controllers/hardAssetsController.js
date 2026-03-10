@@ -5,6 +5,8 @@ import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { normalizeRole } from '../utils/roles.js';
+import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -36,6 +38,8 @@ export const getHardAssets = async (c) => {
     try {
         const user = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db);
+        const boundaryContext = await loadScopedBoundaryContext(db, user);
 
         const options = {
             with: {
@@ -65,6 +69,7 @@ export const getHardAssets = async (c) => {
                 partnerName: a.partner?.name,
                 tags: a.tags.map(t => t.tag.name),
                 softAssets: a.softAssets.map(sa => sa.softAsset).filter(sa => isAssetVisible(sa, user)),
+                boundaryStatus: resolvePostalBoundaryStatus(a.postalCode, boundaryContext),
             }));
 
         return c.json(formatted);
