@@ -4,12 +4,25 @@ import { authenticateToken, authorize } from '../middleware/auth.js';
 const router = new Hono();
 
 function resolveCloudinaryConfig(runtimeEnv = {}) {
-    const env = {
-        ...(typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {}),
-        ...(runtimeEnv || {}),
+    const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
+    const runtime = runtimeEnv || {};
+
+    const cleanValue = (value) => String(value || '')
+        .trim()
+        .replace(/^['"]|['"]$/g, '')
+        .replace(/^CLOUDINARY_URL\s*=\s*/i, '');
+
+    const readValue = (...keys) => {
+        for (const source of [runtime, processEnv]) {
+            for (const key of keys) {
+                const value = cleanValue(source[key]);
+                if (value) return value;
+            }
+        }
+        return '';
     };
 
-    const cloudinaryUrl = String(env.CLOUDINARY_URL || '').trim();
+    const cloudinaryUrl = readValue('CLOUDINARY_URL');
     if (cloudinaryUrl) {
         try {
             const parsed = new URL(cloudinaryUrl);
@@ -31,9 +44,9 @@ function resolveCloudinaryConfig(runtimeEnv = {}) {
         }
     }
 
-    const cloudName = String(env.CLOUDINARY_CLOUD_NAME || '').trim();
-    const apiKey = String(env.CLOUDINARY_API_KEY || '').trim();
-    const apiSecret = String(env.CLOUDINARY_API_SECRET || '').trim();
+    const cloudName = readValue('CLOUDINARY_CLOUD_NAME');
+    const apiKey = readValue('CLOUDINARY_API_KEY');
+    const apiSecret = readValue('CLOUDINARY_API_SECRET');
 
     if (!cloudName || !apiKey || !apiSecret) {
         throw new Error('Cloudinary is not configured. Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET.');
