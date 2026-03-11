@@ -15,6 +15,11 @@ const BASE_CANDIDATES = Array.from(new Set([
     DEFAULT_API_BASE,
 ]));
 
+function notifyAuthExpired() {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('carearound:auth-expired'));
+}
+
 function headers(extra = {}) {
     return {
         'Content-Type': 'application/json',
@@ -45,6 +50,10 @@ async function request(method, path, body) {
                     (data.error === 'Invalid token' || data.error === 'No token provided')
                 ) {
                     throw new Error('User view session expired. Exit User View and reopen the account.');
+                }
+                if (data.error === 'Invalid token' || data.error === 'No token provided') {
+                    notifyAuthExpired();
+                    throw new Error('Session expired. Please log in again.');
                 }
                 throw new Error(data.error);
             }
@@ -123,7 +132,20 @@ export const api = {
             const data = isJson ? await res.json() : await res.text();
 
             if (!res.ok) {
-                if (isJson && data?.error) throw new Error(data.error);
+                if (isJson && data?.error) {
+                    const isImpersonating = Boolean(getImpersonationToken());
+                    if (
+                        isImpersonating &&
+                        (data.error === 'Invalid token' || data.error === 'No token provided')
+                    ) {
+                        throw new Error('User view session expired. Exit User View and reopen the account.');
+                    }
+                    if (data.error === 'Invalid token' || data.error === 'No token provided') {
+                        notifyAuthExpired();
+                        throw new Error('Session expired. Please log in again.');
+                    }
+                    throw new Error(data.error);
+                }
                 if (!isJson) {
                     throw new Error('Upload API misconfigured: received HTML instead of JSON.');
                 }

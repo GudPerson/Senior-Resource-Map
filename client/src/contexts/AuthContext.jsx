@@ -70,6 +70,34 @@ export function AuthProvider({ children }) {
         runSessionCheck();
     }, [checkSession]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const handleAuthExpired = () => {
+            setUser(null);
+        };
+
+        const handleFocus = () => {
+            checkSession(false);
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkSession(false);
+            }
+        };
+
+        window.addEventListener('carearound:auth-expired', handleAuthExpired);
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('carearound:auth-expired', handleAuthExpired);
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [checkSession]);
+
 
     function login(userData) {
         setUser(userData);
