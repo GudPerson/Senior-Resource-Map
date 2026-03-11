@@ -73,50 +73,123 @@
 
   /* ───────────────── HIGH-CONTRAST MODE ───────────────── */
   html.high-contrast {
-    --color-bg: #0a0a0a;
-    --color-surface: #141414;
-    --color-surface-hover: #1f1f1f;
-    --color-text: #fef08a;
-    --color-text-secondary: #fde047;
-    --color-text-muted: #ca8a04;
-    --color-border: #854d0e;
-    --color-border-strong: #a16207;
-    --color-brand: #facc15;
-    --color-brand-light: #1c1917;
-    --color-brand-hover: #eab308;
-    --color-input-bg: #1c1917;
-    --color-badge-bg: #1c1917;
-    --color-badge-text: #fef08a;
-    --color-nav-bg: #0a0a0a;
-    --color-card-shadow: rgba(250, 204, 21, 0.08);
-    --color-drawer-bg: #141414;
-    --color-overlay: rgba(0, 0, 0, 0.7);
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-hover: #f3f4f6;
+    --color-text: #111827;
+    --color-text-secondary: #1f2937;
+    --color-text-muted: #475569;
+    --color-border: #111827;
+    --color-border-strong: #111827;
+    --color-brand: #005fcc;
+    --color-brand-strong: #00459a;
+    --color-brand-light: #edf5ff;
+    --color-brand-hover: #00459a;
+    --color-input-bg: #ffffff;
+    --color-badge-bg: #f8fafc;
+    --color-badge-text: #111827;
+    --color-accent: #b45309;
+    --color-accent-soft: #fff7ed;
+    --color-coral: #b91c1c;
+    --color-nav-bg: rgba(255, 255, 255, 0.98);
+    --color-card-shadow: rgba(17, 24, 39, 0.08);
+    --color-drawer-bg: rgba(255, 255, 255, 0.98);
+    --color-overlay: rgba(15, 23, 42, 0.4);
+    --page-gradient: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   }
 
-  /* Apply high contrast to everything via CSS variables */
   html.high-contrast body {
-    background-color: var(--color-bg);
+    background: var(--page-gradient);
     color: var(--color-text);
   }
 
-  html.high-contrast * {
+  html.high-contrast .card,
+  html.high-contrast .leaflet-popup-content-wrapper,
+  html.high-contrast .leaflet-tooltip.custom-popup {
+    border-width: 2px;
+    box-shadow: 0 8px 18px var(--color-card-shadow);
+  }
+
+  html.high-contrast .btn-primary {
+    background: var(--color-brand);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  html.high-contrast .btn-primary:hover {
+    background: var(--color-brand-hover);
+    box-shadow: none;
+  }
+
+  html.high-contrast .btn-ghost,
+  html.high-contrast .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 2px solid var(--color-border);
+    box-shadow: none;
+  }
+
+  html.high-contrast .input-field {
+    background: var(--color-input-bg);
+    color: var(--color-text);
+    border: 2px solid var(--color-border);
+  }
+
+  html.high-contrast .input-field::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  html.high-contrast .input-field:focus {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px rgba(0, 95, 204, 0.18);
+  }
+
+  html.high-contrast .hc-nav {
+    background-color: var(--color-nav-bg) !important;
     border-color: var(--color-border) !important;
+    backdrop-filter: none;
+    box-shadow: 0 1px 0 var(--color-border);
   }
 
-  html.high-contrast input,
-  html.high-contrast select,
-  html.high-contrast textarea {
-    background-color: var(--color-input-bg) !important;
+  html.high-contrast .text-slate-900,
+  html.high-contrast .text-slate-800,
+  html.high-contrast .text-slate-700 {
     color: var(--color-text) !important;
-    border-color: var(--color-border-strong) !important;
   }
 
-  html.high-contrast input::placeholder {
+  html.high-contrast .text-slate-600,
+  html.high-contrast .text-slate-500 {
+    color: var(--color-text-secondary) !important;
+  }
+
+  html.high-contrast .text-slate-400 {
     color: var(--color-text-muted) !important;
   }
 
-  html.high-contrast button {
-    color: var(--color-text);
+  html.high-contrast .bg-white,
+  html.high-contrast .bg-slate-50,
+  html.high-contrast .bg-slate-100 {
+    background-color: var(--color-surface) !important;
+  }
+
+  html.high-contrast .border-slate-100,
+  html.high-contrast .border-slate-200,
+  html.high-contrast .border-slate-300 {
+    border-color: var(--color-border) !important;
+  }
+
+  html.high-contrast .text-brand-600,
+  html.high-contrast .text-brand-700 {
+    color: var(--color-brand-strong) !important;
+  }
+
+  html.high-contrast .bg-brand-50 {
+    background-color: var(--color-brand-light) !important;
+  }
+
+  html.high-contrast .border-brand-200,
+  html.high-contrast .border-brand-300 {
+    border-color: var(--color-brand-strong) !important;
   }
 
   html.high-contrast a {

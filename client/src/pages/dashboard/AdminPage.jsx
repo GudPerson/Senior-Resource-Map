@@ -996,6 +996,29 @@ export default function AdminPage() {
         .filter((candidate) => canManageUserRecord(candidate))
         .map((candidate) => candidate.id);
     const allManageableUsersSelected = manageableVisibleUserIds.length > 0 && manageableVisibleUserIds.every((id) => selectedUsers.includes(id));
+    const adminStatCards = useMemo(() => {
+        if (currentRole === 'partner') {
+            return [
+                { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
+                { label: 'Managed Users', val: users.filter((candidate) => normalizeRole(candidate.role) === 'standard').length, color: 'bg-green-50 text-green-700', icon: Users },
+            ];
+        }
+
+        if (currentRole === 'regional_admin') {
+            return [
+                { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
+                { label: 'Managed Partners', val: users.filter((candidate) => normalizeRole(candidate.role) === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
+                { label: 'Scoped Subregions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
+            ];
+        }
+
+        return [
+            { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
+            { label: 'Total Users', val: users.length, color: 'bg-green-50 text-green-700', icon: Users },
+            { label: 'Partners', val: users.filter((candidate) => normalizeRole(candidate.role) === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
+            { label: 'Admins', val: users.filter((candidate) => ['super_admin', 'regional_admin'].includes(normalizeRole(candidate.role))).length, color: 'bg-red-50 text-red-700', icon: Shield },
+        ];
+    }, [currentRole, resources.length, subregions.length, users]);
 
     return (
         <div className="p-6 lg:p-8">
@@ -1017,13 +1040,7 @@ export default function AdminPage() {
 
             {/* Stat cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                {[
-                    { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
-                    { label: 'Total Users', val: users.length, color: 'bg-green-50 text-green-700', icon: Users },
-                    { label: 'Partners', val: users.filter(u => u.role === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
-                    { label: 'Admins', val: users.filter(u => ['super_admin', 'regional_admin'].includes(u.role)).length, color: 'bg-red-50 text-red-700', icon: Shield },
-
-                ].map(({ label, val, color, icon: Icon }) => (
+                {adminStatCards.map(({ label, val, color, icon: Icon }) => (
                     <div key={label} className={`card ${color} border-0`}>
                         <Icon size={18} className="mb-1 opacity-60" />
                         <p className="text-2xl font-bold">{val}</p>
