@@ -22,6 +22,15 @@ import {
 } from '../features/discover/discoverUtils.js';
 import { useDiscoveryLocation } from '../features/discover/useDiscoveryLocation.js';
 
+function withTimeout(promise, fallback, timeoutMs = 8000) {
+    return Promise.race([
+        promise,
+        new Promise((resolve) => {
+            window.setTimeout(() => resolve(fallback), timeoutMs);
+        }),
+    ]);
+}
+
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
     const [hardAssets, setHardAssets] = useState([]);
@@ -85,44 +94,63 @@ export default function DiscoverPage() {
     }, []);
 
     useEffect(() => {
-        Promise.all([
-            api.getHardAssets().catch(() => []),
-            api.getSoftAssets().catch(() => []),
-            api.getSubCategories().catch(() => []),
-            api.getMapCache('all').catch(() => []),
-        ]).then(([hard, soft, subcategories, cached]) => {
-            const colors = {};
-            subcategories.forEach((subcategory) => {
-                colors[subcategory.name] = subcategory.color || '#94a3b8';
-            });
+        let isActive = true;
 
-            setSubCatColors(colors);
-            setHardAssets(hard);
-            setSoftAssets(soft);
+        async function loadDirectory() {
+            setLoading(true);
 
-            const liveLocations = buildDerivedMapLocations(hard, soft);
-            const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
-            const initialLocations = (user
-                ? liveLocations
-                : (fetchedLocations.length > 0 ? fetchedLocations : liveLocations)).filter(hasValidCoordinates);
-            setCachedLocations(initialLocations);
-            setMapLocations(initialLocations);
-            setLoading(false);
+            try {
+                const [hard, soft, subcategories, cached] = await Promise.all([
+                    withTimeout(api.getHardAssets().catch(() => []), []),
+                    withTimeout(api.getSoftAssets().catch(() => []), []),
+                    withTimeout(api.getSubCategories().catch(() => []), []),
+                    withTimeout(api.getMapCache('all').catch(() => []), []),
+                ]);
 
-            const urlId = parseInt(searchParams.get('id'), 10);
-            if (!urlId) return;
-            const foundHard = hard.find((asset) => asset.id === urlId);
-            if (!foundHard) return;
+                if (!isActive) return;
 
-            setSelectedMarkerKey(buildMarkerKey({
-                asset_type: 'hard',
-                id: foundHard.id,
-                locationId: foundHard.id,
-                lat: foundHard.lat,
-                lng: foundHard.lng,
-            }));
-            setSelectedAsset({ ...foundHard, _type: 'hard' });
-        });
+                const colors = {};
+                subcategories.forEach((subcategory) => {
+                    colors[subcategory.name] = subcategory.color || '#94a3b8';
+                });
+
+                setSubCatColors(colors);
+                setHardAssets(hard);
+                setSoftAssets(soft);
+
+                const liveLocations = buildDerivedMapLocations(hard, soft);
+                const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
+                const initialLocations = (user
+                    ? liveLocations
+                    : (fetchedLocations.length > 0 ? fetchedLocations : liveLocations)).filter(hasValidCoordinates);
+                setCachedLocations(initialLocations);
+                setMapLocations(initialLocations);
+
+                const urlId = parseInt(searchParams.get('id'), 10);
+                if (!urlId) return;
+                const foundHard = hard.find((asset) => asset.id === urlId);
+                if (!foundHard) return;
+
+                setSelectedMarkerKey(buildMarkerKey({
+                    asset_type: 'hard',
+                    id: foundHard.id,
+                    locationId: foundHard.id,
+                    lat: foundHard.lat,
+                    lng: foundHard.lng,
+                }));
+                setSelectedAsset({ ...foundHard, _type: 'hard' });
+            } finally {
+                if (isActive) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        loadDirectory();
+
+        return () => {
+            isActive = false;
+        };
     }, [searchParams, user]);
 
     useEffect(() => () => {
