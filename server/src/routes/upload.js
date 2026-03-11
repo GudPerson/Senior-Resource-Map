@@ -3,6 +3,45 @@ import { authenticateToken, authorize } from '../middleware/auth.js';
 
 const router = new Hono();
 
+function resolveCloudinaryConfig(runtimeEnv = {}) {
+    const env = {
+        ...(typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {}),
+        ...(runtimeEnv || {}),
+    };
+
+    const cloudinaryUrl = String(env.CLOUDINARY_URL || '').trim();
+    if (cloudinaryUrl) {
+        try {
+            const parsed = new URL(cloudinaryUrl);
+            if (parsed.protocol !== 'cloudinary:') {
+                throw new Error('CLOUDINARY_URL must use the cloudinary:// scheme.');
+            }
+
+            const apiKey = decodeURIComponent(parsed.username || '');
+            const apiSecret = decodeURIComponent(parsed.password || '');
+            const cloudName = parsed.hostname || parsed.pathname.replace(/^\/+/, '');
+
+            if (!cloudName || !apiKey || !apiSecret) {
+                throw new Error('CLOUDINARY_URL must include cloud name, API key, and API secret.');
+            }
+
+            return { cloudName, apiKey, apiSecret };
+        } catch (err) {
+            throw new Error(`Invalid CLOUDINARY_URL configuration. ${err.message}`);
+        }
+    }
+
+    const cloudName = String(env.CLOUDINARY_CLOUD_NAME || '').trim();
+    const apiKey = String(env.CLOUDINARY_API_KEY || '').trim();
+    const apiSecret = String(env.CLOUDINARY_API_SECRET || '').trim();
+
+    if (!cloudName || !apiKey || !apiSecret) {
+        throw new Error('Cloudinary is not configured. Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET.');
+    }
+
+    return { cloudName, apiKey, apiSecret };
+}
+
 const generateSignature = async (params, apiSecret) => {
     const keys = Object.keys(params).sort();
     let signatureStr = '';
@@ -27,10 +66,7 @@ router.post('/', authenticateToken, authorize('partner', 'regional_admin', 'admi
             return c.json({ error: 'No file uploaded' }, 400);
         }
 
-        const envVars = c.env;
-        const cloudName = envVars.CLOUDINARY_CLOUD_NAME;
-        const apiKey = envVars.CLOUDINARY_API_KEY;
-        const apiSecret = envVars.CLOUDINARY_API_SECRET;
+        const { cloudName, apiKey, apiSecret } = resolveCloudinaryConfig(c.env);
 
         // Use direct REST call as cloudinary Node SDK relies on fs
         const timestamp = Math.floor(Date.now() / 1000);

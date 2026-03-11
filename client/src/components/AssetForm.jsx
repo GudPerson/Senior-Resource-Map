@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Select from 'react-select';
+import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { Loader2, Globe, MapPin, Phone, Clock, FileText, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
@@ -79,6 +79,22 @@ const OWNERSHIP_OPTIONS = [
     { value: 'partner', label: 'Partner-owned' },
 ];
 
+function TooltipMultiValueLabel(props) {
+    const label = props.data?.label || '';
+    return (
+        <components.MultiValueLabel
+            {...props}
+            innerProps={{
+                ...props.innerProps,
+                title: label,
+                'aria-label': label,
+            }}
+        >
+            {props.children}
+        </components.MultiValueLabel>
+    );
+}
+
 export default function AssetForm({
     type = 'hard',
     initialData,
@@ -149,6 +165,28 @@ export default function AssetForm({
     }, [currentRole, currentUser?.subregionIds, subregions]);
 
     const explicitTargetSubregion = availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(form.subregionId)) || null;
+    const hostLocationSelectStyles = useMemo(() => ({
+        valueContainer: (base) => ({
+            ...base,
+            alignItems: 'flex-start',
+            paddingTop: 4,
+            paddingBottom: 4,
+        }),
+        multiValue: (base) => ({
+            ...base,
+            maxWidth: '100%',
+            alignItems: 'flex-start',
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            whiteSpace: 'normal',
+            overflow: 'visible',
+            textOverflow: 'unset',
+            lineHeight: 1.2,
+            paddingTop: 4,
+            paddingBottom: 4,
+        }),
+    }), []);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -300,7 +338,9 @@ export default function AssetForm({
                                 isMulti
                                 options={linkedLocationOptions}
                                 value={selectedLocationOptions}
-                                onChange={(selected) => setField('locationIds', selected.map((item) => item.value))}
+                                onChange={(selected) => setField('locationIds', Array.isArray(selected) ? selected.map((item) => item.value) : [])}
+                                components={{ MultiValueLabel: TooltipMultiValueLabel }}
+                                styles={hostLocationSelectStyles}
                                 className="react-select-container"
                                 classNamePrefix="react-select"
                                 placeholder="Select places..."
