@@ -1,4 +1,4 @@
-import { LocateFixed, MapPin, Search } from 'lucide-react';
+import { ChevronDown, LocateFixed, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { getSearchLocationLabel } from '../../lib/searchLocation.js';
 
 const INPUT_RING_STYLE = { '--tw-ring-color': 'var(--color-brand)' };
@@ -22,7 +22,114 @@ export function DiscoveryFilterPanel({
     showFavoritesOnly,
     user,
     userLocation,
+    isCollapsed,
+    onExpand,
+    onCollapse,
+    resultCount,
+    onApplySearch,
 }) {
+    const summaryChips = [];
+
+    if (userLocation) {
+        summaryChips.push({
+            key: 'location',
+            label: `Near ${getSearchLocationLabel(searchOrigin)}`,
+        });
+    }
+
+    if (search.trim()) {
+        summaryChips.push({
+            key: 'query',
+            label: `“${search.trim()}”`,
+        });
+    }
+
+    if (activeTab !== 'all') {
+        summaryChips.push({
+            key: 'tab',
+            label: activeTab === 'hard' ? 'Places only' : 'Offerings only',
+        });
+    }
+
+    if (showFavoritesOnly && user) {
+        summaryChips.push({
+            key: 'favorites',
+            label: 'Favorites only',
+        });
+    }
+
+    if (searchRadius < 100) {
+        summaryChips.push({
+            key: 'radius',
+            label: `Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}`,
+        });
+    }
+
+    if (isCollapsed) {
+        return (
+            <div
+                className="flex-shrink-0 z-10 sticky top-0"
+                style={{
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(246,252,251,0.92) 100%)',
+                    borderBottom: '1px solid var(--color-border)',
+                }}
+            >
+                <div className="p-3 lg:p-4">
+                    <div
+                        className="rounded-[24px] border px-4 py-3"
+                        style={{
+                            borderColor: 'var(--color-border)',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.94) 0%, rgba(231,248,244,0.94) 100%)',
+                            boxShadow: '0 14px 30px rgba(15, 89, 91, 0.08)',
+                        }}
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand)' }}>
+                                    Search Summary
+                                </p>
+                                <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                                    Showing {resultCount} {resultCount === 1 ? 'resource' : 'resources'}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={onExpand}
+                                className="inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-bold whitespace-nowrap transition-all min-h-[40px]"
+                                style={{
+                                    borderColor: 'var(--color-border)',
+                                    color: 'var(--color-brand-strong)',
+                                    backgroundColor: 'var(--color-surface)',
+                                }}
+                            >
+                                <SlidersHorizontal size={14} />
+                                Edit search
+                            </button>
+                        </div>
+
+                        {summaryChips.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {summaryChips.map((chip) => (
+                                    <span
+                                        key={chip.key}
+                                        className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold"
+                                        style={{
+                                            backgroundColor: 'var(--color-surface)',
+                                            color: 'var(--color-text-secondary)',
+                                            border: '1px solid var(--color-border)',
+                                        }}
+                                    >
+                                        {chip.label}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             className="flex-shrink-0 z-10 sticky top-0"
@@ -31,7 +138,7 @@ export function DiscoveryFilterPanel({
                 borderBottom: '1px solid var(--color-border)',
             }}
         >
-            <div className="hidden lg:flex items-start justify-between gap-4 p-5 pb-0">
+                <div className="hidden lg:flex items-start justify-between gap-4 p-5 pb-0">
                 <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: 'var(--color-brand)' }}>
                         CareAround SG
@@ -57,6 +164,22 @@ export function DiscoveryFilterPanel({
             </div>
 
             <div className="p-3 lg:p-5 space-y-3">
+                <div className="flex items-center justify-end">
+                    <button
+                        type="button"
+                        onClick={onCollapse}
+                        className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-bold transition-all"
+                        style={{
+                            color: 'var(--color-text-secondary)',
+                            backgroundColor: 'rgba(255,255,255,0.78)',
+                            border: '1px solid var(--color-border)',
+                        }}
+                    >
+                        Collapse
+                        <ChevronDown size={14} />
+                    </button>
+                </div>
+
                 <div className="lg:hidden px-1">
                     <p className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--color-brand)' }}>
                         CareAround SG
@@ -67,7 +190,7 @@ export function DiscoveryFilterPanel({
                     </p>
                 </div>
 
-                <form onSubmit={handlePostalSearch} className="flex gap-2">
+                <form onSubmit={onApplySearch} className="flex gap-2">
                     <div className="relative flex-1">
                         <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                         <input

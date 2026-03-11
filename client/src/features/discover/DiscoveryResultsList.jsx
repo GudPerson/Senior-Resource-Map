@@ -4,6 +4,7 @@ import { AssetCard } from '../../components/AssetCard.jsx';
 export function DiscoveryResultsList({
     favorites,
     filtered,
+    isSearchPanelCollapsed,
     loading,
     onCategoryClick,
     onSelectAsset,
@@ -29,20 +30,22 @@ export function DiscoveryResultsList({
                 </div>
             ) : (
                 <>
-                    <div
-                        className="mb-4 rounded-[24px] border px-4 py-3"
-                        style={{
-                            borderColor: 'var(--color-border)',
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(231,248,244,0.9) 100%)',
-                        }}
-                    >
-                        <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                            Discovery Feed
-                        </p>
-                        <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                            Showing {filtered.length} {filtered.length === 1 ? 'resource' : 'resources'}
-                        </p>
-                    </div>
+                    {!isSearchPanelCollapsed && (
+                        <div
+                            className="mb-4 rounded-[24px] border px-4 py-3"
+                            style={{
+                                borderColor: 'var(--color-border)',
+                                background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(231,248,244,0.9) 100%)',
+                            }}
+                        >
+                            <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                                Discovery Feed
+                            </p>
+                            <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                                Showing {filtered.length} {filtered.length === 1 ? 'resource' : 'resources'}
+                            </p>
+                        </div>
+                    )}
                     <div className="space-y-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-4 lg:space-y-0">
                         {filtered.map((resource, index) => (
                             <div

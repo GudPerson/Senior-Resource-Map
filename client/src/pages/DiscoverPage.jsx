@@ -61,6 +61,9 @@ export default function DiscoverPage() {
         setSearchRadius,
         userLocation,
     } = useDiscoveryLocation(hardAssets);
+    const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(
+        Boolean(searchParams.get('id')) || Boolean(searchOrigin)
+    );
 
     const drawerOffsetPx = useMemo(() => {
         if (!isDrawerOpen) return 0;
@@ -134,6 +137,18 @@ export default function DiscoverPage() {
             setActiveSnap(0.55);
         }
     }, [isDesktop]);
+
+    useEffect(() => {
+        if (selectedAsset) {
+            setIsSearchPanelCollapsed(true);
+        }
+    }, [selectedAsset]);
+
+    useEffect(() => {
+        if (searchOrigin) {
+            setIsSearchPanelCollapsed(true);
+        }
+    }, [searchOrigin]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
@@ -316,6 +331,36 @@ export default function DiscoverPage() {
         handleSelect(asset, preferredLocation);
     }, [handleSelect]);
 
+    const handleApplySearch = useCallback(async (event) => {
+        if (postalInput.trim()) {
+            await handlePostalSearch(event);
+            return;
+        }
+
+        event.preventDefault();
+
+        if (
+            search.trim()
+            || activeTab !== 'all'
+            || (showFavoritesOnly && user)
+            || searchRadius < 100
+        ) {
+            setIsSearchPanelCollapsed(true);
+        }
+    }, [activeTab, handlePostalSearch, postalInput, search, searchRadius, showFavoritesOnly, user]);
+
+    const handleLocateMeAndCollapse = useCallback(() => {
+        handleLocateMe();
+        setIsSearchPanelCollapsed(true);
+    }, [handleLocateMe]);
+
+    const handleClearLocationSearch = useCallback(() => {
+        clearLocationSearch();
+        if (!search.trim() && activeTab === 'all' && !(showFavoritesOnly && user)) {
+            setIsSearchPanelCollapsed(false);
+        }
+    }, [activeTab, clearLocationSearch, search, showFavoritesOnly, user]);
+
     const handleOpenResourcePage = useCallback((asset) => {
         if (!asset) return;
         navigate(`/resource/${asset._type}/${asset.id}`);
@@ -336,13 +381,18 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
-            clearLocationSearch={clearLocationSearch}
-            handleLocateMe={handleLocateMe}
+            clearLocationSearch={handleClearLocationSearch}
+            handleLocateMe={handleLocateMeAndCollapse}
             handlePostalSearch={handlePostalSearch}
             isGeocoding={isGeocoding}
+            isCollapsed={isSearchPanelCollapsed}
             locationNotice={locationNotice}
+            onApplySearch={handleApplySearch}
+            onCollapse={() => setIsSearchPanelCollapsed(true)}
+            onExpand={() => setIsSearchPanelCollapsed(false)}
             onSearchChange={setSearch}
             postalInput={postalInput}
+            resultCount={filtered.length}
             search={search}
             searchOrigin={searchOrigin}
             searchRadius={searchRadius}
@@ -360,6 +410,7 @@ export default function DiscoverPage() {
         <DiscoveryResultsList
             favorites={favorites}
             filtered={filtered}
+            isSearchPanelCollapsed={isSearchPanelCollapsed}
             loading={loading}
             onCategoryClick={setSearch}
             onSelectAsset={handleSelect}
