@@ -1,37 +1,28 @@
-import { useState, useCallback, useEffect } from 'react';
-import { api } from '../lib/api.js';
+import { useCallback } from 'react';
+import { useSavedAssets } from './useSavedAssets.js';
 
 export function useFavorites(user) {
-    const [favorites, setFavorites] = useState([]);
+    const {
+        savedAssets,
+        isSaved,
+        isSavedAssetPending,
+        toggleSavedAsset,
+    } = useSavedAssets();
 
-    useEffect(() => {
-        if (user) {
-            api.getFavorites().then(setFavorites).catch(console.error);
-        } else {
-            setFavorites([]);
-        }
-    }, [user]);
+    const toggleFavorite = useCallback(async (id, type, summary = null) => {
+        if (!user) return null;
+        return toggleSavedAsset(type, id, summary);
+    }, [toggleSavedAsset, user]);
 
-    const toggleFavorite = useCallback(async (id, type) => {
-        if (!user) return;
-        try {
-            await api.toggleFavorite(type, id);
-            setFavorites(prev => {
-                const exists = prev.find(f => f.resourceId === id && f.resourceType === type);
-                if (exists) {
-                    return prev.filter(f => !(f.resourceId === id && f.resourceType === type));
-                } else {
-                    return [...prev, { resourceId: id, resourceType: type }];
-                }
-            });
-        } catch (err) {
-            console.error(err);
-        }
-    }, [user]);
+    const isFavorite = useCallback((id, type) => (
+        isSaved(type, id)
+    ), [isSaved]);
 
-    const isFavorite = useCallback((id, type) => {
-        return favorites.some(f => f.resourceId === id && f.resourceType === type);
-    }, [favorites]);
-
-    return { favorites, toggleFavorite, isFavorite };
+    return {
+        favorites: savedAssets,
+        pendingFavorites: savedAssets.filter((item) => isSavedAssetPending(item.resourceType, item.resourceId)),
+        toggleFavorite,
+        isFavorite,
+        isFavoritePending: (id, type) => isSavedAssetPending(type, id),
+    };
 }

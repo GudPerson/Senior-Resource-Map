@@ -69,6 +69,11 @@ function normalizeRequiredPostalCode(value) {
     return postalCode;
 }
 
+function normalizeOptionalPostalCode(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return '';
+    return normalizeRequiredPostalCode(value);
+}
+
 export const register = async (c) => {
     try {
         const body = await c.req.json();
@@ -80,9 +85,11 @@ export const register = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
-        const postalCode = normalizeRequiredPostalCode(body.postalCode);
-        const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+        await ensureBoundarySchema(db, c.env);
+        const postalCode = normalizeOptionalPostalCode(body.postalCode);
+        const derivedSubregion = postalCode
+            ? await resolveSingleSubregionByPostal(db, postalCode, 'Postal code')
+            : null;
 
         // Auto-generate username from email if not provided
         if (!username) {
@@ -115,25 +122,16 @@ export const register = async (c) => {
             managerUserId: null,
         }).returning();
 
-        await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+        if (derivedSubregion) {
+            await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+        }
 
-        user.subregionIds = [derivedSubregion.id];
+        user.subregionIds = derivedSubregion ? [derivedSubregion.id] : [];
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
 
-        return c.json({
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                postalCode: user.postalCode ?? '',
-                subregionIds: user.subregionIds,
-                managerUserId: user.managerUserId ?? null,
-            }
-        });
+        return c.json({ user: buildSessionPayload(user) });
     } catch (err) {
         console.error('Registration Error:', err);
         return c.json({ error: err.message || 'Registration failed' }, 500);
@@ -151,7 +149,7 @@ export const login = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
         const isEmail = loginId.includes('@');
 
         // Try exact match first
@@ -213,18 +211,7 @@ export const login = async (c) => {
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
-        return c.json({
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                postalCode: user.postalCode ?? '',
-                subregionIds: user.subregionIds,
-                managerUserId: user.managerUserId ?? null,
-            }
-        });
+        return c.json({ user: buildSessionPayload(user) });
     } catch (err) {
         console.error('Login Error:', err);
         return c.json({ error: err.message || 'Login failed' }, 500);
@@ -236,8 +223,22 @@ export const me = async (c) => {
     if (!token) return c.json({ user: null });
 
     try {
-        const user = await verifySessionToken(token, c);
-        return c.json({ user });
+        const sessionUser = await verifySessionToken(token, c);
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const liveUser = await loadUserWithSubregions(db, sessionUser.id);
+
+        if (!liveUser) {
+            return c.json({ user: null });
+        }
+
+        const extraClaims = {};
+        if (sessionUser?.isImpersonating) {
+            extraClaims.isImpersonating = true;
+            extraClaims.impersonatedBy = sessionUser.impersonatedBy || null;
+        }
+
+        return c.json({ user: buildSessionPayload(liveUser, extraClaims) });
     } catch {
         return c.json({ user: null });
     }
@@ -264,13 +265,15 @@ export const googleAuth = async (c) => {
 
         const { email, name } = payload;
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
         if (!user) {
-            const postalCode = normalizeRequiredPostalCode(body.postalCode);
-            const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+            const postalCode = normalizeOptionalPostalCode(body.postalCode);
+            const derivedSubregion = postalCode
+                ? await resolveSingleSubregionByPostal(db, postalCode, 'Postal code')
+                : null;
             const dummyPassword = crypto.getRandomValues(new Uint8Array(16)).join('');
             const passwordHash = await bcrypt.hash(dummyPassword, 10);
 
@@ -294,7 +297,9 @@ export const googleAuth = async (c) => {
                 managerUserId: null,
             }).returning();
 
-            await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+            if (derivedSubregion) {
+                await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+            }
         }
 
         const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
@@ -302,18 +307,7 @@ export const googleAuth = async (c) => {
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
-        return c.json({
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                postalCode: user.postalCode ?? '',
-                subregionIds: user.subregionIds,
-                managerUserId: user.managerUserId ?? null,
-            }
-        });
+        return c.json({ user: buildSessionPayload(user) });
 
     } catch (err) {
         console.error('Google Auth Error:', err);
@@ -344,7 +338,7 @@ export const impersonate = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
         const targetUser = await loadUserWithSubregions(db, targetUserId);
 
         if (!targetUser) {

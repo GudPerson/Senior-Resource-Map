@@ -7,6 +7,33 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
+const ASSET_WORKBOOKS = [
+    {
+        resourceType: 'places',
+        label: 'Places',
+        helper: 'Physical locations. Subregion is always derived from postcode server-side.',
+    },
+    {
+        resourceType: 'standalone-offerings',
+        label: 'Standalone Offerings',
+        helper: 'Single offerings that are not generated from templates.',
+    },
+    {
+        resourceType: 'templates',
+        label: 'Templates',
+        helper: 'Canonical parent offerings used to generate local rollouts.',
+    },
+    {
+        resourceType: 'template-rollouts',
+        label: 'Template Rollouts',
+        helper: 'Child offerings keyed by templateExternalKey + hostExternalKey.',
+    },
+];
+
+function getWorkbookLabel(resourceType) {
+    return ASSET_WORKBOOKS.find((entry) => entry.resourceType === resourceType)?.label || resourceType;
+}
+
 
 export default function AdminPage() {
     const { user: currentUser } = useAuth();
@@ -18,14 +45,25 @@ export default function AdminPage() {
     const [users, setUsers] = useState([]);
     const [subCategories, setSubCategories] = useState([]);
     const [subregions, setSubregions] = useState([]);
+    const [audienceZones, setAudienceZones] = useState([]);
     const [selectedResources, setSelectedResources] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [selectedSubCategories, setSelectedSubCategories] = useState([]);
+    const [selectedAudienceZones, setSelectedAudienceZones] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
     const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '' });
+    const [newAudienceZone, setNewAudienceZone] = useState({
+        id: null,
+        zoneCode: '',
+        name: '',
+        description: '',
+        ownershipMode: currentRole === 'partner' ? 'partner' : 'system',
+        partnerId: currentRole === 'partner' ? (currentUser?.id || '') : '',
+    });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
+    const [audienceZoneFeedback, setAudienceZoneFeedback] = useState(null);
     const [resourceSearch, setResourceSearch] = useState('');
     const [resourceBoundaryFilter, setResourceBoundaryFilter] = useState('all');
     const [userSearch, setUserSearch] = useState('');
@@ -46,6 +84,7 @@ export default function AdminPage() {
     const superAdminRoleOptions = getCreatableUserRoles('super_admin');
     const canManageSubregionMetadata = currentRole === 'super_admin';
     const canManageSubregionBoundaries = currentRole === 'super_admin' || currentRole === 'regional_admin';
+    const canManageAudienceZones = ['super_admin', 'regional_admin', 'partner'].includes(currentRole);
 
     useEffect(() => {
         if (!availableTabs.includes(tab)) {
@@ -60,7 +99,8 @@ export default function AdminPage() {
                 api.getResources(),
                 api.getUsers(),
                 api.getSubCategories(),
-                api.getSubregions()
+                api.getSubregions(),
+                canManageAudienceZones ? api.getAudienceZones() : Promise.resolve([])
             ]);
 
             if (results[0].status === 'fulfilled') {
@@ -83,12 +123,17 @@ export default function AdminPage() {
                 setSubregions(regs);
                 setSelectedSubregions((prev) => prev.filter((id) => regs.some((reg) => reg.id === id)));
             }
+            if (results[4].status === 'fulfilled') {
+                const zones = results[4].value;
+                setAudienceZones(zones);
+                setSelectedAudienceZones((prev) => prev.filter((id) => zones.some((zone) => zone.id === id)));
+            }
 
             // Inform of partial failures (e.g. permission issues for Users tab)
             const rejected = results.filter(r => r.status === 'rejected');
             if (rejected.length > 0 && rejected.length < 4) {
                 console.warn('Some admin modules failed to load (likely permissions):', rejected);
-            } else if (rejected.length === 4) {
+            } else if (rejected.length === results.length) {
                 alert('Admin data load failed entirely. Please check your login session.');
             }
         } catch (err) {
@@ -141,6 +186,30 @@ export default function AdminPage() {
 
     function resetSubregionForm() {
         setNewSubregion({ id: null, subregionCode: '', name: '', description: '' });
+    }
+
+    function resetAudienceZoneForm() {
+        setNewAudienceZone({
+            id: null,
+            zoneCode: '',
+            name: '',
+            description: '',
+            ownershipMode: currentRole === 'partner' ? 'partner' : 'system',
+            partnerId: currentRole === 'partner' ? (currentUser?.id || '') : '',
+        });
+    }
+
+    function handleEditAudienceZone(zone) {
+        setAudienceZoneFeedback(null);
+        setNewAudienceZone({
+            id: zone.id,
+            zoneCode: zone.zoneCode || '',
+            name: zone.name || '',
+            description: zone.description || '',
+            ownershipMode: zone.ownershipMode || (zone.partnerUserId ? 'partner' : 'system'),
+            partnerId: zone.partnerUserId || '',
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function handleEditSubregion(subregion) {
@@ -479,6 +548,129 @@ export default function AdminPage() {
         }
     }
 
+    async function handleAddAudienceZone(e) {
+        e.preventDefault();
+        if (!canManageAudienceZones) return;
+
+        setLoading(true);
+        setAudienceZoneFeedback(null);
+        try {
+            const payload = {
+                zoneCode: newAudienceZone.zoneCode,
+                name: newAudienceZone.name,
+                description: newAudienceZone.description,
+                ownershipMode: currentRole === 'partner' ? 'partner' : newAudienceZone.ownershipMode,
+                partnerId: (currentRole === 'partner' || newAudienceZone.ownershipMode === 'partner')
+                    ? (currentRole === 'partner' ? currentUser?.id : newAudienceZone.partnerId || null)
+                    : null,
+            };
+
+            if (!payload.name?.trim()) {
+                throw new Error('Audience zone name is required.');
+            }
+            if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
+                throw new Error('Select a partner owner for partner-owned audience zones.');
+            }
+
+            if (newAudienceZone.id) {
+                await api.updateAudienceZone(newAudienceZone.id, payload);
+            } else {
+                await api.createAudienceZone(payload);
+            }
+
+            resetAudienceZoneForm();
+            await loadAll();
+            setAudienceZoneFeedback({
+                type: 'success',
+                message: newAudienceZone.id
+                    ? 'Audience zone updated successfully.'
+                    : 'Audience zone created successfully.',
+            });
+        } catch (err) {
+            setAudienceZoneFeedback({
+                type: 'error',
+                message: err.message || 'Unable to save audience zone.',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleDeleteAudienceZone(zone) {
+        if (!confirm(`Delete audience zone "${zone.name}"? Offerings using it will lose that eligibility rule.`)) return;
+        setLoading(true);
+        setAudienceZoneFeedback(null);
+        try {
+            await api.deleteAudienceZone(zone.id);
+            await loadAll();
+            setAudienceZoneFeedback({
+                type: 'success',
+                message: `Audience zone "${zone.name}" deleted.`,
+            });
+        } catch (err) {
+            setAudienceZoneFeedback({
+                type: 'error',
+                message: err.message || 'Unable to delete audience zone.',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function handleDownloadAudienceZoneBoundaryTemplate() {
+        const csv = Papa.unparse({
+            fields: ['audienceZoneCode', 'postalCode'],
+            data: [['FY-INTAKE-A', '680153'], ['FALLS-PILOT', '680574']],
+        });
+        downloadFile(`\uFEFF${csv}`, 'audience_zone_boundary_template.csv', 'text/csv;charset=utf-8');
+    }
+
+    function handleExportAudienceZone(zone) {
+        const csv = Papa.unparse({
+            fields: ['audienceZoneCode', 'audienceZoneName', 'postalCode'],
+            data: (zone.postalCodes || []).map((postalCode) => [zone.zoneCode || '', zone.name, postalCode]),
+        });
+        downloadFile(`\uFEFF${csv}`, `${zone.zoneCode || zone.name || 'audience_zone'}_boundary_export.csv`, 'text/csv;charset=utf-8');
+    }
+
+    function handleAudienceZoneBoundaryUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file || !canManageAudienceZones) return;
+
+        setLoading(true);
+        setAudienceZoneFeedback(null);
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const rows = Array.isArray(results.data) ? results.data : [];
+                    const res = await api.bulkUploadAudienceZoneBoundaries({ rows });
+                    await loadAll();
+                    setAudienceZoneFeedback({
+                        type: res.failed > 0 ? 'error' : 'success',
+                        message: `Audience-zone boundaries updated: ${res.updatedZones || 0} zone(s), ${res.assignedPostalCodes || 0} postal code(s).${res.failed ? ` ${res.failed} row(s) failed.` : ''}`,
+                    });
+                } catch (err) {
+                    setAudienceZoneFeedback({
+                        type: 'error',
+                        message: err.message || 'Failed to update audience-zone boundaries.',
+                    });
+                } finally {
+                    setLoading(false);
+                    e.target.value = null;
+                }
+            },
+            error: (err) => {
+                setAudienceZoneFeedback({
+                    type: 'error',
+                    message: `File parsing error: ${err.message}`,
+                });
+                setLoading(false);
+            }
+        });
+    }
+
     function promptSingleSubregionDelete(subregion) {
         if (!canManageSubregionMetadata) return;
         setPendingSubregionDelete({
@@ -486,37 +678,6 @@ export default function AdminPage() {
             id: subregion.id,
             label: subregion.subregionCode || subregion.id
         });
-    }
-
-    async function handleExportCSV() {
-        try {
-            setLoading(true);
-            const data = await api.exportFullDB();
-
-            if (data.hardAssets?.length > 0) {
-                downloadFile('\uFEFF' + Papa.unparse(data.hardAssets), 'hard_assets_export.csv', 'text/csv;charset=utf-8');
-            }
-            if (data.softAssets?.length > 0) {
-                downloadFile('\uFEFF' + Papa.unparse(data.softAssets), 'soft_assets_export.csv', 'text/csv;charset=utf-8');
-            }
-            alert('Export complete');
-        } catch (err) {
-            alert('Export failed: ' + err.message);
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    function handleDownloadPlacesTemplate() {
-        const headers = ['id', 'name', 'subCategory', 'postalCode', 'phone', 'hours', 'description', 'tags', 'partnerUsername', 'subregionId'];
-        const demoRow = ['', 'Example AAC', 'Active Ageing Centres', '123456', '+6591234567', '9am-6pm', 'A great place for seniors', 'wellness, active', '', ''];
-        downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'places_upload_template.csv', 'text/csv;charset=utf-8');
-    }
-
-    function handleDownloadOfferingsTemplate() {
-        const headers = ['id', 'name', 'subCategory', 'description', 'schedule', 'isMemberOnly', 'tags', 'partnerUsername', 'subregionId', 'linkedPlaceIds'];
-        const demoRow = ['', 'Morning Yoga', 'Programmes', 'Gentle yoga for seniors', 'Mon/Wed 9am', 'false', 'fitness, health', '', '', ''];
-        downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'offerings_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
     function handleDownloadUserTemplate() {
@@ -538,7 +699,7 @@ export default function AdminPage() {
             console.log('Preparing download link for:', fileName);
 
             // Standard approach using a blob and a temporary anchor
-            const blob = new Blob([content], { type: mimeType });
+            const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
 
@@ -563,25 +724,76 @@ export default function AdminPage() {
         }
     }
 
-    function parseImportedCount(result) {
-        if (Number.isInteger(result?.importedCount)) return result.importedCount;
-        const message = String(result?.message || '');
-        const match = message.match(/Successfully imported\s+(\d+)\s+rows/i);
-        return match ? Number.parseInt(match[1], 10) : 0;
+    async function handleAssetWorkbookDownload(resourceType, format, kind) {
+        try {
+            setLoading(true);
+            const action = kind === 'template' ? api.downloadWorkbookTemplate : api.exportWorkbook;
+            const { blob, fileName, contentType } = await action(resourceType, format);
+            downloadFile(blob, fileName || `${resourceType}_${kind}.${format}`, contentType);
+        } catch (err) {
+            alert(`${kind === 'template' ? 'Template download' : 'Export'} failed: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
     }
 
-    function normalizeBatchErrors(batchErrors, rowOffset) {
-        if (!Array.isArray(batchErrors)) return [];
+    async function handleAssetWorkbookImport(e, resourceType) {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        return batchErrors.map((err) => {
-            const text = String(err || '').trim();
-            const match = text.match(/^Row\s+(\d+):\s*(.*)$/i);
-            if (match) {
-                const mappedRow = rowOffset + Number.parseInt(match[1], 10);
-                return `Row ${mappedRow}: ${match[2]}`;
+        const resourceLabel = getWorkbookLabel(resourceType);
+        setImportReport(null);
+        setImportCopyNotice('');
+        setLoading(true);
+
+        try {
+            const result = await api.importWorkbook(resourceType, file);
+            const createdCount = Number(result?.createdCount || 0);
+            const updatedCount = Number(result?.updatedCount || 0);
+            const skippedCount = Number(result?.skippedCount || 0);
+            const failedCount = Number(result?.failedCount || 0);
+            const warnings = Array.isArray(result?.warnings) ? result.warnings : [];
+            const errors = Array.isArray(result?.errors) ? result.errors : [];
+
+            if (createdCount + updatedCount > 0) {
+                await loadAll();
             }
-            return `Row ${rowOffset + 1}: ${text}`;
-        });
+
+            setImportReport({
+                type: failedCount > 0
+                    ? (createdCount + updatedCount > 0 ? 'warning' : 'error')
+                    : (warnings.length > 0 || skippedCount > 0 ? 'warning' : 'success'),
+                resourceType,
+                resourceLabel,
+                fileName: file.name,
+                timestamp: Date.now(),
+                totalRows: Number(result?.totalRows || 0),
+                createdCount,
+                updatedCount,
+                skippedCount,
+                failedCount,
+                errors,
+                warnings,
+            });
+        } catch (err) {
+            setImportReport({
+                type: 'error',
+                resourceType,
+                resourceLabel,
+                fileName: file.name,
+                timestamp: Date.now(),
+                totalRows: 0,
+                createdCount: 0,
+                updatedCount: 0,
+                skippedCount: 0,
+                failedCount: 1,
+                errors: [err.message || 'Import failed.'],
+                warnings: [],
+            });
+        } finally {
+            setLoading(false);
+            e.target.value = null;
+        }
     }
 
     function buildImportReportText(report) {
@@ -592,10 +804,18 @@ export default function AdminPage() {
             `File: ${report.fileName}`,
             `Timestamp: ${new Date(report.timestamp).toLocaleString()}`,
             `Total rows: ${report.totalRows}`,
-            `Imported: ${report.importedCount}`,
+            `Created: ${report.createdCount}`,
+            `Updated: ${report.updatedCount}`,
+            `Skipped: ${report.skippedCount}`,
             `Failed: ${report.failedCount}`,
             ''
         ];
+
+        if (report.warnings.length > 0) {
+            lines.push('Warnings:');
+            lines.push(...report.warnings);
+            lines.push('');
+        }
 
         if (report.errors.length > 0) {
             lines.push('Errors:');
@@ -623,101 +843,6 @@ export default function AdminPage() {
         const datePart = new Date(importReport.timestamp).toISOString().replace(/[:.]/g, '-');
         const fileName = `import_report_${importReport.resourceType}_${datePart}.txt`;
         downloadFile(content, fileName, 'text/plain;charset=utf-8');
-    }
-
-    function handleImportCSV(e, type) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const resourceLabel = type === 'hard' ? 'Places' : 'Offerings';
-        setImportReport(null);
-        setImportCopyNotice('');
-        setLoading(true);
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                try {
-                    const rows = Array.isArray(results.data) ? results.data : [];
-                    if (rows.length === 0) {
-                        setImportReport({
-                            type: 'error',
-                            resourceType: type,
-                            resourceLabel,
-                            fileName: file.name,
-                            timestamp: Date.now(),
-                            totalRows: 0,
-                            importedCount: 0,
-                            failedCount: 0,
-                            errors: ['CSV has no data rows.']
-                        });
-                        return;
-                    }
-
-                    // Import one row per request to stay well under Cloudflare Worker subrequest limits.
-                    const batchSize = 1;
-                    let importedCount = 0;
-                    const allErrors = [];
-
-                    for (let start = 0; start < rows.length; start += batchSize) {
-                        const batchRows = rows.slice(start, start + batchSize);
-                        try {
-                            const res = await api.importCSV({ rows: batchRows, type });
-                            importedCount += parseImportedCount(res);
-                            allErrors.push(...normalizeBatchErrors(res?.errors, start));
-                        } catch (batchErr) {
-                            const end = Math.min(start + batchSize, rows.length);
-                            allErrors.push(`Rows ${start + 1}-${end}: ${batchErr.message || 'Import batch failed.'}`);
-                        }
-                    }
-
-                    if (importedCount > 0) {
-                        await loadAll();
-                    }
-
-                    setImportReport({
-                        type: allErrors.length > 0 ? (importedCount > 0 ? 'warning' : 'error') : 'success',
-                        resourceType: type,
-                        resourceLabel,
-                        fileName: file.name,
-                        timestamp: Date.now(),
-                        totalRows: rows.length,
-                        importedCount,
-                        failedCount: allErrors.length,
-                        errors: allErrors
-                    });
-                } catch (err) {
-                    setImportReport({
-                        type: 'error',
-                        resourceType: type,
-                        resourceLabel,
-                        fileName: file.name,
-                        timestamp: Date.now(),
-                        totalRows: 0,
-                        importedCount: 0,
-                        failedCount: 1,
-                        errors: [err.message || 'Import failed.']
-                    });
-                } finally {
-                    setLoading(false);
-                    e.target.value = null; // reset input
-                }
-            },
-            error: (err) => {
-                setImportReport({
-                    type: 'error',
-                    resourceType: type,
-                    resourceLabel,
-                    fileName: file.name,
-                    timestamp: Date.now(),
-                    totalRows: 0,
-                    importedCount: 0,
-                    failedCount: 1,
-                    errors: [`File parsing error: ${err.message}`]
-                });
-                setLoading(false);
-            }
-        });
     }
 
     function handleBulkUserUpload(e) {
@@ -996,6 +1121,10 @@ export default function AdminPage() {
         .filter((candidate) => canManageUserRecord(candidate))
         .map((candidate) => candidate.id);
     const allManageableUsersSelected = manageableVisibleUserIds.length > 0 && manageableVisibleUserIds.every((id) => selectedUsers.includes(id));
+    const partnerOwnerOptions = useMemo(
+        () => users.filter((candidate) => normalizeRole(candidate.role) === 'partner'),
+        [users]
+    );
     const adminStatCards = useMemo(() => {
         if (currentRole === 'partner') {
             return [
@@ -1055,6 +1184,7 @@ export default function AdminPage() {
                     { key: 'resources', label: 'All Resources', Icon: BookOpen },
                     { key: 'users', label: 'All Users', Icon: Users },
                     { key: 'subregions', label: 'Subregions', Icon: MapPin },
+                    { key: 'audiencezones', label: 'Audience Zones', Icon: MapPin },
                     { key: 'subcats', label: 'Categories', Icon: BookOpen },
                     { key: 'datatools', label: 'Data Tools', Icon: Database },
                 ].filter(({ key }) => availableTabs.includes(key)).map(({ key, label, Icon }) => (
@@ -1459,6 +1589,200 @@ export default function AdminPage() {
                         </div>
                     )}
                 </div>
+            ) : tab === 'audiencezones' ? (
+                <div className="space-y-6">
+                    <div className="flex flex-col gap-4 md:flex-row">
+                        <form onSubmit={handleAddAudienceZone} className="flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
+                                <input
+                                    placeholder="Zone Code (e.g. FY-INTAKE-A)"
+                                    value={newAudienceZone.zoneCode}
+                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, zoneCode: e.target.value })}
+                                    className="input-field"
+                                />
+                                <input
+                                    required
+                                    placeholder="Audience zone name"
+                                    value={newAudienceZone.name}
+                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, name: e.target.value })}
+                                    className="input-field"
+                                />
+                                <input
+                                    placeholder="Description"
+                                    value={newAudienceZone.description}
+                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, description: e.target.value })}
+                                    className="input-field"
+                                />
+                            </div>
+                            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">Ownership</label>
+                                    {currentRole === 'partner' ? (
+                                        <input value="Partner-owned" readOnly className="input-field bg-slate-50" />
+                                    ) : (
+                                        <select
+                                            value={newAudienceZone.ownershipMode}
+                                            onChange={(e) => setNewAudienceZone({ ...newAudienceZone, ownershipMode: e.target.value, partnerId: e.target.value === 'partner' ? newAudienceZone.partnerId : '' })}
+                                            className="input-field"
+                                        >
+                                            <option value="system">System-owned</option>
+                                            <option value="partner">Partner-owned</option>
+                                        </select>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">Partner Owner</label>
+                                    {currentRole === 'partner' ? (
+                                        <input value={currentUser?.name || ''} readOnly className="input-field bg-slate-50" />
+                                    ) : newAudienceZone.ownershipMode === 'partner' ? (
+                                        <select
+                                            value={newAudienceZone.partnerId || ''}
+                                            onChange={(e) => setNewAudienceZone({ ...newAudienceZone, partnerId: e.target.value })}
+                                            className="input-field"
+                                        >
+                                            <option value="">Select partner owner</option>
+                                            {partnerOwnerOptions.map((partner) => (
+                                                <option key={partner.id} value={partner.id}>{partner.name} (@{partner.username})</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input value="System-owned" readOnly className="input-field bg-slate-50" />
+                                    )}
+                                </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Audience zones are overlapping eligibility catchments. They do not affect admin subregion ownership or routing.
+                            </p>
+                            <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                {newAudienceZone.id ? (
+                                    <button type="button" onClick={resetAudienceZoneForm} className="btn-secondary sm:w-auto w-full">
+                                        Cancel Edit
+                                    </button>
+                                ) : null}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                    {loading ? (newAudienceZone.id ? 'Saving...' : 'Adding...') : (newAudienceZone.id ? 'Save Audience Zone' : 'Add Audience Zone')}
+                                </button>
+                            </div>
+                        </form>
+
+                        <div className="min-w-[320px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
+                                    <input type="file" accept=".csv" className="hidden" onChange={handleAudienceZoneBoundaryUpload} />
+                                    <Upload size={16} />
+                                    Upload Boundaries
+                                </label>
+                                <button onClick={handleDownloadAudienceZoneBoundaryTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
+                                    <Download size={16} />
+                                    Boundary Template
+                                </button>
+                            </div>
+                            <p className="mt-3 text-xs text-slate-500">
+                                Boundary CSV format: <code className="rounded bg-slate-100 px-1">audienceZoneCode</code> or <code className="rounded bg-slate-100 px-1">audienceZoneId</code>, plus <code className="rounded bg-slate-100 px-1">postalCode</code>. Uploading replaces the postcode set for each referenced audience zone.
+                            </p>
+                        </div>
+                    </div>
+
+                    {audienceZoneFeedback && (
+                        <div
+                            className={`rounded-xl border px-4 py-3 text-sm font-semibold ${audienceZoneFeedback.type === 'error'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-green-50 text-green-700 border-green-200'
+                            }`}
+                        >
+                            {audienceZoneFeedback.message}
+                        </div>
+                    )}
+
+                    <div className="card overflow-hidden p-0">
+                        <table className="hc-table w-full text-left">
+                            <thead>
+                                <tr className="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
+                                    <th className="px-4 py-3 font-semibold w-24">Code</th>
+                                    <th className="px-4 py-3 font-semibold">Name</th>
+                                    <th className="px-4 py-3 font-semibold">Description</th>
+                                    <th className="px-4 py-3 font-semibold">Owner</th>
+                                    <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
+                                    <th className="px-4 py-3 font-semibold w-36 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {audienceZones.map((zone) => (
+                                    <tr key={zone.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-4 py-3 text-xs font-mono text-slate-500">{zone.zoneCode || zone.id}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-semibold text-slate-900">{zone.name}</div>
+                                            <div className="mt-1 flex flex-wrap gap-1">
+                                                <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${zone.ownershipMode === 'partner' ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                                                    {zone.ownershipMode === 'partner' ? 'Partner-owned' : 'System-owned'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px] truncate">{zone.description || '—'}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-500">{zone.partnerName || 'System'}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-500 max-w-[320px]">
+                                            {zone.postalCodeCount > 0 ? (
+                                                <div className="space-y-2">
+                                                    <div className="text-xs font-semibold text-slate-700">
+                                                        {zone.postalCodeCount} exact postal code{zone.postalCodeCount === 1 ? '' : 's'}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(zone.postalCodesPreview || []).map((postalCode) => (
+                                                            <span key={`${zone.id}-${postalCode}`} className="inline-flex rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-mono text-[11px] text-sky-700">
+                                                                {postalCode}
+                                                            </span>
+                                                        ))}
+                                                        {zone.postalCodeCount > (zone.postalCodesPreview?.length || 0) ? (
+                                                            <span className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500">
+                                                                +{zone.postalCodeCount - (zone.postalCodesPreview?.length || 0)} more
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            ) : 'No boundary uploaded'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex justify-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEditAudienceZone(zone)}
+                                                    className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors flex items-center justify-center"
+                                                    title="Edit audience zone"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleExportAudienceZone(zone)}
+                                                    className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center"
+                                                    title="Export boundaries"
+                                                >
+                                                    <Download size={16} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteAudienceZone(zone)}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center"
+                                                    title="Delete audience zone"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {audienceZones.length === 0 && (
+                            <div className="text-center py-12 text-slate-400">No audience zones defined yet.</div>
+                        )}
+                    </div>
+                </div>
             ) : tab === 'subcats' ? (
                 /* ======== SubCategories Table ======== */
                 <div className="space-y-6">
@@ -1824,72 +2148,70 @@ export default function AdminPage() {
             ) : (
                 /* ======== Data Tools ======== */
 
-                <div className="space-y-6 max-w-2xl">
+                <div className="space-y-6 max-w-5xl">
                     <div className="card border border-slate-200 p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center text-brand-700">
                                 <Download size={20} />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-slate-900">Export Full Database</h2>
-                                <p className="text-sm text-slate-500">Download all resources as CSV files</p>
+                                <h2 className="text-lg font-bold text-slate-900">Asset Workbook Tools</h2>
+                                <p className="text-sm text-slate-500">Excel is the primary import format. Each workbook includes Guide, Data, and Reference sheets. CSV remains available as a data-only fallback.</p>
                             </div>
                         </div>
-                        <button onClick={handleExportCSV} className="btn-primary w-full sm:w-auto">
-                            Export Database (Places & Offerings)
-                        </button>
-                    </div>
-
-                    <div className="card border border-slate-200 p-6 shadow-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-700">
-                                <Upload size={20} />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold text-slate-900">Bulk Import Resources</h2>
-                                <p className="text-sm text-slate-500">Must include header row. Places require valid SG Postal Code.</p>
-                            </div>
-                        </div>
-
                         <div className="bg-slate-50 rounded-xl p-4 mt-4 border border-slate-100">
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">CSV Features</h3>
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Workbook Rules</h3>
                             <ul className="text-xs text-slate-600 space-y-1">
-                                <li>• Supply <code className="bg-slate-200 px-1 rounded">id</code> to update an existing record instead of creating a new one.</li>
-                                <li>• <code className="bg-slate-200 px-1 rounded">subregionId</code> overrides the uploader's default assigned region.</li>
-                                <li>• <code className="bg-slate-200 px-1 rounded">partnerUsername</code> overrides the uploader as the owner.</li>
-                                <li>• Offerings can define comma-separated <code className="bg-slate-200 px-1 rounded">linkedPlaceIds</code> to map to Places.</li>
-                                <li>• Imports are processed in small batches to avoid Cloudflare worker subrequest limits.</li>
+                                <li>• Asset upserts use stable external keys only. Names never drive updates.</li>
+                                <li>• Excel templates include a Guide sheet, importable Data sheet, and Reference sheet with allowed values.</li>
+                                <li>• Template rollouts only create or update generated child offerings keyed by template + host external keys.</li>
+                                <li>• Places derive subregion from postcode on the server. Imported subregion overrides are ignored.</li>
                             </ul>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col items-center justify-center text-center gap-3">
-                                <span className="font-semibold text-slate-800">Import Places</span>
-                                <label className="btn-secondary cursor-pointer min-h-[44px] flex items-center justify-center w-full">
-                                    <input type="file" accept=".csv" className="hidden" onChange={(e) => handleImportCSV(e, 'hard')} />
-                                    Choose Places CSV
-                                </label>
-                                <button
-                                    onClick={handleDownloadPlacesTemplate}
-                                    className="btn-ghost flex items-center justify-center gap-2 text-xs w-full"
-                                >
-                                    <Download size={14} /> Download Template
-                                </button>
-                            </div>
+                        <div className="grid grid-cols-1 gap-4 mt-6 md:grid-cols-2">
+                            {ASSET_WORKBOOKS.map((workbook) => (
+                                <div key={workbook.resourceType} className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col gap-3">
+                                    <div>
+                                        <h3 className="font-semibold text-slate-900">{workbook.label}</h3>
+                                        <p className="text-xs text-slate-500 mt-1">{workbook.helper}</p>
+                                    </div>
 
-                            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col items-center justify-center text-center gap-3">
-                                <span className="font-semibold text-slate-800">Import Offerings</span>
-                                <label className="btn-secondary cursor-pointer min-h-[44px] flex items-center justify-center w-full">
-                                    <input type="file" accept=".csv" className="hidden" onChange={(e) => handleImportCSV(e, 'soft')} />
-                                    Choose Offerings CSV
-                                </label>
-                                <button
-                                    onClick={handleDownloadOfferingsTemplate}
-                                    className="btn-ghost flex items-center justify-center gap-2 text-xs w-full"
-                                >
-                                    <Download size={14} /> Download Template
-                                </button>
-                            </div>
+                                    <label className="btn-secondary cursor-pointer min-h-[44px] flex items-center justify-center w-full">
+                                        <input
+                                            type="file"
+                                            accept=".xlsx,.csv"
+                                            className="hidden"
+                                            onChange={(e) => handleAssetWorkbookImport(e, workbook.resourceType)}
+                                        />
+                                        <Upload size={14} className="mr-2" /> Upload Workbook
+                                    </label>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAssetWorkbookDownload(workbook.resourceType, 'xlsx', 'template')}
+                                            className="btn-ghost text-xs flex items-center justify-center gap-2"
+                                        >
+                                            <Download size={14} /> Excel template
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAssetWorkbookDownload(workbook.resourceType, 'csv', 'template')}
+                                            className="btn-ghost text-xs flex items-center justify-center gap-2"
+                                        >
+                                            <Download size={14} /> CSV template
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAssetWorkbookDownload(workbook.resourceType, 'xlsx', 'export')}
+                                            className="btn-primary text-xs flex items-center justify-center gap-2"
+                                        >
+                                            <Download size={14} /> Export current data
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {importReport && (
@@ -1915,14 +2237,26 @@ export default function AdminPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                <div className="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-3">
                                     <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
                                         <span className="text-slate-500">Total</span>
                                         <div className="font-bold text-slate-900">{importReport.totalRows}</div>
                                     </div>
                                     <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
-                                        <span className="text-slate-500">Imported</span>
-                                        <div className="font-bold text-green-700">{importReport.importedCount}</div>
+                                        <span className="text-slate-500">Created</span>
+                                        <div className="font-bold text-green-700">{importReport.createdCount}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
+                                        <span className="text-slate-500">Updated</span>
+                                        <div className="font-bold text-brand-700">{importReport.updatedCount}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
+                                        <span className="text-slate-500">Skipped</span>
+                                        <div className="font-bold text-amber-700">{importReport.skippedCount}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
+                                        <span className="text-slate-500">Warnings</span>
+                                        <div className="font-bold text-amber-700">{importReport.warnings.length}</div>
                                     </div>
                                     <div className="rounded-lg bg-white/70 p-2 border border-slate-200">
                                         <span className="text-slate-500">Errors</span>
@@ -1932,6 +2266,14 @@ export default function AdminPage() {
 
                                 {importCopyNotice && (
                                     <p className="mt-3 text-xs font-semibold text-slate-700">{importCopyNotice}</p>
+                                )}
+
+                                {importReport.warnings.length > 0 && (
+                                    <textarea
+                                        readOnly
+                                        value={importReport.warnings.join('\n')}
+                                        className="mt-3 w-full min-h-[120px] rounded-lg border border-amber-200 bg-white p-3 text-xs font-mono text-slate-700"
+                                    />
                                 )}
 
                                 {importReport.errors.length > 0 ? (

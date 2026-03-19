@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
-import * as adminController from '../controllers/adminController.js';
+import * as workbookController from '../controllers/workbookController.js';
 import { authenticateToken, isAdmin } from '../middleware/auth.js';
 
 const router = new Hono();
 
 router.use('*', authenticateToken, isAdmin);
 
-router.get('/export', adminController.exportFullDB);
-router.post('/import', adminController.importCSV);
+router.get('/workbooks/:resourceType/template', workbookController.downloadWorkbookTemplate);
+router.get('/workbooks/:resourceType/export', workbookController.exportWorkbookData);
+router.post('/imports/:resourceType', workbookController.importWorkbookData);
 
 export default router;

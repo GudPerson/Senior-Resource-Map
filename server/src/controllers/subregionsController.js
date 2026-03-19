@@ -12,7 +12,7 @@ async function ensureSubregionSchema(db) {
         ensureSubregionSchemaPromise = (async () => {
             await db.execute(sql`ALTER TABLE subregions ADD COLUMN IF NOT EXISTS subregion_code VARCHAR(80)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS subregions_subregion_code_unique ON subregions (subregion_code)`);
-            await ensureBoundarySchema(db);
+            await ensureBoundarySchema(db, c.env);
         })().catch((err) => {
             ensureSubregionSchemaPromise = null;
             throw err;

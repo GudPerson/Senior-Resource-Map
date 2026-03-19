@@ -9,7 +9,7 @@ export default function DashboardOverview() {
         <div className="p-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back, {user?.name?.split(' ')[0]}! 👋</h1>
             <p className="text-slate-500 text-lg">
-                Use the sidebar to manage your {isStandardUserRole(user?.role) ? 'favorites' : 'resources'}, update your profile{canAccessAdmin(user?.role) ? ', or access Admin tools' : ''}.
+                Use the sidebar to manage your {isStandardUserRole(user?.role) ? 'Saved Assets' : 'resources'}, update your profile{canAccessAdmin(user?.role) ? ', or access Admin tools' : ''}.
             </p>
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[

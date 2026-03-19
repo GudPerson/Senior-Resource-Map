@@ -1,0 +1,13 @@
+name = "senior-resource-map-api"
+main = "src/worker.js"
+compatibility_date = "2026-03-12"
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
+
+[vars]
+NODE_ENV = "production"
+VITE_GOOGLE_CLIENT_ID = "828767964064-70irissq9d39beh2i7sc3strs1fvjmpk.apps.googleusercontent.com"
+ALLOWED_ORIGINS = "http://localhost:5173,https://senior-resource-map.pages.dev"
+
+[[kv_namespaces]]
+binding = "MAP_CACHE"
+id = "2a6899a5a6a5440590166ab8e1d3a2d8"

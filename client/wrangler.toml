@@ -2,7 +2,3 @@ name = "senior-resource-map"
 compatibility_date = "2026-03-05"
 compatibility_flags = ["nodejs_compat_populate_process_env"]
 pages_build_output_dir = "./dist"
-
-[[kv_namespaces]]
-binding = "MAP_CACHE"
-id = "2a6899a5a6a5440590166ab8e1d3a2d8"

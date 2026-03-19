@@ -1,21 +1,27 @@
 import { Search } from 'lucide-react';
 import { AssetCard } from '../../components/AssetCard.jsx';
+import { buildSavedAssetKey } from '../../lib/savedAssets.js';
+import DiscoveryMobileBrowseCard from './DiscoveryMobileBrowseCard.jsx';
 
 export function DiscoveryResultsList({
-    favorites,
     filtered,
-    isSearchPanelCollapsed,
+    isDesktop = false,
     loading,
+    mobileCardDensity = 'comfortable',
     onCategoryClick,
-    onSelectAsset,
+    onFocusAssetOnMap,
     onTagClick,
-    onToggleFavorite,
+    savedMapAssetKeys = new Set(),
     selectedAsset,
     subCatColors,
-    user,
 }) {
+    const isCompactMobile = !isDesktop && mobileCardDensity === 'compact';
+
     return (
-        <div className="flex-1 overflow-y-auto p-3 lg:p-5 pb-20 scroll-smooth relative hide-scrollbar">
+        <div
+            className={`relative flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 lg:p-5 ${isDesktop ? 'pb-20' : 'pb-28'} scroll-smooth hide-scrollbar`}
+            style={{ WebkitOverflowScrolling: 'touch' }}
+        >
             {loading ? (
                 <div className="space-y-3">
                     {[...Array(3)].map((_, index) => (
@@ -29,47 +35,46 @@ export function DiscoveryResultsList({
                     <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters or search terms.</p>
                 </div>
             ) : (
-                <>
-                    {!isSearchPanelCollapsed && (
+                <div
+                    className={
+                        isDesktop
+                            ? 'grid grid-cols-1 gap-3 lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-4'
+                            : isCompactMobile
+                                ? 'grid grid-cols-2 gap-2'
+                                : 'grid grid-cols-1 gap-3 min-[540px]:grid-cols-2'
+                    }
+                >
+                    {filtered.map((resource, index) => (
                         <div
-                            className="mb-4 rounded-[24px] border px-4 py-3"
-                            style={{
-                                borderColor: 'var(--color-border)',
-                                background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(231,248,244,0.9) 100%)',
-                            }}
+                            id={`asset-card-${resource._type}-${resource.id}`}
+                            key={`${resource._type}-${resource.id}`}
+                            className="mobile-card-enter"
+                            style={{ animationDelay: `${index * 0.04}s` }}
                         >
-                            <p className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                Discovery Feed
-                            </p>
-                            <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                                Showing {filtered.length} {filtered.length === 1 ? 'resource' : 'resources'}
-                            </p>
-                        </div>
-                    )}
-                    <div className="space-y-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-4 lg:space-y-0">
-                        {filtered.map((resource, index) => (
-                            <div
-                                id={`asset-card-${resource._type}-${resource.id}`}
-                                key={`${resource._type}-${resource.id}`}
-                                className="mobile-card-enter"
-                                style={{ animationDelay: `${index * 0.04}s` }}
-                            >
+                            {isDesktop ? (
                                 <AssetCard
                                     asset={resource}
                                     type={resource._type}
                                     isSelected={selectedAsset?.id === resource.id && selectedAsset?._type === resource._type}
-                                    onClick={() => onSelectAsset(resource)}
+                                    onLocationClick={savedMapAssetKeys.has(buildSavedAssetKey(resource._type, resource.id))
+                                        ? () => onFocusAssetOnMap(resource)
+                                        : undefined}
                                     subCatColors={subCatColors}
-                                    isFavorite={favorites.some((favorite) => favorite.resourceId === resource.id && favorite.resourceType === resource._type)}
-                                    onToggleFavorite={onToggleFavorite}
-                                    isLoggedIn={!!user}
                                     onTagClick={onTagClick}
                                     onCategoryClick={onCategoryClick}
                                 />
-                            </div>
-                        ))}
-                    </div>
-                </>
+                                ) : (
+                                    <DiscoveryMobileBrowseCard
+                                        asset={resource}
+                                        isCompact={isCompactMobile}
+                                        type={resource._type}
+                                        onCategoryClick={onCategoryClick}
+                                        subCatColors={subCatColors}
+                                    />
+                                )}
+                        </div>
+                    ))}
+                </div>
             )}
         </div>
     );

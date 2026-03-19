@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { User, Phone, Lock, CheckCircle } from 'lucide-react';
@@ -11,6 +11,15 @@ export default function ProfilePage() {
     const [error, setError] = useState('');
 
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
+
+    useEffect(() => {
+        setForm((current) => ({
+            ...current,
+            name: user?.name || '',
+            phone: user?.phone || '',
+            postalCode: user?.postalCode || '',
+        }));
+    }, [user?.name, user?.phone, user?.postalCode]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -35,12 +44,18 @@ export default function ProfilePage() {
     return (
         <div className="p-6 lg:p-8 max-w-xl">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">My Profile</h1>
-            <p className="text-slate-500 mb-6">Update your organisation details and contact information.</p>
+            <p className="text-slate-500 mb-6">Update your details and contact information.</p>
+
+            {user?.needsPostalCode ? (
+                <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Add your postal code to personalize nearby results and unlock any partner-boundary offerings you qualify for.
+                </div>
+            ) : null}
 
             <div className=" card shadow-sm">
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1"><User size={13} className="inline mr-1" />Organisation Name</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1"><User size={13} className="inline mr-1" />Name</label>
                         <input id="profile-name" required value={form.name} onChange={set('name')} className=" input-field" />
                     </div>
                     <div>
@@ -53,8 +68,8 @@ export default function ProfilePage() {
                         <input id="profile-phone" type="tel" value={form.phone} onChange={set('phone')} placeholder="(312) 555-0000" className=" input-field" />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code</label>
-                        <input id="profile-postal-code" type="text" value={form.postalCode} onChange={set('postalCode')} placeholder="680153" className=" input-field" />
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code {user?.role === 'standard' ? '(recommended)' : ''}</label>
+                        <input id="profile-postal-code" type="text" value={form.postalCode} onChange={set('postalCode')} placeholder="680153" className=" input-field" autoComplete="postal-code" />
                         <p className="text-xs text-slate-400 mt-1">Optional. Used to check whether you are inside the postal-code boundary assigned to your subregion.</p>
                     </div>
 

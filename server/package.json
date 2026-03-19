@@ -3,16 +3,25 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "dev": "npm run dev:node",
+    "dev:node": "node --watch src/index.js",
+    "dev:worker": "npx wrangler dev --config wrangler.toml --local",
+    "deploy": "npx wrangler deploy --config wrangler.toml",
+    "bootstrap:boundary-schema": "node --env-file=.env scripts/bootstrap_boundary_schema.js",
+    "backfill:soft-buckets": "node scripts/backfill_soft_asset_buckets.js",
+    "backfill:external-keys": "node scripts/backfill_external_keys.js",
+    "audit:clean-slate": "node --env-file=.env scripts/audit_clean_slate.js",
+    "reset:clean-slate": "node --env-file=.env scripts/reset_clean_slate.js",
+    "start": "node src/index.js",
+    "test": "node --test test/**/*.test.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@neondatabase/serverless": "^0.9.5",
-    "@netlify/blobs": "^10.7.0",
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.30.10",
     "hono": "^4.12.5",
+    "xlsx": "^0.18.5",
     "zod": "^3.22.4"
   },
   "devDependencies": {

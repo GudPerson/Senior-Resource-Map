@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Building2, CalendarDays, Heart, MapPin, Clock, Navigation } from 'lucide-react';
+import { ArrowUpRight, Building2, CalendarDays, MapPin, Clock, Navigation } from 'lucide-react';
+import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
+import SaveAssetButton from './SaveAssetButton.jsx';
 
 function hasValidCoordinates(value) {
     return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
@@ -43,7 +45,15 @@ export const LinkifiedText = ({ text }) => {
     );
 };
 
-export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatColors = {}, isFavorite, onToggleFavorite, isLoggedIn, onTagClick, onCategoryClick }) => {
+export const AssetCard = React.memo(({
+    asset,
+    type,
+    onLocationClick,
+    isSelected,
+    subCatColors = {},
+    onTagClick,
+    onCategoryClick,
+}) => {
     const isHard = type === 'hard';
     const linkedLocations = isHard ? [] : getLinkedLocations(asset);
     const displayLocation = isHard ? asset : (asset._displayLocation || linkedLocations[0] || null);
@@ -54,6 +64,15 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
         : Boolean(displayLocation && (displayLocation.address || hasValidCoordinates(displayLocation)));
     const [isExpanded, setIsExpanded] = useState(false);
     const navigate = useNavigate();
+    const softAssetCounts = isHard ? summarizeSoftAssetBuckets(asset.softAssets || []) : null;
+    const savedAssetSummary = {
+        name: asset.name,
+        subCategory: asset.subCategory,
+        address,
+        lat: isHard ? asset.lat : displayLocation?.lat,
+        lng: isHard ? asset.lng : displayLocation?.lng,
+        detailPath: `/resource/${type}/${asset.id}`,
+    };
 
     const handleDirections = (e) => {
         e.stopPropagation();
@@ -88,18 +107,8 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                 }}
             />
 
-            {/* Distance badge */}
-            {asset._distance !== undefined && asset._distance !== null && (
-                <div
-                    className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs font-bold z-10 text-white"
-                    style={{ backgroundColor: 'var(--color-brand-strong)', border: '2px solid var(--color-surface)' }}
-                >
-                    {asset._distance < 1 ? `${Math.round(asset._distance * 1000)}m` : `${asset._distance.toFixed(1)}km`}
-                </div>
-            )}
-
             {/* Category + Favorite row */}
-            <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-start justify-between gap-3 mb-2">
                 <div
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${onCategoryClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                     style={{
@@ -112,15 +121,22 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                     {isHard ? <Building2 size={14} /> : <CalendarDays size={14} />}
                     {asset.subCategory || (isHard ? 'Place' : 'Offering')}
                 </div>
-                {isLoggedIn && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onToggleFavorite(asset.id, type); }}
-                        className="p-1.5 -m-1 rounded-full transition-colors flex-shrink-0"
-                        style={{ backgroundColor: isFavorite ? '#fff1ef' : 'transparent' }}
-                    >
-                        <Heart size={18} className={isFavorite ? 'fill-red-500 text-red-500' : ''} style={!isFavorite ? { color: 'var(--color-text-muted)' } : {}} />
-                    </button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                    {asset._distance !== undefined && asset._distance !== null && (
+                        <div
+                            className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                            style={{ backgroundColor: 'var(--color-brand-strong)', border: '2px solid var(--color-surface)' }}
+                        >
+                            {asset._distance < 1 ? `${Math.round(asset._distance * 1000)}m` : `${asset._distance.toFixed(1)}km`}
+                        </div>
+                    )}
+                    <SaveAssetButton
+                        resourceId={asset.id}
+                        resourceType={type}
+                        summary={savedAssetSummary}
+                        variant="card"
+                    />
+                </div>
             </div>
 
             {/* Title row */}
@@ -149,12 +165,12 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
             <div className="space-y-1.5 pt-3 mt-auto" style={{ borderTop: '1px solid var(--color-border)' }}>
                 {(isHard ? Boolean(address) : locationCount > 0) && (
                     <div
-                        className={`flex items-start gap-2 text-sm font-medium p-1 -mx-1 rounded-lg transition-colors ${onClick ? 'cursor-pointer' : ''}`}
+                        className={`flex items-start gap-2 text-sm font-medium p-1 -mx-1 rounded-lg transition-colors ${onLocationClick ? 'cursor-zoom-in hover:bg-slate-50' : ''}`}
                         style={{ color: 'var(--color-text-secondary)' }}
                         onClick={(e) => {
-                            if (onClick) {
+                            if (onLocationClick) {
                                 e.stopPropagation();
-                                onClick();
+                                onLocationClick();
                             }
                         }}
                     >
@@ -209,26 +225,36 @@ export const AssetCard = React.memo(({ asset, type, onClick, isSelected, subCatC
                 </div>
             )}
 
-            <div className="mt-3 flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onClick?.();
-                    }}
-                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors hover:bg-slate-50"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                >
-                    <MapPin size={15} style={{ color: 'var(--color-brand)' }} />
-                    Inspect
-                </button>
+            {isHard && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                    {SOFT_ASSET_BUCKETS.map((bucket) => (
+                        <div
+                            key={bucket}
+                            className="rounded-xl border px-3 py-2 text-center"
+                            style={{
+                                borderColor: 'var(--color-border)',
+                                backgroundColor: 'color-mix(in srgb, var(--color-surface) 88%, var(--color-brand-light) 12%)',
+                            }}
+                        >
+                            <div className="text-lg font-extrabold leading-none" style={{ color: 'var(--color-text)' }}>
+                                {softAssetCounts?.[bucket] || 0}
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
+                                {bucket}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="mt-3">
                 <button
                     type="button"
                     onClick={(event) => {
                         event.stopPropagation();
                         navigate(`/resource/${type}/${asset.id}`);
                     }}
-                    className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
+                    className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
                     style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
                 >
                     Details

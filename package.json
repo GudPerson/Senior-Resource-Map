@@ -1,13 +1,21 @@
 {
   "name": "seniorcare-connect",
   "private": true,
+  "type": "module",
   "workspaces": [
     "client",
     "server"
   ],
   "scripts": {
-    "dev:client": "npm run dev --workspace=client",
-    "dev:server": "npm run dev --workspace=server",
-    "build:cloudflare": "npm run build --workspace=client"
+    "dev:client": "npm run dev --workspace=client -- --host localhost --port 5173",
+    "dev:server": "npm run dev:worker --workspace=server",
+    "dev:server:node": "npm run dev:node --workspace=server",
+    "build:client": "npm run build --workspace=client",
+    "build:cloudflare": "npm run build:client",
+    "deploy:client": "node scripts/validate-cloudflare-client-env.mjs && npm run build --workspace=client && cd client && npx wrangler pages deploy dist --project-name senior-resource-map",
+    "deploy:server": "npm run deploy --workspace=server",
+    "test:server": "npm run test --workspace=server",
+    "audit:clean-slate": "node --env-file=server/.env server/scripts/audit_clean_slate.js",
+    "reset:clean-slate": "node --env-file=server/.env server/scripts/reset_clean_slate.js"
   }
 }

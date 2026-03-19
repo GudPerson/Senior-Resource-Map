@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
@@ -33,9 +33,29 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const audienceZones = pgTable('audience_zones', {
+  id: serial('id').primaryKey(),
+  zoneCode: varchar('zone_code', { length: 80 }).unique(),
+  partnerUserId: integer('partner_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const audienceZonePostalCodes = pgTable('audience_zone_postal_codes', {
+  audienceZoneId: integer('audience_zone_id').references(() => audienceZones.id, { onDelete: 'cascade' }).notNull(),
+  postalCode: varchar('postal_code', { length: 20 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.audienceZoneId, table.postalCode] }),
+}));
+
 
 export const hardAssets = pgTable('hard_assets', {
   id: serial('id').primaryKey(),
+  externalKey: varchar('external_key', { length: 160 }).unique(),
   partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
@@ -59,12 +79,38 @@ export const hardAssets = pgTable('hard_assets', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const softAssetParents = pgTable('soft_asset_parents', {
+  id: serial('id').primaryKey(),
+  externalKey: varchar('external_key', { length: 160 }).unique(),
+  partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  bucket: varchar('bucket', { length: 20 }),
+  subCategory: varchar('sub_category', { length: 50 }).notNull().default('Programmes'),
+  description: text('description'),
+  schedule: text('schedule'),
+  logoUrl: text('logo_url'),
+  bannerUrl: text('banner_url'),
+  galleryUrls: jsonb('gallery_urls').default('[]'),
+  audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
+  isMemberOnly: boolean('is_member_only').default(false),
+  tags: jsonb('tags').default('[]'),
+  isDeleted: boolean('is_deleted').default(false),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const softAssets = pgTable('soft_assets', {
   id: serial('id').primaryKey(),
+  externalKey: varchar('external_key', { length: 160 }).unique(),
   partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
+  assetMode: varchar('asset_mode', { length: 20 }).notNull().default('standalone'),
+  parentSoftAssetId: integer('parent_soft_asset_id').references(() => softAssetParents.id, { onDelete: 'set null' }),
+  hostHardAssetId: integer('host_hard_asset_id').references(() => hardAssets.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
+  bucket: varchar('bucket', { length: 20 }),
   subCategory: varchar('sub_category', { length: 50 }).notNull().default('Programmes'),
   description: text('description'),
   schedule: text('schedule'), // e.g., "Mondays 10am-12pm"
@@ -73,6 +119,12 @@ export const softAssets = pgTable('soft_assets', {
   galleryUrls: jsonb('gallery_urls').default('[]'),
   audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
+  overriddenFields: jsonb('overridden_fields').default('[]'),
+  contactPhone: varchar('contact_phone', { length: 50 }),
+  contactEmail: varchar('contact_email', { length: 255 }),
+  ctaLabel: varchar('cta_label', { length: 255 }),
+  ctaUrl: text('cta_url'),
+  venueNote: text('venue_note'),
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
   hideUntil: timestamp('hide_until'),
@@ -80,14 +132,52 @@ export const softAssets = pgTable('soft_assets', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const softAssetAudienceZones = pgTable('soft_asset_audience_zones', {
+  softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  audienceZoneId: integer('audience_zone_id').references(() => audienceZones.id, { onDelete: 'cascade' }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.softAssetId, table.audienceZoneId] }),
+}));
+
+export const softAssetParentAudienceZones = pgTable('soft_asset_parent_audience_zones', {
+  softAssetParentId: integer('soft_asset_parent_id').references(() => softAssetParents.id, { onDelete: 'cascade' }).notNull(),
+  audienceZoneId: integer('audience_zone_id').references(() => audienceZones.id, { onDelete: 'cascade' }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.softAssetParentId, table.audienceZoneId] }),
+}));
+
 
 export const userFavorites = pgTable('user_favorites', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   resourceType: varchar('resource_type', { length: 20 }).notNull(), // 'hard' or 'soft'
   resourceId: integer('resource_id').notNull(),
+  snapshot: jsonb('snapshot'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => ({
+  userResourceUnique: uniqueIndex('user_favorites_user_resource_unique').on(table.userId, table.resourceType, table.resourceId),
+}));
+
+export const myMaps = pgTable('my_maps', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('my_maps_user_idx').on(table.userId),
+}));
+
+export const myMapAssets = pgTable('my_map_assets', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  snapshot: jsonb('snapshot'),
+  addedAt: timestamp('added_at').defaultNow(),
+}, (table) => ({
+  mapResourceUnique: uniqueIndex('my_map_assets_map_resource_unique').on(table.mapId, table.resourceType, table.resourceId),
+}));
 
 export const tags = pgTable('tags', {
   id: serial('id').primaryKey(),
@@ -161,10 +251,14 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   }),
   managedUsers: many(users, { relationName: 'user_manager' }),
   hardAssets: many(hardAssets),
+  softAssetParents: many(softAssetParents),
   softAssets: many(softAssets),
   favorites: many(userFavorites),
+  myMaps: many(myMaps),
   subregions: many(userSubregions),
   partnerPostalCodes: many(partnerPostalCodes),
+  ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
+  createdAudienceZones: many(audienceZones, { relationName: 'audience_zone_creator' }),
 }));
 
 export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({
@@ -177,7 +271,21 @@ export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({
     references: [users.id],
   }),
   softAssets: many(softAssetLocations), // Many-to-Many through softAssetLocations
+  hostedSoftAssets: many(softAssets, { relationName: 'soft_asset_host' }),
   tags: many(hardAssetTags),    // M:N through hard_asset_tags
+}));
+
+export const softAssetParentsRelations = relations(softAssetParents, ({ one, many }) => ({
+  partner: one(users, {
+    fields: [softAssetParents.partnerId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [softAssetParents.createdByUserId],
+    references: [users.id],
+  }),
+  children: many(softAssets, { relationName: 'soft_asset_parent' }),
+  audienceZones: many(softAssetParentAudienceZones),
 }));
 
 export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
@@ -189,14 +297,70 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
     fields: [softAssets.createdByUserId],
     references: [users.id],
   }),
+  parent: one(softAssetParents, {
+    fields: [softAssets.parentSoftAssetId],
+    references: [softAssetParents.id],
+    relationName: 'soft_asset_parent',
+  }),
+  hostHardAsset: one(hardAssets, {
+    fields: [softAssets.hostHardAssetId],
+    references: [hardAssets.id],
+    relationName: 'soft_asset_host',
+  }),
   locations: many(softAssetLocations), // Many-to-Many through softAssetLocations
   tags: many(softAssetTags),    // M:N through soft_asset_tags
+  audienceZones: many(softAssetAudienceZones),
 }));
 
 export const partnerPostalCodesRelations = relations(partnerPostalCodes, ({ one }) => ({
   partner: one(users, {
     fields: [partnerPostalCodes.partnerUserId],
     references: [users.id],
+  }),
+}));
+
+export const audienceZonesRelations = relations(audienceZones, ({ one, many }) => ({
+  ownerPartner: one(users, {
+    fields: [audienceZones.partnerUserId],
+    references: [users.id],
+    relationName: 'audience_zone_owner',
+  }),
+  creator: one(users, {
+    fields: [audienceZones.createdByUserId],
+    references: [users.id],
+    relationName: 'audience_zone_creator',
+  }),
+  postalCodes: many(audienceZonePostalCodes),
+  softAssets: many(softAssetAudienceZones),
+  softAssetParents: many(softAssetParentAudienceZones),
+}));
+
+export const audienceZonePostalCodesRelations = relations(audienceZonePostalCodes, ({ one }) => ({
+  audienceZone: one(audienceZones, {
+    fields: [audienceZonePostalCodes.audienceZoneId],
+    references: [audienceZones.id],
+  }),
+}));
+
+export const softAssetAudienceZonesRelations = relations(softAssetAudienceZones, ({ one }) => ({
+  softAsset: one(softAssets, {
+    fields: [softAssetAudienceZones.softAssetId],
+    references: [softAssets.id],
+  }),
+  audienceZone: one(audienceZones, {
+    fields: [softAssetAudienceZones.audienceZoneId],
+    references: [audienceZones.id],
+  }),
+}));
+
+export const softAssetParentAudienceZonesRelations = relations(softAssetParentAudienceZones, ({ one }) => ({
+  softAssetParent: one(softAssetParents, {
+    fields: [softAssetParentAudienceZones.softAssetParentId],
+    references: [softAssetParents.id],
+  }),
+  audienceZone: one(audienceZones, {
+    fields: [softAssetParentAudienceZones.audienceZoneId],
+    references: [audienceZones.id],
   }),
 }));
 
@@ -242,5 +406,20 @@ export const userFavoritesRelations = relations(userFavorites, ({ one }) => ({
   user: one(users, {
     fields: [userFavorites.userId],
     references: [users.id],
+  }),
+}));
+
+export const myMapsRelations = relations(myMaps, ({ one, many }) => ({
+  user: one(users, {
+    fields: [myMaps.userId],
+    references: [users.id],
+  }),
+  assets: many(myMapAssets),
+}));
+
+export const myMapAssetsRelations = relations(myMapAssets, ({ one }) => ({
+  map: one(myMaps, {
+    fields: [myMapAssets.mapId],
+    references: [myMaps.id],
   }),
 }));

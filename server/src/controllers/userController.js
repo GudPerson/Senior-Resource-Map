@@ -8,6 +8,7 @@ import { getOwnershipStatus, canDirectlyManageUser, canRoleOwnUser } from '../ut
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
+import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -337,6 +338,7 @@ function buildUserResponse(userRow, boundaryContext) {
         derivedSubregionId: userRow.derivedSubregionId || null,
         derivedSubregionCode: userRow.derivedSubregionCode || null,
         derivedSubregionName: userRow.derivedSubregionName || null,
+        needsPostalCode: needsPostalCodeCompletion(userRow),
         ownershipStatus: getOwnershipStatus(userRow),
         boundaryStatus: resolvePostalBoundaryStatus(userRow.postalCode, boundaryContext),
     };
@@ -348,7 +350,7 @@ export const createUser = async (c) => {
         const { username, email, password, name, role, phone } = body;
         const creator = c.get('user');
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const creatorRole = normalizeRole(creator.role);
         if (getCreatableRoles(creatorRole).length === 0) {
@@ -398,7 +400,7 @@ export const bulkCreateUsers = async (c) => {
         const { rows } = body;
         const creator = c.get('user');
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const results = {
             message: 'Bulk import processed',
@@ -481,7 +483,7 @@ export const getUsers = async (c) => {
     try {
         const creator = c.get('user');
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
         const creatorRole = normalizeRole(creator.role);
         const boundaryContext = await loadScopedBoundaryContext(db, creator);
 
@@ -550,14 +552,15 @@ export const updateProfile = async (c) => {
     try {
         const body = await c.req.json();
         const user = c.get('user');
+        const currentRole = normalizeRole(user.role);
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
         const updates = {};
 
         if (body.name) updates.name = body.name;
         if (body.phone !== undefined) updates.phone = body.phone;
         if (body.postalCode !== undefined) {
-            updates.postalCode = normalizeRole(user.role) === 'super_admin'
+            updates.postalCode = currentRole === 'super_admin' || currentRole === 'standard'
                 ? normalizeOptionalPostalCode(body.postalCode)
                 : normalizeRequiredPostalCode(body.postalCode);
         }
@@ -569,17 +572,23 @@ export const updateProfile = async (c) => {
             await db.update(users).set(updates).where(eq(users.id, user.id));
         }
 
-        if (updates.postalCode && normalizeRole(user.role) !== 'super_admin') {
-            const current = await loadUserWithSubregions(db, user.id);
-            const derivedSubregion = await resolveSingleSubregionByPostal(db, updates.postalCode, 'Postal code');
-            if (current.managerUserId) {
-                const manager = await loadUserWithSubregions(db, current.managerUserId);
-                validateManagerForTarget(manager, current.role, derivedSubregion.id);
+        if (body.postalCode !== undefined) {
+            if (updates.postalCode && currentRole !== 'super_admin') {
+                const current = await loadUserWithSubregions(db, user.id);
+                const derivedSubregion = await resolveSingleSubregionByPostal(db, updates.postalCode, 'Postal code');
+                if (current.managerUserId) {
+                    const manager = await loadUserWithSubregions(db, current.managerUserId);
+                    validateManagerForTarget(manager, current.role, derivedSubregion.id);
+                }
+                await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
+            } else if (!updates.postalCode) {
+                await db.delete(userSubregions).where(eq(userSubregions.userId, user.id));
             }
-            await syncUserDerivedSubregion(db, user.id, derivedSubregion.id);
         }
 
         const updated = await loadUserWithSubregions(db, user.id);
+        const token = await createSessionToken(updated, c);
+        setAuthCookie(c, token);
         return c.json(buildUserResponse(updated, await loadScopedBoundaryContext(db, updated)));
     } catch (err) {
         return c.json({ error: err.message || 'Failed to update profile.' }, err.status || 500);
@@ -603,7 +612,7 @@ export const updateUserRole = async (c) => {
 
         const body = await c.req.json();
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const existingUser = await loadUserWithSubregions(db, id);
         if (!existingUser) return c.json({ error: 'User not found.' }, 404);
@@ -656,7 +665,7 @@ export const updateUserManager = async (c) => {
 
         const body = await c.req.json();
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const targetUser = await loadUserWithSubregions(db, id);
         if (!targetUser) return c.json({ error: 'User not found.' }, 404);
@@ -692,7 +701,7 @@ export const deleteUser = async (c) => {
         const id = Number.parseInt(c.req.param('id'), 10);
         const creator = c.get('user');
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
         const creatorRole = normalizeRole(creator.role);
 
         if (id === creator.id) return c.json({ error: 'Cannot delete yourself.' }, 400);

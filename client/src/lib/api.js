@@ -6,10 +6,7 @@ const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
 
 const BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api';
 const DEFAULT_API_BASE = '/api';
-const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
-const resolvedBase = runtimeHost.endsWith('.pages.dev')
-    ? DEFAULT_API_BASE
-    : (BASE || DEFAULT_API_BASE);
+const resolvedBase = BASE || DEFAULT_API_BASE;
 const BASE_CANDIDATES = Array.from(new Set([
     resolvedBase,
     DEFAULT_API_BASE,
@@ -28,8 +25,36 @@ function headers(extra = {}) {
     };
 }
 
-async function request(method, path, body) {
+function parseContentDispositionFilename(value) {
+    if (!value) return null;
+    const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match?.[1]) {
+        try {
+            return decodeURIComponent(utf8Match[1]);
+        } catch {
+            return utf8Match[1];
+        }
+    }
+
+    const basicMatch = value.match(/filename="([^"]+)"/i) || value.match(/filename=([^;]+)/i);
+    return basicMatch?.[1] ? basicMatch[1].trim() : null;
+}
+
+function handleAuthJsonError(data) {
     const isImpersonating = Boolean(getImpersonationToken());
+    if (
+        isImpersonating &&
+        (data?.error === 'Invalid token' || data?.error === 'No token provided')
+    ) {
+        throw new Error('User view session expired. Exit User View and reopen the account.');
+    }
+    if (data?.error === 'Invalid token' || data?.error === 'No token provided') {
+        notifyAuthExpired();
+        throw new Error('Session expired. Please log in again.');
+    }
+}
+
+async function request(method, path, body) {
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
         const base = BASE_CANDIDATES[i];
@@ -45,22 +70,13 @@ async function request(method, path, body) {
 
         if (!res.ok) {
             if (isJson && data?.error) {
-                if (
-                    isImpersonating &&
-                    (data.error === 'Invalid token' || data.error === 'No token provided')
-                ) {
-                    throw new Error('User view session expired. Exit User View and reopen the account.');
-                }
-                if (data.error === 'Invalid token' || data.error === 'No token provided') {
-                    notifyAuthExpired();
-                    throw new Error('Session expired. Please log in again.');
-                }
+                handleAuthJsonError(data);
                 throw new Error(data.error);
             }
             // Retry on non-JSON responses to survive rewrite/base URL mismatches.
             if (!isJson && canRetryAcrossBases && i < BASE_CANDIDATES.length - 1) continue;
             if (!isJson) {
-                throw new Error('API route misconfigured: received HTML instead of JSON. Check VITE_API_URL and /api rewrites.');
+                throw new Error('API route misconfigured: received HTML instead of JSON. Check VITE_API_URL and Cloudflare /api routing.');
             }
             throw new Error('Request failed');
         }
@@ -74,6 +90,89 @@ async function request(method, path, body) {
     }
 
     throw new Error('API request failed.');
+}
+
+async function requestFormData(path, formData) {
+    for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+        const base = BASE_CANDIDATES[i];
+        const res = await fetch(`${base}${path}`, {
+            method: 'POST',
+            headers: getSessionAuthHeaders(),
+            credentials: 'include',
+            body: formData,
+        });
+        const contentType = res.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+            if (isJson && data?.error) {
+                handleAuthJsonError(data);
+                throw new Error(data.error);
+            }
+            if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
+            if (!isJson) {
+                throw new Error('Upload API misconfigured: received HTML instead of JSON.');
+            }
+            throw new Error('Upload failed');
+        }
+
+        if (!isJson) {
+            if (i < BASE_CANDIDATES.length - 1) continue;
+            throw new Error('Upload API returned non-JSON response unexpectedly.');
+        }
+
+        return data;
+    }
+
+    throw new Error('Upload failed');
+}
+
+async function requestBlob(path) {
+    for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+        const base = BASE_CANDIDATES[i];
+        const res = await fetch(`${base}${path}`, {
+            method: 'GET',
+            headers: getSessionAuthHeaders(),
+            credentials: 'include',
+        });
+        const contentType = res.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const isHtml = contentType.includes('text/html');
+
+        if (!res.ok) {
+            const data = isJson ? await res.json() : await res.text();
+            if (isJson && data?.error) {
+                handleAuthJsonError(data);
+                throw new Error(data.error);
+            }
+            if ((!isJson || isHtml) && i < BASE_CANDIDATES.length - 1) continue;
+            throw new Error(isJson ? 'Download failed' : 'Download API misconfigured: received HTML instead of a file.');
+        }
+
+        if (isJson) {
+            const data = await res.json();
+            if (data?.error) {
+                handleAuthJsonError(data);
+                throw new Error(data.error);
+            }
+            if (i < BASE_CANDIDATES.length - 1) continue;
+            throw new Error('Download API returned JSON instead of a file.');
+        }
+
+        if (isHtml) {
+            if (i < BASE_CANDIDATES.length - 1) continue;
+            throw new Error('Download API misconfigured: received HTML instead of a file.');
+        }
+
+        return {
+            blob: await res.blob(),
+            fileName: parseContentDispositionFilename(res.headers.get('content-disposition')),
+            contentType,
+        };
+    }
+
+    throw new Error('Download failed');
 }
 
 export const api = {
@@ -95,7 +194,17 @@ export const api = {
     getSoftAsset: (id) => request('GET', `/soft-assets/${id}`),
     createSoftAsset: (body) => request('POST', '/soft-assets', body),
     updateSoftAsset: (id, body) => request('PUT', `/soft-assets/${id}`, body),
+    resetSoftAssetOverrides: (id, body) => request('POST', `/soft-assets/${id}/reset-overrides`, body),
     deleteSoftAsset: (id) => request('DELETE', `/soft-assets/${id}`),
+
+    // Soft Asset Parents
+    getSoftAssetParents: () => request('GET', '/soft-asset-parents'),
+    getSoftAssetParent: (id) => request('GET', `/soft-asset-parents/${id}`),
+    getSoftAssetParentChildren: (id) => request('GET', `/soft-asset-parents/${id}/children`),
+    createSoftAssetParent: (body) => request('POST', '/soft-asset-parents', body),
+    updateSoftAssetParent: (id, body) => request('PUT', `/soft-asset-parents/${id}`, body),
+    deleteSoftAssetParent: (id) => request('DELETE', `/soft-asset-parents/${id}`),
+    generateSoftAssetChildren: (id, body) => request('POST', `/soft-asset-parents/${id}/generate-children`, body),
 
     // Tags & Categories
     searchTags: (query) => request('GET', `/tags?q=${encodeURIComponent(query)}`),
@@ -111,55 +220,28 @@ export const api = {
     bulkDeleteSubregions: (ids) => request('POST', '/subregions/bulk-delete', { ids }),
     deleteSubregion: (id) => request('DELETE', `/subregions/${id}`),
 
-    // Admin
-    exportFullDB: () => request('GET', '/admin/export'),
-    importCSV: (body) => request('POST', '/admin/import', body),
+    // Audience zones
+    getAudienceZones: () => request('GET', '/audience-zones'),
+    createAudienceZone: (body) => request('POST', '/audience-zones', body),
+    updateAudienceZone: (id, body) => request('PUT', `/audience-zones/${id}`, body),
+    deleteAudienceZone: (id) => request('DELETE', `/audience-zones/${id}`),
+    bulkUploadAudienceZoneBoundaries: (body) => request('POST', '/audience-zones/boundaries/bulk', body),
+
+    // Admin asset workbooks
+    downloadWorkbookTemplate: (resourceType, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/template?format=${encodeURIComponent(format)}`),
+    exportWorkbook: (resourceType, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/export?format=${encodeURIComponent(format)}`),
+    importWorkbook: (resourceType, file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return requestFormData(`/admin/imports/${resourceType}`, formData);
+    },
 
     // Upload Media (Handles FormData)
     uploadMedia: async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
-            const base = BASE_CANDIDATES[i];
-            const res = await fetch(`${base}/upload`, {
-                method: 'POST',
-                headers: getSessionAuthHeaders(),
-                credentials: 'include',
-                body: formData, // browser sets multipart/form-data boundary automatically
-            });
-            const contentType = res.headers.get('content-type') || '';
-            const isJson = contentType.includes('application/json');
-            const data = isJson ? await res.json() : await res.text();
-
-            if (!res.ok) {
-                if (isJson && data?.error) {
-                    const isImpersonating = Boolean(getImpersonationToken());
-                    if (
-                        isImpersonating &&
-                        (data.error === 'Invalid token' || data.error === 'No token provided')
-                    ) {
-                        throw new Error('User view session expired. Exit User View and reopen the account.');
-                    }
-                    if (data.error === 'Invalid token' || data.error === 'No token provided') {
-                        notifyAuthExpired();
-                        throw new Error('Session expired. Please log in again.');
-                    }
-                    throw new Error(data.error);
-                }
-                if (!isJson) {
-                    throw new Error('Upload API misconfigured: received HTML instead of JSON.');
-                }
-                throw new Error('Upload failed');
-            }
-
-            if (!isJson) {
-                throw new Error('Upload API returned non-JSON response unexpectedly.');
-            }
-
-            return data.secure_url;
-        }
-
-        throw new Error('Upload failed');
+        const data = await requestFormData('/upload', formData);
+        return data.secure_url;
     },
 
     // Users (admin + profile)
@@ -177,9 +259,22 @@ export const api = {
     bulkUploadPartnerBoundaries: (partnerId, body) => request('POST', `/partners/${partnerId}/boundaries/bulk`, body),
     exportPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries/export`),
 
-    // Favorites
+    // Saved assets / favorites
+    getSavedAssets: () => request('GET', '/favorites'),
+    toggleSavedAsset: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
+
+    // Favorites (compatibility aliases)
     getFavorites: () => request('GET', '/favorites'),
     toggleFavorite: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
+
+    // My Maps
+    getMyMaps: () => request('GET', '/my-maps'),
+    createMyMap: (body) => request('POST', '/my-maps', body),
+    getMyMap: (id) => request('GET', `/my-maps/${id}`),
+    updateMyMap: (id, body) => request('PATCH', `/my-maps/${id}`, body),
+    deleteMyMap: (id) => request('DELETE', `/my-maps/${id}`),
+    addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
+    removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
 
     // Combined Helpers (for Admin/Partner generic tables)
     getResources: async () => {

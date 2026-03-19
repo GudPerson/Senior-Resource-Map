@@ -124,18 +124,18 @@ export default function AuthPage({ isPartner = false }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Postal Code</label>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Postal Code (optional)</label>
                                 <input
                                     id="auth-postal-code"
                                     type="text"
-                                    required
                                     placeholder="680153"
                                     value={form.postalCode}
                                     onChange={set('postalCode')}
                                     className=" input-field"
+                                    autoComplete="postal-code"
                                 />
                                 <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                                    Used to assign your account to the correct service region automatically.
+                                    Add it now to personalize nearby and partner-boundary services, or skip and complete it later.
                                 </p>
                             </div>
                         </>

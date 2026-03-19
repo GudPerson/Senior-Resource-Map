@@ -1,4 +1,5 @@
 import { normalizeRole } from './roles.js';
+import { getAssetAudienceZoneIds } from './audienceZones.js';
 
 export function isAssetVisible(asset, user, options = {}) {
     if (asset.isDeleted) return false;
@@ -7,11 +8,15 @@ export function isAssetVisible(asset, user, options = {}) {
     const allowedPartnerAudienceIds = options.allowedPartnerAudienceIds instanceof Set
         ? options.allowedPartnerAudienceIds
         : new Set();
+    const allowedAudienceZoneIds = options.allowedAudienceZoneIds instanceof Set
+        ? options.allowedAudienceZoneIds
+        : new Set();
 
     // super_admin always sees everything
     if (role === 'super_admin') return true;
 
     const isPartnerBoundaryAsset = asset.audienceMode === 'partner_boundary';
+    const isAudienceZoneAsset = asset.audienceMode === 'audience_zones';
 
     if (role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) {
         if (!isPartnerBoundaryAsset) return true;
@@ -22,10 +27,19 @@ export function isAssetVisible(asset, user, options = {}) {
 
     if (isPartnerBoundaryAsset) {
         if (!user || role === 'guest') return false;
-        if (role === 'standard') {
-            return user.managerUserId === asset.partnerId && allowedPartnerAudienceIds.has(asset.partnerId);
+        if (role !== 'standard') return false;
+        if (!(user.managerUserId === asset.partnerId && allowedPartnerAudienceIds.has(asset.partnerId))) {
+            return false;
         }
-        return false;
+    }
+
+    if (isAudienceZoneAsset) {
+        if (!user || role === 'guest') return false;
+        const audienceZoneIds = getAssetAudienceZoneIds(asset);
+        if (audienceZoneIds.length === 0) return false;
+        if (!audienceZoneIds.some((zoneId) => allowedAudienceZoneIds.has(zoneId))) {
+            return false;
+        }
     }
 
     // Member-only check

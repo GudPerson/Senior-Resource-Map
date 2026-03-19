@@ -2,13 +2,16 @@ import { desc, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { hardAssets, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
 import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
+import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
+import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -114,7 +117,39 @@ async function resolveAssetOwner(db, actor, body, subregionId) {
     return { ownershipMode: 'partner', owner };
 }
 
-function formatHardAsset(asset, boundaryContext) {
+function formatNestedSoftAsset(asset) {
+    const { parent, tags, audienceZones, ...assetRest } = asset;
+    const resolvedAudienceZones = getAssetAudienceZones(asset);
+    return {
+        ...assetRest,
+        tags: asset.tags.map((t) => t.tag.name),
+        parentSummary: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
+        audienceZones: resolvedAudienceZones,
+        audienceZoneIds: resolvedAudienceZones.map((zone) => zone.id),
+    };
+}
+
+function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
+    const combined = [
+        ...(asset.softAssets || []).map((entry) => entry.softAsset),
+        ...(asset.hostedSoftAssets || []),
+    ];
+
+    const seen = new Set();
+    return combined
+        .filter((softAsset) => {
+            if (!softAsset || seen.has(softAsset.id)) return false;
+            seen.add(softAsset.id);
+            return isAssetVisible(softAsset, viewer, {
+                ownerPartner: softAsset.partner,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+            });
+        })
+        .map(formatNestedSoftAsset);
+}
+
+function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
     return {
         ...asset,
         partnerName: asset.partner?.name || null,
@@ -122,7 +157,7 @@ function formatHardAsset(asset, boundaryContext) {
         ownershipMode: asset.partnerId ? 'partner' : 'system',
         creatorName: asset.creator?.name || null,
         tags: asset.tags.map((t) => t.tag.name),
-        softAssets: asset.softAssets.map((sa) => sa.softAsset),
+        softAssets: collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds),
         boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
     };
 }
@@ -131,8 +166,10 @@ export const getHardAssets = async (c) => {
     try {
         const user = c.get('user');
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
         const boundaryContext = await loadScopedBoundaryContext(db, user);
+        const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
+        const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
         const options = {
             with: {
@@ -141,7 +178,76 @@ export const getHardAssets = async (c) => {
                 tags: { with: { tag: true } },
                 softAssets: {
                     with: {
-                        softAsset: true,
+                        softAsset: {
+                            with: {
+                                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                                tags: { with: { tag: true } },
+                                parent: {
+                                    columns: { id: true, name: true },
+                                    with: {
+                                        audienceZones: {
+                                            with: {
+                                                audienceZone: {
+                                                    columns: {
+                                                        id: true,
+                                                        zoneCode: true,
+                                                        name: true,
+                                                        partnerUserId: true,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                                audienceZones: {
+                                    with: {
+                                        audienceZone: {
+                                            columns: {
+                                                id: true,
+                                                zoneCode: true,
+                                                name: true,
+                                                partnerUserId: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                hostedSoftAssets: {
+                    with: {
+                        partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                        tags: { with: { tag: true } },
+                        parent: {
+                            columns: { id: true, name: true },
+                            with: {
+                                audienceZones: {
+                                    with: {
+                                        audienceZone: {
+                                            columns: {
+                                                id: true,
+                                                zoneCode: true,
+                                                name: true,
+                                                partnerUserId: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        audienceZones: {
+                            with: {
+                                audienceZone: {
+                                    columns: {
+                                        id: true,
+                                        zoneCode: true,
+                                        name: true,
+                                        partnerUserId: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -158,7 +264,7 @@ export const getHardAssets = async (c) => {
 
         const formatted = assets
             .filter((asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }))
-            .map((asset) => formatHardAsset(asset, boundaryContext));
+            .map((asset) => formatHardAsset(asset, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds));
 
         return c.json(formatted);
     } catch (err) {
@@ -172,6 +278,9 @@ export const getHardAssetById = async (c) => {
         const id = Number.parseInt(c.req.param('id'), 10);
         const user = c.get('user');
         const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
+        const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
         const asset = await db.query.hardAssets.findFirst({
             where: eq(hardAssets.id, id),
@@ -184,6 +293,71 @@ export const getHardAssetById = async (c) => {
                         softAsset: {
                             with: {
                                 tags: { with: { tag: true } },
+                                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                                parent: {
+                                    columns: { id: true, name: true },
+                                    with: {
+                                        audienceZones: {
+                                            with: {
+                                                audienceZone: {
+                                                    columns: {
+                                                        id: true,
+                                                        zoneCode: true,
+                                                        name: true,
+                                                        partnerUserId: true,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                                audienceZones: {
+                                    with: {
+                                        audienceZone: {
+                                            columns: {
+                                                id: true,
+                                                zoneCode: true,
+                                                name: true,
+                                                partnerUserId: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                hostedSoftAssets: {
+                    with: {
+                        tags: { with: { tag: true } },
+                        partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                        parent: {
+                            columns: { id: true, name: true },
+                            with: {
+                                audienceZones: {
+                                    with: {
+                                        audienceZone: {
+                                            columns: {
+                                                id: true,
+                                                zoneCode: true,
+                                                name: true,
+                                                partnerUserId: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        audienceZones: {
+                            with: {
+                                audienceZone: {
+                                    columns: {
+                                        id: true,
+                                        zoneCode: true,
+                                        name: true,
+                                        partnerUserId: true,
+                                    },
+                                },
                             },
                         },
                     },
@@ -196,11 +370,7 @@ export const getHardAssetById = async (c) => {
         }
 
         const formatted = {
-            ...formatHardAsset(asset, await loadScopedBoundaryContext(db, user)),
-            softAssets: asset.softAssets.map((sa) => ({
-                ...sa.softAsset,
-                tags: sa.softAsset.tags.map((t) => t.tag.name),
-            })),
+            ...formatHardAsset(asset, await loadScopedBoundaryContext(db, user), user, allowedPartnerAudienceIds, allowedAudienceZoneIds),
         };
 
         return c.json(formatted);
@@ -215,7 +385,7 @@ export const createHardAsset = async (c) => {
         const user = c.get('user');
         const role = normalizeRole(user.role);
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         if (role === 'standard' || role === 'guest') {
             return c.json({ error: 'Insufficient permissions to create resources' }, 403);
@@ -238,6 +408,11 @@ export const createHardAsset = async (c) => {
         }
 
         const [asset] = await db.insert(hardAssets).values({
+            externalKey: await resolveOrCreateExternalKey(db, hardAssets, hardAssets.externalKey, {
+                requestedKey: body.externalKey,
+                prefix: 'place',
+                name,
+            }),
             partnerId: owner?.id || null,
             createdByUserId: user.id,
             subregionId: derivedSubregion.id,
@@ -280,7 +455,7 @@ export const updateHardAsset = async (c) => {
         const user = c.get('user');
         const role = normalizeRole(user.role);
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const existing = await db.query.hardAssets.findFirst({
             where: eq(hardAssets.id, id),
@@ -360,7 +535,7 @@ export const deleteHardAsset = async (c) => {
         const id = Number.parseInt(c.req.param('id'), 10);
         const user = c.get('user');
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const existing = await db.query.hardAssets.findFirst({
             where: eq(hardAssets.id, id),

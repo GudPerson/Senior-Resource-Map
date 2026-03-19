@@ -97,7 +97,7 @@ export const getPartnerBoundaries = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const partner = await loadPartner(db, partnerId);
         if (!partner) {
@@ -125,7 +125,7 @@ export const bulkUploadPartnerBoundaries = async (c) => {
 
         const body = await c.req.json();
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const partner = await loadPartner(db, partnerId);
         if (!partner || normalizeRole(partner.role) !== 'partner') {
@@ -190,7 +190,7 @@ export const exportPartnerBoundaries = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureBoundarySchema(db);
+        await ensureBoundarySchema(db, c.env);
 
         const partner = await loadPartner(db, partnerId);
         if (!partner || normalizeRole(partner.role) !== 'partner') {

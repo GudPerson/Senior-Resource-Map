@@ -1,16 +1,22 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, LayoutDashboard, Sun, Moon } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Sun, Moon, BookOpen } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useA11y } from '../../contexts/A11yContext.jsx';
+import { isStandardUserRole } from '../../lib/roles.js';
 import BrandLockup from './BrandLockup.jsx';
+
+function joinClasses(...parts) {
+    return parts.filter(Boolean).join(' ');
+}
 
 export default function Navbar() {
     const { user, isAuth, isImpersonating, logout } = useAuth();
-    const { highContrast, toggleHighContrast, zoomLevel, increaseZoom, decreaseZoom } = useA11y();
+    const { highContrast, toggleHighContrast, canIncreaseZoom, increaseZoom, decreaseZoom } = useA11y();
     const location = useLocation();
     const navigate = useNavigate();
 
     const isActive = (path) => location.pathname === path;
+    const showMyDirectoryLink = isAuth && isStandardUserRole(user?.role);
 
     async function handleLogout() {
         const impersonationExit = isImpersonating;
@@ -65,17 +71,21 @@ export default function Navbar() {
                             >
                                 A-
                             </button>
-                            <div className="w-px h-5" style={{ backgroundColor: 'var(--color-border)' }}></div>
-                            <button
-                                id="increase-zoom"
-                                onClick={increaseZoom}
-                                title="Increase Zoom"
-                                aria-label="Increase Zoom"
-                                className="flex items-center justify-center px-2.5 py-2 transition-all min-h-[40px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] rounded-r-xl font-bold text-xs"
-                                style={{ color: 'var(--color-text-secondary)' }}
-                            >
-                                A+
-                            </button>
+                            {canIncreaseZoom ? (
+                                <>
+                                    <div className="w-px h-5" style={{ backgroundColor: 'var(--color-border)' }}></div>
+                                    <button
+                                        id="increase-zoom"
+                                        onClick={increaseZoom}
+                                        title="Increase Zoom"
+                                        aria-label="Increase Zoom"
+                                        className="flex items-center justify-center px-2.5 py-2 transition-all min-h-[40px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] rounded-r-xl font-bold text-xs"
+                                        style={{ color: 'var(--color-text-secondary)' }}
+                                    >
+                                        A+
+                                    </button>
+                                </>
+                            ) : null}
                         </div>
 
                         {/* Auth */}
@@ -96,9 +106,22 @@ export default function Navbar() {
                                         ) : null}
                                     </div>
                                 ) : null}
+                                {showMyDirectoryLink ? (
+                                    <Link
+                                        to="/my-directory"
+                                        id="nav-my-directory"
+                                        className={joinClasses(
+                                            'btn-ghost text-xs sm:text-sm px-2.5 py-2',
+                                            isActive('/my-directory') ? 'border border-brand-200 bg-brand-50 text-brand-700' : ''
+                                        )}
+                                    >
+                                        <BookOpen size={16} />
+                                        <span className="hidden md:inline">My Directory</span>
+                                    </Link>
+                                ) : null}
                                 <Link
                                     to="/dashboard"
-                                id="nav-dashboard"
+                                    id="nav-dashboard"
                                     className="btn-ghost text-xs sm:text-sm px-2.5 py-2 hidden sm:flex"
                                 >
                                     <LayoutDashboard size={16} />

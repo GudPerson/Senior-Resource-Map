@@ -3,13 +3,14 @@ import {
     Building2,
     CalendarDays,
     Clock,
-    Heart,
     MapPin,
     Navigation,
     X,
 } from 'lucide-react';
 import { getDistance } from '../../lib/geo.js';
+import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../../lib/softAssetBuckets.js';
 import { LinkifiedText, TagBadge } from '../../components/AssetCard.jsx';
+import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import { getAssetLocations, getBestLocation, hasValidCoordinates } from './discoverUtils.js';
 
 function formatDistance(distance) {
@@ -52,13 +53,10 @@ function buildSortedLocations(asset, userLocation) {
 
 export function DiscoveryInspector({
     asset,
-    isFavorite,
     onClose,
     onOpenResourcePage,
     onTagClick,
-    onToggleFavorite,
     subCatColors,
-    user,
     userLocation,
 }) {
     if (!asset) {
@@ -72,10 +70,10 @@ export function DiscoveryInspector({
                     }}
                 >
                     <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                        Select a place or offering
+                        Select a saved place
                     </p>
                     <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-                        Click a marker or choose a resource from the list to inspect it here without leaving the map.
+                        Saved pins open here so you can inspect the place while keeping your browse list on the left.
                     </p>
                 </div>
             </div>
@@ -95,6 +93,15 @@ export function DiscoveryInspector({
             : null);
     const hasDirectionsTarget = primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation));
     const topLocations = isHard ? [] : locations.slice(0, 3);
+    const relatedSoftAssetCounts = isHard ? summarizeSoftAssetBuckets(asset.softAssets || []) : null;
+    const savedAssetSummary = {
+        name: asset.name,
+        subCategory: asset.subCategory,
+        address: primaryLocation?.address || null,
+        lat: isHard ? asset.lat : primaryLocation?.lat,
+        lng: isHard ? asset.lng : primaryLocation?.lng,
+        detailPath: `/resource/${asset._type}/${asset.id}`,
+    };
 
     return (
         <div className="pointer-events-none absolute inset-y-5 right-5 z-[450] w-[380px] max-w-[calc(100%-2.5rem)]">
@@ -153,17 +160,12 @@ export function DiscoveryInspector({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {user && (
-                            <button
-                                type="button"
-                                onClick={() => onToggleFavorite(asset.id, asset._type)}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:bg-slate-50"
-                                style={{ borderColor: 'var(--color-border)', color: isFavorite ? '#dc2626' : 'var(--color-text-muted)' }}
-                                aria-label={isFavorite ? 'Remove favorite' : 'Add favorite'}
-                            >
-                                <Heart size={18} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
-                            </button>
-                        )}
+                        <SaveAssetButton
+                            resourceId={asset.id}
+                            resourceType={asset._type}
+                            summary={savedAssetSummary}
+                            variant="inspector"
+                        />
                         <button
                             type="button"
                             onClick={onClose}
@@ -200,6 +202,30 @@ export function DiscoveryInspector({
                             </p>
                         )}
                     </div>
+
+                    {isHard && (
+                        <div className="space-y-3">
+                            <p className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
+                                Available Here
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {SOFT_ASSET_BUCKETS.map((bucket) => (
+                                    <div
+                                        key={bucket}
+                                        className="rounded-2xl border px-3 py-3"
+                                        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+                                    >
+                                        <div className="text-lg font-extrabold leading-none" style={{ color: 'var(--color-text)' }}>
+                                            {relatedSoftAssetCounts?.[bucket] || 0}
+                                        </div>
+                                        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
+                                            {bucket}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         {primaryLocation?.address && (

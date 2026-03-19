@@ -5,6 +5,7 @@ import { Loader2, Globe, MapPin, Phone, Clock, FileText, Users } from 'lucide-re
 import { api } from '../lib/api.js';
 import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
 import { normalizeRole } from '../lib/roles.js';
+import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import ImageUpload from './ImageUpload.jsx';
 
 function formatDateTimeLocal(value) {
@@ -19,8 +20,11 @@ function buildInitialForm(type, initialData, currentUser) {
     if (initialData) {
         return {
             ...initialData,
+            externalKey: initialData.externalKey || '',
+            bucket: type === 'soft' ? (initialData.bucket || 'Programmes') : '',
             ownershipMode: initialData.ownershipMode || (initialData.partnerId ? 'partner' : 'system'),
             audienceMode: initialData.audienceMode || 'public',
+            audienceZoneIds: initialData.audienceZoneIds || initialData.audienceZones?.map((zone) => zone.id) || [],
             newTags: initialData.tags || [],
             locationIds: initialData.locations?.map((location) => location.id) || [],
             hideFrom: formatDateTimeLocal(initialData.hideFrom),
@@ -33,7 +37,9 @@ function buildInitialForm(type, initialData, currentUser) {
 
     if (type === 'hard') {
         return {
+            externalKey: '',
             name: '',
+            bucket: '',
             subCategory: 'Places',
             country: 'SG',
             postalCode: '',
@@ -54,7 +60,9 @@ function buildInitialForm(type, initialData, currentUser) {
     }
 
     return {
+        externalKey: '',
         name: '',
+        bucket: 'Programmes',
         subCategory: 'Programmes',
         locationIds: [],
         description: '',
@@ -71,6 +79,7 @@ function buildInitialForm(type, initialData, currentUser) {
         partnerId: '',
         subregionId: normalizeRole(currentUser?.role) === 'partner' ? (currentUser?.subregionIds?.[0] || '') : '',
         audienceMode: 'public',
+        audienceZoneIds: [],
     };
 }
 
@@ -104,6 +113,7 @@ export default function AssetForm({
     currentUser,
     partnerOptions = [],
     subregions = [],
+    audienceZones = [],
 }) {
     const isHard = type === 'hard';
     const currentRole = normalizeRole(currentUser?.role);
@@ -140,6 +150,10 @@ export default function AssetForm({
     const partnerSelectOptions = partnerOptions.map((partner) => ({
         value: partner.id,
         label: `${partner.name} (@${partner.username})`,
+    }));
+    const audienceZoneOptions = audienceZones.map((zone) => ({
+        value: zone.id,
+        label: zone.zoneCode ? `${zone.name} (${zone.zoneCode})` : zone.name,
     }));
 
     const hardSubregionResult = useMemo(() => {
@@ -195,6 +209,7 @@ export default function AssetForm({
 
         try {
             const payload = { ...form };
+            payload.externalKey = String(payload.externalKey || '').trim() || undefined;
             if (payload.hideFrom) payload.hideFrom = new Date(payload.hideFrom).toISOString();
             if (payload.hideUntil) payload.hideUntil = new Date(payload.hideUntil).toISOString();
 
@@ -205,12 +220,13 @@ export default function AssetForm({
 
             if (payload.ownershipMode !== 'partner') {
                 payload.partnerId = null;
-                if (!isHard) {
+                if (!isHard && payload.audienceMode === 'partner_boundary') {
                     payload.audienceMode = 'public';
                 }
             }
 
             if (isHard) {
+                delete payload.bucket;
                 if (hardSubregionResult.status !== 'ok') {
                     if (hardSubregionResult.status === 'missing') {
                         throw new Error('Postal code does not match any configured subregion boundary.');
@@ -224,7 +240,9 @@ export default function AssetForm({
                 delete payload.locationIds;
                 delete payload.audienceMode;
             } else {
+                payload.bucket = form.bucket || 'Programmes';
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
+                payload.audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
                 if (payload.locationIds.length === 0) {
                     if (currentRole === 'partner') {
                         payload.subregionId = currentUser?.subregionIds?.[0] || null;
@@ -241,6 +259,12 @@ export default function AssetForm({
 
                 if (payload.audienceMode === 'partner_boundary' && payload.ownershipMode !== 'partner') {
                     throw new Error('Partner-boundary audience is only allowed for partner-owned offerings.');
+                }
+                if (payload.audienceMode === 'audience_zones' && payload.audienceZoneIds.length === 0) {
+                    throw new Error('Select at least one audience zone for audience-zone offerings.');
+                }
+                if (payload.audienceMode !== 'audience_zones') {
+                    payload.audienceZoneIds = [];
                 }
             }
 
@@ -273,6 +297,7 @@ export default function AssetForm({
     const ownershipDisabled = currentRole === 'partner';
     const selectedPartnerOption = partnerSelectOptions.find((option) => Number(option.value) === Number(form.partnerId)) || null;
     const selectedLocationOptions = linkedLocationOptions.filter((option) => (form.locationIds || []).includes(option.value));
+    const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -280,6 +305,22 @@ export default function AssetForm({
                 <div className="col-span-2 grid grid-cols-2 gap-4">
                     <ImageUpload label="Logo / Icon" value={form.logoUrl} onChange={(url) => setField('logoUrl', url)} />
                     <ImageUpload label="Hero Banner" value={form.bannerUrl} onChange={(url) => setField('bannerUrl', url)} />
+                </div>
+
+                <div className="col-span-2 md:col-span-1">
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                        External Key {initialData?.id ? '' : '(optional)'}
+                    </label>
+                    <input
+                        value={form.externalKey || ''}
+                        onChange={(e) => setField('externalKey', e.target.value)}
+                        readOnly={Boolean(initialData?.id)}
+                        placeholder={initialData?.id ? '' : 'Leave blank to auto-generate'}
+                        className={`input-field ${initialData?.id ? 'bg-slate-50 text-slate-500' : ''}`}
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                        Stable workbook identifier. Keep this unchanged after creation.
+                    </p>
                 </div>
 
                 <div className="col-span-2">
@@ -324,6 +365,14 @@ export default function AssetForm({
 
                 {!isHard && (
                     <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1">Bucket *</label>
+                            <select required value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
+                                {SOFT_ASSET_BUCKETS.map((bucket) => (
+                                    <option key={bucket} value={bucket}>{bucket}</option>
+                                ))}
+                            </select>
+                        </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Sub-Category *</label>
                             <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
@@ -478,9 +527,12 @@ export default function AssetForm({
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Audience Mode</label>
                                 <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
                                     <option value="public">Public</option>
+                                    <option value="audience_zones">Audience zones</option>
                                     {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner boundary</option> : null}
                                 </select>
-                                <p className="mt-1 text-xs text-slate-500">Partner-boundary offerings are shown only to managed users inside the partner&apos;s own postcode boundary.</p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Public offerings are open to everyone. Audience-zone offerings target one or more overlapping service catchments. Partner-boundary offerings remain tied to the partner&apos;s own member boundary.
+                                </p>
                             </div>
                             <div className="flex items-center justify-between border border-slate-200 rounded-xl px-4 py-3 bg-white">
                                 <div>
@@ -493,6 +545,23 @@ export default function AssetForm({
                                 </label>
                             </div>
                         </div>
+                        {form.audienceMode === 'audience_zones' ? (
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Audience Zones</label>
+                                <Select
+                                    isMulti
+                                    options={audienceZoneOptions}
+                                    value={selectedAudienceZoneOptions}
+                                    onChange={(selected) => setField('audienceZoneIds', Array.isArray(selected) ? selected.map((item) => item.value) : [])}
+                                    className="react-select-container"
+                                    classNamePrefix="react-select"
+                                    placeholder="Select one or more audience zones..."
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Users whose postal code falls inside any selected zone can discover this offering.
+                                </p>
+                            </div>
+                        ) : null}
                     </>
                 )}
 

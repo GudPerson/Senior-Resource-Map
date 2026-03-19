@@ -3,12 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Building2, CalendarDays, MapPin, Clock, ArrowLeft, Navigation, Phone } from 'lucide-react';
 import { getDistance } from '../lib/geo.js';
+import SaveAssetButton from '../components/SaveAssetButton.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import {
     GEOLOCATION_OPTIONS,
     getSearchLocationLabel,
     loadSearchLocation,
     saveSearchLocation,
 } from '../lib/searchLocation.js';
+import { SOFT_ASSET_BUCKETS, groupSoftAssetsByBucket, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
 
 const TagBadge = ({ tag }) => (
     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-300">
@@ -44,10 +47,12 @@ function formatDistance(distance) {
 export default function ResourcePage() {
     const { type, id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [asset, setAsset] = useState(null);
     const [subCatColors, setSubCatColors] = useState({});
     const [loading, setLoading] = useState(true);
     const [sortOrigin, setSortOrigin] = useState(() => loadSearchLocation());
+    const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
 
     useEffect(() => {
         const fetchAsset = async () => {
@@ -127,9 +132,29 @@ export default function ResourcePage() {
     const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
     const phone = asset?.phone || primaryLocation?.phone;
     const availablePlaceCount = isHard ? 0 : softLocations.length;
+    const relatedSoftAssetGroups = useMemo(() => (
+        isHard ? groupSoftAssetsByBucket(asset?.softAssets || []) : { Programmes: [], Services: [], Promotions: [] }
+    ), [asset?.softAssets, isHard]);
+    const relatedSoftAssetCounts = useMemo(() => (
+        isHard ? summarizeSoftAssetBuckets(asset?.softAssets || []) : { Programmes: 0, Services: 0, Promotions: 0 }
+    ), [asset?.softAssets, isHard]);
     const hasDirectionsTarget = isHard
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
+    const savedAssetSummary = !asset ? null : {
+        name: asset.name,
+        subCategory: asset.subCategory,
+        address: primaryAddress || null,
+        lat: isHard ? asset?.lat : primaryLocation?.lat,
+        lng: isHard ? asset?.lng : primaryLocation?.lng,
+        detailPath: `/resource/${type}/${asset.id}`,
+    };
+
+    useEffect(() => {
+        if (!isHard) return;
+        const nextBucket = SOFT_ASSET_BUCKETS.find((bucket) => relatedSoftAssetCounts[bucket] > 0) || 'Programmes';
+        setActiveSoftBucket(nextBucket);
+    }, [isHard, relatedSoftAssetCounts]);
 
     const handleDirections = useCallback((customLocation = null) => {
         const target = customLocation || (isHard ? asset : primaryLocation);
@@ -165,7 +190,15 @@ export default function ResourcePage() {
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-xl font-bold text-slate-900 truncate">{asset.name}</h1>
+                    <h1 className="text-xl font-bold text-slate-900 truncate flex-1">{asset.name}</h1>
+                    {user ? (
+                        <SaveAssetButton
+                            resourceId={asset.id}
+                            resourceType={type}
+                            summary={savedAssetSummary}
+                            variant="inspector"
+                        />
+                    ) : null}
                 </div>
             </div>
 
@@ -303,36 +336,75 @@ export default function ResourcePage() {
 
                 {/* Soft assets related to this hard asset */}
                 {isHard && asset.softAssets && asset.softAssets.length > 0 && (
-                    <div className="rounded-[28px] border p-6 shadow-sm" style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}>
-                        <h2 className="text-2xl font-bold text-slate-900 mb-4">Available Offerings & Resources</h2>
-                        <div className="grid gap-4">
-                            {asset.softAssets.map(sa => (
+                    <div className="rounded-[28px] border p-4 shadow-sm sm:p-6" style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Available Offerings & Resources</h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Browse by bucket instead of one long mixed list.
+                                </p>
+                            </div>
+                            <div className="grid w-full grid-cols-3 gap-2 sm:min-w-[320px] sm:w-auto">
+                                {SOFT_ASSET_BUCKETS.map((bucket) => (
+                                    <button
+                                        key={bucket}
+                                        type="button"
+                                        onClick={() => setActiveSoftBucket(bucket)}
+                                        className="rounded-2xl border px-2.5 py-2 text-left transition-colors sm:px-3"
+                                        style={{
+                                            borderColor: activeSoftBucket === bucket ? 'var(--color-brand)' : 'var(--color-border)',
+                                            backgroundColor: activeSoftBucket === bucket ? 'color-mix(in srgb, var(--color-brand-light) 45%, white)' : 'white',
+                                        }}
+                                    >
+                                        <div className="text-base font-extrabold leading-none sm:text-lg" style={{ color: 'var(--color-text)' }}>
+                                            {relatedSoftAssetCounts[bucket]}
+                                        </div>
+                                        <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]" style={{ color: activeSoftBucket === bucket ? 'var(--color-brand)' : 'var(--color-text-muted)' }}>
+                                            {bucket}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid gap-4">
+                            {relatedSoftAssetGroups[activeSoftBucket].length > 0 ? relatedSoftAssetGroups[activeSoftBucket].map(sa => (
                                 <div key={sa.id}
                                     onClick={() => navigate(`/resource/soft/${sa.id}`)}
-                                    className="p-4 rounded-xl border border-slate-200 hover:border-brand-500 hover:shadow-md cursor-pointer transition flex items-start gap-4 bg-white"
+                                    className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md sm:gap-4 sm:p-4"
                                 >
                                     {sa.logoUrl ? (
-                                        <div className="w-14 h-14 flex-shrink-0 bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden p-1">
+                                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1 sm:h-14 sm:w-14">
                                             <img src={sa.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
                                         </div>
                                     ) : (
-                                        <div className="w-14 h-14 flex-shrink-0 bg-brand-50 rounded-lg flex items-center justify-center text-brand-600 border border-brand-100">
+                                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600 sm:h-14 sm:w-14">
                                             <CalendarDays size={24} />
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-lg text-slate-900 leading-tight truncate">{sa.name}</h3>
+                                        <h3 className="line-clamp-2 text-base font-bold leading-tight text-slate-900 sm:text-lg">{sa.name}</h3>
                                         {sa.schedule && (
-                                            <p className="text-slate-500 text-sm mt-1 flex items-center gap-1">
+                                            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500 sm:text-sm">
                                                 <Clock size={14} /> {sa.schedule}
                                             </p>
                                         )}
                                         {sa.description && (
-                                            <p className="text-slate-600 text-sm mt-2 line-clamp-1"><LinkifiedText text={sa.description} /></p>
+                                            <p className="mt-2 line-clamp-2 text-xs text-slate-600 sm:text-sm"><LinkifiedText text={sa.description} /></p>
                                         )}
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div
+                                    className="rounded-2xl border border-dashed px-5 py-8 text-center"
+                                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(248,252,251,0.82)' }}
+                                >
+                                    <p className="text-base font-bold text-slate-900">No {activeSoftBucket.toLowerCase()} here yet</p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Switch tabs to check the other soft-asset buckets.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

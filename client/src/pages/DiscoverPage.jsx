@@ -1,24 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Drawer } from 'vaul';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { useNavigate } from 'react-router-dom';
+
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
+import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { useFavorites } from '../hooks/useFavorites.js';
+import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
-import { DiscoveryFilterPanel } from '../features/discover/DiscoveryFilterPanel.jsx';
+import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
 import { DiscoveryInspector } from '../features/discover/DiscoveryInspector.jsx';
-import { DiscoveryMap } from '../features/discover/DiscoveryMap.jsx';
+import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
+import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import {
-    buildDerivedMapLocations,
-    buildMarkerKey,
+    buildSavedPlacePins,
     getAssetLocations,
     getBestLocation,
     hasValidCoordinates,
+    resolveSavedPlaceKey,
 } from '../features/discover/discoverUtils.js';
 import { useDiscoveryLocation } from '../features/discover/useDiscoveryLocation.js';
 
@@ -31,30 +31,45 @@ function withTimeout(promise, fallback, timeoutMs = 8000) {
     ]);
 }
 
+function getZoomForRadius(searchRadius) {
+    if (searchRadius <= 0.3) return 17;
+    if (searchRadius <= 0.5) return 16;
+    if (searchRadius <= 1) return 15;
+    if (searchRadius <= 2) return 14;
+    return 13;
+}
+
+function buildDisplayLocationFromPin(pin) {
+    return {
+        id: pin.locationId || pin.placeId || pin.pinKey,
+        name: pin.title,
+        address: pin.address,
+        lat: pin.lat,
+        lng: pin.lng,
+    };
+}
+
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [cachedLocations, setCachedLocations] = useState([]);
-    const [mapLocations, setMapLocations] = useState([]);
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [selectedMarkerKey, setSelectedMarkerKey] = useState(null);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [activeTooltipKey, setActiveTooltipKey] = useState(null);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [activeSnap, setActiveSnap] = useState(0.55);
+    const [mobileMode, setMobileMode] = useState('browse');
+    const [mobileCardDensity, setMobileCardDensity] = useState('compact');
+    const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
 
-    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const workerRef = useRef(null);
     const tooltipCloseTimeoutRef = useRef(null);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const { isDragging, listWidth, startDragging } = useSplitPaneResize(450);
-    const { user } = useAuth();
-    const { favorites, toggleFavorite: handleToggleFavorite, isFavorite } = useFavorites(user);
+    const { user, isAuth } = useAuth();
+    const { savedAssets, savedAssetsLoading } = useSavedAssets();
     const {
         clearLocationSearch,
         flyTarget,
@@ -70,16 +85,7 @@ export default function DiscoverPage() {
         setSearchRadius,
         userLocation,
     } = useDiscoveryLocation(hardAssets);
-    const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(
-        Boolean(searchParams.get('id')) || Boolean(searchOrigin)
-    );
 
-    const drawerOffsetPx = useMemo(() => {
-        if (!isDrawerOpen) return 0;
-        return typeof window !== 'undefined' ? window.innerHeight * activeSnap : 0;
-    }, [isDrawerOpen, activeSnap]);
-
-    const derivedMapLocations = useMemo(() => buildDerivedMapLocations(hardAssets, softAssets), [hardAssets, softAssets]);
     const assetLookup = useMemo(() => {
         const lookup = new Map();
         hardAssets.forEach((asset) => lookup.set(`hard-${asset.id}`, { ...asset, _type: 'hard' }));
@@ -88,23 +94,16 @@ export default function DiscoverPage() {
     }, [hardAssets, softAssets]);
 
     useEffect(() => {
-        workerRef.current = new Worker(new URL('../workers/spatialWorker.js', import.meta.url), { type: 'module' });
-        workerRef.current.onmessage = (event) => setMapLocations(event.data);
-        return () => workerRef.current?.terminate();
-    }, []);
-
-    useEffect(() => {
         let isActive = true;
 
         async function loadDirectory() {
             setLoading(true);
 
             try {
-                const [hard, soft, subcategories, cached] = await Promise.all([
+                const [hard, soft, subcategories] = await Promise.all([
                     withTimeout(api.getHardAssets().catch(() => []), []),
                     withTimeout(api.getSoftAssets().catch(() => []), []),
                     withTimeout(api.getSubCategories().catch(() => []), []),
-                    withTimeout(api.getMapCache('all').catch(() => []), []),
                 ]);
 
                 if (!isActive) return;
@@ -117,28 +116,6 @@ export default function DiscoverPage() {
                 setSubCatColors(colors);
                 setHardAssets(hard);
                 setSoftAssets(soft);
-
-                const liveLocations = buildDerivedMapLocations(hard, soft);
-                const fetchedLocations = Array.isArray(cached) ? cached : (cached?.data || []);
-                const initialLocations = (user
-                    ? liveLocations
-                    : (fetchedLocations.length > 0 ? fetchedLocations : liveLocations)).filter(hasValidCoordinates);
-                setCachedLocations(initialLocations);
-                setMapLocations(initialLocations);
-
-                const urlId = parseInt(searchParams.get('id'), 10);
-                if (!urlId) return;
-                const foundHard = hard.find((asset) => asset.id === urlId);
-                if (!foundHard) return;
-
-                setSelectedMarkerKey(buildMarkerKey({
-                    asset_type: 'hard',
-                    id: foundHard.id,
-                    locationId: foundHard.id,
-                    lat: foundHard.lat,
-                    lng: foundHard.lng,
-                }));
-                setSelectedAsset({ ...foundHard, _type: 'hard' });
             } finally {
                 if (isActive) {
                     setLoading(false);
@@ -151,7 +128,7 @@ export default function DiscoverPage() {
         return () => {
             isActive = false;
         };
-    }, [searchParams, user]);
+    }, []);
 
     useEffect(() => () => {
         if (tooltipCloseTimeoutRef.current) {
@@ -160,23 +137,22 @@ export default function DiscoverPage() {
     }, []);
 
     useEffect(() => {
-        if (isDesktop) {
-            setIsDrawerOpen(false);
-            setActiveSnap(0.55);
+        if (!isDesktop) {
+            setIsSearchPanelCollapsed(false);
         }
     }, [isDesktop]);
 
     useEffect(() => {
-        if (selectedAsset) {
+        if (selectedAsset && isDesktop) {
             setIsSearchPanelCollapsed(true);
         }
-    }, [selectedAsset]);
+    }, [isDesktop, selectedAsset]);
 
     useEffect(() => {
-        if (searchOrigin) {
+        if (searchOrigin && isDesktop) {
             setIsSearchPanelCollapsed(true);
         }
-    }, [searchOrigin]);
+    }, [isDesktop, searchOrigin]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
@@ -189,6 +165,9 @@ export default function DiscoverPage() {
         if (until) return now > until;
         return true;
     }, []);
+
+    const visibleHardAssets = useMemo(() => hardAssets.filter(isPubliclyVisible), [hardAssets, isPubliclyVisible]);
+    const visibleSoftAssets = useMemo(() => softAssets.filter(isPubliclyVisible), [isPubliclyVisible, softAssets]);
 
     const keepTooltipOpen = useCallback((markerKey) => {
         if (tooltipCloseTimeoutRef.current) {
@@ -210,8 +189,6 @@ export default function DiscoverPage() {
 
     const combined = useMemo(() => {
         const items = [];
-        const visibleHardAssets = hardAssets.filter(isPubliclyVisible);
-        const visibleSoftAssets = softAssets.filter(isPubliclyVisible);
 
         if (activeTab === 'all' || activeTab === 'hard') {
             items.push(...visibleHardAssets.map((asset) => ({ ...asset, _type: 'hard' })));
@@ -221,13 +198,13 @@ export default function DiscoverPage() {
         }
 
         return items.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
-    }, [activeTab, hardAssets, isPubliclyVisible, softAssets]);
+    }, [activeTab, visibleHardAssets, visibleSoftAssets]);
 
     const filtered = useMemo(() => {
         let items = combined.map((resource) => {
             const displayLocation = resource._type === 'hard' ? resource : getBestLocation(resource, userLocation);
-            const lat = hasValidCoordinates(displayLocation) ? parseFloat(displayLocation.lat) : null;
-            const lng = hasValidCoordinates(displayLocation) ? parseFloat(displayLocation.lng) : null;
+            const lat = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lat) : null;
+            const lng = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lng) : null;
             const distance = userLocation && Number.isFinite(lat) && Number.isFinite(lng)
                 ? getDistance(userLocation.lat, userLocation.lng, lat, lng)
                 : null;
@@ -257,9 +234,10 @@ export default function DiscoverPage() {
         const query = search.toLowerCase();
         return items.filter((resource) => {
             if (showFavoritesOnly && user) {
-                const isFavoriteResource = favorites.some((favorite) => favorite.resourceId === resource.id && favorite.resourceType === resource._type);
-                if (!isFavoriteResource) return false;
+                const isSavedResource = savedAssets.some((savedAsset) => savedAsset.resourceId === resource.id && savedAsset.resourceType === resource._type);
+                if (!isSavedResource) return false;
             }
+
             if (!query) return true;
 
             const matchName = resource.name.toLowerCase().includes(query);
@@ -268,96 +246,131 @@ export default function DiscoverPage() {
             const matchCategory = resource.subCategory?.toLowerCase().includes(query);
             return matchName || matchDescription || matchTag || matchCategory;
         });
-    }, [combined, favorites, search, searchRadius, showFavoritesOnly, user, userLocation]);
+    }, [combined, savedAssets, search, searchRadius, showFavoritesOnly, user, userLocation]);
+
+    const savedPlacePinData = useMemo(() => (
+        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, { userLocation })
+    ), [savedAssets, userLocation, visibleHardAssets, visibleSoftAssets]);
+
+    const savedPlacePins = savedPlacePinData.pins;
+    const savedPlacePinLookup = useMemo(
+        () => new Map(savedPlacePins.map((pin) => [pin.pinKey, pin])),
+        [savedPlacePins]
+    );
+    const savedMapAssetKeys = useMemo(
+        () => new Set(savedPlacePinData.contributingAssetKeys),
+        [savedPlacePinData.contributingAssetKeys]
+    );
+    const hasSavedMapPins = savedPlacePins.length > 0;
+    const savedAssetCount = savedAssets.length;
+    const unmappableSavedCount = savedPlacePinData.unmappableSavedAssetKeys.size;
 
     useEffect(() => {
-        const sourceLocations = (cachedLocations.length > 0 ? cachedLocations : derivedMapLocations).filter(hasValidCoordinates);
-        if (!workerRef.current || sourceLocations.length === 0) return;
-
-        workerRef.current.postMessage({
-            locations: sourceLocations,
-            userLocation,
-            radiusInMeters: searchRadius < 100 ? searchRadius * 1000 : Infinity,
-        });
-    }, [cachedLocations, derivedMapLocations, searchRadius, userLocation]);
-
-    const finalMapLocations = useMemo(() => {
-        let items = (mapLocations.length > 0 ? mapLocations : derivedMapLocations).filter(hasValidCoordinates);
-
-        if (showFavoritesOnly && user) {
-            items = items.filter((resource) => favorites.some((favorite) => favorite.resourceId === resource.id && favorite.resourceType === resource.asset_type));
+        if (!isDesktop && !hasSavedMapPins && mobileMode === 'map') {
+            setMobileMode('browse');
         }
+    }, [hasSavedMapPins, isDesktop, mobileMode]);
 
-        if (search) {
-            const query = search.toLowerCase();
-            items = items.filter((resource) => (
-                (resource.title || '').toLowerCase().includes(query)
-                || (resource.category || '').toLowerCase().includes(query)
-            ));
+    useEffect(() => {
+        if (selectedMarkerKey && !savedPlacePinLookup.has(selectedMarkerKey)) {
+            setSelectedMarkerKey(null);
+            setSelectedAsset(null);
+            setActiveTooltipKey(null);
         }
+    }, [savedPlacePinLookup, selectedMarkerKey]);
 
-        return items;
-    }, [derivedMapLocations, favorites, mapLocations, search, showFavoritesOnly, user]);
+    const buildSelectedAssetFromPin = useCallback((pin) => {
+        if (!pin) return null;
 
-    const enrichedMapLocations = useMemo(() => (
-        finalMapLocations.map((location) => {
-            const asset = assetLookup.get(`${location.asset_type}-${location.id}`);
+        if (pin.placeAsset) {
             return {
-                ...location,
-                asset: asset || {
-                    id: location.id,
-                    name: location.title,
-                    subCategory: location.category,
-                    logoUrl: null,
-                    _type: location.asset_type,
-                },
+                ...pin.placeAsset,
+                _type: 'hard',
+                _displayLocation: buildDisplayLocationFromPin(pin),
             };
-        })
-    ), [assetLookup, finalMapLocations]);
+        }
 
-    const handleSelect = useCallback((asset, preferredLocation = null) => {
-        if (!asset) {
+        const primarySavedAsset = pin.primarySavedAsset;
+        if (!primarySavedAsset?.liveAsset) {
+            return null;
+        }
+
+        if (primarySavedAsset.resourceType === 'soft') {
+            return {
+                ...primarySavedAsset.liveAsset,
+                _type: 'soft',
+                _displayLocation: buildDisplayLocationFromPin(pin),
+            };
+        }
+
+        return {
+            ...primarySavedAsset.liveAsset,
+            _type: 'hard',
+            _displayLocation: buildDisplayLocationFromPin(pin),
+        };
+    }, []);
+
+    const resolveSavedPinForAsset = useCallback((asset, preferredLocation = null) => {
+        if (!asset) return null;
+        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
+        const assetKey = buildSavedAssetKey(normalizedAsset._type, normalizedAsset.id);
+        const pinKeys = savedPlacePinData.assetToPinKeys.get(assetKey);
+
+        if (!pinKeys || pinKeys.length === 0) {
+            return null;
+        }
+
+        if (preferredLocation) {
+            const preferredPinKey = resolveSavedPlaceKey({
+                hardAssetId: normalizedAsset._type === 'hard' ? normalizedAsset.id : preferredLocation.id,
+                locationId: normalizedAsset._type === 'soft' ? preferredLocation.id : normalizedAsset.id,
+                lat: normalizedAsset._type === 'hard' ? normalizedAsset.lat : preferredLocation.lat,
+                lng: normalizedAsset._type === 'hard' ? normalizedAsset.lng : preferredLocation.lng,
+            });
+
+            if (preferredPinKey && savedPlacePinLookup.has(preferredPinKey)) {
+                return savedPlacePinLookup.get(preferredPinKey);
+            }
+        }
+
+        return savedPlacePinLookup.get(pinKeys[0]) || null;
+    }, [savedPlacePinData.assetToPinKeys, savedPlacePinLookup]);
+
+    const handleSelectSavedPin = useCallback((pin, options = {}) => {
+        if (!pin) {
             setSelectedMarkerKey(null);
             setSelectedAsset(null);
             return;
         }
 
-        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
-        const displayLocation = preferredLocation || normalizedAsset._displayLocation || getBestLocation(normalizedAsset, userLocation);
-        const lat = normalizedAsset._type === 'hard'
-            ? parseFloat(normalizedAsset.lat)
-            : parseFloat(displayLocation?.lat);
-        const lng = normalizedAsset._type === 'hard'
-            ? parseFloat(normalizedAsset.lng)
-            : parseFloat(displayLocation?.lng);
+        const { focusMap = true, openTooltip = true } = options;
+        const nextSelectedAsset = buildSelectedAssetFromPin(pin);
 
-        setSelectedAsset({
-            ...normalizedAsset,
-            _displayLocation: displayLocation || normalizedAsset._displayLocation || null,
-        });
-        setSelectedMarkerKey(buildMarkerKey({
-            asset_type: normalizedAsset._type,
-            id: normalizedAsset.id,
-            locationId: displayLocation?.id || normalizedAsset.locationId,
-            lat,
-            lng,
-        }));
-
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 15 : searchRadius <= 2 ? 14 : 13;
-            setFlyTarget({ lat, lng, zoom });
-            setActiveTooltipKey(null);
+        setSelectedMarkerKey(pin.pinKey);
+        setSelectedAsset(nextSelectedAsset);
+        if (openTooltip) {
+            setActiveTooltipKey(pin.pinKey);
         }
 
-        const element = document.getElementById(`asset-card-${normalizedAsset._type}-${normalizedAsset.id}`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (focusMap && Number.isFinite(pin.lat) && Number.isFinite(pin.lng)) {
+            setFlyTarget({ lat: pin.lat, lng: pin.lng, zoom: getZoomForRadius(searchRadius) });
         }
-    }, [searchRadius, setFlyTarget, userLocation]);
+    }, [buildSelectedAssetFromPin, searchRadius, setFlyTarget]);
 
-    const handleMapSelect = useCallback((asset, preferredLocation = null) => {
-        handleSelect(asset, preferredLocation);
-    }, [handleSelect]);
+    const handleFocusAssetOnMap = useCallback((asset, preferredLocation = null) => {
+        const targetPin = resolveSavedPinForAsset(asset, preferredLocation);
+        if (!targetPin) return;
+
+        if (!isDesktop) {
+            setMobileMode('map');
+        }
+
+        handleSelectSavedPin(targetPin, { focusMap: true, openTooltip: true });
+    }, [handleSelectSavedPin, isDesktop, resolveSavedPinForAsset]);
+
+    const handleMapSelect = useCallback((pin) => {
+        handleSelectSavedPin(pin, { focusMap: false, openTooltip: true });
+    }, [handleSelectSavedPin]);
 
     const handleApplySearch = useCallback(async (event) => {
         if (postalInput.trim()) {
@@ -379,32 +392,85 @@ export default function DiscoverPage() {
 
     const handleLocateMeAndCollapse = useCallback(() => {
         handleLocateMe();
-        setIsSearchPanelCollapsed(true);
-    }, [handleLocateMe]);
+        if (isDesktop) {
+            setIsSearchPanelCollapsed(true);
+        }
+    }, [handleLocateMe, isDesktop]);
 
     const handleClearLocationSearch = useCallback(() => {
         clearLocationSearch();
-        if (!search.trim() && activeTab === 'all' && !(showFavoritesOnly && user)) {
+        if (isDesktop && !search.trim() && activeTab === 'all' && !(showFavoritesOnly && user)) {
             setIsSearchPanelCollapsed(false);
         }
-    }, [activeTab, clearLocationSearch, search, showFavoritesOnly, user]);
+    }, [activeTab, clearLocationSearch, isDesktop, search, showFavoritesOnly, user]);
 
     const handleOpenResourcePage = useCallback((asset) => {
         if (!asset) return;
         navigate(`/resource/${asset._type}/${asset.id}`);
     }, [navigate]);
 
-    const handleMapDetailAction = useCallback((asset, preferredLocation = null) => {
-        if (!asset) return;
+    const handleOpenSavedAssetFromMap = useCallback((savedAsset) => {
+        if (!savedAsset) return;
+        navigate(savedAsset.detailPath || `/resource/${savedAsset.resourceType}/${savedAsset.resourceId}`);
+    }, [navigate]);
 
-        if (isDesktop) {
-            handleSelect(asset, preferredLocation);
+    const handleOpenPlaceFromMap = useCallback((pin) => {
+        if (pin?.placeDetailPath) {
+            navigate(pin.placeDetailPath);
             return;
         }
 
-        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
-        navigate(`/resource/${normalizedAsset._type}/${normalizedAsset.id}`);
-    }, [handleSelect, isDesktop, navigate]);
+        const fallbackPath = pin?.primarySavedAsset?.detailPath;
+        if (fallbackPath) {
+            navigate(fallbackPath);
+        }
+    }, [navigate]);
+
+    const savedMapEmptyState = (
+        <SavedMapEmptyState
+            hasSavedAssets={savedAssetCount > 0}
+            isAuthenticated={isAuth}
+            onBrowse={!isDesktop ? () => setMobileMode('browse') : undefined}
+            unmappableCount={unmappableSavedCount}
+        />
+    );
+
+    const mapView = hasSavedMapPins ? (
+        <div className="relative h-full w-full">
+            <DiscoveryMap
+                activeTooltipKey={activeTooltipKey}
+                bottomOffsetPx={0}
+                flyTarget={flyTarget}
+                onKeepTooltipOpen={keepTooltipOpen}
+                onOpenAsset={handleOpenSavedAssetFromMap}
+                onOpenPlace={handleOpenPlaceFromMap}
+                onScheduleTooltipClose={scheduleTooltipClose}
+                onSelectPin={handleMapSelect}
+                savedPlacePins={savedPlacePins}
+                selectedMarkerKey={selectedMarkerKey}
+                userLocation={userLocation}
+            />
+            {isDesktop ? (
+                <DiscoveryInspector
+                    asset={selectedAsset}
+                    onClose={() => handleSelectSavedPin(null)}
+                    onOpenResourcePage={handleOpenResourcePage}
+                    onTagClick={setSearch}
+                    subCatColors={subCatColors}
+                    userLocation={userLocation}
+                />
+            ) : null}
+        </div>
+    ) : savedAssetsLoading && isAuth ? (
+        <div className="flex h-full items-center justify-center p-6">
+            <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
+                <div className="h-10 w-10 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
+                <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                    Loading your saved map…
+                </p>
+            </div>
+        </div>
+    ) : savedMapEmptyState;
 
     const filterPanel = (
         <DiscoveryFilterPanel
@@ -412,15 +478,21 @@ export default function DiscoverPage() {
             clearLocationSearch={handleClearLocationSearch}
             handleLocateMe={handleLocateMeAndCollapse}
             handlePostalSearch={handlePostalSearch}
-            isGeocoding={isGeocoding}
             isCollapsed={isSearchPanelCollapsed}
+            isGeocoding={isGeocoding}
             locationNotice={locationNotice}
+            mobileMode={mobileMode}
+            mobileCardDensity={mobileCardDensity}
             onApplySearch={handleApplySearch}
+            onChangeMode={setMobileMode}
+            onChangeMobileCardDensity={setMobileCardDensity}
             onCollapse={() => setIsSearchPanelCollapsed(true)}
             onExpand={() => setIsSearchPanelCollapsed(false)}
             onSearchChange={setSearch}
+            pinCount={savedPlacePins.length}
             postalInput={postalInput}
             resultCount={filtered.length}
+            savedAssetCount={savedAssetCount}
             search={search}
             searchOrigin={searchOrigin}
             searchRadius={searchRadius}
@@ -429,6 +501,7 @@ export default function DiscoverPage() {
             setSearchRadius={setSearchRadius}
             setShowFavoritesOnly={setShowFavoritesOnly}
             showFavoritesOnly={showFavoritesOnly}
+            unmappableSavedCount={unmappableSavedCount}
             user={user}
             userLocation={userLocation}
         />
@@ -436,62 +509,29 @@ export default function DiscoverPage() {
 
     const resultsList = (
         <DiscoveryResultsList
-            favorites={favorites}
             filtered={filtered}
+            isDesktop={isDesktop}
             isSearchPanelCollapsed={isSearchPanelCollapsed}
             loading={loading}
+            mobileCardDensity={mobileCardDensity}
+            onChangeMobileCardDensity={setMobileCardDensity}
             onCategoryClick={setSearch}
-            onSelectAsset={handleSelect}
+            onFocusAssetOnMap={handleFocusAssetOnMap}
             onTagClick={setSearch}
-            onToggleFavorite={handleToggleFavorite}
+            savedMapAssetKeys={savedMapAssetKeys}
             selectedAsset={selectedAsset}
             subCatColors={subCatColors}
-            user={user}
         />
-    );
-
-    const mapView = (
-        <div className="relative h-full w-full">
-            <DiscoveryMap
-                activeTooltipKey={activeTooltipKey}
-                bottomOffsetPx={drawerOffsetPx}
-                enrichedMapLocations={enrichedMapLocations}
-                flyTarget={flyTarget}
-                isFavorite={isFavorite}
-                onKeepTooltipOpen={keepTooltipOpen}
-                onScheduleTooltipClose={scheduleTooltipClose}
-                onSelectAsset={handleMapSelect}
-                onToggleFavorite={handleToggleFavorite}
-                onViewDetails={handleMapDetailAction}
-                selectedMarkerKey={selectedMarkerKey}
-                subCatColors={subCatColors}
-                user={user}
-                userLocation={userLocation}
-            />
-            {isDesktop && (
-                <DiscoveryInspector
-                    asset={selectedAsset}
-                    isFavorite={selectedAsset ? isFavorite(selectedAsset.id, selectedAsset._type) : false}
-                    onClose={() => handleSelect(null)}
-                    onOpenResourcePage={handleOpenResourcePage}
-                    onTagClick={setSearch}
-                    onToggleFavorite={handleToggleFavorite}
-                    subCatColors={subCatColors}
-                    user={user}
-                    userLocation={userLocation}
-                />
-            )}
-        </div>
     );
 
     return (
         <div
-            className="relative flex flex-col h-[calc(100vh-4rem)] overflow-hidden"
+            className="relative flex h-[calc(100vh-4rem)] flex-col overflow-hidden"
             style={{ background: 'var(--page-gradient)' }}
         >
             <div className="hidden lg:flex flex-1 w-full h-full relative">
                 <div
-                    className="flex-shrink-0 h-full z-20 overflow-hidden flex flex-col"
+                    className="flex h-full flex-shrink-0 flex-col overflow-hidden z-20"
                     style={{
                         width: `${listWidth}px`,
                         backgroundColor: 'rgba(255,255,255,0.84)',
@@ -505,71 +545,31 @@ export default function DiscoverPage() {
                 </div>
 
                 <div
-                    className={`w-2 h-full absolute cursor-col-resize z-30 transition-colors ${isDragging ? 'bg-brand-500 opacity-60' : 'hover:bg-brand-300 hover:opacity-60'}`}
+                    className={`absolute z-30 h-full w-2 cursor-col-resize transition-colors ${isDragging ? 'bg-brand-500 opacity-60' : 'hover:bg-brand-300 hover:opacity-60'}`}
                     onMouseDown={startDragging}
                     style={{ left: `${listWidth - 4}px` }}
                 />
 
-                <div className="flex-1 w-full h-full relative z-0">
+                <div className="relative z-0 h-full w-full flex-1">
                     {mapView}
                 </div>
             </div>
 
-            <div className="flex lg:hidden flex-1 w-full h-full relative">
-                <div className="absolute inset-0 w-full h-full z-0">
-                    {mapView}
+            <div className="flex lg:hidden min-h-0 flex-1 flex-col">
+                {filterPanel}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    {mobileMode === 'browse' ? resultsList : mapView}
                 </div>
-
-                {!isDrawerOpen && (
-                    <button
-                        onClick={() => setIsDrawerOpen(true)}
-                        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[400] text-white px-6 py-3 min-h-[48px] rounded-full shadow-lg font-bold flex items-center gap-2 transition-all active:scale-95"
-                        style={{
-                            background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)',
-                            boxShadow: '0 18px 36px rgba(15, 163, 154, 0.28)',
-                        }}
-                    >
-                        <Search size={18} /> Browse Directory
-                    </button>
-                )}
-
-                <Drawer.Root
-                    open={isDrawerOpen}
-                    onOpenChange={setIsDrawerOpen}
-                    snapPoints={[0.55, 0.92]}
-                    activeSnapPoint={activeSnap}
-                    setActiveSnapPoint={setActiveSnap}
-                    modal={false}
-                >
-                    <Drawer.Portal>
-                        <Drawer.Content
-                            className="fixed flex flex-col rounded-t-[24px] h-full max-h-[96%] mt-24 bottom-0 left-0 right-0 z-[501]"
-                            style={{
-                                backgroundColor: 'var(--color-drawer-bg)',
-                                boxShadow: '0 -18px 42px rgba(15, 89, 91, 0.18)',
-                                borderTop: '1px solid var(--color-border)',
-                                backdropFilter: 'blur(18px)',
-                            }}
-                        >
-                            <VisuallyHidden><Drawer.Title>Directory List</Drawer.Title></VisuallyHidden>
-                            <div className="flex justify-center py-2">
-                                <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'var(--color-border-strong)' }} />
-                            </div>
-                            {filterPanel}
-                            {resultsList}
-                        </Drawer.Content>
-                    </Drawer.Portal>
-                </Drawer.Root>
             </div>
 
-            {loading && (
+            {loading ? (
                 <div className="absolute inset-0 z-[2000] flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
                     <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
-                        <div className="w-12 h-12 border-4 rounded-full animate-spin" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
-                        <p className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Loading Directory…</p>
+                        <div className="h-12 w-12 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
+                        <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Loading Directory…</p>
                     </div>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

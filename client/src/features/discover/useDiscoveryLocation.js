@@ -9,6 +9,7 @@ import {
 
 export function useDiscoveryLocation(hardAssets = []) {
     const storedSearchLocationRef = useRef(loadSearchLocation());
+    const autoLocateAttemptedRef = useRef(false);
     const [userLocation, setUserLocation] = useState(() => {
         const stored = storedSearchLocationRef.current;
         return stored ? { lat: stored.lat, lng: stored.lng } : null;
@@ -40,13 +41,19 @@ export function useDiscoveryLocation(hardAssets = []) {
         clearSearchLocation();
     }, []);
 
-    const handleLocateMe = useCallback(() => {
+    const runLocateMe = useCallback((options = {}) => {
+        const { silent = false } = options;
+
         if (!navigator.geolocation) {
-            setLocationNotice({ type: 'error', message: 'Geolocation is not supported in this browser.' });
+            if (!silent) {
+                setLocationNotice({ type: 'error', message: 'Geolocation is not supported in this browser.' });
+            }
             return;
         }
 
-        setLocationNotice(null);
+        if (!silent) {
+            setLocationNotice(null);
+        }
         const requestId = Date.now();
         geolocationRequestRef.current = requestId;
         let resolved = false;
@@ -75,6 +82,10 @@ export function useDiscoveryLocation(hardAssets = []) {
                     return;
                 }
 
+                if (silent) {
+                    return;
+                }
+
                 const message = error?.code === 1
                     ? 'Location access was blocked. Enable it in your browser to sort by nearest results.'
                     : error?.code === 3
@@ -86,6 +97,18 @@ export function useDiscoveryLocation(hardAssets = []) {
             GEOLOCATION_OPTIONS,
         );
     }, [searchRadius]);
+
+    const handleLocateMe = useCallback(() => {
+        runLocateMe({ silent: false });
+    }, [runLocateMe]);
+
+    useEffect(() => {
+        const shouldAutoLocate = !searchOrigin || (searchOrigin.source === 'geolocation' && searchOrigin.restored);
+        if (!shouldAutoLocate || autoLocateAttemptedRef.current) return;
+
+        autoLocateAttemptedRef.current = true;
+        runLocateMe({ silent: true });
+    }, [runLocateMe, searchOrigin]);
 
     const handlePostalSearch = useCallback(async (e) => {
         e.preventDefault();
