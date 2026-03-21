@@ -7,11 +7,14 @@ import {
     deleteMyMapRecord,
     getMyMapDetail,
     listMyMaps,
+    publishMyMap,
     renameMyMap,
+    unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
 import { myMapAssets, myMaps } from '../src/db/schema.js';
 
 const DEFAULT_USER = { id: 7, role: 'standard', postalCode: '680153' };
+const PARTNER_USER = { ...DEFAULT_USER, role: 'partner' };
 const DEFAULT_CONTEXT = {
     allowedPartnerAudienceIds: new Set(),
     allowedAudienceZoneIds: new Set(),
@@ -41,6 +44,10 @@ function createMap(overrides = {}) {
         id: 3,
         userId: DEFAULT_USER.id,
         name: 'Community planning',
+        description: null,
+        isShared: false,
+        shareToken: null,
+        shareUpdatedAt: null,
         createdAt: new Date('2026-03-14T10:00:00.000Z'),
         updatedAt: new Date('2026-03-14T10:00:00.000Z'),
         ...overrides,
@@ -158,21 +165,41 @@ function createFakeDb({
             throw new Error('Unexpected table insert');
         },
         update(table) {
-            assert.equal(table, myMaps);
-            return {
-                set(values) {
-                    return {
-                        where: async () => {
-                            if (!state.maps[0]) return [];
-                            state.maps[0] = {
-                                ...state.maps[0],
-                                ...values,
-                            };
-                            return [state.maps[0]];
-                        },
-                    };
-                },
-            };
+            if (table === myMaps) {
+                return {
+                    set(values) {
+                        return {
+                            where: async () => {
+                                if (!state.maps[0]) return [];
+                                state.maps[0] = {
+                                    ...state.maps[0],
+                                    ...values,
+                                };
+                                return [state.maps[0]];
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === myMapAssets) {
+                return {
+                    set(values) {
+                        return {
+                            where: async () => {
+                                if (!state.mapAssets[0]) return [];
+                                state.mapAssets[0] = {
+                                    ...state.mapAssets[0],
+                                    ...values,
+                                };
+                                return [state.mapAssets[0]];
+                            },
+                        };
+                    },
+                };
+            }
+
+            throw new Error('Unexpected table update');
         },
         delete(table) {
             if (table === myMaps) {
@@ -210,6 +237,18 @@ test('listMyMaps returns user maps with asset counts', async () => {
     assert.equal(maps[0].assetCount, 1);
 });
 
+test('non-guest authenticated users can access My Maps', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+    });
+
+    const maps = await listMyMaps(db, PARTNER_USER);
+
+    assert.equal(maps.length, 1);
+    assert.equal(maps[0].assetCount, 1);
+});
+
 test('createMyMap creates a named map and can seed it from saved assets', async () => {
     const db = createFakeDb({
         favorites: [createFavorite()],
@@ -237,9 +276,63 @@ test('getMyMapDetail falls back to snapshot data for unavailable assets', async 
     const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
 
     assert.equal(detail.name, 'Community planning');
-    assert.equal(detail.assetCount, 1);
+    assert.equal(detail.summary.resourceCount, 1);
     assert.equal(detail.assets[0].status, 'unavailable');
-    assert.equal(detail.assets[0].name, 'Saved centre snapshot');
+    assert.equal(detail.places[0].rows[0].name, 'Saved centre snapshot');
+});
+
+test('renameMyMap updates description when provided', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+    });
+
+    const updated = await renameMyMap(db, DEFAULT_USER, 3, {
+        name: 'Community planning',
+        description: 'Curated support options around Teck Whye.',
+    });
+
+    assert.equal(updated.description, 'Curated support options around Teck Whye.');
+});
+
+test('publishMyMap enables a reusable share link', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+    });
+
+    const published = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    assert.equal(published.isShared, true);
+    assert.equal(typeof published.shareToken, 'string');
+    assert.match(published.sharePath, /^\/shared\/maps\//);
+});
+
+test('unpublishMyMap clears the active share token', async () => {
+    const db = createFakeDb({
+        maps: [createMap({ isShared: true, shareToken: 'live-token' })],
+        mapAssets: [createMapAsset()],
+    });
+
+    const unpublished = await unpublishMyMap(db, DEFAULT_USER, 3);
+
+    assert.equal(unpublished.isShared, false);
+    assert.equal(unpublished.shareToken, null);
+});
+
+test('republishMyMap generates a fresh token after a map is unpublished', async () => {
+    const db = createFakeDb({
+        maps: [createMap({ isShared: true, shareToken: 'live-token' })],
+        mapAssets: [createMapAsset()],
+    });
+
+    const unpublished = await unpublishMyMap(db, DEFAULT_USER, 3);
+    const republished = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    assert.equal(unpublished.isShared, false);
+    assert.equal(unpublished.shareToken, null);
+    assert.equal(republished.isShared, true);
+    assert.equal(typeof republished.shareToken, 'string');
+    assert.notEqual(republished.shareToken, 'live-token');
 });
 
 test('renameMyMap rejects blank names', async () => {

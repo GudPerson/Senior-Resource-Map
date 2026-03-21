@@ -1,81 +1,132 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Clock3, Map, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Link2, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
-import RenameMapModal from '../components/RenameMapModal.jsx';
+import DirectoryMap from '../components/DirectoryMap.jsx';
+import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
+import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
+import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
+import MapImageExportButton from '../components/MapImageExportButton.jsx';
+import ShareMapModal from '../components/ShareMapModal.jsx';
+import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
+import { DashboardMobileNavigation } from '../components/dashboard/DashboardNavigation.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
-import { buildSavedAssetDetailPath, buildSavedAssetKey } from '../lib/savedAssets.js';
-
-function formatDate(value, prefix = 'Updated') {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-
-    return `${prefix} ${new Intl.DateTimeFormat('en-SG', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    }).format(date)}`;
-}
-
-function AssetStatusBadge({ asset }) {
-    if (asset.status === 'unavailable') {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                Unavailable
-            </span>
-        );
-    }
-
-    if (!asset.hasCoordinates) {
-        return (
-            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                List only
-            </span>
-        );
-    }
-
-    return null;
-}
-
-function typeLabel(resourceType) {
-    return resourceType === 'hard' ? 'Place' : 'Offering';
-}
 
 function MapDetailLoadingState() {
     return (
-        <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, index) => (
-                <div
-                    key={index}
-                    className="animate-pulse rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                    <div className="h-6 w-24 rounded-full bg-slate-100" />
-                    <div className="mt-4 h-6 w-1/2 rounded bg-slate-100" />
-                    <div className="mt-3 h-14 rounded-2xl bg-slate-100" />
-                    <div className="mt-4 flex gap-2">
-                        <div className="h-11 flex-1 rounded-xl bg-slate-100" />
-                        <div className="h-11 flex-1 rounded-xl bg-slate-100" />
-                    </div>
-                </div>
-            ))}
+        <div className="space-y-5">
+            <div className="h-44 animate-pulse rounded-[32px] border border-slate-200 bg-white shadow-sm" />
+            <div className="h-80 animate-pulse rounded-[32px] border border-slate-200 bg-white shadow-sm" />
+            <div className="h-64 animate-pulse rounded-[32px] border border-slate-200 bg-white shadow-sm" />
         </div>
     );
 }
 
-function EmptyMapState({ onAdd }) {
+function OwnerHeader({
+    directory,
+    actionError,
+    onAddAssets,
+    onEditDetails,
+    onOpenPrintView,
+    onOpenShare,
+    onDelete,
+}) {
+    const isShared = Boolean(directory?.share?.isShared);
+
     return (
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm">
-                <Map size={28} />
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">My Map</p>
+                    <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+                        {directory.name}
+                    </h1>
+                    {directory.description ? (
+                        <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">
+                            {directory.description}
+                        </p>
+                    ) : (
+                        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500">
+                            Add a short subtitle to explain what this directory is for before you share it.
+                        </p>
+                    )}
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+                    <button type="button" onClick={onAddAssets} className="btn-primary justify-center">
+                        <Plus size={16} />
+                        Add from Saved Assets
+                    </button>
+                    <button type="button" onClick={onEditDetails} className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                        <Pencil size={16} />
+                        Edit details
+                    </button>
+                    <button type="button" onClick={onOpenPrintView} className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                        <Printer size={16} />
+                        Print view
+                    </button>
+                    <button type="button" onClick={onOpenShare} className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                        <Link2 size={16} />
+                        Share
+                    </button>
+                    <MapImageExportButton directory={directory} />
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        className="btn-ghost justify-center border border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                        <Trash2 size={16} />
+                        Delete
+                    </button>
+                </div>
             </div>
-            <h2 className="mt-5 text-xl font-bold text-slate-900">This map is empty</h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-                Add saved assets to keep this map useful and easy to revisit.
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Curated resources</p>
+                        <p className="mt-2 text-3xl font-extrabold text-slate-900">{directory.summary.resourceCount}</p>
+                    </div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Places</p>
+                        <p className="mt-2 text-3xl font-extrabold text-slate-900">{directory.summary.placeCount}</p>
+                    </div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Mapped places</p>
+                        <p className="mt-2 text-3xl font-extrabold text-slate-900">{directory.summary.mappablePlaceCount}</p>
+                    </div>
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-brand-50 to-white p-5">
+                    <p className="text-sm font-semibold text-slate-900">
+                        {isShared ? 'Shared link is live' : 'Private map'}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {isShared
+                            ? 'Anyone with the link can view this read-only directory. Changes you make here will appear on the shared page.'
+                            : 'Only you can view this map. Publish a read-only share link when you are ready to share this directory.'}
+                    </p>
+                </div>
+            </div>
+
+            {actionError ? (
+                <p className="mt-4 text-sm font-medium text-red-600">{actionError}</p>
+            ) : null}
+        </div>
+    );
+}
+
+function EmptyOwnerDirectory({ onAddAssets }) {
+    return (
+        <div className="rounded-[32px] border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
+            <h2 className="text-2xl font-bold text-slate-900">This directory is empty</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+                Add saved resources to turn this private map into a grouped directory you can share or export later.
             </p>
-            <button type="button" onClick={onAdd} className="btn-primary mt-6 inline-flex justify-center">
+            <button type="button" onClick={onAddAssets} className="btn-primary mt-6 inline-flex justify-center">
                 <Plus size={16} />
                 Add from Saved Assets
             </button>
@@ -83,83 +134,31 @@ function EmptyMapState({ onAdd }) {
     );
 }
 
-function MapAssetCard({ asset, removing = false, onRemove }) {
-    const detailPath = asset.detailPath || buildSavedAssetDetailPath(asset.resourceType, asset.resourceId);
-    const addedAt = formatDate(asset.addedAt, 'Added');
-
-    return (
-        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-            <div className="flex flex-col gap-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
-                                {typeLabel(asset.resourceType)}
-                            </span>
-                            {asset.subCategory ? (
-                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                                    {asset.subCategory}
-                                </span>
-                            ) : null}
-                            <AssetStatusBadge asset={asset} />
-                        </div>
-                        <h2 className="mt-3 text-lg font-bold leading-snug text-slate-900">
-                            {asset.name || 'Saved resource'}
-                        </h2>
-                    </div>
-                    {addedAt ? (
-                        <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-slate-400">
-                            <Clock3 size={13} />
-                            {addedAt}
-                        </span>
-                    ) : null}
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3">
-                    <div className="flex items-start gap-2 text-sm text-slate-600">
-                        <MapPin size={16} className="mt-0.5 flex-shrink-0 text-slate-400" />
-                        <p className="leading-6">
-                            {asset.address || (asset.status === 'unavailable' ? 'Location is no longer available.' : 'Location details are not available.')}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row">
-                    <Link to={detailPath} className="btn-primary flex-1 justify-center">
-                        View details
-                        <ArrowRight size={16} />
-                    </Link>
-                    <button
-                        type="button"
-                        onClick={() => onRemove?.(asset)}
-                        disabled={removing}
-                        className="btn-ghost flex-1 justify-center border border-slate-200 text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-70"
-                    >
-                        <Trash2 size={16} />
-                        {removing ? 'Removing…' : 'Remove from map'}
-                    </button>
-                </div>
-            </div>
-        </article>
-    );
-}
-
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { user, logout, isImpersonating } = useAuth();
     const { savedAssets } = useSavedAssets();
-    const [map, setMap] = useState(null);
+    const [directory, setDirectory] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actionError, setActionError] = useState('');
-    const [renameOpen, setRenameOpen] = useState(false);
-    const [renameSubmitting, setRenameSubmitting] = useState(false);
-    const [renameError, setRenameError] = useState('');
+    const [query, setQuery] = useState('');
+    const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
+    const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
+    const [editOpen, setEditOpen] = useState(false);
+    const [editSubmitting, setEditSubmitting] = useState(false);
+    const [editError, setEditError] = useState('');
+    const [shareOpen, setShareOpen] = useState(false);
+    const [shareSubmitting, setShareSubmitting] = useState(false);
+    const [shareError, setShareError] = useState('');
     const [addOpen, setAddOpen] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const [deleting, setDeleting] = useState(false);
-    const [removingKeys, setRemovingKeys] = useState([]);
+    const suspendMapInteraction = shareOpen || editOpen || addOpen;
+    const isPrintView = searchParams.get('view') === 'print';
 
     const loadMap = useCallback(async () => {
         if (!mapId) return;
@@ -167,7 +166,7 @@ export default function MyMapDetailPage() {
         setError('');
         try {
             const item = await api.getMyMap(mapId);
-            setMap(item);
+            setDirectory(item);
         } catch (err) {
             console.error(err);
             setError(err.message || 'Failed to load this map.');
@@ -181,77 +180,98 @@ export default function MyMapDetailPage() {
     }, [loadMap]);
 
     const existingAssetKeys = useMemo(
-        () => new Set((map?.assets || []).map((asset) => buildSavedAssetKey(asset.resourceType, asset.resourceId))),
-        [map?.assets]
+        () => new Set((directory?.assets || []).map((asset) => asset.assetKey || `${asset.resourceType}-${asset.resourceId}`)),
+        [directory?.assets]
     );
 
-    async function handleRename(name) {
-        if (!map) return;
-        setRenameSubmitting(true);
-        setRenameError('');
+    async function handleLogout() {
+        const impersonationExit = isImpersonating;
+        await logout();
+        navigate(impersonationExit ? '/dashboard' : '/');
+    }
+
+    async function handleUpdateDetails(nextValues) {
+        if (!directory) return;
+        setEditSubmitting(true);
+        setEditError('');
         try {
-            const updated = await api.updateMyMap(map.id, { name });
-            setMap((current) => current ? { ...current, ...updated } : current);
-            setRenameOpen(false);
+            await api.updateMyMap(directory.id, nextValues);
+            setEditOpen(false);
+            await loadMap();
         } catch (err) {
             console.error(err);
-            setRenameError(err.message || 'Failed to rename this map.');
+            setEditError(err.message || 'Failed to update this directory.');
         } finally {
-            setRenameSubmitting(false);
+            setEditSubmitting(false);
         }
     }
 
     async function handleAddAssets({ assets }) {
-        if (!map) return;
+        if (!directory) return;
         setAddSubmitting(true);
         setAddError('');
         try {
-            await Promise.all(
-                assets.map((asset) => api.addMyMapAsset(map.id, asset))
-            );
+            await Promise.all(assets.map((asset) => api.addMyMapAsset(directory.id, asset)));
             setAddOpen(false);
             await loadMap();
         } catch (err) {
             console.error(err);
-            setAddError(err.message || 'Failed to add one or more assets to this map.');
+            setAddError(err.message || 'Failed to add one or more resources to this directory.');
         } finally {
             setAddSubmitting(false);
         }
     }
 
-    async function handleRemoveAsset(asset) {
-        if (!map) return;
-        const assetKey = buildSavedAssetKey(asset.resourceType, asset.resourceId);
+    async function handleRemoveResource(row) {
+        if (!directory) return;
         setActionError('');
-        setRemovingKeys((items) => [...items, assetKey]);
         try {
-            await api.removeMyMapAsset(map.id, asset.resourceType, asset.resourceId);
-            setMap((current) => {
-                if (!current) return current;
-                const nextAssets = current.assets.filter((item) => buildSavedAssetKey(item.resourceType, item.resourceId) !== assetKey);
-                return {
-                    ...current,
-                    assets: nextAssets,
-                    assetCount: nextAssets.length,
-                };
-            });
+            await api.removeMyMapAsset(directory.id, row.resourceType, row.resourceId);
+            await loadMap();
         } catch (err) {
             console.error(err);
-            setActionError(err.message || 'Failed to remove this asset from the map.');
+            setActionError(err.message || 'Failed to remove this resource from the directory.');
+        }
+    }
+
+    async function handlePublishShare() {
+        if (!directory) return;
+        setShareSubmitting(true);
+        setShareError('');
+        try {
+            await api.publishMyMapShare(directory.id);
+            await loadMap();
+        } catch (err) {
+            console.error(err);
+            setShareError(err.message || 'Failed to publish this share link.');
         } finally {
-            setRemovingKeys((items) => items.filter((item) => item !== assetKey));
+            setShareSubmitting(false);
+        }
+    }
+
+    async function handleUnpublishShare() {
+        if (!directory) return;
+        setShareSubmitting(true);
+        setShareError('');
+        try {
+            await api.unpublishMyMapShare(directory.id);
+            await loadMap();
+        } catch (err) {
+            console.error(err);
+            setShareError(err.message || 'Failed to unpublish this share link.');
+        } finally {
+            setShareSubmitting(false);
         }
     }
 
     async function handleDeleteMap() {
-        if (!map) return;
-        const confirmed = window.confirm(`Delete "${map.name}"? This removes the map and its asset list.`);
+        if (!directory) return;
+        const confirmed = window.confirm(`Delete "${directory.name}"? This removes the directory and its curated resource list.`);
         if (!confirmed) return;
-
         setDeleting(true);
         setActionError('');
         try {
-            await api.deleteMyMap(map.id);
+            await api.deleteMyMap(directory.id);
             navigate('/my-directory?section=my-maps', { replace: true });
         } catch (err) {
             console.error(err);
@@ -260,9 +280,43 @@ export default function MyMapDetailPage() {
         }
     }
 
+    function handleViewSection(placeKey) {
+        setQuery('');
+        setHighlightPlaceKey(null);
+        window.requestAnimationFrame(() => {
+            setHighlightPlaceKey(placeKey);
+        });
+    }
+
+    function handleViewOnMap(placeKey) {
+        setFocusedPlaceKey(null);
+        window.requestAnimationFrame(() => {
+            setFocusedPlaceKey(placeKey);
+        });
+    }
+
+    function openPrintView() {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('view', 'print');
+        setSearchParams(nextParams);
+    }
+
+    function closePrintView() {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('view');
+        setSearchParams(nextParams);
+    }
+
     if (loading) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+                <DashboardMobileNavigation
+                    isImpersonating={isImpersonating}
+                    onLogout={handleLogout}
+                    sectionContextLabel="My Directory"
+                    sectionLabel="My Maps"
+                    user={user}
+                />
                 <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
                     <MapDetailLoadingState />
                 </div>
@@ -270,15 +324,19 @@ export default function MyMapDetailPage() {
         );
     }
 
-    if (error || !map) {
+    if (error || !directory) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+                <DashboardMobileNavigation
+                    isImpersonating={isImpersonating}
+                    onLogout={handleLogout}
+                    sectionContextLabel="My Directory"
+                    sectionLabel="My Maps"
+                    user={user}
+                />
                 <div className="mx-auto w-full max-w-3xl px-4 py-12 text-center sm:px-6 lg:px-8">
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-16 shadow-sm">
-                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
-                            <Map size={28} />
-                        </div>
-                        <h1 className="mt-5 text-2xl font-bold text-slate-900">Map not available</h1>
+                    <div className="rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-16 shadow-sm">
+                        <h1 className="text-2xl font-bold text-slate-900">Map not available</h1>
                         <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
                             {error || 'This map could not be found or you no longer have access to it.'}
                         </p>
@@ -292,75 +350,98 @@ export default function MyMapDetailPage() {
         );
     }
 
-    const updatedAtLabel = formatDate(map.updatedAt);
+    if (isPrintView) {
+        return (
+            <div className="min-h-screen bg-slate-100">
+                <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
+                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+                        <button
+                            type="button"
+                            onClick={closePrintView}
+                            className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                        >
+                            <ArrowLeft size={16} />
+                            Back to interactive view
+                        </button>
+                        <MapImageExportButton directory={directory} />
+                    </div>
+                </div>
+
+                <div className="px-4 py-6 sm:px-6 lg:px-8">
+                    <DirectoryPrintView
+                        directory={directory}
+                        mode="owner"
+                        generatedAt={new Date()}
+                        footerNote={directory.share?.isShared ? 'Open the shared link for the full interactive directory.' : ''}
+                        className="mx-auto"
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-                <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-                    <div className="mb-4">
+                <DashboardMobileNavigation
+                    isImpersonating={isImpersonating}
+                    onLogout={handleLogout}
+                    sectionContextLabel="My Directory"
+                    sectionLabel={directory.name}
+                    user={user}
+                />
+
+                <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
+                    <div>
                         <Link to="/my-directory?section=my-maps" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 transition hover:text-brand-800">
                             <ArrowLeft size={16} />
                             Back to My Maps
                         </Link>
                     </div>
 
-                    <header className="rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">My Map</p>
-                                <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{map.name}</h1>
-                                <p className="mt-2 text-sm text-slate-500">
-                                    {map.assetCount} {map.assetCount === 1 ? 'asset' : 'assets'}
-                                    {updatedAtLabel ? ` • ${updatedAtLabel}` : ''}
-                                </p>
-                            </div>
+                    <OwnerHeader
+                        directory={directory}
+                        actionError={actionError}
+                        onAddAssets={() => setAddOpen(true)}
+                        onEditDetails={() => {
+                            setEditError('');
+                            setEditOpen(true);
+                        }}
+                        onOpenPrintView={openPrintView}
+                        onOpenShare={() => {
+                            setShareError('');
+                            setShareOpen(true);
+                        }}
+                        onDelete={handleDeleteMap}
+                    />
 
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <button type="button" onClick={() => setAddOpen(true)} className="btn-primary justify-center">
-                                    <Plus size={16} />
-                                    Add from Saved Assets
-                                </button>
-                                <button type="button" onClick={() => {
-                                    setRenameError('');
-                                    setRenameOpen(true);
-                                }} className="btn-ghost justify-center border border-slate-200 text-slate-700">
-                                    <Pencil size={16} />
-                                    Rename
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleDeleteMap}
-                                    disabled={deleting}
-                                    className="btn-ghost justify-center border border-slate-200 text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-70"
-                                >
-                                    <Trash2 size={16} />
-                                    {deleting ? 'Deleting…' : 'Delete'}
-                                </button>
-                            </div>
-                        </div>
-                    </header>
+                    {directory.summary.resourceCount === 0 ? (
+                        <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
+                    ) : (
+                        <>
+                            <DirectoryMap
+                                pins={directory.pins}
+                                focusedPlaceKey={focusedPlaceKey}
+                                onViewSection={handleViewSection}
+                                interactive={!suspendMapInteraction}
+                            />
 
-                    {actionError ? (
-                        <p className="mt-4 text-sm font-medium text-red-600">{actionError}</p>
-                    ) : null}
+                            <DirectorySearchBar
+                                value={query}
+                                onChange={setQuery}
+                            />
 
-                    <section className="mt-6">
-                        {map.assets.length === 0 ? (
-                            <EmptyMapState onAdd={() => setAddOpen(true)} />
-                        ) : (
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                {map.assets.map((asset) => (
-                                    <MapAssetCard
-                                        key={asset.assetKey || `${asset.resourceType}-${asset.resourceId}`}
-                                        asset={asset}
-                                        removing={removingKeys.includes(buildSavedAssetKey(asset.resourceType, asset.resourceId))}
-                                        onRemove={handleRemoveAsset}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </section>
+                            <SharedMapDirectoryList
+                                places={directory.places}
+                                totalResourceCount={directory.summary.resourceCount}
+                                query={query}
+                                mode="owner"
+                                onViewOnMap={handleViewOnMap}
+                                onRemoveResource={handleRemoveResource}
+                                highlightPlaceKey={highlightPlaceKey}
+                            />
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -379,18 +460,38 @@ export default function MyMapDetailPage() {
                 onSubmit={handleAddAssets}
             />
 
-            <RenameMapModal
-                isOpen={renameOpen}
-                map={map}
-                submitting={renameSubmitting}
-                error={renameError}
+            <EditMapDetailsModal
+                isOpen={editOpen}
+                map={directory}
+                submitting={editSubmitting}
+                error={editError}
                 onClose={() => {
-                    if (renameSubmitting) return;
-                    setRenameOpen(false);
-                    setRenameError('');
+                    if (editSubmitting) return;
+                    setEditOpen(false);
+                    setEditError('');
                 }}
-                onSubmit={handleRename}
+                onSubmit={handleUpdateDetails}
             />
+
+            <ShareMapModal
+                isOpen={shareOpen}
+                map={directory}
+                submitting={shareSubmitting}
+                error={shareError}
+                onClose={() => {
+                    if (shareSubmitting) return;
+                    setShareOpen(false);
+                    setShareError('');
+                }}
+                onPublish={handlePublishShare}
+                onUnpublish={handleUnpublishShare}
+            />
+
+            {deleting ? (
+                <div className="fixed bottom-4 right-4 z-[70] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-lg">
+                    Deleting map…
+                </div>
+            ) : null}
         </>
     );
 }

@@ -273,8 +273,12 @@ export const api = {
     getMyMap: (id) => request('GET', `/my-maps/${id}`),
     updateMyMap: (id, body) => request('PATCH', `/my-maps/${id}`, body),
     deleteMyMap: (id) => request('DELETE', `/my-maps/${id}`),
+    publishMyMapShare: (id) => request('POST', `/my-maps/${id}/share`),
+    unpublishMyMapShare: (id) => request('DELETE', `/my-maps/${id}/share`),
     addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
+    getSharedMap: (token) => request('GET', `/shared-maps/${encodeURIComponent(token)}`),
+    copySharedMap: (token) => request('POST', `/shared-maps/${encodeURIComponent(token)}/copy`),
 
     // Combined Helpers (for Admin/Partner generic tables)
     getResources: async () => {

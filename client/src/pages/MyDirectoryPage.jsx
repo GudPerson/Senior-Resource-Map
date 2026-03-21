@@ -8,6 +8,8 @@ import MyMapsEmptyState from '../components/MyMapsEmptyState.jsx';
 import RenameMapModal from '../components/RenameMapModal.jsx';
 import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
+import { DashboardMobileNavigation } from '../components/dashboard/DashboardNavigation.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 
@@ -118,6 +120,7 @@ function DirectoryTabs({ activeSection, onSelect }) {
 }
 
 export default function MyDirectoryPage() {
+    const { user, logout, isImpersonating } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {
@@ -286,9 +289,22 @@ export default function MyDirectoryPage() {
 
     const sectionLabel = formatSectionLabel(activeSection);
 
+    async function handleLogout() {
+        const impersonationExit = isImpersonating;
+        await logout();
+        navigate(impersonationExit ? '/dashboard' : '/');
+    }
+
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+                <DashboardMobileNavigation
+                    isImpersonating={isImpersonating}
+                    onLogout={handleLogout}
+                    sectionContextLabel="My Directory"
+                    sectionLabel={sectionLabel}
+                    user={user}
+                />
                 <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
                     <header className="mb-6 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>

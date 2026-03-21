@@ -66,51 +66,110 @@ function escapeSvgText(value) {
         .replace(/>/g, '&gt;');
 }
 
-export function createSavedPlacePinIcon(count = 0, selected = false) {
+export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone = 'saved' } = {}) {
     const label = count > 99 ? '99+' : String(Math.max(0, count));
-    const fill = selected ? '#0b6d70' : '#14b8a6';
-    const stroke = selected ? '#0f3f42' : '#ffffff';
-    const shadow = selected
-        ? 'drop-shadow(0 8px 14px rgba(11,109,112,0.38))'
-        : 'drop-shadow(0 6px 12px rgba(15,163,154,0.28))';
+    const isPrimary = emphasis === 'primary';
+    const isRelated = emphasis === 'related';
+    const isTemporary = tone === 'temporary';
+    const outerFill = isTemporary
+        ? (isPrimary ? '#d97706' : isRelated ? '#f59e0b' : '#f2a43a')
+        : (isPrimary ? '#109f95' : isRelated ? '#22c7bb' : '#17b6ab');
+    const outerStroke = isPrimary ? '#f8ffff' : '#ffffff';
+    const outlineShadow = isPrimary
+        ? (isTemporary ? '0 14px 26px rgba(146, 64, 14, 0.34)' : '0 14px 26px rgba(10, 102, 105, 0.34)')
+        : isRelated
+            ? (isTemporary ? '0 10px 20px rgba(146, 64, 14, 0.24)' : '0 10px 20px rgba(15, 118, 110, 0.26)')
+            : (isTemporary ? '0 6px 14px rgba(146, 64, 14, 0.18)' : '0 6px 14px rgba(15, 118, 110, 0.24)');
+    const badgeShadow = isPrimary
+        ? (isTemporary ? '0 7px 16px rgba(120, 53, 15, 0.28)' : '0 7px 16px rgba(13, 53, 61, 0.32)')
+        : isRelated
+            ? (isTemporary ? '0 5px 12px rgba(120, 53, 15, 0.22)' : '0 5px 12px rgba(13, 53, 61, 0.24)')
+            : (isTemporary ? '0 4px 10px rgba(120, 53, 15, 0.2)' : '0 4px 10px rgba(15, 23, 42, 0.18)');
+    const badgeBg = isTemporary
+        ? (isPrimary ? '#9a3412' : isRelated ? '#b45309' : '#c26b0c')
+        : (isPrimary ? '#0b6d70' : isRelated ? '#0d766f' : '#0f766e');
+    const haloColor = isTemporary
+        ? (isPrimary ? 'rgba(249, 115, 22, 0.38)' : isRelated ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.18)')
+        : (isPrimary ? 'rgba(45, 212, 191, 0.4)' : isRelated ? 'rgba(45, 212, 191, 0.3)' : 'rgba(45, 212, 191, 0.18)');
+    const stateClass = [
+        'saved-place-pin-marker',
+        `saved-place-pin-marker--${tone}`,
+        isPrimary ? 'saved-place-pin-marker--primary' : '',
+        isRelated ? 'saved-place-pin-marker--related' : '',
+    ].filter(Boolean).join(' ');
+    const pinScale = isPrimary ? 1.24 : isRelated ? 1.12 : 1;
+    const pulseBump = isPrimary ? 0.12 : isRelated ? 0.07 : 0;
+    const innerSheen = isTemporary ? '#fff0c2' : '#8ef0e6';
 
     const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="58" viewBox="0 0 48 58" aria-hidden="true">
-            <defs>
-                <filter id="saved-pin-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="rgba(15,23,42,0.2)"/>
-                </filter>
-            </defs>
-            <g filter="url(#saved-pin-shadow)" style="filter:${shadow};">
-                <path
-                    d="M24 2C14.059 2 6 9.961 6 19.78c0 13.32 15.248 27.244 17.114 28.899a1.5 1.5 0 0 0 1.772 0C26.752 47.024 42 33.1 42 19.78 42 9.96 33.941 2 24 2Z"
-                    fill="${fill}"
-                    stroke="${stroke}"
-                    stroke-width="2.5"
-                />
-                <path
-                    d="M24 17.4c-1.73-2.9-6.64-3.59-9.26-.92-2.53 2.58-2.34 6.97.44 9.26l7.74 6.38a1.67 1.67 0 0 0 2.12 0l7.74-6.38c2.78-2.29 2.97-6.68.44-9.26-2.62-2.67-7.53-1.98-9.22.92Z"
-                    fill="#ffffff"
-                />
-                <text
-                    x="24"
-                    y="24.2"
-                    text-anchor="middle"
-                    font-size="${label.length > 2 ? 10 : 12}"
-                    font-weight="800"
-                    font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                    fill="#0b6d70"
-                >${escapeSvgText(label)}</text>
-            </g>
-        </svg>
+        <div
+            class="${stateClass}"
+            style="
+                position:relative;
+                width:31px;
+                height:42px;
+                overflow:visible;
+                pointer-events:none;
+                --saved-pin-scale:${pinScale};
+                --saved-pin-pulse-bump:${pulseBump};
+                --saved-pin-halo-color:${haloColor};
+            "
+        >
+            <div class="saved-place-pin-marker__pin" style="position:absolute;inset:0;z-index:1;display:flex;align-items:flex-start;justify-content:center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="27" height="38" viewBox="0 0 34 48" aria-hidden="true" style="overflow:visible;">
+                    <path
+                        d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
+                        fill="${outerFill}"
+                        stroke="${outerStroke}"
+                        stroke-width="${isPrimary ? 2.45 : isRelated ? 2.25 : 2.15}"
+                        style="filter:drop-shadow(${outlineShadow});"
+                    />
+                    <ellipse cx="13.4" cy="11.4" rx="7.8" ry="5.9" fill="${innerSheen}" opacity="${isPrimary ? '0.34' : isRelated ? '0.28' : '0.22'}" />
+                    <circle cx="17" cy="14.9" r="6.95" fill="#ffffff" opacity="0.98" />
+                    <path
+                        d="M17 12.2c-1.12-1.6-3.88-1.82-5.18-.36-1.29 1.44-.99 3.87.66 5.25L17 20.74l4.52-3.63c1.65-1.38 1.95-3.81.66-5.25-1.3-1.46-4.06-1.24-5.18.36Z"
+                        fill="#f35f68"
+                    />
+                    <path
+                        d="M17 12.2c-1.12-1.6-3.88-1.82-5.18-.36-1.29 1.44-.99 3.87.66 5.25L17 20.74l4.52-3.63c1.65-1.38 1.95-3.81.66-5.25-1.3-1.46-4.06-1.24-5.18.36Z"
+                        fill="none"
+                        stroke="rgba(176,30,49,0.18)"
+                        stroke-width="0.75"
+                    />
+                </svg>
+            </div>
+            <div style="
+                position:absolute;
+                top:-1px;
+                right:-1px;
+                z-index:3;
+                min-width:15px;
+                height:15px;
+                padding:0 4px;
+                border-radius:999px;
+                background:${badgeBg};
+                border:1.25px solid #ffffff;
+                box-shadow:${badgeShadow};
+                color:#ffffff;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-size:${label.length > 2 ? 7.5 : 9}px;
+                line-height:1;
+                font-weight:800;
+                letter-spacing:-0.02em;
+                transform:translate(12%, 6%);
+                font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            ">${escapeSvgText(label)}</div>
+        </div>
     `;
 
     return L.divIcon({
         className: '',
         html: svg,
-        iconSize: [48, 58],
-        iconAnchor: [24, 52],
-        popupAnchor: [0, -48],
-        tooltipAnchor: [0, -42],
+        iconSize: [31, 42],
+        iconAnchor: [15, 37],
+        popupAnchor: [0, -34],
+        tooltipAnchor: [0, -30],
     });
 }

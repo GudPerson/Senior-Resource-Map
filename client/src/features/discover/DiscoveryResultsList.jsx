@@ -8,17 +8,22 @@ export function DiscoveryResultsList({
     isDesktop = false,
     loading,
     mobileCardDensity = 'comfortable',
+    onCardHoverEnd,
+    onCardHoverStart,
+    onCardLockOnMap,
     onCategoryClick,
     onFocusAssetOnMap,
     onTagClick,
     savedMapAssetKeys = new Set(),
-    selectedAsset,
+    scrollContainerRef = null,
+    selectedAssetKey = null,
     subCatColors,
 }) {
     const isCompactMobile = !isDesktop && mobileCardDensity === 'compact';
 
     return (
         <div
+            ref={scrollContainerRef}
             className={`relative flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 lg:p-5 ${isDesktop ? 'pb-20' : 'pb-28'} scroll-smooth hide-scrollbar`}
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
@@ -51,18 +56,24 @@ export function DiscoveryResultsList({
                             className="mobile-card-enter"
                             style={{ animationDelay: `${index * 0.04}s` }}
                         >
-                            {isDesktop ? (
-                                <AssetCard
-                                    asset={resource}
-                                    type={resource._type}
-                                    isSelected={selectedAsset?.id === resource.id && selectedAsset?._type === resource._type}
-                                    onLocationClick={savedMapAssetKeys.has(buildSavedAssetKey(resource._type, resource.id))
-                                        ? () => onFocusAssetOnMap(resource)
-                                        : undefined}
-                                    subCatColors={subCatColors}
-                                    onTagClick={onTagClick}
-                                    onCategoryClick={onCategoryClick}
-                                />
+                            {(() => {
+                                const assetKey = buildSavedAssetKey(resource._type, resource.id);
+                                const isMapLinked = savedMapAssetKeys.has(assetKey);
+
+                                return isDesktop ? (
+                                    <AssetCard
+                                        asset={resource}
+                                        type={resource._type}
+                                        isSelected={selectedAssetKey === assetKey}
+                                        onCardClickAction={isMapLinked ? () => onCardLockOnMap?.(resource) : undefined}
+                                        onCardHoverStart={isMapLinked ? () => onCardHoverStart?.(resource) : undefined}
+                                        onCardHoverEnd={isMapLinked ? onCardHoverEnd : undefined}
+                                        onLocationClick={() => onFocusAssetOnMap?.(resource)}
+                                        showDetailsButton={false}
+                                        subCatColors={subCatColors}
+                                        onTagClick={onTagClick}
+                                        onCategoryClick={onCategoryClick}
+                                    />
                                 ) : (
                                     <DiscoveryMobileBrowseCard
                                         asset={resource}
@@ -71,7 +82,8 @@ export function DiscoveryResultsList({
                                         onCategoryClick={onCategoryClick}
                                         subCatColors={subCatColors}
                                     />
-                                )}
+                                );
+                            })()}
                         </div>
                     ))}
                 </div>

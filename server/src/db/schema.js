@@ -162,10 +162,15 @@ export const myMaps = pgTable('my_maps', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  isShared: boolean('is_shared').notNull().default(false),
+  shareToken: varchar('share_token', { length: 64 }),
+  shareUpdatedAt: timestamp('share_updated_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   userIdx: index('my_maps_user_idx').on(table.userId),
+  shareTokenUnique: uniqueIndex('my_maps_share_token_unique').on(table.shareToken),
 }));
 
 export const myMapAssets = pgTable('my_map_assets', {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Columns2, LocateFixed, MapPin, Rows3, Search, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, Columns2, LocateFixed, MapPin, Rows3, Search, SlidersHorizontal, Menu } from 'lucide-react';
 import { Drawer } from 'vaul';
 
 import DiscoveryModeToggle from './DiscoveryModeToggle.jsx';
@@ -505,6 +505,7 @@ export function DiscoveryFilterPanel(props) {
         onChangeMobileCardDensity,
         onCollapse,
         onExpand,
+        onOpenMobileBrowseDrawer,
         onSearchChange,
         pinCount = 0,
         postalInput,
@@ -672,15 +673,30 @@ export function DiscoveryFilterPanel(props) {
                                 background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(231,248,244,0.94) 100%)',
                             }}
                         >
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                Saved map
-                            </p>
-                            <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                Showing {pinCount} saved {pinCount === 1 ? 'place' : 'places'}
-                            </p>
-                            <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                Only places represented by your saved assets appear on this map.
-                            </p>
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                                        Saved map
+                                    </p>
+                                    <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+                                        Showing {pinCount} saved {pinCount === 1 ? 'place' : 'places'}
+                                    </p>
+                                    <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
+                                        Only places represented by your saved assets appear on this map.
+                                    </p>
+                                </div>
+                                {onOpenMobileBrowseDrawer ? (
+                                    <button
+                                        type="button"
+                                        onClick={onOpenMobileBrowseDrawer}
+                                        className="btn-ghost shrink-0 px-3 py-2 text-[13px] leading-none whitespace-nowrap"
+                                        aria-label="Open browse results drawer"
+                                    >
+                                        <Menu size={15} />
+                                        Browse
+                                    </button>
+                                ) : null}
+                            </div>
                             {savedAssetCount > 0 && unmappableSavedCount > 0 ? (
                                 <p className="mt-2 text-[12px] font-medium leading-5" style={{ color: 'var(--color-text-muted)' }}>
                                     {unmappableSavedCount} saved {unmappableSavedCount === 1 ? 'asset is' : 'assets are'} list-only right now and not shown on the map.

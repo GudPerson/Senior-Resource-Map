@@ -34,10 +34,18 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+                    share_token VARCHAR(64),
+                    share_updated_at TIMESTAMP,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS description TEXT`);
+            await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE`);
+            await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_token VARCHAR(64)`);
+            await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_updated_at TIMESTAMP`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_assets (
                     id SERIAL PRIMARY KEY,
@@ -153,6 +161,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_parents_external_key_unique ON soft_asset_parents (external_key) WHERE external_key IS NOT NULL`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_favorites_user_resource_unique ON user_favorites (user_id, resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_maps_user_idx ON my_maps (user_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_maps_share_token_unique ON my_maps (share_token) WHERE share_token IS NOT NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_assets_map_idx ON my_map_assets (map_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_assets_map_resource_unique ON my_map_assets (map_id, resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zone_postal_codes_zone_idx ON audience_zone_postal_codes (audience_zone_id)`);

@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
+import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
@@ -9,7 +11,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
 import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
-import { DiscoveryInspector } from '../features/discover/DiscoveryInspector.jsx';
+import DesktopSavedPlaceDetailPanel from '../features/discover/DesktopSavedPlaceDetailPanel.jsx';
 import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
@@ -31,23 +33,24 @@ function withTimeout(promise, fallback, timeoutMs = 8000) {
     ]);
 }
 
-function getZoomForRadius(searchRadius) {
-    if (searchRadius <= 0.3) return 17;
-    if (searchRadius <= 0.5) return 16;
-    if (searchRadius <= 1) return 15;
-    if (searchRadius <= 2) return 14;
-    return 13;
-}
-
-function buildDisplayLocationFromPin(pin) {
-    return {
-        id: pin.locationId || pin.placeId || pin.pinKey,
-        name: pin.title,
-        address: pin.address,
-        lat: pin.lat,
-        lng: pin.lng,
+function createFocusRequestIdGenerator() {
+    let current = 0;
+    return () => {
+        current += 1;
+        return current;
     };
 }
+
+const nextFocusRequestId = createFocusRequestIdGenerator();
+const SAVED_PIN_FOCUS_ZOOM = 18;
+const MOBILE_PIN_DRAWER_MAX_WIDTH = 360;
+const MOBILE_PIN_DRAWER_WIDTH_RATIO = 0.8;
+const MOBILE_PIN_DRAWER_POINTER_SIZE = 26;
+const MOBILE_PIN_DRAWER_POINTER_VERTICAL_RATIO = 0.62;
+const MOBILE_PIN_DRAWER_POINTER_GAP = 6;
+const MOBILE_PIN_VISUAL_CENTER_OFFSET_X = 2;
+const MOBILE_PIN_VISUAL_CENTER_OFFSET_Y = 22;
+const MOBILE_PIN_POINTER_LIFT_Y = 8;
 
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
@@ -57,22 +60,34 @@ export default function DiscoverPage() {
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-    const [selectedMarkerKey, setSelectedMarkerKey] = useState(null);
-    const [selectedAsset, setSelectedAsset] = useState(null);
-    const [activeTooltipKey, setActiveTooltipKey] = useState(null);
+    const [desktopPaneMode, setDesktopPaneMode] = useState('browse');
+    const [selectedPlacePinKey, setSelectedPlacePinKey] = useState(null);
+    const [hoveredPinKeys, setHoveredPinKeys] = useState([]);
+    const [hoveredPrimaryPinKey, setHoveredPrimaryPinKey] = useState(null);
+    const [hoveredMapPinKey, setHoveredMapPinKey] = useState(null);
+    const [lockedPinKeys, setLockedPinKeys] = useState([]);
+    const [lockedPrimaryPinKey, setLockedPrimaryPinKey] = useState(null);
+    const [lockedAssetKey, setLockedAssetKey] = useState(null);
+    const [transientPlacePins, setTransientPlacePins] = useState([]);
+    const [transientPrimaryPinKey, setTransientPrimaryPinKey] = useState(null);
+    const [transientFocusAssetKey, setTransientFocusAssetKey] = useState(null);
+    const [mapFocusRequest, setMapFocusRequest] = useState(null);
     const [mobileMode, setMobileMode] = useState('browse');
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
+    const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
+    const [mobileMapViewport, setMobileMapViewport] = useState(null);
 
     const navigate = useNavigate();
-    const tooltipCloseTimeoutRef = useRef(null);
+    const resultsListRef = useRef(null);
+    const lastBrowseScrollTopRef = useRef(0);
+    const mobileMapViewportRef = useRef(null);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const { isDragging, listWidth, startDragging } = useSplitPaneResize(450);
     const { user, isAuth } = useAuth();
     const { savedAssets, savedAssetsLoading } = useSavedAssets();
     const {
         clearLocationSearch,
-        flyTarget,
         handleLocateMe,
         handlePostalSearch,
         isGeocoding,
@@ -80,18 +95,10 @@ export default function DiscoverPage() {
         postalInput,
         searchOrigin,
         searchRadius,
-        setFlyTarget,
         setPostalInput,
         setSearchRadius,
         userLocation,
     } = useDiscoveryLocation(hardAssets);
-
-    const assetLookup = useMemo(() => {
-        const lookup = new Map();
-        hardAssets.forEach((asset) => lookup.set(`hard-${asset.id}`, { ...asset, _type: 'hard' }));
-        softAssets.forEach((asset) => lookup.set(`soft-${asset.id}`, { ...asset, _type: 'soft' }));
-        return lookup;
-    }, [hardAssets, softAssets]);
 
     useEffect(() => {
         let isActive = true;
@@ -130,23 +137,14 @@ export default function DiscoverPage() {
         };
     }, []);
 
-    useEffect(() => () => {
-        if (tooltipCloseTimeoutRef.current) {
-            clearTimeout(tooltipCloseTimeoutRef.current);
-        }
-    }, []);
-
     useEffect(() => {
         if (!isDesktop) {
             setIsSearchPanelCollapsed(false);
+            setDesktopPaneMode('browse');
+            setSelectedPlacePinKey(null);
+            setHoveredMapPinKey(null);
         }
     }, [isDesktop]);
-
-    useEffect(() => {
-        if (selectedAsset && isDesktop) {
-            setIsSearchPanelCollapsed(true);
-        }
-    }, [isDesktop, selectedAsset]);
 
     useEffect(() => {
         if (searchOrigin && isDesktop) {
@@ -168,24 +166,10 @@ export default function DiscoverPage() {
 
     const visibleHardAssets = useMemo(() => hardAssets.filter(isPubliclyVisible), [hardAssets, isPubliclyVisible]);
     const visibleSoftAssets = useMemo(() => softAssets.filter(isPubliclyVisible), [isPubliclyVisible, softAssets]);
-
-    const keepTooltipOpen = useCallback((markerKey) => {
-        if (tooltipCloseTimeoutRef.current) {
-            clearTimeout(tooltipCloseTimeoutRef.current);
-        }
-        setActiveTooltipKey(markerKey);
-    }, []);
-
-    const scheduleTooltipClose = useCallback((markerKey) => {
-        if (tooltipCloseTimeoutRef.current) {
-            clearTimeout(tooltipCloseTimeoutRef.current);
-        }
-
-        tooltipCloseTimeoutRef.current = setTimeout(() => {
-            setActiveTooltipKey((current) => (current === markerKey ? null : current));
-            tooltipCloseTimeoutRef.current = null;
-        }, 180);
-    }, []);
+    const visibleHardAssetLookup = useMemo(
+        () => new Map(visibleHardAssets.map((asset) => [asset.id, asset])),
+        [visibleHardAssets]
+    );
 
     const combined = useMemo(() => {
         const items = [];
@@ -257,6 +241,10 @@ export default function DiscoverPage() {
         () => new Map(savedPlacePins.map((pin) => [pin.pinKey, pin])),
         [savedPlacePins]
     );
+    const selectedPlacePin = useMemo(
+        () => (selectedPlacePinKey ? savedPlacePinLookup.get(selectedPlacePinKey) || null : null),
+        [selectedPlacePinKey, savedPlacePinLookup]
+    );
     const savedMapAssetKeys = useMemo(
         () => new Set(savedPlacePinData.contributingAssetKeys),
         [savedPlacePinData.contributingAssetKeys]
@@ -265,112 +253,530 @@ export default function DiscoverPage() {
     const savedAssetCount = savedAssets.length;
     const unmappableSavedCount = savedPlacePinData.unmappableSavedAssetKeys.size;
 
+    const hasTransientFocusPins = transientPlacePins.length > 0;
+
     useEffect(() => {
-        if (!isDesktop && !hasSavedMapPins && mobileMode === 'map') {
+        if (!isDesktop && !hasSavedMapPins && !hasTransientFocusPins && mobileMode === 'map') {
             setMobileMode('browse');
         }
-    }, [hasSavedMapPins, isDesktop, mobileMode]);
+    }, [hasSavedMapPins, hasTransientFocusPins, isDesktop, mobileMode]);
 
     useEffect(() => {
-        if (selectedMarkerKey && !savedPlacePinLookup.has(selectedMarkerKey)) {
-            setSelectedMarkerKey(null);
-            setSelectedAsset(null);
-            setActiveTooltipKey(null);
+        if (isDesktop || mobileMode !== 'map') {
+            setMobileBrowseDrawerOpen(false);
         }
-    }, [savedPlacePinLookup, selectedMarkerKey]);
+    }, [isDesktop, mobileMode]);
 
-    const buildSelectedAssetFromPin = useCallback((pin) => {
-        if (!pin) return null;
-
-        if (pin.placeAsset) {
-            return {
-                ...pin.placeAsset,
-                _type: 'hard',
-                _displayLocation: buildDisplayLocationFromPin(pin),
-            };
+    useEffect(() => {
+        if (isDesktop || mobileMode !== 'map') {
+            setMobileMapViewport(null);
+            return undefined;
         }
 
-        const primarySavedAsset = pin.primarySavedAsset;
-        if (!primarySavedAsset?.liveAsset) {
-            return null;
-        }
+        const node = mobileMapViewportRef.current;
+        if (!node) return undefined;
 
-        if (primarySavedAsset.resourceType === 'soft') {
-            return {
-                ...primarySavedAsset.liveAsset,
-                _type: 'soft',
-                _displayLocation: buildDisplayLocationFromPin(pin),
-            };
-        }
-
-        return {
-            ...primarySavedAsset.liveAsset,
-            _type: 'hard',
-            _displayLocation: buildDisplayLocationFromPin(pin),
+        const updateViewport = () => {
+            const rect = node.getBoundingClientRect();
+            setMobileMapViewport({
+                top: rect.top,
+                height: rect.height,
+                width: rect.width,
+            });
         };
-    }, []);
 
-    const resolveSavedPinForAsset = useCallback((asset, preferredLocation = null) => {
+        updateViewport();
+
+        const resizeObserver = new ResizeObserver(updateViewport);
+        resizeObserver.observe(node);
+        window.addEventListener('resize', updateViewport);
+
+        return () => {
+            resizeObserver.disconnect();
+            window.removeEventListener('resize', updateViewport);
+        };
+    }, [isDesktop, mobileMode]);
+
+    useEffect(() => {
+        if (!isDesktop && mobileMode !== 'map' && selectedPlacePinKey) {
+            setSelectedPlacePinKey(null);
+        }
+    }, [isDesktop, mobileMode, selectedPlacePinKey]);
+
+    useEffect(() => {
+        if (selectedPlacePinKey && !savedPlacePinLookup.has(selectedPlacePinKey)) {
+            setSelectedPlacePinKey(null);
+            setDesktopPaneMode('browse');
+            setHoveredMapPinKey(null);
+        }
+    }, [savedPlacePinLookup, selectedPlacePinKey]);
+
+    useEffect(() => {
+        setHoveredPinKeys((current) => current.filter((pinKey) => savedPlacePinLookup.has(pinKey)));
+        setLockedPinKeys((current) => current.filter((pinKey) => savedPlacePinLookup.has(pinKey)));
+        if (hoveredPrimaryPinKey && !savedPlacePinLookup.has(hoveredPrimaryPinKey)) {
+            setHoveredPrimaryPinKey(null);
+        }
+        if (lockedPrimaryPinKey && !savedPlacePinLookup.has(lockedPrimaryPinKey)) {
+            setLockedPrimaryPinKey(null);
+        }
+        if (hoveredMapPinKey && !savedPlacePinLookup.has(hoveredMapPinKey)) {
+            setHoveredMapPinKey(null);
+        }
+    }, [hoveredMapPinKey, hoveredPrimaryPinKey, lockedPrimaryPinKey, savedPlacePinLookup]);
+
+    useEffect(() => {
+        if (!lockedAssetKey) return;
+        const stillExists = savedMapAssetKeys.has(lockedAssetKey);
+        if (!stillExists) {
+            setLockedAssetKey(null);
+            setLockedPinKeys([]);
+            setLockedPrimaryPinKey(null);
+        }
+    }, [lockedAssetKey, savedMapAssetKeys]);
+
+    useEffect(() => {
+        if (!isDesktop || desktopPaneMode !== 'browse') return;
+
+        const frameId = window.requestAnimationFrame(() => {
+            if (resultsListRef.current) {
+                resultsListRef.current.scrollTop = lastBrowseScrollTopRef.current;
+            }
+        });
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, [desktopPaneMode, isDesktop]);
+
+    const resolveSavedPinForAsset = useCallback((asset) => {
         if (!asset) return null;
         const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
         const assetKey = buildSavedAssetKey(normalizedAsset._type, normalizedAsset.id);
         const pinKeys = savedPlacePinData.assetToPinKeys.get(assetKey);
 
-        if (!pinKeys || pinKeys.length === 0) {
+        if (!pinKeys?.length) {
             return null;
-        }
-
-        if (preferredLocation) {
-            const preferredPinKey = resolveSavedPlaceKey({
-                hardAssetId: normalizedAsset._type === 'hard' ? normalizedAsset.id : preferredLocation.id,
-                locationId: normalizedAsset._type === 'soft' ? preferredLocation.id : normalizedAsset.id,
-                lat: normalizedAsset._type === 'hard' ? normalizedAsset.lat : preferredLocation.lat,
-                lng: normalizedAsset._type === 'hard' ? normalizedAsset.lng : preferredLocation.lng,
-            });
-
-            if (preferredPinKey && savedPlacePinLookup.has(preferredPinKey)) {
-                return savedPlacePinLookup.get(preferredPinKey);
-            }
         }
 
         return savedPlacePinLookup.get(pinKeys[0]) || null;
     }, [savedPlacePinData.assetToPinKeys, savedPlacePinLookup]);
 
-    const handleSelectSavedPin = useCallback((pin, options = {}) => {
-        if (!pin) {
-            setSelectedMarkerKey(null);
-            setSelectedAsset(null);
-            return;
+    const resolveSavedPinKeysForAsset = useCallback((asset) => {
+        if (!asset) return [];
+        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
+        const assetKey = buildSavedAssetKey(normalizedAsset._type, normalizedAsset.id);
+        return savedPlacePinData.assetToPinKeys.get(assetKey) || [];
+    }, [savedPlacePinData.assetToPinKeys]);
+
+    const createSinglePinFocusRequest = useCallback((pin, source = 'address-click', options = {}) => ({
+        kind: 'single-pin',
+        requestId: nextFocusRequestId(),
+        pinKey: pin.pinKey,
+        lat: pin.lat,
+        lng: pin.lng,
+        offsetPx: options.offsetPx || null,
+        zoom: SAVED_PIN_FOCUS_ZOOM,
+        source,
+    }), []);
+
+    const mobileDetailDrawerWidth = useMemo(() => (
+        typeof window !== 'undefined'
+            ? Math.min(Math.round(window.innerWidth * MOBILE_PIN_DRAWER_WIDTH_RATIO), MOBILE_PIN_DRAWER_MAX_WIDTH)
+            : 320
+    ), []);
+
+    const mobileDetailGeometry = useMemo(() => {
+        const drawerTop = typeof window !== 'undefined' && window.innerWidth >= 640 ? 64 : 56;
+        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
+        const mapTop = mobileMapViewport?.top ?? drawerTop;
+        const mapHeight = mobileMapViewport?.height ?? Math.max(320, (typeof window !== 'undefined' ? window.innerHeight : 844) - drawerTop);
+        const mapCenterY = mapTop + (mapHeight / 2);
+        const pointerTargetY = mapTop + (mapHeight * MOBILE_PIN_DRAWER_POINTER_VERTICAL_RATIO);
+        const pointerTargetX = Math.min(
+            viewportWidth - 28,
+            mobileDetailDrawerWidth + MOBILE_PIN_DRAWER_POINTER_SIZE + MOBILE_PIN_DRAWER_POINTER_GAP
+        );
+
+        return {
+            offsetX: Math.round((pointerTargetX + MOBILE_PIN_VISUAL_CENTER_OFFSET_X) - (viewportWidth / 2)),
+            offsetY: Math.round((pointerTargetY + MOBILE_PIN_VISUAL_CENTER_OFFSET_Y) - mapCenterY),
+            pointerTopPx: Math.round(pointerTargetY - drawerTop - MOBILE_PIN_POINTER_LIFT_Y),
+        };
+    }, [mobileDetailDrawerWidth, mobileMapViewport]);
+
+    const getMobilePinDrawerOffset = useCallback(() => {
+        return {
+            x: mobileDetailGeometry.offsetX,
+            y: mobileDetailGeometry.offsetY,
+        };
+    }, [mobileDetailGeometry]);
+
+    const createPinGroupFocusRequest = useCallback((pinKeys, source = 'address-click') => {
+        const points = pinKeys
+            .map((pinKey) => savedPlacePinLookup.get(pinKey))
+            .filter(Boolean)
+            .map((pin) => [pin.lat, pin.lng]);
+
+        if (!points.length) return null;
+
+        return {
+            kind: 'pin-group',
+            requestId: nextFocusRequestId(),
+            pinKeys,
+            points,
+            maxZoom: SAVED_PIN_FOCUS_ZOOM,
+            source,
+        };
+    }, [savedPlacePinLookup]);
+
+    const createPointGroupFocusRequest = useCallback((pins, source = 'address-click') => {
+        const points = pins
+            .filter(Boolean)
+            .map((pin) => [pin.lat, pin.lng]);
+
+        if (!points.length) return null;
+
+        return {
+            kind: 'pin-group',
+            requestId: nextFocusRequestId(),
+            pinKeys: pins.map((pin) => pin.pinKey),
+            points,
+            maxZoom: SAVED_PIN_FOCUS_ZOOM,
+            source,
+        };
+    }, []);
+
+    const createSavedFitFocusRequest = useCallback((source = 'detail-close') => ({
+        kind: 'saved-fit',
+        requestId: nextFocusRequestId(),
+        savedPlacePins,
+        source,
+    }), [savedPlacePins]);
+
+    const saveBrowseScrollPosition = useCallback(() => {
+        if (resultsListRef.current) {
+            lastBrowseScrollTopRef.current = resultsListRef.current.scrollTop;
+        }
+    }, []);
+
+    const clearHoveredCardState = useCallback(() => {
+        setHoveredPinKeys([]);
+        setHoveredPrimaryPinKey(null);
+    }, []);
+
+    const clearLockedCardState = useCallback(() => {
+        setLockedAssetKey(null);
+        setLockedPinKeys([]);
+        setLockedPrimaryPinKey(null);
+    }, []);
+
+    const clearTransientFocusState = useCallback(() => {
+        setTransientPlacePins([]);
+        setTransientPrimaryPinKey(null);
+        setTransientFocusAssetKey(null);
+    }, []);
+
+    useEffect(() => {
+        if (!transientFocusAssetKey) return;
+        if (savedMapAssetKeys.has(transientFocusAssetKey)) {
+            clearTransientFocusState();
+        }
+    }, [clearTransientFocusState, savedMapAssetKeys, transientFocusAssetKey]);
+
+    const buildTransientPlacePinsForAsset = useCallback((asset) => {
+        if (!asset) {
+            return { assetKey: null, pins: [], primaryPinKey: null };
         }
 
-        const { focusMap = true, openTooltip = true } = options;
-        const nextSelectedAsset = buildSelectedAssetFromPin(pin);
+        const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
+        const assetKey = buildSavedAssetKey(normalizedAsset._type, normalizedAsset.id);
 
-        setSelectedMarkerKey(pin.pinKey);
-        setSelectedAsset(nextSelectedAsset);
-        if (openTooltip) {
-            setActiveTooltipKey(pin.pinKey);
+        if (normalizedAsset._type === 'hard') {
+            if (!hasValidCoordinates(normalizedAsset)) {
+                return { assetKey, pins: [], primaryPinKey: null };
+            }
+
+            const pinKey = `transient-${assetKey}`;
+            return {
+                assetKey,
+                primaryPinKey: pinKey,
+                pins: [
+                    {
+                        pinKey,
+                        title: normalizedAsset.name,
+                        address: normalizedAsset.address || null,
+                        lat: Number.parseFloat(normalizedAsset.lat),
+                        lng: Number.parseFloat(normalizedAsset.lng),
+                        totalOfferingsCount: Math.max(1, Array.isArray(normalizedAsset.softAssets) ? normalizedAsset.softAssets.length : 0),
+                        tone: 'temporary',
+                        isTransient: true,
+                    },
+                ],
+            };
         }
 
-        if (focusMap && Number.isFinite(pin.lat) && Number.isFinite(pin.lng)) {
-            setFlyTarget({ lat: pin.lat, lng: pin.lng, zoom: getZoomForRadius(searchRadius) });
-        }
-    }, [buildSelectedAssetFromPin, searchRadius, setFlyTarget]);
+        const orderedLocations = [...getAssetLocations(normalizedAsset)]
+            .filter(hasValidCoordinates)
+            .sort((left, right) => {
+                if (!userLocation) return 0;
+                const leftDistance = getDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    Number.parseFloat(left.lat),
+                    Number.parseFloat(left.lng),
+                );
+                const rightDistance = getDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    Number.parseFloat(right.lat),
+                    Number.parseFloat(right.lng),
+                );
+                return leftDistance - rightDistance;
+            });
 
-    const handleFocusAssetOnMap = useCallback((asset, preferredLocation = null) => {
-        const targetPin = resolveSavedPinForAsset(asset, preferredLocation);
-        if (!targetPin) return;
+        if (!orderedLocations.length) {
+            return { assetKey, pins: [], primaryPinKey: null };
+        }
+
+        const pins = orderedLocations.map((location, index) => {
+            const placeAsset = Number.isInteger(location?.id)
+                ? visibleHardAssetLookup.get(location.id) || location
+                : location;
+            const resolvedPlaceKey = resolveSavedPlaceKey({
+                hardAssetId: Number.isInteger(placeAsset?.id) ? placeAsset.id : null,
+                locationId: Number.isInteger(location?.id) ? location.id : null,
+                lat: location.lat,
+                lng: location.lng,
+            }) || `${assetKey}-${index}`;
+
+            return {
+                pinKey: `transient-${assetKey}-${resolvedPlaceKey}`,
+                title: placeAsset?.name || location.name || normalizedAsset.name,
+                address: placeAsset?.address || location.address || normalizedAsset.address || null,
+                lat: Number.parseFloat(location.lat),
+                lng: Number.parseFloat(location.lng),
+                totalOfferingsCount: Math.max(1, Array.isArray(placeAsset?.softAssets) ? placeAsset.softAssets.length : 0),
+                tone: 'temporary',
+                isTransient: true,
+            };
+        });
+
+        return {
+            assetKey,
+            pins,
+            primaryPinKey: pins[0]?.pinKey || null,
+        };
+    }, [userLocation, visibleHardAssetLookup]);
+
+    const handleHoverAssetOnMap = useCallback((asset) => {
+        const pinKeys = resolveSavedPinKeysForAsset(asset);
+        if (!pinKeys.length) return;
+
+        const primaryPin = resolveSavedPinForAsset(asset);
+        setHoveredPinKeys(pinKeys);
+        setHoveredPrimaryPinKey(primaryPin?.pinKey || pinKeys[0] || null);
+    }, [resolveSavedPinForAsset, resolveSavedPinKeysForAsset]);
+
+    const handleClearHoveredAssetOnMap = useCallback(() => {
+        clearHoveredCardState();
+    }, [clearHoveredCardState]);
+
+    const handleLockAssetOnMap = useCallback((asset) => {
+        const pinKeys = resolveSavedPinKeysForAsset(asset);
+        if (!pinKeys.length) return;
+
+        const primaryPin = resolveSavedPinForAsset(asset);
+        clearHoveredCardState();
+        clearTransientFocusState();
+        setHoveredMapPinKey(null);
+        setDesktopPaneMode('browse');
+        setSelectedPlacePinKey(null);
+        setLockedAssetKey(buildSavedAssetKey(asset._type, asset.id));
+        setLockedPinKeys(pinKeys);
+        setLockedPrimaryPinKey(primaryPin?.pinKey || pinKeys[0] || null);
+    }, [clearHoveredCardState, clearTransientFocusState, resolveSavedPinForAsset, resolveSavedPinKeysForAsset]);
+
+    const handleFocusAssetOnMap = useCallback((asset) => {
+        const pinKeys = resolveSavedPinKeysForAsset(asset);
 
         if (!isDesktop) {
             setMobileMode('map');
         }
 
-        handleSelectSavedPin(targetPin, { focusMap: true, openTooltip: true });
-    }, [handleSelectSavedPin, isDesktop, resolveSavedPinForAsset]);
+        clearHoveredCardState();
+        setHoveredMapPinKey(null);
+        setDesktopPaneMode('browse');
+        setSelectedPlacePinKey(null);
+        if (pinKeys.length) {
+            const primaryPin = resolveSavedPinForAsset(asset);
+            if (!primaryPin) return;
 
-    const handleMapSelect = useCallback((pin) => {
-        handleSelectSavedPin(pin, { focusMap: false, openTooltip: true });
-    }, [handleSelectSavedPin]);
+            clearTransientFocusState();
+            setLockedAssetKey(buildSavedAssetKey(asset._type, asset.id));
+            setLockedPinKeys(pinKeys);
+            setLockedPrimaryPinKey(primaryPin.pinKey);
+
+            if (pinKeys.length === 1) {
+                setMapFocusRequest(createSinglePinFocusRequest(primaryPin, 'address-click'));
+                return;
+            }
+
+            const groupFocus = createPinGroupFocusRequest(pinKeys, 'address-click');
+            if (groupFocus) {
+                setMapFocusRequest(groupFocus);
+            }
+            return;
+        }
+
+        const { assetKey, pins, primaryPinKey } = buildTransientPlacePinsForAsset(asset);
+        if (!pins.length) return;
+
+        clearLockedCardState();
+        setTransientFocusAssetKey(assetKey);
+        setTransientPlacePins(pins);
+        setTransientPrimaryPinKey(primaryPinKey);
+
+        if (pins.length === 1) {
+            setMapFocusRequest(createSinglePinFocusRequest(pins[0], 'address-click'));
+            return;
+        }
+
+        const groupFocus = createPointGroupFocusRequest(pins, 'address-click');
+        if (groupFocus) {
+            setMapFocusRequest(groupFocus);
+        }
+    }, [
+        buildTransientPlacePinsForAsset,
+        clearHoveredCardState,
+        clearLockedCardState,
+        clearTransientFocusState,
+        createPointGroupFocusRequest,
+        createPinGroupFocusRequest,
+        createSinglePinFocusRequest,
+        isDesktop,
+        resolveSavedPinForAsset,
+        resolveSavedPinKeysForAsset,
+    ]);
+
+    const handleMapPinSelect = useCallback((pin) => {
+        clearHoveredCardState();
+        clearLockedCardState();
+        clearTransientFocusState();
+        setHoveredMapPinKey(null);
+        setSelectedPlacePinKey(pin.pinKey);
+
+        if (isDesktop) {
+            saveBrowseScrollPosition();
+            setDesktopPaneMode('detail');
+            setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click'));
+            return;
+        }
+
+        setMobileBrowseDrawerOpen(false);
+        setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click', { offsetPx: getMobilePinDrawerOffset() }));
+    }, [
+        clearHoveredCardState,
+        clearLockedCardState,
+        clearTransientFocusState,
+        createSinglePinFocusRequest,
+        getMobilePinDrawerOffset,
+        isDesktop,
+        saveBrowseScrollPosition,
+    ]);
+
+    const handleCloseDetailMode = useCallback(() => {
+        setDesktopPaneMode('browse');
+        setSelectedPlacePinKey(null);
+        setHoveredMapPinKey(null);
+        clearTransientFocusState();
+    }, [clearTransientFocusState]);
+
+    const handleCloseMobileDetail = useCallback(() => {
+        setSelectedPlacePinKey(null);
+        setHoveredMapPinKey(null);
+        if (savedPlacePins.length) {
+            setMapFocusRequest(createSavedFitFocusRequest('detail-close'));
+        }
+    }, [createSavedFitFocusRequest, savedPlacePins.length]);
+
+    const handleMapBackgroundClick = useCallback(() => {
+        if (desktopPaneMode === 'detail') {
+            handleCloseDetailMode();
+            return;
+        }
+
+        clearHoveredCardState();
+        clearLockedCardState();
+        clearTransientFocusState();
+        setHoveredMapPinKey(null);
+    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, desktopPaneMode, handleCloseDetailMode]);
+
+    const handleMobileMapBackgroundClick = useCallback(() => {
+        if (selectedPlacePinKey) {
+            handleCloseMobileDetail();
+            return;
+        }
+
+        clearHoveredCardState();
+        clearLockedCardState();
+        clearTransientFocusState();
+        setHoveredMapPinKey(null);
+    }, [
+        clearHoveredCardState,
+        clearLockedCardState,
+        clearTransientFocusState,
+        handleCloseMobileDetail,
+        selectedPlacePinKey,
+    ]);
+
+    const handleMapHoverStart = useCallback((pinKey) => {
+        if (!isDesktop || desktopPaneMode === 'detail') return;
+        setHoveredMapPinKey(pinKey);
+    }, [desktopPaneMode, isDesktop]);
+
+    const handleMapHoverEnd = useCallback((pinKey) => {
+        setHoveredMapPinKey((current) => (current === pinKey ? null : current));
+    }, []);
+
+    const activeRelatedPinKeys = hoveredPinKeys.length ? hoveredPinKeys : lockedPinKeys;
+    const activePrimaryPinKey = hoveredPrimaryPinKey || lockedPrimaryPinKey;
+
+    const pinEmphasisByKey = useMemo(() => {
+        const nextMap = new Map();
+        const relatedPinKeySet = new Set(activeRelatedPinKeys);
+
+        savedPlacePins.forEach((pin) => {
+            let emphasis = 'default';
+
+            if (selectedPlacePinKey === pin.pinKey || (!selectedPlacePinKey && hoveredMapPinKey === pin.pinKey)) {
+                emphasis = 'primary';
+            } else if (activePrimaryPinKey === pin.pinKey) {
+                emphasis = 'primary';
+            } else if (relatedPinKeySet.has(pin.pinKey)) {
+                emphasis = 'related';
+            }
+
+            nextMap.set(pin.pinKey, emphasis);
+        });
+
+        transientPlacePins.forEach((pin) => {
+            const emphasis = transientPrimaryPinKey === pin.pinKey ? 'primary' : 'related';
+            nextMap.set(pin.pinKey, emphasis);
+        });
+
+        return nextMap;
+    }, [
+        activePrimaryPinKey,
+        activeRelatedPinKeys,
+        hoveredMapPinKey,
+        savedPlacePins,
+        selectedPlacePinKey,
+        transientPlacePins,
+        transientPrimaryPinKey,
+    ]);
+
+    const selectedBrowseAssetKey = desktopPaneMode === 'browse' ? lockedAssetKey : null;
 
     const handleApplySearch = useCallback(async (event) => {
         if (postalInput.trim()) {
@@ -404,28 +810,6 @@ export default function DiscoverPage() {
         }
     }, [activeTab, clearLocationSearch, isDesktop, search, showFavoritesOnly, user]);
 
-    const handleOpenResourcePage = useCallback((asset) => {
-        if (!asset) return;
-        navigate(`/resource/${asset._type}/${asset.id}`);
-    }, [navigate]);
-
-    const handleOpenSavedAssetFromMap = useCallback((savedAsset) => {
-        if (!savedAsset) return;
-        navigate(savedAsset.detailPath || `/resource/${savedAsset.resourceType}/${savedAsset.resourceId}`);
-    }, [navigate]);
-
-    const handleOpenPlaceFromMap = useCallback((pin) => {
-        if (pin?.placeDetailPath) {
-            navigate(pin.placeDetailPath);
-            return;
-        }
-
-        const fallbackPath = pin?.primarySavedAsset?.detailPath;
-        if (fallbackPath) {
-            navigate(fallbackPath);
-        }
-    }, [navigate]);
-
     const savedMapEmptyState = (
         <SavedMapEmptyState
             hasSavedAssets={savedAssetCount > 0}
@@ -435,31 +819,22 @@ export default function DiscoverPage() {
         />
     );
 
-    const mapView = hasSavedMapPins ? (
+    const hasRenderableMapPins = hasSavedMapPins || hasTransientFocusPins;
+
+    const mapView = hasRenderableMapPins ? (
         <div className="relative h-full w-full">
             <DiscoveryMap
-                activeTooltipKey={activeTooltipKey}
-                bottomOffsetPx={0}
-                flyTarget={flyTarget}
-                onKeepTooltipOpen={keepTooltipOpen}
-                onOpenAsset={handleOpenSavedAssetFromMap}
-                onOpenPlace={handleOpenPlaceFromMap}
-                onScheduleTooltipClose={scheduleTooltipClose}
-                onSelectPin={handleMapSelect}
+                focusRequest={mapFocusRequest}
+                interactionMode={isDesktop ? 'desktop' : 'mobile'}
+                onBackgroundClick={isDesktop ? handleMapBackgroundClick : handleMobileMapBackgroundClick}
+                onMapHoverEnd={handleMapHoverEnd}
+                onMapHoverStart={handleMapHoverStart}
+                onSelectPin={handleMapPinSelect}
+                pinEmphasisByKey={pinEmphasisByKey}
                 savedPlacePins={savedPlacePins}
-                selectedMarkerKey={selectedMarkerKey}
+                transientPlacePins={transientPlacePins}
                 userLocation={userLocation}
             />
-            {isDesktop ? (
-                <DiscoveryInspector
-                    asset={selectedAsset}
-                    onClose={() => handleSelectSavedPin(null)}
-                    onOpenResourcePage={handleOpenResourcePage}
-                    onTagClick={setSearch}
-                    subCatColors={subCatColors}
-                    userLocation={userLocation}
-                />
-            ) : null}
         </div>
     ) : savedAssetsLoading && isAuth ? (
         <div className="flex h-full items-center justify-center p-6">
@@ -488,6 +863,7 @@ export default function DiscoverPage() {
             onChangeMobileCardDensity={setMobileCardDensity}
             onCollapse={() => setIsSearchPanelCollapsed(true)}
             onExpand={() => setIsSearchPanelCollapsed(false)}
+            onOpenMobileBrowseDrawer={() => setMobileBrowseDrawerOpen(true)}
             onSearchChange={setSearch}
             pinCount={savedPlacePins.length}
             postalInput={postalInput}
@@ -511,18 +887,135 @@ export default function DiscoverPage() {
         <DiscoveryResultsList
             filtered={filtered}
             isDesktop={isDesktop}
-            isSearchPanelCollapsed={isSearchPanelCollapsed}
             loading={loading}
             mobileCardDensity={mobileCardDensity}
-            onChangeMobileCardDensity={setMobileCardDensity}
+            onCardHoverEnd={handleClearHoveredAssetOnMap}
+            onCardHoverStart={handleHoverAssetOnMap}
+            onCardLockOnMap={handleLockAssetOnMap}
             onCategoryClick={setSearch}
             onFocusAssetOnMap={handleFocusAssetOnMap}
             onTagClick={setSearch}
             savedMapAssetKeys={savedMapAssetKeys}
-            selectedAsset={selectedAsset}
+            scrollContainerRef={resultsListRef}
+            selectedAssetKey={selectedBrowseAssetKey}
             subCatColors={subCatColors}
         />
     );
+
+    const desktopLeftPane = desktopPaneMode === 'detail' && selectedPlacePin ? (
+        <DesktopSavedPlaceDetailPanel
+            onBack={handleCloseDetailMode}
+            paneWidth={listWidth}
+            pin={selectedPlacePin}
+            subCatColors={subCatColors}
+            userLocation={userLocation}
+        />
+    ) : (
+        <>
+            {filterPanel}
+            {resultsList}
+        </>
+    );
+
+    const mobileBrowseDrawer = !isDesktop && mobileMode === 'map' ? (
+        <Drawer.Root direction="left" open={mobileBrowseDrawerOpen} onOpenChange={setMobileBrowseDrawerOpen}>
+            <Drawer.Portal>
+                <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35" />
+                <Drawer.Content
+                    className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(88vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px]"
+                    style={{
+                        borderColor: 'var(--color-border)',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
+                    }}
+                >
+                    <div
+                        className="flex items-center justify-between gap-3 border-b px-4 py-3"
+                        style={{ borderColor: 'var(--color-border)' }}
+                    >
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                                Browse Results
+                            </p>
+                            <p className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                                Showing {filtered.length} {filtered.length === 1 ? 'resource' : 'resources'}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMobileBrowseDrawerOpen(false);
+                                    setMobileMode('browse');
+                                }}
+                                className="btn-ghost px-3 py-2 text-xs whitespace-nowrap"
+                            >
+                                Full browse
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMobileBrowseDrawerOpen(false)}
+                                aria-label="Close browse drawer"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-slate-600"
+                                style={{ borderColor: 'var(--color-border)' }}
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        {resultsList}
+                    </div>
+                </Drawer.Content>
+            </Drawer.Portal>
+        </Drawer.Root>
+    ) : null;
+
+    const mobileDetailDrawer = !isDesktop && mobileMode === 'map' && selectedPlacePin ? (
+        <Drawer.Root
+            direction="left"
+            open={Boolean(selectedPlacePin)}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) {
+                    handleCloseMobileDetail();
+                }
+            }}
+        >
+            <Drawer.Portal>
+                <Drawer.Content
+                    className="fixed bottom-0 left-0 top-[56px] z-[600] flex flex-col overflow-visible border-r bg-white shadow-2xl sm:top-[64px]"
+                    style={{
+                        width: `${mobileDetailDrawerWidth}px`,
+                        borderColor: 'var(--color-border)',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.97) 100%)',
+                    }}
+                >
+                    <div
+                        className="pointer-events-none absolute z-[610] -translate-y-1/2 drop-shadow-[10px_0_18px_rgba(15,89,91,0.08)]"
+                        style={{
+                            top: `${mobileDetailGeometry.pointerTopPx}px`,
+                            right: `-${MOBILE_PIN_DRAWER_POINTER_SIZE - 1}px`,
+                            width: `${MOBILE_PIN_DRAWER_POINTER_SIZE}px`,
+                            height: `${MOBILE_PIN_DRAWER_POINTER_SIZE * 2}px`,
+                            backgroundColor: 'rgba(246, 252, 251, 0.97)',
+                            clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
+                            borderTop: '1px solid var(--color-border)',
+                            borderRight: '1px solid var(--color-border)',
+                            borderBottom: '1px solid var(--color-border)',
+                        }}
+                    />
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <DesktopSavedPlaceDetailPanel
+                            onBack={handleCloseMobileDetail}
+                            paneWidth={mobileDetailDrawerWidth}
+                            pin={selectedPlacePin}
+                            subCatColors={subCatColors}
+                            userLocation={userLocation}
+                        />
+                    </div>
+                </Drawer.Content>
+            </Drawer.Portal>
+        </Drawer.Root>
+    ) : null;
 
     return (
         <div
@@ -540,8 +1033,7 @@ export default function DiscoverPage() {
                         backdropFilter: 'blur(18px)',
                     }}
                 >
-                    {filterPanel}
-                    {resultsList}
+                    {desktopLeftPane}
                 </div>
 
                 <div
@@ -557,9 +1049,11 @@ export default function DiscoverPage() {
 
             <div className="flex lg:hidden min-h-0 flex-1 flex-col">
                 {filterPanel}
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div ref={mobileMapViewportRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     {mobileMode === 'browse' ? resultsList : mapView}
                 </div>
+                {mobileBrowseDrawer}
+                {mobileDetailDrawer}
             </div>
 
             {loading ? (

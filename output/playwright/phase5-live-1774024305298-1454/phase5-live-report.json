@@ -1,0 +1,47 @@
+{
+  "deployedUrlTested": "https://927dfd4b.senior-resource-map.pages.dev",
+  "apiUrlTested": "https://senior-resource-map-api.joshuachua79.workers.dev/api",
+  "ownerAccountUsed": "phase5.owner.1774024305298-1454@example.com",
+  "recipientAccountUsed": "phase5.recipient.1774024305298-1454@example.com",
+  "sharedLinkPathTested": null,
+  "overallResult": "fail",
+  "validated": [
+    "owner private directory view",
+    "edit details"
+  ],
+  "unverified": [
+    "Live multi-place soft asset scenario was not auto-detected in the visible seeded dataset.",
+    "No live list-only resource with missing coordinates was available in the seeded visible dataset."
+  ],
+  "issues": [
+    {
+      "exact": "Owner add resource did not update summary counts as expected",
+      "reproduction": "Before: 16, after: 16",
+      "severity": "high",
+      "blocker": false
+    },
+    {
+      "exact": "Smoke script failed before completing all scenarios",
+      "reproduction": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('section').filter({ hasText: 'Giant senior discount' }).getByRole('button', { name: /Remove/i }).first()\u001b[22m\n\n    at main (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:390:28)",
+      "severity": "high",
+      "blocker": true
+    }
+  ],
+  "cleanup": {
+    "completed": false,
+    "details": [
+      "Deleted owner test map 11"
+    ]
+  },
+  "prechecks": {
+    "frontendReachable": true,
+    "apiHealth": true,
+    "initialConsoleErrors": 0,
+    "initialPageErrors": 0,
+    "schemaBootstrapConfirmed": true,
+    "sharedRoutePublicWithoutRedirect": false,
+    "invalidSharedTokenChecked": false
+  },
+  "notes": [],
+  "artifacts": {}
+}

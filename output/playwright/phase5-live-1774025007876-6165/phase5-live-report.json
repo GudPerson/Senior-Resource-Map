@@ -1,0 +1,61 @@
+{
+  "deployedUrlTested": "https://927dfd4b.senior-resource-map.pages.dev",
+  "apiUrlTested": "https://senior-resource-map-api.joshuachua79.workers.dev/api",
+  "ownerAccountUsed": "phase5.owner.1774025007876-6165@example.com",
+  "recipientAccountUsed": "phase5.recipient.1774025007876-6165@example.com",
+  "sharedLinkPathTested": "/shared/maps/wato3pVe1_jIBQUgg3v73ZJKgmysEVuy",
+  "overallResult": "fail",
+  "validated": [
+    "owner private directory view",
+    "edit details",
+    "publish/unpublish",
+    "shared guest view",
+    "new token on republish",
+    "save individual resource",
+    "unavailable/list-only handling",
+    "save copy to My Maps",
+    "shared logged-in recipient view"
+  ],
+  "unverified": [
+    "Live multi-place soft asset scenario was not auto-detected in the visible seeded dataset.",
+    "No live list-only resource with missing coordinates was available in the seeded visible dataset."
+  ],
+  "issues": [
+    {
+      "exact": "Owner add resource did not update summary counts as expected",
+      "reproduction": "Before: 16, after: 16",
+      "severity": "high",
+      "blocker": false
+    },
+    {
+      "exact": "Recipient row-level save did not persist to Saved Assets",
+      "reproduction": "Tried saving row: Phase 5 export summary smoke test description.",
+      "severity": "high",
+      "blocker": false
+    },
+    {
+      "exact": "Smoke script failed before completing all scenarios",
+      "reproduction": "locator.waitFor: Timeout 1000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('This shared directory is no longer available').first() to be visible\u001b[22m\n\n    at waitForText (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:219:25)\n    at async main (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:561:5)",
+      "severity": "high",
+      "blocker": true
+    }
+  ],
+  "cleanup": {
+    "completed": false,
+    "details": [
+      "Deleted recipient copied map 15",
+      "Deleted owner test map 14"
+    ]
+  },
+  "prechecks": {
+    "frontendReachable": true,
+    "apiHealth": true,
+    "initialConsoleErrors": 0,
+    "initialPageErrors": 0,
+    "schemaBootstrapConfirmed": true,
+    "sharedRoutePublicWithoutRedirect": true,
+    "invalidSharedTokenChecked": false
+  },
+  "notes": [],
+  "artifacts": {}
+}

@@ -1,0 +1,47 @@
+{
+  "deployedUrlTested": "https://927dfd4b.senior-resource-map.pages.dev",
+  "apiUrlTested": "https://senior-resource-map-api.joshuachua79.workers.dev/api",
+  "ownerAccountUsed": "phase5.owner.1774024813682-2982@example.com",
+  "recipientAccountUsed": "phase5.recipient.1774024813682-2982@example.com",
+  "sharedLinkPathTested": null,
+  "overallResult": "fail",
+  "validated": [
+    "owner private directory view",
+    "edit details"
+  ],
+  "unverified": [
+    "Live multi-place soft asset scenario was not auto-detected in the visible seeded dataset.",
+    "No live list-only resource with missing coordinates was available in the seeded visible dataset."
+  ],
+  "issues": [
+    {
+      "exact": "Owner add resource did not update summary counts as expected",
+      "reproduction": "Before: 16, after: 16",
+      "severity": "high",
+      "blocker": false
+    },
+    {
+      "exact": "Smoke script failed before completing all scenarios",
+      "reproduction": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Share$/i })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" class=\"btn-ghost justify-center border border-slate-200 text-slate-700\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm\">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm\">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm\">…</div> intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at main (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:407:63)",
+      "severity": "high",
+      "blocker": true
+    }
+  ],
+  "cleanup": {
+    "completed": false,
+    "details": [
+      "Deleted owner test map 13"
+    ]
+  },
+  "prechecks": {
+    "frontendReachable": true,
+    "apiHealth": true,
+    "initialConsoleErrors": 0,
+    "initialPageErrors": 0,
+    "schemaBootstrapConfirmed": true,
+    "sharedRoutePublicWithoutRedirect": false,
+    "invalidSharedTokenChecked": false
+  },
+  "notes": [],
+  "artifacts": {}
+}

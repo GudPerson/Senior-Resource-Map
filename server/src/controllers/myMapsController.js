@@ -4,12 +4,15 @@ import { getDb } from '../db/index.js';
 import { myMapAssets, myMaps, userFavorites } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
-    buildSavedAssetSnapshot,
     createSavedAssetResolutionContext,
-    hydrateSavedAssetRecord,
-    resolveSavedAssetSummary,
 } from '../utils/savedAssets.js';
+import {
+    buildLiveMyMapAssetSnapshotFromDb,
+    buildMyMapDirectory,
+    normalizeMyMapAssetSnapshot,
+} from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
+import { createShareToken } from '../utils/shareTokens.js';
 
 function createHttpError(status, message) {
     const error = new Error(message);
@@ -17,9 +20,9 @@ function createHttpError(status, message) {
     return error;
 }
 
-function assertStandardUser(user) {
-    if (normalizeRole(user?.role) !== 'standard') {
-        throw createHttpError(403, 'Only standard users can manage My Maps');
+function assertDirectoryUser(user) {
+    if (!user?.id || normalizeRole(user?.role) === 'guest') {
+        throw createHttpError(403, 'Only authenticated non-guest users can manage My Maps');
     }
 }
 
@@ -29,6 +32,12 @@ function parseMapId(value) {
 }
 
 function normalizeMapName(value) {
+    const text = String(value ?? '').trim();
+    return text ? text : null;
+}
+
+function normalizeMapDescription(value) {
+    if (value === undefined) return undefined;
     const text = String(value ?? '').trim();
     return text ? text : null;
 }
@@ -68,7 +77,12 @@ function formatMyMapSummary(map) {
     return {
         id: map.id,
         name: map.name,
+        description: map.description || null,
         assetCount,
+        isShared: Boolean(map.isShared),
+        shareToken: map.isShared ? (map.shareToken || null) : null,
+        sharePath: map.isShared && map.shareToken ? `/shared/maps/${map.shareToken}` : null,
+        shareUpdatedAt: map.shareUpdatedAt || null,
         createdAt: map.createdAt,
         updatedAt: map.updatedAt,
     };
@@ -104,6 +118,14 @@ async function requireOwnedMap(db, userId, mapId, includeAssets = false) {
     return map;
 }
 
+async function persistSnapshotUpdates(db, updates) {
+    for (const update of updates || []) {
+        await db.update(myMapAssets)
+            .set({ snapshot: update.snapshot })
+            .where(eq(myMapAssets.id, update.mapAssetId));
+    }
+}
+
 async function findSavedAssetRecord(db, userId, resourceType, resourceId) {
     return db.query.userFavorites.findFirst({
         where: and(
@@ -120,15 +142,12 @@ async function requireSavedAssetRecord(db, user, assetRef, resolutionContext = n
         throw createHttpError(400, 'You can only add assets that are already saved');
     }
 
-    if (favorite.snapshot) {
-        return favorite;
-    }
-
-    const context = resolutionContext || await createSavedAssetResolutionContext(db, user);
-    const resolved = await resolveSavedAssetSummary(db, user, assetRef.resourceType, assetRef.resourceId, context);
     return {
         ...favorite,
-        snapshot: resolved?.summary ? buildSavedAssetSnapshot(resolved.summary) : null,
+        snapshot: favorite.snapshot
+            ? normalizeMyMapAssetSnapshot(assetRef.resourceType, assetRef.resourceId, favorite.snapshot)
+            : (await buildLiveMyMapAssetSnapshotFromDb(db, assetRef.resourceType, assetRef.resourceId))
+                || normalizeMyMapAssetSnapshot(assetRef.resourceType, assetRef.resourceId, null),
     };
 }
 
@@ -138,25 +157,8 @@ async function touchMap(db, mapId) {
         .where(eq(myMaps.id, mapId));
 }
 
-async function hydrateMapAssetRecord(db, user, mapAsset, resolutionContext) {
-    const hydrated = await hydrateSavedAssetRecord(db, user, {
-        id: mapAsset.id,
-        userId: user.id,
-        resourceType: mapAsset.resourceType,
-        resourceId: mapAsset.resourceId,
-        snapshot: mapAsset.snapshot,
-        createdAt: mapAsset.addedAt,
-    }, resolutionContext);
-
-    return {
-        ...hydrated,
-        mapAssetId: mapAsset.id,
-        addedAt: mapAsset.addedAt,
-    };
-}
-
 export async function listMyMaps(db, user) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     const maps = await db.query.myMaps.findMany({
         where: eq(myMaps.userId, user.id),
         with: {
@@ -173,7 +175,7 @@ export async function listMyMaps(db, user) {
 }
 
 export async function createMyMap(db, user, body, resolutionContext = null) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     const name = normalizeMapName(body?.name);
     if (!name) {
         throw createHttpError(400, 'Map name is required');
@@ -212,28 +214,28 @@ export async function createMyMap(db, user, body, resolutionContext = null) {
 }
 
 export async function getMyMapDetail(db, user, mapId, resolutionContext = null) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true);
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
-    const assets = await Promise.all(
-        [...(map.assets || [])]
-            .sort((a, b) => {
-                const aTime = a.addedAt ? new Date(a.addedAt).getTime() : 0;
-                const bTime = b.addedAt ? new Date(b.addedAt).getTime() : 0;
-                return bTime - aTime;
-            })
-            .map((asset) => hydrateMapAssetRecord(db, user, asset, finalResolutionContext))
-    );
+    const { directory, snapshotUpdates } = await buildMyMapDirectory(db, {
+        map,
+        viewerUser: user,
+        visibilityUser: user,
+        resolutionContext: finalResolutionContext,
+        mode: 'owner',
+    });
 
-    return {
-        ...formatMyMapSummary(map),
-        assets,
-    };
+    if (snapshotUpdates.length > 0) {
+        await persistSnapshotUpdates(db, snapshotUpdates);
+    }
+
+    return directory;
 }
 
 export async function renameMyMap(db, user, mapId, body) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     const name = normalizeMapName(body?.name);
+    const description = normalizeMapDescription(body?.description);
     if (!name) {
         throw createHttpError(400, 'Map name is required');
     }
@@ -242,6 +244,63 @@ export async function renameMyMap(db, user, mapId, body) {
     await db.update(myMaps)
         .set({
             name,
+            ...(description !== undefined ? { description } : {}),
+            updatedAt: new Date(),
+        })
+        .where(
+            and(
+                eq(myMaps.id, mapId),
+                eq(myMaps.userId, user.id)
+            )
+        );
+
+    const updated = await requireOwnedMap(db, user.id, mapId, true);
+    return formatMyMapSummary(updated);
+}
+
+export async function publishMyMap(db, user, mapId, resolutionContext = null) {
+    assertDirectoryUser(user);
+    const map = await requireOwnedMap(db, user.id, mapId, true);
+    const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    const { snapshotUpdates } = await buildMyMapDirectory(db, {
+        map,
+        viewerUser: user,
+        visibilityUser: user,
+        resolutionContext: finalResolutionContext,
+        mode: 'owner',
+    });
+
+    if (snapshotUpdates.length > 0) {
+        await persistSnapshotUpdates(db, snapshotUpdates);
+    }
+
+    const shareToken = map.isShared && map.shareToken ? map.shareToken : createShareToken();
+    await db.update(myMaps)
+        .set({
+            isShared: true,
+            shareToken,
+            shareUpdatedAt: new Date(),
+            updatedAt: new Date(),
+        })
+        .where(
+            and(
+                eq(myMaps.id, mapId),
+                eq(myMaps.userId, user.id)
+            )
+        );
+
+    const updated = await requireOwnedMap(db, user.id, mapId, true);
+    return formatMyMapSummary(updated);
+}
+
+export async function unpublishMyMap(db, user, mapId) {
+    assertDirectoryUser(user);
+    await requireOwnedMap(db, user.id, mapId);
+    await db.update(myMaps)
+        .set({
+            isShared: false,
+            shareToken: null,
+            shareUpdatedAt: new Date(),
             updatedAt: new Date(),
         })
         .where(
@@ -256,7 +315,7 @@ export async function renameMyMap(db, user, mapId, body) {
 }
 
 export async function deleteMyMapRecord(db, user, mapId) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     await requireOwnedMap(db, user.id, mapId);
     await db.delete(myMaps)
         .where(
@@ -270,7 +329,7 @@ export async function deleteMyMapRecord(db, user, mapId) {
 }
 
 export async function addAssetToMyMap(db, user, mapId, body, resolutionContext = null) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     const assetRef = parseAssetRef(body);
     if (!assetRef) {
         throw createHttpError(400, 'resourceType and resourceId are required');
@@ -305,7 +364,7 @@ export async function addAssetToMyMap(db, user, mapId, body, resolutionContext =
 }
 
 export async function removeAssetFromMyMap(db, user, mapId, resourceType, resourceId) {
-    assertStandardUser(user);
+    assertDirectoryUser(user);
     await requireOwnedMap(db, user.id, mapId);
 
     await db.delete(myMapAssets)
@@ -386,6 +445,40 @@ export const patchMyMap = async (c) => {
     } catch (err) {
         console.error('patchMyMap Error:', err);
         return c.json({ error: err.message || 'Failed to update map' }, err.status || 500);
+    }
+};
+
+export const postMyMapShare = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        if (!mapId) {
+            return c.json({ error: 'Map id is required' }, 400);
+        }
+        const map = await publishMyMap(db, user, mapId);
+        return c.json(map);
+    } catch (err) {
+        console.error('postMyMapShare Error:', err);
+        return c.json({ error: err.message || 'Failed to publish share link' }, err.status || 500);
+    }
+};
+
+export const deleteMyMapShare = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        if (!mapId) {
+            return c.json({ error: 'Map id is required' }, 400);
+        }
+        const map = await unpublishMyMap(db, user, mapId);
+        return c.json(map);
+    } catch (err) {
+        console.error('deleteMyMapShare Error:', err);
+        return c.json({ error: err.message || 'Failed to unpublish share link' }, err.status || 500);
     }
 };
 

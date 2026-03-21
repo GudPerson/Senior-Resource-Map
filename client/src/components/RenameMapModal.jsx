@@ -27,7 +27,7 @@ export default function RenameMapModal({
     }
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
             <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>

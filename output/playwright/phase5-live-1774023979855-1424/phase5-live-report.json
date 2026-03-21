@@ -1,0 +1,38 @@
+{
+  "deployedUrlTested": "https://927dfd4b.senior-resource-map.pages.dev",
+  "apiUrlTested": "https://senior-resource-map-api.joshuachua79.workers.dev/api",
+  "ownerAccountUsed": "phase5.owner.1774023979855-1424@example.com",
+  "recipientAccountUsed": "phase5.recipient.1774023979855-1424@example.com",
+  "sharedLinkPathTested": null,
+  "overallResult": "fail",
+  "validated": [],
+  "unverified": [
+    "Live multi-place soft asset scenario was not auto-detected in the visible seeded dataset.",
+    "No live list-only resource with missing coordinates was available in the seeded visible dataset."
+  ],
+  "issues": [
+    {
+      "exact": "Smoke script failed before completing all scenarios",
+      "reproduction": "locator.waitFor: Error: strict mode violation: getByText('Phase 5 Smoke 1774023979855-1424') resolved to 3 elements:\n    1) <p class=\"truncate text-lg font-bold text-slate-900\">Phase 5 Smoke 1774023979855-1424</p> aka locator('p').filter({ hasText: 'Phase 5 Smoke 1774023979855-' })\n    2) <h1 class=\"mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl\">Phase 5 Smoke 1774023979855-1424</h1> aka getByRole('heading', { name: 'Phase 5 Smoke 1774023979855-' }).first()\n    3) <h1 class=\"mt-3 text-4xl font-extrabold leading-tight text-slate-900\">Phase 5 Smoke 1774023979855-1424</h1> aka getByRole('heading', { name: 'Phase 5 Smoke 1774023979855-' }).nth(1)\n\nCall log:\n\u001b[2m  - waiting for getByText('Phase 5 Smoke 1774023979855-1424') to be visible\u001b[22m\n\n    at waitForText (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:207:48)\n    at main (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:302:11)",
+      "severity": "high",
+      "blocker": true
+    }
+  ],
+  "cleanup": {
+    "completed": false,
+    "details": [
+      "Deleted owner test map 9"
+    ]
+  },
+  "prechecks": {
+    "frontendReachable": true,
+    "apiHealth": true,
+    "initialConsoleErrors": 0,
+    "initialPageErrors": 0,
+    "schemaBootstrapConfirmed": true,
+    "sharedRoutePublicWithoutRedirect": false,
+    "invalidSharedTokenChecked": false
+  },
+  "notes": [],
+  "artifacts": {}
+}

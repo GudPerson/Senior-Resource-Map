@@ -48,8 +48,12 @@ export const LinkifiedText = ({ text }) => {
 export const AssetCard = React.memo(({
     asset,
     type,
+    onCardClickAction,
+    onCardHoverEnd,
+    onCardHoverStart,
     onLocationClick,
     isSelected,
+    showDetailsButton = true,
     subCatColors = {},
     onTagClick,
     onCategoryClick,
@@ -98,7 +102,15 @@ export const AssetCard = React.memo(({
                     ? 'linear-gradient(180deg, rgba(231,248,244,0.98) 0%, rgba(255,255,255,0.96) 100%)'
                     : 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,252,251,0.94) 100%)',
             }}
-            onClick={() => setIsExpanded(!isExpanded)}
+            onMouseEnter={onCardHoverStart}
+            onMouseLeave={onCardHoverEnd}
+            onClick={() => {
+                if (onCardClickAction) {
+                    onCardClickAction();
+                    return;
+                }
+                setIsExpanded(!isExpanded);
+            }}
         >
             <div
                 className="pointer-events-none absolute inset-x-0 top-0 h-16"
@@ -247,20 +259,22 @@ export const AssetCard = React.memo(({
                 </div>
             )}
 
-            <div className="mt-3">
-                <button
-                    type="button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        navigate(`/resource/${type}/${asset.id}`);
-                    }}
-                    className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
-                >
-                    Details
-                    <ArrowUpRight size={15} />
-                </button>
-            </div>
+            {showDetailsButton ? (
+                <div className="mt-3">
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/resource/${type}/${asset.id}`);
+                        }}
+                        className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
+                        style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
+                    >
+                        Details
+                        <ArrowUpRight size={15} />
+                    </button>
+                </div>
+            ) : null}
         </article>
     );
 });

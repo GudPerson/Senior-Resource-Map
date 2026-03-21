@@ -1,0 +1,38 @@
+{
+  "deployedUrlTested": "https://senior-resource-map.pages.dev",
+  "apiUrlTested": "https://senior-resource-map-api.joshuachua79.workers.dev/api",
+  "ownerAccountUsed": "phase5.owner.1774022243237-5033@example.com",
+  "recipientAccountUsed": "phase5.recipient.1774022243237-5033@example.com",
+  "sharedLinkPathTested": null,
+  "overallResult": "fail",
+  "validated": [],
+  "unverified": [
+    "Live multi-place soft asset scenario was not auto-detected in the visible seeded dataset.",
+    "No live list-only resource with missing coordinates was available in the seeded visible dataset."
+  ],
+  "issues": [
+    {
+      "exact": "Smoke script failed before completing all scenarios",
+      "reproduction": "Error: Phase 5 schema-backed owner directory payload not available live\n    at main (/private/tmp/phase5-smoke/phase5_live_smoke.cjs:296:13)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)",
+      "severity": "high",
+      "blocker": true
+    }
+  ],
+  "cleanup": {
+    "completed": false,
+    "details": [
+      "Deleted owner test map 4"
+    ]
+  },
+  "prechecks": {
+    "frontendReachable": true,
+    "apiHealth": true,
+    "initialConsoleErrors": 0,
+    "initialPageErrors": 0,
+    "schemaBootstrapConfirmed": false,
+    "sharedRoutePublicWithoutRedirect": false,
+    "invalidSharedTokenChecked": false
+  },
+  "notes": [],
+  "artifacts": {}
+}

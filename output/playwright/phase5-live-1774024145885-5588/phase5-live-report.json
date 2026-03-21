@@ -1,0 +1,38 @@
+{
+  "deployedUrlTested": "https://927dfd4b.senior-resource-map.pages.dev",
+  "apiUrlTested": "https://senior-resource-map-api.joshuachua79.workers.dev/api",
+  "ownerAccountUsed": "phase5.owner.1774024145885-5588@example.com",
+  "recipientAccountUsed": "phase5.recipient.1774024145885-5588@example.com",
+  "sharedLinkPathTested": null,
+  "overallResult": "fail",
+  "validated": [],
+  "unverified": [
+    "Live multi-place soft asset scenario was not auto-detected in the visible seeded dataset.",
+    "No live list-only resource with missing coordinates was available in the seeded visible dataset."
+  ],
+  "issues": [
+    {
+      "exact": "Smoke script failed before completing all scenarios",
+      "reproduction": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Phase 5 Smoke 1774024145885-5588').first() to be visible\u001b[22m\n\u001b[2m    15 × locator resolved to hidden <p class=\"truncate text-lg font-bold text-slate-900\">Phase 5 Smoke 1774024145885-5588</p>\u001b[22m\n\n    at waitForText (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:207:56)\n    at main (/private/tmp/phase5-smoke/phase5_preview_smoke.cjs:302:11)",
+      "severity": "high",
+      "blocker": true
+    }
+  ],
+  "cleanup": {
+    "completed": false,
+    "details": [
+      "Deleted owner test map 10"
+    ]
+  },
+  "prechecks": {
+    "frontendReachable": true,
+    "apiHealth": true,
+    "initialConsoleErrors": 0,
+    "initialPageErrors": 0,
+    "schemaBootstrapConfirmed": true,
+    "sharedRoutePublicWithoutRedirect": false,
+    "invalidSharedTokenChecked": false
+  },
+  "notes": [],
+  "artifacts": {}
+}

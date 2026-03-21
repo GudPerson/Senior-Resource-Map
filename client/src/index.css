@@ -211,6 +211,17 @@
   }
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @layer components {
 
   /* ───────────────── BUTTONS ───────────────── */
@@ -415,6 +426,81 @@
   animation: pulse 2s infinite ease-in-out;
 }
 
+.map-location-heart-marker {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-location-heart-marker__pulse {
+  position: absolute;
+  inset: 2px;
+  border-radius: 999px;
+  background: rgba(15, 163, 154, 0.2);
+  animation: mapHeartPulse 1.9s infinite ease-out;
+}
+
+.map-location-heart-marker__core {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid #0fa39a;
+  box-shadow: 0 4px 12px rgba(11, 109, 112, 0.28);
+  animation: mapHeartBeat 1.9s infinite ease-in-out;
+}
+
+.map-location-heart-marker__icon {
+  width: 14px;
+  height: 14px;
+  fill: #f35f68;
+  filter: drop-shadow(0 1px 1px rgba(176, 30, 49, 0.18));
+}
+
+.saved-place-pin-marker::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 3px;
+  width: 25px;
+  height: 25px;
+  border-radius: 999px;
+  background: var(--saved-pin-halo-color, rgba(15, 163, 154, 0.2));
+  opacity: 0;
+  transform: scale(0.65);
+  z-index: 0;
+  filter: blur(0.5px);
+}
+
+.saved-place-pin-marker__pin {
+  transform-origin: 50% 88%;
+  transform: scale(var(--saved-pin-scale, 1));
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.saved-place-pin-marker--related::before,
+.saved-place-pin-marker--primary::before {
+  opacity: 1;
+  animation: savedPinGlow 1.4s infinite ease-out;
+}
+
+.saved-place-pin-marker--related .saved-place-pin-marker__pin,
+.saved-place-pin-marker--primary .saved-place-pin-marker__pin {
+  animation: savedPinPulse 1.2s infinite ease-in-out;
+}
+
+.saved-place-pin-marker--primary .saved-place-pin-marker__pin {
+  filter: saturate(1.05) brightness(1.02);
+}
+
 @keyframes pulse {
   0% {
     transform: scale(0.95);
@@ -429,6 +515,76 @@
   100% {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+@keyframes savedPinGlow {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.7;
+  }
+
+  70% {
+    transform: scale(2.05);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(2.05);
+    opacity: 0;
+  }
+}
+
+@keyframes savedPinPulse {
+  0%, 100% {
+    transform: scale(var(--saved-pin-scale, 1));
+  }
+
+  35% {
+    transform: scale(calc(var(--saved-pin-scale, 1) + var(--saved-pin-pulse-bump, 0)));
+  }
+
+  65% {
+    transform: scale(calc(var(--saved-pin-scale, 1) + (var(--saved-pin-pulse-bump, 0) * 0.3)));
+  }
+}
+
+@keyframes mapHeartPulse {
+  0% {
+    transform: scale(0.72);
+    opacity: 0.52;
+  }
+
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes mapHeartBeat {
+  0%, 100% {
+    transform: scale(0.96);
+  }
+
+  18% {
+    transform: scale(1.04);
+  }
+
+  32% {
+    transform: scale(0.98);
+  }
+
+  48% {
+    transform: scale(1.06);
+  }
+
+  64% {
+    transform: scale(1);
   }
 }
 
