@@ -74,6 +74,10 @@ function MobileFilterSheet({
                         backdropFilter: 'blur(18px)',
                     }}
                 >
+                    <Drawer.Title className="sr-only">Refine your browse view</Drawer.Title>
+                    <Drawer.Description className="sr-only">
+                        Filter discover results by postal code, distance, asset type, and saved assets.
+                    </Drawer.Description>
                     <div className="mx-auto h-1.5 w-12 rounded-full" style={{ backgroundColor: 'var(--color-border-strong)' }} />
                     <div className="mt-4 flex items-center justify-between">
                         <div>

@@ -928,6 +928,10 @@ export default function DiscoverPage() {
                         background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
                     }}
                 >
+                    <Drawer.Title className="sr-only">Browse results</Drawer.Title>
+                    <Drawer.Description className="sr-only">
+                        Review discover results while keeping the saved map visible.
+                    </Drawer.Description>
                     <div
                         className="flex items-center justify-between gap-3 border-b px-4 py-3"
                         style={{ borderColor: 'var(--color-border)' }}
@@ -989,6 +993,12 @@ export default function DiscoverPage() {
                         background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.97) 100%)',
                     }}
                 >
+                    <Drawer.Title className="sr-only">
+                        {selectedPlacePin?.title || 'Saved place details'}
+                    </Drawer.Title>
+                    <Drawer.Description className="sr-only">
+                        View saved place details and related resources for the selected map pin.
+                    </Drawer.Description>
                     <div
                         className="pointer-events-none absolute z-[610] -translate-y-1/2 drop-shadow-[10px_0_18px_rgba(15,89,91,0.08)]"
                         style={{

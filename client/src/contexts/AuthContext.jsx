@@ -1,14 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
+import { getApiBaseCandidates } from '../lib/apiBase.js';
 
 const AuthContext = createContext(null);
-const rawBase = typeof import.meta.env.VITE_API_URL === 'string'
-    ? import.meta.env.VITE_API_URL.trim()
-    : '';
-const BASE = rawBase ? rawBase.replace(/\/+$/, '') : '/api';
-const DEFAULT_API_BASE = '/api';
-const resolvedBase = BASE || DEFAULT_API_BASE;
-const BASE_CANDIDATES = Array.from(new Set([resolvedBase, DEFAULT_API_BASE]));
+const BASE_CANDIDATES = getApiBaseCandidates();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
