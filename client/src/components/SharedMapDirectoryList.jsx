@@ -26,9 +26,13 @@ function StatusBadge({ status }) {
     return null;
 }
 
+const DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH = 1280;
+
 function useResponsiveDirectoryLayout(enabled) {
     const [isDesktop, setIsDesktop] = useState(() => (
-        typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : true
+        typeof window !== 'undefined'
+            ? window.matchMedia(`(min-width: ${DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH}px)`).matches
+            : true
     ));
 
     useEffect(() => {
@@ -36,7 +40,7 @@ function useResponsiveDirectoryLayout(enabled) {
             return undefined;
         }
 
-        const mediaQuery = window.matchMedia('(min-width: 1024px)');
+        const mediaQuery = window.matchMedia(`(min-width: ${DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH}px)`);
         const handleChange = (event) => setIsDesktop(event.matches);
 
         setIsDesktop(mediaQuery.matches);
