@@ -175,26 +175,26 @@ function MyMapMobileControls({
                             <Link
                                 to="/my-directory?section=my-maps"
                                 onClick={() => setOpen(false)}
-                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                                className="inline-flex items-center gap-2 self-start px-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800"
                             >
                                 <ArrowLeft size={16} />
                                 Back to My Maps
                             </Link>
 
-                            <div className="mt-4 grid grid-cols-2 gap-2">
-                                <button type="button" onClick={() => runDrawerAction(onAddAssets)} className="btn-primary col-span-2 w-full justify-center px-4 py-2.5 text-sm">
+                            <div className="mt-4 space-y-2">
+                                <button type="button" onClick={() => runDrawerAction(onAddAssets)} className="btn-primary h-12 w-full justify-center px-4 text-sm">
                                     <Plus size={16} />
                                     Add from Saved Assets
                                 </button>
-                                <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost w-full justify-center border border-slate-200 px-4 py-2.5 text-sm text-slate-700">
+                                <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Pencil size={16} />
                                     Edit details
                                 </button>
-                                <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost w-full justify-center border border-slate-200 px-4 py-2.5 text-sm text-slate-700">
+                                <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Printer size={16} />
                                     Print view
                                 </button>
-                                <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost w-full justify-center border border-slate-200 px-4 py-2.5 text-sm text-slate-700">
+                                <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Link2 size={16} />
                                     Share
                                 </button>
@@ -205,9 +205,15 @@ function MyMapMobileControls({
                                     value={query}
                                     onChange={onQueryChange}
                                     inputId="directory-search-mobile"
-                                    className="shadow-none"
+                                    compact
+                                    className="min-w-0"
                                 />
-                                <DirectoryDistanceControls anchorState={anchorState} className="shadow-none" />
+                                <DirectoryDistanceControls
+                                    anchorState={anchorState}
+                                    compact
+                                    compactLayout="stacked"
+                                    className="min-w-0"
+                                />
                             </div>
                         </div>
                     </Drawer.Content>
