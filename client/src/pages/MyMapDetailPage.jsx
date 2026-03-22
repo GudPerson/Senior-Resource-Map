@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, X } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -30,16 +30,11 @@ function MapDetailLoadingState() {
 
 function OwnerHeader({
     directory,
-    activeAnchor,
-    shareUrl,
-    actionError,
     onAddAssets,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
-    onDelete,
 }) {
-    const isShared = Boolean(directory?.share?.isShared);
     const compactActionClassName = 'w-full justify-center px-4 py-2.5 text-sm sm:w-auto sm:px-5 sm:py-3 sm:text-base';
 
     return (
@@ -78,74 +73,23 @@ function OwnerHeader({
                         <Link2 size={16} />
                         Share
                     </button>
-                    <MapImageExportButton
-                        directory={directory}
-                        activeAnchor={activeAnchor}
-                        shareUrl={shareUrl}
-                        className={compactActionClassName}
-                    />
-                    <button
-                        type="button"
-                        onClick={onDelete}
-                        className={`btn-ghost col-span-2 ${compactActionClassName} border border-red-200 text-red-600 hover:bg-red-50 sm:col-auto`}
-                    >
-                        <Trash2 size={16} />
-                        Delete
-                    </button>
                 </div>
             </div>
-
-            <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.95fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(480px,0.95fr)]">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-                    <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-[24px] sm:p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Curated resources</p>
-                        <p className="mt-1.5 text-2xl font-extrabold text-slate-900 sm:mt-2 sm:text-3xl">{directory.summary.resourceCount}</p>
-                    </div>
-                    <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-[24px] sm:p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Places</p>
-                        <p className="mt-1.5 text-2xl font-extrabold text-slate-900 sm:mt-2 sm:text-3xl">{directory.summary.placeCount}</p>
-                    </div>
-                    <div className="col-span-2 rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:col-span-1 sm:rounded-[24px] sm:p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Mapped places</p>
-                        <p className="mt-1.5 text-2xl font-extrabold text-slate-900 sm:mt-2 sm:text-3xl">{directory.summary.mappablePlaceCount}</p>
-                    </div>
-                </div>
-
-                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-br from-brand-50 to-white p-4 sm:rounded-[24px] sm:p-5">
-                    <p className="text-sm font-semibold text-slate-900">
-                        {isShared ? 'Shared link is live' : 'Private map'}
-                    </p>
-                    <p className="mt-1.5 text-sm leading-6 text-slate-600 sm:mt-2 sm:leading-7">
-                        {isShared
-                            ? 'Anyone with the link can view this read-only directory. Changes you make here will appear on the shared page.'
-                            : 'Only you can view this map. Publish a read-only share link when you are ready to share this directory.'}
-                    </p>
-                </div>
-            </div>
-
-            {actionError ? (
-                <p className="mt-4 text-sm font-medium text-red-600">{actionError}</p>
-            ) : null}
         </div>
     );
 }
 
 function MyMapMobileControls({
     directory,
-    activeAnchor,
-    shareUrl,
     query,
     onQueryChange,
     anchorState,
-    actionError,
     onAddAssets,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
-    onDelete,
 }) {
     const [open, setOpen] = useState(false);
-    const isShared = Boolean(directory?.share?.isShared);
 
     const runDrawerAction = useCallback((action) => {
         setOpen(false);
@@ -171,10 +115,6 @@ function MyMapMobileControls({
                         <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600">My Map</p>
                         <p className="truncate text-lg font-bold text-slate-900">{directory.name}</p>
                     </div>
-
-                    <span className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
-                        {directory.summary.mappablePlaceCount} mapped
-                    </span>
                 </div>
             </div>
 
@@ -197,9 +137,6 @@ function MyMapMobileControls({
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-600">My Directory</p>
                                 <h2 className="mt-1 truncate text-lg font-bold text-slate-900">{directory.name}</h2>
-                                <p className="mt-1 text-sm leading-6 text-slate-500">
-                                    {isShared ? 'Shared link is live.' : 'Private map.'}
-                                </p>
                             </div>
 
                             <button
@@ -213,24 +150,10 @@ function MyMapMobileControls({
                         </div>
 
                         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
-                            <div className="flex flex-wrap gap-2">
-                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                                    {directory.summary.resourceCount} resources
-                                </span>
-                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
-                                    {directory.summary.placeCount} places
-                                </span>
-                                {activeAnchor?.address ? (
-                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-                                        Distances active
-                                    </span>
-                                ) : null}
-                            </div>
-
                             <Link
                                 to="/my-directory?section=my-maps"
                                 onClick={() => setOpen(false)}
-                                className="btn-ghost mt-4 justify-center border border-slate-200 text-slate-700"
+                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
                             >
                                 <ArrowLeft size={16} />
                                 Back to My Maps
@@ -253,25 +176,7 @@ function MyMapMobileControls({
                                     <Link2 size={16} />
                                     Share
                                 </button>
-                                <MapImageExportButton
-                                    directory={directory}
-                                    activeAnchor={activeAnchor}
-                                    shareUrl={shareUrl}
-                                    className="w-full px-4 py-2.5 text-sm"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => runDrawerAction(onDelete)}
-                                    className="btn-ghost col-span-2 w-full justify-center border border-red-200 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                                >
-                                    <Trash2 size={16} />
-                                    Delete
-                                </button>
                             </div>
-
-                            {actionError ? (
-                                <p className="mt-4 text-sm font-medium text-red-600">{actionError}</p>
-                            ) : null}
 
                             <div className="mt-4 space-y-4 pb-4">
                                 <DirectorySearchBar
@@ -307,7 +212,6 @@ function EmptyOwnerDirectory({ onAddAssets }) {
 
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
-    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { savedAssets } = useSavedAssets();
@@ -327,7 +231,6 @@ export default function MyMapDetailPage() {
     const [addOpen, setAddOpen] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
-    const [deleting, setDeleting] = useState(false);
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
     const anchorState = useDirectoryDistanceAnchor({
@@ -440,22 +343,6 @@ export default function MyMapDetailPage() {
         }
     }
 
-    async function handleDeleteMap() {
-        if (!directory) return;
-        const confirmed = window.confirm(`Delete "${directory.name}"? This removes the directory and its curated resource list.`);
-        if (!confirmed) return;
-        setDeleting(true);
-        setActionError('');
-        try {
-            await api.deleteMyMap(directory.id);
-            navigate('/my-directory?section=my-maps', { replace: true });
-        } catch (err) {
-            console.error(err);
-            setActionError(err.message || 'Failed to delete this map.');
-            setDeleting(false);
-        }
-    }
-
     function handleViewSection(placeKey) {
         setQuery('');
         setHighlightPlaceKey(null);
@@ -549,12 +436,9 @@ export default function MyMapDetailPage() {
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
                 <MyMapMobileControls
                     directory={directory}
-                    activeAnchor={activeAnchor}
-                    shareUrl={sharedDirectoryUrl}
                     query={query}
                     onQueryChange={setQuery}
                     anchorState={anchorState}
-                    actionError={actionError}
                     onAddAssets={() => setAddOpen(true)}
                     onEditDetails={() => {
                         setEditError('');
@@ -565,7 +449,6 @@ export default function MyMapDetailPage() {
                         setShareError('');
                         setShareOpen(true);
                     }}
-                    onDelete={handleDeleteMap}
                 />
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
@@ -579,9 +462,6 @@ export default function MyMapDetailPage() {
                     <div className="hidden xl:block">
                         <OwnerHeader
                             directory={directory}
-                            activeAnchor={activeAnchor}
-                            shareUrl={sharedDirectoryUrl}
-                            actionError={actionError}
                             onAddAssets={() => setAddOpen(true)}
                             onEditDetails={() => {
                                 setEditError('');
@@ -592,7 +472,6 @@ export default function MyMapDetailPage() {
                                 setShareError('');
                                 setShareOpen(true);
                             }}
-                            onDelete={handleDeleteMap}
                         />
                     </div>
 
@@ -608,6 +487,10 @@ export default function MyMapDetailPage() {
                                 />
                                 <DirectoryDistanceControls anchorState={anchorState} />
                             </div>
+
+                            {actionError ? (
+                                <p className="text-sm font-medium text-red-600">{actionError}</p>
+                            ) : null}
 
                             <SharedMapDirectoryList
                                 presentation={interactivePresentation}
@@ -689,12 +572,6 @@ export default function MyMapDetailPage() {
                 onPublish={handlePublishShare}
                 onUnpublish={handleUnpublishShare}
             />
-
-            {deleting ? (
-                <div className="fixed bottom-4 right-4 z-[70] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-lg">
-                    Deleting map…
-                </div>
-            ) : null}
         </>
     );
 }
