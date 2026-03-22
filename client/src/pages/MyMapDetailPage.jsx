@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Link2, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
+import { Drawer } from 'vaul';
+import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -11,7 +12,6 @@ import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import MapImageExportButton from '../components/MapImageExportButton.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
-import { DashboardMobileNavigation } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
@@ -130,6 +130,166 @@ function OwnerHeader({
     );
 }
 
+function MyMapMobileControls({
+    directory,
+    activeAnchor,
+    shareUrl,
+    query,
+    onQueryChange,
+    anchorState,
+    actionError,
+    onAddAssets,
+    onEditDetails,
+    onOpenPrintView,
+    onOpenShare,
+    onDelete,
+}) {
+    const [open, setOpen] = useState(false);
+    const isShared = Boolean(directory?.share?.isShared);
+
+    const runDrawerAction = useCallback((action) => {
+        setOpen(false);
+        window.requestAnimationFrame(() => {
+            action?.();
+        });
+    }, []);
+
+    return (
+        <>
+            <div className="sticky top-[56px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:top-[64px] sm:-mx-6 xl:hidden">
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setOpen(true)}
+                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm"
+                        aria-label="Open map controls"
+                    >
+                        <Menu size={20} />
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600">My Map</p>
+                        <p className="truncate text-lg font-bold text-slate-900">{directory.name}</p>
+                    </div>
+
+                    <span className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
+                        {directory.summary.mappablePlaceCount} mapped
+                    </span>
+                </div>
+            </div>
+
+            <Drawer.Root direction="left" open={open} onOpenChange={setOpen}>
+                <Drawer.Portal>
+                    <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35 xl:hidden" />
+                    <Drawer.Content
+                        className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
+                        style={{
+                            borderColor: 'var(--color-border)',
+                            background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
+                        }}
+                    >
+                        <Drawer.Title className="sr-only">Map controls</Drawer.Title>
+                        <Drawer.Description className="sr-only">
+                            Manage this map, search the directory, and adjust distance settings.
+                        </Drawer.Description>
+
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-600">My Directory</p>
+                                <h2 className="mt-1 truncate text-lg font-bold text-slate-900">{directory.name}</h2>
+                                <p className="mt-1 text-sm leading-6 text-slate-500">
+                                    {isShared ? 'Shared link is live.' : 'Private map.'}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                aria-label="Close map controls"
+                                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
+                            <div className="flex flex-wrap gap-2">
+                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                    {directory.summary.resourceCount} resources
+                                </span>
+                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                                    {directory.summary.placeCount} places
+                                </span>
+                                {activeAnchor?.address ? (
+                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                                        Distances active
+                                    </span>
+                                ) : null}
+                            </div>
+
+                            <Link
+                                to="/my-directory?section=my-maps"
+                                onClick={() => setOpen(false)}
+                                className="btn-ghost mt-4 justify-center border border-slate-200 text-slate-700"
+                            >
+                                <ArrowLeft size={16} />
+                                Back to My Maps
+                            </Link>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2">
+                                <button type="button" onClick={() => runDrawerAction(onAddAssets)} className="btn-primary col-span-2 w-full justify-center px-4 py-2.5 text-sm">
+                                    <Plus size={16} />
+                                    Add from Saved Assets
+                                </button>
+                                <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost w-full justify-center border border-slate-200 px-4 py-2.5 text-sm text-slate-700">
+                                    <Pencil size={16} />
+                                    Edit details
+                                </button>
+                                <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost w-full justify-center border border-slate-200 px-4 py-2.5 text-sm text-slate-700">
+                                    <Printer size={16} />
+                                    Print view
+                                </button>
+                                <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost w-full justify-center border border-slate-200 px-4 py-2.5 text-sm text-slate-700">
+                                    <Link2 size={16} />
+                                    Share
+                                </button>
+                                <MapImageExportButton
+                                    directory={directory}
+                                    activeAnchor={activeAnchor}
+                                    shareUrl={shareUrl}
+                                    className="w-full px-4 py-2.5 text-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => runDrawerAction(onDelete)}
+                                    className="btn-ghost col-span-2 w-full justify-center border border-red-200 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                >
+                                    <Trash2 size={16} />
+                                    Delete
+                                </button>
+                            </div>
+
+                            {actionError ? (
+                                <p className="mt-4 text-sm font-medium text-red-600">{actionError}</p>
+                            ) : null}
+
+                            <div className="mt-4 space-y-4 pb-4">
+                                <DirectorySearchBar
+                                    value={query}
+                                    onChange={onQueryChange}
+                                    inputId="directory-search-mobile"
+                                    className="shadow-none"
+                                />
+                                <DirectoryDistanceControls anchorState={anchorState} className="shadow-none" />
+                            </div>
+                        </div>
+                    </Drawer.Content>
+                </Drawer.Portal>
+            </Drawer.Root>
+        </>
+    );
+}
+
 function EmptyOwnerDirectory({ onAddAssets }) {
     return (
         <div className="rounded-[32px] border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
@@ -149,7 +309,7 @@ export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { user, logout, isImpersonating } = useAuth();
+    const { user } = useAuth();
     const { savedAssets } = useSavedAssets();
     const [directory, setDirectory] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -205,12 +365,6 @@ export default function MyMapDetailPage() {
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
-
-    async function handleLogout() {
-        const impersonationExit = isImpersonating;
-        await logout();
-        navigate(impersonationExit ? '/dashboard' : '/');
-    }
 
     async function handleUpdateDetails(nextValues) {
         if (!directory) return;
@@ -332,13 +486,6 @@ export default function MyMapDetailPage() {
     if (loading) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-                <DashboardMobileNavigation
-                    isImpersonating={isImpersonating}
-                    onLogout={handleLogout}
-                    sectionContextLabel="My Directory"
-                    sectionLabel="My Maps"
-                    user={user}
-                />
                 <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 xl:px-10 2xl:px-14">
                     <MapDetailLoadingState />
                 </div>
@@ -349,13 +496,6 @@ export default function MyMapDetailPage() {
     if (error || !directory) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-                <DashboardMobileNavigation
-                    isImpersonating={isImpersonating}
-                    onLogout={handleLogout}
-                    sectionContextLabel="My Directory"
-                    sectionLabel="My Maps"
-                    user={user}
-                />
                 <div className="mx-auto w-full max-w-3xl px-4 py-12 text-center sm:px-6 lg:px-8">
                     <div className="rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-16 shadow-sm">
                         <h1 className="text-2xl font-bold text-slate-900">Map not available</h1>
@@ -407,48 +547,64 @@ export default function MyMapDetailPage() {
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-                <DashboardMobileNavigation
-                    isImpersonating={isImpersonating}
-                    onLogout={handleLogout}
-                    sectionContextLabel="My Directory"
-                    sectionLabel={directory.name}
-                    user={user}
+                <MyMapMobileControls
+                    directory={directory}
+                    activeAnchor={activeAnchor}
+                    shareUrl={sharedDirectoryUrl}
+                    query={query}
+                    onQueryChange={setQuery}
+                    anchorState={anchorState}
+                    actionError={actionError}
+                    onAddAssets={() => setAddOpen(true)}
+                    onEditDetails={() => {
+                        setEditError('');
+                        setEditOpen(true);
+                    }}
+                    onOpenPrintView={openPrintView}
+                    onOpenShare={() => {
+                        setShareError('');
+                        setShareOpen(true);
+                    }}
+                    onDelete={handleDeleteMap}
                 />
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
-                    <div className="hidden sm:block">
+                    <div className="hidden xl:block">
                         <Link to="/my-directory?section=my-maps" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 transition hover:text-brand-800">
                             <ArrowLeft size={16} />
                             Back to My Maps
                         </Link>
                     </div>
 
-                    <OwnerHeader
-                        directory={directory}
-                        activeAnchor={activeAnchor}
-                        shareUrl={sharedDirectoryUrl}
-                        actionError={actionError}
-                        onAddAssets={() => setAddOpen(true)}
-                        onEditDetails={() => {
-                            setEditError('');
-                            setEditOpen(true);
-                        }}
-                        onOpenPrintView={openPrintView}
-                        onOpenShare={() => {
-                            setShareError('');
-                            setShareOpen(true);
-                        }}
-                        onDelete={handleDeleteMap}
-                    />
+                    <div className="hidden xl:block">
+                        <OwnerHeader
+                            directory={directory}
+                            activeAnchor={activeAnchor}
+                            shareUrl={sharedDirectoryUrl}
+                            actionError={actionError}
+                            onAddAssets={() => setAddOpen(true)}
+                            onEditDetails={() => {
+                                setEditError('');
+                                setEditOpen(true);
+                            }}
+                            onOpenPrintView={openPrintView}
+                            onOpenShare={() => {
+                                setShareError('');
+                                setShareOpen(true);
+                            }}
+                            onDelete={handleDeleteMap}
+                        />
+                    </div>
 
                     {directory.summary.resourceCount === 0 ? (
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
                     ) : (
                         <>
-                            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.9fr)] xl:gap-4">
+                            <div className="hidden xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.9fr)] xl:gap-4">
                                 <DirectorySearchBar
                                     value={query}
                                     onChange={setQuery}
+                                    inputId="directory-search-desktop"
                                 />
                                 <DirectoryDistanceControls anchorState={anchorState} />
                             </div>
@@ -485,6 +641,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}
+                                mobileMapStickyClassName="sticky top-[124px] z-20 bg-slate-50 pb-3 sm:top-[132px]"
                             />
                         </>
                     )}

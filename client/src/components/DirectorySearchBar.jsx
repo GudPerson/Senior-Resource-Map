@@ -4,19 +4,20 @@ export default function DirectorySearchBar({
     value,
     onChange,
     placeholder = 'Search places, resources, or categories',
+    inputId = 'directory-search',
     className = '',
 }) {
     const hasValue = Boolean(String(value || '').trim());
 
     return (
         <div className={`rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
-            <label htmlFor="directory-search" className="block text-sm font-semibold text-slate-700">
+            <label htmlFor={inputId} className="block text-sm font-semibold text-slate-700">
                 Search this directory
             </label>
             <div className="relative mt-3">
                 <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                    id="directory-search"
+                    id={inputId}
                     type="search"
                     value={value}
                     onChange={(event) => onChange?.(event.target.value)}

@@ -528,6 +528,7 @@ export default function SharedMapDirectoryList({
     className = '',
     desktopGridClassName = 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]',
     desktopMapWrapperClassName = '',
+    mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2',
     allowPrintLinks = false,
 }) {
     const sectionRefs = useRef({});
@@ -576,7 +577,7 @@ export default function SharedMapDirectoryList({
         return (
             <div className={`space-y-4 ${className}`}>
                 {renderMobileMap ? (
-                    <div className="sticky top-3 z-20 bg-slate-50 pb-2">
+                    <div className={mobileMapStickyClassName}>
                         {renderMobileMap()}
                     </div>
                 ) : null}
