@@ -465,6 +465,57 @@
   filter: drop-shadow(0 1px 1px rgba(176, 30, 49, 0.18));
 }
 
+.carearound-map .leaflet-tile {
+  filter: contrast(1.14) saturate(0.94) brightness(1.02);
+}
+
+html.high-contrast .carearound-map .leaflet-tile {
+  filter: contrast(1.22) saturate(0.92) brightness(1.03);
+}
+
+.directory-number-marker {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.directory-number-marker__pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: var(--directory-number-marker-glow, rgba(15, 118, 110, 0.16));
+  opacity: 0;
+  transform: scale(0.82);
+  filter: blur(0.5px);
+}
+
+.directory-number-marker__core {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #0f766e;
+  border: 3px solid var(--directory-number-marker-ring, #ffffff);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: var(--directory-number-marker-shadow, 0 10px 18px rgba(15, 118, 110, 0.24));
+}
+
+.directory-number-marker--selected .directory-number-marker__pulse {
+  opacity: 1;
+  animation: directoryNumberMarkerPulse 1.5s infinite ease-out;
+}
+
+.directory-number-marker--selected .directory-number-marker__core {
+  animation: directoryNumberMarkerBeat 1.35s infinite ease-in-out;
+}
+
 .saved-place-pin-marker::before {
   content: '';
   position: absolute;
@@ -546,6 +597,37 @@
 
   65% {
     transform: scale(calc(var(--saved-pin-scale, 1) + (var(--saved-pin-pulse-bump, 0) * 0.3)));
+  }
+}
+
+@keyframes directoryNumberMarkerPulse {
+  0% {
+    transform: scale(0.82);
+    opacity: 0.72;
+  }
+
+  70% {
+    transform: scale(1.82);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.82);
+    opacity: 0;
+  }
+}
+
+@keyframes directoryNumberMarkerBeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.07);
+  }
+
+  65% {
+    transform: scale(1.03);
   }
 }
 

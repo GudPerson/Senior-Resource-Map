@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { createSavedPlacePinIcon } from './discoverUtils.js';
+import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../../lib/mapTheme.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
 const DEFAULT_MAP_ZOOM = 12;
@@ -250,12 +251,13 @@ export function DiscoveryMap({
         <MapContainer
             center={DEFAULT_MAP_CENTER}
             zoom={DEFAULT_MAP_ZOOM}
+            className="carearound-map"
             style={{ width: '100%', height: '100%', zIndex: 0 }}
             zoomControl={false}
         >
             <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
+                url={CAREAROUND_BASEMAP_URL}
             />
             <SavedMapCameraController
                 focusRequest={focusRequest}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -7,6 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
+import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../lib/mapTheme.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -23,12 +24,22 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;');
 }
 
-function createDirectoryNumberMarker(number) {
+function createDirectoryNumberMarker(number, emphasis = 'default') {
+    const isSelected = emphasis === 'primary';
+
     return L.divIcon({
         className: '',
         html: `
-            <div style="position:relative;width:30px;height:30px;pointer-events:none;">
-                <div style="position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:999px;background:#0f766e;border:3px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;line-height:1;box-shadow:0 10px 18px rgba(15,118,110,0.24);font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div
+                class="directory-number-marker ${isSelected ? 'directory-number-marker--selected' : ''}"
+                style="
+                    --directory-number-marker-ring:${isSelected ? '#f59e0b' : '#ffffff'};
+                    --directory-number-marker-glow:${isSelected ? 'rgba(245, 158, 11, 0.34)' : 'rgba(15, 118, 110, 0.16)'};
+                    --directory-number-marker-shadow:${isSelected ? '0 14px 26px rgba(194, 65, 12, 0.34)' : '0 10px 18px rgba(15, 118, 110, 0.24)'};
+                "
+            >
+                <div class="directory-number-marker__pulse"></div>
+                <div class="directory-number-marker__core">
                     ${escapeHtml(number)}
                 </div>
             </div>
@@ -89,7 +100,7 @@ function spreadPinsForDisplay(pins, interactive) {
     });
 }
 
-function DirectoryMapController({ pins, focusedPlaceKey, markerRefs, interactive, onMapSettled }) {
+function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettled }) {
     const map = useMap();
     const previousSignatureRef = useRef('');
 
@@ -134,56 +145,9 @@ function DirectoryMapController({ pins, focusedPlaceKey, markerRefs, interactive
             animate: true,
             duration: 0.5,
         });
-        window.setTimeout(() => {
-            markerRefs.current[pin.placeKey]?.openPopup();
-        }, 220);
-    }, [focusedPlaceKey, interactive, map, markerRefs, pins]);
-
-    useEffect(() => {
-        if (!interactive) {
-            map.closePopup();
-        }
-    }, [interactive, map]);
+    }, [focusedPlaceKey, interactive, map, pins]);
 
     return null;
-}
-
-function PopupPreview({ pin, onViewSection }) {
-    return (
-        <div className="w-[220px] space-y-3">
-            <div>
-                <p className="text-sm font-bold text-slate-900">{pin.title}</p>
-                {pin.address ? (
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{pin.address}</p>
-                ) : null}
-            </div>
-
-            <div className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
-                {pin.curatedCount} {pin.curatedCount === 1 ? 'selected resource' : 'selected resources'}
-            </div>
-
-            <div className="space-y-1.5">
-                {pin.previewResourceNames.map((name) => (
-                    <p key={name} className="text-sm text-slate-700">
-                        {name}
-                    </p>
-                ))}
-                {pin.hiddenPreviewCount > 0 ? (
-                    <p className="text-xs font-medium text-slate-400">
-                        +{pin.hiddenPreviewCount} more in this directory
-                    </p>
-                ) : null}
-            </div>
-
-            <button
-                type="button"
-                onClick={() => onViewSection?.(pin.placeKey)}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
-            >
-                View section
-            </button>
-        </div>
-    );
 }
 
 export default function DirectoryMap({
@@ -202,7 +166,6 @@ export default function DirectoryMap({
     onMapReadyForCapture,
     onMapCaptureError,
 }) {
-    const markerRefs = useRef({});
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
     const tileLoadedRef = useRef(false);
@@ -274,12 +237,12 @@ export default function DirectoryMap({
                 boxZoom={interactive}
                 keyboard={interactive}
                 zoomControl={showZoomControl}
-                className={`${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
+                className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
                 attributionControl={showAttribution}
             >
                 <TileLayer
-                    attribution='&copy; OpenStreetMap contributors'
-                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
+                    url={CAREAROUND_BASEMAP_URL}
                     eventHandlers={onMapReadyForCapture ? {
                         load: () => {
                             tileLoadedRef.current = true;
@@ -297,7 +260,6 @@ export default function DirectoryMap({
                 <DirectoryMapController
                     pins={pins}
                     focusedPlaceKey={focusedPlaceKey}
-                    markerRefs={markerRefs}
                     interactive={interactive}
                     onMapSettled={onMapReadyForCapture ? () => {
                         mapSettledRef.current = true;
@@ -315,7 +277,10 @@ export default function DirectoryMap({
                     >
                         {displayPins.map((pin) => {
                             const icon = markerMode === 'number'
-                                ? createDirectoryNumberMarker(pin.number || placeNumberByKey?.[pin.placeKey] || '?')
+                                ? createDirectoryNumberMarker(
+                                    pin.number || placeNumberByKey?.[pin.placeKey] || '?',
+                                    focusedPlaceKey === pin.placeKey ? 'primary' : 'default'
+                                )
                                 : createSavedPlacePinIcon({
                                     count: pin.curatedCount,
                                     emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
@@ -327,24 +292,19 @@ export default function DirectoryMap({
                                     key={pin.pinKey || pin.placeKey}
                                     position={[pin.displayLat, pin.displayLng]}
                                     icon={icon}
-                                    ref={(instance) => {
-                                        if (instance) {
-                                            markerRefs.current[pin.placeKey] = instance;
-                                        }
-                                    }}
-                                >
-                                    {interactive && showPopup ? (
-                                        <Popup autoPan className="directory-map-popup">
-                                            <PopupPreview pin={pin} onViewSection={onViewSection} />
-                                        </Popup>
-                                    ) : null}
-                                </Marker>
+                                    eventHandlers={interactive && onViewSection ? {
+                                        click: () => onViewSection(pin.placeKey),
+                                    } : undefined}
+                                />
                             );
                         })}
                     </MarkerClusterGroup>
                 ) : displayPins.map((pin) => {
                     const icon = markerMode === 'number'
-                        ? createDirectoryNumberMarker(pin.number || placeNumberByKey?.[pin.placeKey] || '?')
+                        ? createDirectoryNumberMarker(
+                            pin.number || placeNumberByKey?.[pin.placeKey] || '?',
+                            focusedPlaceKey === pin.placeKey ? 'primary' : 'default'
+                        )
                         : createSavedPlacePinIcon({
                             count: pin.curatedCount,
                             emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
@@ -356,18 +316,10 @@ export default function DirectoryMap({
                             key={pin.pinKey || pin.placeKey}
                             position={[pin.displayLat, pin.displayLng]}
                             icon={icon}
-                            ref={(instance) => {
-                                if (instance) {
-                                    markerRefs.current[pin.placeKey] = instance;
-                                }
-                            }}
-                        >
-                            {interactive && showPopup ? (
-                                <Popup autoPan className="directory-map-popup">
-                                    <PopupPreview pin={pin} onViewSection={onViewSection} />
-                                </Popup>
-                            ) : null}
-                        </Marker>
+                            eventHandlers={interactive && onViewSection ? {
+                                click: () => onViewSection(pin.placeKey),
+                            } : undefined}
+                        />
                     );
                 }))}
             </MapContainer>

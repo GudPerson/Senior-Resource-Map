@@ -71,12 +71,13 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     const isPrimary = emphasis === 'primary';
     const isRelated = emphasis === 'related';
     const isTemporary = tone === 'temporary';
+    const selectedRing = isTemporary ? '#f97316' : '#f59e0b';
     const outerFill = isTemporary
         ? (isPrimary ? '#d97706' : isRelated ? '#f59e0b' : '#f2a43a')
         : (isPrimary ? '#109f95' : isRelated ? '#22c7bb' : '#17b6ab');
-    const outerStroke = isPrimary ? '#f8ffff' : '#ffffff';
+    const outerStroke = isPrimary ? selectedRing : '#ffffff';
     const outlineShadow = isPrimary
-        ? (isTemporary ? '0 14px 26px rgba(146, 64, 14, 0.34)' : '0 14px 26px rgba(10, 102, 105, 0.34)')
+        ? (isTemporary ? '0 14px 26px rgba(194, 65, 12, 0.34)' : '0 14px 26px rgba(194, 120, 3, 0.32)')
         : isRelated
             ? (isTemporary ? '0 10px 20px rgba(146, 64, 14, 0.24)' : '0 10px 20px rgba(15, 118, 110, 0.26)')
             : (isTemporary ? '0 6px 14px rgba(146, 64, 14, 0.18)' : '0 6px 14px rgba(15, 118, 110, 0.24)');
@@ -89,8 +90,8 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
         ? (isPrimary ? '#9a3412' : isRelated ? '#b45309' : '#c26b0c')
         : (isPrimary ? '#0b6d70' : isRelated ? '#0d766f' : '#0f766e');
     const haloColor = isTemporary
-        ? (isPrimary ? 'rgba(249, 115, 22, 0.38)' : isRelated ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.18)')
-        : (isPrimary ? 'rgba(45, 212, 191, 0.4)' : isRelated ? 'rgba(45, 212, 191, 0.3)' : 'rgba(45, 212, 191, 0.18)');
+        ? (isPrimary ? 'rgba(249, 115, 22, 0.42)' : isRelated ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.18)')
+        : (isPrimary ? 'rgba(245, 158, 11, 0.4)' : isRelated ? 'rgba(45, 212, 191, 0.3)' : 'rgba(45, 212, 191, 0.18)');
     const stateClass = [
         'saved-place-pin-marker',
         `saved-place-pin-marker--${tone}`,
