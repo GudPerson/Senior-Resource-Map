@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Link2, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
+import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
@@ -14,6 +15,8 @@ import { DashboardMobileNavigation } from '../components/dashboard/DashboardNavi
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
+import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 
 function MapDetailLoadingState() {
     return (
@@ -27,6 +30,8 @@ function MapDetailLoadingState() {
 
 function OwnerHeader({
     directory,
+    activeAnchor,
+    shareUrl,
     actionError,
     onAddAssets,
     onEditDetails,
@@ -72,7 +77,7 @@ function OwnerHeader({
                         <Link2 size={16} />
                         Share
                     </button>
-                    <MapImageExportButton directory={directory} />
+                    <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={shareUrl} />
                     <button
                         type="button"
                         onClick={onDelete}
@@ -159,6 +164,10 @@ export default function MyMapDetailPage() {
     const [deleting, setDeleting] = useState(false);
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
+    const anchorState = useDirectoryDistanceAnchor({
+        storageKey: mapId ? `my-map:${mapId}` : 'my-map',
+        userPostalCode: user?.postalCode || '',
+    });
 
     const loadMap = useCallback(async () => {
         if (!mapId) return;
@@ -183,6 +192,13 @@ export default function MyMapDetailPage() {
         () => new Set((directory?.assets || []).map((asset) => asset.assetKey || `${asset.resourceType}-${asset.resourceId}`)),
         [directory?.assets]
     );
+    const activeAnchor = anchorState.activeAnchor;
+    const interactivePresentation = useMemo(() => (
+        buildDirectoryPresentation(directory, { query, activeAnchor })
+    ), [activeAnchor, directory, query]);
+    const sharedDirectoryUrl = useMemo(() => (
+        buildDirectoryShareUrl(directory?.share?.sharePath)
+    ), [directory?.share?.sharePath]);
 
     async function handleLogout() {
         const impersonationExit = isImpersonating;
@@ -363,7 +379,7 @@ export default function MyMapDetailPage() {
                             <ArrowLeft size={16} />
                             Back to interactive view
                         </button>
-                        <MapImageExportButton directory={directory} />
+                        <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={sharedDirectoryUrl} />
                     </div>
                 </div>
 
@@ -372,6 +388,8 @@ export default function MyMapDetailPage() {
                         directory={directory}
                         mode="owner"
                         generatedAt={new Date()}
+                        activeAnchor={activeAnchor}
+                        shareUrl={sharedDirectoryUrl}
                         footerNote={directory.share?.isShared ? 'Open the shared link for the full interactive directory.' : ''}
                         className="mx-auto"
                     />
@@ -401,6 +419,8 @@ export default function MyMapDetailPage() {
 
                     <OwnerHeader
                         directory={directory}
+                        activeAnchor={activeAnchor}
+                        shareUrl={sharedDirectoryUrl}
                         actionError={actionError}
                         onAddAssets={() => setAddOpen(true)}
                         onEditDetails={() => {
@@ -419,26 +439,45 @@ export default function MyMapDetailPage() {
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
                     ) : (
                         <>
-                            <DirectoryMap
-                                pins={directory.pins}
-                                focusedPlaceKey={focusedPlaceKey}
-                                onViewSection={handleViewSection}
-                                interactive={!suspendMapInteraction}
-                            />
-
-                            <DirectorySearchBar
-                                value={query}
-                                onChange={setQuery}
-                            />
+                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                                <DirectorySearchBar
+                                    value={query}
+                                    onChange={setQuery}
+                                />
+                                <DirectoryDistanceControls anchorState={anchorState} />
+                            </div>
 
                             <SharedMapDirectoryList
-                                places={directory.places}
-                                totalResourceCount={directory.summary.resourceCount}
-                                query={query}
+                                presentation={interactivePresentation}
                                 mode="owner"
+                                layout="responsive"
                                 onViewOnMap={handleViewOnMap}
                                 onRemoveResource={handleRemoveResource}
                                 highlightPlaceKey={highlightPlaceKey}
+                                renderDesktopMap={() => (
+                                    <DirectoryMap
+                                        pins={interactivePresentation.pins}
+                                        focusedPlaceKey={focusedPlaceKey}
+                                        onViewSection={handleViewSection}
+                                        interactive={!suspendMapInteraction}
+                                        markerMode="number"
+                                        placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                        emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                                        mapHeightClassName="h-[540px]"
+                                    />
+                                )}
+                                renderMobileMap={() => (
+                                    <DirectoryMap
+                                        pins={interactivePresentation.pins}
+                                        focusedPlaceKey={focusedPlaceKey}
+                                        onViewSection={handleViewSection}
+                                        interactive={!suspendMapInteraction}
+                                        markerMode="number"
+                                        placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                        emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                                        mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
+                                    />
+                                )}
                             />
                         </>
                     )}

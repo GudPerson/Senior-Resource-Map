@@ -16,23 +16,45 @@ function buildFileName(directoryName) {
 
 export default function MapImageExportButton({
     directory,
+    activeAnchor = null,
+    shareUrl = '',
     className = '',
 }) {
     const exportRef = useRef(null);
     const exportReadyRef = useRef(false);
+    const mapErrorRef = useRef(null);
     const readyWaitersRef = useRef([]);
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
         exportReadyRef.current = false;
+        mapErrorRef.current = null;
         readyWaitersRef.current = [];
-    }, [directory?.id, directory?.updatedAt, directory?.summary?.resourceCount]);
+    }, [
+        activeAnchor?.address,
+        activeAnchor?.kind,
+        activeAnchor?.lat,
+        activeAnchor?.lng,
+        activeAnchor?.postalCode,
+        directory?.id,
+        directory?.summary?.resourceCount,
+        directory?.updatedAt,
+        shareUrl,
+    ]);
 
     const handleMapReadyForCapture = useCallback(() => {
         exportReadyRef.current = true;
+        mapErrorRef.current = null;
         const waiters = readyWaitersRef.current.splice(0);
-        waiters.forEach((resolve) => resolve());
+        waiters.forEach(({ resolve }) => resolve());
+    }, []);
+
+    const handleMapCaptureError = useCallback((captureError) => {
+        mapErrorRef.current = captureError;
+        exportReadyRef.current = false;
+        const waiters = readyWaitersRef.current.splice(0);
+        waiters.forEach(({ reject }) => reject(captureError));
     }, []);
 
     async function waitForExportSurface() {
@@ -44,20 +66,40 @@ export default function MapImageExportButton({
             }
         }
 
-        if (!exportReadyRef.current) {
-            await new Promise((resolve) => {
-                const timeoutId = window.setTimeout(() => {
-                    readyWaitersRef.current = readyWaitersRef.current.filter((waiter) => waiter !== ready);
-                    resolve();
-                }, 2200);
+        if (mapErrorRef.current) {
+            throw mapErrorRef.current;
+        }
 
-                const ready = () => {
-                    window.clearTimeout(timeoutId);
-                    resolve();
+        if (!exportReadyRef.current) {
+            await new Promise((resolve, reject) => {
+                const timeoutId = window.setTimeout(() => {
+                    readyWaitersRef.current = readyWaitersRef.current.filter((waiter) => waiter !== waiterEntry);
+                    reject(new Error('Image export failed because the directory map did not finish loading.'));
+                }, 6500);
+
+                const waiterEntry = {
+                    resolve: () => {
+                        window.clearTimeout(timeoutId);
+                        resolve();
+                    },
+                    reject: (captureError) => {
+                        window.clearTimeout(timeoutId);
+                        reject(captureError);
+                    },
                 };
 
-                readyWaitersRef.current.push(ready);
+                readyWaitersRef.current.push(waiterEntry);
+
+                if (mapErrorRef.current) {
+                    window.clearTimeout(timeoutId);
+                    readyWaitersRef.current = readyWaitersRef.current.filter((waiter) => waiter !== waiterEntry);
+                    reject(mapErrorRef.current);
+                }
             });
+        }
+
+        if (mapErrorRef.current) {
+            throw mapErrorRef.current;
         }
 
         await new Promise((resolve) => {
@@ -82,7 +124,7 @@ export default function MapImageExportButton({
             saveAs(dataUrl, buildFileName(directory?.name));
         } catch (err) {
             console.error(err);
-            setError('Image export failed. Try again.');
+            setError(err?.message || 'Image export failed. Try again.');
         } finally {
             setExporting(false);
         }
@@ -107,7 +149,10 @@ export default function MapImageExportButton({
                 <div ref={exportRef}>
                     <MapDirectoryExportPanel
                         directory={directory}
+                        activeAnchor={activeAnchor}
+                        shareUrl={shareUrl}
                         onMapReadyForCapture={handleMapReadyForCapture}
+                        onMapCaptureError={handleMapCaptureError}
                     />
                 </div>
             </div>

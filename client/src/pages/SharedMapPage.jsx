@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CopyPlus, LogIn, Printer } from 'lucide-react';
 
+import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
@@ -9,6 +10,8 @@ import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
+import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 
 function UnavailableState({ message }) {
     return (
@@ -126,6 +129,10 @@ export default function SharedMapPage() {
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const isPrintView = searchParams.get('view') === 'print';
+    const anchorState = useDirectoryDistanceAnchor({
+        storageKey: token ? `shared-map:${token}` : 'shared-map',
+        userPostalCode: user?.postalCode || '',
+    });
 
     const loadDirectory = useCallback(async () => {
         if (!token) return;
@@ -149,6 +156,13 @@ export default function SharedMapPage() {
     const isOwner = useMemo(() => (
         Boolean(directory?.viewer?.isOwner || (user?.id && directory?.viewer?.isAuthenticated && directory?.viewer?.isOwner))
     ), [directory?.viewer, user?.id]);
+    const activeAnchor = anchorState.activeAnchor;
+    const interactivePresentation = useMemo(() => (
+        buildDirectoryPresentation(directory, { query, activeAnchor })
+    ), [activeAnchor, directory, query]);
+    const sharedDirectoryUrl = useMemo(() => (
+        buildDirectoryShareUrl(directory?.share?.sharePath || (token ? `/shared/maps/${token}` : ''))
+    ), [directory?.share?.sharePath, token]);
 
     function handleViewSection(placeKey) {
         setQuery('');
@@ -238,6 +252,8 @@ export default function SharedMapPage() {
                         directory={directory}
                         mode="shared"
                         generatedAt={new Date()}
+                        activeAnchor={activeAnchor}
+                        shareUrl={sharedDirectoryUrl}
                         footerNote="Open the shared link for the full interactive directory."
                         className="mx-auto"
                     />
@@ -270,25 +286,43 @@ export default function SharedMapPage() {
                     onOpenPrintView={openPrintView}
                 />
 
-                <DirectoryMap
-                    pins={directory.pins}
-                    focusedPlaceKey={focusedPlaceKey}
-                    onViewSection={handleViewSection}
-                />
-
-                <DirectorySearchBar
-                    value={query}
-                    onChange={setQuery}
-                />
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                    <DirectorySearchBar
+                        value={query}
+                        onChange={setQuery}
+                    />
+                    <DirectoryDistanceControls anchorState={anchorState} />
+                </div>
 
                 <SharedMapDirectoryList
-                    places={directory.places}
-                    totalResourceCount={directory.summary.resourceCount}
-                    query={query}
+                    presentation={interactivePresentation}
                     mode="shared"
+                    layout="responsive"
                     onViewOnMap={handleViewOnMap}
                     highlightPlaceKey={highlightPlaceKey}
                     canSaveResources={Boolean(directory.viewer?.canSaveResources)}
+                    renderDesktopMap={() => (
+                        <DirectoryMap
+                            pins={interactivePresentation.pins}
+                            focusedPlaceKey={focusedPlaceKey}
+                            onViewSection={handleViewSection}
+                            markerMode="number"
+                            placeNumberByKey={interactivePresentation.placeNumberByKey}
+                            emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                            mapHeightClassName="h-[540px]"
+                        />
+                    )}
+                    renderMobileMap={() => (
+                        <DirectoryMap
+                            pins={interactivePresentation.pins}
+                            focusedPlaceKey={focusedPlaceKey}
+                            onViewSection={handleViewSection}
+                            markerMode="number"
+                            placeNumberByKey={interactivePresentation.placeNumberByKey}
+                            emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                            mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
+                        />
+                    )}
                 />
             </div>
         </div>

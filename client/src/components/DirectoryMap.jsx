@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
 
@@ -34,6 +37,55 @@ function createDirectoryNumberMarker(number) {
         iconAnchor: [20, 20],
         popupAnchor: [0, -18],
         tooltipAnchor: [0, -18],
+    });
+}
+
+function createDirectoryClusterIcon(count) {
+    return L.divIcon({
+        className: '',
+        html: `
+            <div style="width:42px;height:42px;border-radius:999px;background:rgba(15,118,110,0.12);display:flex;align-items:center;justify-content:center;border:1px solid rgba(13,148,136,0.24);box-shadow:0 16px 34px rgba(15,118,110,0.18);">
+                <div style="width:32px;height:32px;border-radius:999px;background:#0f766e;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+                    ${escapeHtml(count)}
+                </div>
+            </div>
+        `,
+        iconSize: [42, 42],
+        iconAnchor: [21, 21],
+    });
+}
+
+function spreadPinsForDisplay(pins, interactive) {
+    const groupedPins = new Map();
+
+    pins.forEach((pin) => {
+        const key = `${pin.lat.toFixed(6)}:${pin.lng.toFixed(6)}`;
+        const group = groupedPins.get(key) || [];
+        group.push(pin);
+        groupedPins.set(key, group);
+    });
+
+    return pins.map((pin) => {
+        const key = `${pin.lat.toFixed(6)}:${pin.lng.toFixed(6)}`;
+        const group = groupedPins.get(key) || [];
+
+        if (group.length <= 1) {
+            return {
+                ...pin,
+                displayLat: pin.lat,
+                displayLng: pin.lng,
+            };
+        }
+
+        const index = group.findIndex((candidate) => candidate.placeKey === pin.placeKey);
+        const angle = ((Math.PI * 2) / group.length) * index;
+        const offset = interactive ? 0.00018 : 0.00014;
+
+        return {
+            ...pin,
+            displayLat: pin.lat + Math.sin(angle) * offset,
+            displayLng: pin.lng + Math.cos(angle) * offset,
+        };
     });
 }
 
@@ -148,12 +200,16 @@ export default function DirectoryMap({
     showAttribution = true,
     mapHeightClassName = 'h-[340px]',
     onMapReadyForCapture,
+    onMapCaptureError,
 }) {
     const markerRefs = useRef({});
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
     const tileLoadedRef = useRef(false);
     const readyTimeoutRef = useRef(null);
+    const captureErrorRef = useRef(null);
+    const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
+    const shouldCluster = interactive && displayPins.length > 1;
 
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -176,14 +232,19 @@ export default function DirectoryMap({
         hasReportedReadyRef.current = false;
         mapSettledRef.current = false;
         tileLoadedRef.current = false;
+        captureErrorRef.current = null;
         if (readyTimeoutRef.current) {
             window.clearTimeout(readyTimeoutRef.current);
         }
         if (!onMapReadyForCapture) return undefined;
 
         readyTimeoutRef.current = window.setTimeout(() => {
-            notifyReady();
-        }, 1500);
+            if (!hasReportedReadyRef.current) {
+                const error = new Error('Directory map did not finish loading for capture.');
+                captureErrorRef.current = error;
+                onMapCaptureError?.(error);
+            }
+        }, 5000);
 
         return () => {
             if (readyTimeoutRef.current) {
@@ -191,7 +252,7 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [notifyReady, onMapReadyForCapture, pins, markerMode, placeNumberByKey]);
+    }, [markerMode, onMapCaptureError, onMapReadyForCapture, pins, placeNumberByKey]);
 
     if (!pins.length) {
         return (
@@ -224,6 +285,13 @@ export default function DirectoryMap({
                             tileLoadedRef.current = true;
                             tryNotifyReady();
                         },
+                        tileerror: () => {
+                            if (hasReportedReadyRef.current) return;
+                            if (captureErrorRef.current) return;
+                            const error = new Error('Directory map tiles failed to load for capture.');
+                            captureErrorRef.current = error;
+                            onMapCaptureError?.(error);
+                        },
                     } : undefined}
                 />
                 <DirectoryMapController
@@ -236,9 +304,47 @@ export default function DirectoryMap({
                         tryNotifyReady();
                     } : undefined}
                 />
-                {pins.map((pin) => {
+                {(shouldCluster ? (
+                    <MarkerClusterGroup
+                        showCoverageOnHover={false}
+                        spiderfyOnMaxZoom={true}
+                        removeOutsideVisibleBounds={false}
+                        disableClusteringAtZoom={16}
+                        maxClusterRadius={42}
+                        iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster.getChildCount())}
+                    >
+                        {displayPins.map((pin) => {
+                            const icon = markerMode === 'number'
+                                ? createDirectoryNumberMarker(pin.number || placeNumberByKey?.[pin.placeKey] || '?')
+                                : createSavedPlacePinIcon({
+                                    count: pin.curatedCount,
+                                    emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                                    tone: 'saved',
+                                });
+
+                            return (
+                                <Marker
+                                    key={pin.pinKey}
+                                    position={[pin.displayLat, pin.displayLng]}
+                                    icon={icon}
+                                    ref={(instance) => {
+                                        if (instance) {
+                                            markerRefs.current[pin.placeKey] = instance;
+                                        }
+                                    }}
+                                >
+                                    {interactive && showPopup ? (
+                                        <Popup autoPan className="directory-map-popup">
+                                            <PopupPreview pin={pin} onViewSection={onViewSection} />
+                                        </Popup>
+                                    ) : null}
+                                </Marker>
+                            );
+                        })}
+                    </MarkerClusterGroup>
+                ) : displayPins.map((pin) => {
                     const icon = markerMode === 'number'
-                        ? createDirectoryNumberMarker(placeNumberByKey?.[pin.placeKey] || '?')
+                        ? createDirectoryNumberMarker(pin.number || placeNumberByKey?.[pin.placeKey] || '?')
                         : createSavedPlacePinIcon({
                             count: pin.curatedCount,
                             emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
@@ -248,7 +354,7 @@ export default function DirectoryMap({
                     return (
                         <Marker
                             key={pin.pinKey}
-                            position={[pin.lat, pin.lng]}
+                            position={[pin.displayLat, pin.displayLng]}
                             icon={icon}
                             ref={(instance) => {
                                 if (instance) {
@@ -263,7 +369,7 @@ export default function DirectoryMap({
                             ) : null}
                         </Marker>
                     );
-                })}
+                }))}
             </MapContainer>
         </div>
     );
