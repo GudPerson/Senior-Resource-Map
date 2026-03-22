@@ -27,16 +27,16 @@ function createDirectoryNumberMarker(number) {
     return L.divIcon({
         className: '',
         html: `
-            <div style="position:relative;width:40px;height:40px;pointer-events:none;">
-                <div style="position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%);border-radius:999px;background:#0f766e;border:4px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;line-height:1;box-shadow:0 12px 24px rgba(15,118,110,0.28);font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="position:relative;width:30px;height:30px;pointer-events:none;">
+                <div style="position:absolute;left:50%;top:50%;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:999px;background:#0f766e;border:3px solid #ffffff;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;line-height:1;box-shadow:0 10px 18px rgba(15,118,110,0.24);font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                     ${escapeHtml(number)}
                 </div>
             </div>
         `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -18],
-        tooltipAnchor: [0, -18],
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        popupAnchor: [0, -16],
+        tooltipAnchor: [0, -16],
     });
 }
 

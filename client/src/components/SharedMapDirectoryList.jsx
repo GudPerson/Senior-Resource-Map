@@ -95,6 +95,14 @@ function SaveResourceAction({ row, place, enabled = true }) {
     );
 }
 
+function getGroupDetailPath(group) {
+    if (Number.isInteger(group?.placeId) && group.placeId > 0) {
+        return `/resource/hard/${group.placeId}`;
+    }
+
+    return group?.rows?.find((row) => row.detailPath && row.status !== 'unavailable')?.detailPath || null;
+}
+
 function DirectoryResourceRow({
     row,
     place,
@@ -102,14 +110,42 @@ function DirectoryResourceRow({
     interactive,
     canSaveResources,
     onRemoveResource,
+    allowPrintLinks = false,
+    compactPrint = false,
 }) {
+    const canOpenDetail = Boolean(row.detailPath) && row.status !== 'unavailable';
+    const rowTitleClassName = interactive ? 'text-base' : (compactPrint ? 'text-[11px]' : 'text-[12px]');
+
+    if (!interactive) {
+        const printRowTitle = canOpenDetail && allowPrintLinks ? (
+            <Link to={row.detailPath} className={`font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                {row.name}
+            </Link>
+        ) : (
+            <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
+        );
+
+        return (
+            <div className="border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
+                <div className="flex items-start gap-2">
+                    <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" />
+                    <div className="min-w-0 flex-1">
+                        {printRowTitle}
+                        {row.status === 'unavailable' ? (
+                            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-amber-600">Unavailable</p>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className={`flex items-start gap-3 ${interactive ? 'rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm' : 'border-b border-slate-100 pb-3 last:border-b-0 last:pb-0'}`}>
+        <div className="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
             <ResourceRowIcon
                 resourceType={row.resourceType}
                 bucket={row.bucket}
                 subCategory={row.subCategory}
-                className={interactive ? undefined : 'h-9 w-9 rounded-xl border-slate-200 bg-slate-50'}
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -122,13 +158,19 @@ function DirectoryResourceRow({
                             ) : null}
                             <StatusBadge status={row.status} />
                         </div>
-                        <p className={`mt-1.5 font-bold leading-snug text-slate-900 ${interactive ? 'text-base' : 'text-[13px]'}`}>{row.name}</p>
-                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${interactive ? 'text-[11px]' : 'text-[10px]'}`}>
+                        {canOpenDetail ? (
+                            <Link to={row.detailPath} className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
+                                {row.name}
+                            </Link>
+                        ) : (
+                            <p className="mt-1.5 text-base font-bold leading-snug text-slate-900">{row.name}</p>
+                        )}
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                             <span>{row.resourceType === 'hard' ? 'Place' : 'Offering'}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                         </div>
                         {row.descriptor ? (
-                            <p className={`mt-1.5 text-slate-500 ${interactive ? 'text-sm leading-6' : 'text-[11px] leading-5'}`}>{row.descriptor}</p>
+                            <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>
                         ) : null}
                     </div>
 
@@ -149,17 +191,15 @@ function DirectoryResourceRow({
                     ) : null}
                 </div>
 
-                {interactive ? (
-                    <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
-                        {row.detailPath && row.status !== 'unavailable' ? (
-                            <Link to={row.detailPath} className="text-brand-700 transition hover:text-brand-800">
-                                View details
-                            </Link>
-                        ) : (
-                            <span className="text-slate-400">View details unavailable</span>
-                        )}
-                    </div>
-                ) : null}
+                <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
+                    {canOpenDetail ? (
+                        <Link to={row.detailPath} className="text-brand-700 transition hover:text-brand-800">
+                            View details
+                        </Link>
+                    ) : (
+                        <span className="text-slate-400">View details unavailable</span>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -174,36 +214,102 @@ function DirectoryPlaceGroupCard({
     canSaveResources,
     highlighted,
     sectionRef,
+    allowPrintLinks = false,
+    compactPrint = false,
 }) {
+    const placeDetailPath = getGroupDetailPath(group);
+
+    if (!interactive) {
+        const printPlaceTitle = placeDetailPath && allowPrintLinks ? (
+            <Link to={placeDetailPath} className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+                {group.name}
+            </Link>
+        ) : (
+            <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>{group.name}</h3>
+        );
+
+        return (
+            <section
+                ref={sectionRef}
+                className={`break-inside-avoid rounded-[18px] border border-slate-200/90 bg-white/90 px-3 py-2.5 transition ${
+                    highlighted ? 'border-brand-300 ring-2 ring-brand-100' : ''
+                }`}
+            >
+                <div className="flex items-start gap-2.5">
+                    <div className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-brand-700 font-black text-white ${compactPrint ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[11px]'}`}>
+                        {group.number}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                {printPlaceTitle}
+                                {group.shortLocationLine ? (
+                                    <p className={`mt-0.5 text-slate-500 ${compactPrint ? 'text-[10px]' : 'text-[11px]'}`}>{group.shortLocationLine}</p>
+                                ) : null}
+                            </div>
+                            {group.distanceLabel ? (
+                                <span className="mt-0.5 inline-flex rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                                    {group.distanceLabel}
+                                </span>
+                            ) : null}
+                        </div>
+
+                        <div className={`mt-1.5 ${compactPrint ? 'space-y-1' : 'space-y-1.5'}`}>
+                            {group.rows.map((row) => (
+                                <DirectoryResourceRow
+                                    key={row.rowKey}
+                                    row={row}
+                                    place={group}
+                                    mode={mode}
+                                    interactive={false}
+                                    canSaveResources={canSaveResources}
+                                    onRemoveResource={onRemoveResource}
+                                    allowPrintLinks={allowPrintLinks}
+                                    compactPrint={compactPrint}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section
             ref={sectionRef}
-            className={`border bg-white transition ${interactive ? 'rounded-[28px] p-5 shadow-sm' : 'break-inside-avoid rounded-[24px] border-slate-200/90 p-4 shadow-none'} ${
+            className={`border bg-white transition rounded-[28px] p-5 shadow-sm ${
                 highlighted ? 'border-brand-300 ring-2 ring-brand-100' : 'border-slate-200'
             }`}
         >
-            <div className={`flex flex-col ${interactive ? 'gap-4 border-b border-slate-100 pb-4' : 'gap-3 pb-3'}`}>
+            <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
                 <div className="flex items-start gap-3">
-                    <div className={`flex flex-shrink-0 items-center justify-center bg-brand-700 font-black text-white ${interactive ? 'h-10 w-10 rounded-2xl text-sm shadow-sm' : 'h-9 w-9 rounded-xl text-[13px]'}`}>
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-700 text-sm font-black text-white shadow-sm">
                         {group.number}
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <h3 className={`font-bold leading-tight text-slate-900 ${interactive ? 'text-lg' : 'text-[17px]'}`}>{group.name}</h3>
+                                {placeDetailPath ? (
+                                    <Link to={placeDetailPath} className="text-lg font-bold leading-tight text-slate-900 transition hover:text-brand-700">
+                                        {group.name}
+                                    </Link>
+                                ) : (
+                                    <h3 className="text-lg font-bold leading-tight text-slate-900">{group.name}</h3>
+                                )}
                                 {group.shortLocationLine ? (
-                                    <p className={`mt-1 text-slate-500 ${interactive ? 'text-sm leading-6' : 'text-[12px] leading-5'}`}>{group.shortLocationLine}</p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500">{group.shortLocationLine}</p>
                                 ) : null}
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
                                 {group.distanceLabel ? (
-                                    <span className={`inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 font-semibold text-sky-700 ${interactive ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[11px]'}`}>
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
                                         <Navigation size={12} />
                                         {group.distanceLabel}
                                     </span>
                                 ) : null}
-                                <span className={`inline-flex rounded-full border border-brand-100 bg-brand-50 font-semibold text-brand-700 ${interactive ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[11px]'}`}>
+                                <span className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
                                     {group.curatedCount} {group.curatedCount === 1 ? 'resource' : 'resources'}
                                 </span>
                             </div>
@@ -211,20 +317,18 @@ function DirectoryPlaceGroupCard({
                     </div>
                 </div>
 
-                {interactive ? (
-                    <div className="flex justify-end">
-                        <button
-                            type="button"
-                            onClick={() => onViewOnMap?.(group.placeKey)}
-                            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700"
-                        >
-                            View on map
-                        </button>
-                    </div>
-                ) : null}
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => onViewOnMap?.(group.placeKey)}
+                        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700"
+                    >
+                        View on map
+                    </button>
+                </div>
             </div>
 
-            <div className={`mt-3 ${interactive ? 'space-y-3' : 'space-y-2.5'}`}>
+            <div className="mt-3 space-y-3">
                 {group.rows.map((row) => (
                     <DirectoryResourceRow
                         key={row.rowKey}
@@ -234,6 +338,8 @@ function DirectoryPlaceGroupCard({
                         interactive={interactive}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        allowPrintLinks={allowPrintLinks}
+                        compactPrint={compactPrint}
                     />
                 ))}
             </div>
@@ -248,13 +354,34 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
         lng: null,
     }), [row.contextLabel, row.locationLabel, row.placeName]);
 
+    if (!interactive) {
+        const canOpenDetail = Boolean(row.detailPath) && row.status !== 'unavailable';
+
+        return (
+            <div className="border-b border-slate-200/80 pb-2 last:border-b-0 last:pb-0">
+                <div className="flex items-start gap-2">
+                    <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" />
+                    <div className="min-w-0 flex-1">
+                        {canOpenDetail ? (
+                            <Link to={row.detailPath} className="text-[12px] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
+                                {row.name}
+                            </Link>
+                        ) : (
+                            <p className="text-[12px] font-semibold leading-snug text-slate-800">{row.name}</p>
+                        )}
+                        {row.contextLabel ? <p className="mt-0.5 text-[10px] text-slate-500">{row.contextLabel}</p> : null}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className={`flex items-start gap-3 ${interactive ? 'rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm' : 'border-b border-slate-200/80 pb-3 last:border-b-0 last:pb-0'}`}>
+        <div className="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
             <ResourceRowIcon
                 resourceType={row.resourceType}
                 bucket={row.bucket}
                 subCategory={row.subCategory}
-                className={interactive ? undefined : 'h-9 w-9 rounded-xl border-slate-200 bg-white'}
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -270,19 +397,25 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                                 Not shown on map
                             </span>
                         </div>
-                        <p className={`mt-1.5 font-bold leading-snug text-slate-900 ${interactive ? 'text-base' : 'text-[13px]'}`}>{row.name}</p>
+                        {row.detailPath && row.status !== 'unavailable' ? (
+                            <Link to={row.detailPath} className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
+                                {row.name}
+                            </Link>
+                        ) : (
+                            <p className="mt-1.5 text-base font-bold leading-snug text-slate-900">{row.name}</p>
+                        )}
                         {row.contextLabel ? (
-                            <p className={`mt-1 text-slate-500 ${interactive ? 'text-sm' : 'text-[11px]'}`}>{row.contextLabel}</p>
+                            <p className="mt-1 text-sm text-slate-500">{row.contextLabel}</p>
                         ) : null}
                         {row.locationLabel ? (
-                            <p className={`mt-1 text-slate-400 ${interactive ? 'text-sm' : 'text-[11px]'}`}>{row.locationLabel}</p>
+                            <p className="mt-1 text-sm text-slate-400">{row.locationLabel}</p>
                         ) : null}
-                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${interactive ? 'text-[11px]' : 'text-[10px]'}`}>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                             <span>{row.resourceType === 'hard' ? 'Place' : 'Offering'}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                         </div>
                         {row.descriptor ? (
-                            <p className={`mt-1.5 text-slate-500 ${interactive ? 'text-sm leading-6' : 'text-[11px] leading-5'}`}>{row.descriptor}</p>
+                            <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>
                         ) : null}
                     </div>
 
@@ -329,13 +462,15 @@ function DirectoryGroupColumn({
     highlightPlaceKey,
     sectionRefs,
     preserveSlot = false,
+    allowPrintLinks = false,
+    compactPrint = false,
 }) {
     if (!groups.length) {
         return preserveSlot ? <div aria-hidden="true" className="min-h-px" /> : null;
     }
 
     return (
-        <div className={interactive ? 'space-y-4' : 'space-y-3'}>
+        <div className={interactive ? 'space-y-4' : (compactPrint ? 'space-y-1.5' : 'space-y-2')}>
             {groups.map((group) => (
                 <DirectoryPlaceGroupCard
                     key={group.placeKey}
@@ -346,6 +481,8 @@ function DirectoryGroupColumn({
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
                     highlighted={highlightPlaceKey === group.placeKey}
+                    allowPrintLinks={allowPrintLinks}
+                    compactPrint={compactPrint}
                     sectionRef={(node) => {
                         if (node) {
                             sectionRefs.current[group.placeKey] = node;
@@ -407,6 +544,7 @@ export default function SharedMapDirectoryList({
     className = '',
     desktopGridClassName = 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]',
     desktopMapWrapperClassName = '',
+    allowPrintLinks = false,
 }) {
     const sectionRefs = useRef({});
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
@@ -419,6 +557,10 @@ export default function SharedMapDirectoryList({
     const rightGroups = presentation?.rightGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
     const interactive = layout !== 'print';
+    const compactPrint = !interactive && (
+        mappedGroups.length >= 7
+        || mappedGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
+    );
 
     useEffect(() => {
         if (!highlightPlaceKey || !interactive) return undefined;
@@ -490,6 +632,8 @@ export default function SharedMapDirectoryList({
                     highlightPlaceKey={flashPlaceKey}
                     sectionRefs={sectionRefs}
                     preserveSlot
+                    allowPrintLinks={allowPrintLinks}
+                    compactPrint={compactPrint}
                 />
 
                 <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
@@ -506,6 +650,8 @@ export default function SharedMapDirectoryList({
                     highlightPlaceKey={flashPlaceKey}
                     sectionRefs={sectionRefs}
                     preserveSlot
+                    allowPrintLinks={allowPrintLinks}
+                    compactPrint={compactPrint}
                 />
             </div>
 

@@ -55,7 +55,7 @@ function PrintDirectoryMap({
                 showPopup={false}
                 showZoomControl={false}
                 showAttribution={true}
-                mapHeightClassName="h-[460px] xl:h-[500px]"
+                mapHeightClassName="h-[500px] xl:h-[540px]"
                 className="mt-4"
                 emptyLabel="No mappable places in this directory"
                 onMapReadyForCapture={onMapReadyForCapture}
@@ -131,6 +131,7 @@ export default function DirectoryPrintView({
                         mode={mode}
                         layout="print"
                         canSaveResources={false}
+                        allowPrintLinks={variant === 'screen'}
                         desktopGridClassName="lg:grid-cols-[minmax(320px,1fr)_minmax(640px,1.65fr)_minmax(320px,1fr)] xl:grid-cols-[minmax(360px,1fr)_minmax(780px,1.9fr)_minmax(360px,1fr)]"
                         renderDesktopMap={() => (
                             <PrintDirectoryMap

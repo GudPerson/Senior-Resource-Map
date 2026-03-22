@@ -23,11 +23,24 @@ function formatStreetLabel(address) {
     if (!compact) return '';
 
     const firstSegment = compact.split(',')[0]?.trim() || compact;
-    if (firstSegment.length <= 52) {
-        return firstSegment;
+    const jalanMatch = firstSegment.match(/^(\d+[A-Z]?\s+(?:jalan|lorong)\s+[a-z0-9'()./-]+(?:\s+[a-z0-9'()./-]+){0,3})/i);
+    if (jalanMatch?.[1]) {
+        return jalanMatch[1];
     }
 
-    return `${firstSegment.slice(0, 49).trimEnd()}...`;
+    const roadTypeMatch = firstSegment.match(
+        /^(.+?\b(?:avenue|ave|street|st|road|rd|drive|dr|lane|ln|way|walk|close|crescent|cres|boulevard|blvd|place|court|terrace|view|central|heights|rise|link|track|loop|grove|gardens|park)\b(?:\s+\d+[A-Z]?)?)/i
+    );
+    if (roadTypeMatch?.[1]) {
+        return roadTypeMatch[1];
+    }
+
+    const trimmed = firstSegment.split(/\s+/).slice(0, 5).join(' ');
+    if (trimmed.length <= 42) {
+        return trimmed;
+    }
+
+    return `${trimmed.slice(0, 39).trimEnd()}...`;
 }
 
 function buildPlaceQueryText(place, row) {
