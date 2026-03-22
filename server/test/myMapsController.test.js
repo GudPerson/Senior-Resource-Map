@@ -383,6 +383,23 @@ test('addAssetToMyMap rejects duplicate assets in the same map', async () => {
     );
 });
 
+test('addAssetToMyMap adds a saved asset and returns a serialized record', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        favorites: [createFavorite()],
+        mapAssets: [],
+    });
+
+    const created = await addAssetToMyMap(db, DEFAULT_USER, 3, { resourceType: 'hard', resourceId: 29 });
+
+    assert.equal(created.mapId, 3);
+    assert.equal(created.resourceType, 'hard');
+    assert.equal(created.resourceId, 29);
+    assert.equal(created.assetKey, 'hard-29');
+    assert.equal(created.snapshot.name, 'Saved centre snapshot');
+    assert.equal(db.state.mapAssets.length, 1);
+});
+
 test('deleteMyMapRecord removes the map and all of its asset associations', async () => {
     const db = createFakeDb({
         maps: [createMap()],

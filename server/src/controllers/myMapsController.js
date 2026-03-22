@@ -88,6 +88,18 @@ function formatMyMapSummary(map) {
     };
 }
 
+function serializeMyMapAssetRecord(mapAsset) {
+    return {
+        id: mapAsset.id,
+        mapId: mapAsset.mapId,
+        resourceType: mapAsset.resourceType,
+        resourceId: mapAsset.resourceId,
+        assetKey: `${mapAsset.resourceType}-${mapAsset.resourceId}`,
+        addedAt: mapAsset.addedAt ?? null,
+        snapshot: normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot),
+    };
+}
+
 async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
     return db.query.myMaps.findFirst({
         where: and(
@@ -358,9 +370,7 @@ export async function addAssetToMyMap(db, user, mapId, body, resolutionContext =
     }).returning();
 
     await touchMap(db, map.id);
-
-    const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
-    return hydrateMapAssetRecord(db, user, createdAsset, finalResolutionContext);
+    return serializeMyMapAssetRecord(createdAsset);
 }
 
 export async function removeAssetFromMyMap(db, user, mapId, resourceType, resourceId) {
