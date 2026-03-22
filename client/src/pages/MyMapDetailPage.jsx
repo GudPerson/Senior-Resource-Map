@@ -30,45 +30,74 @@ function MapDetailLoadingState() {
 
 function OwnerHeader({
     directory,
+    query,
+    onQueryChange,
+    anchorState,
+    actionError,
     onAddAssets,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
 }) {
-    const compactActionClassName = 'w-full justify-center px-4 py-2.5 text-sm sm:w-auto sm:px-5 sm:py-3 sm:text-base';
+    const compactActionClassName = 'h-12 justify-center px-4 text-sm sm:w-auto sm:px-5 sm:text-base';
 
     return (
-        <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6 xl:p-9">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0">
-                    <h1 className="text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-                        {directory.name}
-                    </h1>
-                    {directory.description ? (
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:mt-3 sm:text-lg sm:leading-7">
-                            {directory.description}
-                        </p>
-                    ) : null}
+        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 xl:p-7">
+            <div className="flex flex-col gap-5">
+                <div className="flex flex-wrap items-center gap-3 xl:flex-nowrap">
+                    <Link
+                        to="/my-directory?section=my-maps"
+                        className="btn-ghost h-12 flex-shrink-0 justify-center px-4 text-sm font-semibold text-brand-700"
+                    >
+                        <ArrowLeft size={16} />
+                        Back to My Maps
+                    </Link>
+
+                    <div className="min-w-0 flex-1">
+                        <h1 className="truncate text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.25rem]">
+                            {directory.name}
+                        </h1>
+                        {directory.description ? (
+                            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
+                                {directory.description}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2 xl:max-w-[760px]">
+                        <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[236px] ${compactActionClassName}`}>
+                            <Plus size={16} />
+                            Add from Saved Assets
+                        </button>
+                        <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
+                            <Pencil size={16} />
+                            Edit details
+                        </button>
+                        <button type="button" onClick={onOpenPrintView} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
+                            <Printer size={16} />
+                            Print view
+                        </button>
+                        <button type="button" onClick={onOpenShare} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
+                            <Link2 size={16} />
+                            Share
+                        </button>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:justify-end xl:max-w-[740px]">
-                    <button type="button" onClick={onAddAssets} className={`btn-primary col-span-2 ${compactActionClassName}`}>
-                        <Plus size={16} />
-                        Add from Saved Assets
-                    </button>
-                    <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
-                        <Pencil size={16} />
-                        Edit details
-                    </button>
-                    <button type="button" onClick={onOpenPrintView} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
-                        <Printer size={16} />
-                        Print view
-                    </button>
-                    <button type="button" onClick={onOpenShare} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
-                        <Link2 size={16} />
-                        Share
-                    </button>
+                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(420px,0.95fr)]">
+                    <DirectorySearchBar
+                        value={query}
+                        onChange={onQueryChange}
+                        inputId="directory-search-desktop"
+                        compact
+                        className="min-w-0"
+                    />
+                    <DirectoryDistanceControls anchorState={anchorState} compact className="min-w-0" />
                 </div>
+
+                {actionError ? (
+                    <p className="text-sm font-medium text-red-600">{actionError}</p>
+                ) : null}
             </div>
         </div>
     );
@@ -446,15 +475,12 @@ export default function MyMapDetailPage() {
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
                     <div className="hidden xl:block">
-                        <Link to="/my-directory?section=my-maps" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 transition hover:text-brand-800">
-                            <ArrowLeft size={16} />
-                            Back to My Maps
-                        </Link>
-                    </div>
-
-                    <div className="hidden xl:block">
                         <OwnerHeader
                             directory={directory}
+                            query={query}
+                            onQueryChange={setQuery}
+                            anchorState={anchorState}
+                            actionError={actionError}
                             onAddAssets={() => setAddOpen(true)}
                             onEditDetails={() => {
                                 setEditError('');
@@ -472,19 +498,6 @@ export default function MyMapDetailPage() {
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
                     ) : (
                         <>
-                            <div className="hidden xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.9fr)] xl:gap-4">
-                                <DirectorySearchBar
-                                    value={query}
-                                    onChange={setQuery}
-                                    inputId="directory-search-desktop"
-                                />
-                                <DirectoryDistanceControls anchorState={anchorState} />
-                            </div>
-
-                            {actionError ? (
-                                <p className="text-sm font-medium text-red-600">{actionError}</p>
-                            ) : null}
-
                             <SharedMapDirectoryList
                                 presentation={interactivePresentation}
                                 mode="owner"
