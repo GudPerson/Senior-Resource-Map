@@ -11,7 +11,7 @@ import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../lib/m
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
-const DIRECTORY_FOCUS_ZOOM = 20;
+const DIRECTORY_FOCUS_ZOOM = 19;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -240,7 +240,7 @@ export default function DirectoryMap({
                 zoomControl={showZoomControl}
                 className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
                 attributionControl={showAttribution}
-                maxZoom={20}
+                maxZoom={19}
             >
                 <TileLayer
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}

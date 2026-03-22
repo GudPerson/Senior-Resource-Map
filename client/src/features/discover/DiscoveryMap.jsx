@@ -254,7 +254,7 @@ export function DiscoveryMap({
             className="carearound-map"
             style={{ width: '100%', height: '100%', zIndex: 0 }}
             zoomControl={false}
-            maxZoom={20}
+            maxZoom={19}
         >
             <TileLayer
                 attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
