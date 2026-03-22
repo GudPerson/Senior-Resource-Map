@@ -465,23 +465,12 @@
   filter: drop-shadow(0 1px 1px rgba(176, 30, 49, 0.18));
 }
 
-.carearound-map .carearound-map__base-layer {
-  filter: contrast(1.08) saturate(0.96) brightness(1.03);
+.carearound-map .leaflet-tile {
+  filter: contrast(1.08) saturate(0.98) brightness(1.02);
 }
 
-.carearound-map .carearound-map__labels-layer {
-  filter: grayscale(0.1) contrast(1.5) brightness(0.62);
-  opacity: 0.96;
-  mix-blend-mode: multiply;
-}
-
-html.high-contrast .carearound-map .carearound-map__base-layer {
-  filter: contrast(1.14) saturate(0.94) brightness(1.03);
-}
-
-html.high-contrast .carearound-map .carearound-map__labels-layer {
-  filter: grayscale(0.12) contrast(1.68) brightness(0.5);
-  opacity: 1;
+html.high-contrast .carearound-map .leaflet-tile {
+  filter: contrast(1.16) saturate(0.96) brightness(1.03);
 }
 
 .directory-number-marker {
