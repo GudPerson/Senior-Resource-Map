@@ -465,14 +465,6 @@
   filter: drop-shadow(0 1px 1px rgba(176, 30, 49, 0.18));
 }
 
-.carearound-map .leaflet-tile {
-  filter: contrast(1.08) saturate(0.98) brightness(1.02);
-}
-
-html.high-contrast .carearound-map .leaflet-tile {
-  filter: contrast(1.16) saturate(0.96) brightness(1.03);
-}
-
 .directory-number-marker {
   position: relative;
   width: 30px;

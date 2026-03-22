@@ -3,15 +3,15 @@ import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 're
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+import OneMapBadge from '../../components/OneMapBadge.jsx';
 import { createSavedPlacePinIcon } from './discoverUtils.js';
-import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../../lib/mapTheme.js';
+import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_NATIVE_ZOOM, CAREAROUND_BASEMAP_URL } from '../../lib/mapTheme.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
 const DEFAULT_MAP_ZOOM = 12;
-const SINGLE_PIN_ZOOM = 18;
-const MAP_NATIVE_DETAIL_ZOOM = 18;
-const DESKTOP_FIT_MAX_ZOOM = 18;
-const MOBILE_FIT_MAX_ZOOM = 17;
+const SINGLE_PIN_ZOOM = CAREAROUND_BASEMAP_NATIVE_ZOOM;
+const DESKTOP_FIT_MAX_ZOOM = CAREAROUND_BASEMAP_NATIVE_ZOOM;
+const MOBILE_FIT_MAX_ZOOM = 18;
 const DESKTOP_FIT_PADDING_TOP_LEFT = [24, 24];
 const DESKTOP_FIT_PADDING_BOTTOM_RIGHT = [24, 24];
 const MOBILE_FIT_PADDING_TOP_LEFT = [16, 56];
@@ -249,66 +249,69 @@ export function DiscoveryMap({
     );
 
     return (
-        <MapContainer
-            center={DEFAULT_MAP_CENTER}
-            zoom={DEFAULT_MAP_ZOOM}
-            className="carearound-map"
-            style={{ width: '100%', height: '100%', zIndex: 0 }}
-            zoomControl={false}
-            maxZoom={MAP_NATIVE_DETAIL_ZOOM}
-        >
-            <TileLayer
-                attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
-                url={CAREAROUND_BASEMAP_URL}
-                maxNativeZoom={MAP_NATIVE_DETAIL_ZOOM}
-            />
-            <SavedMapCameraController
-                focusRequest={focusRequest}
-                interactionMode={interactionMode}
-                savedPlacePins={savedPlacePins}
-            />
-            <MapBackgroundEvents enabled={Boolean(onBackgroundClick)} onBackgroundClick={onBackgroundClick} />
-            {userLocation ? (
-                <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserLocationIcon()}>
-                    <Popup>
-                        <div className="p-1 font-bold text-sm">Your Search Location</div>
-                    </Popup>
-                </Marker>
-            ) : null}
-            {renderedPins.map((pin) => {
-                const markerKey = pin.pinKey;
-                const emphasis = emphasisLookup.get(markerKey) || 'default';
-                const isTransient = pin.tone === 'temporary' || pin.isTransient;
+        <div className="relative h-full w-full">
+            <MapContainer
+                center={DEFAULT_MAP_CENTER}
+                zoom={DEFAULT_MAP_ZOOM}
+                className="carearound-map"
+                style={{ width: '100%', height: '100%', zIndex: 0 }}
+                zoomControl={false}
+                maxZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
+            >
+                <TileLayer
+                    attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
+                    url={CAREAROUND_BASEMAP_URL}
+                    maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
+                />
+                <SavedMapCameraController
+                    focusRequest={focusRequest}
+                    interactionMode={interactionMode}
+                    savedPlacePins={savedPlacePins}
+                />
+                <MapBackgroundEvents enabled={Boolean(onBackgroundClick)} onBackgroundClick={onBackgroundClick} />
+                {userLocation ? (
+                    <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserLocationIcon()}>
+                        <Popup>
+                            <div className="p-1 font-bold text-sm">Your Search Location</div>
+                        </Popup>
+                    </Marker>
+                ) : null}
+                {renderedPins.map((pin) => {
+                    const markerKey = pin.pinKey;
+                    const emphasis = emphasisLookup.get(markerKey) || 'default';
+                    const isTransient = pin.tone === 'temporary' || pin.isTransient;
 
-                return (
-                    <Marker
-                        key={markerKey}
-                        position={[pin.lat, pin.lng]}
-                        icon={createSavedPlacePinIcon({
-                            count: pin.totalOfferingsCount,
-                            emphasis,
-                            tone: pin.tone || 'saved',
-                        })}
-                        eventHandlers={isTransient ? undefined : {
-                            click: (event) => {
-                                event.originalEvent?.stopPropagation?.();
-                                onSelectPin?.(pin);
-                            },
-                            mouseover: () => {
-                                if (interactionMode === 'desktop') {
-                                    onMapHoverStart?.(markerKey);
-                                }
-                            },
-                            mouseout: () => {
-                                if (interactionMode === 'desktop') {
-                                    onMapHoverEnd?.(markerKey);
-                                }
-                            },
-                        }}
-                    />
-                );
-            })}
-        </MapContainer>
+                    return (
+                        <Marker
+                            key={markerKey}
+                            position={[pin.lat, pin.lng]}
+                            icon={createSavedPlacePinIcon({
+                                count: pin.totalOfferingsCount,
+                                emphasis,
+                                tone: pin.tone || 'saved',
+                            })}
+                            eventHandlers={isTransient ? undefined : {
+                                click: (event) => {
+                                    event.originalEvent?.stopPropagation?.();
+                                    onSelectPin?.(pin);
+                                },
+                                mouseover: () => {
+                                    if (interactionMode === 'desktop') {
+                                        onMapHoverStart?.(markerKey);
+                                    }
+                                },
+                                mouseout: () => {
+                                    if (interactionMode === 'desktop') {
+                                        onMapHoverEnd?.(markerKey);
+                                    }
+                                },
+                            }}
+                        />
+                    );
+                })}
+            </MapContainer>
+            <OneMapBadge />
+        </div>
     );
 }
 

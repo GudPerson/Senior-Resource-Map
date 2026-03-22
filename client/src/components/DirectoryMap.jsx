@@ -6,13 +6,13 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
+import OneMapBadge from './OneMapBadge.jsx';
 import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
-import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../lib/mapTheme.js';
+import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_NATIVE_ZOOM, CAREAROUND_BASEMAP_URL } from '../lib/mapTheme.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
-const DIRECTORY_FOCUS_ZOOM = 18;
-const DIRECTORY_NATIVE_DETAIL_ZOOM = 18;
+const DIRECTORY_FOCUS_ZOOM = CAREAROUND_BASEMAP_NATIVE_ZOOM;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -228,7 +228,7 @@ export default function DirectoryMap({
     }
 
     return (
-        <div className={`overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm ${className}`}>
+        <div className={`relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm ${className}`}>
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
@@ -241,12 +241,12 @@ export default function DirectoryMap({
                 zoomControl={showZoomControl}
                 className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
                 attributionControl={showAttribution}
-                maxZoom={DIRECTORY_NATIVE_DETAIL_ZOOM}
+                maxZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
             >
                 <TileLayer
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                     url={CAREAROUND_BASEMAP_URL}
-                    maxNativeZoom={DIRECTORY_NATIVE_DETAIL_ZOOM}
+                    maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
                     eventHandlers={onMapReadyForCapture ? {
                         load: () => {
                             tileLoadedRef.current = true;
@@ -327,6 +327,7 @@ export default function DirectoryMap({
                     );
                 }))}
             </MapContainer>
+            <OneMapBadge />
         </div>
     );
 }
