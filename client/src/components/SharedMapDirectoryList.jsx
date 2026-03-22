@@ -104,12 +104,12 @@ function DirectoryResourceRow({
     onRemoveResource,
 }) {
     return (
-        <div className={`flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white ${interactive ? 'p-4 shadow-sm' : 'p-3.5'}`}>
+        <div className={`flex items-start gap-3 ${interactive ? 'rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm' : 'border-b border-slate-100 pb-3 last:border-b-0 last:pb-0'}`}>
             <ResourceRowIcon
                 resourceType={row.resourceType}
                 bucket={row.bucket}
                 subCategory={row.subCategory}
-                className={interactive ? undefined : 'h-10 w-10 rounded-xl'}
+                className={interactive ? undefined : 'h-9 w-9 rounded-xl border-slate-200 bg-slate-50'}
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -122,13 +122,13 @@ function DirectoryResourceRow({
                             ) : null}
                             <StatusBadge status={row.status} />
                         </div>
-                        <p className={`mt-2 font-bold leading-snug text-slate-900 ${interactive ? 'text-base' : 'text-sm'}`}>{row.name}</p>
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        <p className={`mt-1.5 font-bold leading-snug text-slate-900 ${interactive ? 'text-base' : 'text-[13px]'}`}>{row.name}</p>
+                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${interactive ? 'text-[11px]' : 'text-[10px]'}`}>
                             <span>{row.resourceType === 'hard' ? 'Place' : 'Offering'}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                         </div>
                         {row.descriptor ? (
-                            <p className={`mt-2 leading-6 text-slate-500 ${interactive ? 'text-sm' : 'text-xs'}`}>{row.descriptor}</p>
+                            <p className={`mt-1.5 text-slate-500 ${interactive ? 'text-sm leading-6' : 'text-[11px] leading-5'}`}>{row.descriptor}</p>
                         ) : null}
                     </div>
 
@@ -178,32 +178,32 @@ function DirectoryPlaceGroupCard({
     return (
         <section
             ref={sectionRef}
-            className={`rounded-[28px] border bg-white p-5 shadow-sm transition ${interactive ? '' : 'break-inside-avoid'} ${
+            className={`border bg-white transition ${interactive ? 'rounded-[28px] p-5 shadow-sm' : 'break-inside-avoid rounded-[24px] border-slate-200/90 p-4 shadow-none'} ${
                 highlighted ? 'border-brand-300 ring-2 ring-brand-100' : 'border-slate-200'
             }`}
         >
-            <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
+            <div className={`flex flex-col ${interactive ? 'gap-4 border-b border-slate-100 pb-4' : 'gap-3 pb-3'}`}>
                 <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-700 text-sm font-black text-white shadow-sm">
+                    <div className={`flex flex-shrink-0 items-center justify-center bg-brand-700 font-black text-white ${interactive ? 'h-10 w-10 rounded-2xl text-sm shadow-sm' : 'h-9 w-9 rounded-xl text-[13px]'}`}>
                         {group.number}
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <h3 className="text-lg font-bold leading-tight text-slate-900">{group.name}</h3>
+                                <h3 className={`font-bold leading-tight text-slate-900 ${interactive ? 'text-lg' : 'text-[17px]'}`}>{group.name}</h3>
                                 {group.shortLocationLine ? (
-                                    <p className="mt-1 text-sm leading-6 text-slate-500">{group.shortLocationLine}</p>
+                                    <p className={`mt-1 text-slate-500 ${interactive ? 'text-sm leading-6' : 'text-[12px] leading-5'}`}>{group.shortLocationLine}</p>
                                 ) : null}
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
                                 {group.distanceLabel ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                    <span className={`inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 font-semibold text-sky-700 ${interactive ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[11px]'}`}>
                                         <Navigation size={12} />
                                         {group.distanceLabel}
                                     </span>
                                 ) : null}
-                                <span className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
+                                <span className={`inline-flex rounded-full border border-brand-100 bg-brand-50 font-semibold text-brand-700 ${interactive ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[11px]'}`}>
                                     {group.curatedCount} {group.curatedCount === 1 ? 'resource' : 'resources'}
                                 </span>
                             </div>
@@ -224,7 +224,7 @@ function DirectoryPlaceGroupCard({
                 ) : null}
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className={`mt-3 ${interactive ? 'space-y-3' : 'space-y-2.5'}`}>
                 {group.rows.map((row) => (
                     <DirectoryResourceRow
                         key={row.rowKey}
@@ -249,12 +249,12 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
     }), [row.contextLabel, row.locationLabel, row.placeName]);
 
     return (
-        <div className={`flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white ${interactive ? 'p-4 shadow-sm' : 'p-3.5'}`}>
+        <div className={`flex items-start gap-3 ${interactive ? 'rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm' : 'border-b border-slate-200/80 pb-3 last:border-b-0 last:pb-0'}`}>
             <ResourceRowIcon
                 resourceType={row.resourceType}
                 bucket={row.bucket}
                 subCategory={row.subCategory}
-                className={interactive ? undefined : 'h-10 w-10 rounded-xl'}
+                className={interactive ? undefined : 'h-9 w-9 rounded-xl border-slate-200 bg-white'}
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -270,19 +270,19 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                                 Not shown on map
                             </span>
                         </div>
-                        <p className={`mt-2 font-bold leading-snug text-slate-900 ${interactive ? 'text-base' : 'text-sm'}`}>{row.name}</p>
+                        <p className={`mt-1.5 font-bold leading-snug text-slate-900 ${interactive ? 'text-base' : 'text-[13px]'}`}>{row.name}</p>
                         {row.contextLabel ? (
-                            <p className={`mt-1 text-slate-500 ${interactive ? 'text-sm' : 'text-xs'}`}>{row.contextLabel}</p>
+                            <p className={`mt-1 text-slate-500 ${interactive ? 'text-sm' : 'text-[11px]'}`}>{row.contextLabel}</p>
                         ) : null}
                         {row.locationLabel ? (
-                            <p className={`mt-1 text-slate-400 ${interactive ? 'text-sm' : 'text-xs'}`}>{row.locationLabel}</p>
+                            <p className={`mt-1 text-slate-400 ${interactive ? 'text-sm' : 'text-[11px]'}`}>{row.locationLabel}</p>
                         ) : null}
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${interactive ? 'text-[11px]' : 'text-[10px]'}`}>
                             <span>{row.resourceType === 'hard' ? 'Place' : 'Offering'}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                         </div>
                         {row.descriptor ? (
-                            <p className={`mt-2 leading-6 text-slate-500 ${interactive ? 'text-sm' : 'text-xs'}`}>{row.descriptor}</p>
+                            <p className={`mt-1.5 text-slate-500 ${interactive ? 'text-sm leading-6' : 'text-[11px] leading-5'}`}>{row.descriptor}</p>
                         ) : null}
                     </div>
 
@@ -335,7 +335,7 @@ function DirectoryGroupColumn({
     }
 
     return (
-        <div className="space-y-4">
+        <div className={interactive ? 'space-y-4' : 'space-y-3'}>
             {groups.map((group) => (
                 <DirectoryPlaceGroupCard
                     key={group.placeKey}
@@ -369,8 +369,8 @@ function DirectoryUnmappedSection({
     }
 
     return (
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="border-b border-slate-100 pb-4">
+        <section className={`border border-slate-200 ${interactive ? 'rounded-[28px] bg-white p-5 shadow-sm sm:p-6' : 'rounded-[30px] bg-slate-50/70 p-5 shadow-none sm:p-6'}`}>
+            <div className={`border-b ${interactive ? 'border-slate-100 pb-4' : 'border-slate-200/80 pb-3'}`}>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Unmapped resources</p>
                 <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Resources not shown on map</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
@@ -378,7 +378,7 @@ function DirectoryUnmappedSection({
                 </p>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className={`mt-4 ${interactive ? 'space-y-3' : 'space-y-2.5'}`}>
                 {rows.map((row) => (
                     <DirectoryUnmappedRow
                         key={row.rowKey}

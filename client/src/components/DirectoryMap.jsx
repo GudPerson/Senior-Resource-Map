@@ -324,7 +324,7 @@ export default function DirectoryMap({
 
                             return (
                                 <Marker
-                                    key={pin.pinKey}
+                                    key={pin.pinKey || pin.placeKey}
                                     position={[pin.displayLat, pin.displayLng]}
                                     icon={icon}
                                     ref={(instance) => {
@@ -353,7 +353,7 @@ export default function DirectoryMap({
 
                     return (
                         <Marker
-                            key={pin.pinKey}
+                            key={pin.pinKey || pin.placeKey}
                             position={[pin.displayLat, pin.displayLng]}
                             icon={icon}
                             ref={(instance) => {
