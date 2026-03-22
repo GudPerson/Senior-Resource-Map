@@ -42,8 +42,8 @@ function OwnerHeader({
     const isShared = Boolean(directory?.share?.isShared);
 
     return (
-        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 xl:p-9">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">My Map</p>
                     <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
@@ -60,7 +60,7 @@ function OwnerHeader({
                     )}
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end xl:max-w-[740px]">
                     <button type="button" onClick={onAddAssets} className="btn-primary justify-center">
                         <Plus size={16} />
                         Add from Saved Assets
@@ -89,7 +89,7 @@ function OwnerHeader({
                 </div>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.95fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(480px,0.95fr)]">
                 <div className="grid gap-4 sm:grid-cols-3">
                     <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Curated resources</p>
@@ -333,7 +333,7 @@ export default function MyMapDetailPage() {
                     sectionLabel="My Maps"
                     user={user}
                 />
-                <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 xl:px-10 2xl:px-14">
                     <MapDetailLoadingState />
                 </div>
             </div>
@@ -409,7 +409,7 @@ export default function MyMapDetailPage() {
                     user={user}
                 />
 
-                <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
+                <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-6 sm:px-6 xl:px-10 2xl:px-14 xl:space-y-5">
                     <div>
                         <Link to="/my-directory?section=my-maps" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 transition hover:text-brand-800">
                             <ArrowLeft size={16} />
@@ -439,7 +439,7 @@ export default function MyMapDetailPage() {
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
                     ) : (
                         <>
-                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.9fr)]">
                                 <DirectorySearchBar
                                     value={query}
                                     onChange={setQuery}
@@ -454,6 +454,7 @@ export default function MyMapDetailPage() {
                                 onViewOnMap={handleViewOnMap}
                                 onRemoveResource={handleRemoveResource}
                                 highlightPlaceKey={highlightPlaceKey}
+                                desktopGridClassName="lg:grid-cols-[minmax(250px,0.95fr)_minmax(420px,1.45fr)_minmax(250px,0.95fr)] xl:grid-cols-[minmax(280px,1fr)_minmax(720px,2.2fr)_minmax(280px,1fr)] 2xl:grid-cols-[minmax(300px,1fr)_minmax(840px,2.35fr)_minmax(300px,1fr)]"
                                 renderDesktopMap={() => (
                                     <DirectoryMap
                                         pins={interactivePresentation.pins}
@@ -463,7 +464,7 @@ export default function MyMapDetailPage() {
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
-                                        mapHeightClassName="h-[540px]"
+                                        mapHeightClassName="h-[56vh] min-h-[520px] max-h-[780px]"
                                     />
                                 )}
                                 renderMobileMap={() => (

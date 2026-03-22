@@ -405,6 +405,8 @@ export default function SharedMapDirectoryList({
     highlightPlaceKey = null,
     canSaveResources = true,
     className = '',
+    desktopGridClassName = 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]',
+    desktopMapWrapperClassName = '',
 }) {
     const sectionRefs = useRef({});
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
@@ -477,7 +479,7 @@ export default function SharedMapDirectoryList({
 
     return (
         <div className={`space-y-6 ${className}`}>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]">
+            <div className={`grid gap-5 ${desktopGridClassName}`}>
                 <DirectoryGroupColumn
                     groups={leftGroups}
                     mode={mode}
@@ -490,7 +492,7 @@ export default function SharedMapDirectoryList({
                     preserveSlot
                 />
 
-                <div className={interactive ? 'lg:sticky lg:top-6' : ''}>
+                <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
                     {renderDesktopMap?.()}
                 </div>
 
