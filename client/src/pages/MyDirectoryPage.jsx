@@ -8,7 +8,7 @@ import MyMapsEmptyState from '../components/MyMapsEmptyState.jsx';
 import RenameMapModal from '../components/RenameMapModal.jsx';
 import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
-import { DashboardMobileNavigation } from '../components/dashboard/DashboardNavigation.jsx';
+import { DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
@@ -297,157 +297,167 @@ export default function MyDirectoryPage() {
 
     return (
         <>
-            <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-                <DashboardMobileNavigation
-                    isImpersonating={isImpersonating}
-                    onLogout={handleLogout}
-                    sectionContextLabel="My Directory"
-                    sectionLabel={sectionLabel}
-                    user={user}
-                />
-                <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-                    <header className="mb-6 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
-                        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">My Directory</h1>
-                        <p className="mt-2 max-w-2xl text-sm text-slate-500">
-                            {activeSection === DIRECTORY_SECTIONS.maps
-                                ? 'Your private maps built from saved assets.'
-                                : 'Your saved resources in one place.'}
-                        </p>
-                        <DirectoryTabs activeSection={activeSection} onSelect={switchSection} />
-                    </header>
+            <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
+                <aside className="hidden w-64 flex-shrink-0 flex-col gap-2 border-r border-slate-100 bg-white px-4 py-6 lg:flex">
+                    <DashboardSidebar
+                        isImpersonating={isImpersonating}
+                        onLogout={handleLogout}
+                        user={user}
+                    />
+                </aside>
 
-                    {activeSection === DIRECTORY_SECTIONS.saved ? (
-                        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                            <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between">
-                                <div className="min-w-0 flex-1">
-                                    <label htmlFor="saved-assets-search" className="block text-sm font-semibold text-slate-700">
-                                        Search saved assets
-                                    </label>
-                                    <div className="relative mt-2">
-                                        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input
-                                            id="saved-assets-search"
-                                            type="search"
-                                            value={searchTerm}
-                                            onChange={(event) => setSearchTerm(event.target.value)}
-                                            placeholder="Search by name, category, address, or type"
-                                            className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-                                        />
-                                        {searchTerm ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => setSearchTerm('')}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                                                aria-label="Clear search"
+                <main className="flex-1 overflow-auto">
+                    <DashboardMobileNavigation
+                        isImpersonating={isImpersonating}
+                        onLogout={handleLogout}
+                        sectionContextLabel="My Directory"
+                        sectionLabel={sectionLabel}
+                        user={user}
+                    />
+                    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                        <header className="mb-6 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
+                            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">My Directory</h1>
+                            <p className="mt-2 max-w-2xl text-sm text-slate-500">
+                                {activeSection === DIRECTORY_SECTIONS.maps
+                                    ? 'Your private maps built from saved assets.'
+                                    : 'Your saved resources in one place.'}
+                            </p>
+                            <DirectoryTabs activeSection={activeSection} onSelect={switchSection} />
+                        </header>
+
+                        {activeSection === DIRECTORY_SECTIONS.saved ? (
+                            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                                    <div className="min-w-0 flex-1">
+                                        <label htmlFor="saved-assets-search" className="block text-sm font-semibold text-slate-700">
+                                            Search saved assets
+                                        </label>
+                                        <div className="relative mt-2">
+                                            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <input
+                                                id="saved-assets-search"
+                                                type="search"
+                                                value={searchTerm}
+                                                onChange={(event) => setSearchTerm(event.target.value)}
+                                                placeholder="Search by name, category, address, or type"
+                                                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                                            />
+                                            {searchTerm ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSearchTerm('')}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                                    aria-label="Clear search"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+
+                                    <div className="w-full lg:w-56">
+                                        <label htmlFor="saved-assets-sort" className="block text-sm font-semibold text-slate-700">
+                                            Sort
+                                        </label>
+                                        <div className="relative mt-2">
+                                            <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <select
+                                                id="saved-assets-sort"
+                                                value={sortOrder}
+                                                onChange={(event) => setSortOrder(event.target.value)}
+                                                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                             >
-                                                <X size={16} />
-                                            </button>
-                                        ) : null}
+                                                {SORT_OPTIONS.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="w-full lg:w-56">
-                                    <label htmlFor="saved-assets-sort" className="block text-sm font-semibold text-slate-700">
-                                        Sort
-                                    </label>
-                                    <div className="relative mt-2">
-                                        <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <select
-                                            id="saved-assets-sort"
-                                            value={sortOrder}
-                                            onChange={(event) => setSortOrder(event.target.value)}
-                                            className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-                                        >
-                                            {SORT_OPTIONS.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm font-medium text-slate-600">
-                                    {totalSavedCount} saved {totalSavedCount === 1 ? 'asset' : 'assets'}
-                                    {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
-                                </p>
-                                {actionError ? (
-                                    <p className="text-sm font-medium text-red-600">{actionError}</p>
-                                ) : null}
-                            </div>
-
-                            {savedAssetsLoading && !hasSavedAssets ? (
-                                <SavedAssetsLoadingState />
-                            ) : !hasSavedAssets ? (
-                                <SavedAssetsEmptyState mode="empty" />
-                            ) : !hasResults ? (
-                                <SavedAssetsEmptyState
-                                    mode="no-results"
-                                    searchTerm={searchTerm}
-                                    onClearSearch={() => setSearchTerm('')}
-                                />
-                            ) : (
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                    {filteredAssets.map((asset) => (
-                                        <SavedAssetCard
-                                            key={asset.assetKey || `${asset.resourceType}-${asset.resourceId}`}
-                                            asset={asset}
-                                            removing={isSavedAssetPending(asset.resourceType, asset.resourceId)}
-                                            onRemove={handleRemove}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </section>
-                    ) : (
-                        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                            <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-700">Private maps built from your saved assets</p>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Keep related resources together in named maps you can revisit later.
+                                <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-sm font-medium text-slate-600">
+                                        {totalSavedCount} saved {totalSavedCount === 1 ? 'asset' : 'assets'}
+                                        {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
                                     </p>
+                                    {actionError ? (
+                                        <p className="text-sm font-medium text-red-600">{actionError}</p>
+                                    ) : null}
                                 </div>
-                                <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
-                                    Create My Map
-                                </button>
-                            </div>
 
-                            <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm font-medium text-slate-600">
-                                    {maps.length} {maps.length === 1 ? 'map' : 'maps'}
-                                </p>
-                                {mapsError ? (
-                                    <p className="text-sm font-medium text-red-600">{mapsError}</p>
-                                ) : null}
-                            </div>
-
-                            {mapsLoading && !mapsLoaded ? (
-                                <MyMapsLoadingState />
-                            ) : maps.length === 0 ? (
-                                <MyMapsEmptyState hasSavedAssets={hasSavedAssets} onCreate={() => setCreateModalOpen(true)} />
-                            ) : (
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                    {maps.map((map) => (
-                                        <MyMapCard
-                                            key={map.id}
-                                            map={map}
-                                            deleting={deletingMapId === map.id}
-                                            onRename={(item) => {
-                                                setRenameError('');
-                                                setRenameTarget(item);
-                                            }}
-                                            onDelete={handleDeleteMap}
-                                        />
-                                    ))}
+                                {savedAssetsLoading && !hasSavedAssets ? (
+                                    <SavedAssetsLoadingState />
+                                ) : !hasSavedAssets ? (
+                                    <SavedAssetsEmptyState mode="empty" />
+                                ) : !hasResults ? (
+                                    <SavedAssetsEmptyState
+                                        mode="no-results"
+                                        searchTerm={searchTerm}
+                                        onClearSearch={() => setSearchTerm('')}
+                                    />
+                                ) : (
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {filteredAssets.map((asset) => (
+                                            <SavedAssetCard
+                                                key={asset.assetKey || `${asset.resourceType}-${asset.resourceId}`}
+                                                asset={asset}
+                                                removing={isSavedAssetPending(asset.resourceType, asset.resourceId)}
+                                                onRemove={handleRemove}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        ) : (
+                            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-700">Private maps built from your saved assets</p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Keep related resources together in named maps you can revisit later.
+                                        </p>
+                                    </div>
+                                    <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
+                                        Create My Map
+                                    </button>
                                 </div>
-                            )}
-                        </section>
-                    )}
-                </div>
+
+                                <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-sm font-medium text-slate-600">
+                                        {maps.length} {maps.length === 1 ? 'map' : 'maps'}
+                                    </p>
+                                    {mapsError ? (
+                                        <p className="text-sm font-medium text-red-600">{mapsError}</p>
+                                    ) : null}
+                                </div>
+
+                                {mapsLoading && !mapsLoaded ? (
+                                    <MyMapsLoadingState />
+                                ) : maps.length === 0 ? (
+                                    <MyMapsEmptyState hasSavedAssets={hasSavedAssets} onCreate={() => setCreateModalOpen(true)} />
+                                ) : (
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {maps.map((map) => (
+                                            <MyMapCard
+                                                key={map.id}
+                                                map={map}
+                                                deleting={deletingMapId === map.id}
+                                                onRename={(item) => {
+                                                    setRenameError('');
+                                                    setRenameTarget(item);
+                                                }}
+                                                onDelete={handleDeleteMap}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+                    </div>
+                </main>
             </div>
 
             <CreateMapModal
