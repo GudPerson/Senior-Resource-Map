@@ -30,6 +30,7 @@
     --color-card-shadow: rgba(15, 89, 91, 0.08);
     --color-drawer-bg: rgba(255, 255, 255, 0.96);
     --color-overlay: rgba(9, 36, 39, 0.18);
+    --map-tile-filter: saturate(0.27) brightness(1.24) contrast(0.9);
     --page-gradient:
       radial-gradient(circle at top left, rgba(97, 224, 203, 0.18), transparent 34%),
       radial-gradient(circle at top right, rgba(245, 165, 36, 0.14), transparent 28%),
@@ -95,6 +96,7 @@
     --color-card-shadow: rgba(17, 24, 39, 0.08);
     --color-drawer-bg: rgba(255, 255, 255, 0.98);
     --color-overlay: rgba(15, 23, 42, 0.4);
+    --map-tile-filter: none;
     --page-gradient: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   }
 
@@ -209,6 +211,10 @@
   html.high-contrast .leaflet-popup-tip {
     background: var(--color-surface) !important;
   }
+}
+
+.carearound-map .leaflet-tile {
+  filter: var(--map-tile-filter);
 }
 
 .no-scrollbar {
