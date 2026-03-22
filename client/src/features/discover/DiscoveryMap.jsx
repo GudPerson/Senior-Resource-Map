@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { createSavedPlacePinIcon } from './discoverUtils.js';
-import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../../lib/mapTheme.js';
+import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_LABELS_URL, CAREAROUND_BASEMAP_URL } from '../../lib/mapTheme.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
 const DEFAULT_MAP_ZOOM = 12;
@@ -254,10 +254,17 @@ export function DiscoveryMap({
             className="carearound-map"
             style={{ width: '100%', height: '100%', zIndex: 0 }}
             zoomControl={false}
+            maxZoom={19}
         >
             <TileLayer
+                className="carearound-map__base-layer"
                 attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                 url={CAREAROUND_BASEMAP_URL}
+            />
+            <TileLayer
+                className="carearound-map__labels-layer"
+                attribution=""
+                url={CAREAROUND_BASEMAP_LABELS_URL}
             />
             <SavedMapCameraController
                 focusRequest={focusRequest}

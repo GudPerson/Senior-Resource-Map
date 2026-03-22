@@ -7,10 +7,11 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
-import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../lib/mapTheme.js';
+import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_LABELS_URL, CAREAROUND_BASEMAP_URL } from '../lib/mapTheme.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
+const DIRECTORY_FOCUS_ZOOM = 19;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -141,7 +142,7 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
         const pin = pins.find((item) => item.placeKey === focusedPlaceKey);
         if (!pin) return;
 
-        map.flyTo([pin.lat, pin.lng], Math.max(map.getZoom(), 17), {
+        map.flyTo([pin.lat, pin.lng], DIRECTORY_FOCUS_ZOOM, {
             animate: true,
             duration: 0.5,
         });
@@ -239,8 +240,10 @@ export default function DirectoryMap({
                 zoomControl={showZoomControl}
                 className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
                 attributionControl={showAttribution}
+                maxZoom={19}
             >
                 <TileLayer
+                    className="carearound-map__base-layer"
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                     url={CAREAROUND_BASEMAP_URL}
                     eventHandlers={onMapReadyForCapture ? {
@@ -256,6 +259,11 @@ export default function DirectoryMap({
                             onMapCaptureError?.(error);
                         },
                     } : undefined}
+                />
+                <TileLayer
+                    className="carearound-map__labels-layer"
+                    attribution=""
+                    url={CAREAROUND_BASEMAP_LABELS_URL}
                 />
                 <DirectoryMapController
                     pins={pins}
