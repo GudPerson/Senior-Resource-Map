@@ -11,7 +11,8 @@ import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../lib/m
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
-const DIRECTORY_FOCUS_ZOOM = 19;
+const DIRECTORY_FOCUS_ZOOM = 18;
+const DIRECTORY_NATIVE_DETAIL_ZOOM = 18;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -240,11 +241,12 @@ export default function DirectoryMap({
                 zoomControl={showZoomControl}
                 className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
                 attributionControl={showAttribution}
-                maxZoom={19}
+                maxZoom={DIRECTORY_NATIVE_DETAIL_ZOOM}
             >
                 <TileLayer
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                     url={CAREAROUND_BASEMAP_URL}
+                    maxNativeZoom={DIRECTORY_NATIVE_DETAIL_ZOOM}
                     eventHandlers={onMapReadyForCapture ? {
                         load: () => {
                             tileLoadedRef.current = true;

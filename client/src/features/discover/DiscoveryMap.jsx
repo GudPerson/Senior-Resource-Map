@@ -9,6 +9,7 @@ import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_URL } from '../../li
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
 const DEFAULT_MAP_ZOOM = 12;
 const SINGLE_PIN_ZOOM = 18;
+const MAP_NATIVE_DETAIL_ZOOM = 18;
 const DESKTOP_FIT_MAX_ZOOM = 18;
 const MOBILE_FIT_MAX_ZOOM = 17;
 const DESKTOP_FIT_PADDING_TOP_LEFT = [24, 24];
@@ -254,11 +255,12 @@ export function DiscoveryMap({
             className="carearound-map"
             style={{ width: '100%', height: '100%', zIndex: 0 }}
             zoomControl={false}
-            maxZoom={19}
+            maxZoom={MAP_NATIVE_DETAIL_ZOOM}
         >
             <TileLayer
                 attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                 url={CAREAROUND_BASEMAP_URL}
+                maxNativeZoom={MAP_NATIVE_DETAIL_ZOOM}
             />
             <SavedMapCameraController
                 focusRequest={focusRequest}
