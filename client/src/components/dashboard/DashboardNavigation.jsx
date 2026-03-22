@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, BookOpen, Files, LayoutDashboard, LogOut, Map, Menu, Shield, User } from 'lucide-react';
 
@@ -108,16 +108,67 @@ export function DashboardMobileNavigation({
     user,
 }) {
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+    const [navbarOffset, setNavbarOffset] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches ? 64 : 56
+    ));
+    const [headerHeight, setHeaderHeight] = useState(0);
+    const headerRef = useRef(null);
     const location = useLocation();
 
     useEffect(() => {
         setMobileSidebarOpen(false);
     }, [location.pathname]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const mediaQuery = window.matchMedia('(min-width: 640px)');
+        const syncOffset = (matches) => {
+            setNavbarOffset(matches ? 64 : 56);
+        };
+        const handleChange = (event) => syncOffset(event.matches);
+
+        syncOffset(mediaQuery.matches);
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
+
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !headerRef.current) {
+            return undefined;
+        }
+
+        const syncHeight = () => {
+            setHeaderHeight(headerRef.current?.offsetHeight || 0);
+        };
+
+        syncHeight();
+
+        if (typeof ResizeObserver !== 'function') {
+            window.addEventListener('resize', syncHeight);
+            return () => window.removeEventListener('resize', syncHeight);
+        }
+
+        const observer = new ResizeObserver(syncHeight);
+        observer.observe(headerRef.current);
+        return () => observer.disconnect();
+    }, [sectionContextLabel, sectionLabel]);
+
+    const drawerTopOffset = navbarOffset + headerHeight;
+
     return (
         <>
             <div
-                className={`fixed inset-x-0 bottom-0 top-[56px] sm:top-[64px] z-40 lg:hidden ${mobileSidebarOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                className={`fixed inset-x-0 bottom-0 z-40 lg:hidden ${mobileSidebarOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                style={{ top: `${drawerTopOffset}px` }}
                 aria-hidden={!mobileSidebarOpen}
             >
                 <div
@@ -125,7 +176,7 @@ export function DashboardMobileNavigation({
                     onClick={() => setMobileSidebarOpen(false)}
                 />
                 <aside
-                    className={`absolute inset-y-0 left-0 flex w-[min(82vw,320px)] flex-col gap-2 border-r border-slate-100 bg-white px-4 py-6 shadow-xl transition-transform ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                    className={`absolute inset-y-0 left-0 flex w-[86vw] max-w-[320px] flex-col gap-2 overflow-y-auto border-r border-slate-100 bg-white px-4 py-5 shadow-xl transition-transform ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 >
                     <DashboardSidebar
                         isImpersonating={isImpersonating}
@@ -136,7 +187,11 @@ export function DashboardMobileNavigation({
                 </aside>
             </div>
 
-            <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
+            <div
+                ref={headerRef}
+                className="sticky z-20 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden"
+                style={{ top: `${navbarOffset}px` }}
+            >
                 <div className="flex items-center justify-between gap-3">
                     <button
                         type="button"

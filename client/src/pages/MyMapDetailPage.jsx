@@ -40,48 +40,54 @@ function OwnerHeader({
     onDelete,
 }) {
     const isShared = Boolean(directory?.share?.isShared);
+    const compactActionClassName = 'w-full justify-center px-4 py-2.5 text-sm sm:w-auto sm:px-5 sm:py-3 sm:text-base';
 
     return (
-        <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 xl:p-9">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6 xl:p-9">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">My Map</p>
-                    <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+                    <h1 className="mt-2 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:mt-3 sm:text-4xl">
                         {directory.name}
                     </h1>
                     {directory.description ? (
-                        <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:mt-3 sm:text-lg sm:leading-7">
                             {directory.description}
                         </p>
                     ) : (
-                        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500">
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 sm:mt-3 sm:leading-7">
                             Add a short subtitle to explain what this directory is for before you share it.
                         </p>
                     )}
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end xl:max-w-[740px]">
-                    <button type="button" onClick={onAddAssets} className="btn-primary justify-center">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:justify-end xl:max-w-[740px]">
+                    <button type="button" onClick={onAddAssets} className={`btn-primary col-span-2 ${compactActionClassName}`}>
                         <Plus size={16} />
                         Add from Saved Assets
                     </button>
-                    <button type="button" onClick={onEditDetails} className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                    <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                         <Pencil size={16} />
                         Edit details
                     </button>
-                    <button type="button" onClick={onOpenPrintView} className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                    <button type="button" onClick={onOpenPrintView} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                         <Printer size={16} />
                         Print view
                     </button>
-                    <button type="button" onClick={onOpenShare} className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                    <button type="button" onClick={onOpenShare} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                         <Link2 size={16} />
                         Share
                     </button>
-                    <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={shareUrl} />
+                    <MapImageExportButton
+                        directory={directory}
+                        activeAnchor={activeAnchor}
+                        shareUrl={shareUrl}
+                        className={compactActionClassName}
+                    />
                     <button
                         type="button"
                         onClick={onDelete}
-                        className="btn-ghost justify-center border border-red-200 text-red-600 hover:bg-red-50"
+                        className={`btn-ghost col-span-2 ${compactActionClassName} border border-red-200 text-red-600 hover:bg-red-50 sm:col-auto`}
                     >
                         <Trash2 size={16} />
                         Delete
@@ -89,27 +95,27 @@ function OwnerHeader({
                 </div>
             </div>
 
-            <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.95fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(480px,0.95fr)]">
-                <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.95fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(480px,0.95fr)]">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                    <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-[24px] sm:p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Curated resources</p>
-                        <p className="mt-2 text-3xl font-extrabold text-slate-900">{directory.summary.resourceCount}</p>
+                        <p className="mt-1.5 text-2xl font-extrabold text-slate-900 sm:mt-2 sm:text-3xl">{directory.summary.resourceCount}</p>
                     </div>
-                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-[24px] sm:p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Places</p>
-                        <p className="mt-2 text-3xl font-extrabold text-slate-900">{directory.summary.placeCount}</p>
+                        <p className="mt-1.5 text-2xl font-extrabold text-slate-900 sm:mt-2 sm:text-3xl">{directory.summary.placeCount}</p>
                     </div>
-                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                    <div className="col-span-2 rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:col-span-1 sm:rounded-[24px] sm:p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Mapped places</p>
-                        <p className="mt-2 text-3xl font-extrabold text-slate-900">{directory.summary.mappablePlaceCount}</p>
+                        <p className="mt-1.5 text-2xl font-extrabold text-slate-900 sm:mt-2 sm:text-3xl">{directory.summary.mappablePlaceCount}</p>
                     </div>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-brand-50 to-white p-5">
+                <div className="rounded-[22px] border border-slate-200 bg-gradient-to-br from-brand-50 to-white p-4 sm:rounded-[24px] sm:p-5">
                     <p className="text-sm font-semibold text-slate-900">
                         {isShared ? 'Shared link is live' : 'Private map'}
                     </p>
-                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                    <p className="mt-1.5 text-sm leading-6 text-slate-600 sm:mt-2 sm:leading-7">
                         {isShared
                             ? 'Anyone with the link can view this read-only directory. Changes you make here will appear on the shared page.'
                             : 'Only you can view this map. Publish a read-only share link when you are ready to share this directory.'}
@@ -409,8 +415,8 @@ export default function MyMapDetailPage() {
                     user={user}
                 />
 
-                <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-6 sm:px-6 xl:px-10 2xl:px-14 xl:space-y-5">
-                    <div>
+                <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
+                    <div className="hidden sm:block">
                         <Link to="/my-directory?section=my-maps" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 transition hover:text-brand-800">
                             <ArrowLeft size={16} />
                             Back to My Maps
@@ -439,7 +445,7 @@ export default function MyMapDetailPage() {
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
                     ) : (
                         <>
-                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.9fr)]">
+                            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.9fr)] xl:gap-4">
                                 <DirectorySearchBar
                                     value={query}
                                     onChange={setQuery}
