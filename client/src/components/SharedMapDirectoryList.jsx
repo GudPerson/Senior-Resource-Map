@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
@@ -128,14 +127,15 @@ function DirectoryResourceRow({
     place,
     mode,
     interactive,
+    compactInteractive = false,
     canSaveResources,
-    onRemoveResource,
     allowPrintLinks = false,
     compactPrint = false,
 }) {
     const canOpenDetail = Boolean(row.detailPath) && row.status !== 'unavailable';
-    const secondaryCategory = getSecondaryCategory(row);
-    const rowTitleClassName = interactive ? 'text-[14px]' : (compactPrint ? 'text-[11px]' : 'text-[12px]');
+    const rowTitleClassName = interactive
+        ? (compactInteractive ? 'text-[12px]' : 'text-[14px]')
+        : (compactPrint ? 'text-[11px]' : 'text-[12px]');
 
     if (!interactive) {
         const printRowTitle = canOpenDetail && allowPrintLinks ? (
@@ -149,11 +149,6 @@ function DirectoryResourceRow({
         return (
             <div className="border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    {secondaryCategory ? (
-                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600">
-                            {secondaryCategory}
-                        </span>
-                    ) : null}
                     {printRowTitle}
                     {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
                 </div>
@@ -162,41 +157,21 @@ function DirectoryResourceRow({
     }
 
     return (
-        <div className="flex items-start justify-between gap-3">
+        <div className={`flex items-start justify-between ${mode === 'shared' ? (compactInteractive ? 'gap-2' : 'gap-3') : ''}`}>
             <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                    {secondaryCategory ? (
-                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                            {secondaryCategory}
-                        </span>
-                    ) : null}
-                    {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
-                    {row.status === 'list_only' ? <StatusBadge status={row.status} /> : null}
-                </div>
-
                 {canOpenDetail ? (
-                    <Link to={row.detailPath} className={`mt-1 block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                    <Link to={row.detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                         {row.name}
                     </Link>
                 ) : (
-                    <p className={`mt-1 font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
+                    <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
                 )}
             </div>
-
-            <div className="flex flex-shrink-0 items-start gap-2">
-                {mode === 'shared' ? <SaveResourceAction row={row} place={place} enabled={canSaveResources} /> : null}
-                {mode === 'owner' ? (
-                    <button
-                        type="button"
-                        onClick={() => onRemoveResource?.(row)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                        aria-label={`Remove ${row.name}`}
-                        title="Remove"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                ) : null}
-            </div>
+            {mode === 'shared' ? (
+                <div className="ml-2 flex flex-shrink-0 items-start">
+                    <SaveResourceAction row={row} place={place} enabled={canSaveResources} />
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -205,6 +180,7 @@ function DirectoryPlaceGroupCard({
     group,
     mode,
     interactive,
+    compactInteractive = false,
     onViewOnMap,
     onRemoveResource,
     canSaveResources,
@@ -256,13 +232,12 @@ function DirectoryPlaceGroupCard({
                                         key={row.rowKey}
                                         row={row}
                                         place={group}
-                                        mode={mode}
-                                        interactive={false}
-                                        canSaveResources={canSaveResources}
-                                        onRemoveResource={onRemoveResource}
-                                        allowPrintLinks={allowPrintLinks}
-                                        compactPrint={compactPrint}
-                                    />
+                                    mode={mode}
+                                    interactive={false}
+                                    canSaveResources={canSaveResources}
+                                    allowPrintLinks={allowPrintLinks}
+                                    compactPrint={compactPrint}
+                                />
                                 ))}
                             </div>
                         ) : null}
@@ -273,25 +248,25 @@ function DirectoryPlaceGroupCard({
     }
 
     const interactivePlaceTitle = placeDetailPath ? (
-        <Link to={placeDetailPath} className="text-[17px] font-bold leading-tight text-slate-900 transition hover:text-brand-700">
+        <Link to={placeDetailPath} className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
             {group.name}
         </Link>
     ) : (
-        <h3 className="text-[17px] font-bold leading-tight text-slate-900">{group.name}</h3>
+        <h3 className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
 
     return (
         <section
             ref={sectionRef}
-            className={`rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm transition ${
+            className={`border border-slate-200 bg-white shadow-sm transition ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                 highlighted ? 'border-brand-300 ring-2 ring-brand-100' : ''
             }`}
         >
-            <div className="flex items-start gap-3">
+            <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
                 <button
                     type="button"
                     onClick={() => onViewOnMap?.(group.placeKey)}
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-brand-700 text-[13px] font-black text-white shadow-sm transition hover:bg-brand-800"
+                    className={`flex flex-shrink-0 items-center justify-center bg-brand-700 font-black text-white shadow-sm transition hover:bg-brand-800 ${compactInteractive ? 'h-8 w-8 rounded-lg text-[12px]' : 'h-9 w-9 rounded-xl text-[13px]'}`}
                     aria-label={`View ${group.name} on map`}
                     title="View on map"
                 >
@@ -299,19 +274,19 @@ function DirectoryPlaceGroupCard({
                 </button>
                 <div className="min-w-0 flex-1">
                     {interactivePlaceTitle}
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <div className={`flex flex-wrap items-center ${compactInteractive ? 'mt-0.5 gap-1.5' : 'mt-1 gap-2'}`}>
                         {group.shortLocationLine ? (
-                            <p className="text-[12px] font-medium text-slate-500">{group.shortLocationLine}</p>
+                            <p className={`${compactInteractive ? 'text-[11px]' : 'text-[12px]'} font-medium text-slate-500`}>{group.shortLocationLine}</p>
                         ) : null}
                         {group.distanceLabel ? (
-                            <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                            <span className={`inline-flex rounded-full border border-sky-200 bg-sky-50 font-semibold text-sky-700 ${compactInteractive ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                 {group.distanceLabel}
                             </span>
                         ) : null}
                     </div>
 
                     {visibleRows.length ? (
-                        <div className="mt-3 space-y-2.5 border-t border-slate-100 pt-3">
+                        <div className={`border-t border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pt-2' : 'mt-3 space-y-2.5 pt-3'}`}>
                             {visibleRows.map((row) => (
                                 <DirectoryResourceRow
                                     key={row.rowKey}
@@ -319,8 +294,8 @@ function DirectoryPlaceGroupCard({
                                     place={group}
                                     mode={mode}
                                     interactive
+                                    compactInteractive={compactInteractive}
                                     canSaveResources={canSaveResources}
-                                    onRemoveResource={onRemoveResource}
                                 />
                             ))}
                         </div>
@@ -440,6 +415,7 @@ function DirectoryGroupColumn({
     groups,
     mode,
     interactive,
+    compactInteractive = false,
     onViewOnMap,
     onRemoveResource,
     canSaveResources,
@@ -454,13 +430,14 @@ function DirectoryGroupColumn({
     }
 
     return (
-        <div className={interactive ? 'space-y-4' : (compactPrint ? 'space-y-1.5' : 'space-y-2')}>
+        <div className={interactive ? (compactInteractive ? 'space-y-3' : 'space-y-4') : (compactPrint ? 'space-y-1.5' : 'space-y-2')}>
             {groups.map((group) => (
                 <DirectoryPlaceGroupCard
                     key={group.placeKey}
                     group={group}
                     mode={mode}
                     interactive={interactive}
+                    compactInteractive={compactInteractive}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
@@ -546,6 +523,10 @@ export default function SharedMapDirectoryList({
         mappedGroups.length >= 7
         || mappedGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
     );
+    const interactiveRowCount = mappedGroups.reduce((count, group) => count + getVisibleGroupRows(group).length, 0);
+    const compactInteractiveDesktop = interactive
+        && resolvedLayout === 'desktop'
+        && (mappedGroups.length >= 7 || interactiveRowCount >= 9);
 
     useEffect(() => {
         if (!highlightPlaceKey || !interactive) return undefined;
@@ -611,6 +592,7 @@ export default function SharedMapDirectoryList({
                     groups={leftGroups}
                     mode={mode}
                     interactive={interactive}
+                    compactInteractive={compactInteractiveDesktop}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
@@ -629,6 +611,7 @@ export default function SharedMapDirectoryList({
                     groups={rightGroups}
                     mode={mode}
                     interactive={interactive}
+                    compactInteractive={compactInteractiveDesktop}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
