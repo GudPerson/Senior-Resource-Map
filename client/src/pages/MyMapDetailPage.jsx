@@ -41,19 +41,14 @@ function OwnerHeader({
         <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6 xl:p-9">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">My Map</p>
-                    <h1 className="mt-2 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:mt-3 sm:text-4xl">
+                    <h1 className="text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-4xl">
                         {directory.name}
                     </h1>
                     {directory.description ? (
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:mt-3 sm:text-lg sm:leading-7">
                             {directory.description}
                         </p>
-                    ) : (
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 sm:mt-3 sm:leading-7">
-                            Add a short subtitle to explain what this directory is for before you share it.
-                        </p>
-                    )}
+                    ) : null}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:justify-end xl:max-w-[740px]">
@@ -112,8 +107,7 @@ function MyMapMobileControls({
                     </button>
 
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-brand-600">My Map</p>
-                        <p className="truncate text-lg font-bold text-slate-900">{directory.name}</p>
+                        <p className="truncate text-base font-bold text-slate-900 sm:text-[17px]">{directory.name}</p>
                     </div>
                 </div>
             </div>
@@ -135,8 +129,7 @@ function MyMapMobileControls({
 
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-600">My Directory</p>
-                                <h2 className="mt-1 truncate text-lg font-bold text-slate-900">{directory.name}</h2>
+                                <h2 className="truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
                             </div>
 
                             <button

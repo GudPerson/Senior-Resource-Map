@@ -11,14 +11,15 @@ export default function DirectorySearchBar({
 
     return (
         <div className={`rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
-            <label htmlFor={inputId} className="block text-sm font-semibold text-slate-700">
+            <label htmlFor={inputId} className="sr-only">
                 Search this directory
             </label>
-            <div className="relative mt-3">
+            <div className="relative">
                 <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                     id={inputId}
                     type="search"
+                    aria-label="Search this directory"
                     value={value}
                     onChange={(event) => onChange?.(event.target.value)}
                     placeholder={placeholder}
