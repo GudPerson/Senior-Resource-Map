@@ -8,11 +8,16 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import OneMapBadge from './OneMapBadge.jsx';
 import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
-import { CAREAROUND_BASEMAP_ATTRIBUTION, CAREAROUND_BASEMAP_NATIVE_ZOOM, CAREAROUND_BASEMAP_URL } from '../lib/mapTheme.js';
+import {
+    CAREAROUND_BASEMAP_ATTRIBUTION,
+    CAREAROUND_BASEMAP_MAX_ZOOM,
+    CAREAROUND_BASEMAP_NATIVE_ZOOM,
+    CAREAROUND_BASEMAP_URL,
+} from '../lib/mapTheme.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
-const DIRECTORY_FOCUS_ZOOM = CAREAROUND_BASEMAP_NATIVE_ZOOM;
+const DIRECTORY_FOCUS_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -241,7 +246,7 @@ export default function DirectoryMap({
                 zoomControl={showZoomControl}
                 className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
                 attributionControl={showAttribution}
-                maxZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
+                maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
             >
                 <TileLayer
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
