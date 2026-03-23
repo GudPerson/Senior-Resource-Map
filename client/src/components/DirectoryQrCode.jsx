@@ -49,14 +49,12 @@ export default function DirectoryQrCode({
 
     if (compact) {
         return (
-            <div className={`flex h-[128px] w-[128px] items-center justify-center rounded-[22px] border border-slate-200 bg-white p-3 ${className}`}>
-                <div className="flex h-[96px] w-[96px] items-center justify-center rounded-[18px] border border-slate-200 bg-slate-50">
-                    {src ? (
-                        <img src={src} alt="QR code linking to the interactive directory" className="h-[78px] w-[78px]" />
-                    ) : (
-                        <div className="h-[78px] w-[78px] animate-pulse rounded-2xl bg-slate-200" />
-                    )}
-                </div>
+            <div className={`flex h-[112px] w-[112px] items-center justify-center rounded-[20px] border border-slate-200 bg-white ${className}`}>
+                {src ? (
+                    <img src={src} alt="QR code linking to the interactive directory" className="h-[86px] w-[86px]" />
+                ) : (
+                    <div className="h-[86px] w-[86px] animate-pulse rounded-2xl bg-slate-200" />
+                )}
             </div>
         );
     }
