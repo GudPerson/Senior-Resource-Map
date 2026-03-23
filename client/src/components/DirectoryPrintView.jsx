@@ -19,9 +19,9 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
         : 'border-slate-200 bg-slate-50 text-slate-700';
 
     return (
-        <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${toneClassName}`}>
-            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-            <span className="text-[13px] font-semibold">{value}</span>
+        <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${toneClassName}`}>
+            <span className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+            <span className="text-[12px] font-semibold">{value}</span>
         </div>
     );
 }
@@ -37,7 +37,7 @@ function PrintDirectoryBoardHeader({
     resolvedShareUrl,
 }) {
     const preparedBlock = canShowQr ? (
-        <div className="w-full max-w-[320px] xl:w-[320px]">
+        <div className="w-full max-w-[360px] xl:w-[360px]">
             <DirectoryQrCode value={resolvedShareUrl} compact />
             <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Prepared on {formatGeneratedOn(generatedAt)}</p>
         </div>
@@ -49,8 +49,8 @@ function PrintDirectoryBoardHeader({
 
     return (
         <div className="border-b border-slate-100 pb-4">
-            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                <div className="min-w-0">
+            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-8">
+                <div className="min-w-0 max-w-4xl">
                     <BrandLockup compact />
                     <h1 className="mt-4 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.35rem]">
                         {directory?.name || 'Untitled directory'}
@@ -61,19 +61,20 @@ function PrintDirectoryBoardHeader({
                         </p>
                     ) : null}
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <SummaryChip label="Resources" value={resourceCount} tone="brand" />
-                        <SummaryChip label="Mapped places" value={mappedPlaceCount} />
-                        {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
-                        {activeAnchorNote ? (
-                            <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[13px] font-semibold text-sky-700">
-                                {activeAnchorNote}
-                            </div>
-                        ) : null}
-                    </div>
                 </div>
 
                 {preparedBlock}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+                <SummaryChip label="Resources" value={resourceCount} tone="brand" />
+                <SummaryChip label="Mapped places" value={mappedPlaceCount} />
+                {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
+                {activeAnchorNote ? (
+                    <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[12px] font-semibold text-sky-700">
+                        {activeAnchorNote}
+                    </div>
+                ) : null}
             </div>
         </div>
     );
