@@ -29,7 +29,6 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
 function PrintDirectoryBoardHeader({
     directory,
     generatedAt,
-    viewLabel,
     resourceCount,
     mappedPlaceCount,
     unmappedCount,
@@ -37,29 +36,30 @@ function PrintDirectoryBoardHeader({
     canShowQr,
     resolvedShareUrl,
 }) {
+    const preparedBlock = canShowQr ? (
+        <div className="w-full max-w-[320px] xl:w-[320px]">
+            <DirectoryQrCode value={resolvedShareUrl} compact />
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Prepared on {formatGeneratedOn(generatedAt)}</p>
+        </div>
+    ) : (
+        <div className="text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 xl:text-right">
+            Prepared on {formatGeneratedOn(generatedAt)}
+        </div>
+    );
+
     return (
         <div className="border-b border-slate-100 pb-4">
             <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
                 <div className="min-w-0">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0">
-                            <BrandLockup compact />
-                            <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">{viewLabel}</p>
-                            <h1 className="mt-2 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.35rem]">
-                                {directory?.name || 'Untitled directory'}
-                            </h1>
-                            {directory?.description ? (
-                                <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-600">
-                                    {directory.description}
-                                </p>
-                            ) : null}
-                        </div>
-
-                        <div className="flex flex-col items-start gap-1.5 text-sm text-slate-500 sm:items-end sm:text-right">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
-                            <p className="text-sm font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
-                        </div>
-                    </div>
+                    <BrandLockup compact />
+                    <h1 className="mt-4 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.35rem]">
+                        {directory?.name || 'Untitled directory'}
+                    </h1>
+                    {directory?.description ? (
+                        <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-600">
+                            {directory.description}
+                        </p>
+                    ) : null}
 
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                         <SummaryChip label="Resources" value={resourceCount} tone="brand" />
@@ -73,9 +73,7 @@ function PrintDirectoryBoardHeader({
                     </div>
                 </div>
 
-                {canShowQr ? (
-                    <DirectoryQrCode value={resolvedShareUrl} compact className="w-full max-w-[260px] xl:w-[260px]" />
-                ) : null}
+                {preparedBlock}
             </div>
         </div>
     );
@@ -85,7 +83,6 @@ function PrintDirectoryMap({
     presentation,
     directory,
     generatedAt,
-    viewLabel,
     resourceCount,
     mappedPlaceCount,
     canShowQr,
@@ -98,7 +95,6 @@ function PrintDirectoryMap({
             <PrintDirectoryBoardHeader
                 directory={directory}
                 generatedAt={generatedAt}
-                viewLabel={viewLabel}
                 resourceCount={resourceCount}
                 mappedPlaceCount={mappedPlaceCount}
                 unmappedCount={presentation.unmappedRows.length}
@@ -145,7 +141,6 @@ export default function DirectoryPrintView({
     const sheetPaddingClass = variant === 'export' ? 'p-8' : 'p-6 sm:p-8 xl:p-10';
     const resourceCount = directory?.summary?.resourceCount || 0;
     const mappedPlaceCount = presentation.mappedGroups.length;
-    const viewLabel = mode === 'owner' ? 'Print view preview' : 'Shared directory print view';
     const containerStyle = variant === 'export' ? { width: `${exportWidth || 1480}px` } : undefined;
 
     return (
@@ -164,7 +159,6 @@ export default function DirectoryPrintView({
                                 presentation={presentation}
                                 directory={directory}
                                 generatedAt={generatedAt}
-                                viewLabel={viewLabel}
                                 resourceCount={resourceCount}
                                 mappedPlaceCount={mappedPlaceCount}
                                 canShowQr={canShowQr}
