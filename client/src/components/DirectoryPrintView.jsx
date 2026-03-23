@@ -26,26 +26,86 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
     );
 }
 
+function PrintDirectoryBoardHeader({
+    directory,
+    generatedAt,
+    viewLabel,
+    resourceCount,
+    mappedPlaceCount,
+    unmappedCount,
+    activeAnchorNote,
+    canShowQr,
+    resolvedShareUrl,
+}) {
+    return (
+        <div className="border-b border-slate-100 pb-4">
+            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <BrandLockup compact />
+                            <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">{viewLabel}</p>
+                            <h1 className="mt-2 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.35rem]">
+                                {directory?.name || 'Untitled directory'}
+                            </h1>
+                            {directory?.description ? (
+                                <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-600">
+                                    {directory.description}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <div className="flex flex-col items-start gap-1.5 text-sm text-slate-500 sm:items-end sm:text-right">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
+                            <p className="text-sm font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <SummaryChip label="Resources" value={resourceCount} tone="brand" />
+                        <SummaryChip label="Mapped places" value={mappedPlaceCount} />
+                        {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
+                        {activeAnchorNote ? (
+                            <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[13px] font-semibold text-sky-700">
+                                {activeAnchorNote}
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+
+                {canShowQr ? (
+                    <DirectoryQrCode value={resolvedShareUrl} compact className="w-full max-w-[260px] xl:w-[260px]" />
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 function PrintDirectoryMap({
     presentation,
+    directory,
+    generatedAt,
+    viewLabel,
+    resourceCount,
     mappedPlaceCount,
+    canShowQr,
+    resolvedShareUrl,
     onMapReadyForCapture,
     onMapCaptureError,
 }) {
     return (
         <div className="rounded-[30px] border border-slate-200 bg-white p-4 xl:p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
-                <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Directory map</p>
-                    <h2 className="mt-1.5 text-[22px] font-bold tracking-tight text-slate-900">Mapped place overview</h2>
-                    <p className="mt-1.5 text-sm leading-6 text-slate-500">
-                            Numbered markers match the numbered place groups around the map.
-                    </p>
-                </div>
-                <div className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-700">
-                    {mappedPlaceCount} mapped place{mappedPlaceCount === 1 ? '' : 's'}
-                </div>
-            </div>
+            <PrintDirectoryBoardHeader
+                directory={directory}
+                generatedAt={generatedAt}
+                viewLabel={viewLabel}
+                resourceCount={resourceCount}
+                mappedPlaceCount={mappedPlaceCount}
+                unmappedCount={presentation.unmappedRows.length}
+                activeAnchorNote={presentation.activeAnchorNote}
+                canShowQr={canShowQr}
+                resolvedShareUrl={resolvedShareUrl}
+            />
 
             <DirectoryMap
                 pins={presentation.pins}
@@ -91,50 +151,7 @@ export default function DirectoryPrintView({
     return (
         <div className={`${containerWidthClass} ${className}`} style={containerStyle}>
             <div className={`rounded-[32px] border border-brand-100 bg-white text-slate-900 shadow-xl ${sheetPaddingClass}`}>
-                <div className="border-b border-slate-100 pb-5">
-                    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                        <div className="min-w-0">
-                            <div className="flex flex-wrap items-start justify-between gap-4">
-                                <div className="min-w-0">
-                                    <BrandLockup compact />
-                                    <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">{viewLabel}</p>
-                                    <h1 className="mt-2 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.4rem]">
-                                        {directory?.name || 'Untitled directory'}
-                                    </h1>
-                                    {directory?.description ? (
-                                        <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-600">
-                                            {directory.description}
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="flex flex-col items-start gap-1.5 text-sm text-slate-500 sm:items-end sm:text-right">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
-                                    <p className="text-sm font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 flex flex-wrap items-center gap-2">
-                                <SummaryChip label="Resources" value={resourceCount} tone="brand" />
-                                <SummaryChip label="Mapped places" value={mappedPlaceCount} />
-                                {presentation.unmappedRows.length ? (
-                                    <SummaryChip label="Not shown on map" value={presentation.unmappedRows.length} />
-                                ) : null}
-                                {presentation.activeAnchorNote ? (
-                                    <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[13px] font-semibold text-sky-700">
-                                        {presentation.activeAnchorNote}
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-
-                        {canShowQr ? (
-                            <DirectoryQrCode value={resolvedShareUrl} compact className="w-full max-w-[260px] xl:w-[260px]" />
-                        ) : null}
-                    </div>
-                </div>
-
-                <div className="mt-8">
+                <div>
                     <SharedMapDirectoryList
                         presentation={presentation}
                         mode={mode}
@@ -145,7 +162,13 @@ export default function DirectoryPrintView({
                         renderDesktopMap={() => (
                             <PrintDirectoryMap
                                 presentation={presentation}
+                                directory={directory}
+                                generatedAt={generatedAt}
+                                viewLabel={viewLabel}
+                                resourceCount={resourceCount}
                                 mappedPlaceCount={mappedPlaceCount}
+                                canShowQr={canShowQr}
+                                resolvedShareUrl={resolvedShareUrl}
                                 onMapReadyForCapture={onMapReadyForCapture}
                                 onMapCaptureError={onMapCaptureError}
                             />
@@ -153,7 +176,7 @@ export default function DirectoryPrintView({
                     />
                 </div>
 
-                <div className="mt-8 flex flex-col gap-5 border-t border-slate-100 pt-5 lg:flex-row lg:items-end lg:justify-between">
+                <div className="mt-6 flex flex-col gap-5 border-t border-slate-100 pt-5 lg:flex-row lg:items-end lg:justify-between">
                     <div className="space-y-2 text-sm text-slate-500">
                         <p>Created with CareAround SG</p>
                         {footerNote ? <p className="text-slate-400">{footerNote}</p> : null}
