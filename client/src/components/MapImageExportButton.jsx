@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ImageDown } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { toPng } from 'html-to-image';
@@ -26,6 +27,10 @@ export default function MapImageExportButton({
     const readyWaitersRef = useRef([]);
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState('');
+    const exportRoot = typeof document !== 'undefined' ? document.body : null;
+    const exportWidth = typeof window === 'undefined'
+        ? 1480
+        : Math.min(1480, Math.max(960, window.innerWidth - 64));
 
     useEffect(() => {
         exportReadyRef.current = false;
@@ -116,10 +121,23 @@ export default function MapImageExportButton({
 
         try {
             await waitForExportSurface();
+            const exportNode = exportRef.current;
+            const exportNodeWidth = Math.max(
+                Math.ceil(exportNode.scrollWidth),
+                Math.ceil(exportNode.getBoundingClientRect().width),
+            );
+            const exportNodeHeight = Math.max(
+                Math.ceil(exportNode.scrollHeight),
+                Math.ceil(exportNode.getBoundingClientRect().height),
+            );
             const dataUrl = await toPng(exportRef.current, {
                 cacheBust: true,
                 pixelRatio: 2,
                 backgroundColor: '#ffffff',
+                width: exportNodeWidth,
+                height: exportNodeHeight,
+                canvasWidth: exportNodeWidth * 2,
+                canvasHeight: exportNodeHeight * 2,
             });
             saveAs(dataUrl, buildFileName(directory?.name));
         } catch (err) {
@@ -145,17 +163,26 @@ export default function MapImageExportButton({
                 <p className="text-sm font-medium text-red-600">{error}</p>
             ) : null}
 
-            <div className="pointer-events-none fixed left-0 top-0 z-[-1] opacity-0" aria-hidden="true">
-                <div ref={exportRef} className="p-6">
-                    <MapDirectoryExportPanel
-                        directory={directory}
-                        activeAnchor={activeAnchor}
-                        shareUrl={shareUrl}
-                        onMapReadyForCapture={handleMapReadyForCapture}
-                        onMapCaptureError={handleMapCaptureError}
-                    />
+            {exportRoot ? createPortal(
+                <div
+                    className="pointer-events-none fixed left-0 top-0 overflow-visible p-8"
+                    style={{ opacity: 0.001 }}
+                    aria-hidden="true"
+                >
+                    <div ref={exportRef}>
+                        <MapDirectoryExportPanel
+                            directory={directory}
+                            activeAnchor={activeAnchor}
+                            shareUrl={shareUrl}
+                            exportWidth={exportWidth}
+                            onMapReadyForCapture={handleMapReadyForCapture}
+                            onMapCaptureError={handleMapCaptureError}
+                        />
+                    </div>
                 </div>
-            </div>
+                ,
+                exportRoot,
+            ) : null}
         </>
     );
 }

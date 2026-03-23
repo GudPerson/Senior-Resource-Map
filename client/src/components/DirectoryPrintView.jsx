@@ -19,9 +19,9 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
         : 'border-slate-200 bg-slate-50 text-slate-700';
 
     return (
-        <div className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 ${toneClassName}`}>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-            <span className="text-sm font-semibold">{value}</span>
+        <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${toneClassName}`}>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+            <span className="text-[13px] font-semibold">{value}</span>
         </div>
     );
 }
@@ -70,6 +70,7 @@ export default function DirectoryPrintView({
     generatedAt = new Date(),
     mode = 'shared',
     variant = 'screen',
+    exportWidth,
     footerNote = '',
     className = '',
     activeAnchor = null,
@@ -80,52 +81,55 @@ export default function DirectoryPrintView({
     const presentation = buildDirectoryPresentation(directory, { activeAnchor });
     const resolvedShareUrl = shareUrl || buildDirectoryShareUrl(directory?.share?.sharePath);
     const canShowQr = Boolean(resolvedShareUrl) && (mode === 'shared' || directory?.share?.isShared);
-    const containerWidthClass = variant === 'export' ? 'w-[1480px]' : 'w-full max-w-[1600px]';
+    const containerWidthClass = variant === 'export' ? 'max-w-none' : 'w-full max-w-[1600px]';
     const sheetPaddingClass = variant === 'export' ? 'p-8' : 'p-6 sm:p-8 xl:p-10';
     const resourceCount = directory?.summary?.resourceCount || 0;
     const mappedPlaceCount = presentation.mappedGroups.length;
     const viewLabel = mode === 'owner' ? 'Print view preview' : 'Shared directory print view';
+    const containerStyle = variant === 'export' ? { width: `${exportWidth || 1480}px` } : undefined;
 
     return (
-        <div className={`${containerWidthClass} ${className}`}>
+        <div className={`${containerWidthClass} ${className}`} style={containerStyle}>
             <div className={`rounded-[32px] border border-brand-100 bg-white text-slate-900 shadow-xl ${sheetPaddingClass}`}>
-                <div className="flex flex-col gap-5 border-b border-slate-100 pb-6 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                        <BrandLockup compact />
-                        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-brand-600">{viewLabel}</p>
-                        <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-                            {directory?.name || 'Untitled directory'}
-                        </h1>
-                        {directory?.description ? (
-                            <p className="mt-3 max-w-4xl text-base leading-8 text-slate-600">
-                                {directory.description}
-                            </p>
-                        ) : null}
-
-                        <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                            <SummaryChip label="Resources" value={resourceCount} tone="brand" />
-                            <SummaryChip label="Mapped places" value={mappedPlaceCount} />
-                            {presentation.unmappedRows.length ? (
-                                <SummaryChip label="Not shown on map" value={presentation.unmappedRows.length} />
-                            ) : null}
-                            {presentation.activeAnchorNote ? (
-                                <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3.5 py-2 text-sm font-semibold text-sky-700">
-                                    {presentation.activeAnchorNote}
+                <div className="border-b border-slate-100 pb-5">
+                    <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                    <BrandLockup compact />
+                                    <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">{viewLabel}</p>
+                                    <h1 className="mt-2 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.4rem]">
+                                        {directory?.name || 'Untitled directory'}
+                                    </h1>
+                                    {directory?.description ? (
+                                        <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-600">
+                                            {directory.description}
+                                        </p>
+                                    ) : null}
                                 </div>
-                            ) : null}
-                        </div>
-                    </div>
 
-                    <div className="flex flex-col gap-4 lg:items-end">
-                        <div className="flex flex-col items-start gap-2 text-sm text-slate-500 lg:items-end lg:text-right">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
-                            <p className="text-base font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
-                            <p className="max-w-[360px] leading-6">
-                                Static directory board with numbered map pins and matching grouped listings.
-                            </p>
+                                <div className="flex flex-col items-start gap-1.5 text-sm text-slate-500 sm:items-end sm:text-right">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
+                                    <p className="text-sm font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                <SummaryChip label="Resources" value={resourceCount} tone="brand" />
+                                <SummaryChip label="Mapped places" value={mappedPlaceCount} />
+                                {presentation.unmappedRows.length ? (
+                                    <SummaryChip label="Not shown on map" value={presentation.unmappedRows.length} />
+                                ) : null}
+                                {presentation.activeAnchorNote ? (
+                                    <div className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[13px] font-semibold text-sky-700">
+                                        {presentation.activeAnchorNote}
+                                    </div>
+                                ) : null}
+                            </div>
                         </div>
+
                         {canShowQr ? (
-                            <DirectoryQrCode value={resolvedShareUrl} compact className="w-full max-w-[320px]" />
+                            <DirectoryQrCode value={resolvedShareUrl} compact className="w-full max-w-[260px] xl:w-[260px]" />
                         ) : null}
                     </div>
                 </div>

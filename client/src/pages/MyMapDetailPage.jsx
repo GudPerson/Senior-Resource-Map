@@ -39,43 +39,56 @@ function OwnerHeader({
     onOpenPrintView,
     onOpenShare,
 }) {
-    const compactActionClassName = 'h-12 justify-center px-4 text-sm sm:w-auto sm:px-5 sm:text-base';
+    const compactActionClassName = 'h-12 justify-center px-3.5 text-sm sm:w-auto sm:px-4';
 
     return (
-        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 xl:p-7">
-            <div className="flex flex-col gap-5">
-                <div className="flex flex-wrap items-center gap-3 xl:flex-nowrap">
-                    <Link
-                        to="/my-directory?section=my-maps"
-                        className="btn-ghost h-12 flex-shrink-0 justify-center px-4 text-sm font-semibold text-brand-700"
-                    >
-                        <ArrowLeft size={16} />
-                        Back to My Maps
-                    </Link>
+        <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-5 xl:p-6">
+            <div className="flex flex-col gap-4">
+                <div className="grid gap-3 xl:grid-cols-[minmax(280px,auto)_minmax(320px,1fr)_auto] xl:items-center">
+                    <div className="min-w-0">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <Link
+                                to="/my-directory?section=my-maps"
+                                className="btn-ghost h-12 flex-shrink-0 justify-center px-3 text-sm font-semibold text-brand-700"
+                            >
+                                <ArrowLeft size={16} />
+                                My Maps
+                            </Link>
 
-                    <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.25rem]">
-                            {directory.name}
-                        </h1>
+                            <div className="min-w-0 flex-1">
+                                <h1 className="truncate text-[1.8rem] font-extrabold tracking-tight text-slate-900 sm:text-[2rem]">
+                                    {directory.name}
+                                </h1>
+                            </div>
+                        </div>
                         {directory.description ? (
-                            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                 {directory.description}
                             </p>
                         ) : null}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2 xl:max-w-[760px]">
-                        <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[236px] ${compactActionClassName}`}>
+                    <DirectorySearchBar
+                        value={query}
+                        onChange={onQueryChange}
+                        inputId="directory-search-desktop"
+                        placeholder="Search directory"
+                        compact
+                        className="min-w-0 xl:max-w-[560px]"
+                    />
+
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
                             <Plus size={16} />
-                            Add from Saved Assets
+                            Add assets
                         </button>
                         <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Pencil size={16} />
-                            Edit details
+                            Edit
                         </button>
                         <button type="button" onClick={onOpenPrintView} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Printer size={16} />
-                            Print view
+                            Print
                         </button>
                         <button type="button" onClick={onOpenShare} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Link2 size={16} />
@@ -84,15 +97,8 @@ function OwnerHeader({
                     </div>
                 </div>
 
-                <div className="grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(420px,0.95fr)]">
-                    <DirectorySearchBar
-                        value={query}
-                        onChange={onQueryChange}
-                        inputId="directory-search-desktop"
-                        compact
-                        className="min-w-0"
-                    />
-                    <DirectoryDistanceControls anchorState={anchorState} compact className="min-w-0" />
+                <div className="xl:flex xl:justify-end">
+                    <DirectoryDistanceControls anchorState={anchorState} compact className="min-w-0 xl:min-w-[520px]" />
                 </div>
 
                 {actionError ? (

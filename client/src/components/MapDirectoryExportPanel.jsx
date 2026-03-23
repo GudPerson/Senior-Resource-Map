@@ -5,6 +5,7 @@ export default function MapDirectoryExportPanel({
     generatedAt = new Date(),
     activeAnchor = null,
     shareUrl = '',
+    exportWidth,
     onMapReadyForCapture,
     onMapCaptureError,
 }) {
@@ -14,6 +15,7 @@ export default function MapDirectoryExportPanel({
             generatedAt={generatedAt}
             mode="owner"
             variant="export"
+            exportWidth={exportWidth}
             activeAnchor={activeAnchor}
             shareUrl={shareUrl}
             footerNote={directory?.share?.isShared ? 'Open the shared link for the full interactive directory.' : ''}
