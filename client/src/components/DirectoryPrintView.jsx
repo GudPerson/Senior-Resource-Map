@@ -89,7 +89,7 @@ export default function DirectoryPrintView({
     return (
         <div className={`${containerWidthClass} ${className}`}>
             <div className={`rounded-[32px] border border-brand-100 bg-white text-slate-900 shadow-xl ${sheetPaddingClass}`}>
-                <div className="flex flex-col gap-5 border-b border-slate-100 pb-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-col gap-5 border-b border-slate-100 pb-6 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                         <BrandLockup compact />
                         <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-brand-600">{viewLabel}</p>
@@ -116,12 +116,17 @@ export default function DirectoryPrintView({
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-start gap-2 text-sm text-slate-500 lg:items-end lg:text-right">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
-                        <p className="text-base font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
-                        <p className="max-w-[360px] leading-6">
-                            Static directory board with numbered map pins and matching grouped listings.
-                        </p>
+                    <div className="flex flex-col gap-4 lg:items-end">
+                        <div className="flex flex-col items-start gap-2 text-sm text-slate-500 lg:items-end lg:text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared for print</p>
+                            <p className="text-base font-semibold text-slate-700">{formatGeneratedOn(generatedAt)}</p>
+                            <p className="max-w-[360px] leading-6">
+                                Static directory board with numbered map pins and matching grouped listings.
+                            </p>
+                        </div>
+                        {canShowQr ? (
+                            <DirectoryQrCode value={resolvedShareUrl} compact className="w-full max-w-[320px]" />
+                        ) : null}
                     </div>
                 </div>
 
@@ -153,10 +158,6 @@ export default function DirectoryPrintView({
                             {presentation.unmappedRows.length ? `, ${presentation.unmappedRows.length} resource${presentation.unmappedRows.length === 1 ? '' : 's'} not shown on map` : ''}
                         </p>
                     </div>
-
-                    {canShowQr ? (
-                        <DirectoryQrCode value={resolvedShareUrl} className="w-full max-w-[320px] self-start lg:self-auto" />
-                    ) : null}
                 </div>
             </div>
         </div>

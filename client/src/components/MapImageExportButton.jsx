@@ -145,8 +145,8 @@ export default function MapImageExportButton({
                 <p className="text-sm font-medium text-red-600">{error}</p>
             ) : null}
 
-            <div className="pointer-events-none fixed left-[-200vw] top-0">
-                <div ref={exportRef}>
+            <div className="pointer-events-none fixed left-0 top-0 z-[-1] opacity-0" aria-hidden="true">
+                <div ref={exportRef} className="p-6">
                     <MapDirectoryExportPanel
                         directory={directory}
                         activeAnchor={activeAnchor}
