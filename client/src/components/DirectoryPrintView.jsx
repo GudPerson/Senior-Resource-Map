@@ -19,9 +19,9 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
         : 'border-slate-200 bg-slate-50 text-slate-700';
 
     return (
-        <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 ${toneClassName}`}>
-            <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</span>
-            <span className="text-[13px] font-semibold">{value}</span>
+        <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 ${toneClassName}`}>
+            <span className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+            <span className="text-[12px] font-semibold">{value}</span>
         </div>
     );
 }
@@ -37,18 +37,18 @@ function PrintDirectoryBoardHeader({
     resolvedShareUrl,
 }) {
     const rightHeaderBlock = canShowQr ? (
-        <div className="flex items-start gap-5">
+        <div className="flex items-start gap-4">
             <DirectoryQrCode value={resolvedShareUrl} compact />
-            <div className="flex min-h-[152px] flex-col justify-center">
+            <div className="flex min-h-[128px] flex-col justify-center">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-600">Interactive directory</p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2.5">
                     <SummaryChip label="Resources" value={resourceCount} tone="brand" />
                     <SummaryChip label="Mapped places" value={mappedPlaceCount} />
                     {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
                 </div>
-                <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared on {formatGeneratedOn(generatedAt)}</p>
+                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared on {formatGeneratedOn(generatedAt)}</p>
                 {activeAnchorNote ? (
-                    <p className="mt-2 text-[12px] font-semibold text-sky-700">{activeAnchorNote}</p>
+                    <p className="mt-1.5 text-[11px] font-semibold text-sky-700">{activeAnchorNote}</p>
                 ) : null}
             </div>
         </div>
