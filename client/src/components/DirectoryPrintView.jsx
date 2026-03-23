@@ -37,20 +37,20 @@ function PrintDirectoryBoardHeader({
     resolvedShareUrl,
 }) {
     const rightHeaderBlock = canShowQr ? (
-        <div className="flex items-start gap-4">
-            <DirectoryQrCode value={resolvedShareUrl} compact />
-            <div className="flex min-h-[128px] flex-col justify-center">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-600">Interactive directory</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <div className="flex items-start gap-5">
+            <div className="flex min-h-[128px] min-w-[420px] flex-col justify-center">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand-600">Scan QR code for interactive directory</p>
+                <div className="mt-4 flex flex-wrap items-center gap-2.5">
                     <SummaryChip label="Resources" value={resourceCount} tone="brand" />
                     <SummaryChip label="Mapped places" value={mappedPlaceCount} />
                     {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
                 </div>
-                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared on {formatGeneratedOn(generatedAt)}</p>
+                <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prepared on {formatGeneratedOn(generatedAt)}</p>
                 {activeAnchorNote ? (
-                    <p className="mt-1.5 text-[11px] font-semibold text-sky-700">{activeAnchorNote}</p>
+                    <p className="mt-2 text-[12px] font-semibold text-sky-700">{activeAnchorNote}</p>
                 ) : null}
             </div>
+            <DirectoryQrCode value={resolvedShareUrl} compact className="flex-shrink-0" />
         </div>
     ) : (
         <div className="flex flex-col items-start xl:items-end">
