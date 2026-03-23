@@ -128,6 +128,7 @@ function DirectoryResourceRow({
     mode,
     interactive,
     compactInteractive = false,
+    showDivider = false,
     canSaveResources,
     allowPrintLinks = false,
     compactPrint = false,
@@ -157,21 +158,30 @@ function DirectoryResourceRow({
     }
 
     return (
-        <div className={`flex items-start justify-between ${mode === 'shared' ? (compactInteractive ? 'gap-2' : 'gap-3') : ''}`}>
-            <div className="min-w-0 flex-1">
-                {canOpenDetail ? (
-                    <Link to={row.detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
-                        {row.name}
-                    </Link>
-                ) : (
-                    <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
-                )}
-            </div>
-            {mode === 'shared' ? (
-                <div className="ml-2 flex flex-shrink-0 items-start">
-                    <SaveResourceAction row={row} place={place} enabled={canSaveResources} />
+        <div className={showDivider ? 'border-t border-slate-100 pt-1.5' : ''}>
+            <div className={`flex items-start justify-between ${mode === 'shared' ? (compactInteractive ? 'gap-2' : 'gap-3') : ''}`}>
+                <div className="min-w-0 flex-1">
+                    <div className={`flex items-start ${compactInteractive ? 'gap-2' : 'gap-2.5'}`}>
+                        {compactInteractive ? (
+                            <span className="mt-[0.45em] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                            {canOpenDetail ? (
+                                <Link to={row.detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                                    {row.name}
+                                </Link>
+                            ) : (
+                                <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
-            ) : null}
+                {mode === 'shared' ? (
+                    <div className="ml-2 flex flex-shrink-0 items-start">
+                        <SaveResourceAction row={row} place={place} enabled={canSaveResources} />
+                    </div>
+                ) : null}
+            </div>
         </div>
     );
 }
@@ -232,12 +242,12 @@ function DirectoryPlaceGroupCard({
                                         key={row.rowKey}
                                         row={row}
                                         place={group}
-                                    mode={mode}
-                                    interactive={false}
-                                    canSaveResources={canSaveResources}
-                                    allowPrintLinks={allowPrintLinks}
-                                    compactPrint={compactPrint}
-                                />
+                                        mode={mode}
+                                        interactive={false}
+                                        canSaveResources={canSaveResources}
+                                        allowPrintLinks={allowPrintLinks}
+                                        compactPrint={compactPrint}
+                                    />
                                 ))}
                             </div>
                         ) : null}
@@ -287,7 +297,7 @@ function DirectoryPlaceGroupCard({
 
                     {visibleRows.length ? (
                         <div className={`border-t border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pt-2' : 'mt-3 space-y-2.5 pt-3'}`}>
-                            {visibleRows.map((row) => (
+                            {visibleRows.map((row, index) => (
                                 <DirectoryResourceRow
                                     key={row.rowKey}
                                     row={row}
@@ -295,6 +305,7 @@ function DirectoryPlaceGroupCard({
                                     mode={mode}
                                     interactive
                                     compactInteractive={compactInteractive}
+                                    showDivider={compactInteractive && index > 0}
                                     canSaveResources={canSaveResources}
                                 />
                             ))}
