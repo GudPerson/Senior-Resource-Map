@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -198,6 +198,7 @@ function DirectoryPlaceGroupCard({
     sectionRef,
     allowPrintLinks = false,
     compactPrint = false,
+    clusterColorData = null,
 }) {
     const placeDetailPath = getGroupDetailPath(group);
     const visibleRows = getVisibleGroupRows(group);
@@ -219,7 +220,10 @@ function DirectoryPlaceGroupCard({
                 }`}
             >
                 <div className="flex items-start gap-2.5">
-                    <div className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-brand-700 font-black text-white ${compactPrint ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[11px]'}`}>
+                    <div 
+                        className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[11px]'}`}
+                        style={{ backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e' }}
+                    >
                         {group.number}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -276,7 +280,8 @@ function DirectoryPlaceGroupCard({
                 <button
                     type="button"
                     onClick={() => onViewOnMap?.(group.placeKey)}
-                    className={`flex flex-shrink-0 items-center justify-center bg-brand-700 font-black text-white shadow-sm transition hover:bg-brand-800 ${compactInteractive ? 'h-8 w-8 rounded-lg text-[12px]' : 'h-9 w-9 rounded-xl text-[13px]'}`}
+                    className={`flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg text-[12px]' : 'h-9 w-9 rounded-xl text-[13px]'}`}
+                    style={{ backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e' }}
                     aria-label={`View ${group.name} on map`}
                     title="View on map"
                 >
@@ -435,6 +440,7 @@ function DirectoryGroupColumn({
     preserveSlot = false,
     allowPrintLinks = false,
     compactPrint = false,
+    clusterMapping = {},
 }) {
     if (!groups.length) {
         return preserveSlot ? <div aria-hidden="true" className="min-h-px" /> : null;
@@ -455,6 +461,7 @@ function DirectoryGroupColumn({
                     highlighted={highlightPlaceKey === group.placeKey}
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
+                    clusterColorData={clusterMapping[group.placeKey] || null}
                     sectionRef={(node) => {
                         if (node) {
                             sectionRefs.current[group.placeKey] = node;
@@ -521,6 +528,7 @@ export default function SharedMapDirectoryList({
 }) {
     const sectionRefs = useRef({});
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
+    const [clusterMapping, setClusterMapping] = useState({});
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
     const resolvedLayout = layout === 'responsive'
         ? (isDesktop ? 'desktop' : 'mobile')
@@ -570,7 +578,7 @@ export default function SharedMapDirectoryList({
             <div className={`space-y-4 ${className}`}>
                 {renderMobileMap ? (
                     <div className={mobileMapStickyClassName}>
-                        {renderMobileMap()}
+                        {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
                     </div>
                 ) : null}
 
@@ -583,6 +591,7 @@ export default function SharedMapDirectoryList({
                     canSaveResources={canSaveResources}
                     highlightPlaceKey={flashPlaceKey}
                     sectionRefs={sectionRefs}
+                    clusterMapping={clusterMapping}
                 />
 
                 <DirectoryUnmappedSection
@@ -612,10 +621,11 @@ export default function SharedMapDirectoryList({
                     preserveSlot
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
+                    clusterMapping={clusterMapping}
                 />
 
                 <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
-                    {renderDesktopMap?.()}
+                    {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
                 </div>
 
                 <DirectoryGroupColumn
@@ -631,6 +641,7 @@ export default function SharedMapDirectoryList({
                     preserveSlot
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
+                    clusterMapping={clusterMapping}
                 />
             </div>
 

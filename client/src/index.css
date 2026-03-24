@@ -492,7 +492,7 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: #0f766e;
+  background: var(--directory-number-marker-core, #0f766e);
   border: 3px solid var(--directory-number-marker-ring, #ffffff);
   color: #ffffff;
   display: flex;

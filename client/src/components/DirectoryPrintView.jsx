@@ -37,24 +37,28 @@ function PrintDirectoryBoardHeader({
     resolvedShareUrl,
 }) {
     const rightHeaderBlock = canShowQr ? (
-        <div className="relative w-full max-w-[660px] pr-[148px]">
-            <p className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-600">
+        <div className="flex flex-col">
+            <p className="mb-3 w-full whitespace-nowrap text-left text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-600">
                 Scan QR code for interactive directory
             </p>
-            <div className="mt-4 min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5">
-                    <SummaryChip label="Resources" value={resourceCount} tone="brand" />
-                    <SummaryChip label="Mapped places" value={mappedPlaceCount} />
-                    {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
+            <div className="flex items-start justify-between gap-6">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <SummaryChip label="Resources" value={resourceCount} tone="brand" />
+                        <SummaryChip label="Mapped places" value={mappedPlaceCount} />
+                        {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
+                    </div>
+                    <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Prepared on {formatGeneratedOn(generatedAt)}
+                    </p>
+                    {activeAnchorNote ? (
+                        <p className="mt-2 text-[12px] font-semibold text-sky-700">{activeAnchorNote}</p>
+                    ) : null}
                 </div>
-                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Prepared on {formatGeneratedOn(generatedAt)}
-                </p>
-                {activeAnchorNote ? (
-                    <p className="mt-2 text-[12px] font-semibold text-sky-700">{activeAnchorNote}</p>
-                ) : null}
+                <div className="shrink-0">
+                    <DirectoryQrCode value={resolvedShareUrl} compact />
+                </div>
             </div>
-            <DirectoryQrCode value={resolvedShareUrl} compact className="absolute right-0 top-[34px]" />
         </div>
     ) : (
         <div className="flex flex-col items-start xl:items-end">
@@ -72,8 +76,8 @@ function PrintDirectoryBoardHeader({
 
     return (
         <div className="border-b border-slate-100 pb-4">
-            <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,560px)_minmax(660px,1fr)] xl:items-start xl:gap-12">
-                <div className="min-w-0 max-w-[560px]">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between xl:gap-12">
+                <div className="min-w-0 flex-1">
                     <BrandLockup compact />
                     <h1 className="mt-4 text-[2rem] font-extrabold tracking-tight text-slate-900 sm:text-[2.35rem]">
                         {directory?.name || 'Untitled directory'}
@@ -85,7 +89,7 @@ function PrintDirectoryBoardHeader({
                     ) : null}
                 </div>
 
-                <div className="xl:min-w-0 xl:justify-self-end xl:self-center">
+                <div className="xl:min-w-0 xl:shrink-0 xl:self-start">
                     {rightHeaderBlock}
                 </div>
             </div>

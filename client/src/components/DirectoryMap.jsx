@@ -31,18 +31,51 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;');
 }
 
-function createDirectoryNumberMarker(number, emphasis = 'default') {
+const PALETTE = [
+    { core: '#db2777', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(219, 39, 119, 0.24)', glow: 'rgba(236, 72, 153, 0.16)' },
+    { core: '#2563eb', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(37, 99, 235, 0.24)', glow: 'rgba(59, 130, 246, 0.16)' },
+    { core: '#d97706', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(217, 119, 6, 0.24)', glow: 'rgba(245, 158, 11, 0.16)' },
+    { core: '#059669', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(5, 150, 105, 0.24)', glow: 'rgba(16, 185, 129, 0.16)' },
+    { core: '#7c3aed', bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(124, 58, 237, 0.24)', glow: 'rgba(139, 92, 246, 0.16)' },
+    { core: '#e11d48', bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(225, 29, 72, 0.24)', glow: 'rgba(244, 63, 94, 0.16)' },
+    { core: '#0891b2', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(8, 145, 178, 0.24)', glow: 'rgba(6, 182, 212, 0.16)' },
+];
+
+function getClusterColorData(children) {
+    if (!children || !children.length) return null;
+    const sortedKeys = children
+        .map((m) => m.options?.icon?.options?.placeKey || m.options?.placeKey)
+        .filter(Boolean)
+        .sort();
+    
+    if (!sortedKeys.length) return PALETTE[0];
+    
+    const headKey = sortedKeys[0];
+    let hash = 0;
+    for (let i = 0; i < headKey.length; i++) {
+        hash = headKey.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return PALETTE[Math.abs(hash) % PALETTE.length];
+}
+
+function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = null) {
     const isSelected = emphasis === 'primary';
+    const coreColor = '#0f766e';
+    const ringColor = isSelected ? '#f59e0b' : '#ffffff';
+    const glowColor = isSelected ? 'rgba(245, 158, 11, 0.34)' : 'rgba(15, 118, 110, 0.16)';
+    const shadowColor = isSelected ? '0 14px 26px rgba(194, 65, 12, 0.34)' : '0 10px 18px rgba(15, 118, 110, 0.24)';
 
     return L.divIcon({
         className: '',
+        placeKey: placeKey,
         html: `
             <div
                 class="directory-number-marker ${isSelected ? 'directory-number-marker--selected' : ''}"
                 style="
-                    --directory-number-marker-ring:${isSelected ? '#f59e0b' : '#ffffff'};
-                    --directory-number-marker-glow:${isSelected ? 'rgba(245, 158, 11, 0.34)' : 'rgba(15, 118, 110, 0.16)'};
-                    --directory-number-marker-shadow:${isSelected ? '0 14px 26px rgba(194, 65, 12, 0.34)' : '0 10px 18px rgba(15, 118, 110, 0.24)'};
+                    --directory-number-marker-core:${coreColor};
+                    --directory-number-marker-ring:${ringColor};
+                    --directory-number-marker-glow:${glowColor};
+                    --directory-number-marker-shadow:${shadowColor};
                 "
             >
                 <div class="directory-number-marker__pulse"></div>
@@ -58,12 +91,21 @@ function createDirectoryNumberMarker(number, emphasis = 'default') {
     });
 }
 
-function createDirectoryClusterIcon(count) {
+function createDirectoryClusterIcon(cluster) {
+    const count = cluster.getChildCount();
+    const children = cluster.getAllChildMarkers();
+    const dominantColor = getClusterColorData(children) || {
+        core: '#0f766e',
+        bg: 'rgba(15,118,110,0.12)',
+        border: 'rgba(13,148,136,0.24)',
+        glow: 'rgba(15,118,110,0.16)'
+    };
+
     return L.divIcon({
         className: '',
         html: `
-            <div style="width:42px;height:42px;border-radius:999px;background:rgba(15,118,110,0.12);display:flex;align-items:center;justify-content:center;border:1px solid rgba(13,148,136,0.24);box-shadow:0 16px 34px rgba(15,118,110,0.18);">
-                <div style="width:32px;height:32px;border-radius:999px;background:#0f766e;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="width:42px;height:42px;border-radius:999px;background:${dominantColor.bg};display:flex;align-items:center;justify-content:center;border:1px solid ${dominantColor.border};box-shadow:0 16px 34px ${dominantColor.glow};">
+                <div style="width:32px;height:32px;border-radius:999px;background:${dominantColor.core};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                     ${escapeHtml(count)}
                 </div>
             </div>
@@ -107,6 +149,89 @@ function spreadPinsForDisplay(pins, interactive) {
     });
 }
 
+function DirectoryMapRecenterControl({ pins }) {
+    const map = useMap();
+    if (!pins || pins.length <= 1) return null;
+    
+    return (
+        <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
+            <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
+                <button
+                    type="button"
+                    title="Reset map view"
+                    aria-label="Reset map view"
+                    className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        map.flyToBounds(getBounds(pins), {
+                            paddingTopLeft: [16, 16],
+                            paddingBottomRight: [16, 16],
+                            maxZoom: 16,
+                            duration: 0.6
+                        });
+                    }}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M15 21h6v-6M9 3H3v6M21 21l-7-7M3 3l7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function DirectoryClusterStateSync({ interactive, onClusterChange }) {
+    const map = useMap();
+    
+    useEffect(() => {
+        if (!interactive || !onClusterChange) return undefined;
+
+        let activeTimeout = null;
+
+        const updateClusters = () => {
+            const clusterMapping = {};
+            
+            map.eachLayer((layer) => {
+                if (layer && typeof layer.getAllChildMarkers === 'function') {
+                    const children = layer.getAllChildMarkers();
+                    const colorData = getClusterColorData(children);
+                    if (colorData) {
+                        children.forEach((marker) => {
+                            const pk = marker.options?.icon?.options?.placeKey || marker.options?.placeKey;
+                            if (pk) {
+                                clusterMapping[pk] = colorData;
+                            }
+                        });
+                    }
+                }
+            });
+            
+            onClusterChange(clusterMapping);
+        };
+
+        const handleUpdate = () => {
+            if (activeTimeout) window.clearTimeout(activeTimeout);
+            activeTimeout = window.setTimeout(updateClusters, 300);
+        };
+
+        map.on('moveend', handleUpdate);
+        map.on('zoomend', handleUpdate);
+        map.on('layeradd', handleUpdate);
+
+        handleUpdate();
+
+        return () => {
+            if (activeTimeout) window.clearTimeout(activeTimeout);
+            map.off('moveend', handleUpdate);
+            map.off('zoomend', handleUpdate);
+            map.off('layeradd', handleUpdate);
+        };
+    }, [interactive, map, onClusterChange]);
+
+    return null;
+}
+
 function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettled }) {
     const map = useMap();
     const previousSignatureRef = useRef('');
@@ -134,8 +259,8 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
         }
 
         map.fitBounds(getBounds(pins), {
-            paddingTopLeft: [28, 28],
-            paddingBottomRight: [28, 28],
+            paddingTopLeft: [16, 16],
+            paddingBottomRight: [16, 16],
             maxZoom: 16,
             animate: false,
         });
@@ -172,6 +297,7 @@ export default function DirectoryMap({
     mapHeightClassName = 'h-[340px]',
     onMapReadyForCapture,
     onMapCaptureError,
+    onClusterChange,
 }) {
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
@@ -232,11 +358,77 @@ export default function DirectoryMap({
         );
     }
 
+    const renderedMarkers = useMemo(() => {
+        if (shouldCluster) {
+            return (
+                <MarkerClusterGroup
+                    showCoverageOnHover={false}
+                    spiderfyOnMaxZoom={false}
+                    removeOutsideVisibleBounds={false}
+                    disableClusteringAtZoom={16}
+                    maxClusterRadius={42}
+                    iconCreateFunction={createDirectoryClusterIcon}
+                >
+                    {displayPins.map((pin) => {
+                        const icon = markerMode === 'number'
+                            ? createDirectoryNumberMarker(
+                                pin.number || placeNumberByKey?.[pin.placeKey] || '?',
+                                focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                                pin.placeKey
+                            )
+                            : createSavedPlacePinIcon({
+                                count: pin.curatedCount,
+                                emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                                tone: 'saved',
+                            });
+
+                        return (
+                            <Marker
+                                key={pin.pinKey || pin.placeKey}
+                                position={[pin.displayLat, pin.displayLng]}
+                                icon={icon}
+                                eventHandlers={interactive && onViewSection ? {
+                                    click: () => onViewSection(pin.placeKey),
+                                } : undefined}
+                            />
+                        );
+                    })}
+                </MarkerClusterGroup>
+            );
+        }
+
+        return displayPins.map((pin) => {
+            const icon = markerMode === 'number'
+                ? createDirectoryNumberMarker(
+                    pin.number || placeNumberByKey?.[pin.placeKey] || '?',
+                    focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                    pin.placeKey
+                )
+                : createSavedPlacePinIcon({
+                    count: pin.curatedCount,
+                    emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                    tone: 'saved',
+                });
+
+            return (
+                <Marker
+                    key={pin.pinKey || pin.placeKey}
+                    position={[pin.displayLat, pin.displayLng]}
+                    icon={icon}
+                    eventHandlers={interactive && onViewSection ? {
+                        click: () => onViewSection(pin.placeKey),
+                    } : undefined}
+                />
+            );
+        });
+    }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, interactive, onViewSection]);
+
     return (
         <div className={`relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm ${className}`}>
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
+                zoomSnap={0.1}
                 scrollWheelZoom={false}
                 dragging={interactive}
                 touchZoom={interactive}
@@ -275,62 +467,9 @@ export default function DirectoryMap({
                         tryNotifyReady();
                     } : undefined}
                 />
-                {(shouldCluster ? (
-                    <MarkerClusterGroup
-                        showCoverageOnHover={false}
-                        spiderfyOnMaxZoom={true}
-                        removeOutsideVisibleBounds={false}
-                        disableClusteringAtZoom={16}
-                        maxClusterRadius={42}
-                        iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster.getChildCount())}
-                    >
-                        {displayPins.map((pin) => {
-                            const icon = markerMode === 'number'
-                                ? createDirectoryNumberMarker(
-                                    pin.number || placeNumberByKey?.[pin.placeKey] || '?',
-                                    focusedPlaceKey === pin.placeKey ? 'primary' : 'default'
-                                )
-                                : createSavedPlacePinIcon({
-                                    count: pin.curatedCount,
-                                    emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
-                                    tone: 'saved',
-                                });
-
-                            return (
-                                <Marker
-                                    key={pin.pinKey || pin.placeKey}
-                                    position={[pin.displayLat, pin.displayLng]}
-                                    icon={icon}
-                                    eventHandlers={interactive && onViewSection ? {
-                                        click: () => onViewSection(pin.placeKey),
-                                    } : undefined}
-                                />
-                            );
-                        })}
-                    </MarkerClusterGroup>
-                ) : displayPins.map((pin) => {
-                    const icon = markerMode === 'number'
-                        ? createDirectoryNumberMarker(
-                            pin.number || placeNumberByKey?.[pin.placeKey] || '?',
-                            focusedPlaceKey === pin.placeKey ? 'primary' : 'default'
-                        )
-                        : createSavedPlacePinIcon({
-                            count: pin.curatedCount,
-                            emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
-                            tone: 'saved',
-                        });
-
-                    return (
-                        <Marker
-                            key={pin.pinKey || pin.placeKey}
-                            position={[pin.displayLat, pin.displayLng]}
-                            icon={icon}
-                            eventHandlers={interactive && onViewSection ? {
-                                click: () => onViewSection(pin.placeKey),
-                            } : undefined}
-                        />
-                    );
-                }))}
+                <DirectoryMapRecenterControl pins={displayPins} />
+                <DirectoryClusterStateSync interactive={interactive} onClusterChange={onClusterChange} />
+                {renderedMarkers}
             </MapContainer>
             <OneMapBadge />
         </div>
