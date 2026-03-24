@@ -15,7 +15,7 @@ export default function CreateMapModal({
     isOpen,
     mode = 'create',
     savedAssets = [],
-    excludedAssetKeys = [],
+    initialAssetKeys = [],
     submitting = false,
     error = '',
     onClose,
@@ -23,51 +23,95 @@ export default function CreateMapModal({
 }) {
     const [name, setName] = useState('');
     const [query, setQuery] = useState('');
+    const [filter, setFilter] = useState('all');
     const [selectedKeys, setSelectedKeys] = useState(new Set());
+    const [validationError, setValidationError] = useState('');
 
     const isCreateMode = mode === 'create';
-    const excludedKeysSet = useMemo(() => new Set(excludedAssetKeys), [excludedAssetKeys]);
-
-    const selectableAssets = useMemo(
-        () => savedAssets.filter((asset) => !excludedKeysSet.has(buildSavedAssetKey(asset.resourceType, asset.resourceId))),
-        [excludedKeysSet, savedAssets]
-    );
+    const initialKeysSet = useMemo(() => new Set(initialAssetKeys), [initialAssetKeys]);
 
     const filteredAssets = useMemo(() => {
-        const normalized = normalizeText(query);
-        if (!normalized) return selectableAssets;
+        let assets = savedAssets;
 
-        return selectableAssets.filter((asset) => (
+        if (filter !== 'all') {
+            assets = assets.filter(a => a.resourceType === filter);
+        }
+
+        const normalized = normalizeText(query);
+        if (!normalized) return assets;
+
+        return assets.filter((asset) => (
             [asset.name, asset.subCategory, asset.address, typeLabel(asset.resourceType)]
                 .map(normalizeText)
                 .join(' ')
                 .includes(normalized)
         ));
-    }, [query, selectableAssets]);
+    }, [query, filter, savedAssets]);
 
     useEffect(() => {
         if (!isOpen) return;
         setName('');
         setQuery('');
-        setSelectedKeys(new Set());
-    }, [isOpen, mode]);
+        setFilter('all');
+        setValidationError('');
+        setSelectedKeys(new Set(initialKeysSet));
+    }, [isOpen, initialKeysSet]);
 
     if (!isOpen) return null;
 
-    const hasSelectableAssets = selectableAssets.length > 0;
-    const selectedAssets = selectableAssets.filter((asset) => selectedKeys.has(buildSavedAssetKey(asset.resourceType, asset.resourceId)));
+    const hasSelectableAssets = savedAssets.length > 0;
+    const selectedAssets = savedAssets.filter((asset) => selectedKeys.has(buildSavedAssetKey(asset.resourceType, asset.resourceId)));
     const canSubmit = !submitting
-        && (!isCreateMode || Boolean(name.trim()))
-        && selectedAssets.length > 0;
+        && (isCreateMode ? (Boolean(name.trim()) && selectedAssets.length > 0) : true);
 
     function toggleAsset(asset) {
+        setValidationError('');
         const key = buildSavedAssetKey(asset.resourceType, asset.resourceId);
+
+        if (selectedKeys.has(key) && asset.resourceType === 'hard') {
+            const hasCheckedOfferings = savedAssets.some(
+                a => {
+                    if (a.resourceType !== 'soft' || !selectedKeys.has(buildSavedAssetKey(a.resourceType, a.resourceId))) return false;
+                    
+                    // Fallback to address-matching if the backend data is stale or cached
+                    let hostIds = a.hostHardAssetIds || (a.hostHardAssetId ? [a.hostHardAssetId] : []);
+                    if (hostIds.length === 0 && a.address && asset.address) {
+                        if (a.address.trim() === asset.address.trim()) {
+                            hostIds = [asset.resourceId];
+                        }
+                    }
+                    return hostIds.includes(asset.resourceId);
+                }
+            );
+            
+            if (hasCheckedOfferings) {
+                setValidationError(`Cannot remove ${asset.name} because its corresponding offerings at the same location are still selected.`);
+                return;
+            }
+        }
+
         setSelectedKeys((current) => {
             const next = new Set(current);
             if (next.has(key)) {
                 next.delete(key);
             } else {
                 next.add(key);
+                if (asset.resourceType === 'soft') {
+                    // Try to auto-select corresponding Places using IDs or address fallback
+                    let hostIds = asset.hostHardAssetIds || (asset.hostHardAssetId ? [asset.hostHardAssetId] : []);
+                    if (hostIds.length === 0 && asset.address) {
+                        const matchedPlaces = savedAssets.filter(p => p.resourceType === 'hard' && p.address && p.address.trim() === asset.address.trim());
+                        hostIds = matchedPlaces.map(p => p.resourceId);
+                    }
+                    if (hostIds.length > 0) {
+                        hostIds.forEach(hostId => {
+                            const hostKey = buildSavedAssetKey('hard', hostId);
+                            if (savedAssets.some(a => buildSavedAssetKey(a.resourceType, a.resourceId) === hostKey)) {
+                                next.add(hostKey);
+                            }
+                        });
+                    }
+                }
             }
             return next;
         });
@@ -92,15 +136,15 @@ export default function CreateMapModal({
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
-                            {isCreateMode ? 'Create My Map' : 'Add from Saved Assets'}
+                            {isCreateMode ? 'Create My Map' : 'Manage Map Assets'}
                         </p>
                         <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                            {isCreateMode ? 'Create a named map from saved assets' : 'Add saved assets to this map'}
+                            {isCreateMode ? 'Create a named map from saved assets' : 'Add or remove saved assets'}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
                             {isCreateMode
                                 ? 'Select the saved assets you want to group together.'
-                                : 'Choose additional saved assets to include in this map.'}
+                                : 'Choose which saved assets should be included in this map.'}
                         </p>
                     </div>
                     <button
@@ -136,16 +180,30 @@ export default function CreateMapModal({
                         <label htmlFor="create-map-search" className="block text-sm font-semibold text-slate-700">
                             Select saved assets
                         </label>
-                        <div className="relative mt-2">
-                            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                id="create-map-search"
-                                type="search"
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                placeholder="Search your saved assets"
-                                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-                            />
+                        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <div className="relative flex-1">
+                                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    id="create-map-search"
+                                    type="search"
+                                    value={query}
+                                    onChange={(event) => setQuery(event.target.value)}
+                                    placeholder="Search your saved assets"
+                                    className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                                />
+                            </div>
+                            <div className="flex h-11 items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                {['all', 'hard', 'soft'].map((f) => (
+                                    <button
+                                        key={f}
+                                        type="button"
+                                        onClick={() => setFilter(f)}
+                                        className={`flex-1 rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {f === 'hard' ? 'Place' : f === 'soft' ? 'Offering' : 'All'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -158,7 +216,7 @@ export default function CreateMapModal({
                             <p className="mt-2 text-sm text-slate-500">
                                 {isCreateMode
                                     ? 'Save assets from Discover first, then create a map from them.'
-                                    : 'All of your current saved assets are already in this map, or you have no saved assets yet.'}
+                                    : 'You have no saved assets yet. Save assets from Discover first.'}
                             </p>
                         </div>
                     ) : filteredAssets.length === 0 ? (
@@ -193,6 +251,9 @@ export default function CreateMapModal({
                                                         {asset.subCategory}
                                                     </span>
                                                 ) : null}
+                                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                                    ID: {asset.resourceId}
+                                                </span>
                                                 {asset.status === 'unavailable' ? (
                                                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                                                         Unavailable
@@ -214,7 +275,9 @@ export default function CreateMapModal({
                         </div>
                     )}
 
-                    {error ? (
+                    {validationError ? (
+                        <p className="mt-4 text-sm font-medium text-red-600">{validationError}</p>
+                    ) : error ? (
                         <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
                     ) : null}
 
@@ -231,7 +294,7 @@ export default function CreateMapModal({
                                 disabled={!canSubmit}
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {submitting ? (isCreateMode ? 'Creating…' : 'Adding…') : (isCreateMode ? 'Create My Map' : 'Add to map')}
+                                {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create My Map' : 'Save assets')}
                             </button>
                         </div>
                     </div>

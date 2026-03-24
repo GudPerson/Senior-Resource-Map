@@ -80,7 +80,7 @@ function OwnerHeader({
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
                             <Plus size={16} />
-                            Add assets
+                            Manage assets
                         </button>
                         <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Pencil size={16} />
@@ -190,7 +190,7 @@ function MyMapMobileControls({
                             <div className="mt-4 space-y-2">
                                 <button type="button" onClick={() => runDrawerAction(onAddAssets)} className="btn-primary h-12 w-full justify-center px-4 text-sm">
                                     <Plus size={16} />
-                                    Add from Saved Assets
+                                    Manage assets
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Pencil size={16} />
@@ -319,17 +319,28 @@ export default function MyMapDetailPage() {
         }
     }
 
-    async function handleAddAssets({ assets }) {
+    async function handleManageAssets({ assets }) {
         if (!directory) return;
         setAddSubmitting(true);
         setAddError('');
         try {
-            await Promise.all(assets.map((asset) => api.addMyMapAsset(directory.id, asset)));
+            const targetKeys = new Set(assets.map(a => `${a.resourceType}-${a.resourceId}`));
+            const toAdd = assets.filter(a => !existingAssetKeys.has(`${a.resourceType}-${a.resourceId}`));
+            const toRemove = directory.assets.filter(a => {
+                const k = a.assetKey || `${a.resourceType}-${a.resourceId}`;
+                return !targetKeys.has(k);
+            });
+
+            await Promise.all([
+                ...toAdd.map((asset) => api.addMyMapAsset(directory.id, asset)),
+                ...toRemove.map((asset) => api.removeMyMapAsset(directory.id, asset.resourceType, asset.resourceId))
+            ]);
+
             setAddOpen(false);
             await loadMap();
         } catch (err) {
             console.error(err);
-            setAddError(err.message || 'Failed to add one or more resources to this directory.');
+            setAddError(err.message || 'Failed to update directory resources.');
         } finally {
             setAddSubmitting(false);
         }
@@ -551,9 +562,9 @@ export default function MyMapDetailPage() {
 
             <CreateMapModal
                 isOpen={addOpen}
-                mode="add-assets"
+                mode="manage-assets"
                 savedAssets={savedAssets}
-                excludedAssetKeys={[...existingAssetKeys]}
+                initialAssetKeys={[...existingAssetKeys]}
                 submitting={addSubmitting}
                 error={addError}
                 onClose={() => {
@@ -561,7 +572,7 @@ export default function MyMapDetailPage() {
                     setAddOpen(false);
                     setAddError('');
                 }}
-                onSubmit={handleAddAssets}
+                onSubmit={handleManageAssets}
             />
 
             <EditMapDetailsModal

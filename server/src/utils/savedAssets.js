@@ -45,6 +45,7 @@ function flattenSnapshot(resourceType, resourceId, snapshot, favorite) {
         lat: parseCoordinate(snapshot?.lat),
         lng: parseCoordinate(snapshot?.lng),
         detailPath: normalizeText(snapshot?.detailPath) || buildDetailPath(resourceType, resourceId),
+        hostHardAssetIds: Array.isArray(snapshot?.hostHardAssetIds) ? snapshot.hostHardAssetIds : [],
     };
 }
 
@@ -56,6 +57,7 @@ export function buildSavedAssetSnapshot(summary) {
         lat: parseCoordinate(summary?.lat),
         lng: parseCoordinate(summary?.lng),
         detailPath: normalizeText(summary?.detailPath),
+        hostHardAssetIds: Array.isArray(summary?.hostHardAssetIds) ? summary.hostHardAssetIds : [],
     };
 }
 
@@ -75,6 +77,7 @@ function flattenLiveSummary(resourceType, resourceId, favorite, summary, status 
         lat: parseCoordinate(summary?.lat),
         lng: parseCoordinate(summary?.lng),
         detailPath: normalizeText(summary?.detailPath) || buildDetailPath(resourceType, resourceId),
+        hostHardAssetIds: Array.isArray(summary?.hostHardAssetIds) ? summary.hostHardAssetIds : [],
     };
 }
 
@@ -94,6 +97,10 @@ function summarizeHardAsset(asset) {
 function summarizeSoftAsset(asset, location) {
     if (!asset) return null;
 
+    const allLocations = getSoftAssetLocations(asset);
+    const hostIds = new Set(allLocations.map(loc => loc.id).filter(Boolean));
+    if (asset.hostHardAssetId) hostIds.add(asset.hostHardAssetId);
+
     return {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -101,6 +108,7 @@ function summarizeSoftAsset(asset, location) {
         lat: location?.lat ?? null,
         lng: location?.lng ?? null,
         detailPath: buildDetailPath('soft', asset.id),
+        hostHardAssetIds: [...hostIds],
     };
 }
 
