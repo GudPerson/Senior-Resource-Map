@@ -149,9 +149,9 @@ function spreadPinsForDisplay(pins, interactive) {
     });
 }
 
-function DirectoryMapRecenterControl({ pins }) {
+function DirectoryMapRecenterControl({ pins, interactive }) {
     const map = useMap();
-    if (!pins || pins.length <= 1) return null;
+    if (!interactive || !pins || pins.length <= 1) return null;
     
     return (
         <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
@@ -436,7 +436,7 @@ export default function DirectoryMap({
                 boxZoom={interactive}
                 keyboard={interactive}
                 zoomControl={showZoomControl}
-                className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none'}`}
+                className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none cursor-default selection:bg-transparent'}`}
                 attributionControl={showAttribution}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
             >
@@ -467,7 +467,7 @@ export default function DirectoryMap({
                         tryNotifyReady();
                     } : undefined}
                 />
-                <DirectoryMapRecenterControl pins={displayPins} />
+                <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} />
                 <DirectoryClusterStateSync interactive={interactive} onClusterChange={onClusterChange} />
                 {renderedMarkers}
             </MapContainer>

@@ -43,39 +43,19 @@ function OwnerHeader({
 
     return (
         <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-5 xl:p-6">
-            <div className="flex flex-col gap-4">
-                <div className="grid gap-3 xl:grid-cols-[minmax(280px,auto)_minmax(320px,1fr)_auto] xl:items-center">
-                    <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-3">
-                            <Link
-                                to="/my-directory?section=my-maps"
-                                className="btn-ghost h-12 flex-shrink-0 justify-center px-3 text-sm font-semibold text-brand-700"
-                            >
-                                <ArrowLeft size={16} />
-                                My Maps
-                            </Link>
-
-                            <div className="min-w-0 flex-1">
-                                <h1 className="truncate text-[1.8rem] font-extrabold tracking-tight text-slate-900 sm:text-[2rem]">
-                                    {directory.name}
-                                </h1>
-                            </div>
-                        </div>
+            <div className="flex flex-col gap-5">
+                {/* Row 1: Title and Actions */}
+                <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="truncate text-[1.8rem] font-extrabold tracking-tight text-slate-900 sm:text-[2rem]">
+                            {directory.name}
+                        </h1>
                         {directory.description ? (
                             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                 {directory.description}
                             </p>
                         ) : null}
                     </div>
-
-                    <DirectorySearchBar
-                        value={query}
-                        onChange={onQueryChange}
-                        inputId="directory-search-desktop"
-                        placeholder="Search directory"
-                        compact
-                        className="min-w-0 xl:max-w-[560px]"
-                    />
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
@@ -97,7 +77,25 @@ function OwnerHeader({
                     </div>
                 </div>
 
-                <div className="xl:flex xl:justify-end">
+                {/* Row 2: Navigation, Search, and Distance */}
+                <div className="grid gap-4 xl:grid-cols-[auto_minmax(320px,1fr)_auto] xl:items-center">
+                    <Link
+                        to="/my-directory?section=my-maps"
+                        className="btn-ghost h-12 flex-shrink-0 justify-center border border-slate-200 px-4 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
+                    >
+                        <ArrowLeft size={16} />
+                        My Maps
+                    </Link>
+
+                    <DirectorySearchBar
+                        value={query}
+                        onChange={onQueryChange}
+                        inputId="directory-search-desktop"
+                        placeholder="Search directory"
+                        compact
+                        className="min-w-0"
+                    />
+
                     <DirectoryDistanceControls anchorState={anchorState} compact className="min-w-0 xl:min-w-[520px]" />
                 </div>
 
