@@ -265,7 +265,7 @@ async function syncSubregionPostalCodes(db, subregionId, postalCodes) {
 
     await db.delete(subregionPostalCodes).where(eq(subregionPostalCodes.subregionId, subregionId));
 
-    for (const group of chunk(normalizedPostalCodes, 500)) {
+    for (const group of chunk(normalizedPostalCodes, 5000)) {
         if (group.length === 0) continue;
         await db.insert(subregionPostalCodes).values(
             group.map((postalCode) => ({ subregionId, postalCode }))
@@ -502,20 +502,32 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         const errors = [];
         let successfulRows = 0;
 
-        rows.forEach((row, index) => {
+        let lastSubregionVal = null;
+        let lastSubregionRef = null;
+
+        for (let index = 0; index < rows.length; index++) {
+            const row = rows[index];
             try {
-                const targetSubregion = resolveSubregionReference(referenceMaps, row);
+                // Optimization: If the subregion identifier is same as last row, reuse the reference
+                const currentSubregionVal = row?.subregionId ?? row?.subregionCode ?? row?.dbId ?? row?.name;
+                let targetSubregion = (currentSubregionVal !== undefined && currentSubregionVal !== null && currentSubregionVal === lastSubregionVal)
+                    ? lastSubregionRef
+                    : resolveSubregionReference(referenceMaps, row);
+                
+                lastSubregionVal = currentSubregionVal;
+                lastSubregionRef = targetSubregion;
+
                 if (!targetSubregion) {
-                    throw new Error('Unknown subregion reference. Supply subregionId/subregionCode, dbId, or name.');
+                    throw new Error('Unknown subregion reference.');
                 }
 
                 if (role === 'regional_admin' && !scopedSubregionIds.has(targetSubregion.id)) {
-                    throw new Error(`Subregion "${targetSubregion.subregionCode || targetSubregion.name}" is outside your scope.`);
+                    throw new Error(`Subregion outside your scope.`);
                 }
 
                 const postalCode = normalizePostalCode(row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode']);
                 if (!postalCode) {
-                    throw new Error('postalCode must be a valid 6-digit code.');
+                    throw new Error('Invalid postal code.');
                 }
 
                 if (!groupedPostalCodes.has(targetSubregion.id)) {
@@ -526,16 +538,48 @@ export const bulkUploadSubregionBoundaries = async (c) => {
             } catch (err) {
                 errors.push(`Row ${index + 2}: ${err.message}`);
             }
-        });
+        }
 
-        let updatedSubregions = 0;
-        let assignedPostalCodes = 0;
+        const allTargetIds = [...groupedPostalCodes.keys()];
+        if (allTargetIds.length > 0) {
+            // 1. Delete all existing postal codes for affected subregions in one go
+            await db.delete(subregionPostalCodes).where(inArray(subregionPostalCodes.subregionId, allTargetIds));
 
-        for (const [subregionId, postalCodeSet] of groupedPostalCodes.entries()) {
-            const postalCodes = [...postalCodeSet].sort();
-            await syncSubregionPostalCodes(db, subregionId, postalCodes);
-            updatedSubregions += 1;
-            assignedPostalCodes += postalCodes.length;
+            // 2. Prepare ALL new postal codes for ANY subregion for a single bulk insert
+            const allInserts = [];
+            const subregionPatterns = [];
+
+            for (const [subregionId, postalCodeSet] of groupedPostalCodes.entries()) {
+                const sortedCodes = [...postalCodeSet].sort();
+                
+                // Add to bulk insert list
+                sortedCodes.forEach(postalCode => {
+                    allInserts.push({ subregionId, postalCode });
+                });
+
+                // Prepare the pattern string for the subregion update
+                subregionPatterns.push({
+                    id: subregionId,
+                    pattern: serializePostalCodeList(sortedCodes)
+                });
+            }
+
+            // 3. Perform bulk inserts in chunks of 5000
+            for (const insertsGroup of chunk(allInserts, 5000)) {
+                if (insertsGroup.length > 0) {
+                    await db.insert(subregionPostalCodes).values(insertsGroup);
+                }
+            }
+
+            // 4. Update the postalPatterns on each subregion
+            // We do this in a loop for now, but it's only 1 query per UNIQUE subregion in the batch
+            for (const update of subregionPatterns) {
+                await db.update(subregions)
+                    .set({ postalPatterns: update.pattern })
+                    .where(eq(subregions.id, update.id));
+                updatedSubregions++;
+            }
+            assignedPostalCodes = allInserts.length;
         }
 
         return c.json({

@@ -2,6 +2,11 @@ const EXACT_POSTAL_REGEX = /^\d{6}$/;
 
 export function normalizePostalCode(value) {
     if (value === undefined || value === null) return '';
+    // Fast path: if it's already a 6-digit number/string, return it directly
+    if (typeof value === 'string' && value.length === 6 && /^\d+$/.test(value)) return value;
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 999999) {
+        return String(value).padStart(6, '0');
+    }
     const digits = String(value).replace(/\D/g, '');
     return EXACT_POSTAL_REGEX.test(digits) ? digits : '';
 }
@@ -20,6 +25,31 @@ function tokenizePostalInput(rawValue) {
 }
 
 export function parsePostalCodeListInput(rawValue) {
+    if (Array.isArray(rawValue)) {
+        // If it's already an array, assume they are potentially messy so still normalize, 
+        // but skip the expensive regex and tokenization if they already match.
+        const seen = new Set();
+        const postalCodes = [];
+
+        for (const item of rawValue) {
+            const token = String(item).trim();
+            // Fast-path: if it's already a 6-digit string, just add it.
+            if (token.length === 6 && /^\d+$/.test(token)) {
+                if (!seen.has(token)) {
+                    seen.add(token);
+                    postalCodes.push(token);
+                }
+            } else {
+                const postalCode = normalizePostalCode(token);
+                if (postalCode && !seen.has(postalCode)) {
+                    seen.add(postalCode);
+                    postalCodes.push(postalCode);
+                }
+            }
+        }
+        return postalCodes;
+    }
+
     const seen = new Set();
     const postalCodes = [];
 
@@ -38,6 +68,9 @@ export function parsePostalCodeListInput(rawValue) {
 }
 
 export function serializePostalCodeList(rawValue) {
+    if (Array.isArray(rawValue)) {
+        return rawValue.join(', ');
+    }
     return parsePostalCodeListInput(rawValue).join(', ');
 }
 
