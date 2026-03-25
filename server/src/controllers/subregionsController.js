@@ -666,3 +666,56 @@ export const deleteSubregion = async (c) => {
         return c.json({ error: 'Failed to delete subregion' }, 500);
     }
 };
+
+export const manualIngestLocal = async (c) => {
+  const fs = await import('node:fs/promises');
+  const subregionId = 186; // Singapore
+  const csvPath = '/Users/sweetbuns/Documents/New project/tmp/SG Postal codes.csv';
+
+  try {
+    const content = await fs.readFile(csvPath, 'utf-8');
+    const lines = content.split('\n');
+    const postalCodes = [];
+
+    // Extract unique postal codes
+    const uniqueCodes = new Set();
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+            const code = parts[1].trim().padStart(6, '0');
+            if (code.length === 6) {
+                uniqueCodes.add(code);
+            }
+        }
+    }
+    
+    for (const code of uniqueCodes) {
+      postalCodes.push(code);
+    }
+
+    const { getDb } = await import('../db/index.js');
+    const { subregionPostalCodes } = await import('../db/schema.js');
+    const db = getDb(c.env);
+    
+    // Process in batches of 5000
+    const CHUNK_SIZE = 5000;
+    let totalInserted = 0;
+
+    for (let i = 0; i < postalCodes.length; i += CHUNK_SIZE) {
+        const batch = postalCodes.slice(i, i + CHUNK_SIZE);
+        const values = batch.map(code => ({ subregionId, postalCode: code }));
+        
+        await db.insert(subregionPostalCodes)
+            .values(values)
+            .onConflictDoNothing();
+        
+        totalInserted += batch.length;
+    }
+
+    return c.json({ success: true, totalUnique: postalCodes.length, processed: totalInserted });
+  } catch (err) {
+    return c.json({ error: err.message }, 500);
+  }
+};
