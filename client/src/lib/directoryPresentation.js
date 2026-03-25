@@ -220,7 +220,7 @@ export function buildDirectoryPresentation(directory, {
         mappedGroups: orderedMappedGroups,
         leftGroups,
         rightGroups,
-        unmappedRows: unmappedRows.sort((left, right) => left.name.localeCompare(right.name)),
+        unmappedRows: unmappedRows.sort((left, right) => (left.name || '').localeCompare(right.name || '')),
         placeNumberByKey,
         activeAnchor,
         activeAnchorNote: buildAnchorNote(activeAnchor),

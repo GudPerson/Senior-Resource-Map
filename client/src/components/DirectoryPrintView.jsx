@@ -194,7 +194,7 @@ export default function DirectoryPrintView({
     const content = (
         <div 
             ref={sheetRef}
-            className={`rounded-[32px] border border-brand-100 bg-white text-slate-900 shadow-[0_24px_50px_-12px_rgba(15,118,110,0.15)] ${paddingClass} origin-top mx-auto`}
+            className={`rounded-[32px] border border-brand-100 bg-white text-slate-900 shadow-[0_24px_50px_-12px_rgba(15,118,110,0.15)] ${paddingClass} origin-top`}
             style={{ 
                 width: `${sheetWidth}px`,
                 transform: variant === 'screen' ? `scale(${scale})` : undefined,
@@ -243,7 +243,7 @@ export default function DirectoryPrintView({
     }
 
     return (
-        <div className={`w-full overflow-hidden py-4 ${className}`}>
+        <div className={`w-full flex justify-center overflow-hidden py-4 ${className}`}>
             {content}
         </div>
     );
