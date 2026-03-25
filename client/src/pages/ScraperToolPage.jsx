@@ -120,6 +120,43 @@ function generateMockResults(categories, isSeniors, searchTerm, region, postalCo
 
   const selectedCats = categories.length > 0 ? categories : Object.keys(facilities);
 
+  // Helper for dynamic mock content creation
+  const createMockItem = (catLabel, catId, isHard, postal, customSeed) => ({
+    sn: sn++,
+    name: `${catLabel} @ Area ${postal}`,
+    category: catLabel,
+    subCategory: `Specialised ${catLabel} Facility`,
+    type: isHard ? 'Hard Resource' : 'Soft Resource',
+    address: `Blk ${Math.floor(Math.random() * 900) + 10} Singapore ${postal}`,
+    postalCode: String(postal),
+    phone: `6${Math.floor(Math.random() * 8000000) + 1000000}`,
+    operatingHours: 'Mon-Fri: 9am-6pm',
+    description: `Automated scrape result for ${catLabel} in postal sector ${postal.slice(0, 2)}. Fully accessible for ${isSeniors ? 'seniors' : 'all residents'}.`,
+    website: `https://www.${catId.replace(/_/g, '')}.gov.sg`,
+    targetAudience: isSeniors ? 'Seniors 60+' : 'All Ages',
+    sourceUrl: `https://data.gov.sg/resources?postal=${postal}`,
+  });
+
+  // If many postal codes provided, use high-volume generator logic
+  if (postalCodes.length > 5) {
+    for (const code of postalCodes) {
+      if (!code) continue;
+      // For each code, pick 2-3 random categories from selected
+      const numToPick = Math.min(selectedCats.length, 2);
+      const shuffled = [...selectedCats].sort(() => 0.5 - Math.random());
+      const selectedForCode = shuffled.slice(0, numToPick);
+
+      for (const catId of selectedForCode) {
+        const cat = [...HARD_RESOURCE_CATEGORIES, ...SOFT_RESOURCE_CATEGORIES].find(c => c.id === catId);
+        const catLabel = cat?.label || catId;
+        const isHard = HARD_RESOURCE_CATEGORIES.some(c => c.id === catId);
+        results.push(createMockItem(catLabel, catId, isHard, code));
+      }
+    }
+    return results;
+  }
+
+  // Fallback to basic filtered mock data for small scrapes
   for (const catId of selectedCats) {
     const items = facilities[catId] || [];
     const cat = [...HARD_RESOURCE_CATEGORIES, ...SOFT_RESOURCE_CATEGORIES].find(c => c.id === catId);
@@ -340,28 +377,36 @@ export default function ScraperToolPage() {
     setScrapingProgress(0);
     setScrapingStage('Initializing crawler...');
 
+    const isBulk = postalCodes.length > 20;
+    const baseWait = isBulk ? 150 : 350;
+
     const stages = [
       { pct: 8, label: 'Connecting to data sources...' },
-      { pct: 18, label: postalCodes.length > 0 ? `Resolving ${postalCodes.length} postal code(s)...` : 'Scanning directories...' },
-      { pct: 30, label: 'Scanning hard resource directories...' },
-      { pct: 45, label: 'Crawling PA grassroots facilities...' },
-      { pct: 58, label: 'Scraping religious organisation registries...' },
-      { pct: 72, label: 'Extracting soft resources & programmes...' },
+      { pct: 18, label: postalCodes.length > 0 ? `Resolving ${postalCodes.length} postal code reference(s)...` : 'Scanning directories...' },
+      { pct: 30, label: isBulk ? 'Initializing bulk query engine...' : 'Scanning hard resource directories...' },
+      { pct: 45, label: isBulk ? `Processing batch 1/${Math.ceil(postalCodes.length / 50)}...` : 'Crawling PA grassroots facilities...' },
+      { pct: 58, label: isBulk ? 'Aggregating geographic data...' : 'Scraping religious organisation registries...' },
+      { pct: 72, label: isBulk ? 'Syncing resource distribution map...' : 'Extracting soft resources & programmes...' },
       { pct: 85, label: 'Parsing and deduplicating results...' },
       { pct: 95, label: 'Formatting output...' },
     ];
 
     for (const stage of stages) {
-      await new Promise(r => setTimeout(r, 350 + Math.random() * 250));
+      await new Promise(r => setTimeout(r, baseWait + Math.random() * 200));
       setScrapingProgress(stage.pct);
       setScrapingStage(stage.label);
+      // For bulk, add some intermediate updates
+      if (isBulk && stage.pct === 45) {
+        setScrapingStage(`Crawling batch 2/${Math.ceil(postalCodes.length / 50)}...`);
+        await new Promise(r => setTimeout(r, 600));
+      }
     }
 
     await new Promise(r => setTimeout(r, 300));
     const data = generateMockResults(allSelectedCats, isSeniors, searchTerm, region, postalCodes);
     setResults(data);
     setScrapingProgress(100);
-    setScrapingStage(`Completed — ${data.length} resources found`);
+    setScrapingStage(`Completed — Found ${data.length} resources across ${postalCodes.length || 'targeted'} areas`);
     setTimeout(() => setIsLoading(false), 500);
   };
 

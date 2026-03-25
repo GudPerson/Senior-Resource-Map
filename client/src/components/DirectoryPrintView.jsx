@@ -224,17 +224,7 @@ export default function DirectoryPrintView({
                 )}
             />
 
-            <div className="mt-8 flex items-end justify-between border-t border-slate-100 pt-6">
-                <div className="space-y-2 text-[13px] font-medium text-slate-500">
-                    <p>Created with <span className="text-brand-700 font-bold">CareAround SG</span></p>
-                    {footerNote ? <p className="text-slate-400">{footerNote}</p> : null}
-                    <p>
-                        {mappedPlaceCount} mapped place{mappedPlaceCount === 1 ? '' : 's'}
-                        {presentation.unmappedRows.length ? `, ${presentation.unmappedRows.length} resource${presentation.unmappedRows.length === 1 ? '' : 's'} not shown on map` : ''}
-                    </p>
-                </div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-300">End of directory</p>
-            </div>
+
         </div>
     );
 

@@ -32,13 +32,21 @@ function escapeHtml(value) {
 }
 
 const PALETTE = [
-    { core: '#2563eb', bg: 'rgba(37, 99, 235, 0.12)', border: 'rgba(37, 99, 235, 0.24)', glow: 'rgba(37, 99, 235, 0.16)' }, // Royal Blue
-    { core: '#db2777', bg: 'rgba(219, 39, 119, 0.12)', border: 'rgba(219, 39, 119, 0.24)', glow: 'rgba(219, 39, 119, 0.16)' }, // Magenta
-    { core: '#ea580c', bg: 'rgba(234, 88, 12, 0.12)', border: 'rgba(234, 88, 12, 0.24)', glow: 'rgba(234, 88, 12, 0.16)' }, // Orange
-    { core: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)', border: 'rgba(22, 163, 74, 0.24)', glow: 'rgba(22, 163, 74, 0.16)' }, // Vivid Green
+    { core: '#2563eb', bg: 'rgba(37, 99, 235, 0.12)', border: 'rgba(37, 99, 235, 0.24)', glow: 'rgba(37, 99, 235, 0.16)' }, // Blue
+    { core: '#ea580c', bg: 'rgba(234, 88, 12, 0.12)', border: 'rgba(234, 88, 12, 0.24)', glow: 'rgba(234, 88, 12, 0.16)' },  // Orange
     { core: '#9333ea', bg: 'rgba(147, 51, 234, 0.12)', border: 'rgba(147, 51, 234, 0.24)', glow: 'rgba(147, 51, 234, 0.16)' }, // Purple
-    { core: '#dc2626', bg: 'rgba(220, 38, 38, 0.12)', border: 'rgba(220, 38, 38, 0.24)', glow: 'rgba(220, 38, 38, 0.16)' }, // Red
-    { core: '#4f46e5', bg: 'rgba(79, 70, 229, 0.12)', border: 'rgba(79, 70, 229, 0.24)', glow: 'rgba(79, 70, 229, 0.16)' }, // Indigo
+    { core: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)', border: 'rgba(22, 163, 74, 0.24)', glow: 'rgba(22, 163, 74, 0.16)' },   // Green
+    { core: '#db2777', bg: 'rgba(219, 39, 119, 0.12)', border: 'rgba(219, 39, 119, 0.24)', glow: 'rgba(219, 39, 119, 0.16)' }, // Pink
+    { core: '#ca8a04', bg: 'rgba(202, 138, 4, 0.12)', border: 'rgba(202, 138, 4, 0.24)', glow: 'rgba(202, 138, 4, 0.16)' },   // Yellow
+    { core: '#0891b2', bg: 'rgba(8, 145, 178, 0.12)', border: 'rgba(8, 145, 178, 0.24)', glow: 'rgba(8, 145, 178, 0.16)' },   // Cyan
+    { core: '#dc2626', bg: 'rgba(220, 38, 38, 0.12)', border: 'rgba(220, 38, 38, 0.24)', glow: 'rgba(220, 38, 38, 0.16)' },   // Red
+    { core: '#4f46e5', bg: 'rgba(79, 70, 229, 0.12)', border: 'rgba(79, 70, 229, 0.24)', glow: 'rgba(79, 70, 229, 0.16)' },  // Indigo
+    { core: '#65a30d', bg: 'rgba(101, 163, 13, 0.12)', border: 'rgba(101, 163, 13, 0.24)', glow: 'rgba(101, 163, 13, 0.16)' }, // Lime
+    { core: '#c026d3', bg: 'rgba(192, 38, 211, 0.12)', border: 'rgba(192, 38, 211, 0.24)', glow: 'rgba(192, 38, 211, 0.16)' }, // Fuchsia
+    { core: '#0d9488', bg: 'rgba(13, 148, 136, 0.12)', border: 'rgba(13, 148, 136, 0.24)', glow: 'rgba(13, 148, 136, 0.16)' }, // Teal
+    { core: '#7c3aed', bg: 'rgba(124, 58, 237, 0.12)', border: 'rgba(124, 58, 237, 0.24)', glow: 'rgba(124, 58, 237, 0.16)' }, // Violet
+    { core: '#e11d48', bg: 'rgba(225, 29, 72, 0.12)', border: 'rgba(225, 29, 72, 0.24)', glow: 'rgba(225, 29, 72, 0.16)' },   // Rose
+    { core: '#0284c7', bg: 'rgba(2, 132, 199, 0.12)', border: 'rgba(2, 132, 199, 0.24)', glow: 'rgba(2, 132, 199, 0.16)' },   // Sky
 ];
 
 function getClusterColorData(children) {
