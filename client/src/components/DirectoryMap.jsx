@@ -181,11 +181,11 @@ function DirectoryMapRecenterControl({ pins, interactive }) {
     );
 }
 
-function DirectoryClusterStateSync({ interactive, onClusterChange }) {
+function DirectoryClusterStateSync({ onClusterChange }) {
     const map = useMap();
     
     useEffect(() => {
-        if (!interactive || !onClusterChange) return undefined;
+        if (!onClusterChange) return undefined;
 
         let activeTimeout = null;
 
@@ -305,7 +305,7 @@ export default function DirectoryMap({
     const readyTimeoutRef = useRef(null);
     const captureErrorRef = useRef(null);
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
-    const shouldCluster = interactive && displayPins.length > 1;
+    const shouldCluster = displayPins.length > 1;
 
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -468,7 +468,7 @@ export default function DirectoryMap({
                     } : undefined}
                 />
                 <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} />
-                <DirectoryClusterStateSync interactive={interactive} onClusterChange={onClusterChange} />
+                <DirectoryClusterStateSync onClusterChange={onClusterChange} />
                 {renderedMarkers}
             </MapContainer>
             <OneMapBadge />

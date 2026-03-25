@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, Sun, Moon, User } from 'lucide-react';
+import { LogIn, LogOut, Sun, Moon, User, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useA11y } from '../../contexts/A11yContext.jsx';
 import BrandLockup from './BrandLockup.jsx';
@@ -42,6 +42,20 @@ export default function Navbar() {
 
                     {/* Right controls */}
                     <div className="flex items-center gap-1.5 sm:gap-2">
+
+                        {/* Scraper Tool Link */}
+                        <Link
+                            to="/scraper"
+                            id="nav-scraper"
+                            title="Resource Scraper"
+                            className={joinClasses(
+                                'btn-ghost text-xs sm:text-sm px-2.5 py-2 flex',
+                                isActive('/scraper') ? 'border border-brand-200 bg-brand-50 text-brand-700' : ''
+                            )}
+                        >
+                            <Globe size={16} />
+                            <span className="hidden md:inline">Scraper</span>
+                        </Link>
 
                         {/* Accessibility toggles */}
                         <button

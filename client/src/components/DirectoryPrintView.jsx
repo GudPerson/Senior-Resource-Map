@@ -98,6 +98,7 @@ function PrintDirectoryMap({
     resolvedShareUrl,
     onMapReadyForCapture,
     onMapCaptureError,
+    onClusterChange,
 }) {
     return (
         <div className="rounded-[30px] border border-slate-200 bg-white p-5">
@@ -125,6 +126,7 @@ function PrintDirectoryMap({
                 emptyLabel="No mappable places in this directory"
                 onMapReadyForCapture={onMapReadyForCapture}
                 onMapCaptureError={onMapCaptureError}
+                onClusterChange={onClusterChange}
             />
         </div>
     );
