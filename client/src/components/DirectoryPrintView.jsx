@@ -165,13 +165,24 @@ export default function DirectoryPrintView({
             
             // Allow some margins
             const availableWidth = parent.clientWidth - (window.innerWidth < 640 ? 32 : 64);
-            const nextScale = Math.min(1, availableWidth / PREVIEW_CONTAINER_WIDTH);
+            
+            // If the parent width isn't ready yet or is too small, default to a sensible scale
+            if (availableWidth <= 0) {
+                setScale(1);
+                return;
+            }
+
+            const nextScale = Math.min(1, Math.max(0.2, availableWidth / PREVIEW_CONTAINER_WIDTH));
             setScale(nextScale);
         };
 
-        handleResize();
+        // Use a small timeout to let the layout settle before calculating scale
+        const timeoutId = window.setTimeout(handleResize, 50);
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        return () => {
+            window.clearTimeout(timeoutId);
+            window.removeEventListener('resize', handleResize);
+        };
     }, [variant]);
 
     const resourceCount = directory?.summary?.resourceCount || 0;

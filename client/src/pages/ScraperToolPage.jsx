@@ -4,8 +4,32 @@ import {
   Church, Home, Activity, Gift, Star, CalendarDays, ChevronDown,
   ChevronUp, Trash2, FileSpreadsheet, ToggleLeft, ToggleRight,
   MapPin, Phone, Clock, ExternalLink, Filter, CheckCircle2, AlertCircle,
-  RefreshCw, Sparkles, X, Info
+  RefreshCw, Sparkles, X, Info, Hash, FileText, Plus
 } from 'lucide-react';
+
+/* ───────────── Postal code helpers ───────────── */
+function parsePostalCodes(text) {
+  return text
+    .replace(/[\r\n,;\t|]+/g, ' ')
+    .split(/\s+/)
+    .map(s => s.replace(/[^0-9]/g, '').trim())
+    .filter(s => s.length >= 2 && s.length <= 6)
+    .filter((v, i, a) => a.indexOf(v) === i);
+}
+
+function postalMatchesAny(postalCode, postalList) {
+  if (!postalList.length || !postalCode || postalCode === '-') return true;
+  return postalList.some(ref => {
+    // Match by prefix: e.g. ref "68" matches postal "680547"
+    // or exact match / first 2-digit sector match
+    const sector = postalCode.slice(0, 2);
+    const refSector = ref.slice(0, 2);
+    return postalCode === ref
+      || postalCode.startsWith(ref)
+      || ref.startsWith(postalCode)
+      || sector === refSector;
+  });
+}
 
 /* ───────────── Resource category definitions ───────────── */
 const HARD_RESOURCE_CATEGORIES = [
@@ -35,7 +59,7 @@ const DEFAULT_COLUMNS = [
 ];
 
 /* ───────────── Mock scraping engine (simulates web crawling) ───────────── */
-function generateMockResults(categories, isSeniors, searchTerm, region) {
+function generateMockResults(categories, isSeniors, searchTerm, region, postalCodes = []) {
   const results = [];
   let sn = 1;
 
@@ -112,6 +136,9 @@ function generateMockResults(categories, isSeniors, searchTerm, region) {
         const reg = region.toLowerCase();
         const matchable = `${item.addr} ${item.postal}`.toLowerCase();
         if (!matchable.includes(reg) && reg !== 'all' && reg !== 'island-wide') continue;
+      }
+      if (postalCodes.length > 0) {
+        if (!postalMatchesAny(item.postal, postalCodes)) continue;
       }
 
       results.push({
@@ -220,7 +247,11 @@ export default function ScraperToolPage() {
   const [expandedResults, setExpandedResults] = useState(true);
   const [scrapingProgress, setScrapingProgress] = useState(0);
   const [scrapingStage, setScrapingStage] = useState('');
+  const [postalCodes, setPostalCodes] = useState([]);
+  const [postalInput, setPostalInput] = useState('');
+  const [expandedPostal, setExpandedPostal] = useState(true);
   const fileInputRef = useRef(null);
+  const postalFileRef = useRef(null);
 
   const allSelectedCats = [...selectedHardCats, ...selectedSoftCats];
 
@@ -252,6 +283,57 @@ export default function ScraperToolPage() {
     reader.readAsText(file);
   };
 
+  /* ─── Postal code handlers ─── */
+  const addPostalCodes = (text) => {
+    const codes = parsePostalCodes(text);
+    if (codes.length > 0) {
+      setPostalCodes(prev => [...new Set([...prev, ...codes])]);
+    }
+  };
+
+  const handlePostalInputKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addPostalCodes(postalInput);
+      setPostalInput('');
+    }
+  };
+
+  const handlePostalInputBlur = () => {
+    if (postalInput.trim()) {
+      addPostalCodes(postalInput);
+      setPostalInput('');
+    }
+  };
+
+  const handlePostalPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text');
+    addPostalCodes(pasted);
+    setPostalInput('');
+  };
+
+  const removePostalCode = (code) => {
+    setPostalCodes(prev => prev.filter(c => c !== code));
+  };
+
+  const clearAllPostalCodes = () => {
+    setPostalCodes([]);
+    setPostalInput('');
+  };
+
+  const handlePostalFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result;
+      if (typeof text === 'string') addPostalCodes(text);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const handleScrape = async () => {
     setIsLoading(true);
     setHasSearched(true);
@@ -259,23 +341,24 @@ export default function ScraperToolPage() {
     setScrapingStage('Initializing crawler...');
 
     const stages = [
-      { pct: 10, label: 'Connecting to data sources...' },
-      { pct: 25, label: 'Scanning hard resource directories...' },
-      { pct: 40, label: 'Crawling PA grassroots facilities...' },
-      { pct: 55, label: 'Scraping religious organisation registries...' },
-      { pct: 70, label: 'Extracting soft resources & programmes...' },
+      { pct: 8, label: 'Connecting to data sources...' },
+      { pct: 18, label: postalCodes.length > 0 ? `Resolving ${postalCodes.length} postal code(s)...` : 'Scanning directories...' },
+      { pct: 30, label: 'Scanning hard resource directories...' },
+      { pct: 45, label: 'Crawling PA grassroots facilities...' },
+      { pct: 58, label: 'Scraping religious organisation registries...' },
+      { pct: 72, label: 'Extracting soft resources & programmes...' },
       { pct: 85, label: 'Parsing and deduplicating results...' },
       { pct: 95, label: 'Formatting output...' },
     ];
 
     for (const stage of stages) {
-      await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+      await new Promise(r => setTimeout(r, 350 + Math.random() * 250));
       setScrapingProgress(stage.pct);
       setScrapingStage(stage.label);
     }
 
     await new Promise(r => setTimeout(r, 300));
-    const data = generateMockResults(allSelectedCats, isSeniors, searchTerm, region);
+    const data = generateMockResults(allSelectedCats, isSeniors, searchTerm, region, postalCodes);
     setResults(data);
     setScrapingProgress(100);
     setScrapingStage(`Completed — ${data.length} resources found`);
@@ -296,6 +379,8 @@ export default function ScraperToolPage() {
     setHasSearched(false);
     setSearchTerm('');
     setRegion('');
+    setPostalCodes([]);
+    setPostalInput('');
     setScrapingProgress(0);
     setScrapingStage('');
   };
@@ -397,6 +482,142 @@ export default function ScraperToolPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Postal Codes Reference */}
+            <div className="card">
+              <button
+                id="toggle-postal-codes"
+                className="flex items-center justify-between w-full cursor-pointer"
+                onClick={() => setExpandedPostal(!expandedPostal)}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}>
+                    <Hash size={16} style={{ color: '#a855f7' }} />
+                  </div>
+                  <div className="text-left">
+                    <h2 className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-text)' }}>
+                      Postal Codes
+                    </h2>
+                    <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      Scraping reference ({postalCodes.length} code{postalCodes.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                </div>
+                {expandedPostal ? <ChevronUp size={18} style={{ color: 'var(--color-text-muted)' }} /> : <ChevronDown size={18} style={{ color: 'var(--color-text-muted)' }} />}
+              </button>
+
+              {expandedPostal && (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Enter postal codes to focus scraping on specific areas. Paste multiple codes separated by commas, spaces, or newlines.
+                  </p>
+
+                  {/* Input area */}
+                  <div className="relative">
+                    <Hash size={16} className="absolute left-3 top-3" style={{ color: 'var(--color-text-muted)' }} />
+                    <input
+                      id="postal-code-input"
+                      type="text"
+                      placeholder="Type postal code & press Enter..."
+                      value={postalInput}
+                      onChange={e => setPostalInput(e.target.value)}
+                      onKeyDown={handlePostalInputKeyDown}
+                      onBlur={handlePostalInputBlur}
+                      onPaste={handlePostalPaste}
+                      className="input-field pl-10 pr-12"
+                    />
+                    {postalInput.trim() && (
+                      <button
+                        onClick={() => { addPostalCodes(postalInput); setPostalInput(''); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer"
+                        style={{ backgroundColor: 'var(--color-brand)', color: '#fff' }}
+                        title="Add postal code"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Paste area for bulk entry */}
+                  <textarea
+                    id="postal-code-bulk"
+                    placeholder="Or paste a list of postal codes here...&#10;e.g. 680547, 659321, 569734&#10;or one per line"
+                    rows={3}
+                    className="input-field text-xs resize-none"
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData('text');
+                      addPostalCodes(pasted);
+                      e.target.value = '';
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.includes(',') || val.includes('\n')) {
+                        addPostalCodes(val);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+
+                  {/* Upload file with postal codes */}
+                  <input
+                    ref={postalFileRef}
+                    type="file"
+                    accept=".csv,.txt,.xls,.xlsx"
+                    onChange={handlePostalFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    id="upload-postal-file-btn"
+                    className="btn-ghost w-full text-xs py-2"
+                    onClick={() => postalFileRef.current?.click()}
+                  >
+                    <FileText size={14} />
+                    Upload file with postal codes
+                  </button>
+
+                  {/* Postal code pills */}
+                  {postalCodes.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+                          {postalCodes.length} postal code{postalCodes.length !== 1 ? 's' : ''} added
+                        </span>
+                        <button
+                          onClick={clearAllPostalCodes}
+                          className="text-xs font-bold px-2 py-0.5 rounded cursor-pointer"
+                          style={{ color: '#ef4444' }}
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto">
+                        {postalCodes.map(code => (
+                          <span
+                            key={code}
+                            className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg text-xs font-bold group"
+                            style={{
+                              backgroundColor: 'rgba(168, 85, 247, 0.08)',
+                              color: '#7c3aed',
+                              border: '1px solid rgba(168, 85, 247, 0.2)',
+                            }}
+                          >
+                            {code}
+                            <button
+                              onClick={() => removePostalCode(code)}
+                              className="w-4 h-4 rounded flex items-center justify-center cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+                              style={{ color: '#7c3aed' }}
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Hard Resources */}
@@ -636,7 +857,7 @@ export default function ScraperToolPage() {
                           {results.length} Resources Found
                         </span>
                         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                          {isSeniors ? 'Filtered for Seniors 60+' : 'All Ages'} · {allSelectedCats.length || 'All'} categories
+                          {isSeniors ? 'Filtered for Seniors 60+' : 'All Ages'} · {allSelectedCats.length || 'All'} categories{postalCodes.length > 0 ? ` · ${postalCodes.length} postal code(s)` : ''}
                         </p>
                       </div>
                     </div>

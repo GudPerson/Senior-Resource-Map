@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
+import { Trash2 } from 'lucide-react';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
 function StatusBadge({ status }) {

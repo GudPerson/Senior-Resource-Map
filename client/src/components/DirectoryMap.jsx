@@ -227,7 +227,7 @@ function DirectoryClusterStateSync({ onClusterChange }) {
             map.off('zoomend', handleUpdate);
             map.off('layeradd', handleUpdate);
         };
-    }, [interactive, map, onClusterChange]);
+    }, [map, onClusterChange]);
 
     return null;
 }
