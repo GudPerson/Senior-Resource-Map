@@ -7,12 +7,12 @@ import { normalizeRole } from '../utils/roles.js';
 
 let ensureSubregionSchemaPromise = null;
 
-async function ensureSubregionSchema(db) {
+async function ensureSubregionSchema(db, env) {
     if (!ensureSubregionSchemaPromise) {
         ensureSubregionSchemaPromise = (async () => {
             await db.execute(sql`ALTER TABLE subregions ADD COLUMN IF NOT EXISTS subregion_code VARCHAR(80)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS subregions_subregion_code_unique ON subregions (subregion_code)`);
-            await ensureBoundarySchema(db, c.env);
+            await ensureBoundarySchema(db, env);
         })().catch((err) => {
             ensureSubregionSchemaPromise = null;
             throw err;
@@ -319,7 +319,7 @@ export const getSubregions = async (c) => {
     try {
         const user = c.get('user');
         const db = getDb(c.env);
-        await ensureSubregionSchema(db);
+        await ensureSubregionSchema(db, c.env);
 
         let list = await loadSubregionsWithPostalCodes(db);
         if (user?.role === 'regional_admin' || user?.role === 'partner') {
@@ -343,7 +343,7 @@ export const createSubregion = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureSubregionSchema(db);
+        await ensureSubregionSchema(db, c.env);
 
         const payload = parseCreatePayload(await c.req.json());
         if (payload.error) {
@@ -406,7 +406,7 @@ export const bulkCreateSubregions = async (c) => {
         if (!Array.isArray(rows)) return c.json({ error: 'Invalid data' }, 400);
 
         const db = getDb(c.env);
-        await ensureSubregionSchema(db);
+        await ensureSubregionSchema(db, c.env);
 
         const results = { successful: 0, failed: 0, errors: [] };
 
@@ -490,7 +490,7 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         }
 
         const db = getDb(c.env);
-        await ensureSubregionSchema(db);
+        await ensureSubregionSchema(db, c.env);
 
         const existingSubregions = await db
             .select({ id: subregions.id, subregionCode: subregions.subregionCode, name: subregions.name })
