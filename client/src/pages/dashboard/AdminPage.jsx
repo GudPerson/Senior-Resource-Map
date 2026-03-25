@@ -937,12 +937,40 @@ export default function AdminPage() {
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
-                    const res = await api.bulkUploadSubregionBoundaries({ rows: results.data });
-                    const errors = Array.isArray(res?.errors) ? res.errors : [];
+                    const data = results.data;
+                    const BATCH_SIZE = 10000;
+                    const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+                    let totalSuccessful = 0;
+                    let totalFailed = 0;
+                    let lastRes = null;
+
+                    for (let i = 0; i < totalBatches; i++) {
+                        const batch = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+                        const isFirst = i === 0;
+                        const isLast = i === totalBatches - 1;
+
+                        // Inform user of progress if there are multiple batches
+                        if (totalBatches > 1) {
+                            console.log(`Uploading batch ${i + 1} of ${totalBatches}...`);
+                        }
+
+                        const res = await api.bulkUploadSubregionBoundaries({
+                            rows: batch,
+                            mode: isFirst ? 'replace' : 'append',
+                            finalize: isLast
+                        });
+
+                        totalSuccessful += res.successful || 0;
+                        totalFailed += res.failed || 0;
+                        lastRes = res;
+                    }
+
+                    const errors = Array.isArray(lastRes?.errors) ? lastRes.errors : [];
                     const extra = [];
-                    if (Number.isInteger(res?.updatedSubregions)) extra.push(`${res.updatedSubregions} subregion(s) updated`);
-                    if (Number.isInteger(res?.assignedPostalCodes)) extra.push(`${res.assignedPostalCodes} postal code(s) assigned`);
-                    alert(`Boundary import processed: ${res.successful} successful, ${res.failed} failed.${extra.length > 0 ? `\n\n${extra.join('\n')}` : ''}${errors.length > 0 ? '\n\nErrors:\n' + errors.join('\n') : ''}`);
+                    if (lastRes?.updatedSubregions) extra.push(`${lastRes.updatedSubregions} subregion(s) updated`);
+                    extra.push(`${totalSuccessful} postal code(s) assigned`);
+                    
+                    alert(`Boundary import complete!\n\nProcessed: ${totalSuccessful + totalFailed} rows\nSuccessful: ${totalSuccessful}\nFailed: ${totalFailed}\n\n${extra.join('\n')}${errors.length > 0 ? '\n\nLast Errors:\n' + errors.join('\n') : ''}`);
                     await loadAll();
                 } catch (err) {
                     alert('Boundary upload failed: ' + err.message);
