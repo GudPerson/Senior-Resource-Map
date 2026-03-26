@@ -46,7 +46,7 @@ const TagBadge = ({ tag, onClick }) => (
 const CategoryBadge = ({ category, onClick }) => (
     <span
         onClick={onClick}
-        className={`inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-700 ${onClick ? 'cursor-pointer transition-colors hover:bg-brand-100' : ''}`}
+        className={`inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-900 ${onClick ? 'cursor-pointer transition-colors hover:bg-brand-100' : ''}`}
     >
         {category}
     </span>
@@ -670,7 +670,7 @@ export default function ResourcesPage() {
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             onClick={() => openCreate('hard')}
-                            className="flex h-12 items-center gap-2 rounded-2xl bg-emerald-600 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"
+                            className="flex h-12 items-center gap-2 rounded-2xl bg-brand-600 px-6 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
                         >
                             <Plus size={18} strokeWidth={2.5} />
                             New Place

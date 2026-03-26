@@ -64,8 +64,8 @@ export function DiscoveryMobileBrowseCard({
                     }}
                     className={`min-w-0 flex-1 rounded-full font-bold ${isCompact ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                     style={{
-                        color: '#334155',
-                        backgroundColor: `${catColor}15`,
+                        color: '#0f172a',
+                        backgroundColor: `${catColor}1c`,
                         border: `1px solid ${catColor}2d`,
                     }}
                 >
@@ -147,8 +147,8 @@ export function DiscoveryMobileBrowseCard({
                     {asset._distance !== undefined && asset._distance !== null ? (
                         <div className="mt-2 flex justify-end">
                             <span
-                                className={`inline-flex rounded-full font-bold text-white ${isCompact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}
-                                style={{ backgroundColor: 'var(--color-brand-strong)' }}
+                                className={`inline-flex rounded-full font-bold text-white shadow-sm ${isCompact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}
+                                style={{ backgroundColor: '#0fa39a' }}
                             >
                                 {formatDistance(asset._distance)}
                             </span>

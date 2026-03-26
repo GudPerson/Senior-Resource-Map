@@ -234,7 +234,7 @@ function DirectoryPlaceGroupCard({
                                 <p className={`${compactPrint ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{group.shortLocationLine}</p>
                             ) : null}
                             {group.distanceLabel ? (
-                                <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                                <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
                                     {group.distanceLabel}
                                 </span>
                             ) : null}
@@ -295,7 +295,7 @@ function DirectoryPlaceGroupCard({
                             <p className={`${compactInteractive ? 'text-[11px]' : 'text-[12px]'} font-medium text-slate-500`}>{group.shortLocationLine}</p>
                         ) : null}
                         {group.distanceLabel ? (
-                            <span className={`inline-flex rounded-full border border-sky-200 bg-sky-50 font-semibold text-sky-700 ${compactInteractive ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
+                            <span className={`inline-flex rounded-full border border-brand-200 bg-brand-50 font-bold text-brand-700 ${compactInteractive ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                 {group.distanceLabel}
                             </span>
                         ) : null}
@@ -364,12 +364,12 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             {row.subCategory ? (
-                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-900">
                                     {row.subCategory}
                                 </span>
                             ) : null}
                             <StatusBadge status={row.status || 'list_only'} />
-                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-900">
                                 Not shown on map
                             </span>
                         </div>

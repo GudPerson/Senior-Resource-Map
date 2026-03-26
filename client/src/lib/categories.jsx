@@ -17,8 +17,8 @@ export function CategoryBadge({ category }) {
 
     if (isSoft) {
         return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 text-slate-900 text-sm font-bold border border-sky-200">
-                <CalendarDays size={14} className="text-sky-600" /> Offering
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-50 text-slate-900 text-sm font-bold border border-brand-200">
+                <CalendarDays size={14} className="text-brand-600" /> Offering
             </span>
         );
     }

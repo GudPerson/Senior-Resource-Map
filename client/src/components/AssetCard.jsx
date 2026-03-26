@@ -124,20 +124,20 @@ export const AssetCard = React.memo(({
                 <div
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${onCategoryClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                     style={{
-                        color: catColor,
-                        backgroundColor: `${catColor}15`,
-                        border: `1px solid ${catColor}30`,
+                        color: '#0f172a',
+                        backgroundColor: `${catColor}1c`,
+                        border: `1px solid ${catColor}35`,
                     }}
                     onClick={onCategoryClick ? (e) => { e.stopPropagation(); onCategoryClick(asset.subCategory) } : undefined}
                 >
-                    {isHard ? <Building2 size={14} /> : <CalendarDays size={14} />}
+                    {isHard ? <Building2 size={14} className="opacity-80" style={{ color: catColor }} /> : <CalendarDays size={14} className="opacity-80" style={{ color: catColor }} />}
                     {asset.subCategory || (isHard ? 'Place' : 'Offering')}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {asset._distance !== undefined && asset._distance !== null && (
                         <div
-                            className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
-                            style={{ backgroundColor: 'var(--color-brand-strong)', border: '2px solid var(--color-surface)' }}
+                            className="px-2 py-0.5 rounded-full text-xs font-bold text-white shadow-sm"
+                            style={{ backgroundColor: '#0fa39a', border: '1px solid var(--color-surface)' }}
                         >
                             {asset._distance < 1 ? `${Math.round(asset._distance * 1000)}m` : `${asset._distance.toFixed(1)}km`}
                         </div>

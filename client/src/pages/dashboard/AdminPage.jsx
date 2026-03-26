@@ -632,7 +632,7 @@ export default function AdminPage() {
     }
 
     function handleDownloadAudienceZoneTemplate() {
-        const headers = ['id', 'name', 'zoneCode', 'description'];
+        const headers = ['ID', 'Name', 'ZoneID', 'Description'];
         const demoRow = ['', 'Senior Care Intake A', 'SR-INTAKE-A', 'Seniors requiring daily assistance'];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         downloadFile('\uFEFF' + csv, 'audience_zone_upload_template.csv', 'text/csv;charset=utf-8');
@@ -653,7 +653,7 @@ export default function AdminPage() {
             : audienceZones;
 
         const csv = Papa.unparse({
-            fields: ['id', 'name', 'zoneCode', 'description'],
+            fields: ['ID', 'Name', 'ZoneID', 'Description'],
             data: selectedData.map(z => [z.id, z.name, z.zoneCode || '', z.description || ''])
         });
 
@@ -973,7 +973,13 @@ export default function AdminPage() {
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
-                    const res = await api.bulkCreateSubregions({ rows: results.data });
+                    const rows = results.data.map(row => ({
+                        id: row.ID || row.id,
+                        name: row.Name || row.name,
+                        subregionCode: row.SubregionID || row.subregionId || row.subregionCode,
+                        description: row.Description || row.description
+                    }));
+                    const res = await api.bulkCreateSubregions({ rows });
                     alert(`Import processed: ${res.successful} successful, ${res.failed} failed.${res.errors.length > 0 ? '\n\nErrors:\n' + res.errors.join('\n') : ''}`);
                     await loadAll();
                 } catch (err) {
@@ -1105,15 +1111,15 @@ export default function AdminPage() {
         }
 
         const toExport = selectedData.map(s => ({
-            id: s.id,
-            subregionId: s.subregionCode || '',
-            name: s.name,
-            description: s.description || '',
+            ID: s.id,
+            Name: s.name,
+            SubregionID: s.subregionCode || '',
+            Description: s.description || '',
         }));
 
         const csv = Papa.unparse({
-            fields: ['id', 'name', 'subregionId', 'description'],
-            data: toExport.map(s => [s.id, s.name, s.subregionId, s.description])
+            fields: ['ID', 'Name', 'SubregionID', 'Description'],
+            data: toExport.map(s => [s.ID, s.Name, s.SubregionID, s.Description])
         });
 
         const fileName = `subregions_export_${new Date().toISOString().split('T')[0]}.csv`;
@@ -1383,8 +1389,8 @@ export default function AdminPage() {
                     </div>
 
                     {selectedResources.length > 0 && (
-                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
-                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedResources.length} selected</span>
+                        <div className="flex items-center gap-3 bg-brand-50 p-3 rounded-xl border border-brand-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-brand-700 ml-2">{selectedResources.length} selected</span>
                             <div className="flex-1"></div>
                             <button type="button" onClick={() => promptBulkDelete('resources')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
                                 <Trash2 size={14} /> Delete Selected
@@ -1417,7 +1423,7 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filteredResources.map(r => (
-                                    <tr key={getResourceSelectionKey(r)} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(getResourceSelectionKey(r)) ? 'bg-blue-50/30' : ''}`}>
+                                    <tr key={getResourceSelectionKey(r)} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(getResourceSelectionKey(r)) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
@@ -1596,8 +1602,8 @@ export default function AdminPage() {
                     )}
 
                     {selectedSubregions.length > 0 && (
-                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
-                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedSubregions.length} selected</span>
+                        <div className="flex items-center gap-3 bg-brand-50 p-3 rounded-xl border border-brand-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-brand-700 ml-2">{selectedSubregions.length} selected</span>
                             <div className="flex-1"></div>
                             {canManageSubregionMetadata ? (
                                 <button type="button" onClick={handleExportSelectedSubregions} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
@@ -1638,7 +1644,7 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {subregions.map(reg => (
-                                    <tr key={reg.id} className={`hover:bg-slate-50 transition-colors ${selectedSubregions.includes(reg.id) ? 'bg-blue-50/30' : ''}`}>
+                                    <tr key={reg.id} className={`hover:bg-slate-50 transition-colors ${selectedSubregions.includes(reg.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
@@ -1886,8 +1892,8 @@ export default function AdminPage() {
                     )}
 
                     {selectedAudienceZones.length > 0 && (
-                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
-                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedAudienceZones.length} selected</span>
+                        <div className="flex items-center gap-3 bg-brand-50 p-3 rounded-xl border border-brand-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-brand-700 ml-2">{selectedAudienceZones.length} selected</span>
                             <div className="flex-1"></div>
                             {canManageAudienceZones ? (
                                 <button type="button" onClick={handleExportSelectedAudienceZones} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
@@ -1897,7 +1903,7 @@ export default function AdminPage() {
                             <button type="button" onClick={handleExportSelectedAudienceZoneBoundaries} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
                                 <Download size={14} /> Export Boundaries
                             </button>
-                            <div className="w-px h-6 bg-blue-200 mx-1"></div>
+                            <div className="w-px h-6 bg-brand-200 mx-1"></div>
                             {canManageAudienceZones && currentRole === 'super_admin' ? (
                                 <button type="button" onClick={() => handleDeleteAudienceZone({ id: selectedAudienceZones[0], mode: 'multiple', count: selectedAudienceZones.length })} className="btn-ghost py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2">
                                     <Trash2 size={14} /> Delete Selected
@@ -1930,7 +1936,7 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {audienceZones.map((zone) => (
-                                    <tr key={zone.id} className={`hover:bg-slate-50 transition-colors ${selectedAudienceZones.includes(zone.id) ? 'bg-blue-50/30' : ''}`}>
+                                    <tr key={zone.id} className={`hover:bg-slate-50 transition-colors ${selectedAudienceZones.includes(zone.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
@@ -2052,8 +2058,8 @@ export default function AdminPage() {
                     </form>
 
                     {selectedSubCategories.length > 0 && (
-                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
-                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedSubCategories.length} selected</span>
+                        <div className="flex items-center gap-3 bg-brand-50 p-3 rounded-xl border border-brand-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-brand-700 ml-2">{selectedSubCategories.length} selected</span>
                             <div className="flex-1"></div>
                             <button type="button" onClick={() => promptBulkDelete('subcategories')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
                                 <Trash2 size={14} /> Delete Selected
@@ -2080,7 +2086,7 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {subCategories.map(sc => (
-                                    <tr key={sc.id} className={`hover:bg-slate-50 transition-colors ${selectedSubCategories.includes(sc.id) ? 'bg-blue-50/30' : ''}`}>
+                                    <tr key={sc.id} className={`hover:bg-slate-50 transition-colors ${selectedSubCategories.includes(sc.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
@@ -2200,8 +2206,8 @@ export default function AdminPage() {
 
                     <div className=" card overflow-hidden p-0">
                         {selectedUsers.length > 0 && (
-                            <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border-b border-blue-100 animate-in fade-in slide-in-from-top-2">
-                                <span className="text-sm font-bold text-blue-700 ml-2">{selectedUsers.length} selected</span>
+                            <div className="flex items-center gap-3 bg-brand-50 p-3 rounded-xl border-b border-brand-100 animate-in fade-in slide-in-from-top-2">
+                                <span className="text-sm font-bold text-brand-700 ml-2">{selectedUsers.length} selected</span>
                                 <div className="flex-1"></div>
                                 <button type="button" onClick={() => promptBulkDelete('users')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
                                     <Trash2 size={14} /> Delete Selected
@@ -2236,7 +2242,7 @@ export default function AdminPage() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredUsers.map(u => (
-                                        <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${selectedUsers.includes(u.id) ? 'bg-blue-50/30' : ''}`}>
+                                        <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${selectedUsers.includes(u.id) ? 'bg-brand-50/30' : ''}`}>
                                             <td className="px-4 py-3">
                                                 <input
                                                     type="checkbox"
