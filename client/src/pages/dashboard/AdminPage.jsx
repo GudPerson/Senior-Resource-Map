@@ -1472,9 +1472,9 @@ export default function AdminPage() {
             ) : tab === 'subregions' ? (
                 /* ======== Subregions Table ======== */
                 <div className="space-y-6">
-                    <div className="flex flex-col md:flex-row gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
                         {canManageSubregionMetadata ? (
-                            <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <form onSubmit={handleAddSubregion} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-w-0">
                                 <div className="flex items-center gap-3 mb-5">
                                     <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
                                         <MapPin size={22} />
@@ -1485,7 +1485,7 @@ export default function AdminPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)] gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion Name</label>
                                         <input
@@ -1559,7 +1559,7 @@ export default function AdminPage() {
                             </div>
                         )}
 
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 min-w-[320px]">
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 w-full lg:w-72 shrink-0">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {canManageSubregionMetadata ? (
                                     <>
@@ -1751,8 +1751,8 @@ export default function AdminPage() {
                 </div>
             ) : tab === 'audiencezones' ? (
                 <div className="space-y-6">
-                    <div className="flex flex-col gap-4 md:flex-row">
-                        <form onSubmit={handleAddAudienceZone} className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
+                        <form onSubmit={handleAddAudienceZone} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-w-0">
                             <div className="flex items-center gap-3 mb-5">
                                 <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
                                     <Users size={22} />
@@ -1763,7 +1763,7 @@ export default function AdminPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)]">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Zone Name</label>
                                     <input
@@ -1858,7 +1858,7 @@ export default function AdminPage() {
                             </div>
                         </form>
 
-                        <div className="min-w-[320px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="w-full lg:w-72 shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
                                     <input type="file" accept=".csv" className="hidden" onChange={handleAudienceZoneBoundaryUpload} />
