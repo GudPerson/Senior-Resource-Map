@@ -942,7 +942,11 @@ export default function AdminPage() {
             complete: async (results) => {
                 try {
                     const data = results.data;
-                    const BATCH_SIZE = 10000;
+                    // Detect range-heavy CSVs (postal codes containing hyphens like 180000-189999)
+                    // and use a smaller batch size to avoid worker timeouts during expansion
+                    const sampleValues = data.slice(0, 5).map(r => r?.postalCode ?? r?.postalcode ?? r?.postcode ?? '');
+                    const hasRanges = sampleValues.some(v => String(v).includes('-'));
+                    const BATCH_SIZE = hasRanges ? 3 : 10000;
                     const totalBatches = Math.ceil(data.length / BATCH_SIZE);
                     let totalSuccessful = 0;
                     let totalFailed = 0;
