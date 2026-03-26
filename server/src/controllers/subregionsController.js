@@ -222,7 +222,7 @@ function resolveSubregionReference(referenceMaps, row) {
         if (nameAliasMatch) return nameAliasMatch;
     }
 
-    const rawId = normalizeText(row?.id);
+    const rawId = normalizeText(row?.id ?? row?.ID);
     if (rawId) {
         if (looksLikePositiveInteger(rawId)) {
             const idMatch = referenceMaps.byId.get(rawId);
@@ -508,7 +508,7 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         for (let index = 0; index < rows.length; index++) {
             const row = rows[index];
             try {
-                const currentSubregionVal = row?.subregionId ?? row?.subregionCode ?? row?.dbId ?? row?.name;
+                const currentSubregionVal = row?.subregionId ?? row?.subregionCode ?? row?.dbId ?? row?.id ?? row?.ID ?? row?.name;
                 let targetSubregion = (currentSubregionVal !== undefined && currentSubregionVal !== null && currentSubregionVal === lastSubregionVal)
                     ? lastSubregionRef
                     : resolveSubregionReference(referenceMaps, row);
@@ -521,7 +521,7 @@ export const bulkUploadSubregionBoundaries = async (c) => {
                     throw new Error(`Out of scope.`);
                 }
 
-                const rawPC = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'];
+                const rawPC = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'] ?? row?.postalcode ?? row?.['postalcode'];
                 const expansion = parsePostalCodeListInput(rawPC);
 
                 if (expansion.length === 0) throw new Error('Invalid code.');
