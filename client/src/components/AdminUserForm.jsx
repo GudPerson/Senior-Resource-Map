@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
 import { getCreatableUserRoles, getRequiredManagerRole, normalizeRole } from '../lib/roles.js';
+import { Shield, MapPin, Database } from 'lucide-react';
 
 const ROLE_LABELS = {
     super_admin: 'Super Admin',
