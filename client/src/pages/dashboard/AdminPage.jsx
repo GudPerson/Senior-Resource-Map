@@ -601,15 +601,25 @@ export default function AdminPage() {
     }
 
     async function handleDeleteAudienceZone(zone) {
-        if (!confirm(`Delete audience zone "${zone.name}"? Offerings using it will lose that eligibility rule.`)) return;
+        const isBulk = zone.mode === 'multiple';
+        const msg = isBulk 
+            ? `Delete ${zone.count} selected audience zone(s)? Offerings using them will lose those eligibility rules.`
+            : `Delete audience zone "${zone.name || zone.id}"? Offerings using it will lose that eligibility rule.`;
+            
+        if (!confirm(msg)) return;
         setLoading(true);
         setAudienceZoneFeedback(null);
         try {
-            await api.deleteAudienceZone(zone.id);
+            if (isBulk) {
+                await api.bulkDeleteAudienceZones(selectedAudienceZones);
+                setSelectedAudienceZones([]);
+            } else {
+                await api.deleteAudienceZone(zone.id);
+            }
             await loadAll();
             setAudienceZoneFeedback({
                 type: 'success',
-                message: `Audience zone "${zone.name}" deleted.`,
+                message: isBulk ? `${zone.count} audience zones deleted.` : `Audience zone deleted.`,
             });
         } catch (err) {
             setAudienceZoneFeedback({
@@ -621,18 +631,67 @@ export default function AdminPage() {
         }
     }
 
+    function handleDownloadAudienceZoneTemplate() {
+        const headers = ['id', 'name', 'zoneCode', 'description'];
+        const demoRow = ['', 'Senior Care Intake A', 'SR-INTAKE-A', 'Seniors requiring daily assistance'];
+        const csv = Papa.unparse({ fields: headers, data: [demoRow] });
+        downloadFile('\uFEFF' + csv, 'audience_zone_upload_template.csv', 'text/csv;charset=utf-8');
+    }
+
     function handleDownloadAudienceZoneBoundaryTemplate() {
         const csv = Papa.unparse({
-            fields: ['audienceZoneCode', 'postalCode'],
-            data: [['FY-INTAKE-A', '680153'], ['FALLS-PILOT', '680574']],
+            fields: ['id', 'postalcode'],
+            data: [['101', '680153'], ['101', '680574']],
         });
         downloadFile(`\uFEFF${csv}`, 'audience_zone_boundary_template.csv', 'text/csv;charset=utf-8');
     }
 
+    function handleExportSelectedAudienceZones() {
+        if (!canManageAudienceZones) return;
+        const selectedData = selectedAudienceZones.length > 0
+            ? audienceZones.filter((zone) => selectedAudienceZones.includes(zone.id))
+            : audienceZones;
+
+        const csv = Papa.unparse({
+            fields: ['id', 'name', 'zoneCode', 'description'],
+            data: selectedData.map(z => [z.id, z.name, z.zoneCode || '', z.description || ''])
+        });
+
+        const fileName = `audience_zones_export_${new Date().toISOString().split('T')[0]}.csv`;
+        downloadFile('\uFEFF' + csv, fileName, 'text/csv;charset=utf-8');
+    }
+
+    function handleExportSelectedAudienceZoneBoundaries() {
+        if (!canManageAudienceZones) return;
+        const selectedData = selectedAudienceZones.length > 0
+            ? audienceZones.filter((zone) => selectedAudienceZones.includes(zone.id))
+            : audienceZones;
+
+        const rows = selectedData.flatMap((zone) =>
+            (Array.isArray(zone.postalCodes) ? zone.postalCodes : []).map((postalCode) => ({
+                id: zone.id,
+                postalcode: postalCode,
+            }))
+        );
+
+        if (rows.length === 0) {
+            alert('No boundary postal codes to export.');
+            return;
+        }
+
+        const csv = Papa.unparse({
+            fields: ['id', 'postalcode'],
+            data: rows.map((row) => [row.id, row.postalcode])
+        });
+
+        const fileName = `audience_zone_boundaries_${new Date().toISOString().split('T')[0]}.csv`;
+        downloadFile('\uFEFF' + csv, fileName, 'text/csv;charset=utf-8');
+    }
+
     function handleExportAudienceZone(zone) {
         const csv = Papa.unparse({
-            fields: ['audienceZoneCode', 'audienceZoneName', 'postalCode'],
-            data: (zone.postalCodes || []).map((postalCode) => [zone.zoneCode || '', zone.name, postalCode]),
+            fields: ['id', 'postalcode'],
+            data: (zone.postalCodes || []).map((postalCode) => [zone.id, postalCode]),
         });
         downloadFile(`\uFEFF${csv}`, `${zone.zoneCode || zone.name || 'audience_zone'}_boundary_export.csv`, 'text/csv;charset=utf-8');
     }
@@ -886,18 +945,18 @@ export default function AdminPage() {
     }
 
     function handleDownloadSubregionTemplate() {
-        const headers = ['id', 'subregionId', 'name', 'description'];
-        const demoRow = ['', 'SR-JW', 'Jurong West', 'Residential area in the west'];
+        const headers = ['id', 'name', 'subregionId', 'description'];
+        const demoRow = ['', 'Jurong West', 'SR-JW', 'Residential area in the west'];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         downloadFile('\uFEFF' + csv, 'subregion_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
     function handleDownloadSubregionBoundaryTemplate() {
-        const headers = ['subregionId', 'postalCode'];
+        const headers = ['id', 'postalcode'];
         const demoRows = [
-            ['SR-JW', '640101'],
-            ['SR-JW', '640102'],
-            ['SR-JW', '640103'],
+            ['101', '640101'],
+            ['101', '640102'],
+            ['101', '640103'],
         ];
         const csv = Papa.unparse({ fields: headers, data: demoRows });
         downloadFile('\uFEFF' + csv, 'subregion_boundary_upload_template.csv', 'text/csv;charset=utf-8');
@@ -1053,8 +1112,8 @@ export default function AdminPage() {
         }));
 
         const csv = Papa.unparse({
-            fields: ['id', 'subregionId', 'name', 'description'],
-            data: toExport.map(s => [s.id, s.subregionId, s.name, s.description])
+            fields: ['id', 'name', 'subregionId', 'description'],
+            data: toExport.map(s => [s.id, s.name, s.subregionId, s.description])
         });
 
         const fileName = `subregions_export_${new Date().toISOString().split('T')[0]}.csv`;
@@ -1069,8 +1128,8 @@ export default function AdminPage() {
 
         const rows = selectedData.flatMap((subregion) =>
             (Array.isArray(subregion.postalCodesList) ? subregion.postalCodesList : []).map((postalCode) => ({
-                subregionId: subregion.subregionCode || subregion.id,
-                postalCode,
+                id: subregion.id,
+                postalcode: postalCode,
             }))
         );
 
@@ -1080,8 +1139,8 @@ export default function AdminPage() {
         }
 
         const csv = Papa.unparse({
-            fields: ['subregionId', 'postalCode'],
-            data: rows.map((row) => [row.subregionId, row.postalCode])
+            fields: ['id', 'postalcode'],
+            data: rows.map((row) => [row.id, row.postalcode])
         });
 
         const fileName = `subregion_boundaries_${new Date().toISOString().split('T')[0]}.csv`;
@@ -1099,6 +1158,20 @@ export default function AdminPage() {
             setSelectedSubregions([]);
         } else {
             setSelectedSubregions(subregions.map(s => s.id));
+        }
+    }
+
+    function toggleAudienceZoneSelection(id) {
+        setSelectedAudienceZones(prev =>
+            prev.includes(id) ? prev.filter(zid => zid !== id) : [...prev, id]
+        );
+    }
+
+    function toggleSelectAllAudienceZones() {
+        if (selectedAudienceZones.length === audienceZones.length) {
+            setSelectedAudienceZones([]);
+        } else {
+            setSelectedAudienceZones(audienceZones.map(z => z.id));
         }
     }
 
@@ -1383,7 +1456,14 @@ export default function AdminPage() {
                     <div className="flex flex-col md:flex-row gap-4">
                         {canManageSubregionMetadata ? (
                             <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                                <div className="grid grid-cols-1 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)] gap-3">
+                                    <input
+                                        required
+                                        placeholder="Name (e.g. Jurong)"
+                                        value={newSubregion.name}
+                                        onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
+                                        className="input-field"
+                                    />
                                     <input
                                         required
                                         placeholder="Subregion ID (e.g. SR-AMK)"
@@ -1391,13 +1471,6 @@ export default function AdminPage() {
                                         onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
                                         className="input-field"
                                         title="Unique subregion identifier"
-                                    />
-                                    <input
-                                        required
-                                        placeholder="Name (e.g. Jurong)"
-                                        value={newSubregion.name}
-                                        onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
-                                        className="input-field"
                                     />
                                     <input
                                         placeholder="Description"
@@ -1522,6 +1595,7 @@ export default function AdminPage() {
                                     </th>
                                     <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
+                                    <th className="px-4 py-3 font-semibold w-24">Subregion ID</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
                                     <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
                                     <th className="px-4 py-3 font-semibold w-28 text-center">{canManageSubregionMetadata ? 'Actions' : 'Scope'}</th>
@@ -1539,9 +1613,10 @@ export default function AdminPage() {
                                             />
                                         </td>
                                         <td className="px-4 py-3 text-slate-500 font-mono text-xs" title={`DB ID: ${reg.id}`}>
-                                            {reg.subregionCode || reg.id}
+                                            {reg.id}
                                         </td>
                                         <td className="px-4 py-3 font-semibold text-slate-900">{reg.name}</td>
+                                        <td className="px-4 py-3 text-slate-500 font-mono text-xs">{reg.subregionCode || '—'}</td>
                                         <td className="px-4 py-3 text-slate-500 text-sm truncate max-w-[200px]">{reg.description || '—'}</td>
                                         <td className="px-4 py-3 text-sm text-slate-500 max-w-[320px]">
                                             {reg.postalCodeCount > 0 ? (
@@ -1637,18 +1712,18 @@ export default function AdminPage() {
                 <div className="space-y-6">
                     <div className="flex flex-col gap-4 md:flex-row">
                         <form onSubmit={handleAddAudienceZone} className="flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[180px_minmax(0,1fr)_minmax(0,1fr)]">
-                                <input
-                                    placeholder="Zone Code (e.g. FY-INTAKE-A)"
-                                    value={newAudienceZone.zoneCode}
-                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, zoneCode: e.target.value })}
-                                    className="input-field"
-                                />
+                            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)]">
                                 <input
                                     required
                                     placeholder="Audience zone name"
                                     value={newAudienceZone.name}
                                     onChange={(e) => setNewAudienceZone({ ...newAudienceZone, name: e.target.value })}
+                                    className="input-field"
+                                />
+                                <input
+                                    placeholder="Zone Code (e.g. FY-INTAKE-A)"
+                                    value={newAudienceZone.zoneCode}
+                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, zoneCode: e.target.value })}
                                     className="input-field"
                                 />
                                 <input
@@ -1729,13 +1804,17 @@ export default function AdminPage() {
                                     <Upload size={16} />
                                     Upload Boundaries
                                 </label>
+                                <button onClick={handleDownloadAudienceZoneTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
+                                    <Download size={16} />
+                                    Metadata Template
+                                </button>
                                 <button onClick={handleDownloadAudienceZoneBoundaryTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
                                     <Download size={16} />
                                     Boundary Template
                                 </button>
                             </div>
                             <p className="mt-3 text-xs text-slate-500">
-                                Boundary CSV format: <code className="rounded bg-slate-100 px-1">audienceZoneCode</code> or <code className="rounded bg-slate-100 px-1">audienceZoneId</code>, plus <code className="rounded bg-slate-100 px-1">postalCode</code>. Uploading replaces the postcode set for each referenced audience zone.
+                                Boundary CSV format: <code className="rounded bg-slate-100 px-1">id</code> or <code className="rounded bg-slate-100 px-1">zoneCode</code>, plus <code className="rounded bg-slate-100 px-1">postalcode</code>. Uploading replaces the postcode set for each referenced audience zone.
                             </p>
                         </div>
                     </div>
@@ -1751,12 +1830,43 @@ export default function AdminPage() {
                         </div>
                     )}
 
+                    {selectedAudienceZones.length > 0 && (
+                        <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-bold text-blue-700 ml-2">{selectedAudienceZones.length} selected</span>
+                            <div className="flex-1"></div>
+                            {canManageAudienceZones ? (
+                                <button type="button" onClick={handleExportSelectedAudienceZones} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
+                                    <Download size={14} /> Export Metadata
+                                </button>
+                            ) : null}
+                            <button type="button" onClick={handleExportSelectedAudienceZoneBoundaries} className="btn-secondary py-1.5 text-xs flex items-center gap-2">
+                                <Download size={14} /> Export Boundaries
+                            </button>
+                            <div className="w-px h-6 bg-blue-200 mx-1"></div>
+                            {canManageAudienceZones && currentRole === 'super_admin' ? (
+                                <button type="button" onClick={() => handleDeleteAudienceZone({ id: selectedAudienceZones[0], mode: 'multiple', count: selectedAudienceZones.length })} className="btn-ghost py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2">
+                                    <Trash2 size={14} /> Delete Selected
+                                </button>
+                            ) : null}
+                        </div>
+                    )}
+
                     <div className="card overflow-hidden p-0">
                         <table className="hc-table w-full text-left">
                             <thead>
                                 <tr className="border-b border-slate-200 bg-slate-50 text-sm text-slate-500">
-                                    <th className="px-4 py-3 font-semibold w-24">Code</th>
+                                    <th className="px-4 py-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={audienceZones.length > 0 && selectedAudienceZones.length === audienceZones.length}
+                                            onChange={toggleSelectAllAudienceZones}
+                                            disabled={audienceZones.length === 0}
+                                            className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                    </th>
+                                    <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
+                                    <th className="px-4 py-3 font-semibold w-24">Zone ID</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
                                     <th className="px-4 py-3 font-semibold">Owner</th>
                                     <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
@@ -1765,8 +1875,16 @@ export default function AdminPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {audienceZones.map((zone) => (
-                                    <tr key={zone.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-4 py-3 text-xs font-mono text-slate-500">{zone.zoneCode || zone.id}</td>
+                                    <tr key={zone.id} className={`hover:bg-slate-50 transition-colors ${selectedAudienceZones.includes(zone.id) ? 'bg-blue-50/30' : ''}`}>
+                                        <td className="px-4 py-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedAudienceZones.includes(zone.id)}
+                                                onChange={() => toggleAudienceZoneSelection(zone.id)}
+                                                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-3 text-xs font-mono text-slate-500">{zone.id}</td>
                                         <td className="px-4 py-3">
                                             <div className="font-semibold text-slate-900">{zone.name}</div>
                                             <div className="mt-1 flex flex-wrap gap-1">
@@ -1775,6 +1893,7 @@ export default function AdminPage() {
                                                 </span>
                                             </div>
                                         </td>
+                                        <td className="px-4 py-3 text-xs font-mono text-slate-500">{zone.zoneCode || '—'}</td>
                                         <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px] truncate">{zone.description || '—'}</td>
                                         <td className="px-4 py-3 text-sm text-slate-500">{zone.partnerName || 'System'}</td>
                                         <td className="px-4 py-3 text-sm text-slate-500 max-w-[320px]">

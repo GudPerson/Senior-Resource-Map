@@ -216,6 +216,7 @@ export const api = {
     createAudienceZone: (body) => request('POST', '/audience-zones', body),
     updateAudienceZone: (id, body) => request('PUT', `/audience-zones/${id}`, body),
     deleteAudienceZone: (id) => request('DELETE', `/audience-zones/${id}`),
+    bulkDeleteAudienceZones: (ids) => request('POST', '/audience-zones/bulk-delete', { ids }),
     bulkUploadAudienceZoneBoundaries: (body) => request('POST', '/audience-zones/boundaries/bulk', body),
 
     // Admin asset workbooks

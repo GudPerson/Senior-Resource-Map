@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 
 import { authenticateToken, authorize } from '../middleware/auth.js';
 import {
+    bulkDeleteAudienceZones,
     bulkUploadAudienceZoneBoundaries,
     createAudienceZone,
     deleteAudienceZone,
@@ -16,6 +17,7 @@ router.use('*', authenticateToken, authorize('partner', 'regional_admin', 'admin
 router.get('/', getAudienceZones);
 router.post('/', createAudienceZone);
 router.post('/boundaries/bulk', bulkUploadAudienceZoneBoundaries);
+router.post('/bulk-delete', bulkDeleteAudienceZones);
 router.put('/:id', updateAudienceZone);
 router.delete('/:id', deleteAudienceZone);
 

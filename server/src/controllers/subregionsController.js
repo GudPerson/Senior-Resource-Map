@@ -120,7 +120,7 @@ function parseCreatePayload(body) {
 }
 
 function parseBulkMetadataRow(row) {
-    const rawId = normalizeText(row?.id);
+    const rawId = normalizeText(row?.id ?? row?.ID ?? row?.['ID']);
     let id = null;
     let subregionCodeFromId = null;
     if (rawId) {
@@ -139,7 +139,7 @@ function parseBulkMetadataRow(row) {
         id = dbId;
     }
 
-    const legacySubregionId = normalizeText(row?.subregionId ?? row?.['Subregion ID'] ?? row?.['Sub-region ID']);
+    const legacySubregionId = normalizeText(row?.subregionId ?? row?.['Subregion ID'] ?? row?.['Sub-region ID'] ?? row?.['SubregionID']);
     let subregionCode = normalizeText(
         row?.subregionCode
         ?? row?.subregion_code

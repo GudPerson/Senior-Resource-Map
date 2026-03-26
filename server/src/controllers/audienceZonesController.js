@@ -120,8 +120,12 @@ function parseBoundaryReference(row) {
     return normalizeText(
         row?.audienceZoneId
         ?? row?.audienceZoneCode
+        ?? row?.zoneId
         ?? row?.zoneCode
         ?? row?.zone_code
+        ?? row?.id
+        ?? row?.ID
+        ?? row?.['ID']
         ?? row?.name
         ?? row?.['Audience Zone ID']
         ?? row?.['Audience Zone Code']
@@ -301,7 +305,7 @@ export const bulkUploadAudienceZoneBoundaries = async (c) => {
                     throw new Error(`Unknown audience zone reference "${reference}".`);
                 }
 
-                const rawInput = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'];
+                const rawInput = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'] ?? row?.postalcode ?? row?.['postalcode'];
                 const postalCodes = parsePostalCodeListInput(rawInput);
                 if (postalCodes.length === 0) {
                     throw new Error('No valid postal codes or ranges found.');
@@ -366,7 +370,32 @@ export const deleteAudienceZone = async (c) => {
         await db.delete(audienceZones).where(eq(audienceZones.id, id));
         return c.json({ success: true });
     } catch (err) {
-        console.error('deleteAudienceZone Error:', err);
         return c.json({ error: err.message || 'Failed to delete audience zone.' }, err.status || 500);
+    }
+};
+
+export const bulkDeleteAudienceZones = async (c) => {
+    try {
+        const user = c.get('user');
+        if (user?.role !== 'super_admin') {
+            return c.json({ error: 'Permission denied' }, 403);
+        }
+
+        const body = await c.req.json();
+        const { ids } = body;
+        if (!Array.isArray(ids) || ids.length === 0) return c.json({ error: 'No IDs provided' }, 400);
+
+        const db = getDb(c.env);
+        const normalized = ids.map(id => Number.parseInt(id, 10)).filter(id => !Number.isNaN(id));
+
+        if (normalized.length === 0) {
+            return c.json({ error: 'Invalid audience zone ID list.' }, 400);
+        }
+
+        await db.delete(audienceZones).where(inArray(audienceZones.id, normalized));
+        return c.json({ success: true, count: normalized.length });
+    } catch (err) {
+        console.error('bulkDeleteAudienceZones Error:', err);
+        return c.json({ error: err.message || 'Bulk delete failed' }, 500);
     }
 };
