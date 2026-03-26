@@ -945,7 +945,7 @@ export default function AdminPage() {
     }
 
     function handleDownloadSubregionTemplate() {
-        const headers = ['id', 'name', 'subregionId', 'description'];
+        const headers = ['ID', 'Name', 'SubregionID', 'Description'];
         const demoRow = ['', 'Jurong West', 'SR-JW', 'Residential area in the west'];
         const csv = Papa.unparse({ fields: headers, data: [demoRow] });
         downloadFile('\uFEFF' + csv, 'subregion_upload_template.csv', 'text/csv;charset=utf-8');
@@ -1260,38 +1260,47 @@ export default function AdminPage() {
 
     return (
         <div className="p-6 lg:p-8">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-                    <Shield size={20} className="text-red-600" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
-                    <p className="text-slate-500 text-sm">
-                        {currentRole === 'super_admin'
-                            ? 'Global oversight of all resources and users'
-                            : currentRole === 'regional_admin'
-                                ? 'Manage partners and resources within your region'
-                                : 'Manage user accounts within your organization'}
-                    </p>
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-slate-200 pb-8">
+                <div className="flex items-center gap-5">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[2rem] bg-rose-50 text-rose-600 shadow-inner">
+                        <Shield size={32} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+                            Admin <span className="text-rose-600">Panel</span>
+                        </h1>
+                        <p className="mt-2 text-lg font-medium text-slate-500">
+                            {currentRole === 'super_admin'
+                                ? 'Global oversight of all medical resources and systems.'
+                                : currentRole === 'regional_admin'
+                                    ? 'Regional management for coordinated care deployment.'
+                                    : 'Organizational administrative controls & user oversight.'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
             {/* Stat cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {adminStatCards.map(({ label, val, color, icon: Icon }) => (
-                    <div key={label} className={`card ${color} border-0`}>
-                        <Icon size={18} className="mb-1 opacity-60" />
-                        <p className="text-2xl font-bold">{val}</p>
-                        <p className="text-xs font-semibold opacity-70">{label}</p>
+                    <div key={label} className={`rounded-3xl p-6 shadow-sm border border-slate-100 ${color}`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-2 rounded-xl bg-white/20">
+                                <Icon size={20} strokeWidth={2.5} />
+                            </div>
+                            <span className="text-xs font-bold uppercase tracking-widest opacity-60">Status</span>
+                        </div>
+                        <p className="text-3xl font-black tracking-tight">{val}</p>
+                        <p className="mt-1 text-sm font-bold opacity-70">{label}</p>
                     </div>
                 ))}
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 bg-slate-100 rounded-xl p-1 mb-6 w-fit overflow-x-auto max-w-full">
+            <div className="mb-8 inline-flex flex-wrap rounded-2xl bg-slate-100 p-1.5 shadow-inner">
                 {[
-                    { key: 'resources', label: 'All Resources', Icon: BookOpen },
-                    { key: 'users', label: 'All Users', Icon: Users },
+                    { key: 'resources', label: 'Resources', Icon: BookOpen },
+                    { key: 'users', label: 'Users', Icon: Users },
                     { key: 'subregions', label: 'Subregions', Icon: MapPin },
                     { key: 'audiencezones', label: 'Audience Zones', Icon: MapPin },
                     { key: 'subcats', label: 'Categories', Icon: BookOpen },
@@ -1301,10 +1310,14 @@ export default function AdminPage() {
                         key={key}
                         id={`admin-tab-${key}`}
                         onClick={() => setTab(key)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all min-h-[44px] ${tab === key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                            }`}
+                        className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                            tab === key
+                                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}
                     >
-                        <Icon size={15} /> {label}
+                        <Icon size={18} strokeWidth={tab === key ? 2.5 : 2} />
+                        {label}
                     </button>
                 ))}
             </div>
@@ -1455,54 +1468,76 @@ export default function AdminPage() {
                 <div className="space-y-6">
                     <div className="flex flex-col md:flex-row gap-4">
                         {canManageSubregionMetadata ? (
-                            <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)] gap-3">
-                                    <input
-                                        required
-                                        placeholder="Name (e.g. Jurong)"
-                                        value={newSubregion.name}
-                                        onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
-                                        className="input-field"
-                                    />
-                                    <input
-                                        required
-                                        placeholder="Subregion ID (e.g. SR-AMK)"
-                                        value={newSubregion.subregionCode}
-                                        onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
-                                        className="input-field"
-                                        title="Unique subregion identifier"
-                                    />
-                                    <input
-                                        placeholder="Description"
-                                        value={newSubregion.description}
-                                        onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
-                                        className="input-field"
-                                    />
+                            <form onSubmit={handleAddSubregion} className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                <div className="flex items-center gap-3 mb-5">
+                                    <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
+                                        <MapPin size={22} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-900">Subregion Management</h2>
+                                        <p className="text-sm text-slate-500">Define boundaries and regional clusters</p>
+                                    </div>
                                 </div>
-                                <div className="mt-3">
+
+                                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)] gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion Name</label>
+                                        <input
+                                            required
+                                            placeholder="e.g. Jurong West"
+                                            value={newSubregion.name}
+                                            onChange={e => setNewSubregion({ ...newSubregion, name: e.target.value })}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion ID</label>
+                                        <input
+                                            required
+                                            placeholder="e.g. SR-JW"
+                                            value={newSubregion.subregionCode}
+                                            onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
+                                            className="input-field"
+                                            title="Unique subregion identifier"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                                        <input
+                                            placeholder="Brief overview..."
+                                            value={newSubregion.description}
+                                            onChange={e => setNewSubregion({ ...newSubregion, description: e.target.value })}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Boundary Postal Codes</label>
                                     <textarea
-                                        placeholder="Boundary Postal Codes (e.g. 180000-189999, 680153, 680574)"
+                                        placeholder="Enter 6-digit codes or ranges (e.g. 180000-189999, 680153)"
                                         value={newSubregion.postalCodes}
                                         onChange={e => setNewSubregion({ ...newSubregion, postalCodes: e.target.value })}
-                                        className="input-field w-full min-h-[80px]"
+                                        className="input-field w-full min-h-[100px] font-mono text-sm leading-relaxed"
                                     />
+                                    <p className="mt-2 text-xs text-slate-500 italic">
+                                        Postal-code-to-region routing will automatically assign users and assets based on these sets.
+                                    </p>
                                 </div>
-                                <p className="mt-2 text-xs text-slate-500">
-                                    Manage subregion metadata and boundaries here. You can enter specific 6-digit codes or ranges (e.g. 180000-189999). Larger sets can also be uploaded using the tool on the right.
-                                </p>
-                                <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+
+                                <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
                                     {newSubregion.id ? (
-                                        <button type="button" onClick={resetSubregionForm} className="btn-secondary sm:w-auto w-full">
-                                            Cancel Edit
+                                        <button type="button" onClick={resetSubregionForm} className="btn-ghost sm:w-auto w-full border-slate-300">
+                                            Discard Changes
                                         </button>
                                     ) : null}
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                                        className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2 px-8"
                                     >
-                                        {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                        {loading ? (newSubregion.id ? 'Saving...' : 'Adding...') : (newSubregion.id ? 'Save Subregion' : 'Add Subregion')}
+                                        {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                        {loading ? (newSubregion.id ? 'Updating...' : 'Adding...') : (newSubregion.id ? 'Save Changes' : 'Create Subregion')}
                                     </button>
                                 </div>
                             </form>
@@ -1711,88 +1746,108 @@ export default function AdminPage() {
             ) : tab === 'audiencezones' ? (
                 <div className="space-y-6">
                     <div className="flex flex-col gap-4 md:flex-row">
-                        <form onSubmit={handleAddAudienceZone} className="flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)]">
-                                <input
-                                    required
-                                    placeholder="Audience zone name"
-                                    value={newAudienceZone.name}
-                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, name: e.target.value })}
-                                    className="input-field"
-                                />
-                                <input
-                                    placeholder="Zone Code (e.g. FY-INTAKE-A)"
-                                    value={newAudienceZone.zoneCode}
-                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, zoneCode: e.target.value })}
-                                    className="input-field"
-                                />
-                                <input
-                                    placeholder="Description"
-                                    value={newAudienceZone.description}
-                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, description: e.target.value })}
-                                    className="input-field"
-                                />
-                            </div>
-                            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <form onSubmit={handleAddAudienceZone} className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
+                                    <Users size={22} />
+                                </div>
                                 <div>
-                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">Ownership</label>
+                                    <h2 className="text-xl font-bold text-slate-900">Audience Zone Management</h2>
+                                    <p className="text-sm text-slate-500">Create eligibility zones based on location</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)]">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Zone Name</label>
+                                    <input
+                                        required
+                                        placeholder="e.g. Senior Care Intake A"
+                                        value={newAudienceZone.name}
+                                        onChange={(e) => setNewAudienceZone({ ...newAudienceZone, name: e.target.value })}
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Zone Code</label>
+                                    <input
+                                        placeholder="e.g. SR-INTAKE-A"
+                                        value={newAudienceZone.zoneCode}
+                                        onChange={(e) => setNewAudienceZone({ ...newAudienceZone, zoneCode: e.target.value })}
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                                    <input
+                                        placeholder="Purpose of this zone..."
+                                        value={newAudienceZone.description}
+                                        onChange={(e) => setNewAudienceZone({ ...newAudienceZone, description: e.target.value })}
+                                        className="input-field"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Ownership</label>
                                     {currentRole === 'partner' ? (
-                                        <input value="Partner-owned" readOnly className="input-field bg-slate-50" />
+                                        <div className="input-field bg-slate-50 flex items-center text-slate-500 italic">Partner-owned</div>
                                     ) : (
                                         <select
                                             value={newAudienceZone.ownershipMode}
                                             onChange={(e) => setNewAudienceZone({ ...newAudienceZone, ownershipMode: e.target.value, partnerId: e.target.value === 'partner' ? newAudienceZone.partnerId : '' })}
                                             className="input-field"
                                         >
-                                            <option value="system">System-owned</option>
-                                            <option value="partner">Partner-owned</option>
+                                            <option value="system">System-owned (Global)</option>
+                                            <option value="partner">Partner-owned (Scoped)</option>
                                         </select>
                                     )}
                                 </div>
-                                <div>
-                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">Partner Owner</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Partner Owner</label>
                                     {currentRole === 'partner' ? (
-                                        <input value={currentUser?.name || ''} readOnly className="input-field bg-slate-50" />
+                                        <div className="input-field bg-slate-50 flex items-center font-medium">{currentUser?.name || ''}</div>
                                     ) : newAudienceZone.ownershipMode === 'partner' ? (
                                         <select
                                             value={newAudienceZone.partnerId || ''}
                                             onChange={(e) => setNewAudienceZone({ ...newAudienceZone, partnerId: e.target.value })}
                                             className="input-field"
                                         >
-                                            <option value="">Select partner owner</option>
-                                            {partnerOwnerOptions.map((partner) => (
-                                                <option key={partner.id} value={partner.id}>{partner.name} (@{partner.username})</option>
+                                            <option value="">Select a partner</option>
+                                            {users.filter(u => normalizeRole(u.role) === 'partner').map(p => (
+                                                <option key={p.id} value={p.id}>{p.name} (@{p.username})</option>
                                             ))}
                                         </select>
                                     ) : (
-                                        <input value="System-owned" readOnly className="input-field bg-slate-50" />
+                                        <div className="input-field bg-slate-50 flex items-center text-slate-400 italic">N/A — System-owned</div>
                                     )}
                                 </div>
                             </div>
-                            <div className="mt-3">
+
+                            <div className="mt-5 space-y-1.5">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Boundary Postal Codes</label>
                                 <textarea
-                                    placeholder="Boundary Postal Codes (e.g. 180000-189999, 680153, 680574)"
+                                    placeholder="Enter 6-digit codes or ranges..."
                                     value={newAudienceZone.postalCodes}
-                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, postalCodes: e.target.value })}
-                                    className="input-field w-full min-h-[80px]"
+                                    onChange={e => setNewAudienceZone({ ...newAudienceZone, postalCodes: e.target.value })}
+                                    className="input-field w-full min-h-[100px] font-mono text-sm leading-relaxed"
                                 />
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">
-                                Audience zones are overlapping eligibility catchments. You can enter specific codes or ranges here.
-                            </p>
-                            <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+
+                            <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
                                 {newAudienceZone.id ? (
-                                    <button type="button" onClick={resetAudienceZoneForm} className="btn-secondary sm:w-auto w-full">
-                                        Cancel Edit
+                                    <button type="button" onClick={resetAudienceZoneForm} className="btn-ghost sm:w-auto w-full border-slate-300">
+                                        Discard Changes
                                     </button>
                                 ) : null}
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="btn-primary sm:w-auto w-full disabled:opacity-50 flex items-center justify-center gap-2 px-8"
                                 >
-                                    {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                    {loading ? (newAudienceZone.id ? 'Saving...' : 'Adding...') : (newAudienceZone.id ? 'Save Audience Zone' : 'Add Audience Zone')}
+                                    {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                    {loading ? (newAudienceZone.id ? 'Updating...' : 'Adding...') : (newAudienceZone.id ? 'Save Changes' : 'Create Audience Zone')}
                                 </button>
                             </div>
                         </form>
@@ -1957,32 +2012,43 @@ export default function AdminPage() {
             ) : tab === 'subcats' ? (
                 /* ======== SubCategories Table ======== */
                 <div className="space-y-6">
-                    <form onSubmit={handleAddSubCategory} className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                        <select
-                            value={newSubCat.type}
-                            onChange={e => setNewSubCat({ ...newSubCat, type: e.target.value })}
-                            className="input-field max-w-[150px]"
-                        >
-                            <option value="hard">Place</option>
-                            <option value="soft">Offering</option>
-                        </select>
-                        <input
-                            required
-                            placeholder="New sub-category name (e.g. Wellness)"
-                            value={newSubCat.name}
-                            onChange={e => setNewSubCat({ ...newSubCat, name: e.target.value })}
-                            className="input-field flex-1"
-                        />
-                        <div className="flex items-center gap-2 px-2 border border-slate-200 rounded-lg">
-                            <span className="text-sm text-slate-500 font-medium">Color:</span>
+                    <form onSubmit={handleAddSubCategory} className="flex flex-col sm:flex-row items-end gap-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex-1 space-y-1.5 w-full">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Category Name</label>
                             <input
-                                type="color"
-                                value={newSubCat.color}
-                                onChange={e => setNewSubCat({ ...newSubCat, color: e.target.value })}
-                                className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                                required
+                                placeholder="Sub-category name..."
+                                value={newSubCat.name}
+                                onChange={e => setNewSubCat({ ...newSubCat, name: e.target.value })}
+                                className="input-field"
                             />
                         </div>
-                        <button type="submit" className="btn-primary sm:w-auto w-full">Add Category</button>
+                        <div className="w-full sm:w-40 space-y-1.5">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Asset Type</label>
+                            <select
+                                value={newSubCat.type}
+                                onChange={e => setNewSubCat({ ...newSubCat, type: e.target.value })}
+                                className="input-field"
+                            >
+                                <option value="hard">Hard Asset</option>
+                                <option value="soft">Soft Asset</option>
+                            </select>
+                        </div>
+                        <div className="w-full sm:w-24 space-y-1.5">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Badge</label>
+                            <div className="flex items-center gap-2 h-11 px-3 rounded-xl border border-slate-200 bg-white">
+                                <input
+                                    type="color"
+                                    value={newSubCat.color}
+                                    onChange={e => setNewSubCat({ ...newSubCat, color: e.target.value })}
+                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                />
+                                <span className="text-xs font-mono text-slate-400 uppercase">{newSubCat.color}</span>
+                            </div>
+                        </div>
+                        <button type="submit" disabled={loading} className="btn-primary px-8 w-full sm:w-auto h-11">
+                            {loading ? 'Adding...' : 'Add Category'}
+                        </button>
                     </form>
 
                     {selectedSubCategories.length > 0 && (

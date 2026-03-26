@@ -655,28 +655,42 @@ export default function ResourcesPage() {
 
     return (
         <div className="mx-auto max-w-6xl p-6 lg:p-8">
-            <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-slate-200 pb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">{isStandardUser ? 'Saved Assets' : 'My Assets'}</h1>
-                    <p className="mt-0.5 text-slate-500">
+                    <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+                        {isStandardUser ? 'Saved' : 'My'} <span className="text-brand-600">Assets</span>
+                    </h1>
+                    <p className="mt-3 max-w-2xl text-lg font-medium text-slate-500">
                         {isStandardUser
-                            ? 'Your saved places and offerings.'
-                            : "Manage your organization's places, offerings, and shared templates."}
+                            ? 'Your curated collection of medical resources and care facilities.'
+                            : "Comprehensive management of your organization's care infrastructure."}
                     </p>
                 </div>
-                {!isStandardUser ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button onClick={() => openCreate('hard')} className="btn-primary whitespace-nowrap border-2 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
-                            <Plus size={16} /> New Place
+                {!isStandardUser && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={() => openCreate('hard')}
+                            className="flex h-12 items-center gap-2 rounded-2xl bg-emerald-600 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"
+                        >
+                            <Plus size={18} strokeWidth={2.5} />
+                            New Place
                         </button>
-                        <button onClick={() => openCreate('soft')} className="btn-primary whitespace-nowrap">
-                            <Plus size={16} /> New Offering
+                        <button
+                            onClick={() => openCreate('soft')}
+                            className="flex h-12 items-center gap-2 rounded-2xl bg-brand-600 px-6 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
+                        >
+                            <Plus size={18} strokeWidth={2.5} />
+                            New Offering
                         </button>
-                        <button onClick={openTemplateCreate} className="btn-ghost whitespace-nowrap border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100">
-                            <Plus size={16} /> New Template
+                        <button
+                            onClick={openTemplateCreate}
+                            className="flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-black hover:shadow-xl hover:shadow-slate-300 active:scale-[0.98]"
+                        >
+                            <Plus size={18} strokeWidth={2.5} />
+                            New Template
                         </button>
                     </div>
-                ) : null}
+                )}
             </div>
 
             <NoticeBanner notice={actionNotice} onDismiss={() => setActionNotice(null)} />
@@ -763,24 +777,39 @@ export default function ResourcesPage() {
                 </p>
             ) : null}
 
-            <div className="mb-6 flex items-center gap-2 border-b border-slate-200">
+            <div className="mb-8 inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner">
                 <button
                     onClick={() => setActiveTab('hard')}
-                    className={`border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${activeTab === 'hard' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                        activeTab === 'hard'
+                            ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
                 >
+                    <Building2 size={18} strokeWidth={activeTab === 'hard' ? 2.5 : 2} />
                     Places ({filteredHardAssets.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('soft')}
-                    className={`border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${activeTab === 'soft' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                        activeTab === 'soft'
+                            ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
                 >
+                    <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
                     Offerings ({filteredSoftAssets.length})
                 </button>
                 {!isStandardUser ? (
                     <button
                         onClick={() => setActiveTab('templates')}
-                        className={`border-b-2 px-1 pb-3 text-sm font-semibold transition-colors ${activeTab === 'templates' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                            activeTab === 'templates'
+                                ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}
                     >
+                        <Files size={18} strokeWidth={activeTab === 'templates' ? 2.5 : 2} />
                         Templates ({filteredTemplates.length})
                     </button>
                 ) : null}

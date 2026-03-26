@@ -22,53 +22,63 @@ export default function MyMapCard({
     const updatedAt = formatUpdatedAt(map.updatedAt);
 
     return (
-        <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-            <div className="flex h-full flex-col gap-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
-                            <Map size={12} />
-                            My Map
+        <article className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-500/10">
+            <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-brand-50 px-3 text-[10px] font-bold uppercase tracking-wider text-brand-700">
+                            <Map size={12} strokeWidth={2.5} />
+                            Collection
                         </span>
-                        <h2 className="mt-3 text-lg font-bold leading-snug text-slate-900">
-                            {map.name}
-                        </h2>
+                        {updatedAt && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                • {updatedAt}
+                            </span>
+                        )}
                     </div>
-                    {updatedAt ? (
-                        <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-slate-400">
-                            <Clock3 size={13} />
-                            Updated {updatedAt}
-                        </span>
-                    ) : null}
+                    <h2 className="mt-4 line-clamp-2 text-xl font-bold leading-tight tracking-tight text-slate-900 group-hover:text-brand-600 transition-colors">
+                        {map.name}
+                    </h2>
                 </div>
+            </div>
 
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3.5 py-3">
-                    <p className="text-sm font-medium text-slate-700">
-                        {map.assetCount} {map.assetCount === 1 ? 'asset' : 'assets'}
+            <div className="mb-6 flex items-center gap-3 rounded-2xl bg-slate-50 p-4 transition-colors group-hover:bg-brand-50/50">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
+                    <ArrowRight size={18} className="text-brand-600" />
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-slate-900">
+                        {map.assetCount} {map.assetCount === 1 ? 'Resource' : 'Resources'}
                     </p>
+                    <p className="text-xs font-medium text-slate-500">Curated set of assets</p>
                 </div>
+            </div>
 
-                <div className="mt-auto flex flex-col gap-2 sm:flex-row">
-                    <Link to={`/my-directory/maps/${map.id}`} className="btn-primary flex-1 justify-center">
-                        Open map
-                        <ArrowRight size={16} />
-                    </Link>
+            <div className="mt-auto grid grid-cols-1 gap-2">
+                <Link
+                    to={`/my-directory/maps/${map.id}`}
+                    className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
+                >
+                    <ArrowRight size={18} />
+                    Open Map
+                </Link>
+                <div className="grid grid-cols-2 gap-2">
                     <button
                         type="button"
                         onClick={() => onRename?.(map)}
-                        className="btn-ghost flex-1 justify-center border border-slate-200 text-slate-700"
+                        className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]"
                     >
-                        <Pencil size={16} />
+                        <Pencil size={14} />
                         Rename
                     </button>
                     <button
                         type="button"
                         onClick={() => onDelete?.(map)}
                         disabled={deleting}
-                        className="btn-ghost flex-1 justify-center border border-slate-200 text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-70"
+                        className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-50 active:scale-[0.98]"
                     >
-                        <Trash2 size={16} />
-                        {deleting ? 'Deleting…' : 'Delete'}
+                        <Trash2 size={14} />
+                        {deleting ? 'Wait...' : 'Delete'}
                     </button>
                 </div>
             </div>

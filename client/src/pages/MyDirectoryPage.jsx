@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Bookmark, Map, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
@@ -94,23 +94,25 @@ function MyMapsLoadingState() {
 
 function DirectoryTabs({ activeSection, onSelect }) {
     return (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-6 inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner">
             {[
-                { value: DIRECTORY_SECTIONS.saved, label: 'Saved Assets' },
-                { value: DIRECTORY_SECTIONS.maps, label: 'My Maps' },
+                { value: DIRECTORY_SECTIONS.saved, label: 'Saved Assets', icon: Bookmark },
+                { value: DIRECTORY_SECTIONS.maps, label: 'Private Maps', icon: Map },
             ].map((tab) => {
                 const active = activeSection === tab.value;
+                const Icon = tab.icon;
                 return (
                     <button
                         key={tab.value}
                         type="button"
                         onClick={() => onSelect(tab.value)}
-                        className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                        className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
                             active
-                                ? 'bg-brand-600 text-white shadow-sm'
-                                : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                                ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                                : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
+                        <Icon size={18} strokeWidth={active ? 2.5 : 2} />
                         {tab.label}
                     </button>
                 );
