@@ -53,7 +53,7 @@ export default function AdminPage() {
 
     const [loading, setLoading] = useState(true);
     const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
-    const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '' });
+    const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '', postalCodes: '' });
     const [newAudienceZone, setNewAudienceZone] = useState({
         id: null,
         zoneCode: '',
@@ -61,6 +61,7 @@ export default function AdminPage() {
         description: '',
         ownershipMode: currentRole === 'partner' ? 'partner' : 'system',
         partnerId: currentRole === 'partner' ? (currentUser?.id || '') : '',
+        postalCodes: '',
     });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
     const [audienceZoneFeedback, setAudienceZoneFeedback] = useState(null);
@@ -185,7 +186,7 @@ export default function AdminPage() {
     }
 
     function resetSubregionForm() {
-        setNewSubregion({ id: null, subregionCode: '', name: '', description: '' });
+        setNewSubregion({ id: null, subregionCode: '', name: '', description: '', postalCodes: '' });
     }
 
     function resetAudienceZoneForm() {
@@ -196,6 +197,7 @@ export default function AdminPage() {
             description: '',
             ownershipMode: currentRole === 'partner' ? 'partner' : 'system',
             partnerId: currentRole === 'partner' ? (currentUser?.id || '') : '',
+            postalCodes: '',
         });
     }
 
@@ -208,6 +210,7 @@ export default function AdminPage() {
             description: zone.description || '',
             ownershipMode: zone.ownershipMode || (zone.partnerUserId ? 'partner' : 'system'),
             partnerId: zone.partnerUserId || '',
+            postalCodes: (zone.postalCodes || []).join(', '),
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -219,6 +222,7 @@ export default function AdminPage() {
             subregionCode: subregion.subregionCode || '',
             name: subregion.name || '',
             description: subregion.description || '',
+            postalCodes: subregion.postalPatterns || '',
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1398,8 +1402,16 @@ export default function AdminPage() {
                                         className="input-field"
                                     />
                                 </div>
+                                <div className="mt-3">
+                                    <textarea
+                                        placeholder="Boundary Postal Codes (e.g. 180000-189999, 680153, 680574)"
+                                        value={newSubregion.postalCodes}
+                                        onChange={e => setNewSubregion({ ...newSubregion, postalCodes: e.target.value })}
+                                        className="input-field w-full min-h-[80px]"
+                                    />
+                                </div>
                                 <p className="mt-2 text-xs text-slate-500">
-                                    Manage subregion metadata here. Upload exact 6-digit boundary postal codes using the boundary CSV tool on the right.
+                                    Manage subregion metadata and boundaries here. You can enter specific 6-digit codes or ranges (e.g. 180000-189999). Larger sets can also be uploaded using the tool on the right.
                                 </p>
                                 <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
                                     {newSubregion.id ? (
@@ -1678,8 +1690,16 @@ export default function AdminPage() {
                                     )}
                                 </div>
                             </div>
+                            <div className="mt-3">
+                                <textarea
+                                    placeholder="Boundary Postal Codes (e.g. 180000-189999, 680153, 680574)"
+                                    value={newAudienceZone.postalCodes}
+                                    onChange={(e) => setNewAudienceZone({ ...newAudienceZone, postalCodes: e.target.value })}
+                                    className="input-field w-full min-h-[80px]"
+                                />
+                            </div>
                             <p className="mt-2 text-xs text-slate-500">
-                                Audience zones are overlapping eligibility catchments. They do not affect admin subregion ownership or routing.
+                                Audience zones are overlapping eligibility catchments. You can enter specific codes or ranges here.
                             </p>
                             <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                                 {newAudienceZone.id ? (

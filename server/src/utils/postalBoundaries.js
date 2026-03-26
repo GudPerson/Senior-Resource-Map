@@ -24,44 +24,56 @@ function tokenizePostalInput(rawValue) {
         .filter(Boolean);
 }
 
+const MAX_RANGE_SIZE = 200000;
+
 export function parsePostalCodeListInput(rawValue) {
-    if (Array.isArray(rawValue)) {
-        // If it's already an array, assume they are potentially messy so still normalize, 
-        // but skip the expensive regex and tokenization if they already match.
-        const seen = new Set();
-        const postalCodes = [];
-
-        for (const item of rawValue) {
-            const token = String(item).trim();
-            // Fast-path: if it's already a 6-digit string, just add it.
-            if (token.length === 6 && /^\d+$/.test(token)) {
-                if (!seen.has(token)) {
-                    seen.add(token);
-                    postalCodes.push(token);
-                }
-            } else {
-                const postalCode = normalizePostalCode(token);
-                if (postalCode && !seen.has(postalCode)) {
-                    seen.add(postalCode);
-                    postalCodes.push(postalCode);
-                }
-            }
-        }
-        return postalCodes;
-    }
-
     const seen = new Set();
     const postalCodes = [];
 
-    for (const token of tokenizePostalInput(rawValue)) {
-        const postalCode = normalizePostalCode(token);
-        if (!postalCode) {
-            throw new Error(`Invalid postal code "${token}". Boundary uploads only support exact 6-digit postal codes.`);
+    const tokens = tokenizePostalInput(rawValue);
+    
+    for (const token of tokens) {
+        // Handle Range: START-END
+        if (typeof token === 'string' && token.includes('-')) {
+            const [startRaw, endRaw] = token.split('-').map(t => t.trim());
+            const startStr = normalizePostalCode(startRaw);
+            const endStr = normalizePostalCode(endRaw);
+
+            if (!startStr || !endStr) {
+                throw new Error(`Invalid range "${token}". Both start and end must be exact 6-digit postal codes.`);
+            }
+
+            const startNum = Number.parseInt(startStr, 10);
+            const endNum = Number.parseInt(endStr, 10);
+
+            if (startNum > endNum) {
+                throw new Error(`Invalid range "${token}". Start must be less than or equal to end.`);
+            }
+
+            const rangeSize = endNum - startNum + 1;
+            if (rangeSize > MAX_RANGE_SIZE) {
+                throw new Error(`Range "${token}" is too large (${rangeSize.toLocaleString()} codes). Max range size is ${MAX_RANGE_SIZE.toLocaleString()}.`);
+            }
+
+            for (let i = startNum; i <= endNum; i++) {
+                const code = String(i).padStart(6, '0');
+                if (!seen.has(code)) {
+                    seen.add(code);
+                    postalCodes.push(code);
+                }
+            }
+            continue;
         }
 
-        if (seen.has(postalCode)) continue;
-        seen.add(postalCode);
-        postalCodes.push(postalCode);
+        const postalCode = normalizePostalCode(token);
+        if (!postalCode) {
+            throw new Error(`Invalid postal code "${token}". Boundary uploads only support exact 6-digit postal codes or ranges (e.g. 180000-189999).`);
+        }
+
+        if (!seen.has(postalCode)) {
+            seen.add(postalCode);
+            postalCodes.push(postalCode);
+        }
     }
 
     return postalCodes;

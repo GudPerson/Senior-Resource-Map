@@ -7,7 +7,7 @@ import {
     canManageAudienceZone,
     syncAudienceZonePostalCodes,
 } from '../utils/audienceZones.js';
-import { normalizePostalCode } from '../utils/postalBoundaries.js';
+import { normalizePostalCode, parsePostalCodeListInput } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { normalizeOwnershipMode, resolveAssetOwner } from '../utils/softAssetScope.js';
 
@@ -301,16 +301,21 @@ export const bulkUploadAudienceZoneBoundaries = async (c) => {
                     throw new Error(`Unknown audience zone reference "${reference}".`);
                 }
 
-                const postalCode = normalizePostalCode(row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode']);
-                if (!postalCode) {
-                    throw new Error('postalCode must be a valid 6-digit code.');
+                const rawInput = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'];
+                const postalCodes = parsePostalCodeListInput(rawInput);
+                if (postalCodes.length === 0) {
+                    throw new Error('No valid postal codes or ranges found.');
                 }
 
                 if (!groupedPostalCodes.has(targetZone.id)) {
                     groupedPostalCodes.set(targetZone.id, new Set());
                 }
-                groupedPostalCodes.get(targetZone.id).add(postalCode);
-                successfulRows += 1;
+                
+                const zoneSet = groupedPostalCodes.get(targetZone.id);
+                postalCodes.forEach(code => {
+                    zoneSet.add(code);
+                });
+                successfulRows += 1; // Count as 1 row successful regardless of expansion size
             } catch (err) {
                 errors.push(`Row ${index + 2}: ${err.message}`);
             }

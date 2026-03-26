@@ -521,13 +521,16 @@ export const bulkUploadSubregionBoundaries = async (c) => {
                     throw new Error(`Out of scope.`);
                 }
 
-                const postalCode = normalizePostalCode(row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode']);
-                if (!postalCode) throw new Error('Invalid code.');
+                const rawPC = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'];
+                const expansion = parsePostalCodeListInput(rawPC);
+
+                if (expansion.length === 0) throw new Error('Invalid code.');
 
                 if (!groupedPostalCodes.has(targetSubregion.id)) {
                     groupedPostalCodes.set(targetSubregion.id, new Set());
                 }
-                groupedPostalCodes.get(targetSubregion.id).add(postalCode);
+                const set = groupedPostalCodes.get(targetSubregion.id);
+                expansion.forEach(code => set.add(code));
                 successfulRows += 1;
             } catch (err) {
                 errors.push(`Row ${index + 2}: ${err.message}`);
