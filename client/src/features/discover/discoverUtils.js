@@ -107,8 +107,8 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
             class="${stateClass}"
             style="
                 position:relative;
-                width:40px;
-                height:54px;
+                width:32px;
+                height:44px;
                 overflow:visible;
                 pointer-events:none;
                 --saved-pin-scale:${pinScale};
@@ -117,7 +117,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
             "
         >
             <div class="saved-place-pin-marker__pin" style="position:absolute;inset:0;z-index:1;display:flex;align-items:flex-start;justify-content:center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="34" height="48" viewBox="0 0 34 48" aria-hidden="true" style="overflow:visible; position:relative; z-index:1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="39" viewBox="0 0 34 48" aria-hidden="true" style="overflow:visible; position:relative; z-index:1;">
                     <path
                         d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
                         fill="${outerFill}"

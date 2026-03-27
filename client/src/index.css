@@ -519,10 +519,10 @@
 .saved-place-pin-marker::before {
   content: '';
   position: absolute;
-  left: 3px;
-  top: 4px;
-  width: 34px;
-  height: 34px;
+  left: 2px;
+  top: 3px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: var(--saved-pin-halo-color, rgba(15, 163, 154, 0.2));
   opacity: 0;
