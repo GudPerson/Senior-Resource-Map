@@ -144,7 +144,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         position:absolute;
                         top:-1px;
                         right:0px;
-                        z-index:3;
+                        z-index:10;
                         min-width:18px;
                         height:18px;
                         padding:0 5px;
@@ -161,6 +161,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         font-weight:800;
                         letter-spacing:-0.02em;
                         transform-origin:center;
+                        pointer-events:none;
                         font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                     "
                 >${escapeSvgText(label)}</div>
