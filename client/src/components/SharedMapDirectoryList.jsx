@@ -26,6 +26,29 @@ function StatusBadge({ status }) {
     return null;
 }
 
+function MapLegend() {
+    return (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-slate-100 bg-white/50 px-5 py-3.5 text-[12px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm">
+            <div className="flex items-center gap-2.5">
+                <div className="h-4 w-4 rounded-full border-2 border-white bg-[#0f766e] shadow-sm" />
+                <span>Single Location</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-[#0f766e] text-[10px] font-black text-white shadow-sm">1</div>
+                <span>Numbered Resource</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+                <div className="flex -space-x-2">
+                    <div className="h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-sm" />
+                    <div className="h-4 w-4 rounded-full border-2 border-white bg-pink-500 shadow-sm" />
+                    <div className="h-4 w-4 rounded-full border-2 border-white bg-orange-500 shadow-sm" />
+                </div>
+                <span>Grouped Clusters</span>
+            </div>
+        </div>
+    );
+}
+
 const DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH = 1280;
 
 function useResponsiveDirectoryLayout(enabled) {
@@ -580,6 +603,7 @@ export default function SharedMapDirectoryList({
                 {renderMobileMap ? (
                     <div className={mobileMapStickyClassName}>
                         {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
+                        <MapLegend />
                     </div>
                 ) : null}
 
@@ -627,6 +651,7 @@ export default function SharedMapDirectoryList({
 
                 <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
                     {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
+                    {interactive ? <MapLegend /> : null}
                 </div>
 
                 <DirectoryGroupColumn
