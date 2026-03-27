@@ -248,8 +248,11 @@ function DirectoryPlaceGroupCard({
             >
                 <div className="flex items-start gap-2.5">
                     <div 
-                        className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[11px]'}`}
-                        style={{ backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e' }}
+                        className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
+                        style={{ 
+                            backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                            fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px')
+                        }}
                     >
                         {group.number}
                     </div>
@@ -307,8 +310,11 @@ function DirectoryPlaceGroupCard({
                 <button
                     type="button"
                     onClick={() => onViewOnMap?.(group.placeKey)}
-                    className={`flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg text-[12px]' : 'h-9 w-9 rounded-xl text-[13px]'}`}
-                    style={{ backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e' }}
+                    className={`flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl'}`}
+                    style={{ 
+                        backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                        fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px')
+                    }}
                     aria-label={`View ${group.name} on map`}
                     title="View on map"
                 >
