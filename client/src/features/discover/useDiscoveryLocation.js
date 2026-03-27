@@ -70,7 +70,9 @@ export function useDiscoveryLocation(hardAssets = []) {
                 setLocationNotice(null);
                 latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
                 saveSearchLocation(nextOrigin);
-                const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 15 : searchRadius <= 2 ? 14 : 13;
+                
+                // Neighborhood zoom (at least zoom 16 for Locate Me)
+                const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : 16;
                 setFlyTarget({ ...loc, zoom });
             },
             (error) => {
@@ -146,7 +148,9 @@ export function useDiscoveryLocation(hardAssets = []) {
         setLocationNotice(null);
         latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
         saveSearchLocation(nextOrigin);
-        const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 15 : searchRadius <= 2 ? 14 : 13;
+        
+        // Neighborhood zoom (at least zoom 15 for search)
+        const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 16 : 15;
         setFlyTarget({ lat: result.lat, lng: result.lng, zoom });
     }, [postalInput, searchRadius, hardAssets]);
 

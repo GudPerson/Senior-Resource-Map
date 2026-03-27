@@ -150,7 +150,12 @@ export default function DiscoverPage() {
         if (searchOrigin && isDesktop) {
             setIsSearchPanelCollapsed(true);
         }
-    }, [isDesktop, searchOrigin]);
+        
+        // Clear focus states when the location search changes
+        clearHoveredCardState();
+        clearLockedCardState();
+        clearTransientFocusState();
+    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
@@ -761,7 +766,8 @@ export default function DiscoverPage() {
         });
 
         transientPlacePins.forEach((pin) => {
-            const emphasis = transientPrimaryPinKey === pin.pinKey ? 'primary' : 'related';
+            // Only highlight transient pins if they are the primary focus
+            const emphasis = transientPrimaryPinKey === pin.pinKey ? 'primary' : 'default';
             nextMap.set(pin.pinKey, emphasis);
         });
 
