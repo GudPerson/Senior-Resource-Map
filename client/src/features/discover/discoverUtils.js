@@ -138,33 +138,33 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         stroke-width="0.75"
                     />
                 </svg>
+                <div
+                    class="saved-place-pin-marker__badge"
+                    style="
+                        position:absolute;
+                        top:-1px;
+                        right:0px;
+                        z-index:3;
+                        min-width:18px;
+                        height:18px;
+                        padding:0 5px;
+                        border-radius:999px;
+                        background:${badgeBg};
+                        border:1.5px solid #ffffff;
+                        box-shadow:${badgeShadow};
+                        color:#ffffff;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:${label.length > 2 ? 8.5 : 10}px;
+                        line-height:1;
+                        font-weight:800;
+                        letter-spacing:-0.02em;
+                        transform-origin:center;
+                        font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    "
+                >${escapeSvgText(label)}</div>
             </div>
-            <div
-                class="saved-place-pin-marker__badge"
-                style="
-                    position:absolute;
-                    top:-1px;
-                    right:-1px;
-                    z-index:3;
-                    min-width:18px;
-                    height:18px;
-                    padding:0 5px;
-                    border-radius:999px;
-                    background:${badgeBg};
-                    border:1.5px solid #ffffff;
-                    box-shadow:${badgeShadow};
-                    color:#ffffff;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-size:${label.length > 2 ? 8.5 : 10}px;
-                    line-height:1;
-                    font-weight:800;
-                    letter-spacing:-0.02em;
-                    transform-origin:center;
-                    font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                "
-            >${escapeSvgText(label)}</div>
         </div>
     `;
 
