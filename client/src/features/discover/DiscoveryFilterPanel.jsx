@@ -322,110 +322,110 @@ function DesktopFilterPanel({
         <div
             className="hidden flex-shrink-0 lg:block"
             style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(246,252,251,0.92) 100%)',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
                 borderBottom: '1px solid var(--color-border)',
             }}
         >
-            <div className="flex items-start justify-between gap-4 p-5 pb-0">
-                <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: 'var(--color-brand)' }}>
-                        CareAround SG
-                    </p>
-                    <h1 className="mt-2 text-[2rem] font-extrabold" style={{ color: 'var(--color-text)' }}>Find care around you</h1>
-                    <p className="mt-2 max-w-sm text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
-                        Search nearby support, services, and programmes from a compact directory browser.
-                    </p>
-                </div>
-                <button
-                    onClick={handleLocateMe}
-                    className="flex min-h-[48px] items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all"
-                    style={{
-                        backgroundColor: 'var(--color-brand-light)',
-                        color: 'var(--color-brand-strong)',
-                        border: '1px solid var(--color-border)',
-                        boxShadow: '0 12px 28px rgba(15, 163, 154, 0.08)',
-                    }}
-                >
-                    <LocateFixed size={18} />
-                    <span>Locate Me</span>
-                </button>
-            </div>
-
-            <div className="space-y-3 p-5">
-                <div className="flex items-center justify-end">
+            <div className="relative p-6 pb-2">
+                <div className="flex items-start justify-between">
+                    <div className="min-w-0 pr-12">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.28em]" style={{ color: 'var(--color-brand)' }}>
+                            CareAround SG
+                        </p>
+                        <h1 className="mt-2 text-[1.85rem] font-black leading-tight tracking-tight" style={{ color: 'var(--color-text)' }}>
+                            Find care around you
+                        </h1>
+                        <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                            Search nearby support, services, and programmes.
+                        </p>
+                    </div>
                     <button
                         type="button"
                         onClick={onCollapse}
-                        className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-bold transition-all"
+                        className="absolute right-5 top-7 flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-white hover:shadow-md"
                         style={{
                             color: 'var(--color-text-secondary)',
-                            backgroundColor: 'rgba(255,255,255,0.78)',
                             border: '1px solid var(--color-border)',
+                            backgroundColor: 'rgba(255,255,255,0.6)',
                         }}
+                        title="Collapse panel"
                     >
-                        Collapse
-                        <ChevronDown size={14} />
+                        <ChevronDown size={18} />
                     </button>
                 </div>
+            </div>
 
-                <form onSubmit={onApplySearch} className="flex gap-2">
-                    <div className="relative flex-1">
-                        <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
-                        <input
-                            id="postal-input"
-                            type="text"
-                            inputMode="numeric"
-                            pattern="\d*"
-                            maxLength={6}
-                            placeholder="6-digit Postal Code"
-                            value={postalInput}
-                            onChange={(event) => setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                            className="w-full rounded-2xl py-2.5 pl-9 pr-3 text-sm font-medium focus:outline-none focus:ring-2 min-h-[44px] transition-all"
-                            style={{
-                                ...INPUT_RING_STYLE,
-                                backgroundColor: 'var(--color-input-bg)',
-                                color: 'var(--color-text)',
-                                border: '1.5px solid var(--color-border)',
-                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55)',
-                            }}
-                        />
-                        {isGeocoding ? (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
-                            </div>
-                        ) : null}
+            <div className="space-y-4 p-6 pt-2">
+                <form onSubmit={onApplySearch} className="flex flex-col gap-3">
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
+                            <input
+                                id="postal-input"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={6}
+                                placeholder="6-digit Postal Code"
+                                value={postalInput}
+                                onChange={(event) => setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="w-full rounded-2xl py-2.5 pl-9 pr-12 text-sm font-semibold focus:outline-none focus:ring-2 min-h-[46px] transition-all"
+                                style={{
+                                    ...INPUT_RING_STYLE,
+                                    backgroundColor: 'var(--color-input-bg)',
+                                    color: 'var(--color-text)',
+                                    border: '1.5px solid var(--color-border)',
+                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={handleLocateMe}
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:bg-white"
+                                style={{ color: 'var(--color-brand-strong)' }}
+                                title="Use my current location"
+                            >
+                                <LocateFixed size={18} />
+                            </button>
+                            {isGeocoding ? (
+                                <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
+                                </div>
+                            ) : null}
+                        </div>
+                        <div className="relative shrink-0">
+                            <select
+                                value={searchRadius}
+                                onChange={(event) => setSearchRadius(parseFloat(event.target.value))}
+                                className="min-h-[46px] cursor-pointer appearance-none rounded-2xl pl-3 pr-8 py-2.5 text-xs font-bold focus:outline-none transition-all"
+                                style={{ backgroundColor: 'var(--color-input-bg)', color: 'var(--color-text)', border: '1.5px solid var(--color-border)' }}
+                            >
+                                <option value={0.3}>300m</option>
+                                <option value={0.5}>500m</option>
+                                <option value={1}>1km</option>
+                                <option value={2}>2km</option>
+                                <option value={100}>All SG</option>
+                            </select>
+                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+                        </div>
+                        <button
+                            type="submit"
+                            className="flex min-h-[46px] flex-shrink-0 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-extrabold text-white transition-all hover:shadow-lg active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
+                        >
+                            <Search size={16} />
+                            Search
+                        </button>
                     </div>
-                    <button
-                        type="submit"
-                        className="flex min-h-[44px] flex-shrink-0 items-center gap-1.5 rounded-2xl px-4 py-2 text-sm font-bold text-white transition-all hover:shadow-md"
-                        style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
-                    >
-                        <Search size={15} />
-                        Search
-                    </button>
-                </form>
 
-                <div className="flex gap-2">
-                    <select
-                        value={searchRadius}
-                        onChange={(event) => setSearchRadius(parseFloat(event.target.value))}
-                        className="min-h-[40px] flex-shrink-0 cursor-pointer appearance-none rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none"
-                        style={{ backgroundColor: 'var(--color-input-bg)', color: 'var(--color-text)', border: '1.5px solid var(--color-border)' }}
-                    >
-                        <option value={0.3}>300m</option>
-                        <option value={0.5}>500m</option>
-                        <option value={1}>1km</option>
-                        <option value={2}>2km</option>
-                        <option value={100}>All SG</option>
-                    </select>
-                    <div className="relative flex-1">
-                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                         <input
                             type="search"
-                            placeholder="Search names, tags..."
+                            placeholder="Search names, services, or tags..."
                             value={search}
                             onChange={(event) => onSearchChange(event.target.value)}
-                            className="w-full rounded-2xl py-2.5 pl-9 pr-3 text-sm font-medium focus:outline-none focus:ring-2 min-h-[40px] transition-all"
+                            className="w-full rounded-2xl py-2.5 pl-9 pr-3 text-sm font-semibold focus:outline-none focus:ring-2 min-h-[46px] transition-all"
                             style={{
                                 ...INPUT_RING_STYLE,
                                 backgroundColor: 'var(--color-input-bg)',
@@ -434,57 +434,64 @@ function DesktopFilterPanel({
                             }}
                         />
                     </div>
-                </div>
+                </form>
 
-                <div className="flex items-center gap-1.5 rounded-[20px] p-1" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
-                    {['all', 'hard', 'soft'].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className="min-h-[38px] flex-1 rounded-2xl py-2 text-xs font-bold whitespace-nowrap capitalize transition-all"
-                            style={activeTab === tab
-                                ? { backgroundColor: 'var(--color-surface)', color: 'var(--color-brand-strong)', boxShadow: '0 10px 20px rgba(15, 89, 91, 0.08)', border: '1px solid var(--color-border)' }
-                                : { color: 'var(--color-text-secondary)' }}
-                        >
-                            {tab === 'all' ? 'All' : tab === 'hard' ? 'Places' : 'Offerings'}
-                        </button>
-                    ))}
-                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-1 items-center gap-1 rounded-2xl p-1" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
+                        {['all', 'hard', 'soft'].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className="min-h-[36px] flex-1 rounded-[14px] py-1.5 text-xs font-extrabold whitespace-nowrap capitalize transition-all"
+                                style={activeTab === tab
+                                    ? { backgroundColor: 'var(--color-surface)', color: 'var(--color-brand-strong)', boxShadow: '0 4px 12px rgba(15, 89, 91, 0.08)', border: '1px solid var(--color-border)' }
+                                    : { color: 'var(--color-text-secondary)' }}
+                            >
+                                {tab === 'all' ? 'All' : tab === 'hard' ? 'Places' : 'Offerings'}
+                            </button>
+                        ))}
+                    </div>
 
-                {user ? (
-                    <div className="flex items-center gap-2">
-                        <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>
-                            <div className="relative mr-1 inline-block w-9 align-middle transition duration-200 ease-in">
+                    {user ? (
+                        <label className="flex shrink-0 cursor-pointer select-none items-center gap-3 rounded-2xl border px-3 py-2 transition-all hover:bg-white" style={{ borderColor: 'var(--color-border)' }}>
+                            <div className="relative inline-block w-8 align-middle transition duration-200 ease-in">
                                 <input
                                     type="checkbox"
                                     checked={showFavoritesOnly}
                                     onChange={(event) => setShowFavoritesOnly(event.target.checked)}
-                                    className="toggle-checkbox absolute block h-4 w-4 appearance-none rounded-full border-4 bg-white cursor-pointer"
-                                    style={{ right: showFavoritesOnly ? 0 : '1.125rem', borderColor: showFavoritesOnly ? '#10b981' : '#cbd5e1' }}
+                                    className="toggle-checkbox absolute block h-4 w-4 appearance-none rounded-full border-2 bg-white cursor-pointer"
+                                    style={{ right: showFavoritesOnly ? 0 : '1rem', borderColor: showFavoritesOnly ? '#10b981' : '#cbd5e1' }}
                                 />
                                 <div className="toggle-label block h-4 cursor-pointer overflow-hidden rounded-full" style={{ backgroundColor: showFavoritesOnly ? '#10b981' : 'var(--color-border)' }} />
                             </div>
-                            Saved Assets Only
+                            <span className="text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
+                                Saved Only
+                            </span>
                         </label>
-                    </div>
-                ) : null}
+                    ) : null}
+                </div>
 
                 {locationNotice ? (
                     <div
-                        className="rounded-xl px-3 py-2 text-xs font-medium"
-                        style={{ backgroundColor: '#fff1ef', color: '#b84030', border: '1px solid #f7c2b8' }}
+                        className="rounded-xl px-4 py-2.5 text-xs font-bold leading-relaxed border animate-in fade-in slide-in-from-top-1"
+                        style={{ backgroundColor: '#fff1ef', color: '#b84030', borderColor: '#f7c2b8' }}
                     >
                         {locationNotice.message}
                     </div>
                 ) : null}
 
                 {userLocation ? (
-                    <div className="flex items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.72)' }}>
-                        <span style={{ color: 'var(--color-brand-strong)' }}>
-                            Using {getSearchLocationLabel(searchOrigin)}
-                            {searchRadius < 100 ? ` • Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}` : ''}
-                        </span>
-                        <button onClick={clearLocationSearch} className="underline" style={{ color: 'var(--color-text-muted)' }}>Clear</button>
+                    <div className="flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-extrabold transition-all" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.72)' }}>
+                        <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span style={{ color: 'var(--color-brand-strong)' }}>
+                                Using {getSearchLocationLabel(searchOrigin)}
+                                {searchRadius < 100 ? ` • Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}` : ''}
+                            </span>
+                        </div>
+                        <button onClick={clearLocationSearch} className="font-black underline decoration-2 underline-offset-2 transition-colors hover:text-red-500" style={{ color: 'var(--color-text-muted)' }}>
+                            Clear
+                        </button>
                     </div>
                 ) : null}
             </div>
