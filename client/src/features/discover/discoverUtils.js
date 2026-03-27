@@ -142,8 +142,8 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                     class="saved-place-pin-marker__badge"
                     style="
                         position:absolute;
-                        top:-1px;
-                        right:0px;
+                        top:-7px;
+                        right:-7px;
                         z-index:100;
                         min-width:18px;
                         height:18px;
@@ -172,9 +172,9 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     return L.divIcon({
         className: '',
         html: svg,
-        iconSize: [40, 54],
-        iconAnchor: [20, 48],
-        popupAnchor: [0, -44],
-        tooltipAnchor: [0, -40],
+        iconSize: [44, 58],
+        iconAnchor: [22, 54],
+        popupAnchor: [0, -48],
+        tooltipAnchor: [0, -44],
     });
 }
