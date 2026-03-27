@@ -138,6 +138,23 @@ export default function DiscoverPage() {
             isActive = false;
         };
     }, []);
+    
+    const clearHoveredCardState = useCallback(() => {
+        setHoveredPinKeys([]);
+        setHoveredPrimaryPinKey(null);
+    }, []);
+
+    const clearLockedCardState = useCallback(() => {
+        setLockedAssetKey(null);
+        setLockedPinKeys([]);
+        setLockedPrimaryPinKey(null);
+    }, []);
+
+    const clearTransientFocusState = useCallback(() => {
+        setTransientPlacePins([]);
+        setTransientPrimaryPinKey(null);
+        setTransientFocusAssetKey(null);
+    }, []);
 
     useEffect(() => {
         if (!isDesktop) {
@@ -477,23 +494,6 @@ export default function DiscoverPage() {
         if (resultsListRef.current) {
             lastBrowseScrollTopRef.current = resultsListRef.current.scrollTop;
         }
-    }, []);
-
-    const clearHoveredCardState = useCallback(() => {
-        setHoveredPinKeys([]);
-        setHoveredPrimaryPinKey(null);
-    }, []);
-
-    const clearLockedCardState = useCallback(() => {
-        setLockedAssetKey(null);
-        setLockedPinKeys([]);
-        setLockedPrimaryPinKey(null);
-    }, []);
-
-    const clearTransientFocusState = useCallback(() => {
-        setTransientPlacePins([]);
-        setTransientPrimaryPinKey(null);
-        setTransientFocusAssetKey(null);
     }, []);
 
     useEffect(() => {
