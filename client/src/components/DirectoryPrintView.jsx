@@ -70,9 +70,15 @@ function PrintDirectoryBoardHeader({
             <div className="flex items-start justify-between gap-12">
                 <div className="min-w-0 flex-1">
                     <BrandLockup compact />
-                    <h1 className="mt-4 text-[2.35rem] font-black tracking-tight text-slate-900">
-                        {directory?.name || 'Untitled directory'}
-                    </h1>
+                    {(() => {
+                        const name = directory?.name || 'Untitled directory';
+                        const sizeClass = name.length > 40 ? 'text-[1.5rem]' : name.length > 30 ? 'text-[1.8rem]' : name.length > 20 ? 'text-[2.1rem]' : 'text-[2.35rem]';
+                        return (
+                            <h1 className={`mt-4 ${sizeClass} font-black tracking-tight text-slate-900 truncate`} title={name}>
+                                {name}
+                            </h1>
+                        );
+                    })()}
                     {directory?.description ? (
                         <p className="mt-2 max-w-2xl text-[15px] leading-7 text-slate-600">
                             {directory.description}

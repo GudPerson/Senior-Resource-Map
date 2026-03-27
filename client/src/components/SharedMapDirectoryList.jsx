@@ -172,10 +172,13 @@ function DirectoryResourceRow({
         );
 
         return (
-            <div className="border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
-                <div className="flex flex-wrap items-center gap-1.5">
-                    {printRowTitle}
-                    {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
+            <div className="border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {printRowTitle}
+                        {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
+                    </div>
                 </div>
             </div>
         );
@@ -264,7 +267,7 @@ function DirectoryPlaceGroupCard({
                         </div>
 
                         {visibleRows.length ? (
-                            <div className={`mt-1.5 ${compactPrint ? 'space-y-1' : 'space-y-1.5'}`}>
+                            <div className={`mt-1 ${compactPrint ? 'space-y-0.5' : 'space-y-1'}`}>
                                 {visibleRows.map((row) => (
                                     <DirectoryResourceRow
                                         key={row.rowKey}
@@ -651,7 +654,7 @@ export default function SharedMapDirectoryList({
 
                 <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
                     {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
-                    {interactive ? <MapLegend /> : null}
+                    <MapLegend />
                 </div>
 
                 <DirectoryGroupColumn
