@@ -127,7 +127,7 @@ function PrintDirectoryMap({
                 showPopup={false}
                 showZoomControl={false}
                 showAttribution={true}
-                mapHeightClassName="h-[520px]"
+                mapHeightClassName="h-[440px]"
                 className="mt-5"
                 emptyLabel="No mappable places in this directory"
                 onMapReadyForCapture={onMapReadyForCapture}
@@ -214,7 +214,7 @@ export default function DirectoryPrintView({
                 canSaveResources={false}
                 allowPrintLinks={variant === 'screen'}
                 // Use a fixed grid layout that doesn't rely on viewport breakpoints
-                desktopGridClassName="grid-cols-[340px_1fr_340px]"
+                desktopGridClassName="grid-cols-[380px_1fr_380px]"
                 renderDesktopMap={() => (
                     <PrintDirectoryMap
                         presentation={presentation}
