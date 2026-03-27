@@ -88,6 +88,7 @@ export default function DiscoverPage() {
     const { savedAssets, savedAssetsLoading } = useSavedAssets();
     const {
         clearLocationSearch,
+        flyTarget,
         handleLocateMe,
         handlePostalSearch,
         isGeocoding,
@@ -95,6 +96,7 @@ export default function DiscoverPage() {
         postalInput,
         searchOrigin,
         searchRadius,
+        setFlyTarget,
         setPostalInput,
         setSearchRadius,
         userLocation,
@@ -156,6 +158,18 @@ export default function DiscoverPage() {
         clearLockedCardState();
         clearTransientFocusState();
     }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin]);
+
+    useEffect(() => {
+        if (!flyTarget) return;
+        setMapFocusRequest({
+            kind: 'single-pin',
+            requestId: nextFocusRequestId(),
+            lat: flyTarget.lat,
+            lng: flyTarget.lng,
+            zoom: flyTarget.zoom,
+        });
+        setFlyTarget(null);
+    }, [flyTarget, setFlyTarget]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
