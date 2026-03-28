@@ -18,8 +18,6 @@ import {
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
 const DIRECTORY_FOCUS_ZOOM = 16;
-const CLUSTER_HOVER_REVEAL_DELAY_MS = 700;
-const CLUSTER_HOVER_RESTORE_GUARD_MS = 450;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -101,7 +99,7 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
     });
 }
 
-function createDirectoryClusterIcon(cluster) {
+function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set()) {
     const count = cluster.getChildCount();
     const children = cluster.getAllChildMarkers();
     const dominantColor = getClusterColorData(children) || {
@@ -110,12 +108,20 @@ function createDirectoryClusterIcon(cluster) {
         border: 'rgba(13,148,136,0.24)',
         glow: 'rgba(15,118,110,0.16)'
     };
+    const isHighlighted = children.some((marker) => {
+        const placeKey = marker.options?.icon?.options?.placeKey || marker.options?.placeKey;
+        return placeKey && emphasizedPlaceKeys.has(String(placeKey));
+    });
+    const outerBackground = isHighlighted ? 'rgba(249,115,22,0.14)' : dominantColor.bg;
+    const outerBorder = isHighlighted ? 'rgba(249,115,22,0.38)' : dominantColor.border;
+    const outerShadow = isHighlighted ? '0 18px 36px rgba(249,115,22,0.26)' : `0 16px 34px ${dominantColor.glow}`;
+    const innerBackground = isHighlighted ? '#f97316' : dominantColor.core;
 
     return L.divIcon({
         className: '',
         html: `
-            <div style="width:42px;height:42px;border-radius:999px;background:${dominantColor.bg};display:flex;align-items:center;justify-content:center;border:1px solid ${dominantColor.border};box-shadow:0 16px 34px ${dominantColor.glow};">
-                <div style="width:32px;height:32px;border-radius:999px;background:${dominantColor.core};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="width:42px;height:42px;border-radius:999px;background:${outerBackground};display:flex;align-items:center;justify-content:center;border:1px solid ${outerBorder};box-shadow:${outerShadow};">
+                <div style="width:32px;height:32px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                     ${escapeHtml(count)}
                 </div>
             </div>
@@ -191,82 +197,35 @@ function DirectoryMapRecenterControl({ pins, interactive }) {
     );
 }
 
-function DirectoryClusterHoverController({ clusterGroupRef, enabled = true }) {
-    const map = useMap();
-    const hoverTimeoutRef = useRef(null);
-    const activeClusterRef = useRef(null);
-    const previousViewRef = useRef(null);
-    const activationTimestampRef = useRef(0);
-
+function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClusterStart, onHoverClusterEnd }) {
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
         if (!enabled || !clusterGroup) return undefined;
 
-        const clearHoverTimer = () => {
-            if (hoverTimeoutRef.current) {
-                window.clearTimeout(hoverTimeoutRef.current);
-                hoverTimeoutRef.current = null;
-            }
-        };
-
-        const restorePreviousView = () => {
-            if (!previousViewRef.current) return;
-            const { center, zoom } = previousViewRef.current;
-            previousViewRef.current = null;
-            activeClusterRef.current = null;
-            activationTimestampRef.current = 0;
-            map.flyTo(center, zoom, { animate: true, duration: 0.35 });
-        };
+        const resolveClusterPlaceKeys = (cluster) => cluster.getAllChildMarkers()
+            .map((marker) => marker.options?.icon?.options?.placeKey || marker.options?.placeKey)
+            .filter(Boolean);
 
         const handleClusterMouseOver = (event) => {
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
-
-            clearHoverTimer();
-            hoverTimeoutRef.current = window.setTimeout(() => {
-                if (activeClusterRef.current === cluster) return;
-                previousViewRef.current = { center: map.getCenter(), zoom: map.getZoom() };
-                activeClusterRef.current = cluster;
-                activationTimestampRef.current = Date.now();
-                if (map.getZoom() >= 16 && typeof cluster.spiderfy === 'function') {
-                    cluster.spiderfy();
-                    return;
-                }
-                if (typeof cluster.zoomToBounds === 'function') {
-                    cluster.zoomToBounds({ padding: [40, 40] });
-                }
-            }, CLUSTER_HOVER_REVEAL_DELAY_MS);
+            onHoverClusterStart?.(resolveClusterPlaceKeys(cluster));
         };
 
         const handleClusterMouseOut = (event) => {
             const cluster = event.layer;
-            clearHoverTimer();
-            if (activeClusterRef.current && cluster === activeClusterRef.current) {
-                const elapsed = Date.now() - activationTimestampRef.current;
-                if (elapsed < CLUSTER_HOVER_RESTORE_GUARD_MS) return;
-                if (typeof cluster.unspiderfy === 'function') {
-                    cluster.unspiderfy();
-                }
-                restorePreviousView();
-            }
-        };
-
-        const handleMapMoveStart = () => {
-            if (!activeClusterRef.current) return;
-            clearHoverTimer();
+            if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
+            onHoverClusterEnd?.(resolveClusterPlaceKeys(cluster));
         };
 
         clusterGroup.on('clustermouseover', handleClusterMouseOver);
         clusterGroup.on('clustermouseout', handleClusterMouseOut);
-        map.on('movestart', handleMapMoveStart);
 
         return () => {
-            clearHoverTimer();
             clusterGroup.off('clustermouseover', handleClusterMouseOver);
             clusterGroup.off('clustermouseout', handleClusterMouseOut);
-            map.off('movestart', handleMapMoveStart);
         };
-    }, [clusterGroupRef, enabled, map]);
+    }, [clusterGroupRef, enabled, onHoverClusterEnd, onHoverClusterStart]);
 
     return null;
 }
@@ -382,9 +341,12 @@ export default function DirectoryMap({
     pins = [],
     focusedPlaceKey = null,
     activePlaceKey = null,
+    activePlaceKeys = [],
     onViewSection,
     onHoverPlaceStart,
     onHoverPlaceEnd,
+    onHoverClusterStart,
+    onHoverClusterEnd,
     interactive = true,
     className = '',
     emptyLabel = 'This directory does not have any mappable places yet.',
@@ -406,6 +368,7 @@ export default function DirectoryMap({
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
     const shouldCluster = displayPins.length > 1;
     const clusterGroupRef = useRef(null);
+    const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
 
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -468,7 +431,7 @@ export default function DirectoryMap({
                     removeOutsideVisibleBounds={false}
                     disableClusteringAtZoom={16}
                     maxClusterRadius={42}
-                    iconCreateFunction={createDirectoryClusterIcon}
+                    iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster, activePlaceKeySet)}
                 >
                     {displayPins.map((pin) => {
                         const activeKey = activePlaceKey ?? focusedPlaceKey;
@@ -536,7 +499,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, interactive, onViewSection]);
+    }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, onViewSection, onHoverPlaceStart, onHoverPlaceEnd]);
 
     return (
         <div className={`relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm ${className}`}>
@@ -583,7 +546,7 @@ export default function DirectoryMap({
                     } : undefined}
                 />
                 <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} />
-                <DirectoryClusterHoverController clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} />
+                <DirectoryClusterHoverSync clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} onHoverClusterStart={onHoverClusterStart} onHoverClusterEnd={onHoverClusterEnd} />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
                 {renderedMarkers}
             </MapContainer>

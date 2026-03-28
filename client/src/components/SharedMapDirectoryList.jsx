@@ -495,6 +495,7 @@ function DirectoryGroupColumn({
     onRemoveResource,
     canSaveResources,
     highlightPlaceKey,
+    highlightPlaceKeys = [],
     sectionRefs,
     preserveSlot = false,
     allowPrintLinks = false,
@@ -517,7 +518,7 @@ function DirectoryGroupColumn({
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
-                    highlighted={highlightPlaceKey === group.placeKey}
+                    highlighted={highlightPlaceKey === group.placeKey || highlightPlaceKeys.includes(group.placeKey)}
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
                     clusterColorData={clusterMapping[group.placeKey] || null}
@@ -578,6 +579,7 @@ export default function SharedMapDirectoryList({
     onViewOnMap,
     onRemoveResource,
     highlightPlaceKey = null,
+    highlightPlaceKeys = [],
     canSaveResources = true,
     className = '',
     desktopGridClassName = 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]',
@@ -648,6 +650,7 @@ export default function SharedMapDirectoryList({
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
                     highlightPlaceKey={flashPlaceKey}
+                    highlightPlaceKeys={highlightPlaceKeys}
                     sectionRefs={sectionRefs}
                     clusterMapping={clusterMapping}
                 />
@@ -675,6 +678,7 @@ export default function SharedMapDirectoryList({
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
                     highlightPlaceKey={flashPlaceKey}
+                    highlightPlaceKeys={highlightPlaceKeys}
                     sectionRefs={sectionRefs}
                     preserveSlot
                     allowPrintLinks={allowPrintLinks}
@@ -696,6 +700,7 @@ export default function SharedMapDirectoryList({
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
                     highlightPlaceKey={flashPlaceKey}
+                    highlightPlaceKeys={highlightPlaceKeys}
                     sectionRefs={sectionRefs}
                     preserveSlot
                     allowPrintLinks={allowPrintLinks}

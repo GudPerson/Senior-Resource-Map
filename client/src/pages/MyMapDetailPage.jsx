@@ -255,6 +255,7 @@ export default function MyMapDetailPage() {
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
+    const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
     const [editOpen, setEditOpen] = useState(false);
     const [editSubmitting, setEditSubmitting] = useState(false);
     const [editError, setEditError] = useState('');
@@ -302,6 +303,7 @@ export default function MyMapDetailPage() {
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
     const activePlaceKey = hoveredPlaceKey || highlightPlaceKey || null;
+    const activePlaceKeys = hoveredClusterPlaceKeys.length ? hoveredClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []);
 
     async function handleUpdateDetails(nextValues) {
         if (!directory) return;
@@ -423,11 +425,23 @@ export default function MyMapDetailPage() {
 
     const handleMapHoverStart = useCallback((placeKey) => {
         if (suspendMapInteraction || !placeKey) return;
+        setHoveredClusterPlaceKeys([]);
         setHoveredPlaceKey(String(placeKey));
     }, [suspendMapInteraction]);
 
     const handleMapHoverEnd = useCallback((placeKey) => {
         setHoveredPlaceKey((current) => (String(current) === String(placeKey) ? null : current));
+    }, []);
+
+    const handleMapClusterHoverStart = useCallback((placeKeys) => {
+        if (suspendMapInteraction || !placeKeys?.length) return;
+        setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
+    }, [suspendMapInteraction]);
+
+    const handleMapClusterHoverEnd = useCallback((placeKeys) => {
+        const normalizedKeys = new Set((placeKeys || []).map((value) => String(value)));
+        setHoveredClusterPlaceKeys((current) => current.filter((value) => !normalizedKeys.has(String(value))));
     }, []);
 
     function openPrintView() {
@@ -555,6 +569,7 @@ export default function MyMapDetailPage() {
                                 onViewOnMap={handleViewOnMap}
                                 onRemoveResource={handleRemoveResource}
                                 highlightPlaceKey={activePlaceKey}
+                                highlightPlaceKeys={activePlaceKeys}
                                 autoScrollToHighlight={!hoveredPlaceKey}
                                 desktopGridClassName="lg:grid-cols-[minmax(280px,1fr)_minmax(380px,1.15fr)_minmax(280px,1fr)] xl:grid-cols-[minmax(320px,1fr)_minmax(560px,1.6fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(360px,1fr)_minmax(680px,1.8fr)_minmax(360px,1fr)]"
                                 renderDesktopMap={() => (
@@ -562,9 +577,12 @@ export default function MyMapDetailPage() {
                                         pins={interactivePresentation.pins}
                                         focusedPlaceKey={focusedPlaceKey}
                                         activePlaceKey={activePlaceKey}
+                                        activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
                                         onHoverPlaceStart={handleMapHoverStart}
                                         onHoverPlaceEnd={handleMapHoverEnd}
+                                        onHoverClusterStart={handleMapClusterHoverStart}
+                                        onHoverClusterEnd={handleMapClusterHoverEnd}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
@@ -577,9 +595,12 @@ export default function MyMapDetailPage() {
                                         pins={interactivePresentation.pins}
                                         focusedPlaceKey={focusedPlaceKey}
                                         activePlaceKey={activePlaceKey}
+                                        activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
                                         onHoverPlaceStart={handleMapHoverStart}
                                         onHoverPlaceEnd={handleMapHoverEnd}
+                                        onHoverClusterStart={handleMapClusterHoverStart}
+                                        onHoverClusterEnd={handleMapClusterHoverEnd}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
