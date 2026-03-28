@@ -610,7 +610,12 @@ export default function SharedMapDirectoryList({
         && (mappedGroups.length >= 7 || interactiveRowCount >= 9);
 
     useEffect(() => {
-        if (!highlightPlaceKey || !interactive) return undefined;
+        if (!interactive) return undefined;
+
+        if (!highlightPlaceKey) {
+            setFlashPlaceKey(null);
+            return undefined;
+        }
 
         setFlashPlaceKey(highlightPlaceKey);
         if (!autoScrollToHighlight) return undefined;
