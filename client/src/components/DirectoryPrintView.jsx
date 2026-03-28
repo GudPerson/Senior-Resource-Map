@@ -107,7 +107,7 @@ function PrintDirectoryMap({
     onClusterChange,
 }) {
     return (
-        <div className="rounded-[30px] border border-slate-200 bg-white p-5">
+        <div className="mx-auto w-full max-w-[680px] rounded-[30px] border border-slate-200 bg-white p-5">
             <PrintDirectoryBoardHeader
                 directory={directory}
                 generatedAt={generatedAt}
@@ -235,8 +235,10 @@ export default function DirectoryPrintView({
                 layout="print"
                 canSaveResources={false}
                 allowPrintLinks={variant === 'screen'}
-                // Use a fixed grid layout that doesn't rely on viewport breakpoints
-                desktopGridClassName="grid-cols-[380px_1fr_380px]"
+                // Keep the preview balanced on desktop by slightly reducing the side rails
+                // and letting the center map card sit in a bounded, centered column.
+                desktopGridClassName="grid-cols-[340px_minmax(0,1fr)_340px]"
+                desktopMapWrapperClassName="mx-auto w-full"
                 renderDesktopMap={() => (
                     <PrintDirectoryMap
                         presentation={presentation}
