@@ -69,9 +69,9 @@ function getClusterColorData(children) {
 function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = null) {
     const isSelected = emphasis === 'primary';
     const coreColor = '#0f766e';
-    const ringColor = isSelected ? '#14b8a6' : '#ffffff';
-    const glowColor = isSelected ? 'rgba(20, 184, 166, 0.34)' : 'rgba(15, 118, 110, 0.16)';
-    const shadowColor = isSelected ? '0 14px 26px rgba(15, 118, 110, 0.38)' : '0 10px 18px rgba(15, 118, 110, 0.24)';
+    const ringColor = isSelected ? '#f97316' : '#ffffff';
+    const glowColor = isSelected ? 'rgba(249, 115, 22, 0.34)' : 'rgba(15, 118, 110, 0.16)';
+    const shadowColor = isSelected ? '0 14px 26px rgba(194, 65, 12, 0.38)' : '0 10px 18px rgba(15, 118, 110, 0.24)';
 
     return L.divIcon({
         className: '',

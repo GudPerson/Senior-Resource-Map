@@ -626,14 +626,15 @@
 
 @keyframes selectionPulseGlow {
   0%, 100% {
-    box-shadow: 0 0 0 8px rgba(15, 163, 154, 0.22);
-    border-color: var(--color-brand-strong);
+    box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.28), 0 0 24px rgba(249, 115, 22, 0.18);
+    border-color: #f97316;
   }
 }
 
 .selected-card-pulse {
-  animation: selectionPulseGlow 2s infinite ease-in-out;
+  border-color: #f97316 !important;
   border-width: 2.5px !important;
+  box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.28), 0 0 24px rgba(249, 115, 22, 0.18);
 }
 
 /* ───────────────── RESPONSIVE PIN SCALING ───────────────── */

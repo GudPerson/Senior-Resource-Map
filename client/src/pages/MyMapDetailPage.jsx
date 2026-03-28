@@ -404,13 +404,16 @@ export default function MyMapDetailPage() {
     }
 
     function handleViewOnMap(placeKey) {
-        setFocusedPlaceKey(null);
         if (String(focusedPlaceKey) === String(placeKey)) {
+            setFocusedPlaceKey(null);
             requestAnimationFrame(() => setFocusedPlaceKey(String(placeKey) + ':zoom'));
             return;
         }
+        setFocusedPlaceKey(null);
+        setHighlightPlaceKey(null);
         window.requestAnimationFrame(() => {
             setFocusedPlaceKey(String(placeKey));
+            setHighlightPlaceKey(String(placeKey));
         });
     }
 
