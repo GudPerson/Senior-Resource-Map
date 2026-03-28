@@ -241,8 +241,11 @@
   font-size: 10px !important;
 }
 
-.carearound-map .leaflet-tile {
-  filter: var(--map-tile-filter);
+/* ───────────────── LEAFLET WATERMARK REMOVAL (MOBILE) ───────────────── */
+@media (max-width: 1024px) {
+  .leaflet-control-attribution {
+    display: none !important;
+  }
 }
 
 .no-scrollbar {

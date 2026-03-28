@@ -315,7 +315,9 @@ export function DiscoveryMap({
                     );
                 })}
             </MapContainer>
-            <OneMapBadge />
+            <div className="hidden lg:block">
+                <OneMapBadge />
+            </div>
         </div>
     );
 }

@@ -28,22 +28,22 @@ function StatusBadge({ status }) {
 
 function MapLegend() {
     return (
-        <div className="mt-4 flex items-center gap-x-6 overflow-x-auto whitespace-nowrap scrollbar-hide rounded-xl border border-slate-100 bg-white/80 px-4 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm backdrop-blur-sm scroll-smooth isolate">
-            <div className="flex items-center gap-2.5">
-                <div className="h-[1em] w-[1em] rounded-full border-2 border-white bg-[#0f766e] shadow-sm" />
-                <span>Single Location</span>
+        <div className="mt-4 flex items-center justify-between overflow-x-hidden rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-[11px] font-bold text-slate-600 shadow-sm backdrop-blur-sm isolate">
+            <div className="flex items-center gap-1.5">
+                <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
+                <span>Single</span>
             </div>
-            <div className="flex items-center gap-2.5">
-                <div className="flex h-[1.3em] w-[1.3em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.8em] font-black text-white shadow-sm">1</div>
-                <span>Numbered Resource</span>
+            <div className="flex items-center gap-1.5">
+                <div className="flex h-[1.1em] w-[1.1em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.7em] font-black text-white shadow-sm">1</div>
+                <span>Resource #</span>
             </div>
-            <div className="flex items-center gap-2.5">
-                <div className="flex -space-x-2">
-                    <div className="h-[1em] w-[1em] rounded-full border-1.5 border-white bg-blue-500 shadow-sm" />
-                    <div className="h-[1em] w-[1em] rounded-full border-1.5 border-white bg-pink-500 shadow-sm" />
-                    <div className="h-[1em] w-[1em] rounded-full border-1.5 border-white bg-orange-500 shadow-sm" />
+            <div className="flex items-center gap-1.5">
+                <div className="flex -space-x-1.5">
+                    <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-blue-500 shadow-sm" />
+                    <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-pink-500 shadow-sm" />
+                    <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-orange-500 shadow-sm" />
                 </div>
-                <span>Grouped Clusters</span>
+                <span>Clusters</span>
             </div>
         </div>
     );
@@ -188,10 +188,8 @@ function DirectoryResourceRow({
         <div className={showDivider ? 'border-t border-slate-100 pt-1.5' : ''}>
             <div className={`flex items-start justify-between ${mode === 'shared' ? (compactInteractive ? 'gap-2' : 'gap-3') : ''}`}>
                 <div className="min-w-0 flex-1">
-                    <div className={`flex items-start ${compactInteractive ? 'gap-2' : 'gap-2.5'}`}>
-                        {compactInteractive ? (
-                            <span className="mt-[0.45em] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
-                        ) : null}
+                    <div className="flex items-start gap-2.5">
+                        <span className="mt-[0.6em] h-1 w-1 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                             {canOpenDetail ? (
                                 <Link to={row.detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
