@@ -189,8 +189,7 @@ export function DashboardMobileNavigation({
 
             <div
                 ref={headerRef}
-                className="sticky z-20 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden"
-                style={{ top: `${navbarOffset}px` }}
+                className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden"
             >
                 <div className="flex items-center justify-between gap-3">
                     <button
