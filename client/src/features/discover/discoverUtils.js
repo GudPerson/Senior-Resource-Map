@@ -91,7 +91,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
         : (isPrimary ? '#0b6d70' : isRelated ? '#0d766f' : '#0f766e');
     const haloColor = isTemporary
         ? (isPrimary ? 'rgba(249, 115, 22, 0.42)' : isRelated ? 'rgba(251, 146, 60, 0.3)' : 'rgba(251, 146, 60, 0.18)')
-        : (isPrimary ? 'rgba(245, 158, 11, 0.4)' : isRelated ? 'rgba(45, 212, 191, 0.3)' : 'rgba(45, 212, 191, 0.18)');
+        : (isPrimary ? 'rgba(16, 159, 149, 0.45)' : isRelated ? 'rgba(45, 212, 191, 0.3)' : 'rgba(45, 212, 191, 0.18)');
     const stateClass = [
         'saved-place-pin-marker',
         `saved-place-pin-marker--${tone}`,

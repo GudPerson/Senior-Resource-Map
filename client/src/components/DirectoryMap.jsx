@@ -17,7 +17,7 @@ import {
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
-const DIRECTORY_FOCUS_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
+const DIRECTORY_FOCUS_ZOOM = 16;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
