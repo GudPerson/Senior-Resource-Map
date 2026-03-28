@@ -777,42 +777,44 @@ export default function ResourcesPage() {
                 </p>
             ) : null}
 
-            <div className="mb-8 inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner">
-                <button
-                    onClick={() => setActiveTab('hard')}
-                    className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
-                        activeTab === 'hard'
-                            ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
-                            : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                >
-                    <Building2 size={18} strokeWidth={activeTab === 'hard' ? 2.5 : 2} />
-                    Places ({filteredHardAssets.length})
-                </button>
-                <button
-                    onClick={() => setActiveTab('soft')}
-                    className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
-                        activeTab === 'soft'
-                            ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
-                            : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                >
-                    <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
-                    Offerings ({filteredSoftAssets.length})
-                </button>
-                {!isStandardUser ? (
+            <div className="mb-8 flex w-full overflow-x-auto pb-1 scrollbar-hide">
+                <div className="inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner whitespace-nowrap">
                     <button
-                        onClick={() => setActiveTab('templates')}
+                        onClick={() => setActiveTab('hard')}
                         className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
-                            activeTab === 'templates'
+                            activeTab === 'hard'
                                 ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
                                 : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
-                        <Files size={18} strokeWidth={activeTab === 'templates' ? 2.5 : 2} />
-                        Templates ({filteredTemplates.length})
+                        <Building2 size={18} strokeWidth={activeTab === 'hard' ? 2.5 : 2} />
+                        Places ({filteredHardAssets.length})
                     </button>
-                ) : null}
+                    <button
+                        onClick={() => setActiveTab('soft')}
+                        className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                            activeTab === 'soft'
+                                ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                                : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
+                        Offerings ({filteredSoftAssets.length})
+                    </button>
+                    {!isStandardUser ? (
+                        <button
+                            onClick={() => setActiveTab('templates')}
+                            className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                                activeTab === 'templates'
+                                    ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <Files size={18} strokeWidth={activeTab === 'templates' ? 2.5 : 2} />
+                            Templates ({filteredTemplates.length})
+                        </button>
+                    ) : null}
+                </div>
             </div>
 
             {loading ? (
