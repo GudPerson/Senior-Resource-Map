@@ -681,7 +681,7 @@ export default function SharedMapDirectoryList({
 
                 <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
                     {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
-                    <MapLegend />
+                    {resolvedLayout !== 'print' && <MapLegend />}
                 </div>
 
                 <DirectoryGroupColumn
