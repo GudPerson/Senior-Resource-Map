@@ -26,7 +26,7 @@ export default function Navbar() {
 
     return (
         <nav
-            className="hc-nav sticky top-0 z-50 shadow-sm"
+            className="hc-nav sticky top-0 z-50 shadow-sm disable-font-scaling"
             style={{
                 backgroundColor: 'var(--color-nav-bg)',
                 borderBottom: '1px solid var(--color-border)',

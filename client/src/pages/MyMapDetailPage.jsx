@@ -128,7 +128,7 @@ function MyMapMobileControls({
 
     return (
         <>
-            <div className="sticky top-[56px] z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:top-[64px] sm:-mx-6 xl:hidden">
+            <div className="sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-white px-4 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
@@ -551,7 +551,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}
-                                mobileMapStickyClassName="sticky top-[107px] sm:top-[127px] z-30 bg-white pb-3 pt-1.5 -mt-1.5 isolate disable-font-scaling shadow-sm"
+                                mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 bg-white pb-3 isolate disable-font-scaling shadow-sm"
                             />
                         </>
                     )}

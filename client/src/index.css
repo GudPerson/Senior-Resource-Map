@@ -657,20 +657,20 @@
 
 @media (max-width: 540px) {
   .saved-place-pin-marker {
-    transform: scale(0.88);
+    transform: scale(0.68) !important;
     transform-origin: center bottom;
   }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 440px) {
   .saved-place-pin-marker {
-    transform: scale(0.78);
+    transform: scale(0.62) !important;
   }
 }
 
-@media (max-width: 350px) {
+@media (max-width: 380px) {
   .saved-place-pin-marker {
-    transform: scale(0.72);
+    transform: scale(0.58) !important;
   }
 }
 

@@ -28,7 +28,7 @@ function StatusBadge({ status }) {
 
 function MapLegend() {
     return (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-[max(12px,4vw)] gap-y-3 rounded-2xl border border-slate-100 bg-white/50 px-[max(12px,4vw)] py-3.5 text-[calc(10.5px+0.75vw)] lg:text-[14px] font-bold text-slate-700 shadow-sm backdrop-blur-sm">
+        <div className="mt-4 flex items-center gap-x-6 overflow-x-auto whitespace-nowrap scrollbar-hide rounded-xl border border-slate-100 bg-white/80 px-4 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm backdrop-blur-sm scroll-smooth isolate">
             <div className="flex items-center gap-2.5">
                 <div className="h-[1em] w-[1em] rounded-full border-2 border-white bg-[#0f766e] shadow-sm" />
                 <span>Single Location</span>
