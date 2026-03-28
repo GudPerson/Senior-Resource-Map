@@ -215,6 +215,32 @@
   }
 }
 
+/* ───────────────── FONT SCALING PROTECTION ───────────────── */
+.disable-font-scaling {
+  --font-scale: 1 !important;
+}
+
+/* Ensure common fixed text sizes used in buttons/legend are protected */
+.disable-font-scaling,
+.disable-font-scaling * {
+  font-size: 16px !important;
+}
+
+.disable-font-scaling .text-\[12px\],
+.disable-font-scaling .text-\[12px\] * {
+  font-size: 12px !important;
+}
+
+.disable-font-scaling .text-\[11px\],
+.disable-font-scaling .text-\[11px\] * {
+  font-size: 11px !important;
+}
+
+.disable-font-scaling .text-\[10px\],
+.disable-font-scaling .text-\[10px\] * {
+  font-size: 10px !important;
+}
+
 .carearound-map .leaflet-tile {
   filter: var(--map-tile-filter);
 }

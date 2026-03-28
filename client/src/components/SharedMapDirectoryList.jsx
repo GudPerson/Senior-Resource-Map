@@ -302,9 +302,9 @@ function DirectoryPlaceGroupCard({
     return (
         <section
             ref={sectionRef}
-            className={`border border-slate-200 bg-white shadow-sm transition ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
-                highlighted ? 'border-brand-300 ring-2 ring-brand-100' : ''
-            }`}
+            className={`border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
+                highlighted ? 'border-brand-500 ring-4 ring-brand-500/20 scale-[1.02] z-10' : ''
+            } scroll-mt-[56svh] lg:scroll-mt-6`}
         >
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
                 <button
@@ -610,7 +610,7 @@ export default function SharedMapDirectoryList({
         return (
             <div className={`space-y-4 ${className}`}>
                 {renderMobileMap ? (
-                    <div className={mobileMapStickyClassName}>
+                    <div className={`${mobileMapStickyClassName} disable-font-scaling`}>
                         {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
                         <MapLegend />
                     </div>
