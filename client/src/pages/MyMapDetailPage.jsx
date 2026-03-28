@@ -555,6 +555,7 @@ export default function MyMapDetailPage() {
                                 onViewOnMap={handleViewOnMap}
                                 onRemoveResource={handleRemoveResource}
                                 highlightPlaceKey={activePlaceKey}
+                                autoScrollToHighlight={!hoveredPlaceKey}
                                 desktopGridClassName="lg:grid-cols-[minmax(280px,1fr)_minmax(380px,1.15fr)_minmax(280px,1fr)] xl:grid-cols-[minmax(320px,1fr)_minmax(560px,1.6fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(360px,1fr)_minmax(680px,1.8fr)_minmax(360px,1fr)]"
                                 renderDesktopMap={() => (
                                     <DirectoryMap

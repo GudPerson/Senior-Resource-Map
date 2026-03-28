@@ -584,6 +584,7 @@ export default function SharedMapDirectoryList({
     desktopMapWrapperClassName = '',
     mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2',
     allowPrintLinks = false,
+    autoScrollToHighlight = true,
 }) {
     const sectionRefs = useRef({});
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
@@ -610,6 +611,8 @@ export default function SharedMapDirectoryList({
         if (!highlightPlaceKey || !interactive) return undefined;
 
         setFlashPlaceKey(highlightPlaceKey);
+        if (!autoScrollToHighlight) return undefined;
+
         const node = sectionRefs.current[highlightPlaceKey];
         if (node) {
             window.requestAnimationFrame(() => {
@@ -617,7 +620,7 @@ export default function SharedMapDirectoryList({
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [highlightPlaceKey, interactive]);
+    }, [autoScrollToHighlight, highlightPlaceKey, interactive]);
 
     if (!mappedGroups.length && !unmappedRows.length) {
         return (
