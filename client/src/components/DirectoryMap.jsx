@@ -225,6 +225,12 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
             event.originalEvent?.stopPropagation?.();
             const placeKeys = resolveClusterPlaceKeys(cluster);
             onClusterSelect?.(placeKeys);
+            const mapInstance = clusterGroup._map || cluster._map;
+            const currentZoom = typeof mapInstance?.getZoom === 'function' ? mapInstance.getZoom() : 0;
+            if (currentZoom >= 16 && typeof cluster.spiderfy === 'function') {
+                cluster.spiderfy();
+                return;
+            }
             if (typeof cluster.zoomToBounds === 'function') {
                 cluster.zoomToBounds({ padding: [40, 40] });
             }
@@ -443,6 +449,7 @@ export default function DirectoryMap({
                     ref={clusterGroupRef}
                     showCoverageOnHover={false}
                     spiderfyOnMaxZoom={false}
+                    zoomToBoundsOnClick={false}
                     removeOutsideVisibleBounds={false}
                     disableClusteringAtZoom={16}
                     maxClusterRadius={42}

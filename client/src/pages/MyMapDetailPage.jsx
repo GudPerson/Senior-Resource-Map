@@ -391,37 +391,25 @@ export default function MyMapDetailPage() {
         }
     }
 
-    function handleViewSection(placeKey) {
-        setQuery('');
-        
-        if (String(focusedPlaceKey) === String(placeKey)) {
-            setFocusedPlaceKey(null);
-            requestAnimationFrame(() => setFocusedPlaceKey(String(placeKey) + ':zoom'));
-            return;
-        }
-
+    function focusPlaceOnMap(placeKey) {
+        const zoomKey = String(placeKey) + ':zoom';
         setFocusedPlaceKey(null);
         setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys([]);
         setHighlightPlaceKey(null);
         window.requestAnimationFrame(() => {
-            setFocusedPlaceKey(String(placeKey));
+            setFocusedPlaceKey(zoomKey);
             setHighlightPlaceKey(String(placeKey));
         });
     }
 
+    function handleViewSection(placeKey) {
+        setQuery('');
+        focusPlaceOnMap(placeKey);
+    }
+
     function handleViewOnMap(placeKey) {
-        if (String(focusedPlaceKey) === String(placeKey)) {
-            setFocusedPlaceKey(null);
-            requestAnimationFrame(() => setFocusedPlaceKey(String(placeKey) + ':zoom'));
-            return;
-        }
-        setFocusedPlaceKey(null);
-        setHoveredPlaceKey(null);
-        setHighlightPlaceKey(null);
-        window.requestAnimationFrame(() => {
-            setFocusedPlaceKey(String(placeKey));
-            setHighlightPlaceKey(String(placeKey));
-        });
+        focusPlaceOnMap(placeKey);
     }
 
     const handleMapHoverStart = useCallback((placeKey) => {
