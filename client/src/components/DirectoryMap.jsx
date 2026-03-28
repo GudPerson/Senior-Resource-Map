@@ -19,6 +19,7 @@ const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
 const DIRECTORY_FOCUS_ZOOM = 16;
 const CLUSTER_HOVER_REVEAL_DELAY_MS = 700;
+const CLUSTER_HOVER_RESTORE_GUARD_MS = 450;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -195,6 +196,7 @@ function DirectoryClusterHoverController({ clusterGroupRef, enabled = true }) {
     const hoverTimeoutRef = useRef(null);
     const activeClusterRef = useRef(null);
     const previousViewRef = useRef(null);
+    const activationTimestampRef = useRef(0);
 
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
@@ -212,6 +214,7 @@ function DirectoryClusterHoverController({ clusterGroupRef, enabled = true }) {
             const { center, zoom } = previousViewRef.current;
             previousViewRef.current = null;
             activeClusterRef.current = null;
+            activationTimestampRef.current = 0;
             map.flyTo(center, zoom, { animate: true, duration: 0.35 });
         };
 
@@ -224,6 +227,7 @@ function DirectoryClusterHoverController({ clusterGroupRef, enabled = true }) {
                 if (activeClusterRef.current === cluster) return;
                 previousViewRef.current = { center: map.getCenter(), zoom: map.getZoom() };
                 activeClusterRef.current = cluster;
+                activationTimestampRef.current = Date.now();
                 if (map.getZoom() >= 16 && typeof cluster.spiderfy === 'function') {
                     cluster.spiderfy();
                     return;
@@ -238,6 +242,8 @@ function DirectoryClusterHoverController({ clusterGroupRef, enabled = true }) {
             const cluster = event.layer;
             clearHoverTimer();
             if (activeClusterRef.current && cluster === activeClusterRef.current) {
+                const elapsed = Date.now() - activationTimestampRef.current;
+                if (elapsed < CLUSTER_HOVER_RESTORE_GUARD_MS) return;
                 if (typeof cluster.unspiderfy === 'function') {
                     cluster.unspiderfy();
                 }
