@@ -92,10 +92,10 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
                 </div>
             </div>
         `,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
-        popupAnchor: [0, -18],
-        tooltipAnchor: [0, -18],
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+        popupAnchor: [0, -24],
+        tooltipAnchor: [0, -24],
     });
 }
 
@@ -120,14 +120,16 @@ function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set()) {
     return L.divIcon({
         className: '',
         html: `
-            <div style="width:42px;height:42px;border-radius:999px;background:${outerBackground};display:flex;align-items:center;justify-content:center;border:1px solid ${outerBorder};box-shadow:${outerShadow};">
-                <div style="width:32px;height:32px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-                    ${escapeHtml(count)}
+            <div style="width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
+                <div style="width:42px;height:42px;border-radius:999px;background:${outerBackground};display:flex;align-items:center;justify-content:center;border:1px solid ${outerBorder};box-shadow:${outerShadow};">
+                    <div style="width:32px;height:32px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+                        ${escapeHtml(count)}
+                    </div>
                 </div>
             </div>
         `,
-        iconSize: [42, 42],
-        iconAnchor: [21, 21],
+        iconSize: [54, 54],
+        iconAnchor: [27, 27],
     });
 }
 

@@ -504,14 +504,14 @@
 
 .directory-number-marker {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 48px;
+  height: 48px;
   pointer-events: none;
 }
 
 .directory-number-marker__pulse {
   position: absolute;
-  inset: -4px;
+  inset: 3px;
   border-radius: 999px;
   background: var(--directory-number-marker-glow, rgba(15, 118, 110, 0.16));
   opacity: 0;
@@ -521,7 +521,7 @@
 
 .directory-number-marker__core {
   position: absolute;
-  inset: 0;
+  inset: 7px;
   border-radius: 999px;
   background: var(--directory-number-marker-core, #0f766e);
   border: 3px solid var(--directory-number-marker-ring, #ffffff);
