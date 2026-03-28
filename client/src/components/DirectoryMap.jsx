@@ -285,7 +285,7 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
         const pin = pins.find((item) => item.placeKey === cleanKey);
         if (!pin) return;
 
-        const targetZoom = isDeepZoom ? 20 : DIRECTORY_FOCUS_ZOOM;
+        const targetZoom = isDeepZoom ? 18 : DIRECTORY_FOCUS_ZOOM;
 
         map.flyTo([pin.lat, pin.lng], targetZoom, {
             animate: true,
@@ -384,15 +384,18 @@ export default function DirectoryMap({
                     iconCreateFunction={createDirectoryClusterIcon}
                 >
                     {displayPins.map((pin) => {
+                        const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
+                        const cleanKey = isDeepZoom ? focusedPlaceKey.replace(':zoom', '') : focusedPlaceKey;
+
                         const icon = markerMode === 'number'
                             ? createDirectoryNumberMarker(
                                 pin.number || placeNumberByKey?.[pin.placeKey] || '?',
-                                focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                                cleanKey === pin.placeKey ? 'primary' : 'default',
                                 pin.placeKey
                             )
                             : createSavedPlacePinIcon({
                                 count: pin.curatedCount,
-                                emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                                emphasis: cleanKey === pin.placeKey ? 'primary' : 'default',
                                 tone: 'saved',
                             });
 
@@ -412,15 +415,18 @@ export default function DirectoryMap({
         }
 
         return displayPins.map((pin) => {
+            const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
+            const cleanKey = isDeepZoom ? focusedPlaceKey.replace(':zoom', '') : focusedPlaceKey;
+
             const icon = markerMode === 'number'
                 ? createDirectoryNumberMarker(
                     pin.number || placeNumberByKey?.[pin.placeKey] || '?',
-                    focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                    cleanKey === pin.placeKey ? 'primary' : 'default',
                     pin.placeKey
                 )
                 : createSavedPlacePinIcon({
                     count: pin.curatedCount,
-                    emphasis: focusedPlaceKey === pin.placeKey ? 'primary' : 'default',
+                    emphasis: cleanKey === pin.placeKey ? 'primary' : 'default',
                     tone: 'saved',
                 });
 
