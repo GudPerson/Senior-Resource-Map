@@ -1,26 +1,114 @@
+import { useNavigate } from 'react-router-dom';
+import { LayoutDashboard, BookOpen, Files, User, Shield, Map, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { canAccessAdmin, getRoleMeta, isStandardUserRole } from '../../lib/roles.js';
 
 export default function DashboardOverview() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const roleMeta = getRoleMeta(user?.role);
+    const canShowAdmin = canAccessAdmin(user?.role);
+    const isStandardUser = isStandardUserRole(user?.role);
+    
+    const launchpadItems = [
+        {
+            id: 'dash-map',
+            to: '/discover',
+            icon: Map,
+            title: 'Discovery Map',
+            description: 'Explore the main resource map, search by postal code, and find new senior services.',
+            color: 'var(--color-brand)',
+            bg: 'var(--color-brand-light)',
+        },
+        {
+            id: 'dash-directory',
+            to: '/my-directory',
+            icon: BookOpen,
+            title: 'My Directory',
+            description: 'Manage your saved collection of favorite resources and your custom curated maps.',
+            color: '#7c3aed',
+            bg: 'rgba(124, 58, 237, 0.08)',
+        },
+        ...(!isStandardUser ? [{
+            id: 'dash-resources',
+            to: '/dashboard/resources',
+            icon: Files,
+            title: 'My Resources',
+            description: 'Update and manage the hard assets, programs, and services your organization provides.',
+            color: '#0891b2',
+            bg: 'rgba(8, 145, 178, 0.08)',
+        }] : []),
+        {
+            id: 'dash-profile',
+            to: '/dashboard/profile',
+            icon: User,
+            title: 'Profile Settings',
+            description: 'Update your display name, contact information, and account preferences.',
+            color: '#475569',
+            bg: 'rgba(71, 85, 105, 0.08)',
+        },
+        ...(canShowAdmin ? [{
+            id: 'dash-admin',
+            to: '/dashboard/admin',
+            icon: Shield,
+            title: 'Admin Console',
+            description: 'System-wide analytics, user impersonation, and master resource database auditing.',
+            color: '#b91c1c',
+            bg: 'rgba(185, 28, 28, 0.08)',
+        }] : [])
+    ];
 
     return (
-        <div className="p-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back, {user?.name?.split(' ')[0]}! 👋</h1>
-            <p className="text-slate-500 text-lg">
-                Use the sidebar to manage your {isStandardUserRole(user?.role) ? 'My Directory' : 'My Directory and resources'}, update your profile{canAccessAdmin(user?.role) ? ', or access Admin tools' : ''}.
-            </p>
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                    { label: 'Your Role', value: roleMeta.shortLabel, color: 'bg-brand-50 text-brand-700' },
-                    { label: 'Portal', value: 'CareAround SG', color: 'bg-brand-50 text-brand-700' },
-                    { label: 'Status', value: '✅ Active', color: 'bg-slate-50 text-slate-700' },
-                ].map(({ label, value, color }) => (
-                    <div key={label} className={`card ${color} border-0`}>
-                        <p className="text-sm font-semibold opacity-70">{label}</p>
-                        <p className="text-2xl font-bold mt-1">{value}</p>
-                    </div>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+            <header className="mb-10">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        Welcome, {user?.name?.split(' ')[0]}! 👋
+                    </h1>
+                    <span 
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-sm ${roleMeta.pillClassName}`}
+                        style={{ border: '1px solid rgba(0,0,0,0.05)' }}
+                    >
+                        {roleMeta.shortLabel}
+                    </span>
+                </div>
+                <p className="text-slate-500 text-lg max-w-2xl leading-relaxed">
+                    Efficiently manage your senior resource directory and tools from this central overview. 
+                    Select an action below to get started.
+                </p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {launchpadItems.map((item) => (
+                    <button
+                        key={item.id}
+                        id={item.id}
+                        onClick={() => navigate(item.to)}
+                        className="group relative flex flex-col p-6 rounded-3xl border-2 transition-all text-left bg-white hover:border-brand-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
+                        style={{ borderColor: 'var(--color-border)' }}
+                    >
+                        <div 
+                            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110"
+                            style={{ backgroundColor: item.bg, color: item.color }}
+                        >
+                            <item.icon size={28} strokeWidth={2.5} />
+                        </div>
+                        
+                        <div className="mb-2 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
+                                {item.title}
+                            </h3>
+                            <ArrowRight size={20} className="text-slate-300 opacity-0 -translate-x-4 transition-all group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-brand-500" />
+                        </div>
+                        
+                        <p className="text-slate-500 text-sm leading-relaxed">
+                            {item.description}
+                        </p>
+
+                        <div className="mt-6 flex items-center gap-1 text-xs font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100 uppercase tracking-wider">
+                            Enter Dashboard Section
+                        </div>
+                    </button>
                 ))}
             </div>
         </div>
