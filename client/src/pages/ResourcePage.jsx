@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { ArrowLeft } from 'lucide-react';
@@ -41,6 +41,11 @@ export default function ResourcePage() {
             }
         };
         fetchAsset();
+    }, [type, id]);
+
+    useLayoutEffect(() => {
+        if (typeof window === 'undefined') return;
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }, [type, id]);
 
     useEffect(() => {
@@ -96,7 +101,7 @@ export default function ResourcePage() {
     return (
         <div className="min-h-[calc(100vh-4rem)] pb-20" style={{ background: 'var(--page-gradient)' }}>
             {/* Header / Banner */}
-            <div className="sticky top-0 z-10 border-b shadow-sm" style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderColor: 'var(--color-border)', backdropFilter: 'blur(16px)' }}>
+            <div className="sticky top-[56px] z-40 border-b shadow-sm sm:top-[64px]" style={{ backgroundColor: 'rgba(255,255,255,0.94)', borderColor: 'var(--color-border)', backdropFilter: 'blur(16px)' }}>
                 <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
                         <ArrowLeft size={24} />
