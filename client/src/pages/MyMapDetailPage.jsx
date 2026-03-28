@@ -302,8 +302,9 @@ export default function MyMapDetailPage() {
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
-    const activePlaceKey = hoveredPlaceKey || highlightPlaceKey || null;
+    const activePlaceKey = hoveredClusterPlaceKeys.length ? null : (hoveredPlaceKey || highlightPlaceKey || null);
     const activePlaceKeys = hoveredClusterPlaceKeys.length ? hoveredClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []);
+    const effectiveFocusedPlaceKey = hoveredPlaceKey || hoveredClusterPlaceKeys.length ? null : focusedPlaceKey;
 
     async function handleUpdateDetails(nextValues) {
         if (!directory) return;
@@ -425,6 +426,7 @@ export default function MyMapDetailPage() {
 
     const handleMapHoverStart = useCallback((placeKey) => {
         if (suspendMapInteraction || !placeKey) return;
+        setHighlightPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
         setHoveredPlaceKey(String(placeKey));
     }, [suspendMapInteraction]);
@@ -435,6 +437,7 @@ export default function MyMapDetailPage() {
 
     const handleMapClusterHoverStart = useCallback((placeKeys) => {
         if (suspendMapInteraction || !placeKeys?.length) return;
+        setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
     }, [suspendMapInteraction]);
@@ -443,6 +446,14 @@ export default function MyMapDetailPage() {
         const normalizedKeys = new Set((placeKeys || []).map((value) => String(value)));
         setHoveredClusterPlaceKeys((current) => current.filter((value) => !normalizedKeys.has(String(value))));
     }, []);
+
+    const handleMapClusterSelect = useCallback((placeKeys) => {
+        if (suspendMapInteraction || !placeKeys?.length) return;
+        setFocusedPlaceKey(null);
+        setHighlightPlaceKey(null);
+        setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
+    }, [suspendMapInteraction]);
 
     function openPrintView() {
         const nextParams = new URLSearchParams(searchParams);
@@ -575,7 +586,7 @@ export default function MyMapDetailPage() {
                                 renderDesktopMap={() => (
                                     <DirectoryMap
                                         pins={interactivePresentation.pins}
-                                        focusedPlaceKey={focusedPlaceKey}
+                                        focusedPlaceKey={effectiveFocusedPlaceKey}
                                         activePlaceKey={activePlaceKey}
                                         activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
@@ -583,6 +594,7 @@ export default function MyMapDetailPage() {
                                         onHoverPlaceEnd={handleMapHoverEnd}
                                         onHoverClusterStart={handleMapClusterHoverStart}
                                         onHoverClusterEnd={handleMapClusterHoverEnd}
+                                        onClusterSelect={handleMapClusterSelect}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
@@ -593,7 +605,7 @@ export default function MyMapDetailPage() {
                                 renderMobileMap={() => (
                                     <DirectoryMap
                                         pins={interactivePresentation.pins}
-                                        focusedPlaceKey={focusedPlaceKey}
+                                        focusedPlaceKey={effectiveFocusedPlaceKey}
                                         activePlaceKey={activePlaceKey}
                                         activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
@@ -601,6 +613,7 @@ export default function MyMapDetailPage() {
                                         onHoverPlaceEnd={handleMapHoverEnd}
                                         onHoverClusterStart={handleMapClusterHoverStart}
                                         onHoverClusterEnd={handleMapClusterHoverEnd}
+                                        onClusterSelect={handleMapClusterSelect}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}

@@ -197,7 +197,7 @@ function DirectoryMapRecenterControl({ pins, interactive }) {
     );
 }
 
-function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClusterStart, onHoverClusterEnd }) {
+function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClusterStart, onHoverClusterEnd, onClusterSelect }) {
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
         if (!enabled || !clusterGroup) return undefined;
@@ -218,14 +218,28 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
             onHoverClusterEnd?.(resolveClusterPlaceKeys(cluster));
         };
 
+        const handleClusterClick = (event) => {
+            const cluster = event.layer;
+            if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
+            event.originalEvent?.preventDefault?.();
+            event.originalEvent?.stopPropagation?.();
+            const placeKeys = resolveClusterPlaceKeys(cluster);
+            onClusterSelect?.(placeKeys);
+            if (typeof cluster.zoomToBounds === 'function') {
+                cluster.zoomToBounds({ padding: [40, 40] });
+            }
+        };
+
         clusterGroup.on('clustermouseover', handleClusterMouseOver);
         clusterGroup.on('clustermouseout', handleClusterMouseOut);
+        clusterGroup.on('clusterclick', handleClusterClick);
 
         return () => {
             clusterGroup.off('clustermouseover', handleClusterMouseOver);
             clusterGroup.off('clustermouseout', handleClusterMouseOut);
+            clusterGroup.off('clusterclick', handleClusterClick);
         };
-    }, [clusterGroupRef, enabled, onHoverClusterEnd, onHoverClusterStart]);
+    }, [clusterGroupRef, enabled, onClusterSelect, onHoverClusterEnd, onHoverClusterStart]);
 
     return null;
 }
@@ -347,6 +361,7 @@ export default function DirectoryMap({
     onHoverPlaceEnd,
     onHoverClusterStart,
     onHoverClusterEnd,
+    onClusterSelect,
     interactive = true,
     className = '',
     emptyLabel = 'This directory does not have any mappable places yet.',
@@ -546,7 +561,7 @@ export default function DirectoryMap({
                     } : undefined}
                 />
                 <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} />
-                <DirectoryClusterHoverSync clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} onHoverClusterStart={onHoverClusterStart} onHoverClusterEnd={onHoverClusterEnd} />
+                <DirectoryClusterHoverSync clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} onHoverClusterStart={onHoverClusterStart} onHoverClusterEnd={onHoverClusterEnd} onClusterSelect={onClusterSelect} />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
                 {renderedMarkers}
             </MapContainer>
