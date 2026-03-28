@@ -1302,8 +1302,7 @@ export default function AdminPage() {
                 ))}
             </div>
 
-            {/* Tabs */}
-            <div className="mb-8 inline-flex flex-wrap rounded-2xl bg-slate-100 p-1.5 shadow-inner">
+            <div className="mb-10 grid w-full grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1.5 shadow-inner sm:inline-flex sm:w-auto sm:flex-wrap sm:gap-0">
                 {[
                     { key: 'resources', label: 'Resources', Icon: BookOpen },
                     { key: 'users', label: 'Users', Icon: Users },
@@ -1316,14 +1315,14 @@ export default function AdminPage() {
                         key={key}
                         id={`admin-tab-${key}`}
                         onClick={() => setTab(key)}
-                        className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                        className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 sm:justify-start sm:px-6 ${
                             tab === key
                                 ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
                                 : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
-                        <Icon size={18} strokeWidth={tab === key ? 2.5 : 2} />
-                        {label}
+                        <Icon size={18} strokeWidth={tab === key ? 2.5 : 2} className="shrink-0" />
+                        <span className="truncate">{label}</span>
                     </button>
                 ))}
             </div>
