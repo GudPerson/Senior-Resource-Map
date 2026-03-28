@@ -304,7 +304,7 @@ export default function MyMapDetailPage() {
     ), [directory?.share?.sharePath]);
     const activePlaceKey = hoveredClusterPlaceKeys.length ? null : (hoveredPlaceKey || highlightPlaceKey || null);
     const activePlaceKeys = hoveredClusterPlaceKeys.length ? hoveredClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []);
-    const effectiveFocusedPlaceKey = hoveredPlaceKey || hoveredClusterPlaceKeys.length ? null : focusedPlaceKey;
+    const effectiveFocusedPlaceKey = hoveredClusterPlaceKeys.length ? null : focusedPlaceKey;
 
     async function handleUpdateDetails(nextValues) {
         if (!directory) return;
