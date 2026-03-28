@@ -278,10 +278,16 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
     useEffect(() => {
         if (!focusedPlaceKey) return;
         if (!interactive) return;
-        const pin = pins.find((item) => item.placeKey === focusedPlaceKey);
+
+        const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
+        const cleanKey = isDeepZoom ? focusedPlaceKey.replace(':zoom', '') : focusedPlaceKey;
+
+        const pin = pins.find((item) => item.placeKey === cleanKey);
         if (!pin) return;
 
-        map.flyTo([pin.lat, pin.lng], DIRECTORY_FOCUS_ZOOM, {
+        const targetZoom = isDeepZoom ? 20 : DIRECTORY_FOCUS_ZOOM;
+
+        map.flyTo([pin.lat, pin.lng], targetZoom, {
             animate: true,
             duration: 0.5,
         });

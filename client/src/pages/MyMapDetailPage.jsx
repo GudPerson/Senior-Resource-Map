@@ -388,14 +388,27 @@ export default function MyMapDetailPage() {
 
     function handleViewSection(placeKey) {
         setQuery('');
+        
+        if (focusedPlaceKey === placeKey) {
+            setFocusedPlaceKey(null);
+            requestAnimationFrame(() => setFocusedPlaceKey(placeKey + ':zoom'));
+            return;
+        }
+
+        setFocusedPlaceKey(null);
         setHighlightPlaceKey(null);
         window.requestAnimationFrame(() => {
+            setFocusedPlaceKey(placeKey);
             setHighlightPlaceKey(placeKey);
         });
     }
 
     function handleViewOnMap(placeKey) {
         setFocusedPlaceKey(null);
+        if (focusedPlaceKey === placeKey) {
+            requestAnimationFrame(() => setFocusedPlaceKey(placeKey + ':zoom'));
+            return;
+        }
         window.requestAnimationFrame(() => {
             setFocusedPlaceKey(placeKey);
         });
