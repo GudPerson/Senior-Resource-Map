@@ -537,8 +537,8 @@
 }
 
 .directory-number-marker--selected .directory-number-marker__pulse {
-  opacity: 1;
-  animation: directoryNumberMarkerPulse 1.5s infinite ease-out;
+  opacity: 0.52;
+  transform: scale(1.6);
 }
 
 .directory-number-marker--selected .directory-number-marker__core {
@@ -572,8 +572,9 @@
 
 .saved-place-pin-marker--related::before,
 .saved-place-pin-marker--primary::before {
-  opacity: 1;
-  animation: savedPinGlow 1.4s infinite ease-out;
+  opacity: 0.55;
+  transform: scale(calc(var(--saved-pin-scale) * 2.05));
+  animation: none;
 }
 
 .saved-place-pin-marker--related .saved-place-pin-marker__pin,
