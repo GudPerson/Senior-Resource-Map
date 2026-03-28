@@ -92,10 +92,10 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
                 </div>
             </div>
         `,
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-        popupAnchor: [0, -14],
-        tooltipAnchor: [0, -14],
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        popupAnchor: [0, -18],
+        tooltipAnchor: [0, -18],
     });
 }
 
