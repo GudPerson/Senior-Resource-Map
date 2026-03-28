@@ -78,35 +78,35 @@ export default function DashboardOverview() {
                 </p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                 {launchpadItems.map((item) => (
                     <button
                         key={item.id}
                         id={item.id}
                         onClick={() => navigate(item.to)}
-                        className="group relative flex flex-col p-6 rounded-3xl border-2 transition-all text-left bg-white hover:border-brand-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
+                        className="group relative flex flex-col p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-3xl border-2 transition-all text-left bg-white hover:border-brand-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                         style={{ borderColor: 'var(--color-border)' }}
                     >
                         <div 
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110"
+                            className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl flex items-center justify-center mb-3 sm:mb-4 lg:mb-5 transition-transform group-hover:scale-110"
                             style={{ backgroundColor: item.bg, color: item.color }}
                         >
-                            <item.icon size={28} strokeWidth={2.5} />
+                            <item.icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7" strokeWidth={2.5} />
                         </div>
                         
-                        <div className="mb-2 flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
+                        <div className="mb-1 sm:mb-2 flex items-center justify-between">
+                            <h3 className="text-sm sm:text-lg lg:text-xl font-bold text-slate-900 group-hover:text-brand-600 transition-colors leading-tight">
                                 {item.title}
                             </h3>
-                            <ArrowRight size={20} className="text-slate-300 opacity-0 -translate-x-4 transition-all group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-brand-500" />
+                            <ArrowRight size={18} className="hidden sm:block text-slate-300 opacity-0 -translate-x-4 transition-all group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-brand-500" />
                         </div>
                         
-                        <p className="text-slate-500 text-sm leading-relaxed">
+                        <p className="text-slate-500 text-[11px] sm:text-xs lg:text-sm leading-relaxed line-clamp-2 sm:line-clamp-none">
                             {item.description}
                         </p>
 
-                        <div className="mt-6 flex items-center gap-1 text-xs font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100 uppercase tracking-wider">
-                            Enter Dashboard Section
+                        <div className="mt-4 hidden lg:flex items-center gap-1 text-xs font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100 uppercase tracking-wider">
+                            Enter Section
                         </div>
                     </button>
                 ))}
