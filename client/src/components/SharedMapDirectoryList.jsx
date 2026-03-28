@@ -588,12 +588,7 @@ export default function SharedMapDirectoryList({
                 node.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         }
-
-        const timeoutId = window.setTimeout(() => setFlashPlaceKey((current) => (
-            current === highlightPlaceKey ? null : current
-        )), 1800);
-
-        return () => window.clearTimeout(timeoutId);
+        // No timeout — flashPlaceKey stays set permanently until the next selection.
     }, [highlightPlaceKey, interactive]);
 
     if (!mappedGroups.length && !unmappedRows.length) {
