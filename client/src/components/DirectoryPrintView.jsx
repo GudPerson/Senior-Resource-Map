@@ -220,11 +220,13 @@ export default function DirectoryPrintView({
     const content = (
         <div 
             ref={sheetRef}
-            className={`rounded-[32px] border border-brand-100 bg-white text-slate-900 shadow-[0_24px_50px_-12px_rgba(15,118,110,0.15)] ${paddingClass} origin-top`}
+            className={`text-slate-900 ${paddingClass} origin-top mx-auto`}
             style={{ 
                 width: `${sheetWidth}px`,
                 transform: variant === 'screen' ? `scale(${scale})` : undefined,
-                marginBottom: variant === 'screen' ? `-${(1 - scale) * 100}%` : undefined
+                transformOrigin: 'top center',
+                marginBottom: variant === 'screen' ? `-${(1 - scale) * 100}%` : undefined,
+                backgroundColor: 'white'
             }}
         >
             <SharedMapDirectoryList

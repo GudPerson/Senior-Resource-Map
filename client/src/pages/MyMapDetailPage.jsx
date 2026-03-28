@@ -460,7 +460,7 @@ export default function MyMapDetailPage() {
 
     if (isPrintView) {
         return (
-            <div className="min-h-screen bg-slate-100">
+            <div className="min-h-screen bg-white">
                 <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
                         <button
@@ -475,7 +475,7 @@ export default function MyMapDetailPage() {
                     </div>
                 </div>
 
-                <div className="px-4 py-6 sm:px-6 lg:px-8">
+                <div className="w-full h-full overflow-auto">
                     <DirectoryPrintView
                         directory={directory}
                         mode="owner"
