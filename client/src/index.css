@@ -650,6 +650,30 @@
   border-width: 2.5px !important;
 }
 
+/* ───────────────── RESPONSIVE PIN SCALING ───────────────── */
+.saved-place-pin-marker {
+  transition: transform 0.2s ease-out;
+}
+
+@media (max-width: 540px) {
+  .saved-place-pin-marker {
+    transform: scale(0.88);
+    transform-origin: center bottom;
+  }
+}
+
+@media (max-width: 400px) {
+  .saved-place-pin-marker {
+    transform: scale(0.78);
+  }
+}
+
+@media (max-width: 350px) {
+  .saved-place-pin-marker {
+    transform: scale(0.72);
+  }
+}
+
 
 
 @keyframes directoryNumberMarkerPulse {

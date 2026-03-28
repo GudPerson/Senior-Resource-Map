@@ -28,20 +28,20 @@ function StatusBadge({ status }) {
 
 function MapLegend() {
     return (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-slate-100 bg-white/50 px-6 py-4 text-[14px] font-bold text-slate-700 shadow-sm backdrop-blur-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-[max(12px,4vw)] gap-y-3 rounded-2xl border border-slate-100 bg-white/50 px-[max(12px,4vw)] py-3.5 text-[calc(10.5px+0.75vw)] lg:text-[14px] font-bold text-slate-700 shadow-sm backdrop-blur-sm">
             <div className="flex items-center gap-2.5">
-                <div className="h-4 w-4 rounded-full border-2 border-white bg-[#0f766e] shadow-sm" />
+                <div className="h-[1em] w-[1em] rounded-full border-2 border-white bg-[#0f766e] shadow-sm" />
                 <span>Single Location</span>
             </div>
             <div className="flex items-center gap-2.5">
-                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-[#0f766e] text-[10px] font-black text-white shadow-sm">1</div>
+                <div className="flex h-[1.3em] w-[1.3em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.8em] font-black text-white shadow-sm">1</div>
                 <span>Numbered Resource</span>
             </div>
             <div className="flex items-center gap-2.5">
                 <div className="flex -space-x-2">
-                    <div className="h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-sm" />
-                    <div className="h-4 w-4 rounded-full border-2 border-white bg-pink-500 shadow-sm" />
-                    <div className="h-4 w-4 rounded-full border-2 border-white bg-orange-500 shadow-sm" />
+                    <div className="h-[1em] w-[1em] rounded-full border-1.5 border-white bg-blue-500 shadow-sm" />
+                    <div className="h-[1em] w-[1em] rounded-full border-1.5 border-white bg-pink-500 shadow-sm" />
+                    <div className="h-[1em] w-[1em] rounded-full border-1.5 border-white bg-orange-500 shadow-sm" />
                 </div>
                 <span>Grouped Clusters</span>
             </div>
