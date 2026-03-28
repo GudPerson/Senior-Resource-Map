@@ -167,7 +167,7 @@ function spreadPinsForDisplay(pins, interactive) {
     });
 }
 
-function DirectoryMapRecenterControl({ pins, interactive }) {
+function DirectoryMapRecenterControl({ pins, interactive, onResetView }) {
     const map = useMap();
     if (!interactive || !pins || pins.length <= 1) return null;
     
@@ -182,6 +182,7 @@ function DirectoryMapRecenterControl({ pins, interactive }) {
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
+                        onResetView?.();
                         map.flyToBounds(getBounds(pins), {
                             paddingTopLeft: [16, 16],
                             paddingBottomRight: [16, 16],
@@ -200,6 +201,8 @@ function DirectoryMapRecenterControl({ pins, interactive }) {
 }
 
 function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClusterStart, onHoverClusterEnd, onClusterSelect }) {
+    const lastActivationRef = useRef({ token: null, at: 0 });
+
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
         if (!enabled || !clusterGroup) return undefined;
@@ -220,12 +223,23 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
             onHoverClusterEnd?.(resolveClusterPlaceKeys(cluster));
         };
 
-        const handleClusterClick = (event) => {
+        const handleClusterActivate = (event) => {
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
             event.originalEvent?.preventDefault?.();
             event.originalEvent?.stopPropagation?.();
             const placeKeys = resolveClusterPlaceKeys(cluster);
+            const token = placeKeys.map((value) => String(value)).sort().join('|');
+            const now = Date.now();
+
+            if (
+                lastActivationRef.current.token === token
+                && now - lastActivationRef.current.at < 300
+            ) {
+                return;
+            }
+
+            lastActivationRef.current = { token, at: now };
             onClusterSelect?.(placeKeys);
             const mapInstance = clusterGroup._map || cluster._map;
             const currentZoom = typeof mapInstance?.getZoom === 'function' ? mapInstance.getZoom() : 0;
@@ -240,12 +254,14 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
 
         clusterGroup.on('clustermouseover', handleClusterMouseOver);
         clusterGroup.on('clustermouseout', handleClusterMouseOut);
-        clusterGroup.on('clusterclick', handleClusterClick);
+        clusterGroup.on('clustermousedown', handleClusterActivate);
+        clusterGroup.on('clusterclick', handleClusterActivate);
 
         return () => {
             clusterGroup.off('clustermouseover', handleClusterMouseOver);
             clusterGroup.off('clustermouseout', handleClusterMouseOut);
-            clusterGroup.off('clusterclick', handleClusterClick);
+            clusterGroup.off('clustermousedown', handleClusterActivate);
+            clusterGroup.off('clusterclick', handleClusterActivate);
         };
     }, [clusterGroupRef, enabled, onClusterSelect, onHoverClusterEnd, onHoverClusterStart]);
 
@@ -303,7 +319,7 @@ function DirectoryClusterStateSync({ onClusterChange }) {
     return null;
 }
 
-function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettled }) {
+function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettled, onFocusHandled }) {
     const map = useMap();
     const previousSignatureRef = useRef('');
 
@@ -354,7 +370,8 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
             animate: true,
             duration: 0.5,
         });
-    }, [focusedPlaceKey, interactive, map, pins]);
+        onFocusHandled?.(focusedPlaceKey);
+    }, [focusedPlaceKey, interactive, map, onFocusHandled, pins]);
 
     return null;
 }
@@ -382,6 +399,8 @@ export default function DirectoryMap({
     onMapReadyForCapture,
     onMapCaptureError,
     onClusterChange,
+    onFocusHandled,
+    onResetView,
 }) {
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
@@ -391,6 +410,7 @@ export default function DirectoryMap({
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
     const shouldCluster = displayPins.length > 1;
     const clusterGroupRef = useRef(null);
+    const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
 
     const notifyReady = useMemo(() => () => {
@@ -444,6 +464,22 @@ export default function DirectoryMap({
         );
     }
 
+    const handlePlaceActivate = (placeKey) => {
+        if (!interactive || !placeKey) return;
+
+        const token = String(placeKey);
+        const now = Date.now();
+        if (
+            lastPlaceActivationRef.current.token === token
+            && now - lastPlaceActivationRef.current.at < 300
+        ) {
+            return;
+        }
+
+        lastPlaceActivationRef.current = { token, at: now };
+        onViewSection?.(placeKey);
+    };
+
     const renderedMarkers = useMemo(() => {
         if (shouldCluster) {
             return (
@@ -481,7 +517,8 @@ export default function DirectoryMap({
                                 position={[pin.displayLat, pin.displayLng]}
                                 icon={icon}
                                 eventHandlers={interactive ? {
-                                    click: () => onViewSection?.(pin.placeKey),
+                                    mousedown: () => handlePlaceActivate(pin.placeKey),
+                                    click: () => handlePlaceActivate(pin.placeKey),
                                     mouseover: () => onHoverPlaceStart?.(pin.placeKey),
                                     mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
                                 } : undefined}
@@ -516,14 +553,15 @@ export default function DirectoryMap({
                     position={[pin.displayLat, pin.displayLng]}
                     icon={icon}
                     eventHandlers={interactive ? {
-                                    click: () => onViewSection?.(pin.placeKey),
-                                    mouseover: () => onHoverPlaceStart?.(pin.placeKey),
-                                    mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
-                                } : undefined}
+                        mousedown: () => handlePlaceActivate(pin.placeKey),
+                        click: () => handlePlaceActivate(pin.placeKey),
+                        mouseover: () => onHoverPlaceStart?.(pin.placeKey),
+                        mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
+                    } : undefined}
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, onViewSection, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     return (
         <div className={`relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm ${className}`}>
@@ -564,12 +602,13 @@ export default function DirectoryMap({
                     pins={pins}
                     focusedPlaceKey={focusedPlaceKey}
                     interactive={interactive}
+                    onFocusHandled={onFocusHandled}
                     onMapSettled={onMapReadyForCapture ? () => {
                         mapSettledRef.current = true;
                         tryNotifyReady();
                     } : undefined}
                 />
-                <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} />
+                <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} onResetView={onResetView} />
                 <DirectoryClusterHoverSync clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} onHoverClusterStart={onHoverClusterStart} onHoverClusterEnd={onHoverClusterEnd} onClusterSelect={onClusterSelect} />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
                 {renderedMarkers}

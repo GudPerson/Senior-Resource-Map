@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, X } from 'lucide-react';
@@ -265,6 +265,7 @@ export default function MyMapDetailPage() {
     const [addOpen, setAddOpen] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
+    const pendingFocusFrameRef = useRef(null);
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
     const anchorState = useDirectoryDistanceAnchor({
@@ -302,6 +303,22 @@ export default function MyMapDetailPage() {
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
+
+    const clearMapSelection = useCallback(() => {
+        if (pendingFocusFrameRef.current !== null) {
+            window.cancelAnimationFrame(pendingFocusFrameRef.current);
+            pendingFocusFrameRef.current = null;
+        }
+        setFocusedPlaceKey(null);
+        setHighlightPlaceKey(null);
+        setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys([]);
+    }, []);
+
+    const handleMapFocusHandled = useCallback((handledPlaceKey) => {
+        setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
+    }, []);
+
     const activePlaceKey = hoveredClusterPlaceKeys.length ? null : (hoveredPlaceKey || highlightPlaceKey || null);
     const activePlaceKeys = hoveredClusterPlaceKeys.length ? hoveredClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []);
     const effectiveFocusedPlaceKey = hoveredClusterPlaceKeys.length ? null : focusedPlaceKey;
@@ -393,11 +410,9 @@ export default function MyMapDetailPage() {
 
     function focusPlaceOnMap(placeKey) {
         const zoomKey = String(placeKey) + ':zoom';
-        setFocusedPlaceKey(null);
-        setHoveredPlaceKey(null);
-        setHoveredClusterPlaceKeys([]);
-        setHighlightPlaceKey(null);
-        window.requestAnimationFrame(() => {
+        clearMapSelection();
+        pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
+            pendingFocusFrameRef.current = null;
             setFocusedPlaceKey(zoomKey);
             setHighlightPlaceKey(String(placeKey));
         });
@@ -442,6 +457,12 @@ export default function MyMapDetailPage() {
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
     }, [suspendMapInteraction]);
+
+    useEffect(() => () => {
+        if (pendingFocusFrameRef.current !== null) {
+            window.cancelAnimationFrame(pendingFocusFrameRef.current);
+        }
+    }, []);
 
     function openPrintView() {
         const nextParams = new URLSearchParams(searchParams);
@@ -583,6 +604,8 @@ export default function MyMapDetailPage() {
                                         onHoverClusterStart={handleMapClusterHoverStart}
                                         onHoverClusterEnd={handleMapClusterHoverEnd}
                                         onClusterSelect={handleMapClusterSelect}
+                                        onFocusHandled={handleMapFocusHandled}
+                                        onResetView={clearMapSelection}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
@@ -602,6 +625,8 @@ export default function MyMapDetailPage() {
                                         onHoverClusterStart={handleMapClusterHoverStart}
                                         onHoverClusterEnd={handleMapClusterHoverEnd}
                                         onClusterSelect={handleMapClusterSelect}
+                                        onFocusHandled={handleMapFocusHandled}
+                                        onResetView={clearMapSelection}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
