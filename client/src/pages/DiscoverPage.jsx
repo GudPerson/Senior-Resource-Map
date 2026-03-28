@@ -680,18 +680,23 @@ export default function DiscoverPage() {
 
     const handleMapPinSelect = useCallback((pin) => {
         clearHoveredCardState();
-        clearLockedCardState();
         clearTransientFocusState();
-        setHoveredMapPinKey(null);
+        setHoveredMapPinKey(pin.pinKey);
         setSelectedPlacePinKey(pin.pinKey);
 
         if (isDesktop) {
-            saveBrowseScrollPosition();
+            if (desktopPaneMode !== 'detail') {
+                saveBrowseScrollPosition();
+            }
             setDesktopPaneMode('detail');
+            setLockedAssetKey(pin.primarySavedAsset?.assetKey || null);
+            setLockedPinKeys([pin.pinKey]);
+            setLockedPrimaryPinKey(pin.pinKey);
             setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click'));
             return;
         }
 
+        clearLockedCardState();
         setMobileBrowseDrawerOpen(false);
         setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click', { offsetPx: getMobilePinDrawerOffset() }));
     }, [
@@ -699,6 +704,7 @@ export default function DiscoverPage() {
         clearLockedCardState,
         clearTransientFocusState,
         createSinglePinFocusRequest,
+        desktopPaneMode,
         getMobilePinDrawerOffset,
         isDesktop,
         saveBrowseScrollPosition,
@@ -708,8 +714,9 @@ export default function DiscoverPage() {
         setDesktopPaneMode('browse');
         setSelectedPlacePinKey(null);
         setHoveredMapPinKey(null);
+        clearLockedCardState();
         clearTransientFocusState();
-    }, [clearTransientFocusState]);
+    }, [clearLockedCardState, clearTransientFocusState]);
 
     const handleCloseMobileDetail = useCallback(() => {
         setSelectedPlacePinKey(null);
@@ -750,13 +757,21 @@ export default function DiscoverPage() {
     ]);
 
     const handleMapHoverStart = useCallback((pinKey) => {
-        if (!isDesktop || desktopPaneMode === 'detail') return;
+        if (!isDesktop || lockedPrimaryPinKey) return;
+        if (desktopPaneMode !== 'detail') {
+            saveBrowseScrollPosition();
+        }
         setHoveredMapPinKey(pinKey);
-    }, [desktopPaneMode, isDesktop]);
+        setSelectedPlacePinKey(pinKey);
+        setDesktopPaneMode('detail');
+    }, [desktopPaneMode, isDesktop, lockedPrimaryPinKey, saveBrowseScrollPosition]);
 
     const handleMapHoverEnd = useCallback((pinKey) => {
+        if (lockedPrimaryPinKey) return;
         setHoveredMapPinKey((current) => (current === pinKey ? null : current));
-    }, []);
+        setSelectedPlacePinKey((current) => (current === pinKey ? null : current));
+        setDesktopPaneMode((current) => (current === 'detail' ? 'browse' : current));
+    }, [lockedPrimaryPinKey]);
 
     const activeRelatedPinKeys = hoveredPinKeys.length ? hoveredPinKeys : lockedPinKeys;
     const activePrimaryPinKey = hoveredPrimaryPinKey || lockedPrimaryPinKey;
