@@ -132,22 +132,22 @@ export function DiscoveryMobileBrowseCard({
                 }}
             >
                 <MapPin size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
-                <div className="min-w-0 flex-1">
+                <div className="relative min-w-0 flex-1">
                     {otherLocationCount > 0 && displayLocation?.address ? (
                         <p
-                            className={`font-semibold tracking-[0.01em] ${isCompact ? 'mb-1 text-[11px] leading-4' : 'mb-1 text-[12px] leading-4'}`}
+                            className={`font-semibold tracking-[0.01em] ${isCompact ? 'mb-1 text-[11px] leading-relaxed' : 'mb-1 text-[12px] leading-relaxed'}`}
                             style={{ color: 'var(--color-brand-strong)' }}
                         >
                             Available in {otherLocationCount} other {otherLocationCount === 1 ? 'place' : 'places'}
                         </p>
                     ) : null}
-                    <p className={`${isCompact ? 'line-clamp-2 text-[13px] leading-4' : 'line-clamp-2 text-sm leading-5'}`}>
+                    <p className={`pr-10 ${isCompact ? 'line-clamp-2 text-[13px] leading-relaxed' : 'line-clamp-2 text-sm leading-relaxed'}`}>
                         {summaryAddress || 'Location details unavailable'}
                     </p>
                     {asset._distance !== undefined && asset._distance !== null ? (
-                        <div className="mt-2 flex justify-end">
+                        <div className="absolute bottom-0 right-0">
                             <span
-                                className={`inline-flex rounded-full font-bold text-white shadow-sm ${isCompact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}
+                                className={`inline-flex rounded-full font-bold text-white shadow-sm ${isCompact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}
                                 style={{ backgroundColor: '#0fa39a' }}
                             >
                                 {formatDistance(asset._distance)}
