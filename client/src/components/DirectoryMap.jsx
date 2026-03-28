@@ -69,9 +69,9 @@ function getClusterColorData(children) {
 function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = null) {
     const isSelected = emphasis === 'primary';
     const coreColor = '#0f766e';
-    const ringColor = isSelected ? '#f59e0b' : '#ffffff';
-    const glowColor = isSelected ? 'rgba(245, 158, 11, 0.34)' : 'rgba(15, 118, 110, 0.16)';
-    const shadowColor = isSelected ? '0 14px 26px rgba(194, 65, 12, 0.34)' : '0 10px 18px rgba(15, 118, 110, 0.24)';
+    const ringColor = isSelected ? '#14b8a6' : '#ffffff';
+    const glowColor = isSelected ? 'rgba(20, 184, 166, 0.34)' : 'rgba(15, 118, 110, 0.16)';
+    const shadowColor = isSelected ? '0 14px 26px rgba(15, 118, 110, 0.38)' : '0 10px 18px rgba(15, 118, 110, 0.24)';
 
     return L.divIcon({
         className: '',
@@ -280,9 +280,9 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
         if (!interactive) return;
 
         const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
-        const cleanKey = isDeepZoom ? focusedPlaceKey.replace(':zoom', '') : focusedPlaceKey;
+        const cleanKey = isDeepZoom ? String(focusedPlaceKey).replace(':zoom', '') : focusedPlaceKey;
 
-        const pin = pins.find((item) => item.placeKey === cleanKey);
+        const pin = pins.find((item) => String(item.placeKey) === String(cleanKey));
         if (!pin) return;
 
         const targetZoom = isDeepZoom ? 18 : DIRECTORY_FOCUS_ZOOM;
@@ -385,17 +385,18 @@ export default function DirectoryMap({
                 >
                     {displayPins.map((pin) => {
                         const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
-                        const cleanKey = isDeepZoom ? focusedPlaceKey.replace(':zoom', '') : focusedPlaceKey;
+                        const cleanKey = isDeepZoom ? String(focusedPlaceKey).replace(':zoom', '') : focusedPlaceKey;
+                        const isMatched = String(cleanKey) === String(pin.placeKey);
 
                         const icon = markerMode === 'number'
                             ? createDirectoryNumberMarker(
                                 pin.number || placeNumberByKey?.[pin.placeKey] || '?',
-                                cleanKey === pin.placeKey ? 'primary' : 'default',
+                                isMatched ? 'primary' : 'default',
                                 pin.placeKey
                             )
                             : createSavedPlacePinIcon({
                                 count: pin.curatedCount,
-                                emphasis: cleanKey === pin.placeKey ? 'primary' : 'default',
+                                emphasis: isMatched ? 'primary' : 'default',
                                 tone: 'saved',
                             });
 
@@ -416,17 +417,18 @@ export default function DirectoryMap({
 
         return displayPins.map((pin) => {
             const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
-            const cleanKey = isDeepZoom ? focusedPlaceKey.replace(':zoom', '') : focusedPlaceKey;
+            const cleanKey = isDeepZoom ? String(focusedPlaceKey).replace(':zoom', '') : focusedPlaceKey;
+            const isMatched = String(cleanKey) === String(pin.placeKey);
 
             const icon = markerMode === 'number'
                 ? createDirectoryNumberMarker(
                     pin.number || placeNumberByKey?.[pin.placeKey] || '?',
-                    cleanKey === pin.placeKey ? 'primary' : 'default',
+                    isMatched ? 'primary' : 'default',
                     pin.placeKey
                 )
                 : createSavedPlacePinIcon({
                     count: pin.curatedCount,
-                    emphasis: cleanKey === pin.placeKey ? 'primary' : 'default',
+                    emphasis: isMatched ? 'primary' : 'default',
                     tone: 'saved',
                 });
 

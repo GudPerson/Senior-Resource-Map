@@ -389,28 +389,28 @@ export default function MyMapDetailPage() {
     function handleViewSection(placeKey) {
         setQuery('');
         
-        if (focusedPlaceKey === placeKey) {
+        if (String(focusedPlaceKey) === String(placeKey)) {
             setFocusedPlaceKey(null);
-            requestAnimationFrame(() => setFocusedPlaceKey(placeKey + ':zoom'));
+            requestAnimationFrame(() => setFocusedPlaceKey(String(placeKey) + ':zoom'));
             return;
         }
 
         setFocusedPlaceKey(null);
         setHighlightPlaceKey(null);
         window.requestAnimationFrame(() => {
-            setFocusedPlaceKey(placeKey);
-            setHighlightPlaceKey(placeKey);
+            setFocusedPlaceKey(String(placeKey));
+            setHighlightPlaceKey(String(placeKey));
         });
     }
 
     function handleViewOnMap(placeKey) {
         setFocusedPlaceKey(null);
-        if (focusedPlaceKey === placeKey) {
-            requestAnimationFrame(() => setFocusedPlaceKey(placeKey + ':zoom'));
+        if (String(focusedPlaceKey) === String(placeKey)) {
+            requestAnimationFrame(() => setFocusedPlaceKey(String(placeKey) + ':zoom'));
             return;
         }
         window.requestAnimationFrame(() => {
-            setFocusedPlaceKey(placeKey);
+            setFocusedPlaceKey(String(placeKey));
         });
     }
 
