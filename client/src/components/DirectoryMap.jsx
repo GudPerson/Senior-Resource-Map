@@ -18,6 +18,7 @@ import {
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
 const DIRECTORY_FOCUS_ZOOM = 16;
+const CLUSTER_HOVER_REVEAL_DELAY_MS = 700;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -189,6 +190,81 @@ function DirectoryMapRecenterControl({ pins, interactive }) {
     );
 }
 
+function DirectoryClusterHoverController({ clusterGroupRef, enabled = true }) {
+    const map = useMap();
+    const hoverTimeoutRef = useRef(null);
+    const activeClusterRef = useRef(null);
+    const previousViewRef = useRef(null);
+
+    useEffect(() => {
+        const clusterGroup = clusterGroupRef.current;
+        if (!enabled || !clusterGroup) return undefined;
+
+        const clearHoverTimer = () => {
+            if (hoverTimeoutRef.current) {
+                window.clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = null;
+            }
+        };
+
+        const restorePreviousView = () => {
+            if (!previousViewRef.current) return;
+            const { center, zoom } = previousViewRef.current;
+            previousViewRef.current = null;
+            activeClusterRef.current = null;
+            map.flyTo(center, zoom, { animate: true, duration: 0.35 });
+        };
+
+        const handleClusterMouseOver = (event) => {
+            const cluster = event.layer;
+            if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
+
+            clearHoverTimer();
+            hoverTimeoutRef.current = window.setTimeout(() => {
+                if (activeClusterRef.current === cluster) return;
+                previousViewRef.current = { center: map.getCenter(), zoom: map.getZoom() };
+                activeClusterRef.current = cluster;
+                if (map.getZoom() >= 16 && typeof cluster.spiderfy === 'function') {
+                    cluster.spiderfy();
+                    return;
+                }
+                if (typeof cluster.zoomToBounds === 'function') {
+                    cluster.zoomToBounds({ padding: [40, 40] });
+                }
+            }, CLUSTER_HOVER_REVEAL_DELAY_MS);
+        };
+
+        const handleClusterMouseOut = (event) => {
+            const cluster = event.layer;
+            clearHoverTimer();
+            if (activeClusterRef.current && cluster === activeClusterRef.current) {
+                if (typeof cluster.unspiderfy === 'function') {
+                    cluster.unspiderfy();
+                }
+                restorePreviousView();
+            }
+        };
+
+        const handleMapMoveStart = () => {
+            if (!activeClusterRef.current) return;
+            clearHoverTimer();
+        };
+
+        clusterGroup.on('clustermouseover', handleClusterMouseOver);
+        clusterGroup.on('clustermouseout', handleClusterMouseOut);
+        map.on('movestart', handleMapMoveStart);
+
+        return () => {
+            clearHoverTimer();
+            clusterGroup.off('clustermouseover', handleClusterMouseOver);
+            clusterGroup.off('clustermouseout', handleClusterMouseOut);
+            map.off('movestart', handleMapMoveStart);
+        };
+    }, [clusterGroupRef, enabled, map]);
+
+    return null;
+}
+
 function DirectoryClusterStateSync({ onClusterChange }) {
     const map = useMap();
     
@@ -299,7 +375,10 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
 export default function DirectoryMap({
     pins = [],
     focusedPlaceKey = null,
+    activePlaceKey = null,
     onViewSection,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     interactive = true,
     className = '',
     emptyLabel = 'This directory does not have any mappable places yet.',
@@ -320,6 +399,7 @@ export default function DirectoryMap({
     const captureErrorRef = useRef(null);
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
     const shouldCluster = displayPins.length > 1;
+    const clusterGroupRef = useRef(null);
 
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -376,6 +456,7 @@ export default function DirectoryMap({
         if (shouldCluster) {
             return (
                 <MarkerClusterGroup
+                    ref={clusterGroupRef}
                     showCoverageOnHover={false}
                     spiderfyOnMaxZoom={false}
                     removeOutsideVisibleBounds={false}
@@ -384,8 +465,9 @@ export default function DirectoryMap({
                     iconCreateFunction={createDirectoryClusterIcon}
                 >
                     {displayPins.map((pin) => {
-                        const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
-                        const cleanKey = isDeepZoom ? String(focusedPlaceKey).replace(':zoom', '') : focusedPlaceKey;
+                        const activeKey = activePlaceKey ?? focusedPlaceKey;
+                        const isDeepZoom = String(activeKey).endsWith(':zoom');
+                        const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
                         const isMatched = String(cleanKey) === String(pin.placeKey);
 
                         const icon = markerMode === 'number'
@@ -405,8 +487,10 @@ export default function DirectoryMap({
                                 key={pin.pinKey || pin.placeKey}
                                 position={[pin.displayLat, pin.displayLng]}
                                 icon={icon}
-                                eventHandlers={interactive && onViewSection ? {
-                                    click: () => onViewSection(pin.placeKey),
+                                eventHandlers={interactive ? {
+                                    click: () => onViewSection?.(pin.placeKey),
+                                    mouseover: () => onHoverPlaceStart?.(pin.placeKey),
+                                    mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
                                 } : undefined}
                             />
                         );
@@ -416,9 +500,10 @@ export default function DirectoryMap({
         }
 
         return displayPins.map((pin) => {
-            const isDeepZoom = String(focusedPlaceKey).endsWith(':zoom');
-            const cleanKey = isDeepZoom ? String(focusedPlaceKey).replace(':zoom', '') : focusedPlaceKey;
-            const isMatched = String(cleanKey) === String(pin.placeKey);
+            const activeKey = activePlaceKey ?? focusedPlaceKey;
+                        const isDeepZoom = String(activeKey).endsWith(':zoom');
+                        const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
+                        const isMatched = String(cleanKey) === String(pin.placeKey);
 
             const icon = markerMode === 'number'
                 ? createDirectoryNumberMarker(
@@ -437,9 +522,11 @@ export default function DirectoryMap({
                     key={pin.pinKey || pin.placeKey}
                     position={[pin.displayLat, pin.displayLng]}
                     icon={icon}
-                    eventHandlers={interactive && onViewSection ? {
-                        click: () => onViewSection(pin.placeKey),
-                    } : undefined}
+                    eventHandlers={interactive ? {
+                                    click: () => onViewSection?.(pin.placeKey),
+                                    mouseover: () => onHoverPlaceStart?.(pin.placeKey),
+                                    mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
+                                } : undefined}
                 />
             );
         });
@@ -490,6 +577,7 @@ export default function DirectoryMap({
                     } : undefined}
                 />
                 <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} />
+                <DirectoryClusterHoverController clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
                 {renderedMarkers}
             </MapContainer>
