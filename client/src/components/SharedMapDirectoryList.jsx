@@ -253,7 +253,9 @@ function DirectoryPlaceGroupCard({
                         className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
                         style={{ 
                             backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                            fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px')
+                            fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px'),
+                            fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            lineHeight: 1,
                         }}
                     >
                         {group.number}
@@ -310,7 +312,9 @@ function DirectoryPlaceGroupCard({
                     className={`flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl'}`}
                     style={{ 
                         backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                        fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px')
+                        fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px'),
+                        fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                        lineHeight: 1,
                     }}
                     aria-label={`View ${group.name} on map`}
                     title="View on map"
