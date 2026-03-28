@@ -630,6 +630,26 @@
   }
 }
 
+@keyframes selectionPulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 163, 154, 0.4);
+    border-color: var(--color-brand);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(15, 163, 154, 0);
+    border-color: var(--color-brand-strong);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(15, 163, 154, 0);
+    border-color: var(--color-brand);
+  }
+}
+
+.selected-card-pulse {
+  animation: selectionPulseGlow 2s infinite ease-in-out;
+  border-width: 2.5px !important;
+}
+
 
 
 @keyframes directoryNumberMarkerPulse {

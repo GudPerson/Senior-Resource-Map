@@ -117,7 +117,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
             "
         >
             <div class="saved-place-pin-marker__pin" style="position:absolute;inset:0;z-index:1;display:flex;align-items:flex-start;justify-content:center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="42" height="58" viewBox="0 0 34 48" aria-hidden="true" style="overflow:visible; position:relative; z-index:1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="50" viewBox="0 0 34 48" aria-hidden="true" style="overflow:visible; position:relative; z-index:1;">
                     <path
                         d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
                         fill="${outerFill}"
@@ -142,12 +142,12 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                     class="saved-place-pin-marker__badge"
                     style="
                         position:absolute;
-                        top:-5px;
-                        right:-5px;
+                        top:-3px;
+                        right:-3px;
                         z-index:100;
-                        min-width:22px;
-                        height:22px;
-                        padding:0 5px;
+                        min-width:20px;
+                        height:20px;
+                        padding:0 4px;
                         border-radius:999px;
                         background:${badgeBg};
                         border:1.5px solid #ffffff;
@@ -172,9 +172,9 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     return L.divIcon({
         className: '',
         html: svg,
-        iconSize: [54, 72],
-        iconAnchor: [27, 66],
-        popupAnchor: [0, -60],
-        tooltipAnchor: [0, -56],
+        iconSize: [44, 60],
+        iconAnchor: [22, 54],
+        popupAnchor: [0, -52],
+        tooltipAnchor: [0, -48],
     });
 }

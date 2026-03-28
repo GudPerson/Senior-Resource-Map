@@ -28,7 +28,7 @@ function StatusBadge({ status }) {
 
 function MapLegend() {
     return (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-slate-100 bg-white/50 px-5 py-3.5 text-[12px] font-semibold text-slate-600 shadow-sm backdrop-blur-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-slate-100 bg-white/50 px-6 py-4 text-[14px] font-bold text-slate-700 shadow-sm backdrop-blur-sm">
             <div className="flex items-center gap-2.5">
                 <div className="h-4 w-4 rounded-full border-2 border-white bg-[#0f766e] shadow-sm" />
                 <span>Single Location</span>
@@ -303,8 +303,8 @@ function DirectoryPlaceGroupCard({
         <section
             ref={sectionRef}
             className={`border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
-                highlighted ? 'border-brand-500 ring-4 ring-brand-500/20 scale-[1.02] z-10' : ''
-            } scroll-mt-[56svh] lg:scroll-mt-6`}
+                highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
+            } scroll-mt-[62svh] lg:scroll-mt-6`}
         >
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
                 <button
