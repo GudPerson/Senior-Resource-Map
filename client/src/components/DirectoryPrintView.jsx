@@ -220,12 +220,12 @@ export default function DirectoryPrintView({
     const content = (
         <div 
             ref={sheetRef}
-            className={`text-slate-900 ${paddingClass} origin-top mx-auto`}
+            className={`text-slate-900 ${paddingClass} flex-shrink-0`}
             style={{ 
                 width: `${sheetWidth}px`,
                 transform: variant === 'screen' ? `scale(${scale})` : undefined,
                 transformOrigin: 'top center',
-                marginBottom: variant === 'screen' ? `-${(1 - scale) * 100}%` : undefined,
+                marginBottom: variant === 'screen' ? `-${(1 - scale) * 101}%` : undefined,
                 backgroundColor: 'white'
             }}
         >

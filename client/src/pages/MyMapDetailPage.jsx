@@ -483,7 +483,7 @@ export default function MyMapDetailPage() {
                         activeAnchor={activeAnchor}
                         shareUrl={sharedDirectoryUrl}
                         footerNote={directory.share?.isShared ? 'Open the shared link for the full interactive directory.' : ''}
-                        className="mx-auto"
+                        className="w-full"
                     />
                 </div>
             </div>
