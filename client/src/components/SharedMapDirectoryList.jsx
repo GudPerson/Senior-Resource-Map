@@ -26,9 +26,13 @@ function StatusBadge({ status }) {
     return null;
 }
 
-function MapLegend() {
+function MapLegend({ mobile = false }) {
     return (
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-2 text-[16px] font-bold text-slate-600 shadow-sm backdrop-blur-sm isolate">
+        <div className={`flex items-center justify-between border border-slate-200 bg-white px-4 py-2 text-[16px] font-bold text-slate-600 isolate ${
+            mobile
+                ? 'rounded-b-xl mt-0'
+                : 'rounded-xl mt-4 shadow-sm backdrop-blur-sm'
+        }`}>
             <div className="flex items-center gap-1.5">
                 <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
                 <span>Single</span>
@@ -297,17 +301,12 @@ function DirectoryPlaceGroupCard({
         <h3 className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
 
-    return (
-        <section
-            ref={sectionRef}
-            className={`border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
-                highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
-            } scroll-mt-[62svh] lg:scroll-mt-6`}
-        >
+    const cardContent = (
+        <>
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
                 <button
                     type="button"
-                    onClick={() => onViewOnMap?.(group.placeKey)}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); onViewOnMap?.(group.placeKey); }}
                     className={`flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl'}`}
                     style={{ 
                         backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
@@ -349,6 +348,31 @@ function DirectoryPlaceGroupCard({
                     ) : null}
                 </div>
             </div>
+        </>
+    );
+
+    if (placeDetailPath) {
+        return (
+            <Link
+                to={placeDetailPath}
+                ref={sectionRef}
+                className={`block border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
+                    highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
+                } scroll-mt-[62svh] lg:scroll-mt-6`}
+            >
+                {cardContent}
+            </Link>
+        );
+    }
+
+    return (
+        <section
+            ref={sectionRef}
+            className={`border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
+                highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
+            } scroll-mt-[62svh] lg:scroll-mt-6`}
+        >
+            {cardContent}
         </section>
     );
 }
@@ -605,7 +629,7 @@ export default function SharedMapDirectoryList({
                 {renderMobileMap ? (
                     <div className={`${mobileMapStickyClassName} disable-font-scaling`}>
                         {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
-                        <MapLegend />
+                        <MapLegend mobile />
                     </div>
                 ) : null}
 
