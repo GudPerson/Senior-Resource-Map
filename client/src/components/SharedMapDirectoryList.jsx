@@ -316,8 +316,8 @@ function DirectoryPlaceGroupCard({
                 <div
                     className={`pointer-events-none absolute z-20 flex items-center justify-center border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 ${
                         compactInteractive
-                            ? 'left-2.5 top-2.5 h-9 w-9 rounded-xl p-px'
-                            : 'left-3.5 top-3.5 h-10 w-10 rounded-[14px] p-px'
+                            ? 'left-2 top-2 h-10 w-10 rounded-[14px] p-px'
+                            : 'left-3 top-3 h-11 w-11 rounded-[16px] p-px'
                     } ${
                         logoRevealed
                             ? 'opacity-100 scale-110'
@@ -743,7 +743,7 @@ export default function SharedMapDirectoryList({
 
                 <div
                     ref={desktopMapWrapperRef}
-                    className={`${interactive ? 'lg:sticky lg:top-6' : ''} scroll-mt-20 ${desktopMapWrapperClassName}`.trim()}
+                    className={`${interactive ? 'lg:sticky lg:top-6' : ''} scroll-mt-[56px] sm:scroll-mt-[64px] ${desktopMapWrapperClassName}`.trim()}
                 >
                     {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
                     {resolvedLayout !== 'print' && <MapLegend />}
