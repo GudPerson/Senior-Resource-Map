@@ -314,12 +314,14 @@ function DirectoryPlaceGroupCard({
         <>
             {hoverLogoRow?.logoUrl ? (
                 <div
-                    className={`pointer-events-none absolute right-4 top-0 hidden items-center justify-center rounded-[20px] border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 lg:flex ${
-                        compactInteractive ? 'h-14 w-14 p-2.5' : 'h-16 w-16 p-3'
+                    className={`pointer-events-none absolute z-20 flex items-center justify-center border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 ${
+                        compactInteractive
+                            ? 'left-3 top-3 h-8 w-8 rounded-lg p-1.5'
+                            : 'left-4 top-4 h-9 w-9 rounded-xl p-1.5'
                     } ${
                         logoRevealed
-                            ? 'opacity-100 -translate-y-3 scale-100'
-                            : 'translate-y-1 scale-90 opacity-0 group-hover:opacity-100 group-hover:-translate-y-3 group-hover:scale-100'
+                            ? 'opacity-100 scale-110'
+                            : 'opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-110'
                     }`}
                     aria-hidden="true"
                 >
@@ -334,7 +336,7 @@ function DirectoryPlaceGroupCard({
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); onViewOnMap?.(group.placeKey); }}
-                    className={`flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl'}`}
+                    className={`relative z-10 flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl'}`}
                     style={{ 
                         backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
                         fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px'),
