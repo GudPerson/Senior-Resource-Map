@@ -316,8 +316,8 @@ function DirectoryPlaceGroupCard({
                 <div
                     className={`pointer-events-none absolute z-20 flex items-center justify-center border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 ${
                         compactInteractive
-                            ? 'left-3 top-3 h-8 w-8 rounded-lg p-0.5'
-                            : 'left-4 top-4 h-9 w-9 rounded-xl p-0.5'
+                            ? 'left-2.5 top-2.5 h-9 w-9 rounded-xl p-px'
+                            : 'left-3.5 top-3.5 h-10 w-10 rounded-[14px] p-px'
                     } ${
                         logoRevealed
                             ? 'opacity-100 scale-110'
@@ -621,6 +621,7 @@ export default function SharedMapDirectoryList({
     showDesktopHoverLogo = false,
 }) {
     const sectionRefs = useRef({});
+    const desktopMapWrapperRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
@@ -655,6 +656,16 @@ export default function SharedMapDirectoryList({
         setFlashPlaceKey(highlightPlaceKey);
         if (!autoScrollToHighlight) return undefined;
 
+        if (resolvedLayout === 'desktop') {
+            const mapAnchor = desktopMapWrapperRef.current;
+            if (mapAnchor) {
+                window.requestAnimationFrame(() => {
+                    mapAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+            return undefined;
+        }
+
         const node = sectionRefs.current[highlightPlaceKey];
         if (node) {
             window.requestAnimationFrame(() => {
@@ -662,7 +673,7 @@ export default function SharedMapDirectoryList({
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [autoScrollToHighlight, highlightPlaceKey, interactive]);
+    }, [autoScrollToHighlight, highlightPlaceKey, interactive, resolvedLayout]);
 
     if (!mappedGroups.length && !unmappedRows.length) {
         return (
@@ -730,7 +741,10 @@ export default function SharedMapDirectoryList({
                     logoRevealPlaceKey={logoRevealPlaceKey}
                 />
 
-                <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
+                <div
+                    ref={desktopMapWrapperRef}
+                    className={`${interactive ? 'lg:sticky lg:top-6' : ''} scroll-mt-20 ${desktopMapWrapperClassName}`.trim()}
+                >
                     {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
                     {resolvedLayout !== 'print' && <MapLegend />}
                 </div>
