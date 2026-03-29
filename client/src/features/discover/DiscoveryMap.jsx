@@ -17,8 +17,11 @@ const DEFAULT_MAP_ZOOM = 12;
 const SINGLE_PIN_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const DESKTOP_FIT_MAX_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const MOBILE_FIT_MAX_ZOOM = 18;
+const DESKTOP_GROUP_FOCUS_MAX_ZOOM = 17;
 const DESKTOP_FIT_PADDING_TOP_LEFT = [24, 24];
 const DESKTOP_FIT_PADDING_BOTTOM_RIGHT = [24, 24];
+const DESKTOP_GROUP_FOCUS_PADDING_TOP_LEFT = [40, 40];
+const DESKTOP_GROUP_FOCUS_PADDING_BOTTOM_RIGHT = [40, 40];
 const MOBILE_FIT_PADDING_TOP_LEFT = [16, 56];
 const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [16, 24];
 
@@ -127,13 +130,19 @@ function focusMapRequest(map, focusRequest, interactionMode) {
     }
 
     const fitConfig = getFitConfig(interactionMode);
+    const isDesktopGroupFocus = interactionMode === 'desktop' && focusRequest.kind === 'pin-group';
+    const paddingTopLeft = isDesktopGroupFocus ? DESKTOP_GROUP_FOCUS_PADDING_TOP_LEFT : fitConfig.paddingTopLeft;
+    const paddingBottomRight = isDesktopGroupFocus ? DESKTOP_GROUP_FOCUS_PADDING_BOTTOM_RIGHT : fitConfig.paddingBottomRight;
+    const maxZoom = isDesktopGroupFocus
+        ? Math.min(focusRequest.maxZoom ?? DESKTOP_GROUP_FOCUS_MAX_ZOOM, DESKTOP_GROUP_FOCUS_MAX_ZOOM)
+        : (focusRequest.maxZoom ?? fitConfig.maxZoom);
     const bounds = L.latLngBounds(focusRequest.points);
     map.flyToBounds(bounds, {
         animate: true,
         duration: 0.8,
-        paddingTopLeft: fitConfig.paddingTopLeft,
-        paddingBottomRight: fitConfig.paddingBottomRight,
-        maxZoom: focusRequest.maxZoom ?? fitConfig.maxZoom,
+        paddingTopLeft,
+        paddingBottomRight,
+        maxZoom,
     });
     return true;
 }
