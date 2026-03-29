@@ -146,6 +146,10 @@ function getVisibleGroupRows(group) {
     return (group?.rows || []).filter((row) => !isRepeatedPrimaryRow(group, row));
 }
 
+function getGroupHoverLogoRow(group) {
+    return (group?.rows || []).find((row) => row?.logoUrl);
+}
+
 function getSecondaryCategory(row) {
     return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? 'Place' : 'Offering');
 }
@@ -228,6 +232,8 @@ function DirectoryPlaceGroupCard({
     allowPrintLinks = false,
     compactPrint = false,
     clusterColorData = null,
+    showDesktopHoverLogo = false,
+    logoRevealed = false,
 }) {
     const placeDetailPath = getGroupDetailPath(group);
     const visibleRows = getVisibleGroupRows(group);
@@ -302,9 +308,28 @@ function DirectoryPlaceGroupCard({
     ) : (
         <h3 className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
+    const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
 
     const cardContent = (
         <>
+            {hoverLogoRow?.logoUrl ? (
+                <div
+                    className={`pointer-events-none absolute right-4 top-0 hidden items-center justify-center rounded-[20px] border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 lg:flex ${
+                        compactInteractive ? 'h-14 w-14 p-2.5' : 'h-16 w-16 p-3'
+                    } ${
+                        logoRevealed
+                            ? 'opacity-100 -translate-y-3 scale-100'
+                            : 'translate-y-1 scale-90 opacity-0 group-hover:opacity-100 group-hover:-translate-y-3 group-hover:scale-100'
+                    }`}
+                    aria-hidden="true"
+                >
+                    <img
+                        src={hoverLogoRow.logoUrl}
+                        alt={hoverLogoRow.name || group.name}
+                        className="max-h-full max-w-full object-contain"
+                    />
+                </div>
+            ) : null}
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
                 <button
                     type="button"
@@ -360,7 +385,7 @@ function DirectoryPlaceGroupCard({
             <Link
                 to={placeDetailPath}
                 ref={sectionRef}
-                className={`block border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
+                className={`group relative block overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
             >
@@ -372,7 +397,7 @@ function DirectoryPlaceGroupCard({
     return (
         <section
             ref={sectionRef}
-            className={`border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
+            className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                 highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
             } scroll-mt-[62svh] lg:scroll-mt-6`}
         >
@@ -501,6 +526,8 @@ function DirectoryGroupColumn({
     allowPrintLinks = false,
     compactPrint = false,
     clusterMapping = {},
+    showDesktopHoverLogo = false,
+    logoRevealPlaceKey = null,
 }) {
     if (!groups.length) {
         return preserveSlot ? <div aria-hidden="true" className="min-h-px" /> : null;
@@ -522,6 +549,8 @@ function DirectoryGroupColumn({
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
                     clusterColorData={clusterMapping[group.placeKey] || null}
+                    showDesktopHoverLogo={showDesktopHoverLogo}
+                    logoRevealed={logoRevealPlaceKey === group.placeKey}
                     sectionRef={(node) => {
                         if (node) {
                             sectionRefs.current[group.placeKey] = node;
@@ -587,6 +616,7 @@ export default function SharedMapDirectoryList({
     mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2',
     allowPrintLinks = false,
     autoScrollToHighlight = true,
+    showDesktopHoverLogo = false,
 }) {
     const sectionRefs = useRef({});
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
@@ -608,6 +638,9 @@ export default function SharedMapDirectoryList({
     const compactInteractiveDesktop = interactive
         && resolvedLayout === 'desktop'
         && (mappedGroups.length >= 7 || interactiveRowCount >= 9);
+    const logoRevealPlaceKey = showDesktopHoverLogo
+        ? (highlightPlaceKey || (highlightPlaceKeys.length === 1 ? highlightPlaceKeys[0] : null))
+        : null;
 
     useEffect(() => {
         if (!interactive) return undefined;
@@ -658,6 +691,8 @@ export default function SharedMapDirectoryList({
                     highlightPlaceKeys={highlightPlaceKeys}
                     sectionRefs={sectionRefs}
                     clusterMapping={clusterMapping}
+                    showDesktopHoverLogo={showDesktopHoverLogo}
+                    logoRevealPlaceKey={logoRevealPlaceKey}
                 />
 
                 <DirectoryUnmappedSection
@@ -689,6 +724,8 @@ export default function SharedMapDirectoryList({
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
                     clusterMapping={clusterMapping}
+                    showDesktopHoverLogo={showDesktopHoverLogo}
+                    logoRevealPlaceKey={logoRevealPlaceKey}
                 />
 
                 <div className={`${interactive ? 'lg:sticky lg:top-6' : ''} ${desktopMapWrapperClassName}`.trim()}>
@@ -711,6 +748,8 @@ export default function SharedMapDirectoryList({
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
                     clusterMapping={clusterMapping}
+                    showDesktopHoverLogo={showDesktopHoverLogo}
+                    logoRevealPlaceKey={logoRevealPlaceKey}
                 />
             </div>
 
