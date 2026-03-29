@@ -7,9 +7,25 @@ import {
     saveSearchLocation,
 } from '../../lib/searchLocation.js';
 
-export function useDiscoveryLocation(hardAssets = []) {
+function resolveLocalPostalMatch(hardAssets, postalCode) {
+    const localMatch = hardAssets.find((asset) => asset.postalCode === postalCode);
+    if (!localMatch) return null;
+
+    const lat = Number.parseFloat(localMatch.lat);
+    const lng = Number.parseFloat(localMatch.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+    }
+
+    return {
+        lat,
+        lng,
+        address: localMatch.address || '',
+    };
+}
+
+export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
     const storedSearchLocationRef = useRef(loadSearchLocation());
-    const autoLocateAttemptedRef = useRef(false);
     const [userLocation, setUserLocation] = useState(() => {
         const stored = storedSearchLocationRef.current;
         return stored ? { lat: stored.lat, lng: stored.lng } : null;
@@ -22,7 +38,10 @@ export function useDiscoveryLocation(hardAssets = []) {
     const [flyTarget, setFlyTarget] = useState(null);
     const [searchOrigin, setSearchOrigin] = useState(storedSearchLocationRef.current);
     const [locationNotice, setLocationNotice] = useState(null);
+    const [homeOrigin, setHomeOrigin] = useState(null);
+    const [isResolvingHome, setIsResolvingHome] = useState(false);
     const geolocationRequestRef = useRef(0);
+    const normalizedHomePostalCode = String(userPostalCode || '').trim();
     const latestLocationStateRef = useRef({
         userLocation: storedSearchLocationRef.current ? { lat: storedSearchLocationRef.current.lat, lng: storedSearchLocationRef.current.lng } : null,
         searchOrigin: storedSearchLocationRef.current,
@@ -33,10 +52,12 @@ export function useDiscoveryLocation(hardAssets = []) {
     }, [userLocation, searchOrigin]);
 
     const clearLocationSearch = useCallback(() => {
+        geolocationRequestRef.current = Date.now();
         setUserLocation(null);
         setSearchOrigin(null);
         setPostalInput('');
         setLocationNotice(null);
+        setFlyTarget(null);
         latestLocationStateRef.current = { userLocation: null, searchOrigin: null };
         clearSearchLocation();
     }, []);
@@ -73,7 +94,7 @@ export function useDiscoveryLocation(hardAssets = []) {
                 
                 // Neighborhood zoom (at least zoom 16 for Locate Me)
                 const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : 16;
-                setFlyTarget({ ...loc, zoom });
+                setFlyTarget({ ...loc, zoom, source: 'geolocation' });
             },
             (error) => {
                 if (geolocationRequestRef.current !== requestId || resolved) return;
@@ -105,12 +126,53 @@ export function useDiscoveryLocation(hardAssets = []) {
     }, [runLocateMe]);
 
     useEffect(() => {
-        const shouldAutoLocate = !searchOrigin || (searchOrigin.source === 'geolocation' && searchOrigin.restored);
-        if (!shouldAutoLocate || autoLocateAttemptedRef.current) return;
+        let cancelled = false;
 
-        autoLocateAttemptedRef.current = true;
-        runLocateMe({ silent: true });
-    }, [runLocateMe, searchOrigin]);
+        async function resolveHomeOrigin() {
+            if (!/^\d{6}$/.test(normalizedHomePostalCode)) {
+                setHomeOrigin(null);
+                return;
+            }
+
+            if (homeOrigin?.postalCode === normalizedHomePostalCode) {
+                return;
+            }
+
+            setIsResolvingHome(true);
+
+            try {
+                const localResult = resolveLocalPostalMatch(hardAssets, normalizedHomePostalCode);
+                const result = localResult || await searchOneMap(normalizedHomePostalCode);
+
+                if (cancelled) return;
+
+                if (!result) {
+                    setHomeOrigin(null);
+                    return;
+                }
+
+                setHomeOrigin({
+                    lat: result.lat,
+                    lng: result.lng,
+                    source: 'home',
+                    postalCode: normalizedHomePostalCode,
+                    address: result.address || `Postal code ${normalizedHomePostalCode}`,
+                    updatedAt: Date.now(),
+                    restored: false,
+                });
+            } finally {
+                if (!cancelled) {
+                    setIsResolvingHome(false);
+                }
+            }
+        }
+
+        resolveHomeOrigin();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [hardAssets, homeOrigin?.postalCode, normalizedHomePostalCode]);
 
     const handlePostalSearch = useCallback(async (e) => {
         e.preventDefault();
@@ -126,9 +188,9 @@ export function useDiscoveryLocation(hardAssets = []) {
         let result = null;
         let address = '';
 
-        const localMatch = hardAssets.find((asset) => asset.postalCode === val);
+        const localMatch = resolveLocalPostalMatch(hardAssets, val);
         if (localMatch) {
-            result = { lat: parseFloat(localMatch.lat), lng: parseFloat(localMatch.lng) };
+            result = localMatch;
             address = localMatch.address || '';
         } else {
             result = await searchOneMap(val);
@@ -151,13 +213,22 @@ export function useDiscoveryLocation(hardAssets = []) {
         
         // Neighborhood zoom (at least zoom 15 for search)
         const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : searchRadius <= 1 ? 16 : 15;
-        setFlyTarget({ lat: result.lat, lng: result.lng, zoom });
+        setFlyTarget({ lat: result.lat, lng: result.lng, zoom, source: 'postal' });
     }, [postalInput, searchRadius, hardAssets]);
 
+    const effectiveOrigin = searchOrigin || homeOrigin || null;
+    const effectiveUserLocation = effectiveOrigin
+        ? { lat: effectiveOrigin.lat, lng: effectiveOrigin.lng }
+        : null;
+
     return {
+        effectiveOrigin,
+        effectiveUserLocation,
         flyTarget,
         handleLocateMe,
         handlePostalSearch,
+        homeOrigin,
+        isResolvingHome,
         isGeocoding,
         locationNotice,
         postalInput,

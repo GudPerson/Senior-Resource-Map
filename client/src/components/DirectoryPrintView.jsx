@@ -120,6 +120,7 @@ function PrintDirectoryMap({
             />
 
             <DirectoryMap
+                activeAnchor={presentation.activeAnchor}
                 pins={presentation.pins}
                 interactive={false}
                 markerMode="number"

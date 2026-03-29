@@ -43,6 +43,7 @@ function buildSummaryChips({ activeTab, search, searchOrigin, searchRadius, show
 
 function MobileFilterSheet({
     activeTab,
+    canClearLocationSearch,
     clearLocationSearch,
     handleLocateMe,
     handlePostalSearch,
@@ -214,9 +215,11 @@ function MobileFilterSheet({
                                         </p>
                                     ) : null}
                                 </div>
-                                <button type="button" onClick={clearLocationSearch} className="shrink-0 text-[12px] font-bold underline leading-none whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
-                                    Clear
-                                </button>
+                                {canClearLocationSearch ? (
+                                    <button type="button" onClick={clearLocationSearch} className="shrink-0 text-[12px] font-bold underline leading-none whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
+                                        Clear
+                                    </button>
+                                ) : null}
                             </div>
                         ) : null}
                     </div>
@@ -228,6 +231,7 @@ function MobileFilterSheet({
 
 function DesktopFilterPanel({
     activeTab,
+    canClearLocationSearch,
     clearLocationSearch,
     handleLocateMe,
     handlePostalSearch,
@@ -489,9 +493,11 @@ function DesktopFilterPanel({
                                 {searchRadius < 100 ? ` • Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}` : ''}
                             </span>
                         </div>
-                        <button onClick={clearLocationSearch} className="font-black underline decoration-2 underline-offset-2 transition-colors hover:text-red-500" style={{ color: 'var(--color-text-muted)' }}>
-                            Clear
-                        </button>
+                        {canClearLocationSearch ? (
+                            <button onClick={clearLocationSearch} className="font-black underline decoration-2 underline-offset-2 transition-colors hover:text-red-500" style={{ color: 'var(--color-text-muted)' }}>
+                                Clear
+                            </button>
+                        ) : null}
                     </div>
                 ) : null}
             </div>
@@ -503,6 +509,7 @@ export function DiscoveryFilterPanel(props) {
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
     const {
         activeTab,
+        canClearLocationSearch = true,
         clearLocationSearch,
         handleLocateMe,
         handlePostalSearch,
@@ -536,7 +543,7 @@ export function DiscoveryFilterPanel(props) {
     } = props;
 
     const summaryChips = buildSummaryChips({ activeTab, search, searchOrigin, searchRadius, showFavoritesOnly, user, userLocation });
-    const mapDisabled = pinCount === 0;
+    const mapDisabled = pinCount === 0 && !userLocation;
 
     return (
         <>
@@ -690,10 +697,14 @@ export function DiscoveryFilterPanel(props) {
                                         Saved map
                                     </p>
                                     <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                        Showing {pinCount} saved {pinCount === 1 ? 'place' : 'places'}
+                                        {pinCount > 0
+                                            ? `Showing ${pinCount} saved ${pinCount === 1 ? 'place' : 'places'}`
+                                            : `Showing ${getSearchLocationLabel(searchOrigin)}`}
                                     </p>
                                     <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                        Only places represented by your saved assets appear on this map.
+                                        {pinCount > 0
+                                            ? 'Only places represented by your saved assets appear on this map.'
+                                            : 'This map is currently centred around your active location anchor. Save places to pin them here.'}
                                     </p>
                                 </div>
                                 {onOpenMobileBrowseDrawer ? (
@@ -720,6 +731,7 @@ export function DiscoveryFilterPanel(props) {
 
             <MobileFilterSheet
                 activeTab={activeTab}
+                canClearLocationSearch={canClearLocationSearch}
                 clearLocationSearch={clearLocationSearch}
                 handleLocateMe={handleLocateMe}
                 handlePostalSearch={(event) => {

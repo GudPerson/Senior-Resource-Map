@@ -90,9 +90,13 @@ export default function DiscoverPage() {
     const { savedAssets, savedAssetsLoading } = useSavedAssets();
     const {
         clearLocationSearch,
+        effectiveOrigin,
+        effectiveUserLocation,
         flyTarget,
         handleLocateMe,
         handlePostalSearch,
+        homeOrigin,
+        isResolvingHome,
         isGeocoding,
         locationNotice,
         postalInput,
@@ -101,8 +105,7 @@ export default function DiscoverPage() {
         setFlyTarget,
         setPostalInput,
         setSearchRadius,
-        userLocation,
-    } = useDiscoveryLocation(hardAssets);
+    } = useDiscoveryLocation(hardAssets, user?.postalCode || '');
 
     useEffect(() => {
         let isActive = true;
@@ -178,18 +181,6 @@ export default function DiscoverPage() {
         clearTransientFocusState();
     }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin]);
 
-    useEffect(() => {
-        if (!flyTarget) return;
-        setMapFocusRequest({
-            kind: 'single-pin',
-            requestId: nextFocusRequestId(),
-            lat: flyTarget.lat,
-            lng: flyTarget.lng,
-            zoom: flyTarget.zoom,
-        });
-        setFlyTarget(null);
-    }, [flyTarget, setFlyTarget]);
-
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
         const now = new Date();
@@ -224,11 +215,11 @@ export default function DiscoverPage() {
 
     const filtered = useMemo(() => {
         let items = combined.map((resource) => {
-            const displayLocation = resource._type === 'hard' ? resource : getBestLocation(resource, userLocation);
+            const displayLocation = resource._type === 'hard' ? resource : getBestLocation(resource, effectiveUserLocation);
             const lat = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lat) : null;
             const lng = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lng) : null;
-            const distance = userLocation && Number.isFinite(lat) && Number.isFinite(lng)
-                ? getDistance(userLocation.lat, userLocation.lng, lat, lng)
+            const distance = effectiveUserLocation && Number.isFinite(lat) && Number.isFinite(lng)
+                ? getDistance(effectiveUserLocation.lat, effectiveUserLocation.lng, lat, lng)
                 : null;
 
             return {
@@ -241,7 +232,7 @@ export default function DiscoverPage() {
             };
         });
 
-        if (userLocation) {
+        if (effectiveUserLocation) {
             if (searchRadius < 100) {
                 items = items.filter((resource) => resource._distance !== null && resource._distance <= searchRadius);
             }
@@ -268,11 +259,11 @@ export default function DiscoverPage() {
             const matchCategory = resource.subCategory?.toLowerCase().includes(query);
             return matchName || matchDescription || matchTag || matchCategory;
         });
-    }, [combined, savedAssets, search, searchRadius, showFavoritesOnly, user, userLocation]);
+    }, [combined, effectiveUserLocation, savedAssets, search, searchRadius, showFavoritesOnly, user]);
 
     const savedPlacePinData = useMemo(() => (
-        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, { userLocation })
-    ), [savedAssets, userLocation, visibleHardAssets, visibleSoftAssets]);
+        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, { userLocation: effectiveUserLocation })
+    ), [effectiveUserLocation, savedAssets, visibleHardAssets, visibleSoftAssets]);
 
     const savedPlacePins = savedPlacePinData.pins;
     const savedPlacePinLookup = useMemo(
@@ -283,6 +274,29 @@ export default function DiscoverPage() {
         () => (selectedPlacePinKey ? savedPlacePinLookup.get(selectedPlacePinKey) || null : null),
         [selectedPlacePinKey, savedPlacePinLookup]
     );
+
+    useEffect(() => {
+        if (!flyTarget) return;
+        if (savedPlacePins.length) {
+            setMapFocusRequest({
+                kind: 'saved-fit',
+                requestId: nextFocusRequestId(),
+                savedPlacePins,
+                anchorPoint: flyTarget,
+                source: `location-${flyTarget.source || 'set'}`,
+            });
+        } else {
+            setMapFocusRequest({
+                kind: 'single-pin',
+                requestId: nextFocusRequestId(),
+                lat: flyTarget.lat,
+                lng: flyTarget.lng,
+                zoom: flyTarget.zoom,
+            });
+        }
+        setFlyTarget(null);
+    }, [flyTarget, savedPlacePins, setFlyTarget]);
+
     const savedMapAssetKeys = useMemo(
         () => new Set(savedPlacePinData.contributingAssetKeys),
         [savedPlacePinData.contributingAssetKeys]
@@ -294,10 +308,10 @@ export default function DiscoverPage() {
     const hasTransientFocusPins = transientPlacePins.length > 0;
 
     useEffect(() => {
-        if (!isDesktop && !hasSavedMapPins && !hasTransientFocusPins && mobileMode === 'map') {
+        if (!isDesktop && !hasSavedMapPins && !hasTransientFocusPins && !effectiveOrigin && mobileMode === 'map') {
             setMobileMode('browse');
         }
-    }, [hasSavedMapPins, hasTransientFocusPins, isDesktop, mobileMode]);
+    }, [effectiveOrigin, hasSavedMapPins, hasTransientFocusPins, isDesktop, mobileMode]);
 
     useEffect(() => {
         if (isDesktop || mobileMode !== 'map') {
@@ -488,9 +502,10 @@ export default function DiscoverPage() {
     const createSavedFitFocusRequest = useCallback((source = 'detail-close') => ({
         kind: 'saved-fit',
         requestId: nextFocusRequestId(),
+        anchorPoint: effectiveOrigin,
         savedPlacePins,
         source,
-    }), [savedPlacePins]);
+    }), [effectiveOrigin, savedPlacePins]);
 
     const saveBrowseScrollPosition = useCallback(() => {
         if (resultsListRef.current) {
@@ -540,16 +555,16 @@ export default function DiscoverPage() {
         const orderedLocations = [...getAssetLocations(normalizedAsset)]
             .filter(hasValidCoordinates)
             .sort((left, right) => {
-                if (!userLocation) return 0;
+                if (!effectiveUserLocation) return 0;
                 const leftDistance = getDistance(
-                    userLocation.lat,
-                    userLocation.lng,
+                    effectiveUserLocation.lat,
+                    effectiveUserLocation.lng,
                     Number.parseFloat(left.lat),
                     Number.parseFloat(left.lng),
                 );
                 const rightDistance = getDistance(
-                    userLocation.lat,
-                    userLocation.lng,
+                    effectiveUserLocation.lat,
+                    effectiveUserLocation.lng,
                     Number.parseFloat(right.lat),
                     Number.parseFloat(right.lng),
                 );
@@ -588,7 +603,7 @@ export default function DiscoverPage() {
             pins,
             primaryPinKey: pins[0]?.pinKey || null,
         };
-    }, [userLocation, visibleHardAssetLookup]);
+    }, [effectiveUserLocation, visibleHardAssetLookup]);
 
     const handleHoverAssetOnMap = useCallback((asset) => {
         const pinKeys = resolveSavedPinKeysForAsset(asset);
@@ -911,6 +926,7 @@ export default function DiscoverPage() {
 
     const savedMapEmptyState = (
         <SavedMapEmptyState
+            encourageHomePostalCode={Boolean(isAuth && !user?.postalCode && !effectiveOrigin)}
             hasSavedAssets={savedAssetCount > 0}
             isAuthenticated={isAuth}
             onBrowse={!isDesktop ? () => setMobileMode('browse') : undefined}
@@ -918,11 +934,12 @@ export default function DiscoverPage() {
         />
     );
 
-    const hasRenderableMapPins = hasSavedMapPins || hasTransientFocusPins;
+    const hasRenderableMapPins = hasSavedMapPins || hasTransientFocusPins || Boolean(effectiveOrigin);
 
     const mapView = hasRenderableMapPins ? (
         <div className="relative h-full w-full">
             <DiscoveryMap
+                cameraAnchor={effectiveOrigin}
                 focusRequest={mapFocusRequest}
                 interactionMode={isDesktop ? 'desktop' : 'mobile'}
                 onBackgroundClick={isDesktop ? handleMapBackgroundClick : handleMobileMapBackgroundClick}
@@ -932,15 +949,15 @@ export default function DiscoverPage() {
                 pinEmphasisByKey={pinEmphasisByKey}
                 savedPlacePins={savedPlacePins}
                 transientPlacePins={transientPlacePins}
-                userLocation={userLocation}
+                userLocation={effectiveUserLocation}
             />
         </div>
-    ) : savedAssetsLoading && isAuth ? (
+    ) : (savedAssetsLoading && isAuth) || (isResolvingHome && isAuth && Boolean(user?.postalCode)) ? (
         <div className="flex h-full items-center justify-center p-6">
             <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
                 <div className="h-10 w-10 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
                 <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                    Loading your saved map…
+                    Loading your map…
                 </p>
             </div>
         </div>
@@ -949,6 +966,7 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
+            canClearLocationSearch={Boolean(searchOrigin)}
             clearLocationSearch={handleClearLocationSearch}
             handleLocateMe={handleLocateMeAndCollapse}
             handlePostalSearch={handlePostalSearch}
@@ -969,7 +987,7 @@ export default function DiscoverPage() {
             resultCount={filtered.length}
             savedAssetCount={savedAssetCount}
             search={search}
-            searchOrigin={searchOrigin}
+            searchOrigin={searchOrigin || homeOrigin}
             searchRadius={searchRadius}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
@@ -978,7 +996,7 @@ export default function DiscoverPage() {
             showFavoritesOnly={showFavoritesOnly}
             unmappableSavedCount={unmappableSavedCount}
             user={user}
-            userLocation={userLocation}
+            userLocation={effectiveUserLocation}
         />
     );
 
@@ -1007,7 +1025,7 @@ export default function DiscoverPage() {
             paneWidth={listWidth}
             pin={selectedPlacePin}
             subCatColors={subCatColors}
-            userLocation={userLocation}
+            userLocation={effectiveUserLocation}
         />
     ) : (
         <>
@@ -1118,7 +1136,7 @@ export default function DiscoverPage() {
                             paneWidth={mobileDetailDrawerWidth}
                             pin={selectedPlacePin}
                             subCatColors={subCatColors}
-                            userLocation={userLocation}
+                            userLocation={effectiveUserLocation}
                         />
                     </div>
                 </Drawer.Content>

@@ -14,7 +14,9 @@ function normalizeLocation(location) {
     return {
         lat,
         lng,
-        source: location.source === 'postal' ? 'postal' : 'geolocation',
+        source: location.source === 'home'
+            ? 'home'
+            : (location.source === 'postal' ? 'postal' : 'geolocation'),
         postalCode: typeof location.postalCode === 'string' ? location.postalCode : '',
         address: typeof location.address === 'string' ? location.address : '',
         updatedAt: Number.isFinite(location.updatedAt) ? location.updatedAt : Date.now(),
@@ -64,6 +66,9 @@ export function clearSearchLocation() {
 
 export function getSearchLocationLabel(location) {
     if (!location) return '';
+    if (location.source === 'home') {
+        return 'Home';
+    }
     if (location.source === 'postal' && location.postalCode) {
         return `postal code ${location.postalCode}`;
     }

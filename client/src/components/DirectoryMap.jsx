@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -11,6 +11,8 @@ import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
 import {
     CAREAROUND_BASEMAP_ATTRIBUTION,
     CAREAROUND_BASEMAP_MAX_ZOOM,
+    CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
+    CAREAROUND_BASEMAP_MIN_ZOOM,
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
     CAREAROUND_BASEMAP_URL,
 } from '../lib/mapTheme.js';
@@ -18,9 +20,42 @@ import {
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
 const DIRECTORY_FOCUS_ZOOM = 16;
+const DIRECTORY_ANCHOR_ONLY_ZOOM = 15;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
+}
+
+function normalizeAnchorPoint(anchor) {
+    if (!anchor) return null;
+
+    const lat = Number.parseFloat(anchor.lat);
+    const lng = Number.parseFloat(anchor.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+    }
+
+    return {
+        ...anchor,
+        lat,
+        lng,
+    };
+}
+
+function getDirectoryCameraPoints(pins = [], anchorPoint = null) {
+    const points = pins.map((pin) => ({ lat: pin.lat, lng: pin.lng }));
+    if (anchorPoint) {
+        points.push({ lat: anchorPoint.lat, lng: anchorPoint.lng });
+    }
+    return points;
+}
+
+function buildDirectoryCameraSignature(pins = [], anchorPoint = null) {
+    const pinSignature = pins.map((pin) => `${pin.placeKey}:${pin.lat}:${pin.lng}:${pin.curatedCount}`).join('|');
+    const anchorSignature = anchorPoint
+        ? `${anchorPoint.kind || 'anchor'}:${anchorPoint.postalCode || ''}:${anchorPoint.lat}:${anchorPoint.lng}`
+        : '';
+    return `${pinSignature}|${anchorSignature}`;
 }
 
 function escapeHtml(value) {
@@ -29,6 +64,41 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+function createDirectoryAnchorIcon(anchorPoint = null) {
+    const isHome = anchorPoint?.kind === 'home' || anchorPoint?.source === 'home';
+    const shellColor = isHome ? '#0f766e' : '#ffffff';
+    const shellBorder = isHome ? 'rgba(15,118,110,0.28)' : 'rgba(15,118,110,0.18)';
+    const glyphColor = isHome ? '#ffffff' : '#0fa39a';
+    const haloColor = isHome ? 'rgba(15,118,110,0.2)' : 'rgba(15,163,154,0.16)';
+    const iconSvg = isHome
+        ? `
+            <svg viewBox="0 0 24 24" width="16" height="16" focusable="false" aria-hidden="true">
+                <path d="M4 11.2 12 4l8 7.2v8.3a1 1 0 0 1-1 1h-4.6v-5.1a1 1 0 0 0-1-1H10.6a1 1 0 0 0-1 1v5.1H5a1 1 0 0 1-1-1z" fill="${glyphColor}" />
+            </svg>
+        `
+        : `
+            <svg viewBox="0 0 24 24" width="16" height="16" focusable="false" aria-hidden="true">
+                <path d="M12 21s-6-4.35-6-10a6 6 0 1 1 12 0c0 5.65-6 10-6 10Z" fill="${glyphColor}" />
+                <circle cx="12" cy="11" r="2.4" fill="${shellColor}" />
+            </svg>
+        `;
+
+    return L.divIcon({
+        className: '',
+        html: `
+            <div aria-hidden="true" style="position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;">
+                <div style="position:absolute;inset:3px;border-radius:999px;background:${haloColor};"></div>
+                <div style="position:relative;z-index:1;width:30px;height:30px;border-radius:999px;background:${shellColor};border:2px solid ${shellBorder};box-shadow:0 10px 20px rgba(15,118,110,0.24);display:flex;align-items:center;justify-content:center;">
+                    ${iconSvg}
+                </div>
+            </div>
+        `,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
+        popupAnchor: [0, -18],
+    });
 }
 
 const PALETTE = [
@@ -167,9 +237,49 @@ function spreadPinsForDisplay(pins, interactive) {
     });
 }
 
-function DirectoryMapRecenterControl({ pins, interactive, onResetView }) {
+function fitDirectoryCamera(map, pins, anchorPoint, {
+    animate = false,
+    duration = 0.6,
+} = {}) {
+    const points = getDirectoryCameraPoints(pins, anchorPoint);
+    if (!points.length) return false;
+
+    if (points.length === 1) {
+        const [point] = points;
+        const zoom = pins.length === 1 && !anchorPoint ? DIRECTORY_FOCUS_ZOOM : DIRECTORY_ANCHOR_ONLY_ZOOM;
+        if (animate) {
+            map.flyTo([point.lat, point.lng], zoom, { animate: true, duration });
+        } else {
+            map.setView([point.lat, point.lng], zoom, { animate: false });
+        }
+        return true;
+    }
+
+    const bounds = getBounds(points);
+    if (animate) {
+        map.flyToBounds(bounds, {
+            paddingTopLeft: [16, 16],
+            paddingBottomRight: [16, 16],
+            maxZoom: 16,
+            duration,
+        });
+    } else {
+        map.fitBounds(bounds, {
+            paddingTopLeft: [16, 16],
+            paddingBottomRight: [16, 16],
+            maxZoom: 16,
+            animate: false,
+        });
+    }
+
+    return true;
+}
+
+function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetView }) {
     const map = useMap();
-    if (!interactive || !pins || pins.length <= 1) return null;
+    const anchorPoint = normalizeAnchorPoint(activeAnchor);
+    const totalPointCount = (pins?.length || 0) + (anchorPoint ? 1 : 0);
+    if (!interactive || totalPointCount <= 1) return null;
     
     return (
         <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
@@ -183,12 +293,7 @@ function DirectoryMapRecenterControl({ pins, interactive, onResetView }) {
                         e.stopPropagation();
                         e.preventDefault();
                         onResetView?.();
-                        map.flyToBounds(getBounds(pins), {
-                            paddingTopLeft: [16, 16],
-                            paddingBottomRight: [16, 16],
-                            maxZoom: 16,
-                            duration: 0.6
-                        });
+                        fitDirectoryCamera(map, pins, anchorPoint, { animate: true, duration: 0.6 });
                     }}
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -319,13 +424,14 @@ function DirectoryClusterStateSync({ onClusterChange }) {
     return null;
 }
 
-function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettled, onFocusHandled }) {
+function DirectoryMapController({ activeAnchor, pins, focusedPlaceKey, interactive, onMapSettled, onFocusHandled }) {
     const map = useMap();
     const previousSignatureRef = useRef('');
+    const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
 
     const signature = useMemo(
-        () => pins.map((pin) => `${pin.placeKey}:${pin.lat}:${pin.lng}:${pin.curatedCount}`).join('|'),
-        [pins]
+        () => buildDirectoryCameraSignature(pins, anchorPoint),
+        [anchorPoint, pins]
     );
 
     useEffect(() => {
@@ -335,24 +441,13 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
     }, [map, signature]);
 
     useEffect(() => {
-        if (!pins.length) return;
+        if (!pins.length && !anchorPoint) return;
         if (previousSignatureRef.current === signature) return;
         previousSignatureRef.current = signature;
 
-        if (pins.length === 1) {
-            map.setView([pins[0].lat, pins[0].lng], 16, { animate: false });
-            window.setTimeout(() => onMapSettled?.(), 250);
-            return;
-        }
-
-        map.fitBounds(getBounds(pins), {
-            paddingTopLeft: [16, 16],
-            paddingBottomRight: [16, 16],
-            maxZoom: 16,
-            animate: false,
-        });
+        fitDirectoryCamera(map, pins, anchorPoint, { animate: false });
         window.setTimeout(() => onMapSettled?.(), 250);
-    }, [map, onMapSettled, pins, signature]);
+    }, [anchorPoint, map, onMapSettled, pins, signature]);
 
     useEffect(() => {
         if (!focusedPlaceKey) return;
@@ -378,6 +473,7 @@ function DirectoryMapController({ pins, focusedPlaceKey, interactive, onMapSettl
 
 export default function DirectoryMap({
     pins = [],
+    activeAnchor = null,
     focusedPlaceKey = null,
     activePlaceKey = null,
     activePlaceKeys = [],
@@ -412,6 +508,7 @@ export default function DirectoryMap({
     const clusterGroupRef = useRef(null);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
+    const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
 
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -454,9 +551,9 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [markerMode, onMapCaptureError, onMapReadyForCapture, pins, placeNumberByKey]);
+    }, [anchorPoint, markerMode, onMapCaptureError, onMapReadyForCapture, pins, placeNumberByKey]);
 
-    if (!pins.length) {
+    if (!pins.length && !anchorPoint) {
         return (
             <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
                 {emptyLabel}
@@ -568,6 +665,7 @@ export default function DirectoryMap({
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
+                minZoom={CAREAROUND_BASEMAP_MIN_ZOOM}
                 zoomSnap={0.1}
                 scrollWheelZoom={false}
                 dragging={interactive}
@@ -582,6 +680,7 @@ export default function DirectoryMap({
             >
                 <TileLayer
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
+                    minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
                     url={CAREAROUND_BASEMAP_URL}
                     maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
                     eventHandlers={onMapReadyForCapture ? {
@@ -599,6 +698,7 @@ export default function DirectoryMap({
                     } : undefined}
                 />
                 <DirectoryMapController
+                    activeAnchor={anchorPoint}
                     pins={pins}
                     focusedPlaceKey={focusedPlaceKey}
                     interactive={interactive}
@@ -608,9 +708,20 @@ export default function DirectoryMap({
                         tryNotifyReady();
                     } : undefined}
                 />
-                <DirectoryMapRecenterControl pins={displayPins} interactive={interactive} onResetView={onResetView} />
+                <DirectoryMapRecenterControl activeAnchor={anchorPoint} pins={displayPins} interactive={interactive} onResetView={onResetView} />
                 <DirectoryClusterHoverSync clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} onHoverClusterStart={onHoverClusterStart} onHoverClusterEnd={onHoverClusterEnd} onClusterSelect={onClusterSelect} />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
+                {anchorPoint ? (
+                    <Marker position={[anchorPoint.lat, anchorPoint.lng]} icon={createDirectoryAnchorIcon(anchorPoint)}>
+                        {showPopup ? (
+                            <Popup>
+                                <div className="p-1 font-bold text-sm">
+                                    {anchorPoint.kind === 'home' ? 'Home postal code' : 'Set location'}
+                                </div>
+                            </Popup>
+                        ) : null}
+                    </Marker>
+                ) : null}
                 {renderedMarkers}
             </MapContainer>
             <OneMapBadge />

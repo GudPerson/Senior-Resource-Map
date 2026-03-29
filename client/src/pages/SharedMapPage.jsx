@@ -303,6 +303,7 @@ export default function SharedMapPage() {
                     canSaveResources={Boolean(directory.viewer?.canSaveResources)}
                     renderDesktopMap={() => (
                         <DirectoryMap
+                            activeAnchor={activeAnchor}
                             pins={interactivePresentation.pins}
                             focusedPlaceKey={focusedPlaceKey}
                             onViewSection={handleViewSection}
@@ -314,6 +315,7 @@ export default function SharedMapPage() {
                     )}
                     renderMobileMap={() => (
                         <DirectoryMap
+                            activeAnchor={activeAnchor}
                             pins={interactivePresentation.pins}
                             focusedPlaceKey={focusedPlaceKey}
                             onViewSection={handleViewSection}
