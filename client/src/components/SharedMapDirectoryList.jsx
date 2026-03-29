@@ -316,8 +316,8 @@ function DirectoryPlaceGroupCard({
                 <div
                     className={`pointer-events-none absolute z-20 flex items-center justify-center border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 ${
                         compactInteractive
-                            ? 'left-3 top-3 h-8 w-8 rounded-lg p-1.5'
-                            : 'left-4 top-4 h-9 w-9 rounded-xl p-1.5'
+                            ? 'left-3 top-3 h-8 w-8 rounded-lg p-0.5'
+                            : 'left-4 top-4 h-9 w-9 rounded-xl p-0.5'
                     } ${
                         logoRevealed
                             ? 'opacity-100 scale-110'
@@ -328,7 +328,7 @@ function DirectoryPlaceGroupCard({
                     <img
                         src={hoverLogoRow.logoUrl}
                         alt={hoverLogoRow.name || group.name}
-                        className="max-h-full max-w-full object-contain"
+                        className="h-full w-full object-contain"
                     />
                 </div>
             ) : null}
