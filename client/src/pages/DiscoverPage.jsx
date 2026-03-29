@@ -617,6 +617,18 @@ export default function DiscoverPage() {
     }, [clearHoveredCardState, clearTransientFocusState, resolveSavedPinForAsset, resolveSavedPinKeysForAsset]);
 
     const handleFocusAssetOnMap = useCallback((asset) => {
+        const assetKey = buildSavedAssetKey(asset._type, asset.id);
+
+        if (
+            isDesktop
+            && desktopPaneMode === 'browse'
+            && lockedAssetKey === assetKey
+            && !hoveredMapPinKey
+            && !transientFocusAssetKey
+        ) {
+            return;
+        }
+
         const pinKeys = resolveSavedPinKeysForAsset(asset);
 
         if (!isDesktop) {
@@ -632,7 +644,7 @@ export default function DiscoverPage() {
             if (!primaryPin) return;
 
             clearTransientFocusState();
-            setLockedAssetKey(buildSavedAssetKey(asset._type, asset.id));
+            setLockedAssetKey(assetKey);
             setLockedPinKeys(pinKeys);
             setLockedPrimaryPinKey(primaryPin.pinKey);
 
@@ -648,11 +660,11 @@ export default function DiscoverPage() {
             return;
         }
 
-        const { assetKey, pins, primaryPinKey } = buildTransientPlacePinsForAsset(asset);
+        const { assetKey: transientAssetKey, pins, primaryPinKey } = buildTransientPlacePinsForAsset(asset);
         if (!pins.length) return;
 
         clearLockedCardState();
-        setTransientFocusAssetKey(assetKey);
+        setTransientFocusAssetKey(transientAssetKey);
         setTransientPlacePins(pins);
         setTransientPrimaryPinKey(primaryPinKey);
 
@@ -673,9 +685,13 @@ export default function DiscoverPage() {
         createPointGroupFocusRequest,
         createPinGroupFocusRequest,
         createSinglePinFocusRequest,
+        desktopPaneMode,
         isDesktop,
+        lockedAssetKey,
+        hoveredMapPinKey,
         resolveSavedPinForAsset,
         resolveSavedPinKeysForAsset,
+        transientFocusAssetKey,
     ]);
 
     const handleMapPinSelect = useCallback((pin) => {
