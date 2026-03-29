@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import SaveAssetButton from '../components/SaveAssetButton.jsx';
 import ResourceDetailContent from '../components/ResourceDetailContent.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { openResourceDetail } from '../lib/appNavigation.js';
 import {
     GEOLOCATION_OPTIONS,
     getSearchLocationLabel,
@@ -121,7 +122,7 @@ export default function ResourcePage() {
             <main className="max-w-4xl mx-auto px-4 py-6">
                 <ResourceDetailContent
                     asset={asset}
-                    onNavigateToResource={(resourceType, resourceId) => navigate(`/resource/${resourceType}/${resourceId}`)}
+                    onNavigateToResource={(resourceType, resourceId) => openResourceDetail(resourceType, resourceId, navigate)}
                     sortOrigin={sortOrigin}
                     sortOriginLabel={sortOrigin ? getSearchLocationLabel(sortOrigin) : null}
                     subCatColors={subCatColors}

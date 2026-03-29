@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Building2, CalendarDays, MapPin, Clock, Navigation } from 'lucide-react';
 import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
+import { openResourceDetail } from '../lib/appNavigation.js';
 import SaveAssetButton from './SaveAssetButton.jsx';
 
 function hasValidCoordinates(value) {
@@ -155,7 +156,10 @@ export const AssetCard = React.memo(({
             {/* Title row */}
             <div
                 className="flex items-center gap-2.5 mb-1.5 group/title"
-                onClick={(e) => { e.stopPropagation(); navigate(`/resource/${type}/${asset.id}`); }}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    openResourceDetail(type, asset.id, navigate);
+                }}
             >
                 {asset.logoUrl && (
                     <div className="w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden p-0.5 flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
@@ -266,7 +270,7 @@ export const AssetCard = React.memo(({
                         type="button"
                         onClick={(event) => {
                             event.stopPropagation();
-                            navigate(`/resource/${type}/${asset.id}`);
+                            openResourceDetail(type, asset.id, navigate);
                         }}
                         className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white"
                         style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}

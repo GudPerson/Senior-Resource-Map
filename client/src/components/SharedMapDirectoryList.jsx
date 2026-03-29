@@ -172,7 +172,7 @@ function DirectoryResourceRow({
 
     if (!interactive) {
         const printRowTitle = canOpenDetail && allowPrintLinks ? (
-            <Link to={row.detailPath} className={`font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+            <Link to={row.detailPath} reloadDocument className={`font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                 {row.name}
             </Link>
         ) : (
@@ -200,7 +200,7 @@ function DirectoryResourceRow({
                         <span className="mt-[0.6em] h-1 w-1 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                             {canOpenDetail ? (
-                                <Link to={row.detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                                <Link to={row.detailPath} reloadDocument className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                                     {row.name}
                                 </Link>
                             ) : (
@@ -315,7 +315,7 @@ function DirectoryPlaceGroupCard({
 
     if (!interactive) {
         const printPlaceTitle = placeDetailPath && allowPrintLinks ? (
-            <Link to={placeDetailPath} className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+            <Link to={placeDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
                 {group.name}
             </Link>
         ) : (
@@ -377,7 +377,7 @@ function DirectoryPlaceGroupCard({
     }
 
     const interactivePlaceTitle = placeDetailPath ? (
-        <Link to={placeDetailPath} className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
+        <Link to={placeDetailPath} reloadDocument className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
             {group.name}
         </Link>
     ) : (
@@ -434,6 +434,7 @@ function DirectoryPlaceGroupCard({
         return (
             <Link
                 to={placeDetailPath}
+                reloadDocument
                 ref={sectionRef}
                 className={`group relative block overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
@@ -472,7 +473,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                     <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" />
                     <div className="min-w-0 flex-1">
                         {canOpenDetail ? (
-                            <Link to={row.detailPath} className="text-[12px] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
+                            <Link to={row.detailPath} reloadDocument className="text-[12px] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
                                 {row.name}
                             </Link>
                         ) : (
@@ -507,7 +508,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             </span>
                         </div>
                         {row.detailPath && row.status !== 'unavailable' ? (
-                            <Link to={row.detailPath} className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
+                            <Link to={row.detailPath} reloadDocument className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
                                 {row.name}
                             </Link>
                         ) : (
@@ -548,7 +549,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                 {interactive ? (
                     <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
                         {row.detailPath && row.status !== 'unavailable' ? (
-                            <Link to={row.detailPath} className="text-brand-700 transition hover:text-brand-800">
+                            <Link to={row.detailPath} reloadDocument className="text-brand-700 transition hover:text-brand-800">
                                 View details
                             </Link>
                         ) : (

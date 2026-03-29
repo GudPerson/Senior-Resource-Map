@@ -2,6 +2,7 @@ import { MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
+import { openResourceDetail } from '../../lib/appNavigation.js';
 
 function formatDistance(distance) {
     if (!Number.isFinite(distance)) return null;
@@ -25,7 +26,7 @@ export function DiscoveryMobileBrowseCard({
     const summaryAddress = isHard
         ? asset.address
         : (displayLocation?.address || `Available in ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
-    const handleOpenDetails = () => navigate(`/resource/${type}/${asset.id}`);
+    const handleOpenDetails = () => openResourceDetail(type, asset.id, navigate);
     const handleOpenDirections = () => {
         const target = isHard ? asset : displayLocation;
         if (!target) return;

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import ResourceDetailContent from '../../components/ResourceDetailContent.jsx';
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import { api } from '../../lib/api.js';
+import { openResourceDetail } from '../../lib/appNavigation.js';
 
 function resolveDetailTarget(pin) {
     if (pin?.primarySavedAsset?.resourceType && Number.isInteger(pin.primarySavedAsset.resourceId)) {
@@ -142,7 +143,7 @@ export function DesktopSavedPlaceDetailPanel({
                         containerWidth={paneWidth}
                         layoutMode="pane"
                         onNavigateToResource={(resourceType, resourceId) => {
-                            navigate(`/resource/${resourceType}/${resourceId}`);
+                            openResourceDetail(resourceType, resourceId, navigate);
                         }}
                         sortOrigin={userLocation}
                         sortOriginLabel={sortOriginLabel}

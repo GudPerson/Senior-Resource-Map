@@ -86,7 +86,7 @@ export default function SavedAssetCard({
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row">
-                    <Link to={detailPath} className="btn-primary flex-1 justify-center">
+                    <Link to={detailPath} reloadDocument className="btn-primary flex-1 justify-center">
                         View details
                         <ArrowRight size={16} />
                     </Link>
