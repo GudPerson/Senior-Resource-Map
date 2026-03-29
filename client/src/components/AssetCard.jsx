@@ -69,6 +69,7 @@ export const AssetCard = React.memo(({
     const [isExpanded, setIsExpanded] = useState(false);
     const navigate = useNavigate();
     const softAssetCounts = isHard ? summarizeSoftAssetBuckets(asset.softAssets || []) : null;
+    const showExpandedDescription = isExpanded || isSelected;
     const savedAssetSummary = {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -168,7 +169,7 @@ export const AssetCard = React.memo(({
 
             {/* Description */}
             {asset.description && (
-                <p className={`text-sm mb-3 leading-relaxed ${!isExpanded ? 'line-clamp-2' : ''}`} style={{ color: 'var(--color-text-secondary)' }}>
+                <p className={`text-sm mb-3 leading-relaxed ${!showExpandedDescription ? 'line-clamp-2' : ''}`} style={{ color: 'var(--color-text-secondary)' }}>
                     <LinkifiedText text={asset.description} />
                 </p>
             )}
