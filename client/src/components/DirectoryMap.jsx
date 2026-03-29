@@ -68,10 +68,10 @@ function escapeHtml(value) {
 
 function createDirectoryAnchorIcon(anchorPoint = null) {
     const isHome = anchorPoint?.kind === 'home' || anchorPoint?.source === 'home';
+    const ringColor = '#0f766e';
     const shellColor = isHome ? '#0f766e' : '#ffffff';
-    const shellBorder = isHome ? 'rgba(15,118,110,0.28)' : 'rgba(15,118,110,0.18)';
-    const glyphColor = isHome ? '#ffffff' : '#0fa39a';
-    const haloColor = isHome ? 'rgba(15,118,110,0.2)' : 'rgba(15,163,154,0.16)';
+    const glyphColor = isHome ? '#ffffff' : '#e11d48';
+    const haloColor = isHome ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.18)';
     const iconSvg = isHome
         ? `
             <svg viewBox="0 0 24 24" width="16" height="16" focusable="false" aria-hidden="true">
@@ -79,25 +79,24 @@ function createDirectoryAnchorIcon(anchorPoint = null) {
             </svg>
         `
         : `
-            <svg viewBox="0 0 24 24" width="16" height="16" focusable="false" aria-hidden="true">
-                <path d="M12 21s-6-4.35-6-10a6 6 0 1 1 12 0c0 5.65-6 10-6 10Z" fill="${glyphColor}" />
-                <circle cx="12" cy="11" r="2.4" fill="${shellColor}" />
+            <svg viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true">
+                <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" fill="${glyphColor}" />
             </svg>
         `;
 
     return L.divIcon({
         className: '',
         html: `
-            <div aria-hidden="true" style="position:relative;width:38px;height:38px;display:flex;align-items:center;justify-content:center;">
-                <div style="position:absolute;inset:3px;border-radius:999px;background:${haloColor};"></div>
-                <div style="position:relative;z-index:1;width:30px;height:30px;border-radius:999px;background:${shellColor};border:2px solid ${shellBorder};box-shadow:0 10px 20px rgba(15,118,110,0.24);display:flex;align-items:center;justify-content:center;">
+            <div aria-hidden="true" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+                <div style="position:absolute;inset:2px;border-radius:999px;background:${haloColor};"></div>
+                <div style="position:relative;z-index:1;width:34px;height:34px;border-radius:999px;background:${shellColor};border:4px solid ${ringColor};box-shadow:0 12px 24px rgba(15,118,110,0.24);display:flex;align-items:center;justify-content:center;">
                     ${iconSvg}
                 </div>
             </div>
         `,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-        popupAnchor: [0, -18],
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20],
     });
 }
 

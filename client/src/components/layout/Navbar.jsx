@@ -110,6 +110,7 @@ export default function Navbar() {
                                 ) : null}
                                 <Link
                                     to="/dashboard"
+                                    reloadDocument
                                     id="nav-account"
                                     title={accountLabel}
                                     aria-label={accountLabel}
