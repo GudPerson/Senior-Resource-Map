@@ -233,8 +233,8 @@ function DirectoryPlaceBadge({
         ? 'inset-[4px] rounded-[11px]'
         : 'inset-[4px] rounded-[13px]';
     const logoTileClassName = compactInteractive
-        ? 'rounded-[15px] p-[3px]'
-        : 'rounded-[17px] p-[3px]';
+        ? 'rounded-[15px]'
+        : 'rounded-[17px]';
     const numberBadgeVisibilityClassName = hasHoverLogo
         ? (logoRevealed
             ? 'opacity-0 scale-[0.82]'
@@ -276,7 +276,7 @@ function DirectoryPlaceBadge({
                     <img
                         src={hoverLogoRow.logoUrl}
                         alt={hoverLogoRow.name || group.name}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full rounded-[inherit] object-cover"
                     />
                 </span>
             ) : null}
@@ -658,6 +658,7 @@ export default function SharedMapDirectoryList({
     autoScrollToHighlight = true,
     showDesktopHoverLogo = false,
     desktopScrollTargetRef = null,
+    selectionPlaceKey = null,
 }) {
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
@@ -687,12 +688,12 @@ export default function SharedMapDirectoryList({
     useEffect(() => {
         if (!interactive) return undefined;
 
-        if (!highlightPlaceKey) {
+        if (!selectionPlaceKey) {
             setFlashPlaceKey(null);
             return undefined;
         }
 
-        setFlashPlaceKey(highlightPlaceKey);
+        setFlashPlaceKey(selectionPlaceKey);
         if (!autoScrollToHighlight) return undefined;
 
         if (resolvedLayout === 'desktop') {
@@ -705,14 +706,14 @@ export default function SharedMapDirectoryList({
             return undefined;
         }
 
-        const node = sectionRefs.current[highlightPlaceKey];
+        const node = sectionRefs.current[selectionPlaceKey];
         if (node) {
             window.requestAnimationFrame(() => {
                 node.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [autoScrollToHighlight, desktopScrollTargetRef, highlightPlaceKey, interactive, resolvedLayout]);
+    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, resolvedLayout, selectionPlaceKey]);
 
     if (!mappedGroups.length && !unmappedRows.length) {
         return (

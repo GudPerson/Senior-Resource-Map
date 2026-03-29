@@ -257,6 +257,7 @@ export default function MyMapDetailPage() {
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
     const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
+    const [selectedClusterPlaceKeys, setSelectedClusterPlaceKeys] = useState([]);
     const [editOpen, setEditOpen] = useState(false);
     const [editSubmitting, setEditSubmitting] = useState(false);
     const [editError, setEditError] = useState('');
@@ -316,15 +317,22 @@ export default function MyMapDetailPage() {
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys([]);
     }, []);
 
     const handleMapFocusHandled = useCallback((handledPlaceKey) => {
         setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
     }, []);
 
-    const activePlaceKey = hoveredClusterPlaceKeys.length ? null : (hoveredPlaceKey || highlightPlaceKey || null);
-    const activePlaceKeys = hoveredClusterPlaceKeys.length ? hoveredClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []);
-    const effectiveFocusedPlaceKey = hoveredClusterPlaceKeys.length ? null : focusedPlaceKey;
+    const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
+        ? null
+        : (hoveredPlaceKey || highlightPlaceKey || null);
+    const activePlaceKeys = hoveredClusterPlaceKeys.length
+        ? hoveredClusterPlaceKeys
+        : (selectedClusterPlaceKeys.length ? selectedClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []));
+    const effectiveFocusedPlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
+        ? null
+        : focusedPlaceKey;
 
     async function handleUpdateDetails(nextValues) {
         if (!directory) return;
@@ -434,6 +442,7 @@ export default function MyMapDetailPage() {
         if (suspendMapInteraction || !placeKey) return;
         setHighlightPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys([]);
         setHoveredPlaceKey(String(placeKey));
     }, [suspendMapInteraction]);
 
@@ -445,6 +454,7 @@ export default function MyMapDetailPage() {
         if (suspendMapInteraction || !placeKeys?.length) return;
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
+        setSelectedClusterPlaceKeys([]);
         setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
     }, [suspendMapInteraction]);
 
@@ -458,7 +468,8 @@ export default function MyMapDetailPage() {
         setFocusedPlaceKey(null);
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
-        setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
+        setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys(placeKeys.map((value) => String(value)));
     }, [suspendMapInteraction]);
 
     useEffect(() => () => {
@@ -597,7 +608,7 @@ export default function MyMapDetailPage() {
                                 onRemoveResource={handleRemoveResource}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
-                                autoScrollToHighlight={!hoveredPlaceKey}
+                                selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
                                 showDesktopHoverLogo
                                 desktopScrollTargetRef={desktopSelectionSnapRef}
                                 desktopGridClassName="lg:grid-cols-[minmax(280px,1fr)_minmax(380px,1.15fr)_minmax(280px,1fr)] xl:grid-cols-[minmax(320px,1fr)_minmax(560px,1.6fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(360px,1fr)_minmax(680px,1.8fr)_minmax(360px,1fr)]"
