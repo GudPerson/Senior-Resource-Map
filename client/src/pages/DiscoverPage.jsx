@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
@@ -51,6 +51,7 @@ const MOBILE_PIN_DRAWER_POINTER_GAP = 6;
 const MOBILE_PIN_VISUAL_CENTER_OFFSET_X = 2;
 const MOBILE_PIN_VISUAL_CENTER_OFFSET_Y = 22;
 const MOBILE_PIN_POINTER_LIFT_Y = 8;
+const TOUCH_DESKTOP_PANE_PRESET_WIDTHS = [450, 676, 992];
 
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
@@ -83,7 +84,8 @@ export default function DiscoverPage() {
     const lastBrowseScrollTopRef = useRef(0);
     const mobileMapViewportRef = useRef(null);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
-    const { isDragging, listWidth, startDragging } = useSplitPaneResize(450);
+    const isTouchDesktop = useMediaQuery('(min-width: 1024px) and (pointer: coarse)');
+    const { isDragging, listWidth, maxPaneWidth, setPaneWidth, startDragging } = useSplitPaneResize(450);
     const { user, isAuth } = useAuth();
     const { savedAssets, savedAssetsLoading } = useSavedAssets();
     const {
@@ -831,6 +833,49 @@ export default function DiscoverPage() {
     ]);
 
     const selectedBrowseAssetKey = desktopPaneMode === 'browse' ? lockedAssetKey : null;
+    const touchDesktopPanePresetWidths = useMemo(() => (
+        TOUCH_DESKTOP_PANE_PRESET_WIDTHS
+            .filter((width, index) => index === 0 || maxPaneWidth >= width)
+            .map((width) => Math.round(Math.max(430, Math.min(width, maxPaneWidth))))
+    ), [maxPaneWidth]);
+    const activeTouchDesktopPanePresetIndex = useMemo(() => {
+        if (!touchDesktopPanePresetWidths.length) return 0;
+
+        return touchDesktopPanePresetWidths.reduce((bestIndex, width, index, widths) => (
+            Math.abs(width - listWidth) < Math.abs(widths[bestIndex] - listWidth) ? index : bestIndex
+        ), 0);
+    }, [listWidth, touchDesktopPanePresetWidths]);
+    const canExpandTouchDesktopPane = activeTouchDesktopPanePresetIndex < touchDesktopPanePresetWidths.length - 1;
+    const canCollapseTouchDesktopPane = activeTouchDesktopPanePresetIndex > 0;
+    const showTouchDesktopPaneToggle = (
+        isTouchDesktop
+        && desktopPaneMode === 'browse'
+        && touchDesktopPanePresetWidths.length > 1
+    );
+
+    const handleTouchDesktopPaneToggle = useCallback(() => {
+        if (!showTouchDesktopPaneToggle) return;
+
+        const nextIndex = canExpandTouchDesktopPane
+            ? activeTouchDesktopPanePresetIndex + 1
+            : (canCollapseTouchDesktopPane ? activeTouchDesktopPanePresetIndex - 1 : activeTouchDesktopPanePresetIndex);
+
+        if (nextIndex === activeTouchDesktopPanePresetIndex) return;
+
+        setPaneWidth(touchDesktopPanePresetWidths[nextIndex]);
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                window.dispatchEvent(new Event('resize'));
+            });
+        });
+    }, [
+        activeTouchDesktopPanePresetIndex,
+        canCollapseTouchDesktopPane,
+        canExpandTouchDesktopPane,
+        setPaneWidth,
+        showTouchDesktopPaneToggle,
+        touchDesktopPanePresetWidths,
+    ]);
 
     const handleApplySearch = useCallback(async (event) => {
         if (postalInput.trim()) {
@@ -1100,11 +1145,30 @@ export default function DiscoverPage() {
                     {desktopLeftPane}
                 </div>
 
-                <div
-                    className={`absolute z-30 h-full w-2 cursor-col-resize transition-colors ${isDragging ? 'bg-brand-500 opacity-60' : 'hover:bg-brand-300 hover:opacity-60'}`}
-                    onMouseDown={startDragging}
-                    style={{ left: `${listWidth - 4}px` }}
-                />
+                {!isTouchDesktop ? (
+                    <div
+                        className={`absolute z-30 h-full w-2 cursor-col-resize transition-colors ${isDragging ? 'bg-brand-500 opacity-60' : 'hover:bg-brand-300 hover:opacity-60'}`}
+                        onMouseDown={startDragging}
+                        style={{ left: `${listWidth - 4}px` }}
+                    />
+                ) : null}
+
+                {showTouchDesktopPaneToggle ? (
+                    <button
+                        type="button"
+                        onClick={handleTouchDesktopPaneToggle}
+                        className="absolute z-30 top-1/2 flex h-20 w-8 -translate-y-1/2 items-center justify-center rounded-r-2xl border border-l-0 bg-white/92 shadow-[14px_0_24px_rgba(15,89,91,0.12)] backdrop-blur"
+                        style={{
+                            left: `${listWidth - 1}px`,
+                            borderColor: 'var(--color-border)',
+                            color: 'var(--color-brand-strong)',
+                        }}
+                        aria-label={canExpandTouchDesktopPane ? 'Expand resource cards to the next column width' : 'Reduce resource cards by one column width'}
+                        title={canExpandTouchDesktopPane ? 'Expand cards' : 'Collapse cards'}
+                    >
+                        {canExpandTouchDesktopPane ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                    </button>
+                ) : null}
 
                 <div className="relative z-0 h-full w-full flex-1">
                     {mapView}

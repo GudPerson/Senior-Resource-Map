@@ -4,8 +4,19 @@ const MIN_PANE_WIDTH = 430;
 const MAX_PANE_WIDTH_RATIO = 0.7;
 
 export function useSplitPaneResize(initialWidth = 450) {
-    const [listWidth, setListWidth] = useState(initialWidth);
+    const getMaxPaneWidth = useCallback(() => (
+        typeof window === 'undefined'
+            ? Math.max(MIN_PANE_WIDTH, initialWidth)
+            : Math.max(MIN_PANE_WIDTH, window.innerWidth * MAX_PANE_WIDTH_RATIO)
+    ), [initialWidth]);
+
+    const clampPaneWidth = useCallback((width) => (
+        Math.max(MIN_PANE_WIDTH, Math.min(width, getMaxPaneWidth()))
+    ), [getMaxPaneWidth]);
+
+    const [listWidth, setListWidth] = useState(() => clampPaneWidth(initialWidth));
     const [isDragging, setIsDragging] = useState(false);
+    const [maxPaneWidth, setMaxPaneWidth] = useState(() => getMaxPaneWidth());
 
     const startDragging = useCallback((event) => {
         setIsDragging(true);
@@ -15,8 +26,7 @@ export function useSplitPaneResize(initialWidth = 450) {
     useEffect(() => {
         const onMouseMove = (event) => {
             if (!isDragging) return;
-            const newWidth = Math.max(MIN_PANE_WIDTH, Math.min(event.clientX, window.innerWidth * MAX_PANE_WIDTH_RATIO));
-            setListWidth(newWidth);
+            setListWidth(clampPaneWidth(event.clientX));
         };
 
         const onMouseUp = () => {
@@ -40,13 +50,20 @@ export function useSplitPaneResize(initialWidth = 450) {
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         };
-    }, [isDragging]);
+    }, [clampPaneWidth, isDragging]);
+
+    const setPaneWidth = useCallback((nextWidth) => {
+        setListWidth((currentWidth) => {
+            const resolvedWidth = typeof nextWidth === 'function' ? nextWidth(currentWidth) : nextWidth;
+            return clampPaneWidth(resolvedWidth);
+        });
+    }, [clampPaneWidth]);
 
     useEffect(() => {
         const syncWidthToViewport = () => {
-            setListWidth((currentWidth) => (
-                Math.max(MIN_PANE_WIDTH, Math.min(currentWidth, window.innerWidth * MAX_PANE_WIDTH_RATIO))
-            ));
+            const nextMaxPaneWidth = getMaxPaneWidth();
+            setMaxPaneWidth(nextMaxPaneWidth);
+            setListWidth((currentWidth) => clampPaneWidth(currentWidth));
         };
 
         syncWidthToViewport();
@@ -54,7 +71,7 @@ export function useSplitPaneResize(initialWidth = 450) {
         return () => {
             window.removeEventListener('resize', syncWidthToViewport);
         };
-    }, []);
+    }, [clampPaneWidth, getMaxPaneWidth]);
 
-    return { isDragging, listWidth, startDragging };
+    return { isDragging, listWidth, maxPaneWidth, setPaneWidth, startDragging };
 }
