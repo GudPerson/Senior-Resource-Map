@@ -31,13 +31,14 @@ const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [16, 24];
 function createLocationAnchorIcon(anchorPoint = null) {
     const isHome = anchorPoint?.source === 'home' || anchorPoint?.kind === 'home';
     const ringColor = '#0f766e';
-    const shellColor = isHome ? '#0f766e' : '#ffffff';
-    const glyphColor = isHome ? '#ffffff' : '#e11d48';
-    const haloColor = isHome ? 'rgba(15,118,110,0.2)' : 'rgba(15,118,110,0.18)';
+    const shellColor = '#ffffff';
+    const glyphColor = '#e11d48';
+    const haloColor = isHome ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.18)';
     const iconSvg = isHome
         ? `
-            <svg viewBox="0 0 24 24" width="16" height="16" focusable="false" aria-hidden="true">
-                <path d="M4 11.2 12 4l8 7.2v8.3a1 1 0 0 1-1 1h-4.6v-5.1a1 1 0 0 0-1-1H10.6a1 1 0 0 0-1 1v5.1H5a1 1 0 0 1-1-1z" fill="${glyphColor}" />
+            <svg viewBox="0 0 24 24" width="20" height="20" focusable="false" aria-hidden="true">
+                <path d="M4.8 10.7 12 4.9l7.2 5.8v7.2a1.1 1.1 0 0 1-1.1 1.1H5.9a1.1 1.1 0 0 1-1.1-1.1z" fill="#f8fffd" stroke="${ringColor}" stroke-width="1.8" stroke-linejoin="round" />
+                <path d="M12 15.9c-.22 0-.43-.07-.61-.21-2.22-1.84-3.89-3.27-3.89-5.12 0-1.18.96-2.14 2.14-2.14.8 0 1.55.43 1.96 1.1.41-.67 1.16-1.1 1.96-1.1 1.18 0 2.14.96 2.14 2.14 0 1.85-1.67 3.28-3.89 5.12-.18.14-.39.21-.61.21Z" fill="${glyphColor}" />
             </svg>
         `
         : `
@@ -334,15 +335,6 @@ export function DiscoveryMap({
                     savedPlacePins={savedPlacePins}
                 />
                 <MapBackgroundEvents enabled={Boolean(onBackgroundClick)} onBackgroundClick={onBackgroundClick} />
-                {userLocation ? (
-                    <Marker position={[userLocation.lat, userLocation.lng]} icon={createLocationAnchorIcon(cameraAnchor || userLocation)}>
-                        <Popup>
-                            <div className="p-1 font-bold text-sm">
-                                {cameraAnchor?.source === 'home' ? 'Home postal code' : 'Your Search Location'}
-                            </div>
-                        </Popup>
-                    </Marker>
-                ) : null}
                 {renderedPins.map((pin) => {
                     const markerKey = pin.pinKey;
                     const emphasis = emphasisLookup.get(markerKey) || 'default';
@@ -376,6 +368,19 @@ export function DiscoveryMap({
                         />
                     );
                 })}
+                {userLocation ? (
+                    <Marker
+                        position={[userLocation.lat, userLocation.lng]}
+                        icon={createLocationAnchorIcon(cameraAnchor || userLocation)}
+                        zIndexOffset={1200}
+                    >
+                        <Popup>
+                            <div className="p-1 font-bold text-sm">
+                                {cameraAnchor?.source === 'home' ? 'Home postal code' : 'Your Search Location'}
+                            </div>
+                        </Popup>
+                    </Marker>
+                ) : null}
             </MapContainer>
             <div className="hidden lg:block">
                 <OneMapBadge />
