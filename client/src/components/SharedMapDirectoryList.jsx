@@ -265,7 +265,7 @@ function DirectoryPlaceBadge({
                 style={{
                     backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
                     fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px'),
-                    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    fontFamily: 'var(--font-heading)',
                     lineHeight: 1,
                 }}
             >
@@ -335,7 +335,7 @@ function DirectoryPlaceGroupCard({
                         style={{ 
                             backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
                             fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px'),
-                            fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            fontFamily: 'var(--font-heading)',
                             lineHeight: 1,
                         }}
                     >

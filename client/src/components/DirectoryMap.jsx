@@ -122,7 +122,7 @@ function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set()) {
         html: `
             <div style="width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
                 <div style="width:42px;height:42px;border-radius:999px;background:${outerBackground};display:flex;align-items:center;justify-content:center;border:1px solid ${outerBorder};box-shadow:${outerShadow};">
-                    <div style="width:32px;height:32px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+                    <div style="width:32px;height:32px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:var(--font-heading);">
                         ${escapeHtml(count)}
                     </div>
                 </div>

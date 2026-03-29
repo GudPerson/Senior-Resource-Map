@@ -95,7 +95,7 @@ export const AssetCard = React.memo(({
 
     return (
         <article
-            className="card relative group flex flex-col cursor-pointer transition-all overflow-hidden"
+            className="asset-card card relative group flex flex-col cursor-pointer transition-all overflow-hidden"
             style={{
                 borderWidth: '2px',
                 borderColor: isSelected ? 'var(--color-brand)' : 'var(--color-border)',
@@ -243,16 +243,16 @@ export const AssetCard = React.memo(({
                     {SOFT_ASSET_BUCKETS.map((bucket) => (
                         <div
                             key={bucket}
-                            className="rounded-xl border px-3 py-2 text-center"
+                            className="asset-card__bucket rounded-xl border px-3 py-2 text-center"
                             style={{
                                 borderColor: 'var(--color-border)',
                                 backgroundColor: 'color-mix(in srgb, var(--color-surface) 88%, var(--color-brand-light) 12%)',
                             }}
                         >
-                            <div className="text-lg font-extrabold leading-none" style={{ color: 'var(--color-text)' }}>
+                            <div className="asset-card__bucket-count font-extrabold leading-none" style={{ color: 'var(--color-text)' }}>
                                 {softAssetCounts?.[bucket] || 0}
                             </div>
-                            <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
+                            <div className="asset-card__bucket-label mt-1 font-bold uppercase" style={{ color: 'var(--color-text-muted)' }}>
                                 {bucket}
                             </div>
                         </div>

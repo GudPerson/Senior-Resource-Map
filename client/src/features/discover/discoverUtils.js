@@ -163,7 +163,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         letter-spacing:-0.02em;
                         transform-origin:center;
                         pointer-events:none;
-                        font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                        font-family:var(--font-heading);
                     "
                 >${escapeSvgText(label)}</div>
             </div>
