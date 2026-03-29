@@ -577,7 +577,7 @@ function DirectoryGroupColumn({
     compactPrint = false,
     clusterMapping = {},
     showDesktopHoverLogo = false,
-    logoRevealPlaceKey = null,
+    logoRevealPlaceKeys = [],
 }) {
     if (!groups.length) {
         return preserveSlot ? <div aria-hidden="true" className="min-h-px" /> : null;
@@ -600,7 +600,7 @@ function DirectoryGroupColumn({
                     compactPrint={compactPrint}
                     clusterColorData={clusterMapping[group.placeKey] || null}
                     showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealed={logoRevealPlaceKey === group.placeKey}
+                    logoRevealed={logoRevealPlaceKeys.includes(group.placeKey)}
                     sectionRef={(node) => {
                         if (node) {
                             sectionRefs.current[group.placeKey] = node;
@@ -692,9 +692,9 @@ export default function SharedMapDirectoryList({
     const compactInteractiveDesktop = interactive
         && resolvedLayout === 'desktop'
         && (mappedGroups.length >= 7 || interactiveRowCount >= 9);
-    const logoRevealPlaceKey = showDesktopHoverLogo
-        ? (highlightPlaceKey || (highlightPlaceKeys.length === 1 ? highlightPlaceKeys[0] : null))
-        : null;
+    const logoRevealPlaceKeys = showDesktopHoverLogo
+        ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
+        : [];
 
     useEffect(() => {
         if (!interactive) return undefined;
@@ -756,7 +756,7 @@ export default function SharedMapDirectoryList({
                     sectionRefs={sectionRefs}
                     clusterMapping={clusterMapping}
                     showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealPlaceKey={logoRevealPlaceKey}
+                    logoRevealPlaceKeys={logoRevealPlaceKeys}
                 />
 
                 <DirectoryUnmappedSection
@@ -789,7 +789,7 @@ export default function SharedMapDirectoryList({
                     compactPrint={compactPrint}
                     clusterMapping={clusterMapping}
                     showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealPlaceKey={logoRevealPlaceKey}
+                    logoRevealPlaceKeys={logoRevealPlaceKeys}
                 />
 
                 <div
@@ -816,7 +816,7 @@ export default function SharedMapDirectoryList({
                     compactPrint={compactPrint}
                     clusterMapping={clusterMapping}
                     showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealPlaceKey={logoRevealPlaceKey}
+                    logoRevealPlaceKeys={logoRevealPlaceKeys}
                 />
             </div>
 
