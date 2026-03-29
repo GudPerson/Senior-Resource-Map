@@ -227,6 +227,7 @@ function DirectoryPlaceBadge({
     logoRevealed = false,
     onViewOnMap,
 }) {
+    const [logoFitMode, setLogoFitMode] = useState('cover');
     const hasHoverLogo = Boolean(hoverLogoRow?.logoUrl);
     const wrapperClassName = compactInteractive ? 'h-[42px] w-[42px]' : 'h-[46px] w-[46px]';
     const numberBadgeClassName = compactInteractive
@@ -243,6 +244,9 @@ function DirectoryPlaceBadge({
     const logoVisibilityClassName = logoRevealed
         ? 'opacity-100 scale-100'
         : 'opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100';
+    const logoImageClassName = logoFitMode === 'contain'
+        ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
+        : 'h-full w-full rounded-[inherit] object-cover';
 
     return (
         <button
@@ -276,7 +280,13 @@ function DirectoryPlaceBadge({
                     <img
                         src={hoverLogoRow.logoUrl}
                         alt={hoverLogoRow.name || group.name}
-                        className="h-full w-full rounded-[inherit] object-cover"
+                        className={logoImageClassName}
+                        onLoad={(event) => {
+                            const { naturalWidth, naturalHeight } = event.currentTarget;
+                            if (!naturalWidth || !naturalHeight) return;
+                            const aspectRatio = naturalWidth / naturalHeight;
+                            setLogoFitMode(aspectRatio > 1.2 || aspectRatio < 0.84 ? 'contain' : 'cover');
+                        }}
                     />
                 </span>
             ) : null}
@@ -659,6 +669,7 @@ export default function SharedMapDirectoryList({
     showDesktopHoverLogo = false,
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
+    selectionScrollRequest = 0,
 }) {
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
@@ -713,7 +724,7 @@ export default function SharedMapDirectoryList({
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, resolvedLayout, selectionPlaceKey]);
+    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, resolvedLayout, selectionPlaceKey, selectionScrollRequest]);
 
     if (!mappedGroups.length && !unmappedRows.length) {
         return (

@@ -258,6 +258,7 @@ export default function MyMapDetailPage() {
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
     const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
     const [selectedClusterPlaceKeys, setSelectedClusterPlaceKeys] = useState([]);
+    const [selectionScrollRequest, setSelectionScrollRequest] = useState(0);
     const [editOpen, setEditOpen] = useState(false);
     const [editSubmitting, setEditSubmitting] = useState(false);
     const [editError, setEditError] = useState('');
@@ -424,6 +425,7 @@ export default function MyMapDetailPage() {
         clearMapSelection();
         pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
             pendingFocusFrameRef.current = null;
+            setSelectionScrollRequest((value) => value + 1);
             setFocusedPlaceKey(zoomKey);
             setHighlightPlaceKey(String(placeKey));
         });
@@ -470,6 +472,7 @@ export default function MyMapDetailPage() {
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
         setSelectedClusterPlaceKeys(placeKeys.map((value) => String(value)));
+        setSelectionScrollRequest((value) => value + 1);
     }, [suspendMapInteraction]);
 
     useEffect(() => () => {
@@ -575,7 +578,7 @@ export default function MyMapDetailPage() {
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
                     {useDesktopOwnerLayout ? (
-                        <div ref={desktopSelectionSnapRef} className="scroll-mt-[56px] sm:scroll-mt-[64px]">
+                        <div>
                             <OwnerHeader
                                 directory={directory}
                                 query={query}
@@ -596,6 +599,14 @@ export default function MyMapDetailPage() {
                         </div>
                     ) : null}
 
+                    {useDesktopOwnerLayout ? (
+                        <div
+                            ref={desktopSelectionSnapRef}
+                            aria-hidden="true"
+                            className="h-px -mt-px scroll-mt-[56px] sm:scroll-mt-[64px]"
+                        />
+                    ) : null}
+
                     {directory.summary.resourceCount === 0 ? (
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
                     ) : (
@@ -609,6 +620,7 @@ export default function MyMapDetailPage() {
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
                                 selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
+                                selectionScrollRequest={selectionScrollRequest}
                                 showDesktopHoverLogo
                                 desktopScrollTargetRef={desktopSelectionSnapRef}
                                 desktopGridClassName="lg:grid-cols-[minmax(280px,1fr)_minmax(380px,1.15fr)_minmax(280px,1fr)] xl:grid-cols-[minmax(320px,1fr)_minmax(560px,1.6fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(360px,1fr)_minmax(680px,1.8fr)_minmax(360px,1fr)]"
