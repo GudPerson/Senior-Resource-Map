@@ -267,6 +267,7 @@ export default function MyMapDetailPage() {
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const pendingFocusFrameRef = useRef(null);
+    const desktopSelectionSnapRef = useRef(null);
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
@@ -563,23 +564,23 @@ export default function MyMapDetailPage() {
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
                     {useDesktopOwnerLayout ? (
-                        <div>
+                        <div ref={desktopSelectionSnapRef} className="scroll-mt-[56px] sm:scroll-mt-[64px]">
                             <OwnerHeader
-                            directory={directory}
-                            query={query}
-                            onQueryChange={setQuery}
-                            anchorState={anchorState}
-                            actionError={actionError}
-                            onAddAssets={() => setAddOpen(true)}
-                            onEditDetails={() => {
-                                setEditError('');
-                                setEditOpen(true);
-                            }}
-                            onOpenPrintView={openPrintView}
-                            onOpenShare={() => {
-                                setShareError('');
-                                setShareOpen(true);
-                            }}
+                                directory={directory}
+                                query={query}
+                                onQueryChange={setQuery}
+                                anchorState={anchorState}
+                                actionError={actionError}
+                                onAddAssets={() => setAddOpen(true)}
+                                onEditDetails={() => {
+                                    setEditError('');
+                                    setEditOpen(true);
+                                }}
+                                onOpenPrintView={openPrintView}
+                                onOpenShare={() => {
+                                    setShareError('');
+                                    setShareOpen(true);
+                                }}
                             />
                         </div>
                     ) : null}
@@ -598,6 +599,7 @@ export default function MyMapDetailPage() {
                                 highlightPlaceKeys={activePlaceKeys}
                                 autoScrollToHighlight={!hoveredPlaceKey}
                                 showDesktopHoverLogo
+                                desktopScrollTargetRef={desktopSelectionSnapRef}
                                 desktopGridClassName="lg:grid-cols-[minmax(280px,1fr)_minmax(380px,1.15fr)_minmax(280px,1fr)] xl:grid-cols-[minmax(320px,1fr)_minmax(560px,1.6fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(360px,1fr)_minmax(680px,1.8fr)_minmax(360px,1fr)]"
                                 renderDesktopMap={() => (
                                     <DirectoryMap

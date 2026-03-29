@@ -219,6 +219,71 @@ function DirectoryResourceRow({
     );
 }
 
+function DirectoryPlaceBadge({
+    group,
+    clusterColorData,
+    compactInteractive = false,
+    hoverLogoRow = null,
+    logoRevealed = false,
+    onViewOnMap,
+}) {
+    const hasHoverLogo = Boolean(hoverLogoRow?.logoUrl);
+    const wrapperClassName = compactInteractive ? 'h-[42px] w-[42px]' : 'h-[46px] w-[46px]';
+    const numberBadgeClassName = compactInteractive
+        ? 'inset-[4px] rounded-[11px]'
+        : 'inset-[4px] rounded-[13px]';
+    const logoTileClassName = compactInteractive
+        ? 'rounded-[15px] p-[3px]'
+        : 'rounded-[17px] p-[3px]';
+    const numberBadgeVisibilityClassName = hasHoverLogo
+        ? (logoRevealed
+            ? 'opacity-0 scale-[0.82]'
+            : 'opacity-100 scale-100 group-hover:opacity-0 group-hover:scale-[0.82]')
+        : 'opacity-100 scale-100';
+    const logoVisibilityClassName = logoRevealed
+        ? 'opacity-100 scale-100'
+        : 'opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100';
+
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onViewOnMap?.(group.placeKey);
+            }}
+            className={`relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`}
+            aria-label={`View ${group.name} on map`}
+            title="View on map"
+        >
+            <span
+                className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
+                style={{
+                    backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                    fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px'),
+                    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    lineHeight: 1,
+                }}
+            >
+                {group.number}
+            </span>
+
+            {hasHoverLogo ? (
+                <span
+                    className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center overflow-hidden border border-slate-200/90 bg-white shadow-[0_16px_28px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90 transition-all duration-300 ${logoTileClassName} ${logoVisibilityClassName}`}
+                    aria-hidden="true"
+                >
+                    <img
+                        src={hoverLogoRow.logoUrl}
+                        alt={hoverLogoRow.name || group.name}
+                        className="h-full w-full object-contain"
+                    />
+                </span>
+            ) : null}
+        </button>
+    );
+}
+
 function DirectoryPlaceGroupCard({
     group,
     mode,
@@ -312,42 +377,15 @@ function DirectoryPlaceGroupCard({
 
     const cardContent = (
         <>
-            {hoverLogoRow?.logoUrl ? (
-                <div
-                    className={`pointer-events-none absolute z-20 flex items-center justify-center border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur-sm transition-all duration-300 ${
-                        compactInteractive
-                            ? 'left-2 top-2 h-10 w-10 rounded-[14px] p-px'
-                            : 'left-3 top-3 h-11 w-11 rounded-[16px] p-px'
-                    } ${
-                        logoRevealed
-                            ? 'opacity-100 scale-110'
-                            : 'opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-110'
-                    }`}
-                    aria-hidden="true"
-                >
-                    <img
-                        src={hoverLogoRow.logoUrl}
-                        alt={hoverLogoRow.name || group.name}
-                        className="h-full w-full object-contain"
-                    />
-                </div>
-            ) : null}
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
-                <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); onViewOnMap?.(group.placeKey); }}
-                    className={`relative z-10 flex flex-shrink-0 items-center justify-center font-black text-white shadow-sm transition hover:opacity-90 ${compactInteractive ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl'}`}
-                    style={{ 
-                        backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                        fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px'),
-                        fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                        lineHeight: 1,
-                    }}
-                    aria-label={`View ${group.name} on map`}
-                    title="View on map"
-                >
-                    {group.number}
-                </button>
+                <DirectoryPlaceBadge
+                    group={group}
+                    clusterColorData={clusterColorData}
+                    compactInteractive={compactInteractive}
+                    hoverLogoRow={hoverLogoRow}
+                    logoRevealed={logoRevealed}
+                    onViewOnMap={onViewOnMap}
+                />
                 <div className="min-w-0 flex-1">
                     {interactivePlaceTitle}
                     <div className={`flex flex-wrap items-center ${compactInteractive ? 'mt-0.5 gap-1.5' : 'mt-1 gap-2'}`}>
@@ -619,6 +657,7 @@ export default function SharedMapDirectoryList({
     allowPrintLinks = false,
     autoScrollToHighlight = true,
     showDesktopHoverLogo = false,
+    desktopScrollTargetRef = null,
 }) {
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
@@ -657,10 +696,10 @@ export default function SharedMapDirectoryList({
         if (!autoScrollToHighlight) return undefined;
 
         if (resolvedLayout === 'desktop') {
-            const mapAnchor = desktopMapWrapperRef.current;
-            if (mapAnchor) {
+            const desktopScrollTarget = desktopScrollTargetRef?.current || desktopMapWrapperRef.current;
+            if (desktopScrollTarget) {
                 window.requestAnimationFrame(() => {
-                    mapAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    desktopScrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             }
             return undefined;
@@ -673,7 +712,7 @@ export default function SharedMapDirectoryList({
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [autoScrollToHighlight, highlightPlaceKey, interactive, resolvedLayout]);
+    }, [autoScrollToHighlight, desktopScrollTargetRef, highlightPlaceKey, interactive, resolvedLayout]);
 
     if (!mappedGroups.length && !unmappedRows.length) {
         return (
