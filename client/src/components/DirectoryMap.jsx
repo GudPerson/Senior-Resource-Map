@@ -74,11 +74,10 @@ function createDirectoryAnchorIcon(anchorPoint = null) {
     const haloColor = isHome ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.18)';
     const iconSvg = isHome
         ? `
-            <svg viewBox="0 0 24 24" width="22" height="22" focusable="false" aria-hidden="true">
-                <path d="M17.1 5.2c0-.44.36-.8.8-.8h.55c.44 0 .8.36.8.8v3.05l1.25 1.02c.34.28.39.78.11 1.12a.8.8 0 0 1-1.12.11L12 4.42l-7.5 6.1a.8.8 0 0 1-1.12-.11.8.8 0 0 1 .11-1.12l8-6.5a.8.8 0 0 1 1.01 0l4.6 3.73z" fill="${ringColor}" />
-                <path d="M6.35 10.55 12 5.95l5.65 4.6v6.7a1.15 1.15 0 0 1-1.15 1.15H7.5a1.15 1.15 0 0 1-1.15-1.15z" fill="${ringColor}" />
-                <path d="M10.05 18.4v-3.65c0-.6.49-1.1 1.1-1.1h1.7c.61 0 1.1.5 1.1 1.1v3.65z" fill="#0b5b56" />
-                <path d="M12 12.05c-.18 0-.36-.06-.5-.17-1.12-.93-1.97-1.66-1.97-2.62 0-.6.49-1.09 1.09-1.09.41 0 .79.22 1 .57.21-.35.59-.57 1-.57.6 0 1.09.49 1.09 1.09 0 .96-.85 1.69-1.97 2.62-.14.11-.32.17-.5.17Z" fill="${glyphColor}" />
+            <svg viewBox="0 0 36 36" width="32" height="32" focusable="false" aria-hidden="true">
+                <path d="M10.5 17.2 18 10.9l7.5 6.3v8.5a2 2 0 0 1-2 2H12.5a2 2 0 0 1-2-2z" fill="${shellColor}" stroke="${ringColor}" stroke-width="3.3" stroke-linejoin="round" />
+                <path d="M22.7 12.9V9.8h2.6v5.3" fill="none" stroke="${ringColor}" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M18 22.2c-.25 0-.49-.08-.68-.23-1.44-1.18-2.52-2.11-2.52-3.33 0-.79.64-1.44 1.43-1.44.54 0 1.03.29 1.31.74.28-.45.77-.74 1.31-.74.79 0 1.43.65 1.43 1.44 0 1.22-1.08 2.15-2.52 3.33-.19.15-.43.23-.68.23Z" fill="${glyphColor}" />
             </svg>
         `
         : `
@@ -92,7 +91,7 @@ function createDirectoryAnchorIcon(anchorPoint = null) {
         html: `
             <div aria-hidden="true" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
                 <div style="position:absolute;inset:2px;border-radius:999px;background:${haloColor};"></div>
-                <div style="position:relative;z-index:1;width:34px;height:34px;border-radius:999px;background:${shellColor};border:4px solid ${ringColor};box-shadow:0 12px 24px rgba(15,118,110,0.24);display:flex;align-items:center;justify-content:center;">
+                <div style="position:relative;z-index:1;width:34px;height:34px;${isHome ? '' : `border-radius:999px;background:${shellColor};border:4px solid ${ringColor};`}box-shadow:0 12px 24px rgba(15,118,110,0.24);display:flex;align-items:center;justify-content:center;">
                     ${iconSvg}
                 </div>
             </div>
