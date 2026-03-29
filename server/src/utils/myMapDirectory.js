@@ -341,6 +341,7 @@ function buildRow({
         subCategory: snapshot.subCategory || null,
         iconKey: null,
         descriptor: snapshot.descriptor || null,
+        logoUrl: snapshot.logoUrl || null,
         detailPath,
         status,
         saveEligible,
