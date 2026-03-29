@@ -563,7 +563,7 @@
 .saved-place-pin-marker__pin {
   transform-origin: 50% 88%;
   transform: scale(var(--saved-pin-scale, 1));
-  transition: transform 0.18s ease, filter 0.18s ease;
+  transition: filter 0.18s ease;
 }
 
 .saved-place-pin-marker__badge {

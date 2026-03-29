@@ -779,11 +779,14 @@ export default function DiscoverPage() {
     const pinEmphasisByKey = useMemo(() => {
         const nextMap = new Map();
         const relatedPinKeySet = new Set(activeRelatedPinKeys);
+        const useUniformGroupEmphasis = relatedPinKeySet.size > 1 && !selectedPlacePinKey && !hoveredMapPinKey;
 
         savedPlacePins.forEach((pin) => {
             let emphasis = 'default';
 
-            if (selectedPlacePinKey === pin.pinKey || (!selectedPlacePinKey && hoveredMapPinKey === pin.pinKey)) {
+            if (useUniformGroupEmphasis && relatedPinKeySet.has(pin.pinKey)) {
+                emphasis = 'primary';
+            } else if (selectedPlacePinKey === pin.pinKey || (!selectedPlacePinKey && hoveredMapPinKey === pin.pinKey)) {
                 emphasis = 'primary';
             } else if (activePrimaryPinKey === pin.pinKey) {
                 emphasis = 'primary';
