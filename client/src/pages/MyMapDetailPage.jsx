@@ -17,6 +17,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
 function MapDetailLoadingState() {
     return (
@@ -45,7 +46,7 @@ function OwnerHeader({
         <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-5 xl:p-6">
             <div className="flex flex-col gap-5">
                 {/* Row 1: Title and Actions */}
-                <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+                <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                     <div className="min-w-0 flex-1">
                         <h1 className="truncate text-[1.8rem] font-extrabold tracking-tight text-slate-900 sm:text-[2rem]">
                             {directory.name}
@@ -78,7 +79,7 @@ function OwnerHeader({
                 </div>
 
                 {/* Row 2: Navigation, Search, and Distance */}
-                <div className="grid gap-4 xl:grid-cols-[auto_minmax(320px,1fr)_auto] xl:items-center">
+                <div className="grid gap-4 lg:grid-cols-[auto_minmax(320px,1fr)_auto] lg:items-center">
                     <Link
                         to="/my-directory?section=my-maps"
                         className="btn-ghost h-12 flex-shrink-0 justify-center border border-slate-200 px-4 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
@@ -96,7 +97,7 @@ function OwnerHeader({
                         className="min-w-0"
                     />
 
-                    <DirectoryDistanceControls anchorState={anchorState} compact className="min-w-0 xl:min-w-[520px]" />
+                    <DirectoryDistanceControls anchorState={anchorState} compact className="min-w-0 lg:min-w-[520px]" />
                 </div>
 
                 {actionError ? (
@@ -266,6 +267,7 @@ export default function MyMapDetailPage() {
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const pendingFocusFrameRef = useRef(null);
+    const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
     const anchorState = useDirectoryDistanceAnchor({
@@ -540,26 +542,29 @@ export default function MyMapDetailPage() {
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-                <MyMapMobileControls
-                    directory={directory}
-                    query={query}
-                    onQueryChange={setQuery}
-                    anchorState={anchorState}
-                    onAddAssets={() => setAddOpen(true)}
-                    onEditDetails={() => {
-                        setEditError('');
-                        setEditOpen(true);
-                    }}
-                    onOpenPrintView={openPrintView}
-                    onOpenShare={() => {
-                        setShareError('');
-                        setShareOpen(true);
-                    }}
-                />
+                {!useDesktopOwnerLayout ? (
+                    <MyMapMobileControls
+                        directory={directory}
+                        query={query}
+                        onQueryChange={setQuery}
+                        anchorState={anchorState}
+                        onAddAssets={() => setAddOpen(true)}
+                        onEditDetails={() => {
+                            setEditError('');
+                            setEditOpen(true);
+                        }}
+                        onOpenPrintView={openPrintView}
+                        onOpenShare={() => {
+                            setShareError('');
+                            setShareOpen(true);
+                        }}
+                    />
+                ) : null}
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
-                    <div className="hidden xl:block">
-                        <OwnerHeader
+                    {useDesktopOwnerLayout ? (
+                        <div>
+                            <OwnerHeader
                             directory={directory}
                             query={query}
                             onQueryChange={setQuery}
@@ -575,8 +580,9 @@ export default function MyMapDetailPage() {
                                 setShareError('');
                                 setShareOpen(true);
                             }}
-                        />
-                    </div>
+                            />
+                        </div>
+                    ) : null}
 
                     {directory.summary.resourceCount === 0 ? (
                         <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
@@ -585,7 +591,7 @@ export default function MyMapDetailPage() {
                             <SharedMapDirectoryList
                                 presentation={interactivePresentation}
                                 mode="owner"
-                                layout="responsive"
+                                layout={useDesktopOwnerLayout ? 'desktop' : 'responsive'}
                                 onViewOnMap={handleViewOnMap}
                                 onRemoveResource={handleRemoveResource}
                                 highlightPlaceKey={activePlaceKey}
