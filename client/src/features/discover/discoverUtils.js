@@ -70,12 +70,13 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     const label = count > 99 ? '99+' : String(Math.max(0, count));
     const isPrimary = emphasis === 'primary';
     const isRelated = emphasis === 'related';
+    const isHighlighted = isPrimary || isRelated;
     const isTemporary = tone === 'temporary';
     const selectedRing = isTemporary ? '#f97316' : '#f59e0b';
     const outerFill = isTemporary
         ? (isPrimary ? '#d97706' : isRelated ? '#f59e0b' : '#f2a43a')
         : (isPrimary ? '#109f95' : isRelated ? '#22c7bb' : '#17b6ab');
-    const outerStroke = isPrimary ? selectedRing : '#ffffff';
+    const outerStroke = isHighlighted ? selectedRing : '#ffffff';
     const outlineShadow = isPrimary
         ? (isTemporary ? '0 14px 26px rgba(194, 65, 12, 0.34)' : '0 14px 26px rgba(194, 120, 3, 0.32)')
         : isRelated
