@@ -674,6 +674,7 @@ export default function SharedMapDirectoryList({
 }) {
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
+    const mobileMapWrapperRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
@@ -721,7 +722,19 @@ export default function SharedMapDirectoryList({
         const node = sectionRefs.current[selectionPlaceKey];
         if (node) {
             window.requestAnimationFrame(() => {
-                node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const stickyMapRect = mobileMapWrapperRef.current?.getBoundingClientRect() || null;
+                const stickyOffset = stickyMapRect
+                    ? Math.min(
+                        Math.max(Math.round(stickyMapRect.bottom + 16), 160),
+                        Math.round(window.innerHeight * 0.82),
+                    )
+                    : Math.round(window.innerHeight * 0.42);
+                const targetTop = Math.max(
+                    Math.round(node.getBoundingClientRect().top + window.scrollY - stickyOffset),
+                    0,
+                );
+
+                window.scrollTo({ top: targetTop, behavior: 'smooth' });
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
@@ -739,7 +752,7 @@ export default function SharedMapDirectoryList({
         return (
             <div className={`space-y-4 ${className}`}>
                 {renderMobileMap ? (
-                    <div className={`${mobileMapStickyClassName} disable-font-scaling`}>
+                    <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
                         {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
                         <MapLegend mobile />
                     </div>
