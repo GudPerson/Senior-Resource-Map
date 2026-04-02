@@ -299,6 +299,7 @@ function DirectoryPlaceGroupCard({
     mode,
     interactive,
     compactInteractive = false,
+    fullCardLink = false,
     onViewOnMap,
     onRemoveResource,
     canSaveResources,
@@ -430,7 +431,7 @@ function DirectoryPlaceGroupCard({
         </>
     );
 
-    if (placeDetailPath) {
+    if (placeDetailPath && fullCardLink) {
         return (
             <Link
                 to={placeDetailPath}
@@ -567,6 +568,7 @@ function DirectoryGroupColumn({
     mode,
     interactive,
     compactInteractive = false,
+    fullCardLink = false,
     onViewOnMap,
     onRemoveResource,
     canSaveResources,
@@ -593,6 +595,7 @@ function DirectoryGroupColumn({
                     mode={mode}
                     interactive={interactive}
                     compactInteractive={compactInteractive}
+                    fullCardLink={fullCardLink}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
@@ -762,6 +765,7 @@ export default function SharedMapDirectoryList({
                     groups={mappedGroups}
                     mode={mode}
                     interactive
+                    fullCardLink={false}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
@@ -792,6 +796,7 @@ export default function SharedMapDirectoryList({
                     mode={mode}
                     interactive={interactive}
                     compactInteractive={compactInteractiveDesktop}
+                    fullCardLink={interactive}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
@@ -819,6 +824,7 @@ export default function SharedMapDirectoryList({
                     mode={mode}
                     interactive={interactive}
                     compactInteractive={compactInteractiveDesktop}
+                    fullCardLink={interactive}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
