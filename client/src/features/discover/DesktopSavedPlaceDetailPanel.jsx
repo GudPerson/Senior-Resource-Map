@@ -53,26 +53,29 @@ export function DesktopSavedPlaceDetailPanel({
 }) {
     const navigate = useNavigate();
     const detailTarget = useMemo(() => resolveDetailTarget(pin), [pin]);
+    const detailTargetType = detailTarget?.type || null;
+    const detailTargetId = detailTarget?.id || null;
+    const fallbackAsset = detailTarget?.fallbackAsset || null;
     const [asset, setAsset] = useState(detailTarget?.fallbackAsset || null);
-    const [loading, setLoading] = useState(Boolean(detailTarget));
+    const [loading, setLoading] = useState(Boolean(detailTargetType && detailTargetId));
 
     useEffect(() => {
         let isActive = true;
 
-        if (!detailTarget) {
+        if (!detailTargetType || !detailTargetId) {
             setAsset(null);
             setLoading(false);
             return undefined;
         }
 
-        setAsset(detailTarget.fallbackAsset || null);
+        setAsset(fallbackAsset);
         setLoading(true);
 
         const loadDetailAsset = async () => {
             try {
-                const nextAsset = detailTarget.type === 'hard'
-                    ? await api.getHardAsset(detailTarget.id)
-                    : await api.getSoftAsset(detailTarget.id);
+                const nextAsset = detailTargetType === 'hard'
+                    ? await api.getHardAsset(detailTargetId)
+                    : await api.getSoftAsset(detailTargetId);
 
                 if (isActive) {
                     setAsset(nextAsset);
@@ -91,7 +94,7 @@ export function DesktopSavedPlaceDetailPanel({
         return () => {
             isActive = false;
         };
-    }, [detailTarget]);
+    }, [detailTargetId, detailTargetType]);
 
     if (!pin) return null;
 
@@ -122,10 +125,10 @@ export function DesktopSavedPlaceDetailPanel({
                         {title}
                     </p>
                 </div>
-                {asset && detailTarget ? (
+                {asset && detailTargetType && detailTargetId ? (
                     <SaveAssetButton
                         resourceId={asset.id}
-                        resourceType={detailTarget.type}
+                        resourceType={detailTargetType}
                         summary={savedAssetSummary}
                         variant="inspector"
                     />
@@ -137,7 +140,7 @@ export function DesktopSavedPlaceDetailPanel({
                     <div className="flex h-full items-center justify-center py-12">
                         <div className="h-10 w-10 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
                     </div>
-                ) : asset && detailTarget ? (
+                ) : asset && detailTargetType && detailTargetId ? (
                     <ResourceDetailContent
                         asset={asset}
                         containerWidth={paneWidth}
@@ -148,7 +151,7 @@ export function DesktopSavedPlaceDetailPanel({
                         sortOrigin={userLocation}
                         sortOriginLabel={sortOriginLabel}
                         subCatColors={subCatColors}
-                        type={detailTarget.type}
+                        type={detailTargetType}
                     />
                 ) : (
                     <div className="rounded-[28px] border px-6 py-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>

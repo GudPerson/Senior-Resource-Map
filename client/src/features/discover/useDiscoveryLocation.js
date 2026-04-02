@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { searchOneMap } from '../../lib/geo.js';
 import {
     clearSearchLocation,
@@ -216,10 +216,15 @@ export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
         setFlyTarget({ lat: result.lat, lng: result.lng, zoom, source: 'postal' });
     }, [postalInput, searchRadius, hardAssets]);
 
-    const effectiveOrigin = searchOrigin || homeOrigin || null;
-    const effectiveUserLocation = effectiveOrigin
-        ? { lat: effectiveOrigin.lat, lng: effectiveOrigin.lng }
-        : null;
+    const effectiveOrigin = useMemo(
+        () => searchOrigin || homeOrigin || null,
+        [homeOrigin, searchOrigin]
+    );
+    const effectiveUserLocation = useMemo(() => (
+        effectiveOrigin
+            ? { lat: effectiveOrigin.lat, lng: effectiveOrigin.lng }
+            : null
+    ), [effectiveOrigin?.lat, effectiveOrigin?.lng]);
 
     return {
         effectiveOrigin,
