@@ -52,9 +52,6 @@ function PrintDirectoryBoardHeader({
                     <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                         Prepared on {formatGeneratedOn(generatedAt)}
                     </p>
-                    {activeAnchorNote ? (
-                        <p className="mt-2 text-[12px] font-semibold text-sky-700">{activeAnchorNote}</p>
-                    ) : null}
                 </div>
                 {canShowQr ? (
                     <div className="shrink-0">
@@ -62,6 +59,9 @@ function PrintDirectoryBoardHeader({
                     </div>
                 ) : null}
             </div>
+            {activeAnchorNote ? (
+                <p className="mt-4 pt-1 text-[12px] font-semibold text-sky-700">{activeAnchorNote}</p>
+            ) : null}
         </div>
     );
 
