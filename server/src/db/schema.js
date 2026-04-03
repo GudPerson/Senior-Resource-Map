@@ -194,6 +194,7 @@ export const subCategories = pgTable('sub_categories', {
   name: varchar('name', { length: 100 }).notNull(),
   type: varchar('type', { length: 20 }).notNull(), // 'hard' or 'soft'
   color: varchar('color', { length: 20 }).default('#3b82f6'), // default to blue-500
+  iconUrl: text('icon_url'),
 });
 
 export const hardAssetTags = pgTable('hard_asset_tags', {

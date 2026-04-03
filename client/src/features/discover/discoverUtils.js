@@ -66,7 +66,35 @@ function escapeSvgText(value) {
         .replace(/>/g, '&gt;');
 }
 
-export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone = 'saved' } = {}) {
+function renderSavedPinCenterGlyph(iconUrl) {
+    if (iconUrl) {
+        return `
+            <img
+                src="${escapeSvgText(iconUrl)}"
+                alt=""
+                draggable="false"
+                style="width:100%;height:100%;object-fit:contain;padding:1px;display:block;"
+            />
+        `;
+    }
+
+    return `
+        <svg viewBox="0 0 24 24" width="12" height="12" focusable="false" aria-hidden="true" style="display:block;">
+            <path
+                d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z"
+                fill="#f35f68"
+            />
+            <path
+                d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z"
+                fill="none"
+                stroke="rgba(176,30,49,0.18)"
+                stroke-width="0.75"
+            />
+        </svg>
+    `;
+}
+
+export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone = 'saved', iconUrl = null, placeKey = null } = {}) {
     const label = count > 99 ? '99+' : String(Math.max(0, count));
     const isPrimary = emphasis === 'primary';
     const isRelated = emphasis === 'related';
@@ -102,6 +130,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     const pinScale = isPrimary ? 1.24 : isRelated ? 1.12 : 1;
     const pulseBump = isPrimary ? 0.12 : isRelated ? 0.07 : 0;
     const innerSheen = isTemporary ? '#fff0c2' : '#8ef0e6';
+    const glyphMarkup = renderSavedPinCenterGlyph(iconUrl);
 
     const svg = `
         <div
@@ -123,22 +152,30 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
                         fill="${outerFill}"
                         stroke="${outerStroke}"
-                        stroke-width="${isPrimary ? 2.45 : isRelated ? 2.25 : 2.15}"
+                        stroke-width="${isPrimary ? 2.1 : isRelated ? 1.95 : 1.85}"
                         style="filter:drop-shadow(${outlineShadow});"
                     />
                     <ellipse cx="13.4" cy="11.4" rx="7.8" ry="5.9" fill="${innerSheen}" opacity="${isPrimary ? '0.34' : isRelated ? '0.28' : '0.22'}" />
-                    <circle cx="17" cy="14.9" r="6.95" fill="#ffffff" opacity="0.98" />
-                    <path
-                        d="M17 12.2c-1.12-1.6-3.88-1.82-5.18-.36-1.29 1.44-.99 3.87.66 5.25L17 20.74l4.52-3.63c1.65-1.38 1.95-3.81.66-5.25-1.3-1.46-4.06-1.24-5.18.36Z"
-                        fill="#f35f68"
-                    />
-                    <path
-                        d="M17 12.2c-1.12-1.6-3.88-1.82-5.18-.36-1.29 1.44-.99 3.87.66 5.25L17 20.74l4.52-3.63c1.65-1.38 1.95-3.81.66-5.25-1.3-1.46-4.06-1.24-5.18.36Z"
-                        fill="none"
-                        stroke="rgba(176,30,49,0.18)"
-                        stroke-width="0.75"
-                    />
                 </svg>
+                <div
+                    class="saved-place-pin-marker__glyph"
+                    style="
+                        position:absolute;
+                        top:7px;
+                        left:50%;
+                        z-index:2;
+                        width:16px;
+                        height:16px;
+                        transform:translateX(-50%);
+                        border-radius:999px;
+                        background:#ffffff;
+                        box-shadow:0 1px 4px rgba(15, 23, 42, 0.16);
+                        overflow:hidden;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                    "
+                >${glyphMarkup}</div>
                 <div
                     class="saved-place-pin-marker__badge"
                     style="
@@ -177,5 +214,6 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
         iconAnchor: [22, 54],
         popupAnchor: [0, -52],
         tooltipAnchor: [0, -48],
+        placeKey,
     });
 }

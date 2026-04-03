@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 
-import { hardAssets, softAssets } from '../db/schema.js';
+import { hardAssets, softAssets, subCategories } from '../db/schema.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
 import { isAssetVisible } from './visibility.js';
 
@@ -13,6 +13,11 @@ function normalizeText(value) {
 function parseCoordinate(value) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeCategoryKey(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim().toLowerCase();
 }
 
 function buildAssetKey(resourceType, resourceId) {
@@ -331,7 +336,11 @@ function buildRow({
     status,
     detailPath,
     saveEligible,
+    categoryLookup,
 }) {
+    const categoryKey = normalizeCategoryKey(snapshot.subCategory);
+    const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
+
     return {
         rowKey: `${mapAsset.id}:${place.placeKey}`,
         resourceType: mapAsset.resourceType,
@@ -339,7 +348,8 @@ function buildRow({
         name: snapshot.name || 'Saved resource',
         bucket: snapshot.bucket || null,
         subCategory: snapshot.subCategory || null,
-        iconKey: null,
+        iconKey: categoryKey || null,
+        categoryIconUrl: categoryMeta?.iconUrl || null,
         descriptor: snapshot.descriptor || null,
         logoUrl: snapshot.logoUrl || null,
         detailPath,
@@ -381,6 +391,27 @@ function sortDirectoryPlaces(placeMap) {
 }
 
 function buildPins(places) {
+    function resolveDirectoryPinCategoryIcon(place) {
+        const hardPlaceRow = place.rows.find((row) => row.resourceType === 'hard' && row.categoryIconUrl);
+        if (hardPlaceRow) {
+            return hardPlaceRow.categoryIconUrl;
+        }
+
+        const categoryKeys = new Set();
+        let sharedCategoryIconUrl = null;
+
+        for (const row of place.rows) {
+            if (!row.iconKey) continue;
+            categoryKeys.add(row.iconKey);
+            if (categoryKeys.size > 1) {
+                return null;
+            }
+            sharedCategoryIconUrl = row.categoryIconUrl || null;
+        }
+
+        return categoryKeys.size === 1 ? sharedCategoryIconUrl : null;
+    }
+
     return places
         .filter((place) => place.hasCoordinates && place.lat !== null && place.lng !== null)
         .map((place) => ({
@@ -392,9 +423,38 @@ function buildPins(places) {
             lat: place.lat,
             lng: place.lng,
             curatedCount: place.curatedCount,
+            categoryIconUrl: resolveDirectoryPinCategoryIcon(place),
             previewResourceNames: place.rows.slice(0, 3).map((row) => row.name),
             hiddenPreviewCount: Math.max(0, place.rows.length - 3),
         }));
+}
+
+async function loadCategoryLookup(db) {
+    let categoryRows = [];
+
+    if (db.query?.subCategories?.findMany) {
+        categoryRows = await db.query.subCategories.findMany({
+            columns: {
+                name: true,
+                iconUrl: true,
+            },
+        });
+    } else if (typeof db.select === 'function') {
+        categoryRows = await db.select({
+            name: subCategories.name,
+            iconUrl: subCategories.iconUrl,
+        }).from(subCategories);
+    }
+
+    return new Map(
+        categoryRows
+            .map((row) => ({
+                key: normalizeCategoryKey(row.name),
+                iconUrl: normalizeText(row.iconUrl),
+            }))
+            .filter((row) => row.key)
+            .map((row) => [row.key, { iconUrl: row.iconUrl }])
+    );
 }
 
 function createViewerSummary(viewerUser, ownerUserId, mapName) {
@@ -419,6 +479,7 @@ export async function buildMyMapDirectory(db, {
     const placeMap = new Map();
     const snapshotUpdates = [];
     const assetSummaries = [];
+    const categoryLookup = await loadCategoryLookup(db);
     const effectiveVisibilityUser = visibilityUser || viewerUser || { role: 'guest' };
     const effectiveResolutionContext = resolutionContext || {
         allowedPartnerAudienceIds: new Set(),
@@ -492,6 +553,7 @@ export async function buildMyMapDirectory(db, {
                 status: rowStatus,
                 detailPath: rowStatus === 'unavailable' ? null : detailPath,
                 saveEligible: mode === 'shared' && rowStatus !== 'unavailable',
+                categoryLookup,
             });
             addRowToPlace(placeMap, place, row);
         }

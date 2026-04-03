@@ -46,8 +46,14 @@ const nextFocusRequestId = createFocusRequestIdGenerator();
 const SAVED_PIN_FOCUS_ZOOM = 18;
 const TOUCH_DESKTOP_PANE_PRESET_WIDTHS = [450, 676, 992];
 
+function normalizeSubCategoryLookupKey(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim().toLowerCase();
+}
+
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
+    const [subCategoryMetaByKey, setSubCategoryMetaByKey] = useState({});
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -114,11 +120,22 @@ export default function DiscoverPage() {
                 if (!isActive) return;
 
                 const colors = {};
+                const metaByKey = {};
                 subcategories.forEach((subcategory) => {
                     colors[subcategory.name] = subcategory.color || '#94a3b8';
+                    const key = normalizeSubCategoryLookupKey(subcategory.name);
+                    if (key) {
+                        metaByKey[key] = {
+                            name: subcategory.name,
+                            color: subcategory.color || '#94a3b8',
+                            iconUrl: subcategory.iconUrl || null,
+                            type: subcategory.type || null,
+                        };
+                    }
                 });
 
                 setSubCatColors(colors);
+                setSubCategoryMetaByKey(metaByKey);
                 setHardAssets(hard);
                 setSoftAssets(soft);
             } finally {
@@ -253,8 +270,11 @@ export default function DiscoverPage() {
     }, [combined, effectiveUserLocation, savedAssets, search, searchRadius, showFavoritesOnly, user]);
 
     const savedPlacePinData = useMemo(() => (
-        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, { userLocation: effectiveUserLocation })
-    ), [effectiveUserLocation, savedAssets, visibleHardAssets, visibleSoftAssets]);
+        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, {
+            userLocation: effectiveUserLocation,
+            categoryMetaByKey: subCategoryMetaByKey,
+        })
+    ), [effectiveUserLocation, savedAssets, subCategoryMetaByKey, visibleHardAssets, visibleSoftAssets]);
 
     const savedPlacePins = savedPlacePinData.pins;
     const savedPlacePinLookup = useMemo(

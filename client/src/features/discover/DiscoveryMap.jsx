@@ -346,6 +346,8 @@ export function DiscoveryMap({
                                 count: pin.totalOfferingsCount,
                                 emphasis,
                                 tone: pin.tone || 'saved',
+                                iconUrl: pin.categoryIconUrl || null,
+                                placeKey: pin.placeKey || pin.pinKey,
                             })}
                             eventHandlers={isTransient ? undefined : {
                                 click: (event) => {

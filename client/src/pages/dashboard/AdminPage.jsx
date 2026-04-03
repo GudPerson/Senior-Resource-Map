@@ -5,6 +5,7 @@ import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload,
 import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
+import ImageUpload from '../../components/ImageUpload.jsx';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 const ASSET_WORKBOOKS = [
@@ -34,6 +35,15 @@ function getWorkbookLabel(resourceType) {
     return ASSET_WORKBOOKS.find((entry) => entry.resourceType === resourceType)?.label || resourceType;
 }
 
+function createEmptySubCategoryDraft() {
+    return {
+        id: null,
+        name: '',
+        type: 'hard',
+        color: '#3b82f6',
+        iconUrl: '',
+    };
+}
 
 export default function AdminPage() {
     const { user: currentUser } = useAuth();
@@ -52,7 +62,7 @@ export default function AdminPage() {
     const [selectedAudienceZones, setSelectedAudienceZones] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [newSubCat, setNewSubCat] = useState({ name: '', type: 'hard', color: '#3b82f6' });
+    const [newSubCat, setNewSubCat] = useState(createEmptySubCategoryDraft);
     const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '', postalCodes: '' });
     const [newAudienceZone, setNewAudienceZone] = useState({
         id: null,
@@ -375,12 +385,37 @@ export default function AdminPage() {
     async function handleAddSubCategory(e) {
         e.preventDefault();
         try {
-            await api.createSubCategory(newSubCat);
-            setNewSubCat({ name: '', type: 'hard', color: '#3b82f6' });
+            const payload = {
+                name: newSubCat.name,
+                type: newSubCat.type,
+                color: newSubCat.color,
+                iconUrl: newSubCat.iconUrl || null,
+            };
+
+            if (newSubCat.id) {
+                await api.updateSubCategory(newSubCat.id, payload);
+            } else {
+                await api.createSubCategory(payload);
+            }
+            setNewSubCat(createEmptySubCategoryDraft());
             await loadAll();
         } catch (err) {
             alert(err.message);
         }
+    }
+
+    function handleEditSubCategory(category) {
+        setNewSubCat({
+            id: category.id,
+            name: category.name || '',
+            type: category.type || 'hard',
+            color: category.color || '#3b82f6',
+            iconUrl: category.iconUrl || '',
+        });
+    }
+
+    function resetSubCategoryForm() {
+        setNewSubCat(createEmptySubCategoryDraft());
     }
 
     async function handleDeleteSubCategory(id) {
@@ -2017,43 +2052,94 @@ export default function AdminPage() {
             ) : tab === 'subcats' ? (
                 /* ======== SubCategories Table ======== */
                 <div className="space-y-6">
-                    <form onSubmit={handleAddSubCategory} className="flex flex-col sm:flex-row items-end gap-3 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex-1 space-y-1.5 w-full">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Category Name</label>
-                            <input
-                                required
-                                placeholder="Sub-category name..."
-                                value={newSubCat.name}
-                                onChange={e => setNewSubCat({ ...newSubCat, name: e.target.value })}
-                                className="input-field"
-                            />
+                    <form onSubmit={handleAddSubCategory} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900">
+                                    {newSubCat.id ? 'Edit Category' : 'Create Category'}
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">
+                                    Add an optional icon for pins. Square transparent icons work best, but wide icons are supported too.
+                                </p>
+                            </div>
+                            {newSubCat.id ? (
+                                <button
+                                    type="button"
+                                    onClick={resetSubCategoryForm}
+                                    className="btn-ghost border-slate-300"
+                                >
+                                    Cancel
+                                </button>
+                            ) : null}
                         </div>
-                        <div className="w-full sm:w-40 space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Asset Type</label>
-                            <select
-                                value={newSubCat.type}
-                                onChange={e => setNewSubCat({ ...newSubCat, type: e.target.value })}
-                                className="input-field"
-                            >
-                                <option value="hard">Hard Asset</option>
-                                <option value="soft">Soft Asset</option>
-                            </select>
-                        </div>
-                        <div className="w-full sm:w-24 space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Badge</label>
-                            <div className="flex items-center gap-2 h-11 px-3 rounded-xl border border-slate-200 bg-white">
+
+                        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_160px_180px_240px] gap-4 items-start">
+                            <div className="space-y-1.5 w-full">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Category Name</label>
                                 <input
-                                    type="color"
-                                    value={newSubCat.color}
-                                    onChange={e => setNewSubCat({ ...newSubCat, color: e.target.value })}
-                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                    required
+                                    placeholder="Sub-category name..."
+                                    value={newSubCat.name}
+                                    onChange={e => setNewSubCat({ ...newSubCat, name: e.target.value })}
+                                    className="input-field"
                                 />
-                                <span className="text-xs font-mono text-slate-400 uppercase">{newSubCat.color}</span>
+                            </div>
+                            <div className="space-y-1.5 w-full">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Asset Type</label>
+                                <select
+                                    value={newSubCat.type}
+                                    disabled={Boolean(newSubCat.id)}
+                                    onChange={e => setNewSubCat({ ...newSubCat, type: e.target.value })}
+                                    className="input-field disabled:bg-slate-50 disabled:text-slate-400"
+                                >
+                                    <option value="hard">Hard Asset</option>
+                                    <option value="soft">Soft Asset</option>
+                                </select>
+                                {newSubCat.id ? (
+                                    <p className="text-xs text-slate-400 px-1">Asset type is locked after creation.</p>
+                                ) : null}
+                            </div>
+                            <div className="space-y-1.5 w-full">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Badge</label>
+                                <div className="flex items-center gap-3 h-11 px-3 rounded-xl border border-slate-200 bg-white">
+                                    <input
+                                        type="color"
+                                        value={newSubCat.color}
+                                        onChange={e => setNewSubCat({ ...newSubCat, color: e.target.value })}
+                                        className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                    />
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: newSubCat.color || '#94a3b8' }}></div>
+                                        <span className="text-xs font-mono text-slate-400 uppercase truncate">{newSubCat.color}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-1.5 w-full">
+                                <ImageUpload
+                                    label="Pin Icon"
+                                    value={newSubCat.iconUrl}
+                                    onChange={(url) => setNewSubCat({ ...newSubCat, iconUrl: url })}
+                                />
                             </div>
                         </div>
-                        <button type="submit" disabled={loading} className="btn-primary px-8 w-full sm:w-auto h-11">
-                            {loading ? 'Adding...' : 'Add Category'}
-                        </button>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <button type="submit" disabled={loading} className="btn-primary px-8 w-full sm:w-auto h-11">
+                                {loading ? (newSubCat.id ? 'Saving...' : 'Adding...') : (newSubCat.id ? 'Save Category' : 'Add Category')}
+                            </button>
+                            {newSubCat.id ? (
+                                <div className="flex items-center gap-3 text-sm text-slate-500 px-1">
+                                    <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                                        {newSubCat.iconUrl ? (
+                                            <img src={newSubCat.iconUrl} alt="" className="h-full w-full object-contain p-1.5" />
+                                        ) : (
+                                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: newSubCat.color || '#94a3b8' }}></div>
+                                        )}
+                                    </div>
+                                    <span>Editing live category metadata. Renaming will update current hard and soft assets safely.</span>
+                                </div>
+                            ) : null}
+                        </div>
                     </form>
 
                     {selectedSubCategories.length > 0 && (
@@ -2080,7 +2166,8 @@ export default function AdminPage() {
                                     </th>
                                     <th className="px-4 py-3 font-semibold w-24">Type</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
-                                    <th className="px-4 py-3 font-semibold w-24">Actions</th>
+                                    <th className="px-4 py-3 font-semibold w-28">Pin Preview</th>
+                                    <th className="px-4 py-3 font-semibold w-32">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -2095,18 +2182,74 @@ export default function AdminPage() {
                                             />
                                         </td>
                                         <td className="px-4 py-3"><CategoryBadge category={sc.type === 'hard' ? 'hard' : 'soft'} /></td>
-                                        <td className="px-4 py-3 font-semibold text-slate-900 flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sc.color || '#94a3b8' }}></div>
-                                            {sc.name}
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-11 h-11 rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shadow-sm">
+                                                    {sc.iconUrl ? (
+                                                        <img src={sc.iconUrl} alt="" className="w-full h-full object-contain p-1.5" />
+                                                    ) : (
+                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: sc.color || '#94a3b8' }}></div>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="font-semibold text-slate-900 flex items-center gap-2">
+                                                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: sc.color || '#94a3b8' }}></div>
+                                                        <span className="truncate">{sc.name}</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-400 mt-1">
+                                                        {sc.iconUrl ? 'Custom pin icon ready' : 'Heart fallback will be used'}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <button
-                                                onClick={() => handleDeleteSubCategory(sc.id)}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                title="Delete category"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <div
+                                                    className="relative h-11 w-8 shrink-0 flex items-start justify-center"
+                                                    aria-hidden="true"
+                                                >
+                                                    <div
+                                                        className="absolute left-1/2 top-[2px] -translate-x-1/2 h-8 w-8 rounded-full"
+                                                        style={{ backgroundColor: 'rgba(15, 118, 110, 0.12)' }}
+                                                    ></div>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="36" viewBox="0 0 34 48" className="relative z-[1] overflow-visible">
+                                                        <path
+                                                            d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
+                                                            fill={sc.color || '#17b6ab'}
+                                                            stroke="#ffffff"
+                                                            strokeWidth="1.75"
+                                                        />
+                                                    </svg>
+                                                    <div className="absolute left-1/2 top-[8px] -translate-x-1/2 z-[2] h-[14px] w-[14px] overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.16)] flex items-center justify-center">
+                                                        {sc.iconUrl ? (
+                                                            <img src={sc.iconUrl} alt="" className="h-full w-full object-contain p-[1px]" />
+                                                        ) : (
+                                                            <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
+                                                                <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" fill="#f35f68" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleEditSubCategory(sc)}
+                                                    className="p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                    title="Edit category"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteSubCategory(sc.id)}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                    title="Delete category"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

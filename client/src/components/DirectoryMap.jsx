@@ -604,6 +604,8 @@ export default function DirectoryMap({
                                 count: pin.curatedCount,
                                 emphasis: isMatched ? 'primary' : 'default',
                                 tone: 'saved',
+                                iconUrl: pin.categoryIconUrl || null,
+                                placeKey: pin.placeKey,
                             });
 
                         return (
@@ -640,6 +642,8 @@ export default function DirectoryMap({
                     count: pin.curatedCount,
                     emphasis: isMatched ? 'primary' : 'default',
                     tone: 'saved',
+                    iconUrl: pin.categoryIconUrl || null,
+                    placeKey: pin.placeKey,
                 });
 
             return (

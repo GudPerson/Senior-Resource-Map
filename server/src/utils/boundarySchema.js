@@ -22,6 +22,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
 
     if (!ensureBoundarySchemaPromise) {
         ensureBoundarySchemaPromise = (async () => {
+            await db.execute(sql`ALTER TABLE sub_categories ADD COLUMN IF NOT EXISTS icon_url TEXT`);
             await db.execute(sql`ALTER TABLE subregions ADD COLUMN IF NOT EXISTS postal_patterns TEXT NOT NULL DEFAULT ''`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) NOT NULL DEFAULT ''`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);

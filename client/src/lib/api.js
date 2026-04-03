@@ -201,6 +201,7 @@ export const api = {
     searchTags: (query) => request('GET', `/tags?q=${encodeURIComponent(query)}`),
     getSubCategories: () => request('GET', '/sub-categories'),
     createSubCategory: (body) => request('POST', '/sub-categories', body),
+    updateSubCategory: (id, body) => request('PUT', `/sub-categories/${id}`, body),
     deleteSubCategory: (id) => request('DELETE', `/sub-categories/${id}`),
 
     // Subregions

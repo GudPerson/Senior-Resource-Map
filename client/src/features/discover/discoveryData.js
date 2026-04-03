@@ -112,6 +112,22 @@ function normalizeCoordinate(value) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeCategoryKey(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim().toLowerCase();
+}
+
+function getCategoryMeta(categoryMetaByKey, subCategory) {
+    const key = normalizeCategoryKey(subCategory);
+    if (!key || !categoryMetaByKey) return null;
+
+    if (categoryMetaByKey instanceof Map) {
+        return categoryMetaByKey.get(key) || null;
+    }
+
+    return categoryMetaByKey[key] || null;
+}
+
 function normalizeSavedAssetEntry(savedAsset, liveAsset = null) {
     return {
         assetKey: buildSavedAssetKey(savedAsset.resourceType, savedAsset.resourceId),
@@ -282,7 +298,36 @@ function choosePrimarySavedAsset(savedAssets, placeAsset) {
     return savedAssets[0] || null;
 }
 
-export function aggregateSavedPlacePins(contributions = []) {
+function resolveSavedPinCategoryIcon(savedAssets, placeAsset, categoryMetaByKey) {
+    const savedPlaceAsset = placeAsset
+        ? savedAssets.find((asset) => asset.resourceType === 'hard' && asset.resourceId === placeAsset.id)
+        : null;
+
+    if (savedPlaceAsset) {
+        const hardPlaceMeta = getCategoryMeta(categoryMetaByKey, placeAsset?.subCategory || savedPlaceAsset.subCategory);
+        if (hardPlaceMeta?.iconUrl) {
+            return hardPlaceMeta.iconUrl;
+        }
+    }
+
+    const sharedCategoryKeys = new Set();
+    let sharedCategoryIconUrl = null;
+
+    for (const asset of savedAssets) {
+        const key = normalizeCategoryKey(asset.subCategory);
+        if (!key) continue;
+        sharedCategoryKeys.add(key);
+        if (sharedCategoryKeys.size > 1) {
+            return null;
+        }
+        sharedCategoryIconUrl = getCategoryMeta(categoryMetaByKey, asset.subCategory)?.iconUrl || null;
+    }
+
+    return sharedCategoryKeys.size === 1 ? sharedCategoryIconUrl : null;
+}
+
+export function aggregateSavedPlacePins(contributions = [], options = {}) {
+    const { categoryMetaByKey = null } = options;
     const pinsByKey = new Map();
 
     contributions.forEach((contribution) => {
@@ -339,6 +384,7 @@ export function aggregateSavedPlacePins(contributions = []) {
                 : fallbackOfferingCount,
             primarySavedAsset,
             primaryDetailAsset: pin.placeAsset || primarySavedAsset?.liveAsset || null,
+            categoryIconUrl: resolveSavedPinCategoryIcon(pin.savedAssets, pin.placeAsset, categoryMetaByKey),
         };
     });
 
@@ -354,7 +400,7 @@ export function buildSavedPlacePins(savedAssets = [], hardAssets = [], softAsset
     } = buildSavedMapContributions(savedAssets, hardAssets, softAssets, options);
 
     return {
-        pins: aggregateSavedPlacePins(contributions),
+        pins: aggregateSavedPlacePins(contributions, options),
         assetToPinKeys,
         contributingAssetKeys,
         unmappableSavedAssetKeys,
