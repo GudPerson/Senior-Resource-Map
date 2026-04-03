@@ -579,6 +579,7 @@ export default function DiscoverPage() {
 
         if (!isDesktop) {
             setMobileMode('map');
+            setMobileBrowseDrawerOpen(false);
         }
 
         clearHoveredCardState();

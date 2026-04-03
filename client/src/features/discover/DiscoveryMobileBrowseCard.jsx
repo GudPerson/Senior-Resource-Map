@@ -13,6 +13,7 @@ export function DiscoveryMobileBrowseCard({
     asset,
     isCompact = false,
     onCategoryClick,
+    onLocationClick,
     subCatColors = {},
     type,
 }) {
@@ -119,16 +120,20 @@ export function DiscoveryMobileBrowseCard({
                 disabled={!hasDirectionsTarget}
                 onClick={(event) => {
                     event.stopPropagation();
+                    if (onLocationClick) {
+                        onLocationClick();
+                        return;
+                    }
                     if (hasDirectionsTarget) {
                         handleOpenDirections();
                     }
                 }}
                 className={`mt-3 flex w-full items-start gap-2 rounded-xl border text-left transition-all ${
-                    hasDirectionsTarget ? 'cursor-pointer' : 'cursor-default'
+                    onLocationClick || hasDirectionsTarget ? 'cursor-pointer' : 'cursor-default'
                 } ${isCompact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm'}`}
                 style={{
                     borderColor: 'var(--color-border)',
-                    backgroundColor: hasDirectionsTarget ? 'rgba(231,248,244,0.65)' : 'rgba(248,250,252,0.72)',
+                    backgroundColor: onLocationClick || hasDirectionsTarget ? 'rgba(231,248,244,0.65)' : 'rgba(248,250,252,0.72)',
                     color: 'var(--color-text-secondary)',
                 }}
             >

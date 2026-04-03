@@ -78,6 +78,7 @@ export function DiscoveryResultsList({
                                     <DiscoveryMobileBrowseCard
                                         asset={resource}
                                         isCompact={isCompactMobile}
+                                        onLocationClick={() => onFocusAssetOnMap?.(resource)}
                                         type={resource._type}
                                         onCategoryClick={onCategoryClick}
                                         subCatColors={subCatColors}
