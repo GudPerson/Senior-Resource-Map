@@ -73,7 +73,7 @@ function renderSavedPinCenterGlyph(iconUrl) {
                 src="${escapeSvgText(iconUrl)}"
                 alt=""
                 draggable="false"
-                style="width:100%;height:100%;object-fit:contain;padding:1px;display:block;"
+                style="width:100%;height:100%;object-fit:contain;padding:0.5px;display:block;"
             />
         `;
     }
@@ -152,7 +152,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
                         fill="${outerFill}"
                         stroke="${outerStroke}"
-                        stroke-width="${isPrimary ? 2.1 : isRelated ? 1.95 : 1.85}"
+                        stroke-width="${isPrimary ? 1.75 : isRelated ? 1.6 : 1.5}"
                         style="filter:drop-shadow(${outlineShadow});"
                     />
                     <ellipse cx="13.4" cy="11.4" rx="7.8" ry="5.9" fill="${innerSheen}" opacity="${isPrimary ? '0.34' : isRelated ? '0.28' : '0.22'}" />
@@ -161,15 +161,15 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                     class="saved-place-pin-marker__glyph"
                     style="
                         position:absolute;
-                        top:7px;
+                        top:6px;
                         left:50%;
                         z-index:2;
-                        width:16px;
-                        height:16px;
+                        width:18.5px;
+                        height:18.5px;
                         transform:translateX(-50%);
                         border-radius:999px;
                         background:#ffffff;
-                        box-shadow:0 1px 4px rgba(15, 23, 42, 0.16);
+                        box-shadow:0 1px 4px rgba(15, 23, 42, 0.14);
                         overflow:hidden;
                         display:flex;
                         align-items:center;
