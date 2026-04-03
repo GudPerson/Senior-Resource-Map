@@ -694,25 +694,6 @@
   transition: transform 0.2s ease-out;
 }
 
-@media (max-width: 540px) {
-  .saved-place-pin-marker {
-    transform: scale(0.68) !important;
-    transform-origin: center bottom;
-  }
-}
-
-@media (max-width: 440px) {
-  .saved-place-pin-marker {
-    transform: scale(0.62) !important;
-  }
-}
-
-@media (max-width: 380px) {
-  .saved-place-pin-marker {
-    transform: scale(0.58) !important;
-  }
-}
-
 
 
 @keyframes directoryNumberMarkerPulse {

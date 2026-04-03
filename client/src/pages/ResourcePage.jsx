@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import SaveAssetButton from '../components/SaveAssetButton.jsx';
 import ResourceDetailContent from '../components/ResourceDetailContent.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { openResourceDetail } from '../lib/appNavigation.js';
 import {
     GEOLOCATION_OPTIONS,
@@ -22,6 +23,7 @@ export default function ResourcePage() {
     const [loading, setLoading] = useState(true);
     const [sortOrigin, setSortOrigin] = useState(() => loadSearchLocation());
     const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
+    const isMobile = useMediaQuery('(max-width: 639px)');
 
     useEffect(() => {
         const fetchAsset = async () => {
@@ -103,11 +105,18 @@ export default function ResourcePage() {
         <div className="min-h-[calc(100vh-4rem)] pb-20" style={{ background: 'var(--page-gradient)' }}>
             {/* Header / Banner */}
             <div className="sticky top-[56px] z-40 border-b shadow-sm sm:top-[64px]" style={{ backgroundColor: 'rgba(255,255,255,0.94)', borderColor: 'var(--color-border)', backdropFilter: 'blur(16px)' }}>
-                <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
+                <div className={`max-w-4xl mx-auto flex items-center gap-3 px-4 ${isMobile ? 'py-2.5' : 'py-3'}`}>
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
-                        <ArrowLeft size={24} />
+                        <ArrowLeft size={isMobile ? 20 : 24} />
                     </button>
-                    <h1 className="text-xl font-bold text-slate-900 truncate flex-1">{asset.name}</h1>
+                    <div className="min-w-0 flex-1">
+                        <p className={`truncate font-bold text-slate-900 ${isMobile ? 'text-lg leading-tight' : 'text-xl'}`}>{asset.name}</p>
+                        {isMobile ? (
+                            <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                {type === 'hard' ? 'Place detail' : 'Offering detail'}
+                            </p>
+                        ) : null}
+                    </div>
                     {user ? (
                         <SaveAssetButton
                             resourceId={asset.id}
@@ -119,7 +128,7 @@ export default function ResourcePage() {
                 </div>
             </div>
 
-            <main className="max-w-4xl mx-auto px-4 py-6">
+            <main className={`max-w-4xl mx-auto px-4 ${isMobile ? 'py-4' : 'py-6'}`}>
                 <ResourceDetailContent
                     asset={asset}
                     onNavigateToResource={(resourceType, resourceId) => openResourceDetail(resourceType, resourceId, navigate)}

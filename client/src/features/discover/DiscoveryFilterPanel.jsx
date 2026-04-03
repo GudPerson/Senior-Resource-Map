@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, Columns2, LocateFixed, MapPin, Rows3, Search, SlidersHorizontal, Menu } from 'lucide-react';
-import { Drawer } from 'vaul';
+import { ChevronDown, Columns2, LocateFixed, Map, MapPin, Rows3, Search, SlidersHorizontal } from 'lucide-react';
 
-import DiscoveryModeToggle from './DiscoveryModeToggle.jsx';
+import MobileBottomSheet from '../../components/mobile/MobileBottomSheet.jsx';
 import { getSearchLocationLabel } from '../../lib/searchLocation.js';
 
 const INPUT_RING_STYLE = { '--tw-ring-color': 'var(--color-brand)' };
@@ -50,6 +49,8 @@ function MobileFilterSheet({
     isGeocoding,
     isOpen,
     locationNotice,
+    mobileCardDensity = 'comfortable',
+    onChangeMobileCardDensity,
     onOpenChange,
     postalInput,
     searchRadius,
@@ -63,38 +64,18 @@ function MobileFilterSheet({
     searchOrigin,
 }) {
     return (
-        <Drawer.Root open={isOpen} onOpenChange={onOpenChange}>
-            <Drawer.Portal>
-                <Drawer.Overlay className="fixed inset-0 z-[550] bg-slate-950/35" />
-                <Drawer.Content
-                    className="fixed bottom-0 left-0 right-0 z-[560] rounded-t-[28px] border-t px-4 pb-6 pt-3"
-                    style={{
-                        backgroundColor: 'var(--color-drawer-bg)',
-                        borderColor: 'var(--color-border)',
-                        boxShadow: '0 -18px 42px rgba(15, 89, 91, 0.18)',
-                        backdropFilter: 'blur(18px)',
-                    }}
-                >
-                    <Drawer.Title className="sr-only">Refine your browse view</Drawer.Title>
-                    <Drawer.Description className="sr-only">
-                        Filter discover results by postal code, distance, asset type, and saved assets.
-                    </Drawer.Description>
-                    <div className="mx-auto h-1.5 w-12 rounded-full" style={{ backgroundColor: 'var(--color-border-strong)' }} />
-                    <div className="mt-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                Filters
-                            </p>
-                            <h2 className="mt-1 text-[20px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                Refine your browse view
-                            </h2>
-                        </div>
-                        <button type="button" onClick={() => onOpenChange(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
-                            Done
-                        </button>
-                    </div>
-
-                    <div className="mt-5 space-y-4">
+        <MobileBottomSheet
+            open={isOpen}
+            onOpenChange={onOpenChange}
+            title="Refine your browse view"
+            description="Adjust location, distance, asset type, and card density."
+            headerActions={(
+                <button type="button" onClick={() => onOpenChange(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
+                    Done
+                </button>
+            )}
+        >
+            <div className="space-y-4">
                         <form onSubmit={handlePostalSearch} className="space-y-2">
                             <label htmlFor="mobile-postal-input" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
                                 Search by postal code
@@ -167,6 +148,45 @@ function MobileFilterSheet({
                             </label>
                         </div>
 
+                        {onChangeMobileCardDensity ? (
+                            <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
+                                <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
+                                    Browse card layout
+                                </p>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    {[
+                                        { value: 'comfortable', label: 'One per row', icon: Rows3 },
+                                        { value: 'compact', label: 'Two per row', icon: Columns2 },
+                                    ].map((option) => {
+                                        const Icon = option.icon;
+                                        const active = mobileCardDensity === option.value;
+                                        return (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                onClick={() => onChangeMobileCardDensity(option.value)}
+                                                className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-[13px] font-bold transition-all"
+                                                style={active
+                                                    ? {
+                                                        borderColor: 'var(--color-brand)',
+                                                        backgroundColor: 'var(--color-brand-light)',
+                                                        color: 'var(--color-brand-strong)',
+                                                    }
+                                                    : {
+                                                        borderColor: 'var(--color-border)',
+                                                        backgroundColor: 'white',
+                                                        color: 'var(--color-text-secondary)',
+                                                    }}
+                                            >
+                                                <Icon size={16} />
+                                                {option.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : null}
+
                         <div className="flex items-center justify-between rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
                             <div>
                                 <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Use current location</p>
@@ -179,23 +199,6 @@ function MobileFilterSheet({
                                 Locate me
                             </button>
                         </div>
-
-                        {user ? (
-                            <label className="flex items-center justify-between gap-4 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
-                                <div>
-                                    <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saved Assets Only</p>
-                                    <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                        Narrow the browse list to items you have already saved.
-                                    </p>
-                                </div>
-                                <input
-                                    type="checkbox"
-                                    checked={showFavoritesOnly}
-                                    onChange={(event) => setShowFavoritesOnly(event.target.checked)}
-                                    className="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                                />
-                            </label>
-                        ) : null}
 
                         {locationNotice ? (
                             <div className="rounded-xl border px-3 py-2 text-[14px] font-medium leading-5" style={{ backgroundColor: '#fff1ef', color: '#b84030', borderColor: '#f7c2b8' }}>
@@ -222,10 +225,8 @@ function MobileFilterSheet({
                                 ) : null}
                             </div>
                         ) : null}
-                    </div>
-                </Drawer.Content>
-            </Drawer.Portal>
-        </Drawer.Root>
+            </div>
+        </MobileBottomSheet>
     );
 }
 
@@ -519,10 +520,11 @@ export function DiscoveryFilterPanel(props) {
         mobileMode = 'browse',
         mobileCardDensity = 'comfortable',
         onApplySearch,
-        onChangeMode,
         onChangeMobileCardDensity,
         onCollapse,
         onExpand,
+        onOpenBrowse,
+        onOpenMap,
         onOpenMobileBrowseDrawer,
         onSearchChange,
         pinCount = 0,
@@ -558,15 +560,41 @@ export function DiscoveryFilterPanel(props) {
                 }}
             >
                 <div className="space-y-3 px-3 py-3">
-                    <DiscoveryModeToggle
-                        activeMode={mobileMode}
-                        mapCount={pinCount}
-                        mapDisabled={mapDisabled}
-                        onChangeMode={onChangeMode}
-                    />
-
                     {mobileMode === 'browse' ? (
                         <>
+                            <div
+                                className="rounded-[24px] border px-4 py-3"
+                                style={{
+                                    borderColor: 'var(--color-border)',
+                                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(231,248,244,0.94) 100%)',
+                                }}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                                            Browse
+                                        </p>
+                                        <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+                                            Showing {resultCount} {resultCount === 1 ? 'resource' : 'resources'}
+                                        </p>
+                                        <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
+                                            {userLocation
+                                                ? `Anchored around ${getSearchLocationLabel(searchOrigin)}`
+                                                : 'Review the browse list first, then switch into the map only when you want spatial focus.'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={onOpenMap}
+                                        disabled={mapDisabled}
+                                        className="btn-primary min-h-[44px] shrink-0 justify-center px-4 text-[13px] leading-none whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Map size={15} />
+                                        Open map
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1">
                                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
@@ -590,69 +618,8 @@ export function DiscoveryFilterPanel(props) {
                                     className="btn-ghost min-h-[46px] justify-center px-3 text-[15px] leading-none whitespace-nowrap"
                                 >
                                     <SlidersHorizontal size={16} />
-                                    Filters
+                                    Filter
                                 </button>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
-                                    {['all', 'hard', 'soft'].map((tab) => (
-                                        <button
-                                            key={tab}
-                                            type="button"
-                                            onClick={() => setActiveTab(tab)}
-                                            className="min-h-[38px] shrink-0 rounded-full px-3 py-2 text-[14px] font-bold leading-none whitespace-nowrap transition-all"
-                                            style={activeTab === tab
-                                                ? {
-                                                    backgroundColor: 'var(--color-brand-light)',
-                                                    color: 'var(--color-brand-strong)',
-                                                    border: '1px solid var(--color-border)',
-                                                }
-                                                : {
-                                                    backgroundColor: 'rgba(255,255,255,0.92)',
-                                                    color: 'var(--color-text-secondary)',
-                                                    border: '1px solid var(--color-border)',
-                                                }}
-                                        >
-                                            {tab === 'all' ? 'All' : tab === 'hard' ? 'Places' : 'Offerings'}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div
-                                    className="inline-flex shrink-0 items-center gap-1 rounded-2xl border p-1"
-                                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.92)' }}
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => onChangeMobileCardDensity?.('comfortable')}
-                                        aria-label="Show one asset per row"
-                                        className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl transition-all"
-                                        style={mobileCardDensity === 'comfortable'
-                                            ? {
-                                                backgroundColor: 'var(--color-brand-light)',
-                                                color: 'var(--color-brand-strong)',
-                                                border: '1px solid var(--color-border)',
-                                            }
-                                            : { color: 'var(--color-text-secondary)' }}
-                                    >
-                                        <Rows3 size={16} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => onChangeMobileCardDensity?.('compact')}
-                                        aria-label="Show two assets per row"
-                                        className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl transition-all"
-                                        style={mobileCardDensity === 'compact'
-                                            ? {
-                                                backgroundColor: 'var(--color-brand-light)',
-                                                color: 'var(--color-brand-strong)',
-                                                border: '1px solid var(--color-border)',
-                                            }
-                                            : { color: 'var(--color-text-secondary)' }}
-                                    >
-                                        <Columns2 size={16} />
-                                    </button>
-                                </div>
                             </div>
 
                             {summaryChips.length > 0 ? (
@@ -673,10 +640,6 @@ export function DiscoveryFilterPanel(props) {
                                 </div>
                             ) : null}
 
-                            <div className="text-[13px] font-semibold leading-none" style={{ color: 'var(--color-text-secondary)' }}>
-                                Showing {resultCount} {resultCount === 1 ? 'resource' : 'resources'}
-                            </div>
-
                             {savedAssetCount > 0 && mapDisabled ? (
                                 <div className="rounded-2xl border px-3 py-2 text-[12px] font-medium leading-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)', color: 'var(--color-text-secondary)' }}>
                                     Your saved assets are list-only right now, so the map will unlock after you save a place or offering with a valid location.
@@ -691,33 +654,47 @@ export function DiscoveryFilterPanel(props) {
                                 background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(231,248,244,0.94) 100%)',
                             }}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                        Saved map
-                                    </p>
-                                    <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                        {pinCount > 0
-                                            ? `Showing ${pinCount} saved ${pinCount === 1 ? 'place' : 'places'}`
-                                            : `Showing ${getSearchLocationLabel(searchOrigin)}`}
-                                    </p>
-                                    <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                        {pinCount > 0
-                                            ? 'Only places represented by your saved assets appear on this map.'
-                                            : 'This map is currently centred around your active location anchor. Save places to pin them here.'}
-                                    </p>
-                                </div>
-                                {onOpenMobileBrowseDrawer ? (
-                                    <button
-                                        type="button"
-                                        onClick={onOpenMobileBrowseDrawer}
-                                        className="btn-ghost shrink-0 px-3 py-2 text-[13px] leading-none whitespace-nowrap"
-                                        aria-label="Open browse results drawer"
-                                    >
-                                        <Menu size={15} />
-                                        Browse
-                                    </button>
-                                ) : null}
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                                    Map workspace
+                                </p>
+                                <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+                                    {pinCount > 0
+                                        ? `Showing ${pinCount} saved ${pinCount === 1 ? 'place' : 'places'}`
+                                        : `Showing ${getSearchLocationLabel(searchOrigin)}`}
+                                </p>
+                                <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
+                                    {pinCount > 0
+                                        ? 'Use the map to compare saved places, then open the quick list when you want to scan cards without leaving the map.'
+                                        : 'This map is currently centred around your active location anchor. Save places to pin them here.'}
+                                </p>
+                            </div>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={onOpenMobileBrowseDrawer}
+                                    className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
+                                    disabled={!onOpenMobileBrowseDrawer}
+                                >
+                                    <Rows3 size={15} />
+                                    List
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setMobileFiltersOpen(true)}
+                                    className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
+                                >
+                                    <SlidersHorizontal size={15} />
+                                    Filter
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onOpenBrowse}
+                                    className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
+                                >
+                                    <Search size={15} />
+                                    Browse
+                                </button>
                             </div>
                             {savedAssetCount > 0 && unmappableSavedCount > 0 ? (
                                 <p className="mt-2 text-[12px] font-medium leading-5" style={{ color: 'var(--color-text-muted)' }}>
@@ -740,6 +717,8 @@ export function DiscoveryFilterPanel(props) {
                 isGeocoding={isGeocoding}
                 isOpen={mobileFiltersOpen}
                 locationNotice={locationNotice}
+                mobileCardDensity={mobileCardDensity}
+                onChangeMobileCardDensity={onChangeMobileCardDensity}
                 onOpenChange={setMobileFiltersOpen}
                 postalInput={postalInput}
                 searchOrigin={searchOrigin}

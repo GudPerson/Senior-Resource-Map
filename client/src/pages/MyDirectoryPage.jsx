@@ -8,8 +8,10 @@ import MyMapsEmptyState from '../components/MyMapsEmptyState.jsx';
 import RenameMapModal from '../components/RenameMapModal.jsx';
 import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
+import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import { DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 
@@ -151,6 +153,8 @@ export default function MyDirectoryPage() {
     const [renameSubmitting, setRenameSubmitting] = useState(false);
     const [renameError, setRenameError] = useState('');
     const [deletingMapId, setDeletingMapId] = useState(null);
+    const [mobileSavedControlsOpen, setMobileSavedControlsOpen] = useState(false);
+    const isCompactDirectory = useMediaQuery('(max-width: 1023px)');
 
     useEffect(() => {
         const nextSection = searchParams.get('section') === DIRECTORY_SECTIONS.maps
@@ -317,10 +321,10 @@ export default function MyDirectoryPage() {
                         user={user}
                     />
                     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-                        <header className="mb-6 rounded-3xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6">
+                        <header className={`mb-6 border border-slate-200 bg-white shadow-sm ${isCompactDirectory ? 'rounded-[28px] px-4 py-5' : 'rounded-3xl px-5 py-6 sm:px-6'}`}>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
-                            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">My Directory</h1>
-                            <p className="mt-2 max-w-2xl text-sm text-slate-500">
+                            <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>My Directory</h1>
+                            <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps
                                     ? 'Your private maps built from saved assets.'
                                     : 'Your saved resources in one place.'}
@@ -330,7 +334,25 @@ export default function MyDirectoryPage() {
 
                         {activeSection === DIRECTORY_SECTIONS.saved ? (
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                                <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Saved assets</p>
+                                        <p className="mt-1 text-sm font-semibold text-slate-600">
+                                            {totalSavedCount} saved {totalSavedCount === 1 ? 'asset' : 'assets'}
+                                            {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMobileSavedControlsOpen(true)}
+                                        className="btn-ghost min-h-[44px] justify-center px-4 text-sm"
+                                    >
+                                        <SlidersHorizontal size={16} />
+                                        Refine
+                                    </button>
+                                </div>
+
+                                <div className="hidden border-b border-slate-100 pb-5 lg:flex lg:flex-row lg:items-end lg:justify-between lg:gap-4">
                                     <div className="min-w-0 flex-1">
                                         <label htmlFor="saved-assets-search" className="block text-sm font-semibold text-slate-700">
                                             Search saved assets
@@ -488,6 +510,68 @@ export default function MyDirectoryPage() {
                 }}
                 onSubmit={handleRenameMap}
             />
+
+            <MobileBottomSheet
+                open={activeSection === DIRECTORY_SECTIONS.saved && mobileSavedControlsOpen}
+                onOpenChange={setMobileSavedControlsOpen}
+                title="Refine saved assets"
+                description="Search and sort your saved resources without crowding the page header."
+                headerActions={(
+                    <button type="button" onClick={() => setMobileSavedControlsOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
+                        Done
+                    </button>
+                )}
+            >
+                <div className="space-y-4 pb-2">
+                    <div>
+                        <label htmlFor="saved-assets-search-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
+                            Search saved assets
+                        </label>
+                        <div className="relative mt-2">
+                            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                id="saved-assets-search-mobile"
+                                type="search"
+                                value={searchTerm}
+                                onChange={(event) => setSearchTerm(event.target.value)}
+                                placeholder="Search by name, category, address, or type"
+                                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                            />
+                            {searchTerm ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                    aria-label="Clear search"
+                                >
+                                    <X size={16} />
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="saved-assets-sort-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
+                            Sort
+                        </label>
+                        <div className="relative mt-2">
+                            <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <select
+                                id="saved-assets-sort-mobile"
+                                value={sortOrder}
+                                onChange={(event) => setSortOrder(event.target.value)}
+                                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                            >
+                                {SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </MobileBottomSheet>
         </>
     );
 }

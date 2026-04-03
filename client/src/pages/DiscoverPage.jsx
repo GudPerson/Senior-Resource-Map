@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
+import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
 import DesktopSavedPlaceDetailPanel from '../features/discover/DesktopSavedPlaceDetailPanel.jsx';
 import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
@@ -43,14 +44,6 @@ function createFocusRequestIdGenerator() {
 
 const nextFocusRequestId = createFocusRequestIdGenerator();
 const SAVED_PIN_FOCUS_ZOOM = 18;
-const MOBILE_PIN_DRAWER_MAX_WIDTH = 360;
-const MOBILE_PIN_DRAWER_WIDTH_RATIO = 0.8;
-const MOBILE_PIN_DRAWER_POINTER_SIZE = 26;
-const MOBILE_PIN_DRAWER_POINTER_VERTICAL_RATIO = 0.62;
-const MOBILE_PIN_DRAWER_POINTER_GAP = 6;
-const MOBILE_PIN_VISUAL_CENTER_OFFSET_X = 2;
-const MOBILE_PIN_VISUAL_CENTER_OFFSET_Y = 22;
-const MOBILE_PIN_POINTER_LIFT_Y = 8;
 const TOUCH_DESKTOP_PANE_PRESET_WIDTHS = [450, 676, 992];
 
 export default function DiscoverPage() {
@@ -77,12 +70,10 @@ export default function DiscoverPage() {
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
     const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
-    const [mobileMapViewport, setMobileMapViewport] = useState(null);
 
     const navigate = useNavigate();
     const resultsListRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
-    const mobileMapViewportRef = useRef(null);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const isTouchDesktop = useMediaQuery('(min-width: 1024px) and (pointer: coarse)');
     const { isDragging, listWidth, maxPaneWidth, setPaneWidth, startDragging } = useSplitPaneResize(450);
@@ -320,36 +311,6 @@ export default function DiscoverPage() {
     }, [isDesktop, mobileMode]);
 
     useEffect(() => {
-        if (isDesktop || mobileMode !== 'map') {
-            setMobileMapViewport(null);
-            return undefined;
-        }
-
-        const node = mobileMapViewportRef.current;
-        if (!node) return undefined;
-
-        const updateViewport = () => {
-            const rect = node.getBoundingClientRect();
-            setMobileMapViewport({
-                top: rect.top,
-                height: rect.height,
-                width: rect.width,
-            });
-        };
-
-        updateViewport();
-
-        const resizeObserver = new ResizeObserver(updateViewport);
-        resizeObserver.observe(node);
-        window.addEventListener('resize', updateViewport);
-
-        return () => {
-            resizeObserver.disconnect();
-            window.removeEventListener('resize', updateViewport);
-        };
-    }, [isDesktop, mobileMode]);
-
-    useEffect(() => {
         if (!isDesktop && mobileMode !== 'map' && selectedPlacePinKey) {
             setSelectedPlacePinKey(null);
         }
@@ -431,38 +392,6 @@ export default function DiscoverPage() {
         zoom: SAVED_PIN_FOCUS_ZOOM,
         source,
     }), []);
-
-    const mobileDetailDrawerWidth = useMemo(() => (
-        typeof window !== 'undefined'
-            ? Math.min(Math.round(window.innerWidth * MOBILE_PIN_DRAWER_WIDTH_RATIO), MOBILE_PIN_DRAWER_MAX_WIDTH)
-            : 320
-    ), []);
-
-    const mobileDetailGeometry = useMemo(() => {
-        const drawerTop = typeof window !== 'undefined' && window.innerWidth >= 640 ? 64 : 56;
-        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
-        const mapTop = mobileMapViewport?.top ?? drawerTop;
-        const mapHeight = mobileMapViewport?.height ?? Math.max(320, (typeof window !== 'undefined' ? window.innerHeight : 844) - drawerTop);
-        const mapCenterY = mapTop + (mapHeight / 2);
-        const pointerTargetY = mapTop + (mapHeight * MOBILE_PIN_DRAWER_POINTER_VERTICAL_RATIO);
-        const pointerTargetX = Math.min(
-            viewportWidth - 28,
-            mobileDetailDrawerWidth + MOBILE_PIN_DRAWER_POINTER_SIZE + MOBILE_PIN_DRAWER_POINTER_GAP
-        );
-
-        return {
-            offsetX: Math.round((pointerTargetX + MOBILE_PIN_VISUAL_CENTER_OFFSET_X) - (viewportWidth / 2)),
-            offsetY: Math.round((pointerTargetY + MOBILE_PIN_VISUAL_CENTER_OFFSET_Y) - mapCenterY),
-            pointerTopPx: Math.round(pointerTargetY - drawerTop - MOBILE_PIN_POINTER_LIFT_Y),
-        };
-    }, [mobileDetailDrawerWidth, mobileMapViewport]);
-
-    const getMobilePinDrawerOffset = useCallback(() => {
-        return {
-            x: mobileDetailGeometry.offsetX,
-            y: mobileDetailGeometry.offsetY,
-        };
-    }, [mobileDetailGeometry]);
 
     const createPinGroupFocusRequest = useCallback((pinKeys, source = 'address-click') => {
         const points = pinKeys
@@ -731,14 +660,13 @@ export default function DiscoverPage() {
 
         clearLockedCardState();
         setMobileBrowseDrawerOpen(false);
-        setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click', { offsetPx: getMobilePinDrawerOffset() }));
+        setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click'));
     }, [
         clearHoveredCardState,
         clearLockedCardState,
         clearTransientFocusState,
         createSinglePinFocusRequest,
         desktopPaneMode,
-        getMobilePinDrawerOffset,
         isDesktop,
         saveBrowseScrollPosition,
     ]);
@@ -976,10 +904,11 @@ export default function DiscoverPage() {
             mobileMode={mobileMode}
             mobileCardDensity={mobileCardDensity}
             onApplySearch={handleApplySearch}
-            onChangeMode={setMobileMode}
             onChangeMobileCardDensity={setMobileCardDensity}
             onCollapse={() => setIsSearchPanelCollapsed(true)}
             onExpand={() => setIsSearchPanelCollapsed(false)}
+            onOpenBrowse={() => setMobileMode('browse')}
+            onOpenMap={() => setMobileMode('map')}
             onOpenMobileBrowseDrawer={() => setMobileBrowseDrawerOpen(true)}
             onSearchChange={setSearch}
             pinCount={savedPlacePins.length}
@@ -1035,65 +964,58 @@ export default function DiscoverPage() {
     );
 
     const mobileBrowseDrawer = !isDesktop && mobileMode === 'map' ? (
-        <Drawer.Root direction="left" open={mobileBrowseDrawerOpen} onOpenChange={setMobileBrowseDrawerOpen}>
-            <Drawer.Portal>
-                <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35" />
-                <Drawer.Content
-                    className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(88vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px]"
-                    style={{
-                        borderColor: 'var(--color-border)',
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
-                    }}
-                >
-                    <Drawer.Title className="sr-only">Browse results</Drawer.Title>
-                    <Drawer.Description className="sr-only">
-                        Review discover results while keeping the saved map visible.
-                    </Drawer.Description>
-                    <div
-                        className="flex items-center justify-between gap-3 border-b px-4 py-3"
-                        style={{ borderColor: 'var(--color-border)' }}
+        <MobileBottomSheet
+            open={mobileBrowseDrawerOpen}
+            onOpenChange={setMobileBrowseDrawerOpen}
+            title="Quick List"
+            description={`Showing ${filtered.length} ${filtered.length === 1 ? 'resource' : 'resources'}`}
+            headerActions={(
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMobileBrowseDrawerOpen(false);
+                            setMobileMode('browse');
+                        }}
+                        className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
                     >
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                Browse Results
-                            </p>
-                            <p className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                                Showing {filtered.length} {filtered.length === 1 ? 'resource' : 'resources'}
+                        Browse screen
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileBrowseDrawerOpen(false)}
+                        className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
+                    >
+                        Done
+                    </button>
+                </div>
+            )}
+            bodyClassName="-mx-4 mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0"
+        >
+            {user ? (
+                <div className="mx-4 mt-1 mb-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>
+                    <label className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saved assets only</p>
+                            <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
+                                Narrow this quick list to items you have already saved.
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setMobileBrowseDrawerOpen(false);
-                                    setMobileMode('browse');
-                                }}
-                                className="btn-ghost px-3 py-2 text-xs whitespace-nowrap"
-                            >
-                                Full browse
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMobileBrowseDrawerOpen(false)}
-                                aria-label="Close browse drawer"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-slate-600"
-                                style={{ borderColor: 'var(--color-border)' }}
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        {resultsList}
-                    </div>
-                </Drawer.Content>
-            </Drawer.Portal>
-        </Drawer.Root>
+                        <input
+                            type="checkbox"
+                            checked={showFavoritesOnly}
+                            onChange={(event) => setShowFavoritesOnly(event.target.checked)}
+                            className="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                    </label>
+                </div>
+            ) : null}
+            {resultsList}
+        </MobileBottomSheet>
     ) : null;
 
     const mobileDetailDrawer = !isDesktop && mobileMode === 'map' && selectedPlacePin ? (
         <Drawer.Root
-            direction="left"
             open={Boolean(selectedPlacePin)}
             onOpenChange={(nextOpen) => {
                 if (!nextOpen) {
@@ -1102,10 +1024,10 @@ export default function DiscoverPage() {
             }}
         >
             <Drawer.Portal>
+                <Drawer.Overlay className="fixed inset-0 z-[595] bg-slate-950/35" />
                 <Drawer.Content
-                    className="fixed bottom-0 left-0 top-[56px] z-[600] flex flex-col overflow-visible border-r bg-white shadow-2xl sm:top-[64px]"
+                    className="fixed bottom-0 left-0 right-0 z-[600] flex max-h-[86svh] flex-col overflow-hidden rounded-t-[28px] border-t bg-white shadow-2xl"
                     style={{
-                        width: `${mobileDetailDrawerWidth}px`,
                         borderColor: 'var(--color-border)',
                         background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.97) 100%)',
                     }}
@@ -1116,24 +1038,11 @@ export default function DiscoverPage() {
                     <Drawer.Description className="sr-only">
                         View saved place details and related resources for the selected map pin.
                     </Drawer.Description>
-                    <div
-                        className="pointer-events-none absolute z-[610] -translate-y-1/2 drop-shadow-[10px_0_18px_rgba(15,89,91,0.08)]"
-                        style={{
-                            top: `${mobileDetailGeometry.pointerTopPx}px`,
-                            right: `-${MOBILE_PIN_DRAWER_POINTER_SIZE - 1}px`,
-                            width: `${MOBILE_PIN_DRAWER_POINTER_SIZE}px`,
-                            height: `${MOBILE_PIN_DRAWER_POINTER_SIZE * 2}px`,
-                            backgroundColor: 'rgba(246, 252, 251, 0.97)',
-                            clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
-                            borderTop: '1px solid var(--color-border)',
-                            borderRight: '1px solid var(--color-border)',
-                            borderBottom: '1px solid var(--color-border)',
-                        }}
-                    />
+                    <div className="mx-auto mt-3 h-1.5 w-12 rounded-full" style={{ backgroundColor: 'var(--color-border-strong)' }} />
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                         <DesktopSavedPlaceDetailPanel
                             onBack={handleCloseMobileDetail}
-                            paneWidth={mobileDetailDrawerWidth}
+                            paneWidth={typeof window !== 'undefined' ? window.innerWidth : 390}
                             pin={selectedPlacePin}
                             subCatColors={subCatColors}
                             userLocation={effectiveUserLocation}
@@ -1195,7 +1104,7 @@ export default function DiscoverPage() {
 
             <div className="flex lg:hidden min-h-0 flex-1 flex-col">
                 {filterPanel}
-                <div ref={mobileMapViewportRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     {mobileMode === 'browse' ? resultsList : mapView}
                 </div>
                 {mobileBrowseDrawer}

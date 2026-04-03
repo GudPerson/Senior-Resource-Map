@@ -7,6 +7,7 @@ import {
     groupSoftAssetsByBucket,
     summarizeSoftAssetBuckets,
 } from '../lib/softAssetBuckets.js';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
 function TagBadge({ tag }) {
     return (
@@ -64,12 +65,13 @@ export default function ResourceDetailContent({
     type,
 }) {
     const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
+    const isPhone = useMediaQuery('(max-width: 639px)');
 
     if (!asset) return null;
 
     const isHard = type === 'hard';
     const isEmbeddedPane = layoutMode === 'pane';
-    const isCompact = isEmbeddedPane ? (containerWidth ?? 0) <= 560 : false;
+    const isCompact = isEmbeddedPane ? (containerWidth ?? 0) <= 560 : isPhone;
     const rootSpacingClass = isCompact ? 'space-y-5' : 'space-y-6';
     const heroClass = asset.bannerUrl
         ? (isCompact ? 'h-48' : 'h-64 sm:h-80')
