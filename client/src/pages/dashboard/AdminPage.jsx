@@ -6,6 +6,7 @@ import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
+import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 const ASSET_WORKBOOKS = [
@@ -43,6 +44,15 @@ function createEmptySubCategoryDraft() {
         color: '#3b82f6',
         iconUrl: '',
     };
+}
+
+function buildCategoryPinPreviewHtml(category) {
+    return createSavedPlacePinIcon({
+        count: 1,
+        emphasis: 'default',
+        tone: 'saved',
+        iconUrl: category?.iconUrl || null,
+    }).options.html;
 }
 
 export default function AdminPage() {
@@ -2205,30 +2215,14 @@ export default function AdminPage() {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
                                                 <div
-                                                    className="relative h-11 w-8 shrink-0 flex items-start justify-center"
+                                                    className="relative h-14 w-12 shrink-0 overflow-visible flex items-start justify-center"
                                                     aria-hidden="true"
                                                 >
                                                     <div
-                                                        className="absolute left-1/2 top-[2px] -translate-x-1/2 h-8 w-8 rounded-full"
-                                                        style={{ backgroundColor: 'rgba(15, 118, 110, 0.12)' }}
-                                                    ></div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="36" viewBox="0 0 34 48" className="relative z-[1] overflow-visible">
-                                                        <path
-                                                            d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
-                                                            fill={sc.color || '#17b6ab'}
-                                                            stroke="#ffffff"
-                                                            strokeWidth="1.75"
-                                                        />
-                                                    </svg>
-                                                    <div className="absolute left-1/2 top-[8px] -translate-x-1/2 z-[2] h-[14px] w-[14px] overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.16)] flex items-center justify-center">
-                                                        {sc.iconUrl ? (
-                                                            <img src={sc.iconUrl} alt="" className="h-full w-full object-contain p-[1px]" />
-                                                        ) : (
-                                                            <svg viewBox="0 0 24 24" className="h-3 w-3" aria-hidden="true">
-                                                                <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" fill="#f35f68" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
+                                                        className="origin-top"
+                                                        style={{ transform: 'scale(0.76)' }}
+                                                        dangerouslySetInnerHTML={{ __html: buildCategoryPinPreviewHtml(sc) }}
+                                                    />
                                                 </div>
                                             </div>
                                         </td>
