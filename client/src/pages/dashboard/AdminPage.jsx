@@ -2139,12 +2139,15 @@ export default function AdminPage() {
                             </button>
                             {newSubCat.id ? (
                                 <div className="flex items-center gap-3 text-sm text-slate-500 px-1">
-                                    <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-                                        {newSubCat.iconUrl ? (
-                                            <img src={newSubCat.iconUrl} alt="" className="h-full w-full object-contain p-1.5" />
-                                        ) : (
-                                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: newSubCat.color || '#94a3b8' }}></div>
-                                        )}
+                                    <div
+                                        className="relative h-14 w-12 shrink-0 overflow-visible flex items-start justify-center"
+                                        aria-hidden="true"
+                                    >
+                                        <div
+                                            className="origin-top"
+                                            style={{ transform: 'scale(0.76)' }}
+                                            dangerouslySetInnerHTML={{ __html: buildCategoryPinPreviewHtml(newSubCat) }}
+                                        />
                                     </div>
                                     <span>Editing live category metadata. Renaming will update current hard and soft assets safely.</span>
                                 </div>
