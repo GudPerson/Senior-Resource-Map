@@ -8,6 +8,7 @@ import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestTok
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
+import { normalizeDateOfBirth, normalizeGender, normalizePropertyType } from '../utils/profileAttributes.js';
 
 const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
 
@@ -37,6 +38,9 @@ async function loadUserWithSubregions(db, userId) {
         name: users.name,
         phone: users.phone,
         postalCode: users.postalCode,
+        dateOfBirth: users.dateOfBirth,
+        gender: users.gender,
+        propertyType: users.propertyType,
         managerUserId: users.managerUserId,
     }).from(users).where(eq(users.id, userId));
 
@@ -87,6 +91,9 @@ export const register = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         const postalCode = normalizeOptionalPostalCode(body.postalCode);
+        const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
+        const gender = normalizeGender(body.gender);
+        const propertyType = normalizePropertyType(body.propertyType);
         const derivedSubregion = postalCode
             ? await resolveSingleSubregionByPostal(db, postalCode, 'Postal code')
             : null;
@@ -119,6 +126,9 @@ export const register = async (c) => {
             name,
             role: 'standard',
             postalCode,
+            dateOfBirth,
+            gender,
+            propertyType,
             managerUserId: null,
         }).returning();
 
@@ -158,13 +168,16 @@ export const login = async (c) => {
             username: users.username,
             email: users.email,
             passwordHash: users.passwordHash,
-            name: users.name,
-            role: users.role,
-            phone: users.phone,
-            postalCode: users.postalCode,
-            managerUserId: users.managerUserId,
-        }).from(users).where(
-            isEmail ? eq(users.email, loginId) : eq(users.username, loginId)
+                name: users.name,
+                role: users.role,
+                phone: users.phone,
+                postalCode: users.postalCode,
+                dateOfBirth: users.dateOfBirth,
+                gender: users.gender,
+                propertyType: users.propertyType,
+                managerUserId: users.managerUserId,
+            }).from(users).where(
+                isEmail ? eq(users.email, loginId) : eq(users.username, loginId)
         );
 
         // Fallback: case-insensitive lookup
@@ -178,6 +191,9 @@ export const login = async (c) => {
                 role: users.role,
                 phone: users.phone,
                 postalCode: users.postalCode,
+                dateOfBirth: users.dateOfBirth,
+                gender: users.gender,
+                propertyType: users.propertyType,
                 managerUserId: users.managerUserId,
             }).from(users).where(
                 isEmail ? eq(users.email, loginId.toLowerCase()) : eq(users.username, loginId)
@@ -271,6 +287,9 @@ export const googleAuth = async (c) => {
 
         if (!user) {
             const postalCode = normalizeOptionalPostalCode(body.postalCode);
+            const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
+            const gender = normalizeGender(body.gender);
+            const propertyType = normalizePropertyType(body.propertyType);
             const derivedSubregion = postalCode
                 ? await resolveSingleSubregionByPostal(db, postalCode, 'Postal code')
                 : null;
@@ -294,6 +313,9 @@ export const googleAuth = async (c) => {
                 passwordHash,
                 role: 'standard',
                 postalCode,
+                dateOfBirth,
+                gender,
+                propertyType,
                 managerUserId: null,
             }).returning();
 

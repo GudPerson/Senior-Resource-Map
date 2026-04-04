@@ -9,6 +9,7 @@ import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../uti
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
+import { normalizeDateOfBirth, normalizeGender, normalizePropertyType } from '../utils/profileAttributes.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -141,6 +142,9 @@ async function loadUserWithSubregions(db, id) {
             role: true,
             phone: true,
             postalCode: true,
+            dateOfBirth: true,
+            gender: true,
+            propertyType: true,
             createdAt: true,
             managerUserId: true,
         },
@@ -180,6 +184,9 @@ async function loadUserWithSubregions(db, id) {
         role: normalizeRole(userRow.role),
         phone: userRow.phone,
         postalCode: userRow.postalCode,
+        dateOfBirth: userRow.dateOfBirth,
+        gender: userRow.gender,
+        propertyType: userRow.propertyType,
         createdAt: userRow.createdAt,
         managerUserId: userRow.managerUserId,
         managerName: userRow.manager?.name || null,
@@ -329,6 +336,9 @@ function buildUserResponse(userRow, boundaryContext) {
         role: normalizeRole(userRow.role),
         phone: userRow.phone,
         postalCode: userRow.postalCode,
+        dateOfBirth: userRow.dateOfBirth,
+        gender: userRow.gender,
+        propertyType: userRow.propertyType,
         createdAt: userRow.createdAt,
         managerUserId: userRow.managerUserId || null,
         managerName: userRow.managerName || null,
@@ -496,6 +506,9 @@ export const getUsers = async (c) => {
                 role: true,
                 phone: true,
                 postalCode: true,
+                dateOfBirth: true,
+                gender: true,
+                propertyType: true,
                 createdAt: true,
                 managerUserId: true,
             },
@@ -559,6 +572,9 @@ export const updateProfile = async (c) => {
 
         if (body.name) updates.name = body.name;
         if (body.phone !== undefined) updates.phone = body.phone;
+        if (body.dateOfBirth !== undefined) updates.dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
+        if (body.gender !== undefined) updates.gender = normalizeGender(body.gender);
+        if (body.propertyType !== undefined) updates.propertyType = normalizePropertyType(body.propertyType);
         if (body.postalCode !== undefined) {
             updates.postalCode = currentRole === 'super_admin' || currentRole === 'standard'
                 ? normalizeOptionalPostalCode(body.postalCode)

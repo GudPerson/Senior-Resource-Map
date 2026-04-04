@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
+import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import { Trash2 } from 'lucide-react';
+import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
 function StatusBadge({ status }) {
@@ -188,6 +190,8 @@ function DirectoryResourceRow({
     compactPrint = false,
 }) {
     const canOpenDetail = Boolean(row.detailPath) && row.status !== 'unavailable';
+    const access = row?.resourceType === 'soft' ? (row.access || OFFERING_ACCESS.GRANTED) : null;
+    const isAccessRestricted = row?.resourceType === 'soft' && access !== OFFERING_ACCESS.GRANTED;
     const rowTitleClassName = interactive
         ? (compactInteractive ? 'text-[12px]' : 'text-[14px]')
         : (compactPrint ? 'text-[11px]' : 'text-[12px]');
@@ -216,7 +220,7 @@ function DirectoryResourceRow({
     }
 
     return (
-        <div className={showDivider ? 'border-t border-slate-100 pt-1.5' : ''}>
+        <div className={showDivider ? 'border-t border-slate-100 pt-1.5' : ''} style={{ opacity: isAccessRestricted ? 0.82 : 1 }}>
             <div className={`flex items-start justify-between ${mode === 'shared' ? (compactInteractive ? 'gap-2' : 'gap-3') : ''}`}>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-2.5">
@@ -233,6 +237,14 @@ function DirectoryResourceRow({
                                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                     <AvailabilityCountBadge row={row} compact={compactInteractive} />
                                 </div>
+                            ) : null}
+                            {row.resourceType === 'soft' ? (
+                                <OfferingAccessNotice
+                                    access={access}
+                                    missingProfileFields={row.missingProfileFields}
+                                    compact
+                                    className="mt-2"
+                                />
                             ) : null}
                         </div>
                     </div>

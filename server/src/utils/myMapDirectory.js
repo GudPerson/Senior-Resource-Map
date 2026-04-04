@@ -1,6 +1,11 @@
 import { eq } from 'drizzle-orm';
 
 import { hardAssets, softAssets, subCategories } from '../db/schema.js';
+import {
+    buildEligibilityContext,
+    buildMembershipHostIdMap,
+    getOfferingAccessMetadata,
+} from './eligibility.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
 import { isAssetVisible } from './visibility.js';
 
@@ -279,6 +284,7 @@ const softAssetQuery = {
         availabilityEnabled: true,
         availabilityCount: true,
         availabilityUnit: true,
+        eligibilityRules: true,
     },
     with: {
         partner: {
@@ -388,6 +394,8 @@ function buildRow({
         detailPath,
         status,
         saveEligible,
+        access: status === 'unavailable' ? null : (snapshot.access || null),
+        missingProfileFields: Array.isArray(snapshot.missingProfileFields) ? snapshot.missingProfileFields : [],
         assetKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId),
         addedAt: mapAsset.addedAt ?? null,
     };
@@ -514,10 +522,12 @@ export async function buildMyMapDirectory(db, {
     const assetSummaries = [];
     const categoryLookup = await loadCategoryLookup(db);
     const effectiveVisibilityUser = visibilityUser || viewerUser || { role: 'guest' };
+    const effectiveEligibilityViewer = viewerUser || { role: 'guest' };
     const effectiveResolutionContext = resolutionContext || {
         allowedPartnerAudienceIds: new Set(),
         allowedAudienceZoneIds: new Set(),
     };
+    const preparedAssets = [];
 
     for (const mapAsset of map?.assets || []) {
         const snapshot = normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot);
@@ -552,6 +562,7 @@ export async function buildMyMapDirectory(db, {
                     ownerPartner: liveAsset.partner,
                     allowedPartnerAudienceIds: effectiveResolutionContext.allowedPartnerAudienceIds,
                     allowedAudienceZoneIds: effectiveResolutionContext.allowedAudienceZoneIds,
+                    treatMemberOnlyAsVisible: true,
                 });
 
                 isLiveVisible = assetVisible && canExposeSoftAsset(liveAsset, visibleLocations);
@@ -561,6 +572,33 @@ export async function buildMyMapDirectory(db, {
         if (!isLiveVisible) {
             sourceSnapshot = snapshot;
         }
+
+        preparedAssets.push({
+            mapAsset,
+            snapshot,
+            liveAsset,
+            sourceSnapshot,
+            isLiveVisible,
+        });
+    }
+
+    const liveSoftAssets = preparedAssets
+        .filter((entry) => entry.mapAsset.resourceType === 'soft' && entry.liveAsset)
+        .map((entry) => entry.liveAsset);
+    const eligibilityContext = await buildEligibilityContext(db, effectiveEligibilityViewer);
+    const membershipHostIdMap = await buildMembershipHostIdMap(db, liveSoftAssets);
+
+    for (const {
+        mapAsset,
+        snapshot,
+        liveAsset,
+        sourceSnapshot,
+        isLiveVisible,
+    } of preparedAssets) {
+        const liveAccessMeta =
+            isLiveVisible && mapAsset.resourceType === 'soft' && liveAsset
+                ? getOfferingAccessMetadata(liveAsset, effectiveEligibilityViewer, eligibilityContext, membershipHostIdMap)
+                : { access: null, missingProfileFields: [] };
 
         const detailPath = isLiveVisible ? buildDetailPath(mapAsset.resourceType, mapAsset.resourceId) : null;
         const rowBaseStatus = isLiveVisible ? 'available' : 'unavailable';
@@ -579,10 +617,17 @@ export async function buildMyMapDirectory(db, {
             const rowStatus = rowBaseStatus === 'unavailable'
                 ? 'unavailable'
                 : (place.hasCoordinates ? 'available' : 'list_only');
+            const rowSnapshot = {
+                ...sourceSnapshot,
+                access: rowStatus === 'unavailable' ? null : liveAccessMeta.access,
+                missingProfileFields: rowStatus === 'unavailable'
+                    ? []
+                    : (liveAccessMeta.missingProfileFields || []),
+            };
             const row = buildRow({
                 mapAsset,
                 place,
-                snapshot: sourceSnapshot,
+                snapshot: rowSnapshot,
                 status: rowStatus,
                 detailPath: rowStatus === 'unavailable' ? null : detailPath,
                 saveEligible: mode === 'shared' && rowStatus !== 'unavailable',

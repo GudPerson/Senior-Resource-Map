@@ -4,9 +4,11 @@ import CreatableSelect from 'react-select/creatable';
 import { Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
+import { normalizeEligibilityRules } from '../lib/eligibility.js';
 import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
 import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
+import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 
 function formatDateTimeLocal(value) {
@@ -33,6 +35,7 @@ function buildInitialForm(type, initialData, currentUser) {
             availabilityEnabled: Boolean(initialData.availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(initialData.availabilityCount),
             availabilityUnit: initialData.availabilityUnit || '',
+            eligibilityRules: normalizeEligibilityRules(initialData.eligibilityRules),
             partnerId: initialData.partnerId || '',
             subregionId: initialData.subregionId || '',
             postalCode: initialData.postalCode || '',
@@ -82,6 +85,7 @@ function buildInitialForm(type, initialData, currentUser) {
         availabilityEnabled: false,
         availabilityCount: 0,
         availabilityUnit: '',
+        eligibilityRules: null,
         ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
         partnerId: '',
         subregionId: normalizeRole(currentUser?.role) === 'partner' ? (currentUser?.subregionIds?.[0] || '') : '',
@@ -251,6 +255,7 @@ export default function AssetForm({
                 payload.availabilityEnabled = Boolean(form.availabilityEnabled);
                 payload.availabilityCount = normalizeAvailabilityCount(form.availabilityCount);
                 payload.availabilityUnit = normalizeAvailabilityUnit(form.availabilityUnit);
+                payload.eligibilityRules = normalizeEligibilityRules(form.eligibilityRules);
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
                 payload.audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
                 if (payload.locationIds.length === 0) {
@@ -313,8 +318,18 @@ export default function AssetForm({
         <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-2 gap-5">
                 <div className="col-span-2 grid grid-cols-2 gap-4">
-                    <ImageUpload label="Logo / Icon" value={form.logoUrl} onChange={(url) => setField('logoUrl', url)} />
-                    <ImageUpload label="Hero Banner" value={form.bannerUrl} onChange={(url) => setField('bannerUrl', url)} />
+                    <ImageUpload
+                        label="Logo / Icon"
+                        value={form.logoUrl}
+                        onChange={(url) => setField('logoUrl', url)}
+                        hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
+                    />
+                    <ImageUpload
+                        label="Hero Banner"
+                        value={form.bannerUrl}
+                        onChange={(url) => setField('bannerUrl', url)}
+                        hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
+                    />
                 </div>
 
                 <div className="col-span-2 md:col-span-1">
@@ -577,6 +592,13 @@ export default function AssetForm({
                     />
                 </div>
             </div>
+
+            {!isHard ? (
+                <EligibilityRulesEditor
+                    value={form.eligibilityRules}
+                    onChange={(rules) => setField('eligibilityRules', rules)}
+                />
+            ) : null}
 
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mt-6 space-y-4">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2">

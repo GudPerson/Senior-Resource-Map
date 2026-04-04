@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { Clock, EyeOff, FileText, Link2, Loader2, Lock, Mail, MapPin, Package2, Phone, RotateCcw } from 'lucide-react';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
+import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -35,6 +36,7 @@ function buildInitialForm(initialData) {
         audienceZones: initialData?.audienceZones || [],
         parentSummary: initialData?.parentSummary || null,
         hostLocation: initialData?.hostLocation || initialData?.location || null,
+        eligibilityRules: initialData?.eligibilityRules || null,
     };
 }
 
@@ -174,6 +176,14 @@ export default function SoftAssetChildForm({
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Visibility Rule</p>
                         <p className="mt-1 text-sm font-semibold text-slate-800">{form.isMemberOnly ? 'Member-only' : 'Visible to guests'}</p>
                     </div>
+                </div>
+
+                <div className="mt-4">
+                    <EligibilityRulesEditor
+                        value={form.eligibilityRules}
+                        readOnly
+                        title="Eligibility rules"
+                    />
                 </div>
             </div>
 

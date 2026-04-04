@@ -279,6 +279,7 @@ export async function resolveSavedAssetSummary(db, user, resourceType, resourceI
             ownerPartner: asset.partner,
             allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
             allowedAudienceZoneIds: context.allowedAudienceZoneIds,
+            treatMemberOnlyAsVisible: true,
         });
 
         const canExpose = canExposeSoftAsset(asset, visibleLocations);

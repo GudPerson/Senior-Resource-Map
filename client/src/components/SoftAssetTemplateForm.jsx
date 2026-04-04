@@ -4,8 +4,10 @@ import CreatableSelect from 'react-select/creatable';
 import { Clock, FileText, Globe, Loader2, Users } from 'lucide-react';
 
 import { api } from '../lib/api.js';
+import { normalizeEligibilityRules } from '../lib/eligibility.js';
 import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
+import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 
 function buildInitialForm(initialData, currentUser) {
@@ -25,6 +27,7 @@ function buildInitialForm(initialData, currentUser) {
             audienceMode: initialData.audienceMode || 'public',
             audienceZoneIds: initialData.audienceZoneIds || initialData.audienceZones?.map((zone) => zone.id) || [],
             isMemberOnly: Boolean(initialData.isMemberOnly),
+            eligibilityRules: normalizeEligibilityRules(initialData.eligibilityRules),
         };
     }
 
@@ -43,6 +46,7 @@ function buildInitialForm(initialData, currentUser) {
         audienceMode: 'public',
         audienceZoneIds: [],
         isMemberOnly: false,
+        eligibilityRules: null,
     };
 }
 
@@ -133,6 +137,7 @@ export default function SoftAssetTemplateForm({
                     : (form.audienceMode || 'public'),
                 audienceZoneIds: form.audienceMode === 'audience_zones' ? (form.audienceZoneIds || []) : [],
                 isMemberOnly: Boolean(form.isMemberOnly),
+                eligibilityRules: normalizeEligibilityRules(form.eligibilityRules),
             };
 
             if (!payload.name?.trim()) {
@@ -169,8 +174,18 @@ export default function SoftAssetTemplateForm({
         <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-2 gap-5">
                 <div className="col-span-2 grid grid-cols-2 gap-4">
-                    <ImageUpload label="Logo / Icon" value={form.logoUrl} onChange={(url) => setField('logoUrl', url)} />
-                    <ImageUpload label="Hero Banner" value={form.bannerUrl} onChange={(url) => setField('bannerUrl', url)} />
+                    <ImageUpload
+                        label="Logo / Icon"
+                        value={form.logoUrl}
+                        onChange={(url) => setField('logoUrl', url)}
+                        hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
+                    />
+                    <ImageUpload
+                        label="Hero Banner"
+                        value={form.bannerUrl}
+                        onChange={(url) => setField('bannerUrl', url)}
+                        hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
+                    />
                 </div>
 
                 <div>
@@ -335,6 +350,12 @@ export default function SoftAssetTemplateForm({
                         <p className="mt-1 text-xs text-slate-500">Generated child offerings will inherit these eligibility zones from the template.</p>
                     </div>
                 ) : null}
+
+                <EligibilityRulesEditor
+                    value={form.eligibilityRules}
+                    onChange={(rules) => setField('eligibilityRules', rules)}
+                    description="These demographic rules are copied into generated child assets."
+                />
 
                 <div className="rounded-xl border border-dashed border-brand-200 bg-white px-4 py-3 text-xs text-slate-600">
                     Save the template first, then generate hidden host-specific child offerings from the rollout panel.

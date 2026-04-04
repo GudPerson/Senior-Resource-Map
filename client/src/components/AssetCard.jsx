@@ -4,6 +4,8 @@ import { ArrowUpRight, Building2, CalendarDays, MapPin, Clock, Navigation } from
 import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
 import { openResourceDetail } from '../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
+import { OFFERING_ACCESS } from '../lib/eligibility.js';
+import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import SaveAssetButton from './SaveAssetButton.jsx';
 
 function hasValidCoordinates(value) {
@@ -75,6 +77,8 @@ export const AssetCard = React.memo(({
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
+    const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
+    const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
     const savedAssetSummary = {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -107,6 +111,7 @@ export const AssetCard = React.memo(({
                 background: isSelected
                     ? 'linear-gradient(180deg, rgba(231,248,244,0.98) 0%, rgba(255,255,255,0.96) 100%)'
                     : 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,252,251,0.94) 100%)',
+                opacity: isAccessRestricted ? 0.82 : 1,
             }}
             onMouseEnter={onCardHoverStart}
             onMouseLeave={onCardHoverEnd}
@@ -181,6 +186,15 @@ export const AssetCard = React.memo(({
                     <LinkifiedText text={asset.description} />
                 </p>
             )}
+
+            {!isHard ? (
+                <OfferingAccessNotice
+                    access={access}
+                    missingProfileFields={asset.missingProfileFields}
+                    compact
+                    className="mb-3"
+                />
+            ) : null}
 
             {availabilityEnabled ? (
                 <div className="mb-3">

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import AssetForm from '../../components/AssetForm.jsx';
+import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
 import SoftAssetChildForm from '../../components/SoftAssetChildForm.jsx';
 import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
@@ -328,6 +329,7 @@ export default function ResourcesPage() {
     const [templateModal, setTemplateModal] = useState(null);
     const [childModal, setChildModal] = useState(null);
     const [generateModal, setGenerateModal] = useState(null);
+    const [membershipQrModal, setMembershipQrModal] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
@@ -514,6 +516,17 @@ export default function ResourcesPage() {
             setActionNotice({ type: 'warning', message: err.message || 'Failed to load rollout data.' });
         } finally {
             setGenerateModal((prev) => prev ? { ...prev, loading: false } : null);
+        }
+    }
+
+    async function openMembershipQr(asset) {
+        setMembershipQrModal({ asset, loading: true, data: null, copied: false });
+        try {
+            const data = await api.generateHardAssetMembershipQr(asset.id);
+            setMembershipQrModal({ asset, loading: false, data, copied: false });
+        } catch (err) {
+            setMembershipQrModal(null);
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to generate membership QR.' });
         }
     }
 
@@ -1075,6 +1088,9 @@ export default function ResourcesPage() {
                                     <button onClick={() => openEdit(asset, 'hard')} className="btn-ghost px-3 py-2 text-sm">
                                         <Pencil size={15} /> Edit
                                     </button>
+                                    <button onClick={() => openMembershipQr(asset)} className="btn-ghost px-3 py-2 text-sm">
+                                        <Building2 size={15} /> Generate Membership QR
+                                    </button>
                                     <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
                                         <Trash2 size={15} /> Delete
                                     </button>
@@ -1571,6 +1587,63 @@ export default function ResourcesPage() {
                             </button>
                         </div>
                     </div>
+                </ResourceModal>
+            ) : null}
+
+            {membershipQrModal ? (
+                <ResourceModal
+                    title="Generate Membership QR"
+                    description="Users can scan this QR code to link themselves to this place as an active member."
+                    onClose={() => setMembershipQrModal(null)}
+                    maxWidth="max-w-xl"
+                >
+                    {membershipQrModal.loading || !membershipQrModal.data ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                            Generating membership QR…
+                        </div>
+                    ) : (
+                        <div className="space-y-5">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Place</p>
+                                <p className="mt-1 text-lg font-bold text-slate-900">{membershipQrModal.asset.name}</p>
+                                {membershipQrModal.asset.address ? (
+                                    <p className="mt-1 text-sm text-slate-500">{membershipQrModal.asset.address}</p>
+                                ) : null}
+                            </div>
+
+                            <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-6">
+                                <DirectoryQrCode value={membershipQrModal.data.linkUrl} compact />
+                                <p className="max-w-sm text-center text-sm text-slate-500">
+                                    Scanning this code signs the user into an active membership for this place. Repeat scans are safe and won&apos;t create duplicates.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Membership link</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        readOnly
+                                        value={membershipQrModal.data.linkUrl}
+                                        className="input-field flex-1 bg-slate-50"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(membershipQrModal.data.linkUrl);
+                                                setMembershipQrModal((prev) => prev ? { ...prev, copied: true } : prev);
+                                            } catch (error) {
+                                                console.error(error);
+                                            }
+                                        }}
+                                        className="btn-ghost whitespace-nowrap"
+                                    >
+                                        {membershipQrModal.copied ? 'Copied' : 'Copy link'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </ResourceModal>
             ) : null}
 

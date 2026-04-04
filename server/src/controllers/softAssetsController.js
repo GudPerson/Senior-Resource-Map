@@ -11,6 +11,7 @@ import {
     syncSoftAssetAudienceZones,
 } from '../utils/audienceZones.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
+import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { isAssetVisible } from '../utils/visibility.js';
@@ -54,6 +55,7 @@ const softAssetWithRelations = {
             galleryUrls: true,
             audienceMode: true,
             isMemberOnly: true,
+            eligibilityRules: true,
             tags: true,
         },
         with: {
@@ -148,6 +150,23 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
     };
 }
 
+function formatSoftAssetWithAccess(
+    asset,
+    boundaryContext,
+    viewer,
+    allowedPartnerAudienceIds,
+    allowedAudienceZoneIds,
+    eligibilityContext,
+    membershipHostIdMap,
+) {
+    const formatted = formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds);
+    return {
+        ...formatted,
+        eligibilityRules: asset.eligibilityRules || null,
+        ...getOfferingAccessMetadata(asset, viewer, eligibilityContext, membershipHostIdMap),
+    };
+}
+
 function canExposeFormattedSoftAsset(asset, formatted) {
     const allLocations = getSoftAssetLocations(asset);
     if (isChildSoftAsset(asset)) {
@@ -196,9 +215,34 @@ export const getSoftAssets = async (c) => {
         }
 
         const assets = await db.query.softAssets.findMany(options);
+        const visibleAssets = assets
+            .filter((asset) => isAssetVisible(asset, user, {
+                ownerPartner: asset.partner,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+                treatMemberOnlyAsVisible: true,
+            }));
+        const eligibilityContext = await buildEligibilityContext(db, user);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, visibleAssets);
         const formatted = assets
-            .filter((asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner, allowedPartnerAudienceIds, allowedAudienceZoneIds }))
-            .map((asset) => ({ raw: asset, formatted: formatSoftAsset(asset, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds) }))
+            .filter((asset) => isAssetVisible(asset, user, {
+                ownerPartner: asset.partner,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+                treatMemberOnlyAsVisible: true,
+            }))
+            .map((asset) => ({
+                raw: asset,
+                formatted: formatSoftAssetWithAccess(
+                    asset,
+                    boundaryContext,
+                    user,
+                    allowedPartnerAudienceIds,
+                    allowedAudienceZoneIds,
+                    eligibilityContext,
+                    membershipHostIdMap,
+                ),
+            }))
             .filter(({ raw, formatted }) => canExposeFormattedSoftAsset(raw, formatted))
             .map(({ formatted }) => formatted);
 
@@ -220,11 +264,26 @@ export const getSoftAssetById = async (c) => {
         const boundaryContext = await loadScopedBoundaryContext(db, user);
 
         const asset = await loadSoftAssetById(db, id);
-        if (!asset || !isAssetVisible(asset, user, { ownerPartner: asset.partner, allowedPartnerAudienceIds, allowedAudienceZoneIds })) {
+        if (!asset || !isAssetVisible(asset, user, {
+            ownerPartner: asset.partner,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+            treatMemberOnlyAsVisible: true,
+        })) {
             return c.json({ error: 'Not found' }, 404);
         }
 
-        const formatted = formatSoftAsset(asset, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds);
+        const eligibilityContext = await buildEligibilityContext(db, user);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, [asset]);
+        const formatted = formatSoftAssetWithAccess(
+            asset,
+            boundaryContext,
+            user,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+            eligibilityContext,
+            membershipHostIdMap,
+        );
         if (!canExposeFormattedSoftAsset(asset, formatted)) {
             return c.json({ error: 'Not found' }, 404);
         }
@@ -263,6 +322,7 @@ export const createSoftAsset = async (c) => {
             galleryUrls,
             newTags = [],
             isMemberOnly,
+            eligibilityRules,
             isHidden,
             hideFrom,
             hideUntil,
@@ -321,6 +381,7 @@ export const createSoftAsset = async (c) => {
             galleryUrls: normalizeGalleryUrls(galleryUrls),
             audienceMode,
             isMemberOnly: Boolean(isMemberOnly),
+            eligibilityRules: normalizeEligibilityRules(eligibilityRules),
             contactPhone: contactPhone || null,
             contactEmail: contactEmail || null,
             ctaLabel: ctaLabel || null,
@@ -381,6 +442,9 @@ export const patchSoftAssetAvailability = async (c) => {
         const nextAvailabilityUnit = body?.availabilityUnit !== undefined
             ? normalizeAvailabilityUnit(body.availabilityUnit)
             : normalizeAvailabilityUnit(existing.availabilityUnit);
+        const nextEligibilityRules = body?.eligibilityRules !== undefined
+            ? normalizeEligibilityRules(body.eligibilityRules)
+            : existing.eligibilityRules || null;
 
         if (!Number.isInteger(nextAvailabilityCount) || nextAvailabilityCount < 0) {
             return c.json({ error: 'Availability count must be a non-negative whole number.' }, 400);
@@ -390,6 +454,7 @@ export const patchSoftAssetAvailability = async (c) => {
             availabilityEnabled: nextAvailabilityEnabled,
             availabilityCount: nextAvailabilityCount,
             availabilityUnit: nextAvailabilityUnit,
+            eligibilityRules: nextEligibilityRules,
             updatedAt: new Date(),
         }).where(eq(softAssets.id, id));
 
@@ -403,8 +468,18 @@ export const patchSoftAssetAvailability = async (c) => {
             return c.json({ error: 'Not found' }, 404);
         }
 
+        const eligibilityContext = await buildEligibilityContext(db, user);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, refreshed ? [refreshed] : []);
         return c.json(
-            formatSoftAsset(refreshed, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds)
+            formatSoftAssetWithAccess(
+                refreshed,
+                boundaryContext,
+                user,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+                eligibilityContext,
+                membershipHostIdMap,
+            )
         );
     } catch (err) {
         console.error('patchSoftAssetAvailability Error:', err);
@@ -483,6 +558,9 @@ export const updateSoftAsset = async (c) => {
             galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : existing.galleryUrls,
             audienceMode,
             isMemberOnly: body.isMemberOnly !== undefined ? Boolean(body.isMemberOnly) : existing.isMemberOnly,
+            eligibilityRules: body.eligibilityRules !== undefined
+                ? normalizeEligibilityRules(body.eligibilityRules)
+                : (existing.eligibilityRules || null),
             contactPhone: body.contactPhone !== undefined ? (body.contactPhone || null) : existing.contactPhone,
             contactEmail: body.contactEmail !== undefined ? (body.contactEmail || null) : existing.contactEmail,
             ctaLabel: body.ctaLabel !== undefined ? (body.ctaLabel || null) : existing.ctaLabel,

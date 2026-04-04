@@ -5,6 +5,7 @@ export function isAssetVisible(asset, user, options = {}) {
     if (asset.isDeleted) return false;
     const role = normalizeRole(user?.role);
     const ownerPartner = options.ownerPartner || null;
+    const treatMemberOnlyAsVisible = Boolean(options.treatMemberOnlyAsVisible);
     const allowedPartnerAudienceIds = options.allowedPartnerAudienceIds instanceof Set
         ? options.allowedPartnerAudienceIds
         : new Set();
@@ -25,6 +26,10 @@ export function isAssetVisible(asset, user, options = {}) {
 
     if (user && user.id === asset.partnerId) return true;
 
+    if (asset.isMemberOnly && (!user || role === 'guest') && !treatMemberOnlyAsVisible) {
+        return false;
+    }
+
     if (isPartnerBoundaryAsset) {
         if (!user || role === 'guest') return false;
         if (role !== 'standard') return false;
@@ -41,9 +46,6 @@ export function isAssetVisible(asset, user, options = {}) {
             return false;
         }
     }
-
-    // Member-only check
-    if (asset.isMemberOnly && (!user || role === 'guest')) return false;
 
     // Manually hidden (unless you are owner/admin)
     if (asset.isHidden) return false;

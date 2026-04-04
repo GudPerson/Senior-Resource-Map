@@ -2,8 +2,10 @@ import { MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
+import OfferingAccessNotice from '../../components/OfferingAccessNotice.jsx';
 import { openResourceDetail } from '../../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
+import { OFFERING_ACCESS } from '../../lib/eligibility.js';
 
 function formatDistance(distance) {
     if (!Number.isFinite(distance)) return null;
@@ -28,6 +30,8 @@ export function DiscoveryMobileBrowseCard({
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
+    const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
+    const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
     const summaryAddress = isHard
         ? asset.address
         : (displayLocation?.address || `Available in ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
@@ -59,6 +63,7 @@ export function DiscoveryMobileBrowseCard({
             style={{
                 borderColor: 'var(--color-border)',
                 background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,252,251,0.94) 100%)',
+                opacity: isAccessRestricted ? 0.82 : 1,
             }}
         >
             <div className={`flex items-start justify-between gap-2 ${isCompact ? '' : 'gap-3'}`}>
@@ -132,6 +137,15 @@ export function DiscoveryMobileBrowseCard({
                         {formatAvailabilityLabel(availabilityCount, availabilityUnit)}
                     </span>
                 </div>
+            ) : null}
+
+            {!isHard ? (
+                <OfferingAccessNotice
+                    access={access}
+                    missingProfileFields={asset.missingProfileFields}
+                    compact
+                    className="mt-3"
+                />
             ) : null}
 
             <button

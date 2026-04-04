@@ -12,6 +12,8 @@ import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
+import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata } from '../utils/eligibility.js';
+import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -117,7 +119,7 @@ async function resolveAssetOwner(db, actor, body, subregionId) {
     return { ownershipMode: 'partner', owner };
 }
 
-function formatNestedSoftAsset(asset) {
+function formatNestedSoftAsset(asset, viewer, eligibilityContext, membershipHostIdMap) {
     const { parent, tags, audienceZones, ...assetRest } = asset;
     const resolvedAudienceZones = getAssetAudienceZones(asset);
     return {
@@ -126,10 +128,11 @@ function formatNestedSoftAsset(asset) {
         parentSummary: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
         audienceZones: resolvedAudienceZones,
         audienceZoneIds: resolvedAudienceZones.map((zone) => zone.id),
+        ...getOfferingAccessMetadata(asset, viewer, eligibilityContext, membershipHostIdMap),
     };
 }
 
-function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
+function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap) {
     const combined = [
         ...(asset.softAssets || []).map((entry) => entry.softAsset),
         ...(asset.hostedSoftAssets || []),
@@ -144,12 +147,13 @@ function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allow
                 ownerPartner: softAsset.partner,
                 allowedPartnerAudienceIds,
                 allowedAudienceZoneIds,
+                treatMemberOnlyAsVisible: true,
             });
         })
-        .map(formatNestedSoftAsset);
+        .map((softAsset) => formatNestedSoftAsset(softAsset, viewer, eligibilityContext, membershipHostIdMap));
 }
 
-function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
+function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap) {
     return {
         ...asset,
         partnerName: asset.partner?.name || null,
@@ -157,7 +161,7 @@ function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         ownershipMode: asset.partnerId ? 'partner' : 'system',
         creatorName: asset.creator?.name || null,
         tags: asset.tags.map((t) => t.tag.name),
-        softAssets: collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds),
+        softAssets: collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap),
         boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
     };
 }
@@ -262,9 +266,15 @@ export const getHardAssets = async (c) => {
 
         const assets = await db.query.hardAssets.findMany(options);
 
+        const nestedSoftAssets = assets.flatMap((asset) => [
+            ...(asset.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
+            ...(asset.hostedSoftAssets || []).filter(Boolean),
+        ]);
+        const eligibilityContext = await buildEligibilityContext(db, user);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
         const formatted = assets
             .filter((asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }))
-            .map((asset) => formatHardAsset(asset, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds));
+            .map((asset) => formatHardAsset(asset, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap));
 
         return c.json(formatted);
     } catch (err) {
@@ -369,8 +379,22 @@ export const getHardAssetById = async (c) => {
             return c.json({ error: 'Not found' }, 404);
         }
 
+        const nestedSoftAssets = [
+            ...(asset.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
+            ...(asset.hostedSoftAssets || []).filter(Boolean),
+        ];
+        const eligibilityContext = await buildEligibilityContext(db, user);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
         const formatted = {
-            ...formatHardAsset(asset, await loadScopedBoundaryContext(db, user), user, allowedPartnerAudienceIds, allowedAudienceZoneIds),
+            ...formatHardAsset(
+                asset,
+                await loadScopedBoundaryContext(db, user),
+                user,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+                eligibilityContext,
+                membershipHostIdMap,
+            ),
         };
 
         return c.json(formatted);
@@ -446,6 +470,48 @@ export const createHardAsset = async (c) => {
     } catch (err) {
         console.error(err);
         return c.json({ error: err.message || 'Failed to create hard asset' }, err.status || 500);
+    }
+};
+
+export const createHardAssetMembershipQr = async (c) => {
+    try {
+        const id = Number.parseInt(c.req.param('id'), 10);
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const asset = await db.query.hardAssets.findFirst({
+            where: eq(hardAssets.id, id),
+            with: {
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+            },
+        });
+
+        if (!asset || asset.isDeleted) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        if (!actorCanManageAsset(user, asset, asset.partner)) {
+            return c.json({ error: 'Insufficient permissions to manage this place.' }, 403);
+        }
+
+        const token = await createMembershipLinkToken(asset.id, c);
+        const requestOrigin = c.req.header('origin') || new URL(c.req.url).origin;
+        const linkPath = `/membership/link?token=${encodeURIComponent(token)}`;
+        const linkUrl = `${requestOrigin.replace(/\/$/, '')}${linkPath}`;
+
+        return c.json({
+            token,
+            linkPath,
+            linkUrl,
+            place: {
+                id: asset.id,
+                name: asset.name,
+                address: asset.address,
+            },
+        });
+    } catch (err) {
+        console.error('createHardAssetMembershipQr Error:', err);
+        return c.json({ error: err.message || 'Failed to generate membership QR' }, err.status || 500);
     }
 };
 

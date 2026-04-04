@@ -178,6 +178,7 @@ export const api = {
     getHardAsset: (id) => request('GET', `/hard-assets/${id}`),
     createHardAsset: (body) => request('POST', '/hard-assets', body),
     updateHardAsset: (id, body) => request('PUT', `/hard-assets/${id}`, body),
+    generateHardAssetMembershipQr: (id) => request('POST', `/hard-assets/${id}/membership-qr`),
     deleteHardAsset: (id) => request('DELETE', `/hard-assets/${id}`),
 
     // Soft Assets
@@ -273,6 +274,9 @@ export const api = {
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
     getSharedMap: (token) => request('GET', `/shared-maps/${encodeURIComponent(token)}`),
     copySharedMap: (token) => request('POST', `/shared-maps/${encodeURIComponent(token)}/copy`),
+
+    // Memberships
+    redeemMembershipLink: (body) => request('POST', '/memberships/link', body),
 
     // Combined Helpers (for Admin/Partner generic tables)
     getResources: async () => {

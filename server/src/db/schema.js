@@ -30,6 +30,9 @@ export const users = pgTable('users', {
   managerUserId: integer('manager_user_id').references(() => users.id, { onDelete: 'set null' }),
   phone: varchar('phone', { length: 50 }),
   postalCode: varchar('postal_code', { length: 20 }).notNull().default(''),
+  dateOfBirth: text('date_of_birth'),
+  gender: varchar('gender', { length: 40 }),
+  propertyType: varchar('property_type', { length: 60 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -94,6 +97,7 @@ export const softAssetParents = pgTable('soft_asset_parents', {
   galleryUrls: jsonb('gallery_urls').default('[]'),
   audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
+  eligibilityRules: jsonb('eligibility_rules'),
   tags: jsonb('tags').default('[]'),
   isDeleted: boolean('is_deleted').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -119,6 +123,7 @@ export const softAssets = pgTable('soft_assets', {
   galleryUrls: jsonb('gallery_urls').default('[]'),
   audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
+  eligibilityRules: jsonb('eligibility_rules'),
   overriddenFields: jsonb('overridden_fields').default('[]'),
   contactPhone: varchar('contact_phone', { length: 50 }),
   contactEmail: varchar('contact_email', { length: 255 }),
@@ -134,6 +139,20 @@ export const softAssets = pgTable('soft_assets', {
   isDeleted: boolean('is_deleted').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+export const userAssetMemberships = pgTable('user_asset_memberships', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  hardAssetId: integer('hard_asset_id').references(() => hardAssets.id, { onDelete: 'cascade' }).notNull(),
+  joinMethod: varchar('join_method', { length: 40 }).notNull(),
+  status: varchar('status', { length: 40 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userHardAssetUnique: uniqueIndex('user_asset_memberships_user_hard_asset_unique').on(table.userId, table.hardAssetId),
+  userIdx: index('user_asset_memberships_user_idx').on(table.userId),
+  hardAssetIdx: index('user_asset_memberships_hard_asset_idx').on(table.hardAssetId),
+}));
 
 export const softAssetAudienceZones = pgTable('soft_asset_audience_zones', {
   softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
@@ -264,6 +283,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   softAssets: many(softAssets),
   favorites: many(userFavorites),
   myMaps: many(myMaps),
+  assetMemberships: many(userAssetMemberships),
   subregions: many(userSubregions),
   partnerPostalCodes: many(partnerPostalCodes),
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
@@ -281,6 +301,7 @@ export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({
   }),
   softAssets: many(softAssetLocations), // Many-to-Many through softAssetLocations
   hostedSoftAssets: many(softAssets, { relationName: 'soft_asset_host' }),
+  memberships: many(userAssetMemberships),
   tags: many(hardAssetTags),    // M:N through hard_asset_tags
 }));
 
@@ -430,5 +451,16 @@ export const myMapAssetsRelations = relations(myMapAssets, ({ one }) => ({
   map: one(myMaps, {
     fields: [myMapAssets.mapId],
     references: [myMaps.id],
+  }),
+}));
+
+export const userAssetMembershipsRelations = relations(userAssetMemberships, ({ one }) => ({
+  user: one(users, {
+    fields: [userAssetMemberships.userId],
+    references: [users.id],
+  }),
+  hardAsset: one(hardAssets, {
+    fields: [userAssetMemberships.hardAssetId],
+    references: [hardAssets.id],
   }),
 }));

@@ -26,6 +26,9 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE subregions ADD COLUMN IF NOT EXISTS postal_patterns TEXT NOT NULL DEFAULT ''`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) NOT NULL DEFAULT ''`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TEXT`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(40)`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS property_type VARCHAR(60)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS users_manager_user_idx ON users (manager_user_id)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
@@ -73,6 +76,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     gallery_urls JSONB DEFAULT '[]'::jsonb,
                     audience_mode VARCHAR(40) NOT NULL DEFAULT 'public',
                     is_member_only BOOLEAN DEFAULT FALSE,
+                    eligibility_rules JSONB,
                     tags JSONB DEFAULT '[]'::jsonb,
                     is_deleted BOOLEAN DEFAULT FALSE,
                     updated_at TIMESTAMP DEFAULT NOW(),
@@ -82,11 +86,13 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS audience_mode VARCHAR(40) NOT NULL DEFAULT 'public'`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS eligibility_rules JSONB`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS asset_mode VARCHAR(20) NOT NULL DEFAULT 'standalone'`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS parent_soft_asset_id INTEGER REFERENCES soft_asset_parents(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS host_hard_asset_id INTEGER REFERENCES hard_assets(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS eligibility_rules JSONB`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS overridden_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
@@ -134,6 +140,17 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS user_asset_memberships (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    hard_asset_id INTEGER NOT NULL REFERENCES hard_assets(id) ON DELETE CASCADE,
+                    join_method VARCHAR(40) NOT NULL,
+                    status VARCHAR(40) NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS audience_zones_zone_code_unique ON audience_zones (zone_code)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS audience_zone_postal_codes (
@@ -175,6 +192,9 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zone_postal_codes_postal_idx ON audience_zone_postal_codes (postal_code)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_audience_zones_zone_idx ON soft_asset_audience_zones (audience_zone_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_parent_audience_zones_zone_idx ON soft_asset_parent_audience_zones (audience_zone_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_asset_memberships_user_hard_asset_unique ON user_asset_memberships (user_id, hard_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_asset_memberships_user_idx ON user_asset_memberships (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_asset_memberships_hard_asset_idx ON user_asset_memberships (hard_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_parents_partner_idx ON soft_asset_parents (partner_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_parents_creator_idx ON soft_asset_parents (created_by_user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_assets_asset_mode_idx ON soft_assets (asset_mode)`);

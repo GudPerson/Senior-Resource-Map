@@ -8,7 +8,9 @@ import {
     summarizeSoftAssetBuckets,
 } from '../lib/softAssetBuckets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
+import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 
 function TagBadge({ tag }) {
     return (
@@ -138,6 +140,7 @@ export default function ResourceDetailContent({
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
+    const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
     const relatedSoftAssetGroups = useMemo(() => (
         isHard ? groupSoftAssetsByBucket(asset?.softAssets || []) : { Programmes: [], Services: [], Promotions: [] }
     ), [asset?.softAssets, isHard]);
@@ -241,6 +244,14 @@ export default function ResourceDetailContent({
                                     </span>
                                 ) : null}
                             </div>
+                        ) : null}
+
+                        {!isHard ? (
+                            <OfferingAccessNotice
+                                access={access}
+                                missingProfileFields={asset.missingProfileFields}
+                                className="mt-4"
+                            />
                         ) : null}
                     </div>
                 </div>

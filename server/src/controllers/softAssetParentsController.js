@@ -10,6 +10,7 @@ import {
     syncSoftAssetParentAudienceZones,
 } from '../utils/audienceZones.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
+import { normalizeEligibilityRules } from '../utils/eligibility.js';
 import { normalizeRole } from '../utils/roles.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import {
@@ -49,6 +50,7 @@ const baseParentColumns = {
     galleryUrls: true,
     audienceMode: true,
     isMemberOnly: true,
+    eligibilityRules: true,
     tags: true,
     isDeleted: true,
     updatedAt: true,
@@ -102,6 +104,7 @@ function formatSoftAssetParent(parent, options = {}) {
         galleryUrls: Array.isArray(parent.galleryUrls) ? parent.galleryUrls : [],
         audienceMode: parent.audienceMode || 'public',
         isMemberOnly: Boolean(parent.isMemberOnly),
+        eligibilityRules: parent.eligibilityRules || null,
         tags: Array.isArray(parent.tags) ? parent.tags : [],
         partnerId: parent.partnerId,
         partnerName: parent.partner?.name || null,
@@ -133,6 +136,9 @@ function buildParentPatch(body, existingParent, owner, audienceMode) {
         galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : (Array.isArray(existingParent.galleryUrls) ? existingParent.galleryUrls : []),
         audienceMode,
         isMemberOnly: body.isMemberOnly !== undefined ? Boolean(body.isMemberOnly) : Boolean(existingParent.isMemberOnly),
+        eligibilityRules: body.eligibilityRules !== undefined
+            ? normalizeEligibilityRules(body.eligibilityRules)
+            : (existingParent.eligibilityRules || null),
         tags: body.newTags !== undefined
             ? normalizeTagList(body.newTags)
             : (body.tags !== undefined ? normalizeTagList(body.tags) : (Array.isArray(existingParent.tags) ? existingParent.tags : [])),

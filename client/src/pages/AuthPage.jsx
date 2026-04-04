@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
+import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
+
+function normalizeReturnTo(value) {
+    const text = String(value || '').trim();
+    if (!text || !text.startsWith('/') || text.startsWith('//')) return '';
+    return text;
+}
 
 export default function AuthPage({ isPartner = false }) {
     const [tab, setTab] = useState('login');
@@ -14,6 +21,17 @@ export default function AuthPage({ isPartner = false }) {
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    function resolvePostAuthDestination() {
+        const pendingMembershipToken = getPendingMembershipToken();
+        if (pendingMembershipToken) {
+            return buildMembershipLinkPath(pendingMembershipToken);
+        }
+
+        const params = new URLSearchParams(location.search);
+        return normalizeReturnTo(params.get('returnTo')) || '/dashboard';
+    }
 
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
 
@@ -30,7 +48,7 @@ export default function AuthPage({ isPartner = false }) {
                 ? await api.login(loginPayload)
                 : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user' });
             login(res.user);
-            navigate('/dashboard');
+            navigate(resolvePostAuthDestination(), { replace: true });
         } catch (err) {
             setError(err.message);
         } finally {
@@ -48,7 +66,7 @@ export default function AuthPage({ isPartner = false }) {
             }
             const res = await api.googleAuth(payload);
             login(res.user);
-            navigate('/dashboard');
+            navigate(resolvePostAuthDestination(), { replace: true });
         } catch (err) {
             setError(err.message || 'Google Auth Failed');
         } finally {

@@ -12,6 +12,7 @@ import ResourcePage from './pages/ResourcePage.jsx';
 import MyDirectoryPage from './pages/MyDirectoryPage.jsx';
 import MyMapDetailPage from './pages/MyMapDetailPage.jsx';
 import SharedMapPage from './pages/SharedMapPage.jsx';
+import MembershipLinkPage from './pages/MembershipLinkPage.jsx';
 
 import { canAccessAdmin, normalizeRole } from './lib/roles.js';
 import { SavedAssetsProvider } from './contexts/SavedAssetsContext.jsx';
@@ -47,6 +48,7 @@ function AppShell() {
                 <Route path="/" element={<Navigate to="/discover" replace />} />
                 <Route path="/list" element={<Navigate to="/discover" replace />} />
                 <Route path="/discover" element={<DiscoverPage />} />
+                <Route path="/membership/link" element={<MembershipLinkPage />} />
 
                 <Route path="/resource/:type/:id" element={<ResourcePage />} />
                 <Route path="/shared/maps/:token" element={<SharedMapPage />} />

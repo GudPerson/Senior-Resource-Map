@@ -14,6 +14,7 @@ export const PARENT_PROPAGATED_FIELDS = Object.freeze([
     'galleryUrls',
     'audienceMode',
     'isMemberOnly',
+    'eligibilityRules',
 ]);
 
 export const CHILD_OVERRIDE_FIELDS = Object.freeze([
@@ -109,6 +110,7 @@ export function buildChildValuesFromParent(parent, host, actor, externalKey = nu
         galleryUrls: normalizeGalleryUrls(parent.galleryUrls),
         audienceMode: parent.audienceMode || 'public',
         isMemberOnly: Boolean(parent.isMemberOnly),
+        eligibilityRules: parent.eligibilityRules || null,
         isHidden: true,
         hideFrom: null,
         hideUntil: null,
