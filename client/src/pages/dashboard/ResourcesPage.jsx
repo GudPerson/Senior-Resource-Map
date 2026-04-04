@@ -283,7 +283,14 @@ function filterTemplateWithQuery(template, query) {
     );
 }
 
-function ResourceModal({ title, description, onClose, children, maxWidth = 'max-w-2xl' }) {
+function ResourceModal({
+    title,
+    description,
+    onClose,
+    children,
+    maxWidth = 'max-w-2xl',
+    bodyClassName = 'max-h-[70vh] overflow-y-auto pr-1',
+}) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm sm:p-6">
             <div className={`card relative my-auto w-full bg-white shadow-2xl ${maxWidth}`}>
@@ -297,7 +304,7 @@ function ResourceModal({ title, description, onClose, children, maxWidth = 'max-
                     </button>
                 </div>
 
-                <div className="max-h-[70vh] overflow-y-auto pr-1">{children}</div>
+                <div className={bodyClassName}>{children}</div>
             </div>
         </div>
     );
@@ -776,13 +783,17 @@ export default function ResourcesPage() {
     }, [generateHostOptions, generateModal]);
 
     const generateHostSelectStyles = useMemo(() => ({
+        menuPortal: (base) => ({
+            ...base,
+            zIndex: 80,
+        }),
         menu: (base) => ({
             ...base,
             zIndex: 70,
         }),
         menuList: (base) => ({
             ...base,
-            maxHeight: 320,
+            maxHeight: 460,
             paddingTop: 6,
             paddingBottom: 6,
         }),
@@ -1468,6 +1479,7 @@ export default function ResourcesPage() {
                     description="Select the hosts that should receive a hidden local rollout from this template."
                     onClose={() => setGenerateModal(null)}
                     maxWidth="max-w-[min(96vw,1100px)]"
+                    bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
                 >
                     <div className="space-y-5">
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1485,6 +1497,9 @@ export default function ResourcesPage() {
                                 value={generateSelectedOptions}
                                 onChange={(selected) => setGenerateModal((prev) => prev ? { ...prev, selectedHostIds: Array.isArray(selected) ? selected.map((item) => item.value) : [] } : null)}
                                 styles={generateHostSelectStyles}
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                menuPosition="fixed"
+                                menuPlacement="auto"
                                 className="react-select-container"
                                 classNamePrefix="react-select"
                                 placeholder={generateModal.loading ? 'Loading hosts...' : 'Select one or more hosts...'}
