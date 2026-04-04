@@ -21,6 +21,12 @@ const SORT_OPTIONS = [
     { value: 'name-desc', label: 'Name Z-A' },
 ];
 
+const MAP_SORT_OPTIONS = [
+    { value: 'recent', label: 'Recently updated' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+];
+
 const DIRECTORY_SECTIONS = {
     saved: 'saved-assets',
     maps: 'my-maps',
@@ -44,6 +50,24 @@ function sortAssets(items, sortOrder) {
     return copy.sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+    });
+}
+
+function sortMaps(items, sortOrder) {
+    const copy = [...items];
+
+    if (sortOrder === 'name-asc') {
+        return copy.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    if (sortOrder === 'name-desc') {
+        return copy.sort((a, b) => b.name.localeCompare(a.name));
+    }
+
+    return copy.sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
         return bTime - aTime;
     });
 }
@@ -141,6 +165,8 @@ export default function MyDirectoryPage() {
     const [activeSection, setActiveSection] = useState(initialSection);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOrder, setSortOrder] = useState('recent');
+    const [mapSearchTerm, setMapSearchTerm] = useState('');
+    const [mapSortOrder, setMapSortOrder] = useState('recent');
     const [actionError, setActionError] = useState('');
     const [maps, setMaps] = useState([]);
     const [mapsLoading, setMapsLoading] = useState(false);
@@ -154,6 +180,7 @@ export default function MyDirectoryPage() {
     const [renameError, setRenameError] = useState('');
     const [deletingMapId, setDeletingMapId] = useState(null);
     const [mobileSavedControlsOpen, setMobileSavedControlsOpen] = useState(false);
+    const [mobileMapControlsOpen, setMobileMapControlsOpen] = useState(false);
     const isCompactDirectory = useMediaQuery('(max-width: 1023px)');
 
     useEffect(() => {
@@ -188,6 +215,21 @@ export default function MyDirectoryPage() {
     const hasSavedAssets = totalSavedCount > 0;
     const hasSearch = Boolean(normalizedQuery);
     const hasResults = filteredAssets.length > 0;
+    const normalizedMapQuery = normalizeText(mapSearchTerm);
+    const filteredMaps = useMemo(() => {
+        const matches = normalizedMapQuery
+            ? maps.filter((map) => {
+                const haystack = [map.name, map.description]
+                    .map(normalizeText)
+                    .join(' ');
+                return haystack.includes(normalizedMapQuery);
+            })
+            : maps;
+
+        return sortMaps(matches, mapSortOrder);
+    }, [mapSortOrder, maps, normalizedMapQuery]);
+    const hasMapSearch = Boolean(normalizedMapQuery);
+    const hasFilteredMaps = filteredMaps.length > 0;
 
     const loadMaps = useCallback(async () => {
         setMapsLoading(true);
@@ -437,21 +479,92 @@ export default function MyDirectoryPage() {
                             </section>
                         ) : (
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                                <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
                                     <div>
-                                        <p className="text-sm font-semibold text-slate-700">Private maps built from your saved assets</p>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            Keep related resources together in named maps you can revisit later.
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Private maps</p>
+                                        <p className="mt-1 text-sm font-semibold text-slate-600">
+                                            {maps.length} {maps.length === 1 ? 'map' : 'maps'}
+                                            {hasMapSearch ? ` • ${filteredMaps.length} matching` : ''}
                                         </p>
                                     </div>
-                                    <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
-                                        Create My Map
+                                    <button
+                                        type="button"
+                                        onClick={() => setMobileMapControlsOpen(true)}
+                                        className="btn-ghost min-h-[44px] justify-center px-4 text-sm"
+                                    >
+                                        <SlidersHorizontal size={16} />
+                                        Refine
                                     </button>
+                                </div>
+
+                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-700">Private maps built from your saved assets</p>
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                Keep related resources together in named maps you can revisit later.
+                                            </p>
+                                        </div>
+                                        <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
+                                            Create My Map
+                                        </button>
+                                    </div>
+
+                                    <div className="hidden gap-4 lg:flex lg:flex-row lg:items-end">
+                                        <div className="min-w-0 flex-1">
+                                            <label htmlFor="my-maps-search" className="block text-sm font-semibold text-slate-700">
+                                                Search maps
+                                            </label>
+                                            <div className="relative mt-2">
+                                                <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <input
+                                                    id="my-maps-search"
+                                                    type="search"
+                                                    value={mapSearchTerm}
+                                                    onChange={(event) => setMapSearchTerm(event.target.value)}
+                                                    placeholder="Search by map name"
+                                                    className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                                                />
+                                                {mapSearchTerm ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMapSearchTerm('')}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                                        aria-label="Clear map search"
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+
+                                        <div className="w-full lg:w-56">
+                                            <label htmlFor="my-maps-sort" className="block text-sm font-semibold text-slate-700">
+                                                Sort
+                                            </label>
+                                            <div className="relative mt-2">
+                                                <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <select
+                                                    id="my-maps-sort"
+                                                    value={mapSortOrder}
+                                                    onChange={(event) => setMapSortOrder(event.target.value)}
+                                                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                                                >
+                                                    {MAP_SORT_OPTIONS.map((option) => (
+                                                        <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-sm font-medium text-slate-600">
                                         {maps.length} {maps.length === 1 ? 'map' : 'maps'}
+                                        {hasMapSearch ? ` • ${filteredMaps.length} matching` : ''}
                                     </p>
                                     {mapsError ? (
                                         <p className="text-sm font-medium text-red-600">{mapsError}</p>
@@ -462,9 +575,17 @@ export default function MyDirectoryPage() {
                                     <MyMapsLoadingState />
                                 ) : maps.length === 0 ? (
                                     <MyMapsEmptyState hasSavedAssets={hasSavedAssets} onCreate={() => setCreateModalOpen(true)} />
+                                ) : !hasFilteredMaps ? (
+                                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
+                                        <p className="text-lg font-semibold text-slate-700">No maps match your current search.</p>
+                                        <p className="mt-2 text-sm text-slate-500">Try another name or clear the current filter.</p>
+                                        <button type="button" onClick={() => setMapSearchTerm('')} className="btn-ghost mt-5">
+                                            Clear Search
+                                        </button>
+                                    </div>
                                 ) : (
                                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        {maps.map((map) => (
+                                        {filteredMaps.map((map) => (
                                             <MyMapCard
                                                 key={map.id}
                                                 map={map}
@@ -563,6 +684,68 @@ export default function MyDirectoryPage() {
                                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                             >
                                 {SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </MobileBottomSheet>
+
+            <MobileBottomSheet
+                open={activeSection === DIRECTORY_SECTIONS.maps && mobileMapControlsOpen}
+                onOpenChange={setMobileMapControlsOpen}
+                title="Refine maps"
+                description="Search and sort your private maps without crowding the page header."
+                headerActions={(
+                    <button type="button" onClick={() => setMobileMapControlsOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
+                        Done
+                    </button>
+                )}
+            >
+                <div className="space-y-4 pb-2">
+                    <div>
+                        <label htmlFor="my-maps-search-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
+                            Search maps
+                        </label>
+                        <div className="relative mt-2">
+                            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                id="my-maps-search-mobile"
+                                type="search"
+                                value={mapSearchTerm}
+                                onChange={(event) => setMapSearchTerm(event.target.value)}
+                                placeholder="Search by map name"
+                                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                            />
+                            {mapSearchTerm ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setMapSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                    aria-label="Clear map search"
+                                >
+                                    <X size={16} />
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="my-maps-sort-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
+                            Sort
+                        </label>
+                        <div className="relative mt-2">
+                            <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <select
+                                id="my-maps-sort-mobile"
+                                value={mapSortOrder}
+                                onChange={(event) => setMapSortOrder(event.target.value)}
+                                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                            >
+                                {MAP_SORT_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>

@@ -300,6 +300,38 @@ function formatMembershipMethodLabel(method) {
         .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+const RESOURCE_LIST_SORT_OPTIONS = [
+    { value: 'default', label: 'Default order' },
+    { value: 'updated-desc', label: 'Recently updated' },
+    { value: 'updated-asc', label: 'Oldest updated' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+];
+
+function compareResourceListText(left, right) {
+    return String(left || '').trim().toLowerCase().localeCompare(String(right || '').trim().toLowerCase());
+}
+
+function getResourceUpdatedTime(asset) {
+    return asset?.updatedAt ? new Date(asset.updatedAt).getTime() : 0;
+}
+
+function sortResourceItems(items, sortOrder) {
+    if (sortOrder === 'updated-desc') {
+        return [...items].sort((left, right) => getResourceUpdatedTime(right) - getResourceUpdatedTime(left));
+    }
+    if (sortOrder === 'updated-asc') {
+        return [...items].sort((left, right) => getResourceUpdatedTime(left) - getResourceUpdatedTime(right));
+    }
+    if (sortOrder === 'name-asc') {
+        return [...items].sort((left, right) => compareResourceListText(left.name, right.name));
+    }
+    if (sortOrder === 'name-desc') {
+        return [...items].sort((left, right) => compareResourceListText(right.name, left.name));
+    }
+    return items;
+}
+
 function ResourceModal({
     title,
     description,
@@ -349,6 +381,7 @@ export default function ResourcesPage() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
+    const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
@@ -457,18 +490,27 @@ export default function ResourcesPage() {
     }, [activeTab, isStandardUser]);
 
     const filteredHardAssets = useMemo(
-        () => hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
-        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery]
+        () => sortResourceItems(
+            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            sortOrder
+        ),
+        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, sortOrder]
     );
 
     const filteredSoftAssets = useMemo(
-        () => softAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
-        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, softAssets]
+        () => sortResourceItems(
+            softAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            sortOrder
+        ),
+        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, softAssets, sortOrder]
     );
 
     const filteredTemplates = useMemo(
-        () => softAssetParents.filter((template) => filterTemplateWithQuery(template, normalizedQuery)),
-        [normalizedQuery, softAssetParents]
+        () => sortResourceItems(
+            softAssetParents.filter((template) => filterTemplateWithQuery(template, normalizedQuery)),
+            sortOrder
+        ),
+        [normalizedQuery, softAssetParents, sortOrder]
     );
 
     async function refreshTemplateDetail(templateId) {
@@ -945,7 +987,7 @@ export default function ResourcesPage() {
             ) : null}
 
             <div className="relative mb-6">
-                <div className="flex flex-col gap-3 lg:flex-row">
+                <div className="flex flex-col gap-3 xl:flex-row">
                     <div className="relative max-w-md flex-1">
                         <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -960,7 +1002,7 @@ export default function ResourcesPage() {
                         <select
                             value={boundaryFilter}
                             onChange={(e) => setBoundaryFilter(e.target.value)}
-                            className="input-field lg:w-48"
+                            className="input-field xl:w-48"
                         >
                             <option value="all">All boundary status</option>
                             <option value="inside">Inside boundary</option>
@@ -970,6 +1012,15 @@ export default function ResourcesPage() {
                             <option value="no-boundary">No boundary set</option>
                         </select>
                     ) : null}
+                    <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        className="input-field xl:w-48"
+                    >
+                        {RESOURCE_LIST_SORT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 

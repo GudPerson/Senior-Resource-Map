@@ -55,6 +55,89 @@ function buildCategoryPinPreviewHtml(category) {
     }).options.html;
 }
 
+const DEFAULT_SORT_VALUE = 'default';
+
+const RESOURCE_TYPE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All resource types' },
+    { value: 'Places', label: 'Places only' },
+    { value: 'Offerings', label: 'Offerings only' },
+];
+
+const RESOURCE_SORT_OPTIONS = [
+    { value: DEFAULT_SORT_VALUE, label: 'Default order' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+    { value: 'category-asc', label: 'Type A-Z' },
+    { value: 'partner-asc', label: 'Partner A-Z' },
+];
+
+const USER_ROLE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All roles' },
+    { value: 'super_admin', label: 'Super Admin' },
+    { value: 'regional_admin', label: 'Regional Admin' },
+    { value: 'partner', label: 'Partner' },
+    { value: 'standard', label: 'User' },
+];
+
+const USER_SORT_OPTIONS = [
+    { value: DEFAULT_SORT_VALUE, label: 'Default order' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+    { value: 'role-asc', label: 'Role hierarchy' },
+    { value: 'postal-asc', label: 'Postal code A-Z' },
+];
+
+const SUBREGION_SORT_OPTIONS = [
+    { value: DEFAULT_SORT_VALUE, label: 'Default order' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+    { value: 'code-asc', label: 'Subregion ID A-Z' },
+    { value: 'postal-desc', label: 'Most boundary codes' },
+];
+
+const AUDIENCE_ZONE_OWNERSHIP_FILTER_OPTIONS = [
+    { value: 'all', label: 'All ownership modes' },
+    { value: 'system', label: 'System-owned' },
+    { value: 'partner', label: 'Partner-owned' },
+];
+
+const AUDIENCE_ZONE_SORT_OPTIONS = [
+    { value: DEFAULT_SORT_VALUE, label: 'Default order' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+    { value: 'ownership-asc', label: 'Ownership' },
+    { value: 'postal-desc', label: 'Most boundary codes' },
+];
+
+const SUBCATEGORY_TYPE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All asset types' },
+    { value: 'hard', label: 'Hard Asset' },
+    { value: 'soft', label: 'Soft Asset' },
+];
+
+const SUBCATEGORY_SORT_OPTIONS = [
+    { value: DEFAULT_SORT_VALUE, label: 'Default order' },
+    { value: 'name-asc', label: 'Name A-Z' },
+    { value: 'name-desc', label: 'Name Z-A' },
+    { value: 'type-asc', label: 'Asset type' },
+    { value: 'icon-first', label: 'Icon first' },
+];
+
+const ROLE_SORT_RANK = {
+    super_admin: 0,
+    regional_admin: 1,
+    partner: 2,
+    standard: 3,
+};
+
+function normalizeListText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function compareListText(left, right) {
+    return normalizeListText(left).localeCompare(normalizeListText(right));
+}
+
 export default function AdminPage() {
     const { user: currentUser } = useAuth();
     const currentRole = normalizeRole(currentUser?.role);
@@ -87,8 +170,20 @@ export default function AdminPage() {
     const [audienceZoneFeedback, setAudienceZoneFeedback] = useState(null);
     const [resourceSearch, setResourceSearch] = useState('');
     const [resourceBoundaryFilter, setResourceBoundaryFilter] = useState('all');
+    const [resourceTypeFilter, setResourceTypeFilter] = useState('all');
+    const [resourceSort, setResourceSort] = useState(DEFAULT_SORT_VALUE);
     const [userSearch, setUserSearch] = useState('');
     const [userBoundaryFilter, setUserBoundaryFilter] = useState('all');
+    const [userRoleFilter, setUserRoleFilter] = useState('all');
+    const [userSort, setUserSort] = useState(DEFAULT_SORT_VALUE);
+    const [subregionSearch, setSubregionSearch] = useState('');
+    const [subregionSort, setSubregionSort] = useState(DEFAULT_SORT_VALUE);
+    const [audienceZoneSearch, setAudienceZoneSearch] = useState('');
+    const [audienceZoneOwnershipFilter, setAudienceZoneOwnershipFilter] = useState('all');
+    const [audienceZoneSort, setAudienceZoneSort] = useState(DEFAULT_SORT_VALUE);
+    const [subCategorySearch, setSubCategorySearch] = useState('');
+    const [subCategoryTypeFilter, setSubCategoryTypeFilter] = useState('all');
+    const [subCategorySort, setSubCategorySort] = useState(DEFAULT_SORT_VALUE);
     const [subregionFeedback, setSubregionFeedback] = useState(null);
     const [adminFeedback, setAdminFeedback] = useState(null);
     const [pendingSubregionDelete, setPendingSubregionDelete] = useState(null);
@@ -446,10 +541,14 @@ export default function AdminPage() {
     }
 
     function toggleSelectAllResources() {
-        if (selectedResources.length === resources.length) {
+        if (visibleResourceKeys.length === 0) {
             setSelectedResources([]);
+            return;
+        }
+        if (allVisibleResourcesSelected) {
+            setSelectedResources((prev) => prev.filter((key) => !visibleResourceKeys.includes(key)));
         } else {
-            setSelectedResources(resources.map((resource) => getResourceSelectionKey(resource)));
+            setSelectedResources((prev) => [...new Set([...prev, ...visibleResourceKeys])]);
         }
     }
 
@@ -480,10 +579,14 @@ export default function AdminPage() {
     }
 
     function toggleSelectAllSubCategories() {
-        if (selectedSubCategories.length === subCategories.length) {
+        if (visibleSubCategoryIds.length === 0) {
             setSelectedSubCategories([]);
+            return;
+        }
+        if (allVisibleSubCategoriesSelected) {
+            setSelectedSubCategories((prev) => prev.filter((id) => !visibleSubCategoryIds.includes(id)));
         } else {
-            setSelectedSubCategories(subCategories.map((category) => category.id));
+            setSelectedSubCategories((prev) => [...new Set([...prev, ...visibleSubCategoryIds])]);
         }
     }
 
@@ -1205,10 +1308,14 @@ export default function AdminPage() {
     }
 
     function toggleSelectAllSubregions() {
-        if (selectedSubregions.length === subregions.length) {
+        if (visibleSubregionIds.length === 0) {
             setSelectedSubregions([]);
+            return;
+        }
+        if (allVisibleSubregionsSelected) {
+            setSelectedSubregions((prev) => prev.filter((id) => !visibleSubregionIds.includes(id)));
         } else {
-            setSelectedSubregions(subregions.map(s => s.id));
+            setSelectedSubregions((prev) => [...new Set([...prev, ...visibleSubregionIds])]);
         }
     }
 
@@ -1219,18 +1326,25 @@ export default function AdminPage() {
     }
 
     function toggleSelectAllAudienceZones() {
-        if (selectedAudienceZones.length === audienceZones.length) {
+        if (visibleAudienceZoneIds.length === 0) {
             setSelectedAudienceZones([]);
+            return;
+        }
+        if (allVisibleAudienceZonesSelected) {
+            setSelectedAudienceZones((prev) => prev.filter((id) => !visibleAudienceZoneIds.includes(id)));
         } else {
-            setSelectedAudienceZones(audienceZones.map(z => z.id));
+            setSelectedAudienceZones((prev) => [...new Set([...prev, ...visibleAudienceZoneIds])]);
         }
     }
 
     const filteredResources = useMemo(() => {
         const query = resourceSearch.trim().toLowerCase();
-
-        return resources.filter((resource) => {
+        const filteredItems = resources.filter((resource) => {
             if (boundaryChecksEnabled && resourceBoundaryFilter !== 'all' && getResourceBoundaryStatus(resource) !== resourceBoundaryFilter) {
+                return false;
+            }
+
+            if (resourceTypeFilter !== 'all' && resource.category !== resourceTypeFilter) {
                 return false;
             }
 
@@ -1251,13 +1365,36 @@ export default function AdminPage() {
 
             return haystack.includes(query);
         });
-    }, [resources, resourceSearch, resourceBoundaryFilter, boundaryChecksEnabled]);
+        if (resourceSort === 'name-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.name, right.name));
+        }
+        if (resourceSort === 'name-desc') {
+            return [...filteredItems].sort((left, right) => compareListText(right.name, left.name));
+        }
+        if (resourceSort === 'category-asc') {
+            return [...filteredItems].sort((left, right) => {
+                const categoryCompare = compareListText(left.category, right.category);
+                return categoryCompare !== 0 ? categoryCompare : compareListText(left.name, right.name);
+            });
+        }
+        if (resourceSort === 'partner-asc') {
+            return [...filteredItems].sort((left, right) => {
+                const partnerCompare = compareListText(left.partnerName, right.partnerName);
+                return partnerCompare !== 0 ? partnerCompare : compareListText(left.name, right.name);
+            });
+        }
+
+        return filteredItems;
+    }, [resources, resourceSearch, resourceBoundaryFilter, resourceSort, resourceTypeFilter, boundaryChecksEnabled]);
 
     const filteredUsers = useMemo(() => {
         const query = userSearch.trim().toLowerCase();
-
-        return users.filter((candidate) => {
+        const filteredItems = users.filter((candidate) => {
             if (boundaryChecksEnabled && userBoundaryFilter !== 'all' && getUserBoundaryStatus(candidate) !== userBoundaryFilter) {
+                return false;
+            }
+
+            if (userRoleFilter !== 'all' && normalizeRole(candidate.role) !== userRoleFilter) {
                 return false;
             }
 
@@ -1275,12 +1412,149 @@ export default function AdminPage() {
                 .toLowerCase()
                 .includes(query);
         });
-    }, [users, userSearch, userBoundaryFilter, boundaryChecksEnabled]);
+        if (userSort === 'name-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.name || left.username, right.name || right.username));
+        }
+        if (userSort === 'name-desc') {
+            return [...filteredItems].sort((left, right) => compareListText(right.name || right.username, left.name || left.username));
+        }
+        if (userSort === 'role-asc') {
+            return [...filteredItems].sort((left, right) => {
+                const rankDelta = (ROLE_SORT_RANK[normalizeRole(left.role)] ?? 99) - (ROLE_SORT_RANK[normalizeRole(right.role)] ?? 99);
+                return rankDelta !== 0 ? rankDelta : compareListText(left.name || left.username, right.name || right.username);
+            });
+        }
+        if (userSort === 'postal-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.postalCode, right.postalCode));
+        }
+
+        return filteredItems;
+    }, [users, userSearch, userBoundaryFilter, userRoleFilter, userSort, boundaryChecksEnabled]);
+
+    const filteredSubregions = useMemo(() => {
+        const query = subregionSearch.trim().toLowerCase();
+        const filteredItems = subregions.filter((subregion) => {
+            if (!query) return true;
+
+            return [
+                subregion.name,
+                subregion.subregionCode,
+                subregion.description,
+                ...(Array.isArray(subregion.postalCodesPreview) ? subregion.postalCodesPreview : []),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+                .includes(query);
+        });
+
+        if (subregionSort === 'name-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.name, right.name));
+        }
+        if (subregionSort === 'name-desc') {
+            return [...filteredItems].sort((left, right) => compareListText(right.name, left.name));
+        }
+        if (subregionSort === 'code-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.subregionCode, right.subregionCode));
+        }
+        if (subregionSort === 'postal-desc') {
+            return [...filteredItems].sort((left, right) => (Number(right.postalCodeCount) || 0) - (Number(left.postalCodeCount) || 0));
+        }
+
+        return filteredItems;
+    }, [subregionSearch, subregionSort, subregions]);
+
+    const filteredAudienceZones = useMemo(() => {
+        const query = audienceZoneSearch.trim().toLowerCase();
+        const filteredItems = audienceZones.filter((zone) => {
+            if (audienceZoneOwnershipFilter !== 'all' && zone.ownershipMode !== audienceZoneOwnershipFilter) {
+                return false;
+            }
+
+            if (!query) return true;
+
+            return [
+                zone.name,
+                zone.zoneCode,
+                zone.description,
+                zone.partnerName,
+                ...(Array.isArray(zone.postalCodesPreview) ? zone.postalCodesPreview : []),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+                .includes(query);
+        });
+
+        if (audienceZoneSort === 'name-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.name, right.name));
+        }
+        if (audienceZoneSort === 'name-desc') {
+            return [...filteredItems].sort((left, right) => compareListText(right.name, left.name));
+        }
+        if (audienceZoneSort === 'ownership-asc') {
+            return [...filteredItems].sort((left, right) => {
+                const ownershipCompare = compareListText(left.ownershipMode, right.ownershipMode);
+                return ownershipCompare !== 0 ? ownershipCompare : compareListText(left.name, right.name);
+            });
+        }
+        if (audienceZoneSort === 'postal-desc') {
+            return [...filteredItems].sort((left, right) => (Number(right.postalCodeCount) || 0) - (Number(left.postalCodeCount) || 0));
+        }
+
+        return filteredItems;
+    }, [audienceZoneOwnershipFilter, audienceZoneSearch, audienceZoneSort, audienceZones]);
+
+    const filteredSubCategories = useMemo(() => {
+        const query = subCategorySearch.trim().toLowerCase();
+        const filteredItems = subCategories.filter((category) => {
+            if (subCategoryTypeFilter !== 'all' && category.type !== subCategoryTypeFilter) {
+                return false;
+            }
+
+            if (!query) return true;
+
+            return [category.name, category.type]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase()
+                .includes(query);
+        });
+
+        if (subCategorySort === 'name-asc') {
+            return [...filteredItems].sort((left, right) => compareListText(left.name, right.name));
+        }
+        if (subCategorySort === 'name-desc') {
+            return [...filteredItems].sort((left, right) => compareListText(right.name, left.name));
+        }
+        if (subCategorySort === 'type-asc') {
+            return [...filteredItems].sort((left, right) => {
+                const typeCompare = compareListText(left.type, right.type);
+                return typeCompare !== 0 ? typeCompare : compareListText(left.name, right.name);
+            });
+        }
+        if (subCategorySort === 'icon-first') {
+            return [...filteredItems].sort((left, right) => {
+                const iconDelta = Number(Boolean(right.iconUrl)) - Number(Boolean(left.iconUrl));
+                return iconDelta !== 0 ? iconDelta : compareListText(left.name, right.name);
+            });
+        }
+
+        return filteredItems;
+    }, [subCategories, subCategorySearch, subCategorySort, subCategoryTypeFilter]);
 
     const manageableVisibleUserIds = filteredUsers
         .filter((candidate) => canManageUserRecord(candidate))
         .map((candidate) => candidate.id);
     const allManageableUsersSelected = manageableVisibleUserIds.length > 0 && manageableVisibleUserIds.every((id) => selectedUsers.includes(id));
+    const visibleResourceKeys = filteredResources.map((resource) => getResourceSelectionKey(resource));
+    const allVisibleResourcesSelected = visibleResourceKeys.length > 0 && visibleResourceKeys.every((key) => selectedResources.includes(key));
+    const visibleSubregionIds = filteredSubregions.map((subregion) => subregion.id);
+    const allVisibleSubregionsSelected = visibleSubregionIds.length > 0 && visibleSubregionIds.every((id) => selectedSubregions.includes(id));
+    const visibleAudienceZoneIds = filteredAudienceZones.map((zone) => zone.id);
+    const allVisibleAudienceZonesSelected = visibleAudienceZoneIds.length > 0 && visibleAudienceZoneIds.every((id) => selectedAudienceZones.includes(id));
+    const visibleSubCategoryIds = filteredSubCategories.map((category) => category.id);
+    const allVisibleSubCategoriesSelected = visibleSubCategoryIds.length > 0 && visibleSubCategoryIds.every((id) => selectedSubCategories.includes(id));
     const partnerOwnerOptions = useMemo(
         () => users.filter((candidate) => normalizeRole(candidate.role) === 'partner'),
         [users]
@@ -1400,7 +1674,7 @@ export default function AdminPage() {
                 /* ======== Resources Table ======== */
                 <div className="space-y-4">
                     <div className="card p-4 border border-slate-200">
-                        <div className="flex flex-col lg:flex-row gap-3">
+                        <div className="flex flex-col gap-3 xl:flex-row">
                             <div className="relative flex-1">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -1410,11 +1684,20 @@ export default function AdminPage() {
                                     className="input-field w-full pl-10"
                                 />
                             </div>
+                            <select
+                                value={resourceTypeFilter}
+                                onChange={(e) => setResourceTypeFilter(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {RESOURCE_TYPE_FILTER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
                             {boundaryChecksEnabled ? (
                                 <select
                                     value={resourceBoundaryFilter}
                                     onChange={(e) => setResourceBoundaryFilter(e.target.value)}
-                                    className="input-field lg:w-48"
+                                    className="input-field xl:w-48"
                                 >
                                     <option value="all">All boundary status</option>
                                     <option value="inside">Inside boundary</option>
@@ -1424,12 +1707,24 @@ export default function AdminPage() {
                                     <option value="no-boundary">No boundary set</option>
                                 </select>
                             ) : null}
+                            <select
+                                value={resourceSort}
+                                onChange={(e) => setResourceSort(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {RESOURCE_SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
                         </div>
-                        {boundaryChecksEnabled ? (
-                            <p className="mt-2 text-xs text-slate-500">
-                                Boundary checks are based on the exact postal code set assigned to your scoped subregion(s).
-                            </p>
-                        ) : null}
+                        <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                            {boundaryChecksEnabled ? (
+                                <p>
+                                    Boundary checks are based on the exact postal code set assigned to your scoped subregion(s).
+                                </p>
+                            ) : <span />}
+                            <p>{filteredResources.length} matching resource{filteredResources.length === 1 ? '' : 's'}</p>
+                        </div>
                     </div>
 
                     {selectedResources.length > 0 && (
@@ -1450,8 +1745,9 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 w-10">
                                         <input
                                             type="checkbox"
-                                            checked={resources.length > 0 && selectedResources.length === resources.length}
+                                            checked={allVisibleResourcesSelected}
                                             onChange={toggleSelectAllResources}
+                                            disabled={visibleResourceKeys.length === 0}
                                             className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                         />
                                     </th>
@@ -1509,7 +1805,7 @@ export default function AdminPage() {
                         </table>
                     </div>
                     {filteredResources.length === 0 && (
-                        <div className="text-center py-12 text-slate-400">No resources match the current filters.</div>
+                        <div className="text-center py-12 text-slate-400">No resources match the current sort and filter settings.</div>
                     )}
                     </div>
                 </div>
@@ -1665,6 +1961,32 @@ export default function AdminPage() {
                         </div>
                     )}
 
+                    <div className="card p-4 border border-slate-200">
+                        <div className="flex flex-col gap-3 xl:flex-row">
+                            <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    value={subregionSearch}
+                                    onChange={(e) => setSubregionSearch(e.target.value)}
+                                    placeholder="Search subregions by name, ID, description, or postal code"
+                                    className="input-field w-full pl-10"
+                                />
+                            </div>
+                            <select
+                                value={subregionSort}
+                                onChange={(e) => setSubregionSort(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {SUBREGION_SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="mt-2 flex justify-end text-xs text-slate-500">
+                            <p>{filteredSubregions.length} matching subregion{filteredSubregions.length === 1 ? '' : 's'}</p>
+                        </div>
+                    </div>
+
                     <div className="card overflow-hidden p-0">
                         <table className="hc-table w-full text-left">
                             <thead>
@@ -1672,9 +1994,9 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 w-10">
                                         <input
                                             type="checkbox"
-                                            checked={subregions.length > 0 && selectedSubregions.length === subregions.length}
+                                            checked={allVisibleSubregionsSelected}
                                             onChange={toggleSelectAllSubregions}
-                                            disabled={subregions.length === 0}
+                                            disabled={visibleSubregionIds.length === 0}
                                             className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                         />
                                     </th>
@@ -1687,7 +2009,7 @@ export default function AdminPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {subregions.map(reg => (
+                                {filteredSubregions.map(reg => (
                                     <tr key={reg.id} className={`hover:bg-slate-50 transition-colors ${selectedSubregions.includes(reg.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
@@ -1757,8 +2079,8 @@ export default function AdminPage() {
                                 ))}
                             </tbody>
                         </table>
-                        {subregions.length === 0 && (
-                            <div className="text-center py-12 text-slate-400">No subregions defined.</div>
+                        {filteredSubregions.length === 0 && (
+                            <div className="text-center py-12 text-slate-400">No subregions match the current sort and filter settings.</div>
                         )}
                     </div>
 
@@ -1956,6 +2278,41 @@ export default function AdminPage() {
                         </div>
                     )}
 
+                    <div className="card p-4 border border-slate-200">
+                        <div className="flex flex-col gap-3 xl:flex-row">
+                            <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    value={audienceZoneSearch}
+                                    onChange={(e) => setAudienceZoneSearch(e.target.value)}
+                                    placeholder="Search zones by name, code, owner, description, or postal code"
+                                    className="input-field w-full pl-10"
+                                />
+                            </div>
+                            <select
+                                value={audienceZoneOwnershipFilter}
+                                onChange={(e) => setAudienceZoneOwnershipFilter(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {AUDIENCE_ZONE_OWNERSHIP_FILTER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={audienceZoneSort}
+                                onChange={(e) => setAudienceZoneSort(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {AUDIENCE_ZONE_SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="mt-2 flex justify-end text-xs text-slate-500">
+                            <p>{filteredAudienceZones.length} matching audience zone{filteredAudienceZones.length === 1 ? '' : 's'}</p>
+                        </div>
+                    </div>
+
                     <div className="card overflow-hidden p-0">
                         <table className="hc-table w-full text-left">
                             <thead>
@@ -1963,9 +2320,9 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 w-10">
                                         <input
                                             type="checkbox"
-                                            checked={audienceZones.length > 0 && selectedAudienceZones.length === audienceZones.length}
+                                            checked={allVisibleAudienceZonesSelected}
                                             onChange={toggleSelectAllAudienceZones}
-                                            disabled={audienceZones.length === 0}
+                                            disabled={visibleAudienceZoneIds.length === 0}
                                             className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                         />
                                     </th>
@@ -1979,7 +2336,7 @@ export default function AdminPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {audienceZones.map((zone) => (
+                                {filteredAudienceZones.map((zone) => (
                                     <tr key={zone.id} className={`hover:bg-slate-50 transition-colors ${selectedAudienceZones.includes(zone.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
@@ -2054,8 +2411,8 @@ export default function AdminPage() {
                                 ))}
                             </tbody>
                         </table>
-                        {audienceZones.length === 0 && (
-                            <div className="text-center py-12 text-slate-400">No audience zones defined yet.</div>
+                        {filteredAudienceZones.length === 0 && (
+                            <div className="text-center py-12 text-slate-400">No audience zones match the current sort and filter settings.</div>
                         )}
                     </div>
                 </div>
@@ -2165,6 +2522,41 @@ export default function AdminPage() {
                         </div>
                     )}
 
+                    <div className="card p-4 border border-slate-200">
+                        <div className="flex flex-col gap-3 xl:flex-row">
+                            <div className="relative flex-1">
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    value={subCategorySearch}
+                                    onChange={(e) => setSubCategorySearch(e.target.value)}
+                                    placeholder="Search categories by name or asset type"
+                                    className="input-field w-full pl-10"
+                                />
+                            </div>
+                            <select
+                                value={subCategoryTypeFilter}
+                                onChange={(e) => setSubCategoryTypeFilter(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {SUBCATEGORY_TYPE_FILTER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={subCategorySort}
+                                onChange={(e) => setSubCategorySort(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {SUBCATEGORY_SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="mt-2 flex justify-end text-xs text-slate-500">
+                            <p>{filteredSubCategories.length} matching categor{filteredSubCategories.length === 1 ? 'y' : 'ies'}</p>
+                        </div>
+                    </div>
+
                     <div className="card overflow-hidden p-0">
                         <table className="hc-table w-full text-left">
                             <thead>
@@ -2172,8 +2564,9 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 w-10">
                                         <input
                                             type="checkbox"
-                                            checked={subCategories.length > 0 && selectedSubCategories.length === subCategories.length}
+                                            checked={allVisibleSubCategoriesSelected}
                                             onChange={toggleSelectAllSubCategories}
+                                            disabled={visibleSubCategoryIds.length === 0}
                                             className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                         />
                                     </th>
@@ -2184,7 +2577,7 @@ export default function AdminPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {subCategories.map(sc => (
+                                {filteredSubCategories.map(sc => (
                                     <tr key={sc.id} className={`hover:bg-slate-50 transition-colors ${selectedSubCategories.includes(sc.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
@@ -2252,8 +2645,8 @@ export default function AdminPage() {
                                 ))}
                             </tbody>
                         </table>
-                        {subCategories.length === 0 && (
-                            <div className="text-center py-12 text-slate-400">No sub-categories created yet.</div>
+                        {filteredSubCategories.length === 0 && (
+                            <div className="text-center py-12 text-slate-400">No categories match the current sort and filter settings.</div>
                         )}
                     </div>
                 </div>
@@ -2312,7 +2705,7 @@ export default function AdminPage() {
                     </div>
 
                     <div className="card p-4 border border-slate-200">
-                        <div className="flex flex-col lg:flex-row gap-3">
+                        <div className="flex flex-col gap-3 xl:flex-row">
                             <div className="relative flex-1">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -2322,11 +2715,20 @@ export default function AdminPage() {
                                     className="input-field w-full pl-10"
                                 />
                             </div>
+                            <select
+                                value={userRoleFilter}
+                                onChange={(e) => setUserRoleFilter(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {USER_ROLE_FILTER_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
                             {boundaryChecksEnabled ? (
                                 <select
                                     value={userBoundaryFilter}
                                     onChange={(e) => setUserBoundaryFilter(e.target.value)}
-                                    className="input-field lg:w-48"
+                                    className="input-field xl:w-48"
                                 >
                                     <option value="all">All boundary status</option>
                                     <option value="inside">Inside boundary</option>
@@ -2335,12 +2737,24 @@ export default function AdminPage() {
                                     <option value="no-boundary">No boundary set</option>
                                 </select>
                             ) : null}
+                            <select
+                                value={userSort}
+                                onChange={(e) => setUserSort(e.target.value)}
+                                className="input-field xl:w-48"
+                            >
+                                {USER_SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
                         </div>
-                        {boundaryChecksEnabled ? (
-                            <p className="mt-2 text-xs text-slate-500">
-                                Boundary checks compare each user postal code against the exact postal code set assigned to your scoped subregion(s).
-                            </p>
-                        ) : null}
+                        <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                            {boundaryChecksEnabled ? (
+                                <p>
+                                    Boundary checks compare each user postal code against the exact postal code set assigned to your scoped subregion(s).
+                                </p>
+                            ) : <span />}
+                            <p>{filteredUsers.length} matching user{filteredUsers.length === 1 ? '' : 's'}</p>
+                        </div>
                     </div>
 
                     <div className=" card overflow-hidden p-0">
@@ -2523,7 +2937,7 @@ export default function AdminPage() {
                             </table>
                         </div>
                         {filteredUsers.length === 0 && (
-                            <div className="text-center py-12 text-slate-400">No users match the current filters.</div>
+                            <div className="text-center py-12 text-slate-400">No users match the current sort and filter settings.</div>
                         )}
                     </div>
                 </div>
