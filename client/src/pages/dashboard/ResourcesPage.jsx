@@ -775,6 +775,37 @@ export default function ResourcesPage() {
         return generateHostOptions.filter((option) => generateModal.selectedHostIds.includes(option.value));
     }, [generateHostOptions, generateModal]);
 
+    const generateHostSelectStyles = useMemo(() => ({
+        menu: (base) => ({
+            ...base,
+            zIndex: 70,
+        }),
+        menuList: (base) => ({
+            ...base,
+            maxHeight: 320,
+            paddingTop: 6,
+            paddingBottom: 6,
+        }),
+        option: (base) => ({
+            ...base,
+            whiteSpace: 'normal',
+            lineHeight: 1.35,
+            paddingTop: 12,
+            paddingBottom: 12,
+        }),
+        multiValue: (base) => ({
+            ...base,
+            maxWidth: '100%',
+        }),
+        multiValueLabel: (base) => ({
+            ...base,
+            whiteSpace: 'normal',
+            overflow: 'visible',
+            textOverflow: 'unset',
+            lineHeight: 1.25,
+        }),
+    }), []);
+
     const existingGenerateChildren = generateModal?.template?.id
         ? (templateDetails[generateModal.template.id]?.children || [])
         : [];
@@ -1436,7 +1467,7 @@ export default function ResourcesPage() {
                     title="Generate Child Assets"
                     description="Select the hosts that should receive a hidden local rollout from this template."
                     onClose={() => setGenerateModal(null)}
-                    maxWidth="max-w-3xl"
+                    maxWidth="max-w-[min(96vw,1100px)]"
                 >
                     <div className="space-y-5">
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1453,6 +1484,7 @@ export default function ResourcesPage() {
                                 options={generateHostOptions}
                                 value={generateSelectedOptions}
                                 onChange={(selected) => setGenerateModal((prev) => prev ? { ...prev, selectedHostIds: Array.isArray(selected) ? selected.map((item) => item.value) : [] } : null)}
+                                styles={generateHostSelectStyles}
                                 className="react-select-container"
                                 classNamePrefix="react-select"
                                 placeholder={generateModal.loading ? 'Loading hosts...' : 'Select one or more hosts...'}
