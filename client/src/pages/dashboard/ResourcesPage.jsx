@@ -178,9 +178,9 @@ function AvailabilityCounterControl({
 }
 
 const RolloutMetric = ({ label, value }) => (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+    <div className="rounded-2xl border border-slate-200/80 bg-white px-3.5 py-3 shadow-sm shadow-slate-100/80">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+        <p className="mt-1 text-lg font-black leading-none text-slate-900">{value}</p>
     </div>
 );
 
@@ -517,7 +517,7 @@ export default function ResourcesPage() {
             setChildModal({ childId, loading: false, data });
         } catch (err) {
             setChildModal(null);
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to load child offering.' });
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load child asset.' });
         }
     }
 
@@ -727,10 +727,10 @@ export default function ResourcesPage() {
             setExpandedTemplateIds((prev) => [...new Set([...prev, response.parentId])]);
             setActionNotice({
                 type: 'success',
-                message: `Generated ${response.createdCount} child offering(s). ${response.skippedCount ? `${response.skippedCount} host(s) already had a rollout.` : ''}`.trim(),
+                message: `Generated ${response.createdCount} child asset(s). ${response.skippedCount ? `${response.skippedCount} host(s) already had a rollout.` : ''}`.trim(),
             });
         } catch (err) {
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to generate child offerings.' });
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to generate child assets.' });
             setGenerateModal((prev) => prev ? { ...prev, submitting: false } : null);
         }
     }
@@ -744,7 +744,7 @@ export default function ResourcesPage() {
             childModal.data.parentSummary?.id ? refreshTemplateDetail(childModal.data.parentSummary.id).catch(() => null) : Promise.resolve(),
         ]);
         setChildModal(null);
-        setActionNotice({ type: 'success', message: 'Child offering updated.' });
+        setActionNotice({ type: 'success', message: 'Child asset updated.' });
     }
 
     async function handleChildResetOverrides(fields) {
@@ -1160,10 +1160,10 @@ export default function ResourcesPage() {
                                             {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
                                         </button>
                                         <button onClick={() => openEdit(asset, 'soft')} className="btn-ghost flex-1 justify-center py-2 text-sm">
-                                            <Pencil size={15} /> {isChild ? 'Edit Rollout' : 'Edit'}
+                                            <Pencil size={15} /> {isChild ? 'Edit Child Asset' : 'Edit'}
                                         </button>
                                         <button
-                                            onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Child offering' : 'Offering', parentId: asset.parentSummary?.id || null })}
+                                            onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Child asset' : 'Offering', parentId: asset.parentSummary?.id || null })}
                                             className="btn-ghost flex-1 justify-center py-2 text-sm text-red-600 hover:border-red-100 hover:bg-red-50"
                                         >
                                             <Trash2 size={15} /> Delete
@@ -1179,7 +1179,7 @@ export default function ResourcesPage() {
                     <EmptyState
                         icon={Files}
                         title="No templates found"
-                        description="Create a parent template to generate host-specific child offerings."
+                        description="Create a parent template to generate host-specific child assets."
                         action={!searchTerm ? (
                             <button onClick={openTemplateCreate} className="btn-primary mx-auto">
                                 <Plus size={16} /> Create Template
@@ -1194,10 +1194,10 @@ export default function ResourcesPage() {
                             const isTemplateLoading = templateLoadingIds.includes(template.id);
 
                             return (
-                                <div key={template.id} className="card overflow-hidden p-0">
-                                    <div className="border-b border-slate-100 bg-gradient-to-r from-brand-50/80 via-white to-white px-5 py-5">
-                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                            <div className="min-w-0 flex-1">
+                                <div key={template.id} className="card overflow-hidden border border-slate-200/80 p-0 shadow-sm shadow-slate-100/80">
+                                    <div className="border-b border-slate-100 bg-gradient-to-br from-brand-50/90 via-white to-slate-50 px-5 py-5">
+                                        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+                                            <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700">
                                                         <Files size={12} />
@@ -1224,21 +1224,18 @@ export default function ResourcesPage() {
                                                         </div>
                                                     )}
                                                     <div className="min-w-0 flex-1">
-                                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                        <div className="flex flex-col gap-2">
                                                             <div>
-                                                                <h2 className="text-xl font-bold text-slate-900">{template.name}</h2>
-                                                                <p className="mt-1 text-sm text-slate-500">{template.subCategory}</p>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                                                <RolloutMetric label="Children" value={template.childCount} />
-                                                                <RolloutMetric label="Live" value={template.liveChildCount} />
-                                                                <RolloutMetric label="Hidden" value={template.hiddenChildCount} />
-                                                                <RolloutMetric label="Overrides" value={template.overriddenChildCount} />
+                                                                <h2 className="text-[1.45rem] font-black leading-tight text-slate-900">{template.name}</h2>
+                                                                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                                                                    <span>{template.subCategory}</span>
+                                                                    {template.partnerName ? <span>Owner: {template.partnerName}</span> : null}
+                                                                </div>
                                                             </div>
                                                         </div>
 
                                                         {template.description ? (
-                                                            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">{template.description}</p>
+                                                            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{template.description}</p>
                                                         ) : null}
 
                                                         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1261,24 +1258,37 @@ export default function ResourcesPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <button type="button" onClick={() => openGenerateTemplate(template)} className="btn-primary whitespace-nowrap">
-                                                    <Plus size={16} /> Generate Children
-                                                </button>
-                                                <button type="button" onClick={() => openTemplateEdit(template)} className="btn-ghost whitespace-nowrap">
-                                                    <Pencil size={15} /> Edit Template
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setDeleteTarget({ id: template.id, assetType: 'template', label: 'Template' })}
-                                                    className="btn-ghost whitespace-nowrap text-red-600 hover:border-red-100 hover:bg-red-50"
-                                                >
-                                                    <Trash2 size={15} /> Delete
-                                                </button>
-                                                <button type="button" onClick={() => toggleTemplateExpanded(template.id)} className="btn-ghost whitespace-nowrap">
-                                                    {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                                                    {isExpanded ? 'Hide Rollouts' : 'Manage Rollouts'}
-                                                </button>
+                                            <div className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <RolloutMetric label="Child assets" value={template.childCount} />
+                                                    <RolloutMetric label="Live" value={template.liveChildCount} />
+                                                    <RolloutMetric label="Hidden" value={template.hiddenChildCount} />
+                                                    <RolloutMetric label="Overrides" value={template.overriddenChildCount} />
+                                                </div>
+
+                                                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                                                    <button type="button" onClick={() => openGenerateTemplate(template)} className="btn-primary whitespace-nowrap justify-center">
+                                                        <Plus size={16} /> Generate Child Assets
+                                                    </button>
+                                                    <button type="button" onClick={() => openTemplateEdit(template)} className="btn-ghost whitespace-nowrap justify-center">
+                                                        <Pencil size={15} /> Edit Template
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleTemplateExpanded(template.id)}
+                                                        className="btn-ghost whitespace-nowrap justify-center"
+                                                    >
+                                                        {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                                                        {isExpanded ? 'Hide Child Assets' : 'Manage Child Assets'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDeleteTarget({ id: template.id, assetType: 'template', label: 'Template' })}
+                                                        className="btn-ghost whitespace-nowrap justify-center text-red-600 hover:border-red-100 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 size={15} /> Delete
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1287,8 +1297,8 @@ export default function ResourcesPage() {
                                         <div className="bg-slate-50/70 px-5 py-5">
                                             <div className="mb-4 flex items-center justify-between gap-3">
                                                 <div>
-                                                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Child Rollouts</h3>
-                                                    <p className="mt-1 text-sm text-slate-500">Each rollout is tied to exactly one host and starts hidden until locally prepared.</p>
+                                                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Child Assets</h3>
+                                                    <p className="mt-1 text-sm text-slate-500">Each child asset is tied to exactly one host and starts hidden until locally prepared.</p>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -1343,7 +1353,7 @@ export default function ResourcesPage() {
                                                                         </button>
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => setDeleteTarget({ id: child.id, assetType: 'soft', label: 'Child offering', parentId: template.id })}
+                                                                            onClick={() => setDeleteTarget({ id: child.id, assetType: 'soft', label: 'Child asset', parentId: template.id })}
                                                                             className="btn-ghost whitespace-nowrap text-red-600 hover:border-red-100 hover:bg-red-50"
                                                                         >
                                                                             <Trash2 size={15} /> Delete
@@ -1356,10 +1366,10 @@ export default function ResourcesPage() {
                                                 </div>
                                             ) : (
                                                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
-                                                    <p className="text-base font-semibold text-slate-700">No child rollouts yet</p>
-                                                    <p className="mt-1 text-sm text-slate-500">Generate hidden child offerings for selected hosts to start local rollout management.</p>
+                                                    <p className="text-base font-semibold text-slate-700">No child assets yet</p>
+                                                    <p className="mt-1 text-sm text-slate-500">Generate hidden child assets for selected hosts to start local rollout management.</p>
                                                     <button type="button" onClick={() => openGenerateTemplate(template)} className="btn-primary mx-auto mt-4">
-                                                        <Plus size={16} /> Generate First Children
+                                                        <Plus size={16} /> Generate First Child Asset
                                                     </button>
                                                 </div>
                                             )}
@@ -1399,7 +1409,7 @@ export default function ResourcesPage() {
             {templateModal ? (
                 <ResourceModal
                     title={`${templateModal.mode === 'create' ? 'Create' : 'Edit'} Template`}
-                    description="Save canonical content once, then generate hidden host-specific child offerings."
+                    description="Save canonical content once, then generate hidden host-specific child assets."
                     onClose={() => setTemplateModal(null)}
                 >
                     <SoftAssetTemplateForm
@@ -1423,7 +1433,7 @@ export default function ResourcesPage() {
 
             {generateModal ? (
                 <ResourceModal
-                    title="Generate Child Offerings"
+                    title="Generate Child Assets"
                     description="Select the hosts that should receive a hidden local rollout from this template."
                     onClose={() => setGenerateModal(null)}
                     maxWidth="max-w-3xl"
@@ -1432,7 +1442,7 @@ export default function ResourcesPage() {
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Template</p>
                             <p className="mt-1 text-lg font-bold text-slate-900">{generateModal.template.name}</p>
-                            <p className="mt-1 text-sm text-slate-500">{generateModal.template.childCount} existing child rollout(s)</p>
+                            <p className="mt-1 text-sm text-slate-500">{generateModal.template.childCount} existing child asset(s)</p>
                         </div>
 
                         <div>
@@ -1448,7 +1458,7 @@ export default function ResourcesPage() {
                                 placeholder={generateModal.loading ? 'Loading hosts...' : 'Select one or more hosts...'}
                             />
                             <p className="mt-2 text-xs text-slate-500">
-                                Host rollouts are created hidden by default. Existing parent-host pairs are skipped automatically.
+                                Child assets are created hidden by default. Existing parent-host pairs are skipped automatically.
                             </p>
                         </div>
 
@@ -1476,7 +1486,7 @@ export default function ResourcesPage() {
                                                         </span>
                                                     ) : (
                                                         <span className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">
-                                                            New hidden child
+                                                            New hidden child asset
                                                         </span>
                                                     )}
                                                 </div>
@@ -1510,7 +1520,7 @@ export default function ResourcesPage() {
                                 className="btn-primary flex-1 justify-center disabled:opacity-50"
                             >
                                 {generateModal.submitting ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
-                                Generate Children
+                                Generate Child Assets
                             </button>
                         </div>
                     </div>
@@ -1519,14 +1529,14 @@ export default function ResourcesPage() {
 
             {childModal ? (
                 <ResourceModal
-                    title="Edit Child Rollout"
+                    title="Edit Child Asset"
                     description="Adjust only the host-local fields for this generated offering."
                     onClose={() => setChildModal(null)}
                     maxWidth="max-w-3xl"
                 >
                     {childModal.loading || !childModal.data ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-                            Loading child offering...
+                            Loading child asset...
                         </div>
                     ) : (
                         <SoftAssetChildForm
@@ -1548,7 +1558,7 @@ export default function ResourcesPage() {
                             {deleteTarget.assetType === 'hard'
                                 ? 'This will permanently remove this place. Ensure no offerings are solely relying on it.'
                                 : deleteTarget.assetType === 'template'
-                                    ? 'Deleting a template also deletes all of its generated child offerings.'
+                                    ? 'Deleting a template also deletes all of its generated child assets.'
                                     : 'This action cannot be undone. It will be permanently removed from the directory.'}
                         </p>
                         <div className="flex gap-3">
