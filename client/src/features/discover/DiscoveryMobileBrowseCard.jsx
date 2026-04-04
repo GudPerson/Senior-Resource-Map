@@ -3,16 +3,11 @@ import { useNavigate } from 'react-router-dom';
 
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import { openResourceDetail } from '../../lib/appNavigation.js';
+import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 
 function formatDistance(distance) {
     if (!Number.isFinite(distance)) return null;
     return distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`;
-}
-
-function normalizeAvailabilityCount(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed < 0) return 0;
-    return parsed;
 }
 
 export function DiscoveryMobileBrowseCard({
@@ -32,6 +27,7 @@ export function DiscoveryMobileBrowseCard({
     const categoryLabel = asset.subCategory || (isHard ? 'Place' : 'Offering');
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
+    const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
     const summaryAddress = isHard
         ? asset.address
         : (displayLocation?.address || `Available in ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
@@ -133,7 +129,7 @@ export function DiscoveryMobileBrowseCard({
                             color: 'var(--color-brand-strong)',
                         }}
                     >
-                        {availabilityCount} available
+                        {formatAvailabilityLabel(availabilityCount, availabilityUnit)}
                     </span>
                 </div>
             ) : null}

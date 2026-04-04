@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Loader2, Globe, MapPin, Phone, Clock, FileText, Users } from 'lucide-react';
+import { Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
 import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
@@ -29,6 +30,9 @@ function buildInitialForm(type, initialData, currentUser) {
             locationIds: initialData.locations?.map((location) => location.id) || [],
             hideFrom: formatDateTimeLocal(initialData.hideFrom),
             hideUntil: formatDateTimeLocal(initialData.hideUntil),
+            availabilityEnabled: Boolean(initialData.availabilityEnabled),
+            availabilityCount: normalizeAvailabilityCount(initialData.availabilityCount),
+            availabilityUnit: initialData.availabilityUnit || '',
             partnerId: initialData.partnerId || '',
             subregionId: initialData.subregionId || '',
             postalCode: initialData.postalCode || '',
@@ -75,6 +79,9 @@ function buildInitialForm(type, initialData, currentUser) {
         isHidden: false,
         hideFrom: '',
         hideUntil: '',
+        availabilityEnabled: false,
+        availabilityCount: 0,
+        availabilityUnit: '',
         ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
         partnerId: '',
         subregionId: normalizeRole(currentUser?.role) === 'partner' ? (currentUser?.subregionIds?.[0] || '') : '',
@@ -241,6 +248,9 @@ export default function AssetForm({
                 delete payload.audienceMode;
             } else {
                 payload.bucket = form.bucket || 'Programmes';
+                payload.availabilityEnabled = Boolean(form.availabilityEnabled);
+                payload.availabilityCount = normalizeAvailabilityCount(form.availabilityCount);
+                payload.availabilityUnit = normalizeAvailabilityUnit(form.availabilityUnit);
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
                 payload.audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
                 if (payload.locationIds.length === 0) {
@@ -492,6 +502,60 @@ export default function AssetForm({
                                 ) : null}
                             </div>
                         ) : null}
+
+                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="mb-4 flex items-center gap-2">
+                                <Package2 size={16} className="text-brand-600" />
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-800">Availability</h3>
+                                    <p className="text-xs text-slate-500">Control the public availability count shown on offering cards and detail pages.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-700">Enable availability tracking</p>
+                                        <p className="text-xs text-slate-500">Turn this on when users should see a live remaining count.</p>
+                                    </div>
+                                    <label className="relative inline-flex cursor-pointer items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(form.availabilityEnabled)}
+                                            onChange={(e) => setField('availabilityEnabled', e.target.checked)}
+                                            className="peer sr-only"
+                                        />
+                                        <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-brand-600 peer-checked:after:translate-x-full after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
+                                    </label>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label className="mb-1 block text-sm font-semibold text-slate-700">Availability count</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={form.availabilityCount}
+                                            onChange={(e) => setField('availabilityCount', e.target.value)}
+                                            placeholder="0"
+                                            className="input-field"
+                                        />
+                                        <p className="mt-1 text-xs text-slate-500">Use a whole number. The value is preserved even if tracking is switched off.</p>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-sm font-semibold text-slate-700">Availability unit</label>
+                                        <input
+                                            value={form.availabilityUnit || ''}
+                                            onChange={(e) => setField('availabilityUnit', e.target.value)}
+                                            placeholder="slots, tickets, vouchers"
+                                            className="input-field"
+                                        />
+                                        <p className="mt-1 text-xs text-slate-500">Optional. If left blank, public cards will fall back to “available”.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </>
                 )}
 

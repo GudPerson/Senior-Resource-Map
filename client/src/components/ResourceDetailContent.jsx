@@ -7,6 +7,7 @@ import {
     groupSoftAssetsByBucket,
     summarizeSoftAssetBuckets,
 } from '../lib/softAssetBuckets.js';
+import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
 function TagBadge({ tag }) {
@@ -51,12 +52,6 @@ function hasValidCoordinates(value) {
 function formatDistance(distance) {
     if (!Number.isFinite(distance)) return null;
     return distance < 1 ? `${Math.round(distance * 1000)}m away` : `${distance.toFixed(1)}km away`;
-}
-
-function normalizeAvailabilityCount(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed < 0) return 0;
-    return parsed;
 }
 
 export default function ResourceDetailContent({
@@ -142,6 +137,7 @@ export default function ResourceDetailContent({
     const availablePlaceCount = isHard ? 0 : softLocations.length;
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
+    const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
     const relatedSoftAssetGroups = useMemo(() => (
         isHard ? groupSoftAssetsByBucket(asset?.softAssets || []) : { Programmes: [], Services: [], Promotions: [] }
     ), [asset?.softAssets, isHard]);
@@ -229,7 +225,7 @@ export default function ResourceDetailContent({
                                             borderColor: 'var(--color-border)',
                                         }}
                                     >
-                                        {availabilityCount} available
+                                        {formatAvailabilityLabel(availabilityCount, availabilityUnit)}
                                     </span>
                                 ) : null}
                                 {sortOriginLabel ? (

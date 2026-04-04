@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
+import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { Trash2 } from 'lucide-react';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
@@ -26,12 +27,6 @@ function StatusBadge({ status }) {
     return null;
 }
 
-function normalizeAvailabilityCount(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed < 0) return 0;
-    return parsed;
-}
-
 function AvailabilityCountBadge({ row, compact = false }) {
     if (row?.resourceType !== 'soft' || !row?.availabilityEnabled) {
         return null;
@@ -45,7 +40,10 @@ function AvailabilityCountBadge({ row, compact = false }) {
                 backgroundColor: 'color-mix(in srgb, var(--color-brand-light) 50%, white)',
             }}
         >
-            {normalizeAvailabilityCount(row.availabilityCount)} available
+            {formatAvailabilityLabel(
+                normalizeAvailabilityCount(row.availabilityCount),
+                normalizeAvailabilityUnit(row.availabilityUnit),
+            )}
         </span>
     );
 }
@@ -556,7 +554,10 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             {row.bucket ? <span>{row.bucket}</span> : null}
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
                                 <span className="normal-case tracking-normal text-brand-700">
-                                    {normalizeAvailabilityCount(row.availabilityCount)} available
+                                    {formatAvailabilityLabel(
+                                        normalizeAvailabilityCount(row.availabilityCount),
+                                        normalizeAvailabilityUnit(row.availabilityUnit),
+                                    )}
                                 </span>
                             ) : null}
                         </div>

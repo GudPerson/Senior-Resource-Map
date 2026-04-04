@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Clock, EyeOff, FileText, Link2, Loader2, Lock, Mail, MapPin, Phone, RotateCcw } from 'lucide-react';
+import { Clock, EyeOff, FileText, Link2, Loader2, Lock, Mail, MapPin, Package2, Phone, RotateCcw } from 'lucide-react';
+import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -27,6 +28,9 @@ function buildInitialForm(initialData) {
         ctaLabel: initialData?.ctaLabel || '',
         ctaUrl: initialData?.ctaUrl || '',
         venueNote: initialData?.venueNote || '',
+        availabilityEnabled: Boolean(initialData?.availabilityEnabled),
+        availabilityCount: normalizeAvailabilityCount(initialData?.availabilityCount),
+        availabilityUnit: initialData?.availabilityUnit || '',
         overriddenFields: initialData?.overriddenFields || [],
         audienceZones: initialData?.audienceZones || [],
         parentSummary: initialData?.parentSummary || null,
@@ -81,6 +85,9 @@ export default function SoftAssetChildForm({
                 ctaLabel: form.ctaLabel || null,
                 ctaUrl: form.ctaUrl || null,
                 venueNote: form.venueNote || null,
+                availabilityEnabled: Boolean(form.availabilityEnabled),
+                availabilityCount: normalizeAvailabilityCount(form.availabilityCount),
+                availabilityUnit: normalizeAvailabilityUnit(form.availabilityUnit),
                 isHidden: Boolean(form.isHidden),
                 hideFrom: form.hideFrom ? new Date(form.hideFrom).toISOString() : null,
                 hideUntil: form.hideUntil ? new Date(form.hideUntil).toISOString() : null,
@@ -227,6 +234,58 @@ export default function SoftAssetChildForm({
                         <ResetButton visible={overriddenFieldSet.has('venueNote')} onClick={() => handleReset('venueNote')} disabled={resettingField === 'venueNote'} />
                     </div>
                     <textarea value={form.venueNote} onChange={(e) => setField('venueNote', e.target.value)} rows={3} placeholder="Entrance instructions, room number, or host-specific venue note." className="input-field resize-none" />
+                </div>
+
+                <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Package2 size={16} className="text-brand-600" />
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-800">Availability tracking</h3>
+                            <p className="text-xs text-slate-500">Track host-specific remaining slots, tickets, or vouchers for this rollout.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">Enable availability tracking</p>
+                                <p className="text-xs text-slate-500">When on, this rollout’s count is shown publicly.</p>
+                            </div>
+                            <span className="relative inline-flex items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(form.availabilityEnabled)}
+                                    onChange={(e) => setField('availabilityEnabled', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-brand-600 peer-checked:after:translate-x-full after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
+                            </span>
+                        </label>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Availability count</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={form.availabilityCount}
+                                    onChange={(e) => setField('availabilityCount', e.target.value)}
+                                    placeholder="0"
+                                    className="input-field"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Availability unit</label>
+                                <input
+                                    value={form.availabilityUnit || ''}
+                                    onChange={(e) => setField('availabilityUnit', e.target.value)}
+                                    placeholder="slots, tickets, vouchers"
+                                    className="input-field"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

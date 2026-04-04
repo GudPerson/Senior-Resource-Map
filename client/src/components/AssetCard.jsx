@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Building2, CalendarDays, MapPin, Clock, Navigation } from 'lucide-react';
 import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
 import { openResourceDetail } from '../lib/appNavigation.js';
+import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import SaveAssetButton from './SaveAssetButton.jsx';
 
 function hasValidCoordinates(value) {
@@ -14,12 +15,6 @@ function getLinkedLocations(asset) {
     if (Array.isArray(asset.locations) && asset.locations.length > 0) return asset.locations;
     if (asset.location) return [asset.location];
     return [];
-}
-
-function normalizeAvailabilityCount(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed < 0) return 0;
-    return parsed;
 }
 
 export const TagBadge = ({ tag, onClick }) => (
@@ -79,6 +74,7 @@ export const AssetCard = React.memo(({
     const showExpandedDescription = isExpanded || isSelected;
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
+    const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
     const savedAssetSummary = {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -196,7 +192,7 @@ export const AssetCard = React.memo(({
                             color: 'var(--color-brand-strong)',
                         }}
                     >
-                        {availabilityCount} available
+                        {formatAvailabilityLabel(availabilityCount, availabilityUnit)}
                     </span>
                 </div>
             ) : null}

@@ -30,6 +30,11 @@ function normalizeAvailabilityCount(value) {
     return parsed;
 }
 
+function normalizeAvailabilityUnit(value) {
+    const text = normalizeText(value);
+    return text || null;
+}
+
 function buildAssetKey(resourceType, resourceId) {
     return `${resourceType}-${resourceId}`;
 }
@@ -106,6 +111,7 @@ function normalizeLegacySnapshot(resourceType, resourceId, snapshot) {
         logoUrl: normalizeText(snapshot?.logoUrl),
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
+        availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
         places: [createFallbackPlace(resourceType, resourceId, snapshot)],
     };
 }
@@ -128,6 +134,7 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
             logoUrl: normalizeText(snapshot?.logoUrl),
             availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
+            availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
             places: snapshot.places.map((place, index) => normalizePlaceSnapshot(place, index)),
         };
     }
@@ -173,6 +180,7 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
             logoUrl: normalizeText(asset.logoUrl),
             availabilityEnabled: false,
             availabilityCount: 0,
+            availabilityUnit: null,
             places: [buildPlaceSnapshot(asset)],
         };
     }
@@ -190,6 +198,7 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
         logoUrl: normalizeText(asset.logoUrl),
         availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
+        availabilityUnit: normalizeAvailabilityUnit(asset.availabilityUnit),
         places: places.length > 0 ? places : [createFallbackPlace('soft', asset.id, null)],
     };
 }
@@ -269,6 +278,7 @@ const softAssetQuery = {
         hostHardAssetId: true,
         availabilityEnabled: true,
         availabilityCount: true,
+        availabilityUnit: true,
     },
     with: {
         partner: {
@@ -374,6 +384,7 @@ function buildRow({
         logoUrl: snapshot.logoUrl || null,
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot.availabilityCount),
+        availabilityUnit: normalizeAvailabilityUnit(snapshot.availabilityUnit),
         detailPath,
         status,
         saveEligible,

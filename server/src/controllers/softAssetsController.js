@@ -112,6 +112,12 @@ function normalizeAvailabilityCount(value) {
     return parsed;
 }
 
+function normalizeAvailabilityUnit(value) {
+    if (value === undefined || value === null) return null;
+    const text = String(value).trim();
+    return text ? text : null;
+}
+
 function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
     const allLocations = getSoftAssetLocations(asset);
     const visibleLocations = allLocations
@@ -133,6 +139,7 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         overriddenFields: normalizeOverrideFields(asset.overriddenFields),
         availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
+        availabilityUnit: normalizeAvailabilityUnit(asset.availabilityUnit),
         parentSummary: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
         locations: visibleLocations,
         location: visibleLocations[0] || null,
@@ -264,6 +271,9 @@ export const createSoftAsset = async (c) => {
             ctaLabel,
             ctaUrl,
             venueNote,
+            availabilityEnabled,
+            availabilityCount,
+            availabilityUnit,
         } = body;
 
         if (!name) {
@@ -316,8 +326,9 @@ export const createSoftAsset = async (c) => {
             ctaLabel: ctaLabel || null,
             ctaUrl: ctaUrl || null,
             venueNote: venueNote || null,
-            availabilityEnabled: false,
-            availabilityCount: 0,
+            availabilityEnabled: normalizeAvailabilityEnabled(availabilityEnabled),
+            availabilityCount: normalizeAvailabilityCount(availabilityCount),
+            availabilityUnit: normalizeAvailabilityUnit(availabilityUnit),
             isHidden: Boolean(isHidden),
             hideFrom: hideFrom ? new Date(hideFrom) : null,
             hideUntil: hideUntil ? new Date(hideUntil) : null,
@@ -367,6 +378,9 @@ export const patchSoftAssetAvailability = async (c) => {
         const nextAvailabilityCount = body?.availabilityCount !== undefined
             ? Number.parseInt(body.availabilityCount, 10)
             : normalizeAvailabilityCount(existing.availabilityCount);
+        const nextAvailabilityUnit = body?.availabilityUnit !== undefined
+            ? normalizeAvailabilityUnit(body.availabilityUnit)
+            : normalizeAvailabilityUnit(existing.availabilityUnit);
 
         if (!Number.isInteger(nextAvailabilityCount) || nextAvailabilityCount < 0) {
             return c.json({ error: 'Availability count must be a non-negative whole number.' }, 400);
@@ -375,6 +389,7 @@ export const patchSoftAssetAvailability = async (c) => {
         await db.update(softAssets).set({
             availabilityEnabled: nextAvailabilityEnabled,
             availabilityCount: nextAvailabilityCount,
+            availabilityUnit: nextAvailabilityUnit,
             updatedAt: new Date(),
         }).where(eq(softAssets.id, id));
 
@@ -473,6 +488,9 @@ export const updateSoftAsset = async (c) => {
             ctaLabel: body.ctaLabel !== undefined ? (body.ctaLabel || null) : existing.ctaLabel,
             ctaUrl: body.ctaUrl !== undefined ? (body.ctaUrl || null) : existing.ctaUrl,
             venueNote: body.venueNote !== undefined ? (body.venueNote || null) : existing.venueNote,
+            availabilityEnabled: body.availabilityEnabled !== undefined ? Boolean(body.availabilityEnabled) : existing.availabilityEnabled,
+            availabilityCount: body.availabilityCount !== undefined ? normalizeAvailabilityCount(body.availabilityCount) : normalizeAvailabilityCount(existing.availabilityCount),
+            availabilityUnit: body.availabilityUnit !== undefined ? normalizeAvailabilityUnit(body.availabilityUnit) : normalizeAvailabilityUnit(existing.availabilityUnit),
             isHidden: body.isHidden !== undefined ? Boolean(body.isHidden) : existing.isHidden,
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,

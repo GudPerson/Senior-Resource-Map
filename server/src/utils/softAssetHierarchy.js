@@ -25,6 +25,12 @@ export const CHILD_OVERRIDE_FIELDS = Object.freeze([
     'venueNote',
 ]);
 
+export const CHILD_RUNTIME_FIELDS = Object.freeze([
+    'availabilityEnabled',
+    'availabilityCount',
+    'availabilityUnit',
+]);
+
 export const CHILD_VISIBILITY_FIELDS = Object.freeze([
     'isHidden',
     'hideFrom',
@@ -39,6 +45,17 @@ export function normalizeText(value) {
 export function normalizeGalleryUrls(value) {
     if (!Array.isArray(value)) return [];
     return value.map((item) => normalizeText(item)).filter(Boolean);
+}
+
+export function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
+export function normalizeAvailabilityUnit(value) {
+    const text = normalizeText(value);
+    return text || null;
 }
 
 export function normalizeTagList(value) {
@@ -103,6 +120,7 @@ export function buildChildValuesFromParent(parent, host, actor, externalKey = nu
         venueNote: null,
         availabilityEnabled: false,
         availabilityCount: 0,
+        availabilityUnit: null,
     };
 }
 
@@ -128,7 +146,7 @@ export function buildChildPropagationPatch(parent, child) {
 }
 
 export function buildChildEditablePatch(body, existingChild) {
-    const allowedFields = new Set([...CHILD_OVERRIDE_FIELDS, ...CHILD_VISIBILITY_FIELDS]);
+    const allowedFields = new Set([...CHILD_OVERRIDE_FIELDS, ...CHILD_VISIBILITY_FIELDS, ...CHILD_RUNTIME_FIELDS]);
     const nextOverrides = new Set(normalizeOverrideFields(existingChild?.overriddenFields));
     const patch = {
         updatedAt: new Date(),
@@ -173,6 +191,22 @@ export function buildChildEditablePatch(body, existingChild) {
     }
     if (body?.hideUntil !== undefined) {
         patch.hideUntil = body.hideUntil ? new Date(body.hideUntil) : null;
+    }
+
+    if (body?.availabilityEnabled !== undefined) {
+        patch.availabilityEnabled = Boolean(body.availabilityEnabled);
+    }
+    if (body?.availabilityCount !== undefined) {
+        const nextAvailabilityCount = Number.parseInt(body.availabilityCount, 10);
+        if (!Number.isInteger(nextAvailabilityCount) || nextAvailabilityCount < 0) {
+            const err = new Error('Availability count must be a non-negative whole number.');
+            err.status = 400;
+            throw err;
+        }
+        patch.availabilityCount = nextAvailabilityCount;
+    }
+    if (body?.availabilityUnit !== undefined) {
+        patch.availabilityUnit = normalizeAvailabilityUnit(body.availabilityUnit);
     }
 
     patch.overriddenFields = [...nextOverrides];

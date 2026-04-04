@@ -33,6 +33,7 @@ import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
+import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
 
 const TagBadge = ({ tag, onClick }) => (
@@ -83,12 +84,6 @@ const VisibilityBadge = ({ hidden }) => (
     </span>
 );
 
-function normalizeAvailabilityCount(value) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed) || parsed < 0) return 0;
-    return parsed;
-}
-
 function AvailabilityCounterControl({
     asset,
     disabled = false,
@@ -97,6 +92,20 @@ function AvailabilityCounterControl({
 }) {
     const enabled = Boolean(asset?.availabilityEnabled);
     const count = normalizeAvailabilityCount(asset?.availabilityCount);
+    const unit = normalizeAvailabilityUnit(asset?.availabilityUnit);
+    const [draftCount, setDraftCount] = useState(String(count));
+
+    useEffect(() => {
+        setDraftCount(String(count));
+    }, [count]);
+
+    function commitDraftCount() {
+        const nextCount = normalizeAvailabilityCount(draftCount);
+        setDraftCount(String(nextCount));
+        if (nextCount !== count) {
+            onAdjust(nextCount);
+        }
+    }
 
     return (
         <div className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
@@ -132,9 +141,23 @@ function AvailabilityCounterControl({
                     >
                         <Minus size={16} />
                     </button>
-                    <div className="inline-flex min-h-11 min-w-[4.5rem] items-center justify-center rounded-xl border border-brand-200 bg-white px-4 text-lg font-black text-slate-900">
-                        {count}
-                    </div>
+                    <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={draftCount}
+                        onChange={(event) => setDraftCount(event.target.value)}
+                        onBlur={commitDraftCount}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                commitDraftCount();
+                            }
+                        }}
+                        disabled={disabled}
+                        aria-label="Availability count"
+                        className="min-h-11 w-20 rounded-xl border border-brand-200 bg-white px-3 text-center text-lg font-black text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
                     <button
                         type="button"
                         onClick={() => onAdjust(count + 1)}
@@ -145,7 +168,7 @@ function AvailabilityCounterControl({
                         <Plus size={16} />
                     </button>
                     <span className="text-sm font-semibold text-slate-500">
-                        {count} available
+                        {formatAvailabilityLabel(count, unit)}
                     </span>
                     {disabled ? <RefreshCw size={15} className="animate-spin text-slate-400" /> : null}
                 </div>
@@ -599,6 +622,7 @@ export default function ResourcesPage() {
             ...asset,
             ...(patch.availabilityEnabled !== undefined ? { availabilityEnabled: Boolean(patch.availabilityEnabled) } : {}),
             ...(patch.availabilityCount !== undefined ? { availabilityCount: normalizeAvailabilityCount(patch.availabilityCount) } : {}),
+            ...(patch.availabilityUnit !== undefined ? { availabilityUnit: normalizeAvailabilityUnit(patch.availabilityUnit) } : {}),
         };
 
         replaceSoftAsset(optimisticAsset);
