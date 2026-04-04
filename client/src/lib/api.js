@@ -249,6 +249,9 @@ export const api = {
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),
 
+    // Memberships
+    getMyMemberships: () => request('GET', '/memberships/me'),
+
     // Partner boundaries
     getPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries`),
     bulkUploadPartnerBoundaries: (partnerId, body) => request('POST', `/partners/${partnerId}/boundaries/bulk`, body),

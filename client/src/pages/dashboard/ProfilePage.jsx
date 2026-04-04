@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
-import { User, Phone, Lock, CheckCircle } from 'lucide-react';
+import { User, Phone, Lock, CheckCircle, Link2, MapPin } from 'lucide-react';
 import {
     GENDER_OPTIONS,
     PROPERTY_TYPE_OPTIONS,
@@ -18,6 +18,9 @@ function normalizeReturnTo(value) {
 export default function ProfilePage() {
     const { user, login } = useAuth();
     const location = useLocation();
+    const [linkedPlaces, setLinkedPlaces] = useState([]);
+    const [linkedPlacesLoading, setLinkedPlacesLoading] = useState(true);
+    const [linkedPlacesError, setLinkedPlacesError] = useState('');
     const [form, setForm] = useState({
         name: user?.name || '',
         phone: user?.phone || '',
@@ -53,6 +56,41 @@ export default function ProfilePage() {
             propertyType: user?.propertyType || '',
         }));
     }, [user?.dateOfBirth, user?.gender, user?.name, user?.phone, user?.postalCode, user?.propertyType]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadLinkedPlaces() {
+            if (!user?.id) {
+                setLinkedPlaces([]);
+                setLinkedPlacesLoading(false);
+                return;
+            }
+
+            setLinkedPlacesLoading(true);
+            setLinkedPlacesError('');
+            try {
+                const data = await api.getMyMemberships();
+                if (!cancelled) {
+                    setLinkedPlaces(Array.isArray(data) ? data : []);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setLinkedPlaces([]);
+                    setLinkedPlacesError(err.message || 'Failed to load linked places.');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLinkedPlacesLoading(false);
+                }
+            }
+        }
+
+        loadLinkedPlaces();
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.id]);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -193,6 +231,78 @@ export default function ProfilePage() {
                         {saving ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Save Changes'}
                     </button>
                 </form>
+            </div>
+
+            <div className="card mt-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900">Linked places</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Places you&apos;ve joined through the membership QR flow.
+                        </p>
+                    </div>
+                    <div className={`rounded-full px-3 py-1 text-xs font-semibold ${linkedPlaces.length ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {linkedPlaces.length} linked
+                    </div>
+                </div>
+
+                {linkedPlacesLoading ? (
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                        Loading linked places...
+                    </div>
+                ) : linkedPlacesError ? (
+                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                        {linkedPlacesError}
+                    </div>
+                ) : linkedPlaces.length ? (
+                    <div className="mt-4 space-y-3">
+                        {linkedPlaces.map((membership) => (
+                            <div key={membership.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <Link2 size={14} className="text-brand-600" />
+                                            <p className="truncate text-sm font-semibold text-slate-900">
+                                                {membership.place?.name || 'Unknown place'}
+                                            </p>
+                                        </div>
+                                        {membership.place?.address ? (
+                                            <p className="mt-2 flex items-start gap-2 text-sm text-slate-500">
+                                                <MapPin size={14} className="mt-0.5 flex-shrink-0" />
+                                                <span>{membership.place.address}</span>
+                                            </p>
+                                        ) : null}
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {membership.place?.subCategory ? (
+                                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                                    {membership.place.subCategory}
+                                                </span>
+                                            ) : null}
+                                            {membership.place?.partnerName ? (
+                                                <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                                    {membership.place.partnerName}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700">
+                                            {String(membership.status || 'ACTIVE').replace(/_/g, ' ')}
+                                        </span>
+                                        <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                            {membership.joinMethod === 'QR_CODE' ? 'QR link' : membership.joinMethod}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                        You haven&apos;t linked any places yet. Scanning a membership QR code will add them here.
+                    </div>
+                )}
             </div>
         </div>
     );

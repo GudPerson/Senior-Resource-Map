@@ -4,6 +4,7 @@ import { getDb } from '../db/index.js';
 import { hardAssets, userAssetMemberships } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { verifyMembershipLinkToken } from '../utils/membershipTokens.js';
+import { loadMembershipsForUser } from '../utils/memberships.js';
 import { normalizeRole } from '../utils/roles.js';
 
 export const redeemMembershipLink = async (c) => {
@@ -81,3 +82,20 @@ export const redeemMembershipLink = async (c) => {
     }
 };
 
+export const getMyMemberships = async (c) => {
+    try {
+        const user = c.get('user');
+        if (!user?.id) {
+            return c.json({ error: 'Unauthorized' }, 401);
+        }
+
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const memberships = await loadMembershipsForUser(db, user.id);
+        return c.json(memberships);
+    } catch (err) {
+        console.error('getMyMemberships Error:', err);
+        return c.json({ error: err.message || 'Failed to fetch memberships' }, err.status || 500);
+    }
+};

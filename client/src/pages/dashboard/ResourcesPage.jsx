@@ -24,6 +24,7 @@ import {
     Search,
     Trash2,
     Upload,
+    Users,
     X,
 } from 'lucide-react';
 
@@ -282,6 +283,21 @@ function filterTemplateWithQuery(template, query) {
         template.audienceZones?.some((zone) => zone.name?.toLowerCase().includes(query) || zone.zoneCode?.toLowerCase().includes(query)) ||
         template.tags?.some((tag) => tag.toLowerCase().includes(query))
     );
+}
+
+function formatMembershipStatusLabel(status) {
+    return String(status || 'ACTIVE')
+        .toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatMembershipMethodLabel(method) {
+    if (method === 'QR_CODE') return 'QR link';
+    return String(method || 'linked')
+        .toLowerCase()
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function ResourceModal({
@@ -1036,67 +1052,138 @@ export default function ResourcesPage() {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {filteredHardAssets.map((asset) => (
-                            <div key={asset.id} className="card flex flex-col gap-4 sm:flex-row sm:items-center">
-                                {asset.logoUrl ? (
-                                    <img src={asset.logoUrl} alt="Logo" className="h-16 w-16 flex-shrink-0 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
-                                ) : (
-                                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                                        <Building2 size={24} />
-                                    </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <p className="truncate text-lg font-bold text-slate-900">{asset.name}</p>
-                                        {(normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') ? (
-                                            <span className="text-xs text-slate-400">{asset.partnerName ? `Owner: ${asset.partnerName}` : 'Owner: System'}</span>
-                                        ) : null}
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-3 text-sm text-slate-500">
-                                        {asset.address ? <span className="flex items-center gap-1 truncate"><MapPin size={14} />{asset.address}</span> : null}
-                                    </div>
-                                    {(asset.subCategory || asset.tags?.length > 0 || getHiddenStatus(asset).hidden) ? (
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            <HiddenBadge status={getHiddenStatus(asset)} />
-                                            {boundaryChecksEnabled ? (
-                                                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).className}`}>
-                                                    {getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).label}
+                        {filteredHardAssets.map((asset) => {
+                            const hiddenStatus = getHiddenStatus(asset);
+                            const canShowMembers = typeof asset.membershipCount === 'number';
+
+                            return (
+                                <div key={asset.id} className="card flex flex-col gap-4">
+                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                        <div className="flex min-w-0 flex-1 gap-4">
+                                            {asset.logoUrl ? (
+                                                <img src={asset.logoUrl} alt="Logo" className="h-16 w-16 flex-shrink-0 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
+                                            ) : (
+                                                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                                                    <Building2 size={24} />
+                                                </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-lg font-bold text-slate-900">{asset.name}</p>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                                                            {asset.address ? <span className="flex items-center gap-1 truncate"><MapPin size={14} />{asset.address}</span> : null}
+                                                            {(normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') ? (
+                                                                <span className="text-xs text-slate-400">{asset.partnerName ? `Owner: ${asset.partnerName}` : 'Owner: System'}</span>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    {canShowMembers ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-[11px] font-semibold text-brand-700">
+                                                            <Users size={13} />
+                                                            {asset.membershipCount} linked
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+
+                                                {(asset.subCategory || asset.tags?.length > 0 || hiddenStatus.hidden) ? (
+                                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                                        <HiddenBadge status={hiddenStatus} />
+                                                        {boundaryChecksEnabled ? (
+                                                            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).className}`}>
+                                                                {getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).label}
+                                                            </span>
+                                                        ) : null}
+                                                        {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
+                                                        {asset.tags?.map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                                            <button
+                                                onClick={() => handleToggleVisibility(asset, 'hard')}
+                                                disabled={visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
+                                                className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    {visibilityActionKey === getVisibilityActionKey('hard', asset.id) ? (
+                                                        <RefreshCw size={15} className="animate-spin" />
+                                                    ) : hiddenStatus.hidden ? (
+                                                        <Eye size={15} />
+                                                    ) : (
+                                                        <EyeOff size={15} />
+                                                    )}
+                                                    {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
                                                 </span>
-                                            ) : null}
-                                            {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
-                                            {asset.tags?.map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
+                                            </button>
+                                            <button onClick={() => openEdit(asset, 'hard')} className="btn-ghost px-3 py-2 text-sm">
+                                                <Pencil size={15} /> Edit
+                                            </button>
+                                            <button onClick={() => openMembershipQr(asset)} className="btn-ghost px-3 py-2 text-sm">
+                                                <Building2 size={15} /> Generate Membership QR
+                                            </button>
+                                            <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
+                                                <Trash2 size={15} /> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {canShowMembers ? (
+                                        <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Members</p>
+                                                    <p className="mt-1 text-sm text-slate-500">
+                                                        Linked members who joined this place through the membership flow.
+                                                    </p>
+                                                </div>
+                                                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                                    <Users size={13} />
+                                                    {asset.membershipCount} total
+                                                </span>
+                                            </div>
+
+                                            {asset.memberPreview?.length ? (
+                                                <div className="mt-4 space-y-2">
+                                                    {asset.memberPreview.map((membership) => (
+                                                        <div key={membership.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-semibold text-slate-900">
+                                                                    {membership.user?.name || membership.user?.username || 'Unknown member'}
+                                                                </p>
+                                                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                                                    {membership.user?.username ? `@${membership.user.username}` : membership.user?.email || 'No username'}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700">
+                                                                    {formatMembershipStatusLabel(membership.status)}
+                                                                </span>
+                                                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                                                    {formatMembershipMethodLabel(membership.joinMethod)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+
+                                                    {asset.hasMoreMembers ? (
+                                                        <p className="px-1 text-xs text-slate-500">
+                                                            And {asset.membershipCount - asset.memberPreview.length} more linked member{asset.membershipCount - asset.memberPreview.length === 1 ? '' : 's'}.
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            ) : (
+                                                <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                                    No linked members yet. When someone scans this place&apos;s membership QR, they&apos;ll appear here.
+                                                </p>
+                                            )}
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className="mt-3 flex flex-shrink-0 items-center gap-2 sm:mt-0">
-                                    <button
-                                        onClick={() => handleToggleVisibility(asset, 'hard')}
-                                        disabled={visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
-                                        className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            {visibilityActionKey === getVisibilityActionKey('hard', asset.id) ? (
-                                                <RefreshCw size={15} className="animate-spin" />
-                                            ) : getHiddenStatus(asset).hidden ? (
-                                                <Eye size={15} />
-                                            ) : (
-                                                <EyeOff size={15} />
-                                            )}
-                                            {getHiddenStatus(asset).hidden ? 'Show in app' : 'Hide from app'}
-                                        </span>
-                                    </button>
-                                    <button onClick={() => openEdit(asset, 'hard')} className="btn-ghost px-3 py-2 text-sm">
-                                        <Pencil size={15} /> Edit
-                                    </button>
-                                    <button onClick={() => openMembershipQr(asset)} className="btn-ghost px-3 py-2 text-sm">
-                                        <Building2 size={15} /> Generate Membership QR
-                                    </button>
-                                    <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
-                                        <Trash2 size={15} /> Delete
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )
             ) : activeTab === 'soft' ? (

@@ -14,6 +14,7 @@ import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata } from '../utils/eligibility.js';
 import { createMembershipLinkToken } from '../utils/membershipTokens.js';
+import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -153,7 +154,7 @@ function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allow
         .map((softAsset) => formatNestedSoftAsset(softAsset, viewer, eligibilityContext, membershipHostIdMap));
 }
 
-function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap) {
+function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap, membershipSummary = null) {
     return {
         ...asset,
         partnerName: asset.partner?.name || null,
@@ -163,6 +164,7 @@ function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         tags: asset.tags.map((t) => t.tag.name),
         softAssets: collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap),
         boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
+        ...(membershipSummary || {}),
     };
 }
 
@@ -270,11 +272,24 @@ export const getHardAssets = async (c) => {
             ...(asset.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
             ...(asset.hostedSoftAssets || []).filter(Boolean),
         ]);
+        const manageableAssetIds = assets
+            .filter((asset) => actorCanManageAsset(user, asset, asset.partner))
+            .map((asset) => asset.id);
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
+        const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, manageableAssetIds);
         const formatted = assets
             .filter((asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }))
-            .map((asset) => formatHardAsset(asset, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap));
+            .map((asset) => formatHardAsset(
+                asset,
+                boundaryContext,
+                user,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+                eligibilityContext,
+                membershipHostIdMap,
+                membershipSummariesByAssetId.get(asset.id) || null,
+            ));
 
         return c.json(formatted);
     } catch (err) {
@@ -385,6 +400,9 @@ export const getHardAssetById = async (c) => {
         ];
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
+        const membershipSummary = actorCanManageAsset(user, asset, asset.partner)
+            ? (await loadMembershipSummariesForAssets(db, [asset.id])).get(asset.id) || null
+            : null;
         const formatted = {
             ...formatHardAsset(
                 asset,
@@ -394,6 +412,7 @@ export const getHardAssetById = async (c) => {
                 allowedAudienceZoneIds,
                 eligibilityContext,
                 membershipHostIdMap,
+                membershipSummary,
             ),
         };
 
