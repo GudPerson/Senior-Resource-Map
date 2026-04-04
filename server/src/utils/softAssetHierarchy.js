@@ -101,6 +101,8 @@ export function buildChildValuesFromParent(parent, host, actor, externalKey = nu
         ctaLabel: null,
         ctaUrl: null,
         venueNote: null,
+        availabilityEnabled: false,
+        availabilityCount: 0,
     };
 }
 

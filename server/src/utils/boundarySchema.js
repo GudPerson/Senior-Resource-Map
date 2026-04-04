@@ -94,12 +94,16 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS cta_label VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS cta_url TEXT`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS venue_note TEXT`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_enabled BOOLEAN NOT NULL DEFAULT FALSE`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_count INTEGER NOT NULL DEFAULT 0`);
             await db.execute(sql`ALTER TABLE hard_assets ALTER COLUMN partner_id DROP NOT NULL`);
             await db.execute(sql`ALTER TABLE soft_assets ALTER COLUMN partner_id DROP NOT NULL`);
             await db.execute(sql`UPDATE hard_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET asset_mode = 'standalone' WHERE asset_mode IS NULL OR asset_mode = ''`);
             await db.execute(sql`UPDATE soft_assets SET overridden_fields = '[]'::jsonb WHERE overridden_fields IS NULL`);
+            await db.execute(sql`UPDATE soft_assets SET availability_enabled = FALSE WHERE availability_enabled IS NULL`);
+            await db.execute(sql`UPDATE soft_assets SET availability_count = 0 WHERE availability_count IS NULL OR availability_count < 0`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS subregion_postal_codes (
                     subregion_id INTEGER NOT NULL REFERENCES subregions(id) ON DELETE CASCADE,

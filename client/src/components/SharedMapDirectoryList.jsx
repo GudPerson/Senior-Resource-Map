@@ -26,6 +26,30 @@ function StatusBadge({ status }) {
     return null;
 }
 
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
+function AvailabilityCountBadge({ row, compact = false }) {
+    if (row?.resourceType !== 'soft' || !row?.availabilityEnabled) {
+        return null;
+    }
+
+    return (
+        <span
+            className={`inline-flex rounded-full border font-bold text-brand-700 ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}
+            style={{
+                borderColor: 'var(--color-brand-light)',
+                backgroundColor: 'color-mix(in srgb, var(--color-brand-light) 50%, white)',
+            }}
+        >
+            {normalizeAvailabilityCount(row.availabilityCount)} available
+        </span>
+    );
+}
+
 function MapLegend({ mobile = false }) {
     return (
         <div className={`flex items-center justify-between border border-slate-200 bg-white px-4 py-2 text-[16px] font-bold text-slate-600 isolate ${
@@ -185,6 +209,7 @@ function DirectoryResourceRow({
                     <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                     <div className="flex flex-wrap items-center gap-1.5">
                         {printRowTitle}
+                        <AvailabilityCountBadge row={row} compact />
                         {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
                     </div>
                 </div>
@@ -206,6 +231,11 @@ function DirectoryResourceRow({
                             ) : (
                                 <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
                             )}
+                            {row.resourceType === 'soft' && row.availabilityEnabled ? (
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                    <AvailabilityCountBadge row={row} compact={compactInteractive} />
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -524,6 +554,11 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                             <span>{row.resourceType === 'hard' ? 'Place' : 'Offering'}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
+                            {row.resourceType === 'soft' && row.availabilityEnabled ? (
+                                <span className="normal-case tracking-normal text-brand-700">
+                                    {normalizeAvailabilityCount(row.availabilityCount)} available
+                                </span>
+                            ) : null}
                         </div>
                         {row.descriptor ? (
                             <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>

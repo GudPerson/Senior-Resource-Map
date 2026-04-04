@@ -16,6 +16,12 @@ function getLinkedLocations(asset) {
     return [];
 }
 
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
 export const TagBadge = ({ tag, onClick }) => (
     <span
         onClick={onClick}
@@ -71,6 +77,8 @@ export const AssetCard = React.memo(({
     const navigate = useNavigate();
     const softAssetCounts = isHard ? summarizeSoftAssetBuckets(asset.softAssets || []) : null;
     const showExpandedDescription = isExpanded || isSelected;
+    const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
+    const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const savedAssetSummary = {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -177,6 +185,21 @@ export const AssetCard = React.memo(({
                     <LinkifiedText text={asset.description} />
                 </p>
             )}
+
+            {availabilityEnabled ? (
+                <div className="mb-3">
+                    <span
+                        className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-extrabold uppercase tracking-[0.12em]"
+                        style={{
+                            borderColor: 'var(--color-brand-light)',
+                            backgroundColor: 'color-mix(in srgb, var(--color-brand-light) 55%, white)',
+                            color: 'var(--color-brand-strong)',
+                        }}
+                    >
+                        {availabilityCount} available
+                    </span>
+                </div>
+            ) : null}
 
             {/* Info section */}
             <div className="space-y-1.5 pt-3 mt-auto" style={{ borderTop: '1px solid var(--color-border)' }}>

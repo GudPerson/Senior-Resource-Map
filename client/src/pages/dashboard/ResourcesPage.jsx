@@ -16,6 +16,7 @@ import {
     Info,
     Lock,
     MapPin,
+    Minus,
     Pencil,
     Phone,
     Plus,
@@ -81,6 +82,77 @@ const VisibilityBadge = ({ hidden }) => (
         {hidden ? 'Hidden' : 'Live'}
     </span>
 );
+
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
+function AvailabilityCounterControl({
+    asset,
+    disabled = false,
+    onAdjust,
+    onToggle,
+}) {
+    const enabled = Boolean(asset?.availabilityEnabled);
+    const count = normalizeAvailabilityCount(asset?.availabilityCount);
+
+    return (
+        <div className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Availability counter</p>
+                    <p className="mt-1 text-sm text-slate-600">
+                        {enabled ? 'Shown on public offering cards and detail views.' : 'Hidden publicly until tracking is turned on.'}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => onToggle(!enabled)}
+                    disabled={disabled}
+                    className={`inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        enabled
+                            ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                    }`}
+                >
+                    {enabled ? 'Tracking on' : 'Tracking off'}
+                </button>
+            </div>
+
+            {enabled ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => onAdjust(Math.max(0, count - 1))}
+                        disabled={disabled || count <= 0}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Decrease availability"
+                    >
+                        <Minus size={16} />
+                    </button>
+                    <div className="inline-flex min-h-11 min-w-[4.5rem] items-center justify-center rounded-xl border border-brand-200 bg-white px-4 text-lg font-black text-slate-900">
+                        {count}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => onAdjust(count + 1)}
+                        disabled={disabled}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Increase availability"
+                    >
+                        <Plus size={16} />
+                    </button>
+                    <span className="text-sm font-semibold text-slate-500">
+                        {count} available
+                    </span>
+                    {disabled ? <RefreshCw size={15} className="animate-spin text-slate-400" /> : null}
+                </div>
+            ) : null}
+        </div>
+    );
+}
 
 const RolloutMetric = ({ label, value }) => (
     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -232,6 +304,7 @@ export default function ResourcesPage() {
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
+    const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
 
     const normalizedRole = normalizeRole(user?.role);
     const isStandardUser = isStandardUserRole(user?.role);
@@ -456,6 +529,14 @@ export default function ResourcesPage() {
         return `${assetType}-${assetId}`;
     }
 
+    function getAvailabilityActionKey(assetId) {
+        return `availability-${assetId}`;
+    }
+
+    function replaceSoftAsset(updatedAsset) {
+        setSoftAssets((prev) => prev.map((asset) => (asset.id === updatedAsset.id ? { ...asset, ...updatedAsset } : asset)));
+    }
+
     function buildHardVisibilityPayload(asset, nextHidden) {
         return {
             name: asset.name,
@@ -508,6 +589,32 @@ export default function ResourcesPage() {
             });
         } finally {
             setVisibilityActionKey(null);
+        }
+    }
+
+    async function handleAvailabilityUpdate(asset, patch) {
+        const actionKey = getAvailabilityActionKey(asset.id);
+        const previousAsset = asset;
+        const optimisticAsset = {
+            ...asset,
+            ...(patch.availabilityEnabled !== undefined ? { availabilityEnabled: Boolean(patch.availabilityEnabled) } : {}),
+            ...(patch.availabilityCount !== undefined ? { availabilityCount: normalizeAvailabilityCount(patch.availabilityCount) } : {}),
+        };
+
+        replaceSoftAsset(optimisticAsset);
+        setAvailabilityActionKey(actionKey);
+
+        try {
+            const updatedAsset = await api.updateSoftAssetAvailability(asset.id, patch);
+            replaceSoftAsset(updatedAsset);
+        } catch (err) {
+            replaceSoftAsset(previousAsset);
+            setActionNotice({
+                type: 'warning',
+                message: err.message || 'Failed to update offering availability.',
+            });
+        } finally {
+            setAvailabilityActionKey(null);
         }
     }
 
@@ -943,6 +1050,7 @@ export default function ResourcesPage() {
                             const hiddenStatus = getHiddenStatus(asset);
                             const isChild = asset.assetMode === 'child';
                             const isVisibilitySaving = visibilityActionKey === getVisibilityActionKey('soft', asset.id);
+                            const isAvailabilitySaving = availabilityActionKey === getAvailabilityActionKey(asset.id);
                             return (
                                 <div key={asset.id} className="card flex flex-col items-start gap-4 p-5">
                                     <div className="flex w-full items-start justify-between gap-3">
@@ -1004,6 +1112,13 @@ export default function ResourcesPage() {
                                             ) : null}
                                         </div>
                                     ) : null}
+
+                                    <AvailabilityCounterControl
+                                        asset={asset}
+                                        disabled={isAvailabilitySaving}
+                                        onToggle={(availabilityEnabled) => handleAvailabilityUpdate(asset, { availabilityEnabled })}
+                                        onAdjust={(availabilityCount) => handleAvailabilityUpdate(asset, { availabilityCount })}
+                                    />
 
                                     <div className="mt-auto flex w-full items-center gap-2 border-t border-slate-100 pt-4">
                                         <button

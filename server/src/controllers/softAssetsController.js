@@ -100,6 +100,18 @@ const softAssetWithRelations = {
     },
 };
 
+function normalizeAvailabilityEnabled(value) {
+    return Boolean(value);
+}
+
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return 0;
+    }
+    return parsed;
+}
+
 function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
     const allLocations = getSoftAssetLocations(asset);
     const visibleLocations = allLocations
@@ -119,6 +131,8 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         audienceZones: resolvedAudienceZones,
         audienceZoneIds: resolvedAudienceZones.map((zone) => zone.id),
         overriddenFields: normalizeOverrideFields(asset.overriddenFields),
+        availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
+        availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
         parentSummary: asset.parent ? { id: asset.parent.id, name: asset.parent.name } : null,
         locations: visibleLocations,
         location: visibleLocations[0] || null,
@@ -302,6 +316,8 @@ export const createSoftAsset = async (c) => {
             ctaLabel: ctaLabel || null,
             ctaUrl: ctaUrl || null,
             venueNote: venueNote || null,
+            availabilityEnabled: false,
+            availabilityCount: 0,
             isHidden: Boolean(isHidden),
             hideFrom: hideFrom ? new Date(hideFrom) : null,
             hideUntil: hideUntil ? new Date(hideUntil) : null,
@@ -327,6 +343,57 @@ export const createSoftAsset = async (c) => {
     } catch (err) {
         console.error('createSoftAsset Error:', err);
         return c.json({ error: err.message || 'Failed to create soft asset' }, err.status || 500);
+    }
+};
+
+export const patchSoftAssetAvailability = async (c) => {
+    try {
+        const id = Number.parseInt(c.req.param('id'), 10);
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const existing = await loadSoftAssetById(db, id);
+        if (!existing) return c.json({ error: 'Not found' }, 404);
+        if (!actorCanManageAsset(user, existing, existing.partner)) {
+            return c.json({ error: 'Insufficient permissions to edit this asset' }, 403);
+        }
+
+        const body = await c.req.json();
+        const nextAvailabilityEnabled = body?.availabilityEnabled !== undefined
+            ? Boolean(body.availabilityEnabled)
+            : normalizeAvailabilityEnabled(existing.availabilityEnabled);
+
+        const nextAvailabilityCount = body?.availabilityCount !== undefined
+            ? Number.parseInt(body.availabilityCount, 10)
+            : normalizeAvailabilityCount(existing.availabilityCount);
+
+        if (!Number.isInteger(nextAvailabilityCount) || nextAvailabilityCount < 0) {
+            return c.json({ error: 'Availability count must be a non-negative whole number.' }, 400);
+        }
+
+        await db.update(softAssets).set({
+            availabilityEnabled: nextAvailabilityEnabled,
+            availabilityCount: nextAvailabilityCount,
+            updatedAt: new Date(),
+        }).where(eq(softAssets.id, id));
+
+        await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
+
+        const boundaryContext = await loadScopedBoundaryContext(db, user);
+        const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
+        const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
+        const refreshed = await loadSoftAssetById(db, id);
+        if (!refreshed) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+
+        return c.json(
+            formatSoftAsset(refreshed, boundaryContext, user, allowedPartnerAudienceIds, allowedAudienceZoneIds)
+        );
+    } catch (err) {
+        console.error('patchSoftAssetAvailability Error:', err);
+        return c.json({ error: err.message || 'Failed to update offering availability' }, err.status || 500);
     }
 };
 

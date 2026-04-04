@@ -125,6 +125,8 @@ export const softAssets = pgTable('soft_assets', {
   ctaLabel: varchar('cta_label', { length: 255 }),
   ctaUrl: text('cta_url'),
   venueNote: text('venue_note'),
+  availabilityEnabled: boolean('availability_enabled').default(false),
+  availabilityCount: integer('availability_count').default(0),
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
   hideUntil: timestamp('hide_until'),

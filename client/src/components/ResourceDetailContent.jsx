@@ -53,6 +53,12 @@ function formatDistance(distance) {
     return distance < 1 ? `${Math.round(distance * 1000)}m away` : `${distance.toFixed(1)}km away`;
 }
 
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
 export default function ResourceDetailContent({
     asset,
     className = '',
@@ -134,6 +140,8 @@ export default function ResourceDetailContent({
     const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
     const phone = asset?.phone || primaryLocation?.phone;
     const availablePlaceCount = isHard ? 0 : softLocations.length;
+    const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
+    const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const relatedSoftAssetGroups = useMemo(() => (
         isHard ? groupSoftAssetsByBucket(asset?.softAssets || []) : { Programmes: [], Services: [], Promotions: [] }
     ), [asset?.softAssets, isHard]);
@@ -212,6 +220,18 @@ export default function ResourceDetailContent({
                                 >
                                     Available in {availablePlaceCount} {availablePlaceCount === 1 ? 'place' : 'places'}
                                 </span>
+                                {availabilityEnabled ? (
+                                    <span
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border"
+                                        style={{
+                                            backgroundColor: 'color-mix(in srgb, var(--color-brand-light) 60%, white)',
+                                            color: 'var(--color-brand-strong)',
+                                            borderColor: 'var(--color-border)',
+                                        }}
+                                    >
+                                        {availabilityCount} available
+                                    </span>
+                                ) : null}
                                 {sortOriginLabel ? (
                                     <span
                                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"

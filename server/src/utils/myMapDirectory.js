@@ -20,6 +20,16 @@ function normalizeCategoryKey(value) {
     return String(value).trim().toLowerCase();
 }
 
+function normalizeAvailabilityEnabled(value) {
+    return Boolean(value);
+}
+
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
 function buildAssetKey(resourceType, resourceId) {
     return `${resourceType}-${resourceId}`;
 }
@@ -94,6 +104,8 @@ function normalizeLegacySnapshot(resourceType, resourceId, snapshot) {
         detailPath,
         descriptor: normalizeText(snapshot?.descriptor),
         logoUrl: normalizeText(snapshot?.logoUrl),
+        availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
+        availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
         places: [createFallbackPlace(resourceType, resourceId, snapshot)],
     };
 }
@@ -114,6 +126,8 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
             detailPath: normalizeText(snapshot?.detailPath) || buildDetailPath(resourceType, resourceId),
             descriptor: normalizeText(snapshot?.descriptor),
             logoUrl: normalizeText(snapshot?.logoUrl),
+            availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
+            availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
             places: snapshot.places.map((place, index) => normalizePlaceSnapshot(place, index)),
         };
     }
@@ -157,6 +171,8 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
             detailPath: buildDetailPath('hard', asset.id),
             descriptor: getResourceDescriptor('hard', asset),
             logoUrl: normalizeText(asset.logoUrl),
+            availabilityEnabled: false,
+            availabilityCount: 0,
             places: [buildPlaceSnapshot(asset)],
         };
     }
@@ -172,6 +188,8 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
         detailPath: buildDetailPath('soft', asset.id),
         descriptor: getResourceDescriptor('soft', asset),
         logoUrl: normalizeText(asset.logoUrl),
+        availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
+        availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
         places: places.length > 0 ? places : [createFallbackPlace('soft', asset.id, null)],
     };
 }
@@ -249,6 +267,8 @@ const softAssetQuery = {
         partnerId: true,
         subregionId: true,
         hostHardAssetId: true,
+        availabilityEnabled: true,
+        availabilityCount: true,
     },
     with: {
         partner: {
@@ -352,6 +372,8 @@ function buildRow({
         categoryIconUrl: categoryMeta?.iconUrl || null,
         descriptor: snapshot.descriptor || null,
         logoUrl: snapshot.logoUrl || null,
+        availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
+        availabilityCount: normalizeAvailabilityCount(snapshot.availabilityCount),
         detailPath,
         status,
         saveEligible,

@@ -185,6 +185,7 @@ export const api = {
     getSoftAsset: (id) => request('GET', `/soft-assets/${id}`),
     createSoftAsset: (body) => request('POST', '/soft-assets', body),
     updateSoftAsset: (id, body) => request('PUT', `/soft-assets/${id}`, body),
+    updateSoftAssetAvailability: (id, body) => request('PATCH', `/soft-assets/${id}/availability`, body),
     resetSoftAssetOverrides: (id, body) => request('POST', `/soft-assets/${id}/reset-overrides`, body),
     deleteSoftAsset: (id) => request('DELETE', `/soft-assets/${id}`),
 

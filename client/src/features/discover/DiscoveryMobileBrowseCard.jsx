@@ -9,6 +9,12 @@ function formatDistance(distance) {
     return distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`;
 }
 
+function normalizeAvailabilityCount(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+}
+
 export function DiscoveryMobileBrowseCard({
     asset,
     isCompact = false,
@@ -24,6 +30,8 @@ export function DiscoveryMobileBrowseCard({
     const totalLocationCount = isHard ? 1 : (asset._locationCount || 0);
     const otherLocationCount = !isHard && totalLocationCount > 1 ? totalLocationCount - 1 : 0;
     const categoryLabel = asset.subCategory || (isHard ? 'Place' : 'Offering');
+    const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
+    const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const summaryAddress = isHard
         ? asset.address
         : (displayLocation?.address || `Available in ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
@@ -114,6 +122,21 @@ export function DiscoveryMobileBrowseCard({
                     {asset.name}
                 </h2>
             </div>
+
+            {availabilityEnabled ? (
+                <div className="mt-3">
+                    <span
+                        className={`inline-flex rounded-full border font-extrabold uppercase tracking-[0.12em] ${isCompact ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
+                        style={{
+                            borderColor: 'var(--color-brand-light)',
+                            backgroundColor: 'color-mix(in srgb, var(--color-brand-light) 60%, white)',
+                            color: 'var(--color-brand-strong)',
+                        }}
+                    >
+                        {availabilityCount} available
+                    </span>
+                </div>
+            ) : null}
 
             <button
                 type="button"
