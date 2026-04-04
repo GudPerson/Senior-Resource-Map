@@ -65,10 +65,13 @@ export default function SoftAssetTemplateForm({
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    // Only reset when opening a different template record; browser refocus after uploads
+    // can refresh auth state and replace currentUser with a new object identity.
+    const templateResetKey = initialData?.id ?? '__create__';
 
     useEffect(() => {
         setForm(buildInitialForm(initialData, currentUser));
-    }, [currentUser, initialData]);
+    }, [templateResetKey]);
 
     useEffect(() => {
         api.searchTags('')
