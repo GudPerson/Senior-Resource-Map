@@ -79,7 +79,7 @@ function renderSavedPinCenterGlyph(iconUrl) {
     }
 
     return `
-        <svg viewBox="0 0 24 24" width="12" height="12" focusable="false" aria-hidden="true" style="display:block;">
+        <svg viewBox="0 0 24 24" width="15" height="15" focusable="false" aria-hidden="true" style="display:block;">
             <path
                 d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z"
                 fill="#f35f68"
