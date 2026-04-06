@@ -22,6 +22,9 @@ const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
 const DIRECTORY_FOCUS_ZOOM = 16;
 const DIRECTORY_ANCHOR_ONLY_ZOOM = 15;
+const DIRECTORY_FIT_PADDING_TOP_LEFT = [44, 44];
+const DIRECTORY_FIT_PADDING_BOTTOM_RIGHT = [44, 52];
+const DIRECTORY_CLUSTER_BOUNDS_PADDING = [56, 56];
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -256,15 +259,15 @@ function fitDirectoryCamera(map, pins, anchorPoint, {
     const bounds = getBounds(points);
     if (animate) {
         map.flyToBounds(bounds, {
-            paddingTopLeft: [16, 16],
-            paddingBottomRight: [16, 16],
+            paddingTopLeft: DIRECTORY_FIT_PADDING_TOP_LEFT,
+            paddingBottomRight: DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
             maxZoom: 16,
             duration,
         });
     } else {
         map.fitBounds(bounds, {
-            paddingTopLeft: [16, 16],
-            paddingBottomRight: [16, 16],
+            paddingTopLeft: DIRECTORY_FIT_PADDING_TOP_LEFT,
+            paddingBottomRight: DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
             maxZoom: 16,
             animate: false,
         });
@@ -351,7 +354,7 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
                 return;
             }
             if (typeof cluster.zoomToBounds === 'function') {
-                cluster.zoomToBounds({ padding: [40, 40] });
+                cluster.zoomToBounds({ padding: DIRECTORY_CLUSTER_BOUNDS_PADDING });
             }
         };
 
