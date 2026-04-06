@@ -6,7 +6,7 @@ import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/
 import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
-import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
+import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
@@ -441,7 +441,8 @@ export const createHardAsset = async (c) => {
             return c.json({ error: 'name, country, postalCode, address are required' }, 400);
         }
 
-        const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+        const derivedRouting = await resolveWritableSubregionByPostal(db, postalCode, user, 'Postal code');
+        const derivedSubregion = derivedRouting.subregion;
         ensureActorCanCreateInSubregion(user, derivedSubregion.id);
 
         const { owner } = await resolveAssetOwner(db, user, body, derivedSubregion.id);
@@ -558,7 +559,8 @@ export const updateHardAsset = async (c) => {
         const body = await c.req.json();
         const nextPostalCode = body.postalCode ?? existing.postalCode;
         const nextCountry = body.country ?? existing.country;
-        const derivedSubregion = await resolveSingleSubregionByPostal(db, nextPostalCode, 'Postal code');
+        const derivedRouting = await resolveWritableSubregionByPostal(db, nextPostalCode, user, 'Postal code');
+        const derivedSubregion = derivedRouting.subregion;
         ensureActorCanCreateInSubregion(user, derivedSubregion.id);
 
         let owner = existing.partner || null;

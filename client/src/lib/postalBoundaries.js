@@ -76,3 +76,19 @@ export function resolveSingleSubregionByPostal(subregions, rawPostalCode, scoped
 
     return { status: 'ok', subregion: matches[0], matches };
 }
+
+export function getPreferredSubregionMatch(matches) {
+    if (!Array.isArray(matches) || matches.length === 0) return null;
+
+    return [...matches].sort((left, right) => {
+        const leftCode = String(left.subregionCode || '').toLowerCase();
+        const rightCode = String(right.subregionCode || '').toLowerCase();
+        if (leftCode !== rightCode) return leftCode.localeCompare(rightCode);
+
+        const leftName = String(left.name || '').toLowerCase();
+        const rightName = String(right.name || '').toLowerCase();
+        if (leftName !== rightName) return leftName.localeCompare(rightName);
+
+        return Number(left.id || 0) - Number(right.id || 0);
+    })[0];
+}

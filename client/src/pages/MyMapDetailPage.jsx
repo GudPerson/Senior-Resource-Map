@@ -421,13 +421,14 @@ export default function MyMapDetailPage() {
     }
 
     function focusPlaceOnMap(placeKey) {
-        const zoomKey = String(placeKey) + ':zoom';
+        const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
+        if (!resolvedPlaceKey) return;
         clearMapSelection();
         pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
             pendingFocusFrameRef.current = null;
             setSelectionScrollRequest((value) => value + 1);
-            setFocusedPlaceKey(zoomKey);
-            setHighlightPlaceKey(String(placeKey));
+            setFocusedPlaceKey(`${resolvedPlaceKey}:zoom`);
+            setHighlightPlaceKey(String(resolvedPlaceKey));
         });
     }
 

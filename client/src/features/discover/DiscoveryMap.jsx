@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
-import { createSavedPlacePinIcon } from './discoverUtils.js';
+import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
 import {
     CAREAROUND_BASEMAP_ATTRIBUTION,
     CAREAROUND_BASEMAP_MAX_ZOOM,
@@ -28,6 +28,9 @@ const DESKTOP_GROUP_FOCUS_PADDING_TOP_LEFT = [40, 40];
 const DESKTOP_GROUP_FOCUS_PADDING_BOTTOM_RIGHT = [40, 40];
 const MOBILE_FIT_PADDING_TOP_LEFT = [16, 56];
 const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [16, 24];
+const SINGLE_PIN_FOCUS_NOOP_DISTANCE_PX = 4;
+const SINGLE_PIN_FOCUS_SETTLE_DISTANCE_PX = 22;
+const SINGLE_PIN_FOCUS_SETTLE_ZOOM_DELTA = 0.18;
 
 function createLocationAnchorIcon(anchorPoint = null) {
     const isHome = anchorPoint?.source === 'home' || anchorPoint?.kind === 'home';
@@ -151,22 +154,35 @@ function focusMapRequest(map, focusRequest, interactionMode) {
     if (focusRequest.kind === 'single-pin') {
         const zoom = focusRequest.zoom ?? SINGLE_PIN_ZOOM;
         const offsetPx = focusRequest.offsetPx || null;
+        let targetCenter = L.latLng(focusRequest.lat, focusRequest.lng);
 
         if (offsetPx && (offsetPx.x || offsetPx.y)) {
             const targetPoint = map.project([focusRequest.lat, focusRequest.lng], zoom);
             const offsetPoint = L.point(offsetPx.x || 0, offsetPx.y || 0);
-            const targetCenter = map.unproject(targetPoint.subtract(offsetPoint), zoom);
+            targetCenter = map.unproject(targetPoint.subtract(offsetPoint), zoom);
+        }
 
-            map.flyTo(targetCenter, zoom, {
-                animate: true,
-                duration: 0.8,
+        const currentCenterPoint = map.project(map.getCenter(), zoom);
+        const targetCenterPoint = map.project(targetCenter, zoom);
+        const distancePx = currentCenterPoint.distanceTo(targetCenterPoint);
+        const zoomDelta = Math.abs(map.getZoom() - zoom);
+
+        if (distancePx <= SINGLE_PIN_FOCUS_NOOP_DISTANCE_PX && zoomDelta <= 0.01) {
+            return true;
+        }
+
+        map.stop();
+
+        if (distancePx <= SINGLE_PIN_FOCUS_SETTLE_DISTANCE_PX && zoomDelta <= SINGLE_PIN_FOCUS_SETTLE_ZOOM_DELTA) {
+            map.setView(targetCenter, zoom, {
+                animate: false,
             });
             return true;
         }
 
-        map.flyTo([focusRequest.lat, focusRequest.lng], zoom, {
+        map.flyTo(targetCenter, zoom, {
             animate: true,
-            duration: 0.8,
+            duration: 0.55,
         });
         return true;
     }
@@ -290,6 +306,52 @@ function MapBackgroundEvents({ enabled = true, onBackgroundClick }) {
     return null;
 }
 
+function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPinLayoutChange }) {
+    const map = useMap();
+    const pinLookup = useMemo(() => new Map((pins || []).map((pin) => [pin.pinKey, pin])), [pins]);
+
+    useEffect(() => {
+        if (!onTrackedPinLayoutChange) return undefined;
+
+        const emitLayout = () => {
+            if (!trackedPinKey) {
+                onTrackedPinLayoutChange(null);
+                return;
+            }
+
+            const pin = pinLookup.get(trackedPinKey);
+            if (!pin) {
+                onTrackedPinLayoutChange(null);
+                return;
+            }
+
+            const point = map.latLngToContainerPoint([pin.displayLat ?? pin.lat, pin.displayLng ?? pin.lng]);
+            const size = map.getSize();
+
+            onTrackedPinLayoutChange({
+                pinKey: trackedPinKey,
+                x: point.x,
+                y: point.y,
+                width: size.x,
+                height: size.y,
+            });
+        };
+
+        emitLayout();
+        map.on('move', emitLayout);
+        map.on('zoom', emitLayout);
+        map.on('resize', emitLayout);
+
+        return () => {
+            map.off('move', emitLayout);
+            map.off('zoom', emitLayout);
+            map.off('resize', emitLayout);
+        };
+    }, [map, onTrackedPinLayoutChange, pinLookup, trackedPinKey]);
+
+    return null;
+}
+
 export function DiscoveryMap({
     cameraAnchor = null,
     focusRequest = null,
@@ -297,16 +359,20 @@ export function DiscoveryMap({
     onBackgroundClick,
     onMapHoverEnd,
     onMapHoverStart,
+    onTrackedPinLayoutChange,
+    onSelectGroupPin,
     onSelectPin,
     pinEmphasisByKey = new Map(),
+    renderedSavedPlacePins = null,
     savedPlacePins,
+    trackedPinKey = null,
     transientPlacePins = [],
     userLocation,
 }) {
     const emphasisLookup = useMemo(() => pinEmphasisByKey, [pinEmphasisByKey]);
     const renderedPins = useMemo(
-        () => [...savedPlacePins, ...transientPlacePins],
-        [savedPlacePins, transientPlacePins]
+        () => [...(renderedSavedPlacePins || savedPlacePins), ...transientPlacePins],
+        [renderedSavedPlacePins, savedPlacePins, transientPlacePins]
     );
 
     return (
@@ -332,36 +398,61 @@ export function DiscoveryMap({
                     interactionMode={interactionMode}
                     savedPlacePins={savedPlacePins}
                 />
+                <TrackedPinLayoutReporter
+                    trackedPinKey={trackedPinKey}
+                    pins={renderedPins}
+                    onTrackedPinLayoutChange={onTrackedPinLayoutChange}
+                />
                 <MapBackgroundEvents enabled={Boolean(onBackgroundClick)} onBackgroundClick={onBackgroundClick} />
                 {renderedPins.map((pin) => {
                     const markerKey = pin.pinKey;
                     const emphasis = emphasisLookup.get(markerKey) || 'default';
                     const isTransient = pin.tone === 'temporary' || pin.isTransient;
+                    const isPostalGroup = pin.kind === 'postal-group';
+                    const baseZIndexOffset = isPostalGroup ? 800 : (pin.isExpandedChild ? 1000 : 900);
+                    const zIndexOffset = emphasis === 'primary'
+                        ? baseZIndexOffset + 1200
+                        : emphasis === 'related'
+                            ? baseZIndexOffset + 600
+                            : baseZIndexOffset;
+                    const icon = isPostalGroup
+                        ? createPostalGroupParentPinIcon({
+                            count: pin.hardAssetCount,
+                            badgeCount: pin.totalOfferingsCount,
+                            emphasis,
+                            placeKey: pin.placeKey || pin.pinKey,
+                        })
+                        : createSavedPlacePinIcon({
+                            count: pin.totalOfferingsCount,
+                            emphasis,
+                            tone: pin.tone || 'saved',
+                            iconUrl: pin.categoryIconUrl || null,
+                            placeKey: pin.placeKey || pin.pinKey,
+                        });
 
                     return (
                         <Marker
                             key={markerKey}
-                            position={[pin.lat, pin.lng]}
-                            icon={createSavedPlacePinIcon({
-                                count: pin.totalOfferingsCount,
-                                emphasis,
-                                tone: pin.tone || 'saved',
-                                iconUrl: pin.categoryIconUrl || null,
-                                placeKey: pin.placeKey || pin.pinKey,
-                            })}
+                            position={[pin.displayLat ?? pin.lat, pin.displayLng ?? pin.lng]}
+                            icon={icon}
+                            zIndexOffset={zIndexOffset}
                             eventHandlers={isTransient ? undefined : {
                                 click: (event) => {
                                     event.originalEvent?.stopPropagation?.();
+                                    if (isPostalGroup) {
+                                        onSelectGroupPin?.(pin);
+                                        return;
+                                    }
                                     onSelectPin?.(pin);
                                 },
                                 mouseover: () => {
                                     if (interactionMode === 'desktop') {
-                                        onMapHoverStart?.(markerKey);
+                                        onMapHoverStart?.(markerKey, { kind: isPostalGroup ? 'postal-group' : 'place' });
                                     }
                                 },
                                 mouseout: () => {
                                     if (interactionMode === 'desktop') {
-                                        onMapHoverEnd?.(markerKey);
+                                        onMapHoverEnd?.(markerKey, { kind: isPostalGroup ? 'postal-group' : 'place' });
                                     }
                                 },
                             }}

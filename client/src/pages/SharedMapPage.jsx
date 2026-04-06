@@ -130,6 +130,7 @@ export default function SharedMapPage() {
     const [copyError, setCopyError] = useState('');
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
+    const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
     const isPrintView = searchParams.get('view') === 'print';
     const useDesktopLayout = useMediaQuery('(min-width: 1024px)');
     const anchorState = useDirectoryDistanceAnchor({
@@ -168,19 +169,35 @@ export default function SharedMapPage() {
     ), [directory?.share?.sharePath, token]);
 
     function handleViewSection(placeKey) {
+        const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setQuery('');
+        setHoveredPlaceKey(null);
         setHighlightPlaceKey(null);
         window.requestAnimationFrame(() => {
-            setHighlightPlaceKey(placeKey);
+            setHighlightPlaceKey(resolvedPlaceKey);
         });
     }
 
     function handleViewOnMap(placeKey) {
+        const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setFocusedPlaceKey(null);
+        setHoveredPlaceKey(null);
         window.requestAnimationFrame(() => {
-            setFocusedPlaceKey(placeKey);
+            setFocusedPlaceKey(resolvedPlaceKey);
+            setHighlightPlaceKey(resolvedPlaceKey);
         });
     }
+
+    const activePlaceKey = hoveredPlaceKey || highlightPlaceKey || null;
+
+    const handleMapHoverStart = useCallback((placeKey) => {
+        if (!placeKey) return;
+        setHoveredPlaceKey(String(placeKey));
+    }, []);
+
+    const handleMapHoverEnd = useCallback((placeKey) => {
+        setHoveredPlaceKey((current) => (String(current) === String(placeKey) ? null : current));
+    }, []);
 
     async function handleCopyToMyMaps() {
         if (!token || !isAuth || isOwner) return;
@@ -231,7 +248,8 @@ export default function SharedMapPage() {
                 handleViewOnMap(placeKey);
                 closeSheet();
             }}
-            highlightPlaceKey={highlightPlaceKey}
+            highlightPlaceKey={activePlaceKey}
+            selectionPlaceKey={highlightPlaceKey}
             canSaveResources={Boolean(directory?.viewer?.canSaveResources)}
             autoScrollToHighlight={false}
         />
@@ -401,14 +419,19 @@ export default function SharedMapPage() {
                             mode="shared"
                             layout="responsive"
                             onViewOnMap={handleViewOnMap}
-                            highlightPlaceKey={highlightPlaceKey}
+                            highlightPlaceKey={activePlaceKey}
+                            selectionPlaceKey={highlightPlaceKey}
                             canSaveResources={Boolean(directory.viewer?.canSaveResources)}
+                            showDesktopHoverLogo
                             renderDesktopMap={() => (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
                                     pins={interactivePresentation.pins}
                                     focusedPlaceKey={focusedPlaceKey}
+                                    activePlaceKey={activePlaceKey}
                                     onViewSection={handleViewSection}
+                                    onHoverPlaceStart={handleMapHoverStart}
+                                    onHoverPlaceEnd={handleMapHoverEnd}
                                     markerMode="number"
                                     placeNumberByKey={interactivePresentation.placeNumberByKey}
                                     emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
@@ -420,7 +443,10 @@ export default function SharedMapPage() {
                                     activeAnchor={activeAnchor}
                                     pins={interactivePresentation.pins}
                                     focusedPlaceKey={focusedPlaceKey}
+                                    activePlaceKey={activePlaceKey}
                                     onViewSection={handleViewSection}
+                                    onHoverPlaceStart={handleMapHoverStart}
+                                    onHoverPlaceEnd={handleMapHoverEnd}
                                     markerMode="number"
                                     placeNumberByKey={interactivePresentation.placeNumberByKey}
                                     emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}

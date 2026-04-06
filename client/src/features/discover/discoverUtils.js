@@ -1,4 +1,9 @@
 import L from 'leaflet';
+import {
+    computePostalGroupAnchor,
+    groupItemsByPostalCode,
+    resolvePostalGroupCode,
+} from '../../lib/postalGrouping.js';
 export {
     aggregateSavedPlacePins,
     buildDerivedMapLocations,
@@ -215,5 +220,265 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
         popupAnchor: [0, -52],
         tooltipAnchor: [0, -48],
         placeKey,
+    });
+}
+
+export function createPostalGroupParentPinIcon({ count = 0, badgeCount = 0, emphasis = 'default', placeKey = null } = {}) {
+    const label = count > 99 ? '99+' : String(Math.max(0, count));
+    const badgeLabel = badgeCount > 99 ? '99+' : String(Math.max(0, badgeCount));
+    const isPrimary = emphasis === 'primary';
+    const isRelated = emphasis === 'related';
+    const outerFill = isPrimary ? '#f29a1f' : isRelated ? '#f4aa2b' : '#f5b43a';
+    const outerStroke = isPrimary ? '#f97316' : isRelated ? '#f6ad34' : '#ffffff';
+    const outlineShadow = isPrimary
+        ? '0 14px 26px rgba(194, 65, 12, 0.34)'
+        : isRelated
+            ? '0 10px 20px rgba(194, 120, 3, 0.26)'
+            : '0 6px 14px rgba(194, 120, 3, 0.22)';
+    const badgeShadow = isPrimary
+        ? '0 7px 16px rgba(13, 53, 61, 0.32)'
+        : isRelated
+            ? '0 5px 12px rgba(13, 53, 61, 0.24)'
+            : '0 4px 10px rgba(15, 23, 42, 0.18)';
+    const badgeBg = isPrimary ? '#0b6d70' : isRelated ? '#0d766f' : '#0f766e';
+    const haloColor = isPrimary
+        ? 'rgba(249, 115, 22, 0.42)'
+        : isRelated
+            ? 'rgba(251, 146, 60, 0.3)'
+            : 'rgba(251, 146, 60, 0.2)';
+    const stateClass = [
+        'saved-place-pin-marker',
+        'saved-place-pin-marker--grouped',
+        isPrimary ? 'saved-place-pin-marker--primary' : '',
+        isRelated ? 'saved-place-pin-marker--related' : '',
+    ].filter(Boolean).join(' ');
+    const pinScale = isPrimary ? 1.24 : isRelated ? 1.12 : 1;
+    const pulseBump = isPrimary ? 0.12 : isRelated ? 0.07 : 0;
+
+    return L.divIcon({
+        className: '',
+        html: `
+            <div
+                class="${stateClass}"
+                style="
+                    position:relative;
+                    width:48px;
+                    height:64px;
+                    overflow:visible;
+                    pointer-events:none;
+                    --saved-pin-scale:${pinScale};
+                    --saved-pin-pulse-bump:${pulseBump};
+                    --saved-pin-halo-color:${haloColor};
+                "
+            >
+                <div class="saved-place-pin-marker__pin" style="position:absolute;inset:0;z-index:1;display:flex;align-items:flex-start;justify-content:center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="50" viewBox="0 0 34 48" aria-hidden="true" style="overflow:visible; position:relative; z-index:1;">
+                    <path
+                        d="M17 2.4c-7.35 0-12.95 5.62-12.95 12.78 0 4.52 2.04 8.95 4.7 12.74 2.16 3.08 4.65 5.86 6.87 8.42a1.82 1.82 0 0 0 2.76 0c2.22-2.56 4.71-5.34 6.87-8.42 2.66-3.79 4.7-8.22 4.7-12.74C29.95 8.02 24.35 2.4 17 2.4Z"
+                        fill="${outerFill}"
+                        stroke="${outerStroke}"
+                        stroke-width="${isPrimary ? 1.75 : isRelated ? 1.6 : 1.5}"
+                        style="filter:drop-shadow(${outlineShadow});"
+                    />
+                    <ellipse cx="13.4" cy="11.4" rx="7.8" ry="5.9" fill="#ffe1a6" opacity="${isPrimary ? '0.34' : isRelated ? '0.28' : '0.22'}" />
+                </svg>
+                <div
+                    style="
+                        position:absolute;
+                        top:6px;
+                        left:50%;
+                        transform:translateX(-50%);
+                        z-index:2;
+                        width:18.5px;
+                        height:18.5px;
+                        border-radius:999px;
+                        background:#ffffff;
+                        box-shadow:0 1px 4px rgba(15,23,42,0.14);
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:${label.length > 2 ? 9.5 : 12.5}px;
+                        line-height:1;
+                        font-weight:900;
+                        color:#334155;
+                        font-family:var(--font-heading);
+                    "
+                >${escapeSvgText(label)}</div>
+                <div
+                    class="saved-place-pin-marker__badge"
+                    style="
+                        position:absolute;
+                        top:-3px;
+                        right:-3px;
+                        z-index:100;
+                        min-width:20px;
+                        height:20px;
+                        padding:0 4px;
+                        border-radius:999px;
+                        background:${badgeBg};
+                        border:1.5px solid #ffffff;
+                        box-shadow:${badgeShadow};
+                        color:#ffffff;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:${badgeLabel.length > 2 ? 8.5 : 10}px;
+                        line-height:1;
+                        font-weight:800;
+                        letter-spacing:-0.02em;
+                        transform-origin:center;
+                        pointer-events:none;
+                        font-family:var(--font-heading);
+                    "
+                >${escapeSvgText(badgeLabel)}</div>
+                </div>
+            </div>
+        `,
+        iconSize: [44, 60],
+        iconAnchor: [22, 54],
+        popupAnchor: [0, -52],
+        tooltipAnchor: [0, -48],
+        placeKey,
+    });
+}
+
+function sortPinsForPostalGroupReadingOrder(pins = []) {
+    return [...pins].sort((left, right) => {
+        const leftTitle = String(left?.title || left?.placeKey || '').toLowerCase();
+        const rightTitle = String(right?.title || right?.placeKey || '').toLowerCase();
+        return leftTitle.localeCompare(rightTitle);
+    });
+}
+
+function buildExpandedPostalGroupMemberPins(group, interactionMode = 'desktop') {
+    const members = sortPinsForPostalGroupReadingOrder(group.memberPins || []);
+    const count = members.length;
+    const anchorLat = group.anchorLat;
+    const anchorLng = group.anchorLng;
+    if (!count || anchorLat === null || anchorLng === null) {
+        return members;
+    }
+
+    return members.map((pin, index) => {
+        let displayLat = pin.lat;
+        let displayLng = pin.lng;
+
+        if (count <= 4) {
+            const anglePresets = {
+                1: [0],
+                2: [-0.58, 0.58],
+                3: [-0.82, 0, 0.82],
+                4: [-1.02, -0.34, 0.34, 1.02],
+            };
+            const theta = anglePresets[count]?.[index] ?? 0;
+            const horizontalRadius = interactionMode === 'desktop' ? 0.00024 : 0.0002;
+            const verticalRadius = interactionMode === 'desktop' ? 0.00008 : 0.00007;
+            const lift = interactionMode === 'desktop' ? 0.00011 : 0.000095;
+
+            displayLng = anchorLng + (Math.sin(theta) * horizontalRadius);
+            displayLat = anchorLat + lift + (Math.cos(theta) * verticalRadius);
+        } else {
+            const horizontalRadius = interactionMode === 'desktop' ? 0.0003 : 0.000255;
+            const verticalRadius = interactionMode === 'desktop' ? 0.000095 : 0.00008;
+            const lift = interactionMode === 'desktop' ? 0.00011 : 0.000095;
+            const start = -1.12;
+            const sweep = 2.24;
+            const theta = count === 1 ? 0 : start + ((sweep / (count - 1)) * index);
+
+            displayLng = anchorLng + (Math.sin(theta) * horizontalRadius);
+            displayLat = anchorLat + lift + (Math.cos(theta) * verticalRadius);
+        }
+
+        return {
+            ...pin,
+            displayLat,
+            displayLng,
+            postalGroupKey: group.postalGroupKey,
+            isExpandedChild: true,
+            kind: 'place',
+        };
+    });
+}
+
+export function buildPostalGroupedSavedPlacePins(savedPlacePins = []) {
+    const { groups, itemGroupKeyByItemKey } = groupItemsByPostalCode(savedPlacePins, {
+        getItemKey: (pin) => pin?.pinKey,
+        resolvePostalCode: (pin) => resolvePostalGroupCode({
+            postalCode: pin?.postalCode || pin?.placeAsset?.postalCode,
+            address: pin?.address || pin?.placeAsset?.address,
+        }),
+    });
+
+    const postalGroups = groups.map((group) => {
+        const members = sortPinsForPostalGroupReadingOrder(group.members || []);
+        if (!group.isPostalGroup) {
+            const singlePin = members[0] || null;
+            return {
+                postalGroupKey: group.postalGroupKey,
+                postalCode: group.postalCode || '',
+                isPostalGroup: false,
+                memberPins: members,
+                hardAssetCount: members.length,
+                totalOfferingsCount: members.reduce((total, pin) => total + Math.max(0, Number(pin?.totalOfferingsCount || 0)), 0),
+                anchorLat: singlePin?.lat ?? null,
+                anchorLng: singlePin?.lng ?? null,
+            };
+        }
+
+        const anchor = computePostalGroupAnchor(members);
+        return {
+            postalGroupKey: group.postalGroupKey,
+            postalCode: group.postalCode,
+            isPostalGroup: true,
+            memberPins: members,
+            hardAssetCount: members.length,
+            totalOfferingsCount: members.reduce((total, pin) => total + Math.max(0, Number(pin?.totalOfferingsCount || 0)), 0),
+            anchorLat: anchor.lat,
+            anchorLng: anchor.lng,
+        };
+    });
+
+    const postalGroupKeyByPinKey = new Map();
+    itemGroupKeyByItemKey.forEach((value, key) => {
+        postalGroupKeyByPinKey.set(String(key), value);
+    });
+
+    return {
+        groups: postalGroups,
+        postalGroupKeyByPinKey,
+    };
+}
+
+export function buildRenderedPostalGroupedSavedPins(postalGroups = [], {
+    expandedPostalGroupKey = null,
+    interactionMode = 'desktop',
+} = {}) {
+    void expandedPostalGroupKey;
+    void interactionMode;
+
+    return postalGroups.flatMap((group) => {
+        if (!group.isPostalGroup) {
+            return group.memberPins.map((pin) => ({
+                ...pin,
+                displayLat: pin.lat,
+                displayLng: pin.lng,
+                kind: 'place',
+            }));
+        }
+
+        return [{
+            pinKey: group.postalGroupKey,
+            placeKey: group.postalGroupKey,
+            postalGroupKey: group.postalGroupKey,
+            postalCode: group.postalCode,
+            lat: group.anchorLat,
+            lng: group.anchorLng,
+            displayLat: group.anchorLat,
+            displayLng: group.anchorLng,
+            hardAssetCount: group.hardAssetCount,
+            totalOfferingsCount: group.totalOfferingsCount,
+            memberPins: group.memberPins,
+            kind: 'postal-group',
+        }];
     });
 }

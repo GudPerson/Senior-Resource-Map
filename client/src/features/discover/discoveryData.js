@@ -1,4 +1,5 @@
 import { getDistance } from '../../lib/geo.js';
+import { resolvePostalGroupCode } from '../../lib/postalGrouping.js';
 import { buildSavedAssetKey, buildSavedAssetDetailPath } from '../../lib/savedAssets.js';
 
 export function buildDerivedMapLocations(hardAssets = [], softAssets = []) {
@@ -186,6 +187,7 @@ function buildHardAssetContribution(savedAsset, hardAsset) {
         lng: normalizeCoordinate(hardAsset.lng),
         title: hardAsset.name || savedAsset.name || 'Saved place',
         address: hardAsset.address || savedAsset.address || null,
+        postalCode: resolvePostalGroupCode({ postalCode: hardAsset.postalCode, address: hardAsset.address }),
         placeAsset: hardAsset,
         totalOfferingsCount: Array.isArray(hardAsset.softAssets) ? hardAsset.softAssets.length : null,
         savedAsset: normalizeSavedAssetEntry(savedAsset, hardAsset),
@@ -217,6 +219,10 @@ function buildSoftAssetContribution(savedAsset, softAsset, location, hardLookup)
         lng: normalizeCoordinate(location.lng),
         title: hardAsset?.name || location.name || softAsset.name || savedAsset.name || 'Saved place',
         address: hardAsset?.address || location.address || savedAsset.address || null,
+        postalCode: resolvePostalGroupCode({
+            postalCode: hardAsset?.postalCode || location?.postalCode,
+            address: hardAsset?.address || location?.address || savedAsset.address,
+        }),
         placeAsset: hardAsset || null,
         totalOfferingsCount: Array.isArray(hardAsset?.softAssets) ? hardAsset.softAssets.length : null,
         savedAsset: normalizeSavedAssetEntry(savedAsset, softAsset),
@@ -340,6 +346,7 @@ export function aggregateSavedPlacePins(contributions = [], options = {}) {
                 placeId: contribution.placeId,
                 title: contribution.title,
                 address: contribution.address,
+                postalCode: contribution.postalCode || '',
                 lat: contribution.lat,
                 lng: contribution.lng,
                 locationId: contribution.locationId,
@@ -361,6 +368,10 @@ export function aggregateSavedPlacePins(contributions = [], options = {}) {
             existing.placeDetailPath = contribution.placeAsset?.id ? buildSavedAssetDetailPath('hard', contribution.placeAsset.id) : null;
             existing.title = contribution.placeAsset.name || existing.title;
             existing.address = contribution.placeAsset.address || existing.address;
+            existing.postalCode = resolvePostalGroupCode({
+                postalCode: contribution.placeAsset.postalCode,
+                address: contribution.placeAsset.address || existing.address,
+            }) || existing.postalCode;
             existing.totalOfferingsCount = contribution.totalOfferingsCount;
         }
 
@@ -385,6 +396,10 @@ export function aggregateSavedPlacePins(contributions = [], options = {}) {
             primarySavedAsset,
             primaryDetailAsset: pin.placeAsset || primarySavedAsset?.liveAsset || null,
             categoryIconUrl: resolveSavedPinCategoryIcon(pin.savedAssets, pin.placeAsset, categoryMetaByKey),
+            postalCode: resolvePostalGroupCode({
+                postalCode: pin.postalCode || pin.placeAsset?.postalCode,
+                address: pin.address || pin.placeAsset?.address,
+            }),
         };
     });
 

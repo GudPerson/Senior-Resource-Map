@@ -1,4 +1,9 @@
 import { getDistance } from './geo.js';
+import {
+    computePostalGroupAnchor,
+    groupItemsByPostalCode,
+    resolvePostalGroupCode,
+} from './postalGrouping.js';
 
 function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
@@ -143,20 +148,120 @@ function splitMappedGroupsIntoColumns(groups) {
     };
 }
 
+function sortNestedPlaces(places = []) {
+    return [...places]
+        .map((place) => ({
+            ...place,
+            rows: [...(place.rows || [])].sort((left, right) => left.name.localeCompare(right.name)),
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function buildGroupedMappedGroups(mappedGroups = []) {
+    const { groups } = groupItemsByPostalCode(mappedGroups, {
+        getItemKey: (group) => group.placeKey,
+        resolvePostalCode: (group) => resolvePostalGroupCode({
+            postalCode: group.postalCode,
+            address: group.address,
+        }),
+    });
+
+    return groups.map((postalGroup) => {
+        if (!postalGroup.isPostalGroup) {
+            return {
+                ...postalGroup.members[0],
+                postalCode: postalGroup.postalCode || resolvePostalGroupCode({
+                    postalCode: postalGroup.members[0]?.postalCode,
+                    address: postalGroup.members[0]?.address,
+                }),
+                memberPlaceKeys: [postalGroup.members[0]?.placeKey].filter(Boolean),
+                isPostalGroup: false,
+            };
+        }
+
+        const members = sortNestedPlaces(postalGroup.members);
+        const anchor = computePostalGroupAnchor(members);
+        const firstMember = members[0] || null;
+        const combinedCuratedCount = members.reduce((total, member) => total + (member.curatedCount || 0), 0);
+
+        return {
+            placeKey: postalGroup.postalGroupKey,
+            placeId: null,
+            name: firstMember?.name || 'Grouped location',
+            address: firstMember?.address || null,
+            postalCode: postalGroup.postalCode,
+            lat: anchor.lat,
+            lng: anchor.lng,
+            hasCoordinates: anchor.lat !== null && anchor.lng !== null,
+            shortLocationLine: firstMember?.shortLocationLine || '',
+            distanceKm: firstMember?.distanceKm ?? null,
+            distanceLabel: firstMember?.distanceLabel ?? null,
+            curatedCount: combinedCuratedCount,
+            rows: [],
+            nestedPlaces: members,
+            memberPlaceKeys: members.map((member) => member.placeKey).filter(Boolean),
+            isPostalGroup: true,
+        };
+    });
+}
+
+function buildGroupedPins(groups = []) {
+    return groups
+        .filter((group) => group.hasCoordinates && group.lat !== null && group.lng !== null)
+        .map((group) => {
+            if (!group.isPostalGroup) {
+                return {
+                    pinKey: group.placeKey,
+                    placeKey: group.placeKey,
+                    placeId: group.placeId,
+                    title: group.name,
+                    address: group.address,
+                    postalCode: group.postalCode || '',
+                    lat: group.lat,
+                    lng: group.lng,
+                    curatedCount: group.curatedCount,
+                    categoryIconUrl: group.rows.find((row) => row.resourceType === 'hard' && row.categoryIconUrl)?.categoryIconUrl
+                        || group.rows.find((row) => row.categoryIconUrl)?.categoryIconUrl
+                        || null,
+                    previewResourceNames: (group.rows || []).slice(0, 3).map((row) => row.name),
+                    hiddenPreviewCount: Math.max(0, (group.rows || []).length - 3),
+                    isPostalGroup: false,
+                    memberPlaceKeys: [group.placeKey],
+                };
+            }
+
+            return {
+                pinKey: group.placeKey,
+                placeKey: group.placeKey,
+                placeId: null,
+                title: `${group.memberPlaceKeys.length} assets`,
+                address: group.address,
+                postalCode: group.postalCode,
+                lat: group.lat,
+                lng: group.lng,
+                curatedCount: group.curatedCount,
+                categoryIconUrl: null,
+                previewResourceNames: group.nestedPlaces.map((place) => place.name).slice(0, 3),
+                hiddenPreviewCount: Math.max(0, group.nestedPlaces.length - 3),
+                isPostalGroup: true,
+                postalGroupCount: group.memberPlaceKeys.length,
+                memberPlaceKeys: [...group.memberPlaceKeys],
+            };
+        });
+}
+
 export function buildDirectoryPresentation(directory, {
     query = '',
     activeAnchor = null,
 } = {}) {
-    const placeNumberByKey = buildPlaceNumberByKey(directory?.pins || []);
     const normalizedQuery = normalizeText(query);
     const mappedGroups = [];
     const unmappedRows = [];
 
     for (const place of directory?.places || []) {
-        const number = placeNumberByKey[place.placeKey] || null;
         const lat = parseCoordinate(place.lat);
         const lng = parseCoordinate(place.lng);
-        const hasCoordinates = Boolean(place.hasCoordinates && lat !== null && lng !== null && number !== null);
+        const hasCoordinates = Boolean(place.hasCoordinates && lat !== null && lng !== null);
         const distanceKm = activeAnchor && hasCoordinates
             ? getDistance(activeAnchor.lat, activeAnchor.lng, lat, lng)
             : null;
@@ -182,13 +287,16 @@ export function buildDirectoryPresentation(directory, {
                 ...place,
                 lat,
                 lng,
-                number,
                 hasCoordinates: true,
                 shortLocationLine: formatStreetLabel(place.address),
                 distanceKm,
                 distanceLabel: buildDistanceLabel(distanceKm),
                 rows: visibleRows,
                 curatedCount: visibleRows.length,
+                postalCode: resolvePostalGroupCode({
+                    postalCode: place.postalCode,
+                    address: place.address,
+                }),
             });
             continue;
         }
@@ -205,10 +313,40 @@ export function buildDirectoryPresentation(directory, {
         unmappedRows.push(...visibleUnmappedRows);
     }
 
-    const orderedMappedGroups = [...mappedGroups].sort((left, right) => left.number - right.number);
+    const groupedMappedGroups = buildGroupedMappedGroups(mappedGroups);
+    const groupedPins = buildGroupedPins(groupedMappedGroups);
+    const placeNumberByGroupKey = buildPlaceNumberByKey(groupedPins);
+    const groupKeyByPlaceKey = {};
+
+    groupedMappedGroups.forEach((group) => {
+        groupKeyByPlaceKey[group.placeKey] = group.placeKey;
+        if (group.isPostalGroup) {
+            group.memberPlaceKeys.forEach((memberPlaceKey) => {
+                groupKeyByPlaceKey[memberPlaceKey] = group.placeKey;
+            });
+        }
+    });
+
+    const placeNumberByKey = groupedMappedGroups.reduce((accumulator, group) => {
+        const number = placeNumberByGroupKey[group.placeKey] || null;
+        accumulator[group.placeKey] = number;
+        if (group.isPostalGroup) {
+            group.memberPlaceKeys.forEach((memberPlaceKey) => {
+                accumulator[memberPlaceKey] = number;
+            });
+        }
+        return accumulator;
+    }, {});
+
+    const orderedMappedGroups = [...groupedMappedGroups]
+        .map((group) => ({
+            ...group,
+            number: placeNumberByKey[group.placeKey] || null,
+        }))
+        .sort((left, right) => left.number - right.number);
     const { leftGroups, rightGroups } = splitMappedGroupsIntoColumns(orderedMappedGroups);
     const visiblePlaceKeys = new Set(orderedMappedGroups.map((group) => group.placeKey));
-    const pins = (directory?.pins || [])
+    const pins = groupedPins
         .filter((pin) => visiblePlaceKeys.has(pin.placeKey))
         .map((pin) => ({
             ...pin,
@@ -222,6 +360,7 @@ export function buildDirectoryPresentation(directory, {
         rightGroups,
         unmappedRows: unmappedRows.sort((left, right) => (left.name || '').localeCompare(right.name || '')),
         placeNumberByKey,
+        groupKeyByPlaceKey,
         activeAnchor,
         activeAnchorNote: buildAnchorNote(activeAnchor),
         hasActiveAnchor: Boolean(activeAnchor),

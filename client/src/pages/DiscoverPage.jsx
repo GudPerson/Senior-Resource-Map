@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Layers3, X } from 'lucide-react';
 import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
@@ -17,6 +17,8 @@ import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import {
+    buildPostalGroupedSavedPlacePins,
+    buildRenderedPostalGroupedSavedPins,
     buildSavedPlacePins,
     getAssetLocations,
     getBestLocation,
@@ -51,6 +53,170 @@ function normalizeSubCategoryLookupKey(value) {
     return String(value).trim().toLowerCase();
 }
 
+function DiscoverPostalGroupListPanel({
+    anchorLayout = null,
+    group,
+    highlightedPinKey = null,
+    isDesktop = false,
+    onClose,
+    onSelectPin,
+}) {
+    if (!group?.isPostalGroup) return null;
+
+    const horizontalMargin = isDesktop ? 20 : 12;
+    const fallbackWidth = isDesktop ? 420 : null;
+    const trackedWidth = anchorLayout?.width ?? null;
+    const panelWidth = trackedWidth
+        ? Math.min(isDesktop ? 420 : Math.max(280, trackedWidth - (horizontalMargin * 2)), trackedWidth - (horizontalMargin * 2))
+        : fallbackWidth;
+    const minVisibleHeight = isDesktop ? 190 : 170;
+    const preferredMaxHeight = isDesktop ? 520 : 420;
+    const bottomPadding = isDesktop ? 24 : 16;
+    const desiredTop = anchorLayout ? anchorLayout.y + 8 : null;
+    const clampedLeft = (anchorLayout && panelWidth)
+        ? Math.max(horizontalMargin, Math.min(anchorLayout.x - (panelWidth / 2), anchorLayout.width - horizontalMargin - panelWidth))
+        : null;
+    const clampedTop = anchorLayout
+        ? Math.min(
+            desiredTop,
+            Math.max(12, anchorLayout.height - bottomPadding - minVisibleHeight),
+        )
+        : null;
+    const availableHeight = (anchorLayout && clampedTop !== null)
+        ? Math.max(140, anchorLayout.height - clampedTop - bottomPadding)
+        : preferredMaxHeight;
+    const panelMaxHeight = Math.min(preferredMaxHeight, availableHeight);
+    const panelStyle = anchorLayout && panelWidth && clampedLeft !== null && clampedTop !== null
+        ? {
+            left: `${clampedLeft}px`,
+            top: `${clampedTop}px`,
+            width: `${panelWidth}px`,
+            maxHeight: `${panelMaxHeight}px`,
+        }
+        : undefined;
+    const scrollAreaStyle = {
+        maxHeight: `${Math.max(92, panelMaxHeight - 88)}px`,
+    };
+
+    return (
+        <div
+            className={`pointer-events-auto absolute z-[600] ${panelStyle ? '' : (isDesktop ? 'left-1/2 top-1/2 w-[420px] max-w-[calc(100%-3rem)] -translate-x-1/2' : 'inset-x-3 bottom-5')}`}
+            style={panelStyle}
+        >
+            <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white/96 shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur">
+                <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">
+                            <Layers3 size={14} />
+                            Shared postal code
+                        </div>
+                        <p className="mt-1 text-base font-bold leading-tight text-slate-900">
+                            {group.hardAssetCount} {group.hardAssetCount === 1 ? 'asset' : 'assets'} at the same location
+                        </p>
+                        {group.postalCode ? (
+                            <p className="mt-1 text-sm text-slate-500">Postal code {group.postalCode}</p>
+                        ) : null}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                        aria-label="Close grouped location list"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="overflow-y-auto overscroll-contain px-3 py-3" style={scrollAreaStyle}>
+                    <div className="space-y-2">
+                        {(group.memberPins || []).map((pin) => {
+                            const isHighlighted = highlightedPinKey === pin.pinKey;
+                            const offeringsLabel = `${pin.totalOfferingsCount || 0} ${(pin.totalOfferingsCount || 0) === 1 ? 'offering' : 'offerings'}`;
+                            const previewImageUrl = pin.placeAsset?.logoUrl || pin.primarySavedAsset?.liveAsset?.logoUrl || pin.categoryIconUrl || null;
+
+                            return (
+                                <button
+                                    key={pin.pinKey}
+                                    type="button"
+                                    onClick={() => onSelectPin?.(pin)}
+                                    className={`flex w-full items-center gap-3 rounded-[22px] border px-3 py-3 text-left transition ${
+                                        isHighlighted
+                                            ? 'border-brand-300 bg-brand-50/70 shadow-sm'
+                                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                        {previewImageUrl ? (
+                                            <img
+                                                src={previewImageUrl}
+                                                alt=""
+                                                className="h-7 w-7 object-contain"
+                                                draggable="false"
+                                            />
+                                        ) : (
+                                            <Heart size={18} className="fill-[#f35f68] text-[#f35f68]" />
+                                        )}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-[15px] font-bold leading-tight text-slate-900">
+                                            {pin.title}
+                                        </span>
+                                        {pin.address ? (
+                                            <span className="mt-1 block text-[12px] leading-5 text-slate-500">
+                                                {pin.address}
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                    <span className="inline-flex flex-shrink-0 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">
+                                        {offeringsLabel}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function DiscoverPostalGroupHoverHint({ anchorLayout = null, isDesktop = false }) {
+    if (!isDesktop || !anchorLayout) return null;
+
+    const panelWidth = 188;
+    const panelHeight = 44;
+    const horizontalMargin = 16;
+    const left = Math.max(
+        horizontalMargin,
+        Math.min(
+            anchorLayout.x - (panelWidth / 2),
+            anchorLayout.width - horizontalMargin - panelWidth,
+        ),
+    );
+    const top = Math.max(
+        16,
+        Math.min(
+            anchorLayout.y + 8,
+            anchorLayout.height - 16 - panelHeight,
+        ),
+    );
+
+    return (
+        <div
+            className="pointer-events-none absolute z-[610]"
+            style={{
+                left: `${left}px`,
+                top: `${top}px`,
+                width: `${panelWidth}px`,
+            }}
+        >
+            <div className="rounded-full border border-amber-200 bg-white/96 px-3 py-2 text-center text-[12px] font-bold tracking-[0.01em] text-slate-700 shadow-[0_18px_36px_-22px_rgba(15,23,42,0.45)] backdrop-blur">
+                Click to expand list
+            </div>
+        </div>
+    );
+}
+
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
     const [subCategoryMetaByKey, setSubCategoryMetaByKey] = useState({});
@@ -62,9 +228,12 @@ export default function DiscoverPage() {
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [desktopPaneMode, setDesktopPaneMode] = useState('browse');
     const [selectedPlacePinKey, setSelectedPlacePinKey] = useState(null);
+    const [expandedPostalGroupKey, setExpandedPostalGroupKey] = useState(null);
+    const [trackedPostalGroupLayout, setTrackedPostalGroupLayout] = useState(null);
     const [hoveredPinKeys, setHoveredPinKeys] = useState([]);
     const [hoveredPrimaryPinKey, setHoveredPrimaryPinKey] = useState(null);
     const [hoveredMapPinKey, setHoveredMapPinKey] = useState(null);
+    const [hoveredPostalGroupKey, setHoveredPostalGroupKey] = useState(null);
     const [lockedPinKeys, setLockedPinKeys] = useState([]);
     const [lockedPrimaryPinKey, setLockedPrimaryPinKey] = useState(null);
     const [lockedAssetKey, setLockedAssetKey] = useState(null);
@@ -281,10 +450,46 @@ export default function DiscoverPage() {
         () => new Map(savedPlacePins.map((pin) => [pin.pinKey, pin])),
         [savedPlacePins]
     );
+    const groupedSavedPlacePinData = useMemo(
+        () => buildPostalGroupedSavedPlacePins(savedPlacePins),
+        [savedPlacePins]
+    );
+    const postalGroups = groupedSavedPlacePinData.groups;
+    const postalGroupLookup = useMemo(
+        () => new Map(postalGroups.map((group) => [group.postalGroupKey, group])),
+        [postalGroups]
+    );
+    const postalGroupKeyByPinKey = groupedSavedPlacePinData.postalGroupKeyByPinKey;
+    const renderedSavedPlacePins = useMemo(
+        () => buildRenderedPostalGroupedSavedPins(postalGroups, {
+            expandedPostalGroupKey,
+            interactionMode: isDesktop ? 'desktop' : 'mobile',
+        }),
+        [expandedPostalGroupKey, isDesktop, postalGroups]
+    );
     const selectedPlacePin = useMemo(
         () => (selectedPlacePinKey ? savedPlacePinLookup.get(selectedPlacePinKey) || null : null),
         [selectedPlacePinKey, savedPlacePinLookup]
     );
+    const activePostalGroup = useMemo(() => {
+        if (!expandedPostalGroupKey) return null;
+        const group = postalGroupLookup.get(expandedPostalGroupKey) || null;
+        return group?.isPostalGroup ? group : null;
+    }, [expandedPostalGroupKey, postalGroupLookup]);
+
+    useEffect(() => {
+        if (!activePostalGroup) {
+            setTrackedPostalGroupLayout(null);
+        }
+    }, [activePostalGroup]);
+
+    useEffect(() => {
+        if (!hoveredPostalGroupKey) return;
+        const activeGroup = postalGroupLookup.get(hoveredPostalGroupKey);
+        if (!activeGroup?.isPostalGroup) {
+            setHoveredPostalGroupKey(null);
+        }
+    }, [hoveredPostalGroupKey, postalGroupLookup]);
 
     useEffect(() => {
         if (!flyTarget) return;
@@ -345,6 +550,14 @@ export default function DiscoverPage() {
     }, [savedPlacePinLookup, selectedPlacePinKey]);
 
     useEffect(() => {
+        if (!expandedPostalGroupKey) return;
+        const activeGroup = postalGroupLookup.get(expandedPostalGroupKey);
+        if (!activeGroup?.isPostalGroup) {
+            setExpandedPostalGroupKey(null);
+        }
+    }, [expandedPostalGroupKey, postalGroupLookup]);
+
+    useEffect(() => {
         setHoveredPinKeys((current) => current.filter((pinKey) => savedPlacePinLookup.has(pinKey)));
         setLockedPinKeys((current) => current.filter((pinKey) => savedPlacePinLookup.has(pinKey)));
         if (hoveredPrimaryPinKey && !savedPlacePinLookup.has(hoveredPrimaryPinKey)) {
@@ -402,6 +615,23 @@ export default function DiscoverPage() {
         return savedPlacePinData.assetToPinKeys.get(assetKey) || [];
     }, [savedPlacePinData.assetToPinKeys]);
 
+    const resolvePostalGroupForPinKeys = useCallback((pinKeys = []) => {
+        if (!pinKeys.length) return null;
+
+        const relatedGroupKeys = [...new Set(
+            pinKeys
+                .map((pinKey) => postalGroupKeyByPinKey.get(String(pinKey)) || String(pinKey))
+                .filter(Boolean)
+        )];
+
+        if (relatedGroupKeys.length !== 1) {
+            return null;
+        }
+
+        const group = postalGroupLookup.get(relatedGroupKeys[0]) || null;
+        return group?.isPostalGroup ? group : null;
+    }, [postalGroupKeyByPinKey, postalGroupLookup]);
+
     const createSinglePinFocusRequest = useCallback((pin, source = 'address-click', options = {}) => ({
         kind: 'single-pin',
         requestId: nextFocusRequestId(),
@@ -412,6 +642,34 @@ export default function DiscoverPage() {
         zoom: SAVED_PIN_FOCUS_ZOOM,
         source,
     }), []);
+
+    const createPostalGroupFocusRequest = useCallback((group, source = 'address-click') => {
+        const lat = group?.anchorLat ?? group?.lat;
+        const lng = group?.anchorLng ?? group?.lng;
+
+        if (!group || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return null;
+        }
+
+        const memberCount = Math.max(1, Number(group?.memberPins?.length || group?.hardAssetCount || 0));
+        const estimatedPanelHeight = isDesktop
+            ? Math.min(360, 148 + (memberCount * 68))
+            : Math.min(300, 136 + (memberCount * 72));
+        const offsetY = isDesktop
+            ? -Math.round((estimatedPanelHeight * 0.26) + 28)
+            : -Math.round((estimatedPanelHeight * 0.32) + 30);
+
+        return {
+            kind: 'single-pin',
+            requestId: nextFocusRequestId(),
+            pinKey: group.postalGroupKey,
+            lat,
+            lng,
+            offsetPx: { x: 0, y: offsetY },
+            zoom: SAVED_PIN_FOCUS_ZOOM,
+            source,
+        };
+    }, [isDesktop]);
 
     const createPinGroupFocusRequest = useCallback((pinKeys, source = 'address-click') => {
         const points = pinKeys
@@ -609,11 +867,21 @@ export default function DiscoverPage() {
         if (pinKeys.length) {
             const primaryPin = resolveSavedPinForAsset(asset);
             if (!primaryPin) return;
+            const postalGroup = resolvePostalGroupForPinKeys(pinKeys);
 
             clearTransientFocusState();
             setLockedAssetKey(assetKey);
             setLockedPinKeys(pinKeys);
             setLockedPrimaryPinKey(primaryPin.pinKey);
+            setExpandedPostalGroupKey(postalGroup?.postalGroupKey || null);
+
+            if (postalGroup) {
+                const groupFocus = createPostalGroupFocusRequest(postalGroup, 'address-click');
+                if (groupFocus) {
+                    setMapFocusRequest(groupFocus);
+                }
+                return;
+            }
 
             if (pinKeys.length === 1) {
                 setMapFocusRequest(createSinglePinFocusRequest(primaryPin, 'address-click'));
@@ -630,6 +898,7 @@ export default function DiscoverPage() {
         const { assetKey: transientAssetKey, pins, primaryPinKey } = buildTransientPlacePinsForAsset(asset);
         if (!pins.length) return;
 
+        setExpandedPostalGroupKey(null);
         clearLockedCardState();
         setTransientFocusAssetKey(transientAssetKey);
         setTransientPlacePins(pins);
@@ -650,6 +919,7 @@ export default function DiscoverPage() {
         clearLockedCardState,
         clearTransientFocusState,
         createPointGroupFocusRequest,
+        createPostalGroupFocusRequest,
         createPinGroupFocusRequest,
         createSinglePinFocusRequest,
         desktopPaneMode,
@@ -658,14 +928,38 @@ export default function DiscoverPage() {
         hoveredMapPinKey,
         resolveSavedPinForAsset,
         resolveSavedPinKeysForAsset,
+        resolvePostalGroupForPinKeys,
         transientFocusAssetKey,
     ]);
 
     const handleMapPinSelect = useCallback((pin) => {
+        if (pin.kind === 'postal-group') {
+            const nextGroupKey = pin.postalGroupKey || pin.pinKey;
+            if (expandedPostalGroupKey === nextGroupKey) {
+                setExpandedPostalGroupKey(null);
+                return;
+            }
+            clearHoveredCardState();
+            clearLockedCardState();
+            clearTransientFocusState();
+            setHoveredMapPinKey(null);
+            setHoveredPostalGroupKey(null);
+            setSelectedPlacePinKey(null);
+            setDesktopPaneMode('browse');
+            setExpandedPostalGroupKey(nextGroupKey);
+            const groupFocus = createPostalGroupFocusRequest(pin, 'group-pin-click');
+            if (groupFocus) {
+                setMapFocusRequest(groupFocus);
+            }
+            return;
+        }
+
         clearHoveredCardState();
         clearTransientFocusState();
         setHoveredMapPinKey(pin.pinKey);
+        setHoveredPostalGroupKey(null);
         setSelectedPlacePinKey(pin.pinKey);
+        setExpandedPostalGroupKey(pin.postalGroupKey || null);
 
         if (isDesktop) {
             if (desktopPaneMode !== 'detail') {
@@ -686,11 +980,19 @@ export default function DiscoverPage() {
         clearHoveredCardState,
         clearLockedCardState,
         clearTransientFocusState,
+        createPostalGroupFocusRequest,
         createSinglePinFocusRequest,
         desktopPaneMode,
+        expandedPostalGroupKey,
         isDesktop,
         saveBrowseScrollPosition,
     ]);
+
+    const handlePostalGroupMemberSelect = useCallback((pin) => {
+        setHoveredPostalGroupKey(null);
+        setExpandedPostalGroupKey(null);
+        handleMapPinSelect(pin);
+    }, [handleMapPinSelect]);
 
     const handleCloseDetailMode = useCallback(() => {
         setDesktopPaneMode('browse');
@@ -718,6 +1020,8 @@ export default function DiscoverPage() {
         clearLockedCardState();
         clearTransientFocusState();
         setHoveredMapPinKey(null);
+        setHoveredPostalGroupKey(null);
+        setExpandedPostalGroupKey(null);
     }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, desktopPaneMode, handleCloseDetailMode]);
 
     const handleMobileMapBackgroundClick = useCallback(() => {
@@ -730,6 +1034,8 @@ export default function DiscoverPage() {
         clearLockedCardState();
         clearTransientFocusState();
         setHoveredMapPinKey(null);
+        setHoveredPostalGroupKey(null);
+        setExpandedPostalGroupKey(null);
     }, [
         clearHoveredCardState,
         clearLockedCardState,
@@ -738,17 +1044,27 @@ export default function DiscoverPage() {
         selectedPlacePinKey,
     ]);
 
-    const handleMapHoverStart = useCallback((pinKey) => {
+    const handleMapHoverStart = useCallback((pinKey, meta = null) => {
+        if (meta?.kind === 'postal-group') {
+            if (!isDesktop || expandedPostalGroupKey) return;
+            setHoveredPostalGroupKey(pinKey);
+            return;
+        }
         if (!isDesktop || lockedPrimaryPinKey) return;
         if (desktopPaneMode !== 'detail') {
             saveBrowseScrollPosition();
         }
+        setHoveredPostalGroupKey(null);
         setHoveredMapPinKey(pinKey);
         setSelectedPlacePinKey(pinKey);
         setDesktopPaneMode('detail');
-    }, [desktopPaneMode, isDesktop, lockedPrimaryPinKey, saveBrowseScrollPosition]);
+    }, [desktopPaneMode, expandedPostalGroupKey, isDesktop, lockedPrimaryPinKey, saveBrowseScrollPosition]);
 
-    const handleMapHoverEnd = useCallback((pinKey) => {
+    const handleMapHoverEnd = useCallback((pinKey, meta = null) => {
+        if (meta?.kind === 'postal-group') {
+            setHoveredPostalGroupKey((current) => (current === pinKey ? null : current));
+            return;
+        }
         if (lockedPrimaryPinKey) return;
         setHoveredMapPinKey((current) => (current === pinKey ? null : current));
         setSelectedPlacePinKey((current) => (current === pinKey ? null : current));
@@ -758,7 +1074,7 @@ export default function DiscoverPage() {
     const activeRelatedPinKeys = hoveredPinKeys.length ? hoveredPinKeys : lockedPinKeys;
     const activePrimaryPinKey = hoveredPrimaryPinKey || lockedPrimaryPinKey;
 
-    const pinEmphasisByKey = useMemo(() => {
+    const childPinEmphasisByKey = useMemo(() => {
         const nextMap = new Map();
         const relatedPinKeySet = new Set(activeRelatedPinKeys);
         const useUniformGroupEmphasis = relatedPinKeySet.size > 1 && !selectedPlacePinKey && !hoveredMapPinKey;
@@ -795,6 +1111,40 @@ export default function DiscoverPage() {
         transientPlacePins,
         transientPrimaryPinKey,
     ]);
+
+    const pinEmphasisByKey = useMemo(() => {
+        const nextMap = new Map();
+
+        renderedSavedPlacePins.forEach((pin) => {
+            if (pin.kind === 'postal-group') {
+                if (activePostalGroup?.postalGroupKey === pin.pinKey) {
+                    nextMap.set(pin.pinKey, 'primary');
+                    return;
+                }
+                if (hoveredPostalGroupKey === pin.pinKey && !activePostalGroup) {
+                    nextMap.set(pin.pinKey, 'primary');
+                    return;
+                }
+                const groupEmphasis = (pin.memberPins || []).reduce((current, memberPin) => {
+                    const memberEmphasis = childPinEmphasisByKey.get(memberPin.pinKey) || 'default';
+                    if (memberEmphasis === 'primary') return 'primary';
+                    if (memberEmphasis === 'related' && current !== 'primary') return 'related';
+                    return current;
+                }, 'default');
+                nextMap.set(pin.pinKey, groupEmphasis);
+                return;
+            }
+
+            nextMap.set(pin.pinKey, childPinEmphasisByKey.get(pin.pinKey) || 'default');
+        });
+
+        transientPlacePins.forEach((pin) => {
+            const emphasis = transientPrimaryPinKey === pin.pinKey ? 'primary' : 'default';
+            nextMap.set(pin.pinKey, emphasis);
+        });
+
+        return nextMap;
+    }, [activePostalGroup, childPinEmphasisByKey, hoveredPostalGroupKey, renderedSavedPlacePins, transientPlacePins, transientPrimaryPinKey]);
 
     const selectedBrowseAssetKey = desktopPaneMode === 'browse' ? lockedAssetKey : null;
     const touchDesktopPanePresetWidths = useMemo(() => (
@@ -894,12 +1244,32 @@ export default function DiscoverPage() {
                 onBackgroundClick={isDesktop ? handleMapBackgroundClick : handleMobileMapBackgroundClick}
                 onMapHoverEnd={handleMapHoverEnd}
                 onMapHoverStart={handleMapHoverStart}
+                onTrackedPinLayoutChange={setTrackedPostalGroupLayout}
+                onSelectGroupPin={handleMapPinSelect}
                 onSelectPin={handleMapPinSelect}
                 pinEmphasisByKey={pinEmphasisByKey}
+                renderedSavedPlacePins={renderedSavedPlacePins}
                 savedPlacePins={savedPlacePins}
+                trackedPinKey={activePostalGroup?.postalGroupKey || hoveredPostalGroupKey || null}
                 transientPlacePins={transientPlacePins}
                 userLocation={effectiveUserLocation}
             />
+            {hoveredPostalGroupKey && !activePostalGroup ? (
+                <DiscoverPostalGroupHoverHint
+                    anchorLayout={trackedPostalGroupLayout?.pinKey === hoveredPostalGroupKey ? trackedPostalGroupLayout : null}
+                    isDesktop={isDesktop}
+                />
+            ) : null}
+            {activePostalGroup ? (
+                <DiscoverPostalGroupListPanel
+                    anchorLayout={trackedPostalGroupLayout}
+                    group={activePostalGroup}
+                    highlightedPinKey={lockedPrimaryPinKey || hoveredPrimaryPinKey || null}
+                    isDesktop={isDesktop}
+                    onClose={() => setExpandedPostalGroupKey(null)}
+                    onSelectPin={handlePostalGroupMemberSelect}
+                />
+            ) : null}
         </div>
     ) : (savedAssetsLoading && isAuth) || (isResolvingHome && isAuth && Boolean(user?.postalCode)) ? (
         <div className="flex h-full items-center justify-center p-6">

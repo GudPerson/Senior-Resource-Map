@@ -5,7 +5,7 @@ import { Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
-import { resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
+import { getPreferredSubregionMatch, resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
 import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
@@ -171,6 +171,10 @@ export default function AssetForm({
         if (!isHard) return { status: 'not-applicable', subregion: null, matches: [] };
         return resolveSingleSubregionByPostal(subregions, form.postalCode, currentRole === 'super_admin' ? null : currentUser?.subregionIds);
     }, [currentRole, currentUser?.subregionIds, form.postalCode, isHard, subregions]);
+    const preferredHardSubregion = useMemo(
+        () => getPreferredSubregionMatch(hardSubregionResult.matches),
+        [hardSubregionResult.matches]
+    );
 
     const linkedLocationOptions = partnerHardAssets.map((asset) => ({
         value: asset.id,
@@ -243,9 +247,10 @@ export default function AssetForm({
                         throw new Error('Postal code does not match any configured subregion boundary.');
                     }
                     if (hardSubregionResult.status === 'ambiguous') {
-                        throw new Error('Postal code matches multiple subregions. Resolve the boundary data before saving this place.');
+                        // Save is allowed; the API will route this place under the preferred matched subregion.
+                    } else {
+                        throw new Error('Postal code must be a valid 6-digit code.');
                     }
-                    throw new Error('Postal code must be a valid 6-digit code.');
                 }
                 delete payload.subregionId;
                 delete payload.locationIds;
@@ -454,7 +459,9 @@ export default function AssetForm({
                             {hardSubregionResult.status === 'ok' ? (
                                 <span className="text-green-700 font-medium">Derived subregion: {hardSubregionResult.subregion.subregionCode || 'No code'} · {hardSubregionResult.subregion.name}</span>
                             ) : hardSubregionResult.status === 'ambiguous' ? (
-                                <span className="text-amber-700">Postal code matches multiple subregions. Boundary data needs cleanup before this place can be saved.</span>
+                                <span className="text-amber-700">
+                                    Postal code matches multiple subregions. This place can still be saved and will route under {preferredHardSubregion?.subregionCode || 'No code'} · {preferredHardSubregion?.name || 'the preferred matched subregion'} for boundary-based management.
+                                </span>
                             ) : hardSubregionResult.status === 'missing' ? (
                                 <span className="text-red-700">Postal code does not match any configured subregion boundary.</span>
                             ) : (

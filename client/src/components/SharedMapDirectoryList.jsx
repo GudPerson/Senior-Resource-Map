@@ -174,8 +174,82 @@ function getGroupHoverLogoRow(group) {
     return (group?.rows || []).find((row) => row?.logoUrl);
 }
 
+function getNestedPlaceLogoRow(place) {
+    return (place?.rows || []).find((row) => row?.logoUrl) || null;
+}
+
+function getGroupKeys(group) {
+    return [group?.placeKey, ...(group?.memberPlaceKeys || [])]
+        .filter(Boolean)
+        .map((value) => String(value));
+}
+
+function matchesGroupKey(group, candidateKey) {
+    if (!candidateKey) return false;
+    const normalizedCandidate = String(candidateKey);
+    return getGroupKeys(group).includes(normalizedCandidate);
+}
+
+function isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys = []) {
+    return matchesGroupKey(group, highlightPlaceKey)
+        || (highlightPlaceKeys || []).some((value) => matchesGroupKey(group, value));
+}
+
+function isGroupLogoRevealed(group, logoRevealPlaceKeys = []) {
+    return (logoRevealPlaceKeys || []).some((value) => matchesGroupKey(group, value));
+}
+
 function getSecondaryCategory(row) {
     return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? 'Place' : 'Offering');
+}
+
+function HiddenLogoSlot({ logoRow, revealed = false, compactInteractive = false }) {
+    const [logoFitMode, setLogoFitMode] = useState('cover');
+    const slotClassName = compactInteractive ? 'h-[34px] w-[34px]' : 'h-[38px] w-[38px]';
+    const imageClassName = logoFitMode === 'contain'
+        ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
+        : 'h-full w-full rounded-[inherit] object-cover';
+    const visibilityClassName = revealed
+        ? 'opacity-100 scale-100'
+        : 'opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100';
+
+    return (
+        <span
+            aria-hidden="true"
+            className={`flex flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_12px_22px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90 transition-all duration-300 ${slotClassName} ${visibilityClassName}`}
+        >
+            {logoRow?.logoUrl ? (
+                <img
+                    src={logoRow.logoUrl}
+                    alt={logoRow.name || 'Asset logo'}
+                    className={imageClassName}
+                    onLoad={(event) => {
+                        const { naturalWidth, naturalHeight } = event.currentTarget;
+                        if (!naturalWidth || !naturalHeight) return;
+                        const aspectRatio = naturalWidth / naturalHeight;
+                        setLogoFitMode(aspectRatio > 1.2 || aspectRatio < 0.84 ? 'contain' : 'cover');
+                    }}
+                />
+            ) : null}
+        </span>
+    );
+}
+
+function DirectoryLocationMeta({ shortLocationLine, distanceLabel, compact = false }) {
+    if (!shortLocationLine && !distanceLabel) return null;
+
+    return (
+        <div className={`flex flex-wrap items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+            {shortLocationLine ? (
+                <p className={`${compact ? 'text-[11px]' : 'text-[12px]'} font-medium text-slate-500`}>{shortLocationLine}</p>
+            ) : null}
+            {distanceLabel ? (
+                <span className={`inline-flex rounded-full border border-brand-200 bg-brand-50 font-bold text-brand-700 ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
+                    {distanceLabel}
+                </span>
+            ) : null}
+        </div>
+    );
 }
 
 function DirectoryResourceRow({
@@ -334,6 +408,50 @@ function DirectoryPlaceBadge({
     );
 }
 
+function DirectoryNestedPlaceSection({
+    nestedPlace,
+    mode,
+    compactInteractive = false,
+    canSaveResources,
+    onRemoveResource,
+}) {
+    const nestedPlaceDetailPath = getGroupDetailPath(nestedPlace);
+    const visibleRows = getVisibleGroupRows(nestedPlace);
+    const titleClassName = compactInteractive ? 'text-[15px]' : 'text-[17px]';
+
+    return (
+        <div className={compactInteractive ? 'space-y-1.5' : 'space-y-2'}>
+            <div className="min-w-0">
+                {nestedPlaceDetailPath ? (
+                    <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${titleClassName}`}>
+                        {nestedPlace.name}
+                    </Link>
+                ) : (
+                    <h4 className={`font-bold leading-tight text-slate-900 ${titleClassName}`}>{nestedPlace.name}</h4>
+                )}
+            </div>
+
+            {visibleRows.length ? (
+                <div className={`border-l border-slate-100 ${compactInteractive ? 'space-y-1.5 pl-2.5' : 'space-y-2.5 pl-3.5'}`}>
+                    {visibleRows.map((row, index) => (
+                        <DirectoryResourceRow
+                            key={row.rowKey}
+                            row={row}
+                            place={nestedPlace}
+                            mode={mode}
+                            interactive
+                            compactInteractive={compactInteractive}
+                            showDivider={compactInteractive && index > 0}
+                            canSaveResources={canSaveResources}
+                            onRemoveResource={onRemoveResource}
+                        />
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 function DirectoryPlaceGroupCard({
     group,
     mode,
@@ -353,8 +471,59 @@ function DirectoryPlaceGroupCard({
 }) {
     const placeDetailPath = getGroupDetailPath(group);
     const visibleRows = getVisibleGroupRows(group);
+    const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
 
     if (!interactive) {
+        if (isPostalGroup) {
+            return (
+                <section
+                    ref={sectionRef}
+                    className={`break-inside-avoid rounded-[18px] border border-slate-200/90 bg-white/90 px-3 py-2.5 transition ${
+                        highlighted ? 'border-brand-300 ring-2 ring-brand-100' : ''
+                    }`}
+                >
+                    <div className="flex items-start gap-2.5">
+                        <div
+                            className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
+                            style={{
+                                backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                                fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px'),
+                                fontFamily: 'var(--font-heading)',
+                                lineHeight: 1,
+                            }}
+                        >
+                            {group.number}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="space-y-3">
+                                {group.nestedPlaces.map((nestedPlace) => (
+                                    <div key={nestedPlace.placeKey} className="space-y-1.5">
+                                        <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+                                            {nestedPlace.name}
+                                        </h3>
+                                        <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
+                                            {getVisibleGroupRows(nestedPlace).map((row) => (
+                                                <DirectoryResourceRow
+                                                    key={row.rowKey}
+                                                    row={row}
+                                                    place={nestedPlace}
+                                                    mode={mode}
+                                                    interactive={false}
+                                                    canSaveResources={canSaveResources}
+                                                    allowPrintLinks={allowPrintLinks}
+                                                    compactPrint={compactPrint}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            );
+        }
+
         const printPlaceTitle = placeDetailPath && allowPrintLinks ? (
             <Link to={placeDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
                 {group.name}
@@ -417,6 +586,77 @@ function DirectoryPlaceGroupCard({
         );
     }
 
+    if (isPostalGroup) {
+        const primaryNestedPlace = group.nestedPlaces[0] || null;
+        const trailingNestedPlaces = group.nestedPlaces.slice(1);
+        const primaryHoverLogoRow = getNestedPlaceLogoRow(primaryNestedPlace);
+        const groupedCardContent = (
+            <div className={`grid ${compactInteractive ? 'grid-cols-[42px_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[46px_minmax(0,1fr)] gap-x-3'}`}>
+                <DirectoryPlaceBadge
+                    group={group}
+                    clusterColorData={clusterColorData}
+                    compactInteractive={compactInteractive}
+                    hoverLogoRow={primaryHoverLogoRow}
+                    logoRevealed={logoRevealed}
+                    onViewOnMap={onViewOnMap}
+                />
+                <div className="min-w-0">
+                    <DirectoryLocationMeta
+                        shortLocationLine={group.shortLocationLine}
+                        distanceLabel={group.distanceLabel}
+                        compact={compactInteractive}
+                    />
+                    {primaryNestedPlace ? (
+                        <div className={compactInteractive ? 'mt-2' : 'mt-2.5'}>
+                            <DirectoryNestedPlaceSection
+                                nestedPlace={primaryNestedPlace}
+                                mode={mode}
+                                compactInteractive={compactInteractive}
+                                canSaveResources={canSaveResources}
+                                onRemoveResource={onRemoveResource}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+
+                {trailingNestedPlaces.length ? (
+                    <div className={`col-span-2 ${compactInteractive ? 'mt-3 space-y-3' : 'mt-4 space-y-4'}`}>
+                        {trailingNestedPlaces.map((nestedPlace) => (
+                            <div
+                                key={nestedPlace.placeKey}
+                                className={`grid items-start ${compactInteractive ? 'grid-cols-[42px_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[46px_minmax(0,1fr)] gap-x-3'}`}
+                            >
+                                <HiddenLogoSlot
+                                    logoRow={getNestedPlaceLogoRow(nestedPlace)}
+                                    revealed={logoRevealed}
+                                    compactInteractive={compactInteractive}
+                                />
+                                <DirectoryNestedPlaceSection
+                                    nestedPlace={nestedPlace}
+                                    mode={mode}
+                                    compactInteractive={compactInteractive}
+                                    canSaveResources={canSaveResources}
+                                    onRemoveResource={onRemoveResource}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
+        );
+
+        return (
+            <section
+                ref={sectionRef}
+                className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
+                    highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
+                } scroll-mt-[62svh] lg:scroll-mt-6`}
+            >
+                {groupedCardContent}
+            </section>
+        );
+    }
+
     const interactivePlaceTitle = placeDetailPath ? (
         <Link to={placeDetailPath} reloadDocument className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
             {group.name}
@@ -438,20 +678,17 @@ function DirectoryPlaceGroupCard({
                     onViewOnMap={onViewOnMap}
                 />
                 <div className="min-w-0 flex-1">
-                    {interactivePlaceTitle}
-                    <div className={`flex flex-wrap items-center ${compactInteractive ? 'mt-0.5 gap-1.5' : 'mt-1 gap-2'}`}>
-                        {group.shortLocationLine ? (
-                            <p className={`${compactInteractive ? 'text-[11px]' : 'text-[12px]'} font-medium text-slate-500`}>{group.shortLocationLine}</p>
-                        ) : null}
-                        {group.distanceLabel ? (
-                            <span className={`inline-flex rounded-full border border-brand-200 bg-brand-50 font-bold text-brand-700 ${compactInteractive ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
-                                {group.distanceLabel}
-                            </span>
-                        ) : null}
+                    <DirectoryLocationMeta
+                        shortLocationLine={group.shortLocationLine}
+                        distanceLabel={group.distanceLabel}
+                        compact={compactInteractive}
+                    />
+                    <div className={compactInteractive ? 'mt-2' : 'mt-2.5'}>
+                        {interactivePlaceTitle}
                     </div>
 
                     {visibleRows.length ? (
-                        <div className={`border-t border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pt-2' : 'mt-3 space-y-2.5 pt-3'}`}>
+                        <div className={`border-t border-l border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pl-2.5 pt-2' : 'mt-3 space-y-2.5 pl-3.5 pt-3'}`}>
                             {visibleRows.map((row, index) => (
                                 <DirectoryResourceRow
                                     key={row.rowKey}
@@ -471,7 +708,7 @@ function DirectoryPlaceGroupCard({
         </>
     );
 
-    if (placeDetailPath && fullCardLink) {
+    if (placeDetailPath && fullCardLink && !isPostalGroup) {
         return (
             <Link
                 to={placeDetailPath}
@@ -647,12 +884,12 @@ function DirectoryGroupColumn({
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     canSaveResources={canSaveResources}
-                    highlighted={highlightPlaceKey === group.placeKey || highlightPlaceKeys.includes(group.placeKey)}
+                    highlighted={isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys)}
                     allowPrintLinks={allowPrintLinks}
                     compactPrint={compactPrint}
                     clusterColorData={clusterMapping[group.placeKey] || null}
                     showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealed={logoRevealPlaceKeys.includes(group.placeKey)}
+                    logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
                     sectionRef={(node) => {
                         if (node) {
                             sectionRefs.current[group.placeKey] = node;
@@ -745,9 +982,11 @@ export default function SharedMapDirectoryList({
     const compactInteractiveDesktop = interactive
         && resolvedLayout === 'desktop'
         && (mappedGroups.length >= 7 || interactiveRowCount >= 9);
-    const logoRevealPlaceKeys = showDesktopHoverLogo
-        ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
-        : [];
+    const logoRevealPlaceKeys = resolvedLayout === 'mobile'
+        ? [selectionPlaceKey, highlightPlaceKey, ...highlightPlaceKeys].filter(Boolean)
+        : (showDesktopHoverLogo
+            ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
+            : []);
 
     useEffect(() => {
         if (!interactive) return undefined;
