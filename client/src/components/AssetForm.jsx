@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -39,6 +39,9 @@ function buildInitialForm(type, initialData, currentUser) {
             partnerId: initialData.partnerId || '',
             subregionId: initialData.subregionId || '',
             postalCode: initialData.postalCode || '',
+            website: initialData.website || '',
+            sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
+            sourceGoogleMapsUri: initialData.sourceGoogleMapsUri || '',
         };
     }
 
@@ -53,10 +56,13 @@ function buildInitialForm(type, initialData, currentUser) {
             address: '',
             phone: '',
             hours: '',
+            website: '',
             description: '',
             logoUrl: '',
             bannerUrl: '',
             galleryUrls: [],
+            sourceGooglePlaceId: '',
+            sourceGoogleMapsUri: '',
             newTags: [],
             isHidden: false,
             hideFrom: '',
@@ -125,6 +131,10 @@ export default function AssetForm({
     partnerOptions = [],
     subregions = [],
     audienceZones = [],
+    importSource = null,
+    importWarnings = [],
+    duplicateMatches = [],
+    onSelectDuplicateMatch = null,
 }) {
     const isHard = type === 'hard';
     const currentRole = normalizeRole(currentUser?.role);
@@ -321,6 +331,80 @@ export default function AssetForm({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
+            {isHard && importSource ? (
+                <div className="rounded-2xl border border-brand-200 bg-brand-50/70 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Imported Google place</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                        {importSource.googlePlaceId ? (
+                            <span className="rounded-full border border-brand-200 bg-white px-3 py-1 font-semibold text-slate-700">
+                                Place ID {importSource.googlePlaceId}
+                            </span>
+                        ) : null}
+                        {importSource.googleMapsUri ? (
+                            <a
+                                href={importSource.googleMapsUri}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-white px-3 py-1 font-semibold text-brand-700 transition hover:bg-brand-100"
+                            >
+                                Open source
+                                <ExternalLink size={13} />
+                            </a>
+                        ) : null}
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">
+                        These values are suggestions only. Review them carefully before saving this place.
+                    </p>
+                </div>
+            ) : null}
+
+            {isHard && duplicateMatches.length > 0 ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <div className="flex items-start gap-2">
+                        <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-amber-700" />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-amber-900">Possible existing place found</p>
+                            <p className="mt-1 text-sm text-amber-800">
+                                We found {duplicateMatches.length} likely match{duplicateMatches.length === 1 ? '' : 'es'} in CareAround SG. You can still create a new place, but updating the existing one may be cleaner.
+                            </p>
+                            <div className="mt-3 space-y-2">
+                                {duplicateMatches.map((match) => (
+                                    <div key={match.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white px-3 py-3">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-900">{match.name}</p>
+                                            <p className="text-xs text-slate-500">{match.address || match.postalCode || 'Existing place'}</p>
+                                        </div>
+                                        {onSelectDuplicateMatch ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => onSelectDuplicateMatch(match.id)}
+                                                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                                            >
+                                                Edit existing asset
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isHard && importWarnings.length > 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Import notes</p>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                        {importWarnings.map((warning) => (
+                            <li key={warning} className="flex items-start gap-2">
+                                <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                <span>{warning}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
+
             <div className="grid grid-cols-2 gap-5">
                 <div className="col-span-2 grid grid-cols-2 gap-4">
                     <ImageUpload
@@ -479,6 +563,16 @@ export default function AssetForm({
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Hours</label>
                             <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon–Fri 9am–5pm" className="input-field" />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Globe size={13} className="inline mr-1" />Website</label>
+                            <input
+                                type="url"
+                                value={form.website || ''}
+                                onChange={(e) => setField('website', e.target.value)}
+                                placeholder="https://example.org"
+                                className="input-field"
+                            />
                         </div>
                     </>
                 )}

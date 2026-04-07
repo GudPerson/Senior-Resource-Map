@@ -1,6 +1,6 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
-import { hardAssets, users } from '../db/schema.js';
+import { hardAssets, subCategories, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
 import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
@@ -15,6 +15,7 @@ import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata } from '../utils/eligibility.js';
 import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
+import { resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -46,6 +47,91 @@ async function geocode(postalCode, country) {
         return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
     }
     return null;
+}
+
+function normalizeText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function normalizePhone(value) {
+    return String(value || '').replace(/[^\d+]/g, '');
+}
+
+function normalizeName(value) {
+    return normalizeText(value).toLowerCase();
+}
+
+function buildDuplicateMatch(existingAsset, matchReason) {
+    return {
+        id: existingAsset.id,
+        name: existingAsset.name,
+        postalCode: existingAsset.postalCode || '',
+        address: existingAsset.address || '',
+        matchReason,
+    };
+}
+
+function collectDuplicateMatches(assets, suggestion, googlePlaceId) {
+    const normalizedPostalCode = normalizeText(suggestion?.postalCode);
+    const normalizedNameValue = normalizeName(suggestion?.name);
+    const normalizedPhoneValue = normalizePhone(suggestion?.phone);
+    const matches = [];
+    const seenIds = new Set();
+
+    for (const asset of assets) {
+        let matchReason = '';
+
+        if (googlePlaceId && normalizeText(asset.sourceGooglePlaceId) === googlePlaceId) {
+            matchReason = 'same_place_id';
+        } else if (
+            normalizedPostalCode &&
+            normalizedNameValue &&
+            normalizeText(asset.postalCode) === normalizedPostalCode &&
+            normalizeName(asset.name) === normalizedNameValue
+        ) {
+            matchReason = 'same_name_postal';
+        } else if (
+            normalizedPostalCode &&
+            normalizedPhoneValue &&
+            normalizeText(asset.postalCode) === normalizedPostalCode &&
+            normalizePhone(asset.phone) === normalizedPhoneValue
+        ) {
+            matchReason = 'same_phone_postal';
+        }
+
+        if (matchReason && !seenIds.has(asset.id)) {
+            matches.push(buildDuplicateMatch(asset, matchReason));
+            seenIds.add(asset.id);
+        }
+    }
+
+    return matches;
+}
+
+async function loadManageableHardAssetsForDuplicateChecks(db, user, role) {
+    const duplicateOptions = {
+        where: eq(hardAssets.isDeleted, false),
+        with: {
+            partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+        },
+    };
+
+    if ((role === 'regional_admin' || role === 'partner') && Array.isArray(user?.subregionIds) && user.subregionIds.length > 0) {
+        duplicateOptions.where = and(
+            eq(hardAssets.isDeleted, false),
+            inArray(hardAssets.subregionId, user.subregionIds),
+        );
+    }
+
+    const existingAssets = await db.query.hardAssets.findMany(duplicateOptions);
+    return existingAssets.filter((asset) => actorCanManageAsset(user, asset, asset.partner));
+}
+
+async function loadAvailableHardSubCategories(db) {
+    const hardSubCategoryRows = await db.query.subCategories.findMany({
+        where: eq(subCategories.type, 'hard'),
+    });
+    return hardSubCategoryRows.map((item) => item.name);
 }
 
 async function loadPartnerUser(db, partnerId) {
@@ -423,6 +509,97 @@ export const getHardAssetById = async (c) => {
     }
 };
 
+export const previewGoogleHardAssetImport = async (c) => {
+    try {
+        const user = c.get('user');
+        const role = normalizeRole(user?.role);
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        if (role === 'standard' || role === 'guest') {
+            return c.json({ error: 'Insufficient permissions to import places' }, 403);
+        }
+
+        const body = await c.req.json();
+        const shareUrl = normalizeText(body?.shareUrl);
+        const googlePlaceId = normalizeText(body?.googlePlaceId);
+        const googleMapsUri = normalizeText(body?.googleMapsUri);
+        if (!shareUrl && !googlePlaceId) {
+            return c.json({ error: 'shareUrl or googlePlaceId is required' }, 400);
+        }
+
+        const availableHardSubCategories = await loadAvailableHardSubCategories(db);
+        const preview = await resolveGooglePlacePreview(c.env, {
+            shareUrl,
+            googlePlaceId,
+            googleMapsUri,
+        }, availableHardSubCategories);
+
+        const manageableAssets = await loadManageableHardAssetsForDuplicateChecks(db, user, role);
+        const duplicateMatches = collectDuplicateMatches(
+            manageableAssets,
+            preview.suggestion,
+            preview.resolvedSource.googlePlaceId,
+        );
+
+        return c.json({
+            ...preview,
+            duplicateMatches,
+        });
+    } catch (err) {
+        console.error(err);
+        return c.json({ error: err.message || 'Failed to preview Google place import' }, err.status || 500);
+    }
+};
+
+export const searchGoogleHardAssetImportCandidates = async (c) => {
+    try {
+        const user = c.get('user');
+        const role = normalizeRole(user?.role);
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        if (role === 'standard' || role === 'guest') {
+            return c.json({ error: 'Insufficient permissions to import places' }, 403);
+        }
+
+        const body = await c.req.json();
+        const postalCode = normalizeText(body?.postalCode);
+        if (!postalCode) {
+            return c.json({ error: 'postalCode is required' }, 400);
+        }
+
+        const availableHardSubCategories = await loadAvailableHardSubCategories(db);
+        const result = await searchGooglePlaceCandidatesByPostal(c.env, postalCode, availableHardSubCategories);
+        const manageableAssets = await loadManageableHardAssetsForDuplicateChecks(db, user, role);
+        const candidates = (result.candidates || []).map((candidate) => {
+            const existingMatch = collectDuplicateMatches(
+                manageableAssets,
+                {
+                    name: candidate.name,
+                    postalCode: candidate.postalCode,
+                    address: candidate.address,
+                    phone: '',
+                },
+                candidate.googlePlaceId,
+            )[0] || null;
+
+            return {
+                ...candidate,
+                existingMatch,
+            };
+        });
+
+        return c.json({
+            ...result,
+            candidates,
+        });
+    } catch (err) {
+        console.error(err);
+        return c.json({ error: err.message || 'Failed to search Google place candidates' }, err.status || 500);
+    }
+};
+
 export const createHardAsset = async (c) => {
     try {
         const user = c.get('user');
@@ -435,7 +612,26 @@ export const createHardAsset = async (c) => {
         }
 
         const body = await c.req.json();
-        const { name, country, postalCode, address, phone, hours, description, logoUrl, bannerUrl, galleryUrls, newTags = [], subCategory, isHidden, hideFrom, hideUntil } = body;
+        const {
+            name,
+            country,
+            postalCode,
+            address,
+            phone,
+            hours,
+            website,
+            description,
+            logoUrl,
+            bannerUrl,
+            galleryUrls,
+            newTags = [],
+            subCategory,
+            sourceGooglePlaceId,
+            sourceGoogleMapsUri,
+            isHidden,
+            hideFrom,
+            hideUntil,
+        } = body;
 
         if (!name || !country || !postalCode || !address) {
             return c.json({ error: 'name, country, postalCode, address are required' }, 400);
@@ -469,10 +665,13 @@ export const createHardAsset = async (c) => {
             address,
             phone: phone || null,
             hours: hours || null,
+            website: website || null,
             description: description || null,
             logoUrl: logoUrl || null,
             bannerUrl: bannerUrl || null,
             galleryUrls: galleryUrls || [],
+            sourceGooglePlaceId: sourceGooglePlaceId || null,
+            sourceGoogleMapsUri: sourceGoogleMapsUri || null,
             isHidden: isHidden || false,
             hideFrom: hideFrom ? new Date(hideFrom) : null,
             hideUntil: hideUntil ? new Date(hideUntil) : null,
@@ -593,12 +792,15 @@ export const updateHardAsset = async (c) => {
             lng,
             address: body.address ?? existing.address,
             subCategory: body.subCategory ?? existing.subCategory,
-            phone: body.phone ?? null,
-            hours: body.hours ?? null,
-            description: body.description ?? null,
+            phone: body.phone !== undefined ? (body.phone || null) : existing.phone,
+            hours: body.hours !== undefined ? (body.hours || null) : existing.hours,
+            website: body.website !== undefined ? (body.website || null) : existing.website,
+            description: body.description !== undefined ? (body.description || null) : existing.description,
             logoUrl: body.logoUrl !== undefined ? body.logoUrl : existing.logoUrl,
             bannerUrl: body.bannerUrl !== undefined ? body.bannerUrl : existing.bannerUrl,
             galleryUrls: body.galleryUrls !== undefined ? body.galleryUrls : existing.galleryUrls,
+            sourceGooglePlaceId: body.sourceGooglePlaceId !== undefined ? (body.sourceGooglePlaceId || null) : existing.sourceGooglePlaceId,
+            sourceGoogleMapsUri: body.sourceGoogleMapsUri !== undefined ? (body.sourceGoogleMapsUri || null) : existing.sourceGoogleMapsUri,
             isHidden: body.isHidden !== undefined ? body.isHidden : existing.isHidden,
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,

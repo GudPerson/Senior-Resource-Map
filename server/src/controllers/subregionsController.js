@@ -203,6 +203,8 @@ function resolveSubregionReference(referenceMaps, row) {
 
     const subregionCode = normalizeText(
         row?.subregionId
+        ?? row?.['subregion!D']
+        ?? row?.['Subregion!D']
         ?? row?.subregionCode
         ?? row?.subregion_code
         ?? row?.code
@@ -508,7 +510,14 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         for (let index = 0; index < rows.length; index++) {
             const row = rows[index];
             try {
-                const currentSubregionVal = row?.subregionId ?? row?.subregionCode ?? row?.dbId ?? row?.id ?? row?.ID ?? row?.name;
+                const currentSubregionVal = row?.subregionId
+                    ?? row?.['subregion!D']
+                    ?? row?.['Subregion!D']
+                    ?? row?.subregionCode
+                    ?? row?.dbId
+                    ?? row?.id
+                    ?? row?.ID
+                    ?? row?.name;
                 let targetSubregion = (currentSubregionVal !== undefined && currentSubregionVal !== null && currentSubregionVal === lastSubregionVal)
                     ? lastSubregionRef
                     : resolveSubregionReference(referenceMaps, row);
@@ -521,7 +530,15 @@ export const bulkUploadSubregionBoundaries = async (c) => {
                     throw new Error(`Out of scope.`);
                 }
 
-                const rawPC = row?.postalCode ?? row?.['Postal Code'] ?? row?.postcode ?? row?.['Postcode'] ?? row?.postalcode ?? row?.['postalcode'];
+                const rawPC = row?.postalCode
+                    ?? row?.['Postal Code']
+                    ?? row?.postcode
+                    ?? row?.['Postcode']
+                    ?? row?.postalcode
+                    ?? row?.['postalcode']
+                    ?? row?.Running_Range
+                    ?? row?.running_range
+                    ?? row?.['Running Range'];
                 const expansion = parsePostalCodeListInput(rawPC);
 
                 if (expansion.length === 0) throw new Error('Invalid code.');
@@ -669,4 +686,3 @@ export const deleteSubregion = async (c) => {
         return c.json({ error: 'Failed to delete subregion' }, 500);
     }
 };
-

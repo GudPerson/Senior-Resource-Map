@@ -32,6 +32,9 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS users_manager_user_idx ON users (manager_user_id)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS website TEXT`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_place_id TEXT`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_maps_uri TEXT`);
             await db.execute(sql`ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS snapshot JSONB`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_maps (
@@ -181,6 +184,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_partner_idx ON audience_zones (partner_user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_creator_idx ON audience_zones (created_by_user_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS hard_assets_external_key_unique ON hard_assets (external_key) WHERE external_key IS NOT NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS hard_assets_source_google_place_id_idx ON hard_assets (source_google_place_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_assets_external_key_unique ON soft_assets (external_key) WHERE external_key IS NOT NULL`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_parents_external_key_unique ON soft_asset_parents (external_key) WHERE external_key IS NOT NULL`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_favorites_user_resource_unique ON user_favorites (user_id, resource_type, resource_id)`);

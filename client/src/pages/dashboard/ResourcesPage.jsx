@@ -30,6 +30,7 @@ import {
 
 import AssetForm from '../../components/AssetForm.jsx';
 import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
+import HardAssetImportWizard from '../../components/HardAssetImportWizard.jsx';
 import SoftAssetChildForm from '../../components/SoftAssetChildForm.jsx';
 import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
@@ -374,6 +375,8 @@ export default function ResourcesPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('hard');
     const [assetModal, setAssetModal] = useState(null);
+    const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
+    const [placeImportWizardOpen, setPlaceImportWizardOpen] = useState(false);
     const [templateModal, setTemplateModal] = useState(null);
     const [childModal, setChildModal] = useState(null);
     const [generateModal, setGenerateModal] = useState(null);
@@ -547,6 +550,10 @@ export default function ResourcesPage() {
     }
 
     function openCreate(assetType) {
+        if (assetType === 'hard') {
+            setPlaceCreateChooserOpen(true);
+            return;
+        }
         setAssetModal({ mode: 'create', assetType, data: null });
     }
 
@@ -556,6 +563,28 @@ export default function ResourcesPage() {
             return;
         }
         setAssetModal({ mode: 'edit', assetType, data: asset });
+    }
+
+    function openManualHardAssetCreate() {
+        setPlaceCreateChooserOpen(false);
+        setPlaceImportWizardOpen(false);
+        setAssetModal({ mode: 'create', assetType: 'hard', data: null });
+    }
+
+    function openGooglePlaceImportWizard() {
+        setPlaceCreateChooserOpen(false);
+        setPlaceImportWizardOpen(true);
+    }
+
+    async function openExistingImportedHardAsset(assetId) {
+        try {
+            const existing = hardAssets.find((asset) => Number(asset.id) === Number(assetId))
+                || await api.getHardAsset(assetId);
+            setPlaceImportWizardOpen(false);
+            openEdit(existing, 'hard');
+        } catch (err) {
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load the existing place.' });
+        }
     }
 
     function openTemplateCreate() {
@@ -647,10 +676,13 @@ export default function ResourcesPage() {
             subCategory: asset.subCategory,
             phone: asset.phone,
             hours: asset.hours,
+            website: asset.website,
             description: asset.description,
             logoUrl: asset.logoUrl,
             bannerUrl: asset.bannerUrl,
             galleryUrls: asset.galleryUrls,
+            sourceGooglePlaceId: asset.sourceGooglePlaceId,
+            sourceGoogleMapsUri: asset.sourceGoogleMapsUri,
             isHidden: nextHidden,
             hideFrom: nextHidden ? asset.hideFrom : null,
             hideUntil: nextHidden ? asset.hideUntil : null,
@@ -1577,6 +1609,68 @@ export default function ResourcesPage() {
                     </div>
                 )
             )}
+
+            {placeCreateChooserOpen ? (
+                <ResourceModal
+                    title="Create Place"
+                    description="Choose how you want to start the new hard asset."
+                    onClose={() => setPlaceCreateChooserOpen(false)}
+                    maxWidth="max-w-xl"
+                >
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <button
+                            type="button"
+                            onClick={openManualHardAssetCreate}
+                            className="rounded-3xl border border-slate-200 bg-white p-5 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
+                        >
+                            <div className="rounded-2xl bg-slate-100 p-3 text-slate-700 w-fit">
+                                <Building2 size={20} />
+                            </div>
+                            <p className="mt-4 text-lg font-black text-slate-900">Manual entry</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">
+                                Start from a blank place form and fill the fields yourself.
+                            </p>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openGooglePlaceImportWizard}
+                            className="rounded-3xl border border-brand-200 bg-brand-50/70 p-5 text-left transition hover:border-brand-300 hover:bg-brand-100/60"
+                        >
+                            <div className="rounded-2xl bg-white p-3 text-brand-700 shadow-sm shadow-brand-100 w-fit">
+                                <MapPin size={20} />
+                            </div>
+                            <p className="mt-4 text-lg font-black text-slate-900">Import with Google</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">
+                                Paste a Google Maps share link or start from a postal code search, then review suggested place details before saving.
+                            </p>
+                        </button>
+                    </div>
+                </ResourceModal>
+            ) : null}
+
+            {placeImportWizardOpen ? (
+                <ResourceModal
+                    title="Import Place with Google"
+                    description="Resolve one Google place from a share link or postal code search, review the suggested fields, then save it as a normal CareAround SG place."
+                    onClose={() => setPlaceImportWizardOpen(false)}
+                    maxWidth="max-w-4xl"
+                    bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
+                >
+                    <HardAssetImportWizard
+                        currentUser={user}
+                        partnerHardAssets={hardAssets}
+                        partnerOptions={partnerOptions}
+                        subregions={subregions}
+                        onEditExisting={openExistingImportedHardAsset}
+                        onSave={async () => {
+                            setPlaceImportWizardOpen(false);
+                            await load();
+                            setActionNotice({ type: 'success', message: 'Place saved.' });
+                        }}
+                        onCancel={() => setPlaceImportWizardOpen(false)}
+                    />
+                </ResourceModal>
+            ) : null}
 
             {assetModal ? (
                 <ResourceModal
