@@ -4,6 +4,7 @@ const CLOUDFLARE_PAGES_FALLBACK_API_BASE = 'https://senior-resource-map-api.josh
 const CUSTOM_DOMAIN_FALLBACK_HOSTS = new Set([
     'carearound.sg',
     'www.carearound.sg',
+    'app.carearound.sg',
 ]);
 
 function normalizeBase(value) {
