@@ -134,6 +134,26 @@ async function loadAvailableHardSubCategories(db) {
     return hardSubCategoryRows.map((item) => item.name);
 }
 
+function annotateCandidateDuplicates(candidates, manageableAssets) {
+    return (candidates || []).map((candidate) => {
+        const existingMatch = collectDuplicateMatches(
+            manageableAssets,
+            {
+                name: candidate.name,
+                postalCode: candidate.postalCode,
+                address: candidate.address,
+                phone: '',
+            },
+            candidate.googlePlaceId,
+        )[0] || null;
+
+        return {
+            ...candidate,
+            existingMatch,
+        };
+    });
+}
+
 async function loadPartnerUser(db, partnerId) {
     if (!Number.isInteger(partnerId)) return null;
 
@@ -565,34 +585,20 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
 
         const body = await c.req.json();
         const postalCode = normalizeText(body?.postalCode);
+        const keywordQuery = normalizeText(body?.keywordQuery);
         if (!postalCode) {
             return c.json({ error: 'postalCode is required' }, 400);
         }
 
         const availableHardSubCategories = await loadAvailableHardSubCategories(db);
-        const result = await searchGooglePlaceCandidatesByPostal(c.env, postalCode, availableHardSubCategories);
+        const result = await searchGooglePlaceCandidatesByPostal(c.env, postalCode, availableHardSubCategories, keywordQuery);
         const manageableAssets = await loadManageableHardAssetsForDuplicateChecks(db, user, role);
-        const candidates = (result.candidates || []).map((candidate) => {
-            const existingMatch = collectDuplicateMatches(
-                manageableAssets,
-                {
-                    name: candidate.name,
-                    postalCode: candidate.postalCode,
-                    address: candidate.address,
-                    phone: '',
-                },
-                candidate.googlePlaceId,
-            )[0] || null;
-
-            return {
-                ...candidate,
-                existingMatch,
-            };
-        });
 
         return c.json({
             ...result,
-            candidates,
+            keywordQuery,
+            exactCandidates: annotateCandidateDuplicates(result.exactCandidates, manageableAssets),
+            nearbyCandidates: annotateCandidateDuplicates(result.nearbyCandidates, manageableAssets),
         });
     } catch (err) {
         console.error(err);

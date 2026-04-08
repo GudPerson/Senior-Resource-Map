@@ -5,7 +5,7 @@ import { authenticateToken, authorize } from '../middleware/auth.js';
 const router = new Hono();
 
 router.get('/', getSubCategories);
-router.post('/', authenticateToken, authorize('super_admin'), createSubCategory);
+router.post('/', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), createSubCategory);
 router.put('/:id', authenticateToken, authorize('super_admin'), updateSubCategory);
 router.delete('/:id', authenticateToken, authorize('super_admin'), deleteSubCategory);
 

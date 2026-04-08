@@ -44,6 +44,13 @@ const POSTAL_SEARCH_KEYWORDS = [
     { label: 'Temple', query: 'temple', boost: 0.95 },
 ];
 
+const POSTAL_SEARCH_LIMITS = {
+    anchorSearchCount: 8,
+    querySearchCount: 8,
+    exactResultCount: 8,
+    nearbyResultCount: 12,
+};
+
 const SEARCH_FIELD_MASK = 'places.id,places.name,places.displayName,places.formattedAddress,places.postalAddress,places.location,places.nationalPhoneNumber,places.regularOpeningHours,places.websiteUri,places.googleMapsUri,places.primaryType,places.editorialSummary';
 const DETAIL_FIELD_MASK = 'id,name,displayName,formattedAddress,postalAddress,location,nationalPhoneNumber,regularOpeningHours,websiteUri,googleMapsUri,primaryType,editorialSummary';
 
@@ -57,6 +64,13 @@ function normalizeSearchText(value) {
         .replace(/[^a-z0-9\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+function splitRefineKeywords(value) {
+    return normalizeSearchText(value)
+        .split(' ')
+        .map((item) => item.trim())
+        .filter(Boolean);
 }
 
 function normalizePostalCode(value) {
@@ -353,7 +367,10 @@ async function resolvePostalAnchor(apiKey, rawPostalCode) {
         throw new Error('Enter a valid 6-digit Singapore postal code.');
     }
 
-    const places = await runTextSearch(apiKey, postalCode, { maxResultCount: 5, regionCode: 'SG' });
+    const places = await runTextSearch(apiKey, postalCode, {
+        maxResultCount: POSTAL_SEARCH_LIMITS.anchorSearchCount,
+        regionCode: 'SG',
+    });
     const candidate = places.find((place) => extractPostalCode(place) === postalCode && normalizeText(place?.primaryType).toLowerCase() === 'postal_code')
         || places.find((place) => extractPostalCode(place) === postalCode)
         || places[0];
@@ -379,7 +396,7 @@ async function resolvePostalAnchor(apiKey, rawPostalCode) {
     };
 }
 
-function buildPostalSearchQueries(anchor) {
+function buildPostalSearchQueries(anchor, keywordQuery = '') {
     const trimmedAddress = normalizeText(anchor?.address).replace(new RegExp(`,?\\s*Singapore\\s+${anchor.postalCode}$`, 'i'), '').trim();
     const queryMap = new Map();
 
@@ -402,16 +419,39 @@ function buildPostalSearchQueries(anchor) {
         }
     }
 
+    const normalizedKeywordQuery = normalizeText(keywordQuery);
+    if (normalizedKeywordQuery) {
+        const keywordVariants = [
+            `${anchor.postalCode} ${normalizedKeywordQuery}`,
+            trimmedAddress ? `${trimmedAddress} ${normalizedKeywordQuery}` : '',
+        ]
+            .map((value) => normalizeText(value))
+            .filter(Boolean);
+
+        for (const textQuery of keywordVariants) {
+            if (!queryMap.has(textQuery)) {
+                queryMap.set(textQuery, {
+                    textQuery,
+                    label: normalizedKeywordQuery,
+                    boost: 1.3,
+                    isRefine: true,
+                });
+            }
+        }
+    }
+
     return [...queryMap.values()];
 }
 
-function buildPostalCandidateScore(place, queryMeta, queryIndex, postalCode) {
+function buildPostalCandidateScore(place, queryMeta, queryIndex, postalCode, keywordQuery = '') {
     const primaryType = normalizeText(place?.primaryType).toLowerCase();
     if (primaryType === 'postal_code') return -Infinity;
 
     const placeName = placeDisplayName(place);
     const formattedAddress = normalizeText(place?.formattedAddress);
     const samePostal = extractPostalCode(place) === postalCode;
+    const normalizedPrimaryType = primaryType.replace(/_/g, ' ');
+    const refineKeywords = splitRefineKeywords(keywordQuery);
 
     let score = queryMeta.boost;
     score += Math.max(0, 1 - queryIndex * 0.04);
@@ -422,11 +462,26 @@ function buildPostalCandidateScore(place, queryMeta, queryIndex, postalCode) {
     if (PRIMARY_TYPE_TO_SUBCATEGORY[primaryType]) score += 0.35;
     if (normalizeSearchText(placeName) === normalizeSearchText(postalCode)) score -= 2;
 
+    if (refineKeywords.length > 0) {
+        const refineText = refineKeywords.join(' ');
+        const refineOverlap = Math.max(
+            computeTokenOverlap(placeName, refineText),
+            computeTokenOverlap(formattedAddress, refineText),
+            computeTokenOverlap(normalizedPrimaryType, refineText),
+        );
+
+        if (refineOverlap === 0 && !samePostal) {
+            score -= 0.9;
+        } else {
+            score += refineOverlap * 0.7;
+        }
+    }
+
     return score;
 }
 
-async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories = []) {
-    const queryPlan = buildPostalSearchQueries(anchor);
+async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories = [], keywordQuery = '') {
+    const queryPlan = buildPostalSearchQueries(anchor, keywordQuery);
     const candidateMap = new Map();
     const warnings = [];
 
@@ -436,7 +491,7 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
 
         try {
             places = await runTextSearch(apiKey, queryMeta.textQuery, {
-                maxResultCount: 5,
+                maxResultCount: POSTAL_SEARCH_LIMITS.querySearchCount,
                 regionCode: 'SG',
                 locationBias: buildLocationBias(anchor),
             });
@@ -449,7 +504,7 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
             const googlePlaceId = normalizeText(place?.id);
             if (!googlePlaceId) continue;
 
-            const score = buildPostalCandidateScore(place, queryMeta, queryIndex, anchor.postalCode);
+            const score = buildPostalCandidateScore(place, queryMeta, queryIndex, anchor.postalCode, keywordQuery);
             if (!Number.isFinite(score) || score <= 0) continue;
 
             const existing = candidateMap.get(googlePlaceId);
@@ -471,21 +526,26 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
         }
 
         const samePostalCount = [...candidateMap.values()].filter((candidate) => candidate.postalCode === anchor.postalCode).length;
-        if (samePostalCount >= 6) break;
+        if (samePostalCount >= POSTAL_SEARCH_LIMITS.exactResultCount) break;
     }
 
-    let candidates = [...candidateMap.values()];
-    const samePostalCandidates = candidates.filter((candidate) => candidate.postalCode === anchor.postalCode);
-    if (samePostalCandidates.length > 0) {
-        candidates = samePostalCandidates;
-    } else if (candidates.length > 0) {
+    const candidates = [...candidateMap.values()];
+    const exactCandidates = candidates
+        .filter((candidate) => candidate.postalCode === anchor.postalCode)
+        .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
+        .slice(0, POSTAL_SEARCH_LIMITS.exactResultCount);
+    const exactCandidateIds = new Set(exactCandidates.map((candidate) => candidate.googlePlaceId));
+    const nearbyCandidates = candidates
+        .filter((candidate) => !exactCandidateIds.has(candidate.googlePlaceId))
+        .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
+        .slice(0, POSTAL_SEARCH_LIMITS.nearbyResultCount);
+
+    if (exactCandidates.length === 0 && nearbyCandidates.length > 0) {
         warnings.push('No exact postal-code matches were found, so nearby Google places are shown instead.');
     }
 
-    candidates.sort((left, right) => right.score - left.score || left.name.localeCompare(right.name));
-
     return {
-        candidates: candidates.slice(0, 8).map((candidate) => ({
+        exactCandidates: exactCandidates.map((candidate) => ({
             googlePlaceId: candidate.googlePlaceId,
             googleMapsUri: candidate.googleMapsUri,
             name: candidate.name,
@@ -493,28 +553,44 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
             primaryType: candidate.primaryType,
             postalCode: candidate.postalCode,
             subCategorySuggestion: candidate.subCategorySuggestion,
-            matchedKeywords: [...candidate.matchedKeywords].slice(0, 3),
+            matchedKeywords: [...candidate.matchedKeywords].slice(0, 4),
+        })),
+        nearbyCandidates: nearbyCandidates.map((candidate) => ({
+            googlePlaceId: candidate.googlePlaceId,
+            googleMapsUri: candidate.googleMapsUri,
+            name: candidate.name,
+            address: candidate.address,
+            primaryType: candidate.primaryType,
+            postalCode: candidate.postalCode,
+            subCategorySuggestion: candidate.subCategorySuggestion,
+            matchedKeywords: [...candidate.matchedKeywords].slice(0, 4),
         })),
         warnings,
     };
 }
 
-export async function searchGooglePlaceCandidatesByPostal(env, postalCode, availableHardSubCategories = []) {
+export async function searchGooglePlaceCandidatesByPostal(env, postalCode, availableHardSubCategories = [], keywordQuery = '') {
     const apiKey = getGoogleMapsApiKey(env);
     if (!apiKey) {
         throw new Error('Google Places API is not configured on the server.');
     }
 
     const anchor = await resolvePostalAnchor(apiKey, postalCode);
-    const { candidates, warnings } = await searchPostalCandidates(apiKey, anchor, availableHardSubCategories);
+    const { exactCandidates, nearbyCandidates, warnings } = await searchPostalCandidates(
+        apiKey,
+        anchor,
+        availableHardSubCategories,
+        keywordQuery,
+    );
 
-    if (candidates.length === 0) {
+    if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
         warnings.push('No Google place candidates were found for that postal code. Try a Google Maps share link or create the place manually.');
     }
 
     return {
         resolvedPostal: anchor,
-        candidates,
+        exactCandidates,
+        nearbyCandidates,
         warnings,
     };
 }

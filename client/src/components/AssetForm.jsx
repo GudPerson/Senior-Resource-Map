@@ -140,6 +140,7 @@ export default function AssetForm({
     const currentRole = normalizeRole(currentUser?.role);
     const [form, setForm] = useState(() => buildInitialForm(type, initialData, currentUser));
     const [saving, setSaving] = useState(false);
+    const [creatingSubCategory, setCreatingSubCategory] = useState(false);
     const [error, setError] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
@@ -196,6 +197,12 @@ export default function AssetForm({
     const derivedSoftSubregion = linkedLocationSubregions.length === 1
         ? subregions.find((subregion) => Number(subregion.id) === Number(linkedLocationSubregions[0])) || null
         : null;
+    const hardSubCategoryOptions = useMemo(
+        () => availableSubCategories
+            .filter((subcategory) => subcategory.type === 'hard')
+            .map((subcategory) => ({ value: subcategory.name, label: subcategory.name })),
+        [availableSubCategories]
+    );
 
     const availableTargetSubregions = useMemo(() => {
         if (currentRole === 'super_admin') return subregions;
@@ -204,6 +211,10 @@ export default function AssetForm({
     }, [currentRole, currentUser?.subregionIds, subregions]);
 
     const explicitTargetSubregion = availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(form.subregionId)) || null;
+    const selectedHardSubCategoryOption = useMemo(() => {
+        const currentValue = String(form.subCategory || 'Places').trim();
+        return hardSubCategoryOptions.find((option) => option.value === currentValue) || { value: currentValue, label: currentValue };
+    }, [form.subCategory, hardSubCategoryOptions]);
     const hostLocationSelectStyles = useMemo(() => ({
         valueContainer: (base) => ({
             ...base,
@@ -226,6 +237,31 @@ export default function AssetForm({
             paddingBottom: 4,
         }),
     }), []);
+
+    async function handleCreateHardSubCategory(inputValue) {
+        const name = String(inputValue || '').trim().replace(/\s+/g, ' ');
+        if (!name) return;
+
+        const existingOption = hardSubCategoryOptions.find((option) => option.label.toLowerCase() === name.toLowerCase());
+        if (existingOption) {
+            setField('subCategory', existingOption.value);
+            return;
+        }
+
+        setCreatingSubCategory(true);
+        setError('');
+        try {
+            const created = await api.createSubCategory({ name, type: 'hard' });
+            setAvailableSubCategories((prev) => (
+                [...prev, created].sort((left, right) => `${left.type}:${left.name}`.localeCompare(`${right.type}:${right.name}`))
+            ));
+            setField('subCategory', created.name);
+        } catch (err) {
+            setError(err.message || 'Failed to create sub-category.');
+        } finally {
+            setCreatingSubCategory(false);
+        }
+    }
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -516,11 +552,21 @@ export default function AssetForm({
                     <>
                         <div className="col-span-2">
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Sub-Category *</label>
-                            <select required value={form.subCategory || 'Places'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
-                                {availableSubCategories.filter((subcategory) => subcategory.type === 'hard').map((subcategory) => (
-                                    <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
-                                ))}
-                            </select>
+                            <CreatableSelect
+                                isClearable={false}
+                                options={hardSubCategoryOptions}
+                                value={selectedHardSubCategoryOption}
+                                onChange={(selected) => setField('subCategory', selected?.value || 'Places')}
+                                onCreateOption={handleCreateHardSubCategory}
+                                isDisabled={creatingSubCategory}
+                                formatCreateLabel={(inputValue) => `Create category "${inputValue.trim().replace(/\s+/g, ' ')}"`}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                placeholder="Select or create a place category..."
+                            />
+                            <p className="mt-2 text-xs text-slate-500">
+                                Type to create a new place category on the fly when the right one is not already available.
+                            </p>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Globe size={13} className="inline mr-1" />Country *</label>

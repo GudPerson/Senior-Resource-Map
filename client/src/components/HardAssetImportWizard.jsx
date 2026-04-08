@@ -167,6 +167,7 @@ export default function HardAssetImportWizard({
     const [mode, setMode] = useState('share');
     const [shareUrl, setShareUrl] = useState('');
     const [postalCode, setPostalCode] = useState('');
+    const [keywordQuery, setKeywordQuery] = useState('');
     const [searchLoading, setSearchLoading] = useState(false);
     const [previewLoadingKey, setPreviewLoadingKey] = useState('');
     const [error, setError] = useState('');
@@ -209,7 +210,10 @@ export default function HardAssetImportWizard({
         setPostalResults(null);
 
         try {
-            const data = await api.searchGoogleHardAssetCandidatesByPostal({ postalCode });
+            const data = await api.searchGoogleHardAssetCandidatesByPostal({
+                postalCode,
+                keywordQuery,
+            });
             setPostalResults(data);
         } catch (err) {
             setError(err.message || 'Failed to search Google places for that postal code.');
@@ -241,6 +245,10 @@ export default function HardAssetImportWizard({
         setPreview(buildAddressOnlyPreview(postalResults));
         setError('');
     }
+
+    const exactCandidates = postalResults?.exactCandidates || [];
+    const nearbyCandidates = postalResults?.nearbyCandidates || [];
+    const hasAnyCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
 
     return preview ? (
         <div className="space-y-5">
@@ -292,7 +300,7 @@ export default function HardAssetImportWizard({
                     active={mode === 'postal'}
                     icon={Search}
                     title="Search by postal code"
-                    description="Enter a 6-digit Singapore postal code, choose the right Google place from nearby candidates, then review the imported suggestions."
+                    description="Enter a 6-digit Singapore postal code, review exact matches at that location, then compare nearby relevant places if you need more options."
                     onClick={() => handleSwitchMode('postal')}
                 />
             </div>
@@ -365,7 +373,7 @@ export default function HardAssetImportWizard({
                             <div>
                                 <h3 className="text-lg font-black text-slate-900">Search Google places by postal code</h3>
                                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    Enter a 6-digit Singapore postal code, pick the right place from Google candidates, then review the imported values before saving.
+                                    Enter a 6-digit Singapore postal code, review exact place matches first, then use nearby relevant places when you want more options around that address.
                                 </p>
                             </div>
                         </div>
@@ -390,7 +398,27 @@ export default function HardAssetImportWizard({
                                 className="input-field"
                             />
                             <p className="mt-2 text-xs text-slate-500">
-                                We’ll resolve the postcode, find likely Google places at or near that location, then let you choose the correct one.
+                                We’ll resolve the postcode, show places found at that exact postal code, and also surface nearby relevant Google places when available.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label htmlFor="google-place-keyword-query" className="mb-1 block text-sm font-semibold text-slate-700">
+                                Refine nearby recommendations
+                            </label>
+                            <input
+                                id="google-place-keyword-query"
+                                value={keywordQuery}
+                                onChange={(event) => {
+                                    setKeywordQuery(event.target.value);
+                                    setPostalResults(null);
+                                    setError('');
+                                }}
+                                placeholder="Optional, e.g. dementia, rehab, dialysis"
+                                className="input-field"
+                            />
+                            <p className="mt-2 text-xs text-slate-500">
+                                Optional. Exact same-postal matches still appear first, while nearby recommendations are ranked using these keywords.
                             </p>
                         </div>
 
@@ -455,25 +483,54 @@ export default function HardAssetImportWizard({
                                 </div>
                             ) : null}
 
-                            {postalResults.candidates?.length ? (
+                            {hasAnyCandidates ? (
                                 <div className="space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        <MapPin size={15} className="text-brand-600" />
-                                        <p className="text-sm font-semibold text-slate-700">
-                                            Choose the Google place you want to import
-                                        </p>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {postalResults.candidates.map((candidate) => (
-                                            <CandidateRow
-                                                key={candidate.googlePlaceId}
-                                                candidate={candidate}
-                                                loading={previewLoadingKey === candidate.googlePlaceId}
-                                                onSelect={handlePreviewFromCandidate}
-                                                onEditExisting={onEditExisting}
-                                            />
-                                        ))}
-                                    </div>
+                                    {exactCandidates.length > 0 ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin size={15} className="text-brand-600" />
+                                                <p className="text-sm font-semibold text-slate-700">
+                                                    Places at this postal code
+                                                </p>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {exactCandidates.map((candidate) => (
+                                                    <CandidateRow
+                                                        key={candidate.googlePlaceId}
+                                                        candidate={candidate}
+                                                        loading={previewLoadingKey === candidate.googlePlaceId}
+                                                        onSelect={handlePreviewFromCandidate}
+                                                        onEditExisting={onEditExisting}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {nearbyCandidates.length > 0 ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2">
+                                                <Search size={15} className="text-brand-600" />
+                                                <p className="text-sm font-semibold text-slate-700">
+                                                    Nearby relevant places
+                                                </p>
+                                            </div>
+                                            <p className="text-sm leading-6 text-slate-500">
+                                                Useful when the exact postal code has no matching Google place, or when you want to compare nearby venues around the same anchor.
+                                            </p>
+                                            <div className="space-y-3">
+                                                {nearbyCandidates.map((candidate) => (
+                                                    <CandidateRow
+                                                        key={candidate.googlePlaceId}
+                                                        candidate={candidate}
+                                                        loading={previewLoadingKey === candidate.googlePlaceId}
+                                                        onSelect={handlePreviewFromCandidate}
+                                                        onEditExisting={onEditExisting}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </div>
                             ) : (
                                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-6 text-center">

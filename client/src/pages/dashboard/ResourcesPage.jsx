@@ -386,6 +386,7 @@ export default function ResourcesPage() {
     const [boundaryFilter, setBoundaryFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
+    const [collapsedMemberAssetIds, setCollapsedMemberAssetIds] = useState({});
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
     const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
@@ -547,6 +548,17 @@ export default function ResourcesPage() {
         } catch (err) {
             setActionNotice({ type: 'warning', message: err.message || 'Failed to load template rollouts.' });
         }
+    }
+
+    function areMembersCollapsed(assetId) {
+        return collapsedMemberAssetIds[assetId] ?? true;
+    }
+
+    function toggleMembersCollapsed(assetId) {
+        setCollapsedMemberAssetIds((prev) => ({
+            ...prev,
+            [assetId]: !(prev[assetId] ?? true),
+        }));
     }
 
     function openCreate(assetType) {
@@ -1138,6 +1150,7 @@ export default function ResourcesPage() {
                         {filteredHardAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canShowMembers = typeof asset.membershipCount === 'number';
+                            const membersCollapsed = canShowMembers ? areMembersCollapsed(asset.id) : true;
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
@@ -1219,16 +1232,35 @@ export default function ResourcesPage() {
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Members</p>
                                                     <p className="mt-1 text-sm text-slate-500">
-                                                        Linked members who joined this place through the membership flow.
+                                                        {membersCollapsed
+                                                            ? 'Hidden by default so long membership lists do not overwhelm the resource view.'
+                                                            : 'Linked members who joined this place through the membership flow.'}
                                                     </p>
                                                 </div>
-                                                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                                                    <Users size={13} />
-                                                    {asset.membershipCount} total
-                                                </span>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                                        <Users size={13} />
+                                                        {asset.membershipCount} total
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleMembersCollapsed(asset.id)}
+                                                        aria-expanded={!membersCollapsed}
+                                                        className="inline-flex min-h-9 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                    >
+                                                        {membersCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                                        {membersCollapsed ? 'Show members' : 'Hide members'}
+                                                    </button>
+                                                </div>
                                             </div>
 
-                                            {asset.memberPreview?.length ? (
+                                            {membersCollapsed ? (
+                                                <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                                                    {asset.membershipCount > 0
+                                                        ? 'Expand this section to browse linked members and their join status.'
+                                                        : 'Expand this section later to check for new linked members.'}
+                                                </p>
+                                            ) : asset.memberPreview?.length ? (
                                                 <div className="mt-4 space-y-2">
                                                     {asset.memberPreview.map((membership) => (
                                                         <div key={membership.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">

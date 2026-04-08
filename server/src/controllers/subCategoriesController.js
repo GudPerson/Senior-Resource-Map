@@ -1,11 +1,11 @@
 import { getDb } from '../db/index.js';
 import { hardAssets, softAssetParents, softAssets, subCategories } from '../db/schema.js';
-import { and, eq, ne } from 'drizzle-orm';
+import { eq, ne } from 'drizzle-orm';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 
 function normalizeCategoryName(value) {
     if (value === undefined || value === null) return '';
-    return String(value).trim();
+    return String(value).trim().replace(/\s+/g, ' ');
 }
 
 function normalizeOptionalText(value) {
@@ -43,7 +43,8 @@ export const createSubCategory = async (c) => {
         if (!name || !type) return c.json({ error: 'Name and type are required' }, 400);
         if (!['hard', 'soft'].includes(type)) return c.json({ error: 'Type must be hard or soft' }, 400);
 
-        const [existing] = await db.select().from(subCategories).where(eq(subCategories.name, name));
+        const categories = await db.select().from(subCategories);
+        const existing = categories.find((candidate) => normalizeCategoryName(candidate.name).toLowerCase() === name.toLowerCase());
         if (existing) return c.json({ error: 'Sub-category already exists' }, 400);
 
         const [created] = await db.insert(subCategories).values({
@@ -80,10 +81,8 @@ export const updateSubCategory = async (c) => {
             ? normalizeOptionalText(body.iconUrl)
             : (existing.iconUrl || null);
 
-        const [nameConflict] = await db.select().from(subCategories).where(and(
-            eq(subCategories.name, nextName),
-            ne(subCategories.id, id),
-        ));
+        const categories = await db.select().from(subCategories).where(ne(subCategories.id, id));
+        const nameConflict = categories.find((candidate) => normalizeCategoryName(candidate.name).toLowerCase() === nextName.toLowerCase());
         if (nameConflict) {
             return c.json({ error: 'Sub-category already exists' }, 400);
         }
