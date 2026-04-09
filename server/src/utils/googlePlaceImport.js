@@ -49,10 +49,10 @@ const POSTAL_SEARCH_DEFAULTS = {
     querySearchFloor: 8,
     querySearchCeiling: 20,
     defaultRadiusKm: 1,
-    maxRadiusKm: 5,
+    maxRadiusKm: 20,
     minRadiusKm: 0.5,
     defaultPreferredResultCount: 8,
-    maxPreferredResultCount: 12,
+    maxPreferredResultCount: 20,
     minPreferredResultCount: 4,
 };
 
@@ -90,6 +90,10 @@ function clampNumber(value, min, max, fallback) {
 }
 
 function sanitizeRadiusKm(value) {
+    const normalizedValue = String(value ?? '').trim().toLowerCase();
+    if (normalizedValue === 'all' || normalizedValue === 'all-sg' || normalizedValue === 'sg') {
+        return 'all';
+    }
     return clampNumber(
         value,
         POSTAL_SEARCH_DEFAULTS.minRadiusKm,
@@ -107,6 +111,11 @@ function sanitizePreferredResultCount(value) {
             POSTAL_SEARCH_DEFAULTS.defaultPreferredResultCount,
         ),
     );
+}
+
+function formatRadiusLabel(radiusKm) {
+    if (radiusKm === 'all') return 'All of SG';
+    return `${radiusKm} km`;
 }
 
 function buildUserAgent() {
@@ -582,7 +591,7 @@ async function searchPostalCandidates(
 ) {
     const safeRadiusKm = sanitizeRadiusKm(radiusKm);
     const safePreferredResultCount = sanitizePreferredResultCount(preferredResultCount);
-    const radiusMeters = safeRadiusKm * 1000;
+    const radiusMeters = safeRadiusKm === 'all' ? null : safeRadiusKm * 1000;
     const querySearchCount = Math.min(
         POSTAL_SEARCH_DEFAULTS.querySearchCeiling,
         Math.max(POSTAL_SEARCH_DEFAULTS.querySearchFloor, safePreferredResultCount + 4),
@@ -599,7 +608,7 @@ async function searchPostalCandidates(
             places = await runTextSearch(apiKey, queryMeta.textQuery, {
                 maxResultCount: querySearchCount,
                 regionCode: 'SG',
-                locationBias: buildLocationBias(anchor, radiusMeters),
+                ...(Number.isFinite(radiusMeters) ? { locationBias: buildLocationBias(anchor, radiusMeters) } : {}),
             });
         } catch (error) {
             warnings.push(error.message || `Google Places search failed for "${queryMeta.label}".`);
@@ -612,7 +621,7 @@ async function searchPostalCandidates(
             const candidatePostalCode = extractPostalCode(place);
             const samePostalCode = candidatePostalCode === anchor.postalCode;
             const distanceMeters = computeDistanceMeters(anchor, place?.location);
-            if (!samePostalCode && Number.isFinite(distanceMeters) && distanceMeters > radiusMeters) {
+            if (!samePostalCode && Number.isFinite(radiusMeters) && Number.isFinite(distanceMeters) && distanceMeters > radiusMeters) {
                 continue;
             }
 
@@ -658,11 +667,12 @@ async function searchPostalCandidates(
         .slice(0, safePreferredResultCount);
 
     if (exactCandidates.length === 0 && nearbyCandidates.length > 0) {
-        warnings.push(`No exact postal-code matches were found, so nearby Google places within ${safeRadiusKm} km are shown instead.`);
+        warnings.push(`No exact postal-code matches were found, so nearby Google places within ${formatRadiusLabel(safeRadiusKm)} are shown instead.`);
     }
 
     return {
         radiusKm: safeRadiusKm,
+        radiusLabel: formatRadiusLabel(safeRadiusKm),
         preferredResultCount: safePreferredResultCount,
         exactCandidates: exactCandidates.map((candidate) => ({
             googlePlaceId: candidate.googlePlaceId,
@@ -718,12 +728,13 @@ export async function searchGooglePlaceCandidatesByPostal(
     );
 
     if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
-        warnings.push(`No Google place candidates were found within ${radiusKm} km of that postal code. Try a larger radius, add refine keywords, or create the place manually.`);
+        warnings.push(`No Google place candidates were found within ${formatRadiusLabel(radiusKm)} of that postal code. Try a larger radius, add refine keywords, or create the place manually.`);
     }
 
     return {
         resolvedPostal: anchor,
         radiusKm,
+        radiusLabel: formatRadiusLabel(radiusKm),
         preferredResultCount,
         exactCandidates,
         nearbyCandidates,

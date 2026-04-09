@@ -62,6 +62,14 @@ function parsePositiveNumber(value) {
     return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : undefined;
 }
 
+function parseRadiusFilter(value) {
+    const normalizedValue = normalizeText(value).toLowerCase();
+    if (normalizedValue === 'all' || normalizedValue === 'all-sg' || normalizedValue === 'sg') {
+        return 'all';
+    }
+    return parsePositiveNumber(value);
+}
+
 function normalizeName(value) {
     return normalizeText(value).toLowerCase();
 }
@@ -589,7 +597,7 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
         const body = await c.req.json();
         const postalCode = normalizeText(body?.postalCode);
         const keywordQuery = normalizeText(body?.keywordQuery);
-        const radiusKm = parsePositiveNumber(body?.radiusKm);
+        const radiusKm = parseRadiusFilter(body?.radiusKm);
         const preferredResultCount = parsePositiveNumber(body?.preferredResultCount);
         if (!postalCode) {
             return c.json({ error: 'postalCode is required' }, 400);

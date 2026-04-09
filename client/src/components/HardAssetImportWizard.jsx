@@ -81,8 +81,30 @@ function formatExistingMatchReason(matchReason) {
     return 'This candidate already exists in CareAround SG.';
 }
 
-function CandidateRow({ candidate, loading, onSelect, onEditExisting }) {
+function formatRadiusLabel(value) {
+    if (String(value) === 'all') return 'All of SG';
+    return `${value} km`;
+}
+
+function formatCandidateDistance(candidate, anchorPostalCode) {
+    if (candidate?.postalCode && candidate.postalCode === anchorPostalCode) {
+        return 'At this postal code';
+    }
+
+    const distanceMeters = Number(candidate?.distanceMeters);
+    if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) return '';
+    if (distanceMeters < 1000) {
+        return `${Math.round(distanceMeters / 10) * 10} m away`;
+    }
+    if (distanceMeters < 10000) {
+        return `${(distanceMeters / 1000).toFixed(1)} km away`;
+    }
+    return `${Math.round(distanceMeters / 1000)} km away`;
+}
+
+function CandidateRow({ candidate, loading, onSelect, onEditExisting, anchorPostalCode }) {
     const existingMatch = candidate.existingMatch || null;
+    const distanceLabel = formatCandidateDistance(candidate, anchorPostalCode);
 
     return (
         <div className={`rounded-2xl border p-4 shadow-sm shadow-slate-100/70 ${existingMatch ? 'border-slate-200 bg-slate-50/90 opacity-80' : 'border-slate-200 bg-white'}`}>
@@ -90,6 +112,11 @@ function CandidateRow({ candidate, loading, onSelect, onEditExisting }) {
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-base font-black text-slate-900">{candidate.name}</p>
+                        {distanceLabel ? (
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                                {distanceLabel}
+                            </span>
+                        ) : null}
                         {existingMatch ? (
                             <span className="inline-flex rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                                 Already exists
@@ -150,14 +177,19 @@ const RADIUS_OPTIONS = [
     { value: '2', label: '2 km' },
     { value: '3', label: '3 km' },
     { value: '5', label: '5 km' },
+    { value: '10', label: '10 km' },
+    { value: '20', label: '20 km' },
+    { value: 'all', label: 'All of SG' },
 ];
 
 const PREFERRED_RESULT_OPTIONS = [
-    { value: '4', label: '4 per section' },
-    { value: '6', label: '6 per section' },
-    { value: '8', label: '8 per section' },
-    { value: '10', label: '10 per section' },
-    { value: '12', label: '12 per section' },
+    { value: '4', label: '4' },
+    { value: '6', label: '6' },
+    { value: '8', label: '8' },
+    { value: '10', label: '10' },
+    { value: '12', label: '12' },
+    { value: '16', label: '16' },
+    { value: '20', label: '20' },
 ];
 
 export default function HardAssetImportWizard({
@@ -201,7 +233,7 @@ export default function HardAssetImportWizard({
             const data = await api.searchGoogleHardAssetCandidatesByPostal({
                 postalCode,
                 keywordQuery,
-                radiusKm: Number(radiusKm),
+                radiusKm: radiusKm === 'all' ? 'all' : Number(radiusKm),
                 preferredResultCount: Number(preferredResultCount),
             });
             setPostalResults(data);
@@ -343,7 +375,7 @@ export default function HardAssetImportWizard({
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <label htmlFor="google-place-radius" className="mb-1 block text-sm font-semibold text-slate-700">
-                                Nearby radius
+                                Distance radius
                             </label>
                             <select
                                 id="google-place-radius"
@@ -362,13 +394,13 @@ export default function HardAssetImportWizard({
                                 ))}
                             </select>
                             <p className="mt-2 text-xs text-slate-500">
-                                Exact same-postal matches still show first. This caps nearby suggestions to within your chosen radius, up to 5 km.
+                                Exact same-postal matches still show first. Expand this when you want to compare nearby places farther away, up to all of Singapore.
                             </p>
                         </div>
 
                         <div>
                             <label htmlFor="google-place-result-count" className="mb-1 block text-sm font-semibold text-slate-700">
-                                Preferred results
+                                Number of results
                             </label>
                             <select
                                 id="google-place-result-count"
@@ -387,7 +419,7 @@ export default function HardAssetImportWizard({
                                 ))}
                             </select>
                             <p className="mt-2 text-xs text-slate-500">
-                                Controls how many exact and nearby candidates we surface in each section of the results list.
+                                Controls the maximum number of exact and nearby candidates we surface in the results list.
                             </p>
                         </div>
                     </div>
@@ -427,10 +459,10 @@ export default function HardAssetImportWizard({
                                     <p className="mt-1 text-sm leading-6 text-slate-600">{postalResults.resolvedPostal?.address || 'Google resolved the postcode, but no formatted address was returned.'}</p>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                                            Nearby radius: {postalResults.radiusKm || radiusKm} km
+                                            Distance radius: {postalResults.radiusLabel || formatRadiusLabel(postalResults.radiusKm || radiusKm)}
                                         </span>
                                         <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                                            Preferred results: {postalResults.preferredResultCount || preferredResultCount} per section
+                                            Number of results: {postalResults.preferredResultCount || preferredResultCount}
                                         </span>
                                     </div>
                                 </div>
@@ -488,6 +520,7 @@ export default function HardAssetImportWizard({
                                                         loading={previewLoadingKey === candidate.googlePlaceId}
                                                         onSelect={handlePreviewFromCandidate}
                                                         onEditExisting={onEditExisting}
+                                                        anchorPostalCode={postalResults.resolvedPostal?.postalCode || postalCode}
                                                     />
                                                 ))}
                                             </div>
@@ -503,7 +536,7 @@ export default function HardAssetImportWizard({
                                             </p>
                                             </div>
                                             <p className="text-sm leading-6 text-slate-500">
-                                                Useful when the exact postal code has no matching Google place, or when you want to compare nearby venues within {postalResults.radiusKm || radiusKm} km of the same anchor.
+                                                Useful when the exact postal code has no matching Google place, or when you want to compare nearby venues within {postalResults.radiusLabel || formatRadiusLabel(postalResults.radiusKm || radiusKm)} of the same anchor.
                                             </p>
                                             <div className="space-y-3">
                                                 {nearbyCandidates.map((candidate) => (
@@ -513,6 +546,7 @@ export default function HardAssetImportWizard({
                                                         loading={previewLoadingKey === candidate.googlePlaceId}
                                                         onSelect={handlePreviewFromCandidate}
                                                         onEditExisting={onEditExisting}
+                                                        anchorPostalCode={postalResults.resolvedPostal?.postalCode || postalCode}
                                                     />
                                                 ))}
                                             </div>
