@@ -16,6 +16,16 @@ import AssetForm from './AssetForm.jsx';
 function buildImportedHardAssetDraft(preview) {
     const suggestion = preview?.suggestion || {};
     const resolvedSource = preview?.resolvedSource || {};
+    const importedTags = [
+        ...new Set(
+            [
+                ...(Array.isArray(suggestion.suggestedTags) ? suggestion.suggestedTags : []),
+                ...(Array.isArray(preview?.candidateSuggestedTags) ? preview.candidateSuggestedTags : []),
+            ]
+                .map((tag) => String(tag || '').trim())
+                .filter(Boolean)
+        ),
+    ];
 
     return {
         externalKey: '',
@@ -35,7 +45,7 @@ function buildImportedHardAssetDraft(preview) {
         sourceGoogleMapsUri: resolvedSource.googleMapsUri || '',
         ownershipMode: 'system',
         partnerId: '',
-        newTags: [],
+        newTags: importedTags,
         isHidden: false,
         hideFrom: '',
         hideUntil: '',
@@ -57,6 +67,7 @@ function buildAddressOnlyPreview(postalResults) {
             website: '',
             logoUrl: '',
             subCategorySuggestion: 'Places',
+            suggestedTags: [],
         },
         duplicateMatches: [],
         warnings: [
@@ -173,11 +184,16 @@ export default function HardAssetImportWizard({
     const [error, setError] = useState('');
     const [preview, setPreview] = useState(null);
     const [postalResults, setPostalResults] = useState(null);
+    const [selectedCandidateTags, setSelectedCandidateTags] = useState([]);
 
-    const importDraft = useMemo(() => buildImportedHardAssetDraft(preview), [preview]);
+    const importDraft = useMemo(
+        () => buildImportedHardAssetDraft(preview ? { ...preview, candidateSuggestedTags: selectedCandidateTags } : null),
+        [preview, selectedCandidateTags]
+    );
 
     function resetPreviewState() {
         setPreview(null);
+        setSelectedCandidateTags([]);
         setError('');
     }
 
@@ -186,12 +202,14 @@ export default function HardAssetImportWizard({
         setError('');
         setPostalResults(null);
         setPreviewLoadingKey('');
+        setSelectedCandidateTags([]);
     }
 
     async function handlePreviewFromShareLink(event) {
         event.preventDefault();
         setPreviewLoadingKey('share');
         setError('');
+        setSelectedCandidateTags([]);
 
         try {
             const data = await api.previewGoogleHardAssetImport({ shareUrl });
@@ -226,6 +244,9 @@ export default function HardAssetImportWizard({
         const loadingKey = candidate.googlePlaceId || 'candidate';
         setPreviewLoadingKey(loadingKey);
         setError('');
+        setSelectedCandidateTags(Array.isArray(candidate.suggestedTags) && candidate.suggestedTags.length
+            ? candidate.suggestedTags
+            : (candidate.matchedKeywords || []));
 
         try {
             const data = await api.previewGoogleHardAssetImport({
@@ -242,6 +263,7 @@ export default function HardAssetImportWizard({
 
     function handleUseAddressOnly() {
         if (!postalResults?.resolvedPostal) return;
+        setSelectedCandidateTags([]);
         setPreview(buildAddressOnlyPreview(postalResults));
         setError('');
     }

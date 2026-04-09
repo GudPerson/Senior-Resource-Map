@@ -19,6 +19,17 @@ function formatDateTimeLocal(value) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function normalizeExternalHref(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const candidate = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    try {
+        return new URL(candidate).toString();
+    } catch {
+        return '';
+    }
+}
+
 function buildInitialForm(type, initialData, currentUser) {
     if (initialData) {
         return {
@@ -28,7 +39,7 @@ function buildInitialForm(type, initialData, currentUser) {
             ownershipMode: initialData.ownershipMode || (initialData.partnerId ? 'partner' : 'system'),
             audienceMode: initialData.audienceMode || 'public',
             audienceZoneIds: initialData.audienceZoneIds || initialData.audienceZones?.map((zone) => zone.id) || [],
-            newTags: initialData.tags || [],
+            newTags: initialData.newTags || initialData.tags || [],
             locationIds: initialData.locations?.map((location) => location.id) || [],
             hideFrom: formatDateTimeLocal(initialData.hideFrom),
             hideUntil: formatDateTimeLocal(initialData.hideUntil),
@@ -364,6 +375,7 @@ export default function AssetForm({
     const selectedPartnerOption = partnerSelectOptions.find((option) => Number(option.value) === Number(form.partnerId)) || null;
     const selectedLocationOptions = linkedLocationOptions.filter((option) => (form.locationIds || []).includes(option.value));
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
+    const websiteHref = useMemo(() => (isHard ? normalizeExternalHref(form.website) : ''), [form.website, isHard]);
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -611,7 +623,20 @@ export default function AssetForm({
                             <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon–Fri 9am–5pm" className="input-field" />
                         </div>
                         <div className="col-span-2">
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Globe size={13} className="inline mr-1" />Website</label>
+                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                <label className="block text-sm font-semibold text-slate-700"><Globe size={13} className="inline mr-1" />Website</label>
+                                {websiteHref ? (
+                                    <a
+                                        href={websiteHref}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800 hover:underline"
+                                    >
+                                        Open website
+                                        <ExternalLink size={13} />
+                                    </a>
+                                ) : null}
+                            </div>
                             <input
                                 type="url"
                                 value={form.website || ''}
