@@ -2,8 +2,6 @@ const DEFAULT_API_BASE = '/api';
 // Safety net for Pages deployments that go out without a valid VITE_API_URL.
 const CLOUDFLARE_PAGES_FALLBACK_API_BASE = 'https://senior-resource-map-api.joshuachua79.workers.dev/api';
 const CUSTOM_DOMAIN_FALLBACK_HOSTS = new Set([
-    'carearound.sg',
-    'www.carearound.sg',
     'app.carearound.sg',
 ]);
 

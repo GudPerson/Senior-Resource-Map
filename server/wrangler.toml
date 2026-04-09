@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
 [vars]
 NODE_ENV = "production"
 VITE_GOOGLE_CLIENT_ID = "828767964064-70irissq9d39beh2i7sc3strs1fvjmpk.apps.googleusercontent.com"
-ALLOWED_ORIGINS = "http://localhost:5173,https://senior-resource-map.pages.dev,https://carearound.sg,https://www.carearound.sg"
+ALLOWED_ORIGINS = "http://localhost:5173,https://senior-resource-map.pages.dev,https://app.carearound.sg"
 
 [[kv_namespaces]]
 binding = "MAP_CACHE"

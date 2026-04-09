@@ -35,9 +35,7 @@ function resolveCorsOrigin(origin) {
         const originHost = parsedOrigin.hostname;
         const isLocalDevOrigin = originHost === 'localhost' || originHost === '127.0.0.1';
         const isPagesPreviewOrigin = originHost.endsWith('.pages.dev');
-        const isCareAroundOrigin = originHost === 'carearound.sg'
-            || originHost === 'www.carearound.sg'
-            || originHost === 'app.carearound.sg';
+        const isCareAroundOrigin = originHost === 'app.carearound.sg';
 
         if (isLocalDevOrigin || isPagesPreviewOrigin || isCareAroundOrigin) {
             return origin;
