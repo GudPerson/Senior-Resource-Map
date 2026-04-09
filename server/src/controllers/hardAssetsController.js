@@ -57,6 +57,11 @@ function normalizePhone(value) {
     return String(value || '').replace(/[^\d+]/g, '');
 }
 
+function parsePositiveNumber(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : undefined;
+}
+
 function normalizeName(value) {
     return normalizeText(value).toLowerCase();
 }
@@ -541,16 +546,14 @@ export const previewGoogleHardAssetImport = async (c) => {
         }
 
         const body = await c.req.json();
-        const shareUrl = normalizeText(body?.shareUrl);
         const googlePlaceId = normalizeText(body?.googlePlaceId);
         const googleMapsUri = normalizeText(body?.googleMapsUri);
-        if (!shareUrl && !googlePlaceId) {
-            return c.json({ error: 'shareUrl or googlePlaceId is required' }, 400);
+        if (!googlePlaceId) {
+            return c.json({ error: 'Google Maps share-link import has been retired. Search by postal code and select a place instead.' }, 400);
         }
 
         const availableHardSubCategories = await loadAvailableHardSubCategories(db);
         const preview = await resolveGooglePlacePreview(c.env, {
-            shareUrl,
             googlePlaceId,
             googleMapsUri,
         }, availableHardSubCategories);
@@ -586,17 +589,30 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
         const body = await c.req.json();
         const postalCode = normalizeText(body?.postalCode);
         const keywordQuery = normalizeText(body?.keywordQuery);
+        const radiusKm = parsePositiveNumber(body?.radiusKm);
+        const preferredResultCount = parsePositiveNumber(body?.preferredResultCount);
         if (!postalCode) {
             return c.json({ error: 'postalCode is required' }, 400);
         }
 
         const availableHardSubCategories = await loadAvailableHardSubCategories(db);
-        const result = await searchGooglePlaceCandidatesByPostal(c.env, postalCode, availableHardSubCategories, keywordQuery);
+        const result = await searchGooglePlaceCandidatesByPostal(
+            c.env,
+            postalCode,
+            availableHardSubCategories,
+            keywordQuery,
+            {
+                radiusKm,
+                preferredResultCount,
+            },
+        );
         const manageableAssets = await loadManageableHardAssetsForDuplicateChecks(db, user, role);
 
         return c.json({
             ...result,
             keywordQuery,
+            radiusKm: result.radiusKm,
+            preferredResultCount: result.preferredResultCount,
             exactCandidates: annotateCandidateDuplicates(result.exactCandidates, manageableAssets),
             nearbyCandidates: annotateCandidateDuplicates(result.nearbyCandidates, manageableAssets),
         });

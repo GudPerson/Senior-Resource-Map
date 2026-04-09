@@ -44,11 +44,16 @@ const POSTAL_SEARCH_KEYWORDS = [
     { label: 'Temple', query: 'temple', boost: 0.95 },
 ];
 
-const POSTAL_SEARCH_LIMITS = {
+const POSTAL_SEARCH_DEFAULTS = {
     anchorSearchCount: 8,
-    querySearchCount: 8,
-    exactResultCount: 8,
-    nearbyResultCount: 12,
+    querySearchFloor: 8,
+    querySearchCeiling: 20,
+    defaultRadiusKm: 1,
+    maxRadiusKm: 5,
+    minRadiusKm: 0.5,
+    defaultPreferredResultCount: 8,
+    maxPreferredResultCount: 12,
+    minPreferredResultCount: 4,
 };
 
 const SEARCH_FIELD_MASK = 'places.id,places.name,places.displayName,places.formattedAddress,places.postalAddress,places.location,places.nationalPhoneNumber,places.regularOpeningHours,places.websiteUri,places.googleMapsUri,places.primaryType,places.editorialSummary';
@@ -76,6 +81,32 @@ function splitRefineKeywords(value) {
 function normalizePostalCode(value) {
     const digits = String(value || '').replace(/\D/g, '');
     return digits.length === 6 ? digits : '';
+}
+
+function clampNumber(value, min, max, fallback) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return fallback;
+    return Math.min(max, Math.max(min, numericValue));
+}
+
+function sanitizeRadiusKm(value) {
+    return clampNumber(
+        value,
+        POSTAL_SEARCH_DEFAULTS.minRadiusKm,
+        POSTAL_SEARCH_DEFAULTS.maxRadiusKm,
+        POSTAL_SEARCH_DEFAULTS.defaultRadiusKm,
+    );
+}
+
+function sanitizePreferredResultCount(value) {
+    return Math.round(
+        clampNumber(
+            value,
+            POSTAL_SEARCH_DEFAULTS.minPreferredResultCount,
+            POSTAL_SEARCH_DEFAULTS.maxPreferredResultCount,
+            POSTAL_SEARCH_DEFAULTS.defaultPreferredResultCount,
+        ),
+    );
 }
 
 function buildUserAgent() {
@@ -292,7 +323,7 @@ async function runTextSearch(apiKey, textQuery, { maxResultCount = 5, regionCode
     return Array.isArray(data?.places) ? data.places : [];
 }
 
-function buildLocationBias(anchor, radius = 1000) {
+function buildLocationBias(anchor, radiusMeters = 1000) {
     const latitude = Number(anchor?.latitude);
     const longitude = Number(anchor?.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return undefined;
@@ -303,9 +334,37 @@ function buildLocationBias(anchor, radius = 1000) {
                 latitude,
                 longitude,
             },
-            radius,
+            radius: radiusMeters,
         },
     };
+}
+
+function computeDistanceMeters(anchor, location) {
+    const startLatitude = Number(anchor?.latitude);
+    const startLongitude = Number(anchor?.longitude);
+    const endLatitude = Number(location?.latitude);
+    const endLongitude = Number(location?.longitude);
+
+    if (
+        !Number.isFinite(startLatitude)
+        || !Number.isFinite(startLongitude)
+        || !Number.isFinite(endLatitude)
+        || !Number.isFinite(endLongitude)
+    ) {
+        return null;
+    }
+
+    const toRadians = (value) => (value * Math.PI) / 180;
+    const earthRadiusMeters = 6371000;
+    const latitudeDelta = toRadians(endLatitude - startLatitude);
+    const longitudeDelta = toRadians(endLongitude - startLongitude);
+    const latitudeA = toRadians(startLatitude);
+    const latitudeB = toRadians(endLatitude);
+
+    const haversine = Math.sin(latitudeDelta / 2) ** 2
+        + Math.cos(latitudeA) * Math.cos(latitudeB) * Math.sin(longitudeDelta / 2) ** 2;
+    const arc = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+    return earthRadiusMeters * arc;
 }
 
 async function fetchPlaceDetails(apiKey, placeOrId) {
@@ -402,7 +461,7 @@ async function resolvePostalAnchor(apiKey, rawPostalCode) {
     }
 
     const places = await runTextSearch(apiKey, postalCode, {
-        maxResultCount: POSTAL_SEARCH_LIMITS.anchorSearchCount,
+        maxResultCount: POSTAL_SEARCH_DEFAULTS.anchorSearchCount,
         regionCode: 'SG',
     });
     const candidate = places.find((place) => extractPostalCode(place) === postalCode && normalizeText(place?.primaryType).toLowerCase() === 'postal_code')
@@ -514,7 +573,20 @@ function buildPostalCandidateScore(place, queryMeta, queryIndex, postalCode, key
     return score;
 }
 
-async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories = [], keywordQuery = '') {
+async function searchPostalCandidates(
+    apiKey,
+    anchor,
+    availableHardSubCategories = [],
+    keywordQuery = '',
+    { radiusKm = POSTAL_SEARCH_DEFAULTS.defaultRadiusKm, preferredResultCount = POSTAL_SEARCH_DEFAULTS.defaultPreferredResultCount } = {},
+) {
+    const safeRadiusKm = sanitizeRadiusKm(radiusKm);
+    const safePreferredResultCount = sanitizePreferredResultCount(preferredResultCount);
+    const radiusMeters = safeRadiusKm * 1000;
+    const querySearchCount = Math.min(
+        POSTAL_SEARCH_DEFAULTS.querySearchCeiling,
+        Math.max(POSTAL_SEARCH_DEFAULTS.querySearchFloor, safePreferredResultCount + 4),
+    );
     const queryPlan = buildPostalSearchQueries(anchor, keywordQuery);
     const candidateMap = new Map();
     const warnings = [];
@@ -525,9 +597,9 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
 
         try {
             places = await runTextSearch(apiKey, queryMeta.textQuery, {
-                maxResultCount: POSTAL_SEARCH_LIMITS.querySearchCount,
+                maxResultCount: querySearchCount,
                 regionCode: 'SG',
-                locationBias: buildLocationBias(anchor),
+                locationBias: buildLocationBias(anchor, radiusMeters),
             });
         } catch (error) {
             warnings.push(error.message || `Google Places search failed for "${queryMeta.label}".`);
@@ -537,6 +609,12 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
         for (const place of places) {
             const googlePlaceId = normalizeText(place?.id);
             if (!googlePlaceId) continue;
+            const candidatePostalCode = extractPostalCode(place);
+            const samePostalCode = candidatePostalCode === anchor.postalCode;
+            const distanceMeters = computeDistanceMeters(anchor, place?.location);
+            if (!samePostalCode && Number.isFinite(distanceMeters) && distanceMeters > radiusMeters) {
+                continue;
+            }
 
             const score = buildPostalCandidateScore(place, queryMeta, queryIndex, anchor.postalCode, keywordQuery);
             if (!Number.isFinite(score) || score <= 0) continue;
@@ -548,37 +626,44 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
                 name: placeDisplayName(place),
                 address: normalizeText(place?.formattedAddress),
                 primaryType: normalizeText(place?.primaryType),
-                postalCode: extractPostalCode(place),
+                postalCode: candidatePostalCode,
                 subCategorySuggestion: suggestSubCategory(place?.primaryType, availableHardSubCategories),
                 matchedKeywords: new Set(),
+                distanceMeters,
                 score: 0,
             };
 
             nextCandidate.score = Math.max(nextCandidate.score, score) + (existing ? 0.08 : 0);
             nextCandidate.matchedKeywords.add(queryMeta.label);
+            if (!Number.isFinite(nextCandidate.distanceMeters) && Number.isFinite(distanceMeters)) {
+                nextCandidate.distanceMeters = distanceMeters;
+            }
             candidateMap.set(googlePlaceId, nextCandidate);
         }
-
-        const samePostalCount = [...candidateMap.values()].filter((candidate) => candidate.postalCode === anchor.postalCode).length;
-        if (samePostalCount >= POSTAL_SEARCH_LIMITS.exactResultCount) break;
     }
 
     const candidates = [...candidateMap.values()];
     const exactCandidates = candidates
         .filter((candidate) => candidate.postalCode === anchor.postalCode)
         .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
-        .slice(0, POSTAL_SEARCH_LIMITS.exactResultCount);
+        .slice(0, safePreferredResultCount);
     const exactCandidateIds = new Set(exactCandidates.map((candidate) => candidate.googlePlaceId));
     const nearbyCandidates = candidates
         .filter((candidate) => !exactCandidateIds.has(candidate.googlePlaceId))
-        .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
-        .slice(0, POSTAL_SEARCH_LIMITS.nearbyResultCount);
+        .sort((left, right) => (
+            right.score - left.score
+            || (left.distanceMeters ?? Number.POSITIVE_INFINITY) - (right.distanceMeters ?? Number.POSITIVE_INFINITY)
+            || left.name.localeCompare(right.name)
+        ))
+        .slice(0, safePreferredResultCount);
 
     if (exactCandidates.length === 0 && nearbyCandidates.length > 0) {
-        warnings.push('No exact postal-code matches were found, so nearby Google places are shown instead.');
+        warnings.push(`No exact postal-code matches were found, so nearby Google places within ${safeRadiusKm} km are shown instead.`);
     }
 
     return {
+        radiusKm: safeRadiusKm,
+        preferredResultCount: safePreferredResultCount,
         exactCandidates: exactCandidates.map((candidate) => ({
             googlePlaceId: candidate.googlePlaceId,
             googleMapsUri: candidate.googleMapsUri,
@@ -587,6 +672,7 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
             primaryType: candidate.primaryType,
             postalCode: candidate.postalCode,
             subCategorySuggestion: candidate.subCategorySuggestion,
+            distanceMeters: candidate.distanceMeters,
             matchedKeywords: [...candidate.matchedKeywords].slice(0, 4),
         })),
         nearbyCandidates: nearbyCandidates.map((candidate) => ({
@@ -597,32 +683,48 @@ async function searchPostalCandidates(apiKey, anchor, availableHardSubCategories
             primaryType: candidate.primaryType,
             postalCode: candidate.postalCode,
             subCategorySuggestion: candidate.subCategorySuggestion,
+            distanceMeters: candidate.distanceMeters,
             matchedKeywords: [...candidate.matchedKeywords].slice(0, 4),
         })),
         warnings,
     };
 }
 
-export async function searchGooglePlaceCandidatesByPostal(env, postalCode, availableHardSubCategories = [], keywordQuery = '') {
+export async function searchGooglePlaceCandidatesByPostal(
+    env,
+    postalCode,
+    availableHardSubCategories = [],
+    keywordQuery = '',
+    options = {},
+) {
     const apiKey = getGoogleMapsApiKey(env);
     if (!apiKey) {
         throw new Error('Google Places API is not configured on the server.');
     }
 
     const anchor = await resolvePostalAnchor(apiKey, postalCode);
-    const { exactCandidates, nearbyCandidates, warnings } = await searchPostalCandidates(
+    const {
+        radiusKm,
+        preferredResultCount,
+        exactCandidates,
+        nearbyCandidates,
+        warnings,
+    } = await searchPostalCandidates(
         apiKey,
         anchor,
         availableHardSubCategories,
         keywordQuery,
+        options,
     );
 
     if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
-        warnings.push('No Google place candidates were found for that postal code. Try a Google Maps share link or create the place manually.');
+        warnings.push(`No Google place candidates were found within ${radiusKm} km of that postal code. Try a larger radius, add refine keywords, or create the place manually.`);
     }
 
     return {
         resolvedPostal: anchor,
+        radiusKm,
+        preferredResultCount,
         exactCandidates,
         nearbyCandidates,
         warnings,
@@ -635,7 +737,6 @@ export async function resolveGooglePlacePreview(env, input, availableHardSubCate
         throw new Error('Google Places API is not configured on the server.');
     }
 
-    const shareUrl = typeof input === 'string' ? normalizeText(input) : normalizeText(input?.shareUrl);
     const googlePlaceId = typeof input === 'object' ? normalizeText(input?.googlePlaceId) : '';
     const googleMapsUri = typeof input === 'object' ? normalizeText(input?.googleMapsUri) : '';
 
@@ -643,10 +744,8 @@ export async function resolveGooglePlacePreview(env, input, availableHardSubCate
 
     if (googlePlaceId) {
         resolvedPlace = await resolveGooglePlaceById(apiKey, googlePlaceId, googleMapsUri);
-    } else if (shareUrl) {
-        resolvedPlace = await resolveGooglePlaceFromShareUrl(apiKey, shareUrl);
     } else {
-        throw new Error('Provide either a Google Maps share link or a selected Google place.');
+        throw new Error('Select a Google place from the postal code search results first.');
     }
 
     const place = resolvedPlace.place;
@@ -691,7 +790,7 @@ export async function resolveGooglePlacePreview(env, input, availableHardSubCate
     return {
         resolvedSource: {
             googlePlaceId: normalizeText(place?.id),
-            googleMapsUri: normalizeText(resolvedPlace.googleMapsUri || place?.googleMapsUri || shareUrl),
+            googleMapsUri: normalizeText(resolvedPlace.googleMapsUri || place?.googleMapsUri),
             website,
         },
         suggestion,

@@ -1,10 +1,8 @@
 import {
     AlertTriangle,
     ArrowLeft,
-    Link2,
     Loader2,
     MapPin,
-    MapPinned,
     Search,
     Sparkles,
 } from 'lucide-react';
@@ -83,26 +81,6 @@ function formatExistingMatchReason(matchReason) {
     return 'This candidate already exists in CareAround SG.';
 }
 
-function ModeCard({ active, icon: Icon, title, description, onClick }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`rounded-3xl border p-5 text-left transition ${
-                active
-                    ? 'border-brand-200 bg-brand-50/70 shadow-sm shadow-brand-100/60'
-                    : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/40'
-            }`}
-        >
-            <div className={`w-fit rounded-2xl p-3 ${active ? 'bg-white text-brand-700 shadow-sm shadow-brand-100' : 'bg-slate-100 text-slate-700'}`}>
-                <Icon size={20} />
-            </div>
-            <p className="mt-4 text-lg font-black text-slate-900">{title}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-        </button>
-    );
-}
-
 function CandidateRow({ candidate, loading, onSelect, onEditExisting }) {
     const existingMatch = candidate.existingMatch || null;
 
@@ -166,6 +144,22 @@ function CandidateRow({ candidate, loading, onSelect, onEditExisting }) {
     );
 }
 
+const RADIUS_OPTIONS = [
+    { value: '0.5', label: '0.5 km' },
+    { value: '1', label: '1 km' },
+    { value: '2', label: '2 km' },
+    { value: '3', label: '3 km' },
+    { value: '5', label: '5 km' },
+];
+
+const PREFERRED_RESULT_OPTIONS = [
+    { value: '4', label: '4 per section' },
+    { value: '6', label: '6 per section' },
+    { value: '8', label: '8 per section' },
+    { value: '10', label: '10 per section' },
+    { value: '12', label: '12 per section' },
+];
+
 export default function HardAssetImportWizard({
     currentUser,
     partnerHardAssets,
@@ -175,10 +169,10 @@ export default function HardAssetImportWizard({
     onSave,
     onEditExisting,
 }) {
-    const [mode, setMode] = useState('share');
-    const [shareUrl, setShareUrl] = useState('');
     const [postalCode, setPostalCode] = useState('');
     const [keywordQuery, setKeywordQuery] = useState('');
+    const [radiusKm, setRadiusKm] = useState('1');
+    const [preferredResultCount, setPreferredResultCount] = useState('8');
     const [searchLoading, setSearchLoading] = useState(false);
     const [previewLoadingKey, setPreviewLoadingKey] = useState('');
     const [error, setError] = useState('');
@@ -197,30 +191,6 @@ export default function HardAssetImportWizard({
         setError('');
     }
 
-    function handleSwitchMode(nextMode) {
-        setMode(nextMode);
-        setError('');
-        setPostalResults(null);
-        setPreviewLoadingKey('');
-        setSelectedCandidateTags([]);
-    }
-
-    async function handlePreviewFromShareLink(event) {
-        event.preventDefault();
-        setPreviewLoadingKey('share');
-        setError('');
-        setSelectedCandidateTags([]);
-
-        try {
-            const data = await api.previewGoogleHardAssetImport({ shareUrl });
-            setPreview(data);
-        } catch (err) {
-            setError(err.message || 'Failed to preview Google place import.');
-        } finally {
-            setPreviewLoadingKey('');
-        }
-    }
-
     async function handlePostalCandidateSearch(event) {
         event.preventDefault();
         setSearchLoading(true);
@@ -231,6 +201,8 @@ export default function HardAssetImportWizard({
             const data = await api.searchGoogleHardAssetCandidatesByPostal({
                 postalCode,
                 keywordQuery,
+                radiusKm: Number(radiusKm),
+                preferredResultCount: Number(preferredResultCount),
             });
             setPostalResults(data);
         } catch (err) {
@@ -310,54 +282,114 @@ export default function HardAssetImportWizard({
         </div>
     ) : (
         <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-                <ModeCard
-                    active={mode === 'share'}
-                    icon={Link2}
-                    title="Google Maps share link"
-                    description="Paste a Google Maps share link and we’ll resolve one place, then prefill the normal hard-asset form."
-                    onClick={() => handleSwitchMode('share')}
-                />
-                <ModeCard
-                    active={mode === 'postal'}
-                    icon={Search}
-                    title="Search by postal code"
-                    description="Enter a 6-digit Singapore postal code, review exact matches at that location, then compare nearby relevant places if you need more options."
-                    onClick={() => handleSwitchMode('postal')}
-                />
-            </div>
-
-            {mode === 'share' ? (
-                <form onSubmit={handlePreviewFromShareLink} className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4">
-                        <div className="flex items-start gap-3">
-                            <div className="rounded-2xl bg-white p-3 text-brand-600 shadow-sm shadow-slate-200/70">
-                                <MapPinned size={18} />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-900">Import from Google Maps</h3>
-                                <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    Paste a Google Maps share link and we’ll prefill the place with suggested details, including contact info, hours, website, and any confident branding metadata we can find.
-                                </p>
-                            </div>
+            <div className="space-y-4">
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-2xl bg-white p-3 text-brand-600 shadow-sm shadow-slate-200/70">
+                            <Search size={18} />
                         </div>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-900">Search Google places by postal code</h3>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                Enter a 6-digit Singapore postal code, review exact place matches first, then use nearby relevant places when you want more options around that address.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <form onSubmit={handlePostalCandidateSearch} className="space-y-4">
+                    <div>
+                        <label htmlFor="google-place-postal-code" className="mb-1 block text-sm font-semibold text-slate-700">
+                            Singapore postal code
+                        </label>
+                        <input
+                            id="google-place-postal-code"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={postalCode}
+                            onChange={(event) => {
+                                setPostalCode(event.target.value.replace(/\D/g, '').slice(0, 6));
+                                setPostalResults(null);
+                                setError('');
+                            }}
+                            placeholder="681811"
+                            className="input-field"
+                        />
+                        <p className="mt-2 text-xs text-slate-500">
+                            We’ll resolve the postcode, show places found at that exact postal code, and also surface nearby relevant Google places when available.
+                        </p>
                     </div>
 
                     <div>
-                        <label htmlFor="google-place-share-url" className="mb-1 block text-sm font-semibold text-slate-700">
-                            Google Maps share link
+                        <label htmlFor="google-place-keyword-query" className="mb-1 block text-sm font-semibold text-slate-700">
+                            Refine nearby recommendations
                         </label>
-                        <textarea
-                            id="google-place-share-url"
-                            rows={3}
-                            value={shareUrl}
-                            onChange={(event) => setShareUrl(event.target.value)}
-                            placeholder="https://maps.app.goo.gl/..."
-                            className="input-field resize-none"
+                        <input
+                            id="google-place-keyword-query"
+                            value={keywordQuery}
+                            onChange={(event) => {
+                                setKeywordQuery(event.target.value);
+                                setPostalResults(null);
+                                setError('');
+                            }}
+                            placeholder="Optional, e.g. dementia, rehab, dialysis"
+                            className="input-field"
                         />
                         <p className="mt-2 text-xs text-slate-500">
-                            V1 supports Google Maps share links only. The review form will still let you correct anything before saving.
+                            Optional. Exact same-postal matches still appear first, while nearby recommendations are ranked using these keywords.
                         </p>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label htmlFor="google-place-radius" className="mb-1 block text-sm font-semibold text-slate-700">
+                                Nearby radius
+                            </label>
+                            <select
+                                id="google-place-radius"
+                                value={radiusKm}
+                                onChange={(event) => {
+                                    setRadiusKm(event.target.value);
+                                    setPostalResults(null);
+                                    setError('');
+                                }}
+                                className="input-field"
+                            >
+                                {RADIUS_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Exact same-postal matches still show first. This caps nearby suggestions to within your chosen radius, up to 5 km.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label htmlFor="google-place-result-count" className="mb-1 block text-sm font-semibold text-slate-700">
+                                Preferred results
+                            </label>
+                            <select
+                                id="google-place-result-count"
+                                value={preferredResultCount}
+                                onChange={(event) => {
+                                    setPreferredResultCount(event.target.value);
+                                    setPostalResults(null);
+                                    setError('');
+                                }}
+                                className="input-field"
+                            >
+                                {PREFERRED_RESULT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="mt-2 text-xs text-slate-500">
+                                Controls how many exact and nearby candidates we surface in each section of the results list.
+                            </p>
+                        </div>
                     </div>
 
                     {error ? (
@@ -379,95 +411,28 @@ export default function HardAssetImportWizard({
                         <button type="button" onClick={onCancel} className="btn-secondary">
                             Cancel
                         </button>
-                        <button type="submit" disabled={previewLoadingKey === 'share' || !shareUrl.trim()} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
-                            {previewLoadingKey === 'share' ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                            {previewLoadingKey === 'share' ? 'Fetching Google place…' : 'Preview import'}
+                        <button type="submit" disabled={searchLoading || postalCode.trim().length !== 6} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
+                            {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                            {searchLoading ? 'Searching…' : 'Find Google places'}
                         </button>
                     </div>
                 </form>
-            ) : (
-                <div className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4">
-                        <div className="flex items-start gap-3">
-                            <div className="rounded-2xl bg-white p-3 text-brand-600 shadow-sm shadow-slate-200/70">
-                                <Search size={18} />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-900">Search Google places by postal code</h3>
-                                <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    Enter a 6-digit Singapore postal code, review exact place matches first, then use nearby relevant places when you want more options around that address.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <form onSubmit={handlePostalCandidateSearch} className="space-y-4">
-                        <div>
-                            <label htmlFor="google-place-postal-code" className="mb-1 block text-sm font-semibold text-slate-700">
-                                Singapore postal code
-                            </label>
-                            <input
-                                id="google-place-postal-code"
-                                inputMode="numeric"
-                                maxLength={6}
-                                value={postalCode}
-                                onChange={(event) => {
-                                    setPostalCode(event.target.value.replace(/\D/g, '').slice(0, 6));
-                                    setPostalResults(null);
-                                    setError('');
-                                }}
-                                placeholder="681811"
-                                className="input-field"
-                            />
-                            <p className="mt-2 text-xs text-slate-500">
-                                We’ll resolve the postcode, show places found at that exact postal code, and also surface nearby relevant Google places when available.
-                            </p>
-                        </div>
-
-                        <div>
-                            <label htmlFor="google-place-keyword-query" className="mb-1 block text-sm font-semibold text-slate-700">
-                                Refine nearby recommendations
-                            </label>
-                            <input
-                                id="google-place-keyword-query"
-                                value={keywordQuery}
-                                onChange={(event) => {
-                                    setKeywordQuery(event.target.value);
-                                    setPostalResults(null);
-                                    setError('');
-                                }}
-                                placeholder="Optional, e.g. dementia, rehab, dialysis"
-                                className="input-field"
-                            />
-                            <p className="mt-2 text-xs text-slate-500">
-                                Optional. Exact same-postal matches still appear first, while nearby recommendations are ranked using these keywords.
-                            </p>
-                        </div>
-
-                        {error ? (
-                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-2">
-                            <button type="button" onClick={onCancel} className="btn-secondary">
-                                Cancel
-                            </button>
-                            <button type="submit" disabled={searchLoading || postalCode.trim().length !== 6} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
-                                {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                                {searchLoading ? 'Searching…' : 'Find Google places'}
-                            </button>
-                        </div>
-                    </form>
-
-                    {postalResults ? (
-                        <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/70 px-5 py-5">
+                {postalResults ? (
+                    <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/70 px-5 py-5">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Resolved postal anchor</p>
                                     <p className="mt-2 text-base font-semibold text-slate-900">{postalResults.resolvedPostal?.postalCode || postalCode}</p>
                                     <p className="mt-1 text-sm leading-6 text-slate-600">{postalResults.resolvedPostal?.address || 'Google resolved the postcode, but no formatted address was returned.'}</p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                            Nearby radius: {postalResults.radiusKm || radiusKm} km
+                                        </span>
+                                        <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                            Preferred results: {postalResults.preferredResultCount || preferredResultCount} per section
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <button
@@ -533,12 +498,12 @@ export default function HardAssetImportWizard({
                                         <div className="space-y-3">
                                             <div className="flex items-center gap-2">
                                                 <Search size={15} className="text-brand-600" />
-                                                <p className="text-sm font-semibold text-slate-700">
-                                                    Nearby relevant places
-                                                </p>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                                Nearby relevant places
+                                            </p>
                                             </div>
                                             <p className="text-sm leading-6 text-slate-500">
-                                                Useful when the exact postal code has no matching Google place, or when you want to compare nearby venues around the same anchor.
+                                                Useful when the exact postal code has no matching Google place, or when you want to compare nearby venues within {postalResults.radiusKm || radiusKm} km of the same anchor.
                                             </p>
                                             <div className="space-y-3">
                                                 {nearbyCandidates.map((candidate) => (
@@ -558,21 +523,20 @@ export default function HardAssetImportWizard({
                                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-6 text-center">
                                     <p className="text-base font-semibold text-slate-800">No strong Google place candidates found</p>
                                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                                        Try a Google Maps share link instead, or switch back to manual entry if this place is not well represented on Google.
+                                        Try another postal code, add refine keywords, or switch back to manual entry if this place is not well represented on Google.
                                     </p>
                                 </div>
                             )}
-                        </div>
-                    ) : null}
-                </div>
-            )}
+                    </div>
+                ) : null}
+            </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">What happens next</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                         <p className="text-sm font-semibold text-slate-800">1. Resolve one place</p>
-                        <p className="mt-1 text-sm text-slate-600">Paste a Google Maps share link or search by postal code to identify the right place.</p>
+                        <p className="mt-1 text-sm text-slate-600">Search by postal code to identify the right place.</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                         <p className="text-sm font-semibold text-slate-800">2. Suggest the fields</p>

@@ -387,6 +387,7 @@ export default function ResourcesPage() {
     const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
     const [collapsedMemberAssetIds, setCollapsedMemberAssetIds] = useState({});
+    const [inlineSoftCreateHostId, setInlineSoftCreateHostId] = useState(null);
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
     const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
@@ -493,6 +494,12 @@ export default function ResourcesPage() {
         }
     }, [activeTab, isStandardUser]);
 
+    useEffect(() => {
+        if (activeTab !== 'hard' && inlineSoftCreateHostId) {
+            setInlineSoftCreateHostId(null);
+        }
+    }, [activeTab, inlineSoftCreateHostId]);
+
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
             hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
@@ -562,6 +569,7 @@ export default function ResourcesPage() {
     }
 
     function openCreate(assetType) {
+        setInlineSoftCreateHostId(null);
         if (assetType === 'hard') {
             setPlaceCreateChooserOpen(true);
             return;
@@ -570,6 +578,7 @@ export default function ResourcesPage() {
     }
 
     function openEdit(asset, assetType) {
+        setInlineSoftCreateHostId(null);
         if (assetType === 'soft' && asset.assetMode === 'child') {
             openChildEditor(asset.id);
             return;
@@ -578,12 +587,14 @@ export default function ResourcesPage() {
     }
 
     function openManualHardAssetCreate() {
+        setInlineSoftCreateHostId(null);
         setPlaceCreateChooserOpen(false);
         setPlaceImportWizardOpen(false);
         setAssetModal({ mode: 'create', assetType: 'hard', data: null });
     }
 
     function openGooglePlaceImportWizard() {
+        setInlineSoftCreateHostId(null);
         setPlaceCreateChooserOpen(false);
         setPlaceImportWizardOpen(true);
     }
@@ -600,14 +611,17 @@ export default function ResourcesPage() {
     }
 
     function openTemplateCreate() {
+        setInlineSoftCreateHostId(null);
         setTemplateModal({ mode: 'create', data: null });
     }
 
     function openTemplateEdit(template) {
+        setInlineSoftCreateHostId(null);
         setTemplateModal({ mode: 'edit', data: template });
     }
 
     async function openGenerateTemplate(template) {
+        setInlineSoftCreateHostId(null);
         setGenerateModal({ template, selectedHostIds: [], loading: true, submitting: false });
         try {
             await ensureTemplateDetail(template.id);
@@ -619,6 +633,7 @@ export default function ResourcesPage() {
     }
 
     async function openMembershipQr(asset) {
+        setInlineSoftCreateHostId(null);
         setMembershipQrModal({ asset, loading: true, data: null, copied: false });
         try {
             const data = await api.generateHardAssetMembershipQr(asset.id);
@@ -630,6 +645,7 @@ export default function ResourcesPage() {
     }
 
     async function openChildEditor(childId) {
+        setInlineSoftCreateHostId(null);
         setChildModal({ childId, loading: true, data: null });
         try {
             const data = await api.getSoftAsset(childId);
@@ -667,6 +683,13 @@ export default function ResourcesPage() {
         }
     }
 
+    useEffect(() => {
+        if (!inlineSoftCreateHostId) return;
+        if (!hardAssets.some((asset) => Number(asset.id) === Number(inlineSoftCreateHostId))) {
+            setInlineSoftCreateHostId(null);
+        }
+    }, [hardAssets, inlineSoftCreateHostId]);
+
     function getVisibilityActionKey(assetType, assetId) {
         return `${assetType}-${assetId}`;
     }
@@ -677,6 +700,40 @@ export default function ResourcesPage() {
 
     function replaceSoftAsset(updatedAsset) {
         setSoftAssets((prev) => prev.map((asset) => (asset.id === updatedAsset.id ? { ...asset, ...updatedAsset } : asset)));
+    }
+
+    function buildInlineSoftAssetInitialData(hostAsset) {
+        const inferredOwnershipMode = hostAsset?.partnerId || normalizedRole === 'partner' ? 'partner' : 'system';
+
+        return {
+            name: '',
+            bucket: 'Programmes',
+            subCategory: 'Programmes',
+            locationIds: hostAsset?.id ? [hostAsset.id] : [],
+            description: '',
+            schedule: '',
+            logoUrl: '',
+            bannerUrl: '',
+            galleryUrls: [],
+            newTags: [],
+            isMemberOnly: false,
+            isHidden: false,
+            hideFrom: '',
+            hideUntil: '',
+            availabilityEnabled: false,
+            availabilityCount: 0,
+            availabilityUnit: '',
+            eligibilityRules: null,
+            ownershipMode: inferredOwnershipMode,
+            partnerId: hostAsset?.partnerId || (normalizedRole === 'partner' ? user?.id || '' : ''),
+            subregionId: hostAsset?.subregionId || (normalizedRole === 'partner' ? user?.subregionIds?.[0] || '' : ''),
+            audienceMode: 'public',
+            audienceZoneIds: [],
+        };
+    }
+
+    function toggleInlineSoftCreate(hostAsset) {
+        setInlineSoftCreateHostId((prev) => (prev === hostAsset.id ? null : hostAsset.id));
     }
 
     function buildHardVisibilityPayload(asset, nextHidden) {
@@ -1217,6 +1274,13 @@ export default function ResourcesPage() {
                                             <button onClick={() => openEdit(asset, 'hard')} className="btn-ghost px-3 py-2 text-sm">
                                                 <Pencil size={15} /> Edit
                                             </button>
+                                            <button
+                                                onClick={() => toggleInlineSoftCreate(asset)}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineSoftCreateHostId === asset.id ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                            >
+                                                {inlineSoftCreateHostId === asset.id ? <X size={15} /> : <Plus size={15} />}
+                                                {inlineSoftCreateHostId === asset.id ? 'Close composer' : 'Add Offering'}
+                                            </button>
                                             <button onClick={() => openMembershipQr(asset)} className="btn-ghost px-3 py-2 text-sm">
                                                 <Building2 size={15} /> Generate Membership QR
                                             </button>
@@ -1225,6 +1289,48 @@ export default function ResourcesPage() {
                                             </button>
                                         </div>
                                     </div>
+
+                                    {inlineSoftCreateHostId === asset.id ? (
+                                        <div className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
+                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">Inline offering composer</p>
+                                                    <h3 className="mt-1 text-xl font-black text-slate-900">Add an offering for {asset.name}</h3>
+                                                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                                                        Start with the essentials and keep {asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setInlineSoftCreateHostId(null)}
+                                                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                >
+                                                    <X size={15} />
+                                                    Close
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-5 rounded-3xl border border-white/80 bg-white/95 p-5 shadow-sm shadow-slate-100">
+                                                <AssetForm
+                                                    key={`inline-soft-create-${asset.id}`}
+                                                    type="soft"
+                                                    initialData={buildInlineSoftAssetInitialData(asset)}
+                                                    partnerHardAssets={hardAssets}
+                                                    currentUser={user}
+                                                    partnerOptions={partnerOptions}
+                                                    subregions={subregions}
+                                                    audienceZones={audienceZones}
+                                                    layoutMode="inline-soft"
+                                                    onSave={async () => {
+                                                        setInlineSoftCreateHostId(null);
+                                                        await load();
+                                                        setActionNotice({ type: 'success', message: `Offering created for ${asset.name}.` });
+                                                    }}
+                                                    onCancel={() => setInlineSoftCreateHostId(null)}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
 
                                     {canShowMembers ? (
                                         <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
@@ -1673,7 +1779,7 @@ export default function ResourcesPage() {
                             </div>
                             <p className="mt-4 text-lg font-black text-slate-900">Import with Google</p>
                             <p className="mt-2 text-sm leading-6 text-slate-600">
-                                Paste a Google Maps share link or start from a postal code search, then review suggested place details before saving.
+                                Start from a postal code search, then review suggested place details before saving.
                             </p>
                         </button>
                     </div>
@@ -1683,7 +1789,7 @@ export default function ResourcesPage() {
             {placeImportWizardOpen ? (
                 <ResourceModal
                     title="Import Place with Google"
-                    description="Resolve one Google place from a share link or postal code search, review the suggested fields, then save it as a normal CareAround SG place."
+                    description="Resolve one Google place from a postal code search, review the suggested fields, then save it as a normal CareAround SG place."
                     onClose={() => setPlaceImportWizardOpen(false)}
                     maxWidth="max-w-4xl"
                     bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
