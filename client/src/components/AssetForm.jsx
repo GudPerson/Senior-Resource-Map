@@ -644,6 +644,17 @@ export default function AssetForm({
                                 placeholder="https://example.org"
                                 className="input-field"
                             />
+                            {websiteHref ? (
+                                <a
+                                    href={websiteHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-flex max-w-full items-center gap-1 break-all text-sm font-medium text-brand-700 transition hover:text-brand-800 hover:underline"
+                                >
+                                    {form.website || websiteHref}
+                                    <ExternalLink size={13} className="flex-shrink-0" />
+                                </a>
+                            ) : null}
                         </div>
                     </>
                 )}

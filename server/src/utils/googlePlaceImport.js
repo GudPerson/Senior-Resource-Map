@@ -127,7 +127,37 @@ async function fetchWithTimeout(url, init = {}, timeoutMs = 8000) {
     });
 }
 
+function isGoogleShareErrorUrl(rawUrl) {
+    try {
+        const parsed = new URL(rawUrl);
+        const host = parsed.hostname.toLowerCase();
+        const pathname = parsed.pathname.toLowerCase();
+        if (host === 'share.google' && pathname === '/error') {
+            return true;
+        }
+        if ((host === 'www.google.com' || host === 'google.com') && pathname === '/share.google') {
+            return true;
+        }
+        return false;
+    } catch {
+        return false;
+    }
+}
+
 async function resolveFinalGoogleMapsUrl(shareUrl) {
+    const firstHop = await fetchWithTimeout(shareUrl, {
+        headers: {
+            Accept: 'text/html,application/xhtml+xml',
+            'User-Agent': buildUserAgent(),
+        },
+        redirect: 'manual',
+    });
+
+    const firstHopLocation = firstHop.headers.get('location') || '';
+    if (isGoogleShareErrorUrl(firstHopLocation)) {
+        throw new Error('This Google share link is not resolving to a place. Open it in your browser, wait for the place page to load, then copy that final Google URL instead.');
+    }
+
     const response = await fetchWithTimeout(shareUrl, {
         headers: {
             Accept: 'text/html,application/xhtml+xml',
@@ -138,6 +168,10 @@ async function resolveFinalGoogleMapsUrl(shareUrl) {
 
     if (!response.ok) {
         throw new Error('Google Maps link could not be resolved.');
+    }
+
+    if (isGoogleShareErrorUrl(response.url || '')) {
+        throw new Error('This Google share link is not resolving to a place. Open it in your browser, wait for the place page to load, then copy that final Google URL instead.');
     }
 
     return response.url || shareUrl;
