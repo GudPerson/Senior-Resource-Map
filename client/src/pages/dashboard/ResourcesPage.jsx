@@ -31,6 +31,7 @@ import {
 import AssetForm from '../../components/AssetForm.jsx';
 import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
 import HardAssetImportWizard from '../../components/HardAssetImportWizard.jsx';
+import SoftAssetCollateralImportWizard from '../../components/SoftAssetCollateralImportWizard.jsx';
 import SoftAssetChildForm from '../../components/SoftAssetChildForm.jsx';
 import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
@@ -377,6 +378,7 @@ export default function ResourcesPage() {
     const [assetModal, setAssetModal] = useState(null);
     const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
     const [placeImportWizardOpen, setPlaceImportWizardOpen] = useState(false);
+    const [collateralImportHostAsset, setCollateralImportHostAsset] = useState(null);
     const [templateModal, setTemplateModal] = useState(null);
     const [childModal, setChildModal] = useState(null);
     const [generateModal, setGenerateModal] = useState(null);
@@ -1281,6 +1283,15 @@ export default function ResourcesPage() {
                                                 {inlineSoftCreateHostId === asset.id ? <X size={15} /> : <Plus size={15} />}
                                                 {inlineSoftCreateHostId === asset.id ? 'Close composer' : 'Add Offering'}
                                             </button>
+                                            <button
+                                                onClick={() => {
+                                                    setInlineSoftCreateHostId(null);
+                                                    setCollateralImportHostAsset(asset);
+                                                }}
+                                                className="btn-ghost px-3 py-2 text-sm"
+                                            >
+                                                <Files size={15} /> Import Material
+                                            </button>
                                             <button onClick={() => openMembershipQr(asset)} className="btn-ghost px-3 py-2 text-sm">
                                                 <Building2 size={15} /> Generate Membership QR
                                             </button>
@@ -1806,6 +1817,41 @@ export default function ResourcesPage() {
                             setActionNotice({ type: 'success', message: 'Place saved.' });
                         }}
                         onCancel={() => setPlaceImportWizardOpen(false)}
+                    />
+                </ResourceModal>
+            ) : null}
+
+            {collateralImportHostAsset ? (
+                <ResourceModal
+                    title="Import Material"
+                    description="Upload printed collateral for this host place, review extracted offering drafts, then create or update offerings in bulk."
+                    onClose={() => setCollateralImportHostAsset(null)}
+                    maxWidth="max-w-6xl"
+                    bodyClassName="max-h-[84vh] overflow-y-auto pr-1"
+                >
+                    <SoftAssetCollateralImportWizard
+                        hostAsset={collateralImportHostAsset}
+                        onSave={async (result) => {
+                            setCollateralImportHostAsset(null);
+                            await load();
+                            const createdCount = (result?.results || []).filter((row) => row.status === 'created').length;
+                            const updatedCount = (result?.results || []).filter((row) => row.status === 'updated').length;
+                            const skippedCount = (result?.results || []).filter((row) => row.status === 'skipped').length;
+                            const failedCount = (result?.results || []).filter((row) => row.status === 'failed').length;
+                            const summaryParts = [
+                                createdCount ? `${createdCount} created` : null,
+                                updatedCount ? `${updatedCount} updated` : null,
+                                skippedCount ? `${skippedCount} skipped` : null,
+                                failedCount ? `${failedCount} failed` : null,
+                            ].filter(Boolean);
+                            setActionNotice({
+                                type: failedCount ? 'warning' : 'success',
+                                message: summaryParts.length
+                                    ? `Collateral import finished for ${collateralImportHostAsset.name}: ${summaryParts.join(', ')}.`
+                                    : `Collateral import finished for ${collateralImportHostAsset.name}.`,
+                            });
+                        }}
+                        onCancel={() => setCollateralImportHostAsset(null)}
                     />
                 </ResourceModal>
             ) : null}
