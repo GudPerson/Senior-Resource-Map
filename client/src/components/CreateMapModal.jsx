@@ -3,6 +3,8 @@ import { Map, Search, X } from 'lucide-react';
 
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 
+const EMPTY_ASSET_KEYS = [];
+
 function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
 }
@@ -15,7 +17,7 @@ export default function CreateMapModal({
     isOpen,
     mode = 'create',
     savedAssets = [],
-    initialAssetKeys = [],
+    initialAssetKeys = EMPTY_ASSET_KEYS,
     submitting = false,
     error = '',
     onClose,
