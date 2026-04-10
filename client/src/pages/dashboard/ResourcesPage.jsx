@@ -388,6 +388,7 @@ export default function ResourcesPage() {
     const [boundaryFilter, setBoundaryFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
+    const [collapsedHardAssetIds, setCollapsedHardAssetIds] = useState({});
     const [collapsedMemberAssetIds, setCollapsedMemberAssetIds] = useState({});
     const [inlineSoftCreateHostId, setInlineSoftCreateHostId] = useState(null);
     const [actionNotice, setActionNotice] = useState(null);
@@ -561,6 +562,17 @@ export default function ResourcesPage() {
 
     function areMembersCollapsed(assetId) {
         return collapsedMemberAssetIds[assetId] ?? true;
+    }
+
+    function areHardAssetDetailsCollapsed(assetId) {
+        return collapsedHardAssetIds[assetId] ?? true;
+    }
+
+    function toggleHardAssetDetailsCollapsed(assetId) {
+        setCollapsedHardAssetIds((prev) => ({
+            ...prev,
+            [assetId]: !(prev[assetId] ?? false),
+        }));
     }
 
     function toggleMembersCollapsed(assetId) {
@@ -1210,10 +1222,13 @@ export default function ResourcesPage() {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canShowMembers = typeof asset.membershipCount === 'number';
                             const membersCollapsed = canShowMembers ? areMembersCollapsed(asset.id) : true;
+                            const detailsCollapsed = areHardAssetDetailsCollapsed(asset.id);
+                            const visibleTags = detailsCollapsed ? (asset.tags || []).slice(0, 4) : (asset.tags || []);
+                            const hiddenTagCount = Math.max((asset.tags || []).length - visibleTags.length, 0);
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
-                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                    <div className="flex flex-col gap-4">
                                         <div className="flex min-w-0 flex-1 gap-4">
                                             {asset.logoUrl ? (
                                                 <img src={asset.logoUrl} alt="Logo" className="h-16 w-16 flex-shrink-0 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
@@ -1223,40 +1238,69 @@ export default function ResourcesPage() {
                                                 </div>
                                             )}
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <p className="truncate text-lg font-bold text-slate-900">{asset.name}</p>
-                                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                                                            {asset.address ? <span className="flex items-center gap-1 truncate"><MapPin size={14} />{asset.address}</span> : null}
-                                                            {(normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') ? (
-                                                                <span className="text-xs text-slate-400">{asset.partnerName ? `Owner: ${asset.partnerName}` : 'Owner: System'}</span>
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-lg font-bold text-slate-900">{asset.name}</p>
+                                                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                                                                {asset.address ? <span className="flex items-center gap-1"><MapPin size={14} />{asset.address}</span> : null}
+                                                                {(normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') ? (
+                                                                    <span className="text-xs text-slate-400">{asset.partnerName ? `Owner: ${asset.partnerName}` : 'Owner: System'}</span>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center justify-end gap-2">
+                                                            {canShowMembers ? (
+                                                                <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-[11px] font-semibold text-brand-700">
+                                                                    <Users size={13} />
+                                                                    {asset.membershipCount} linked
+                                                                </span>
                                                             ) : null}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!detailsCollapsed && inlineSoftCreateHostId === asset.id) {
+                                                                        setInlineSoftCreateHostId(null);
+                                                                    }
+                                                                    toggleHardAssetDetailsCollapsed(asset.id);
+                                                                }}
+                                                                aria-expanded={!detailsCollapsed}
+                                                                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                            >
+                                                                {detailsCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                                                {detailsCollapsed ? 'Expand details' : 'Collapse details'}
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                    {canShowMembers ? (
-                                                        <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-[11px] font-semibold text-brand-700">
-                                                            <Users size={13} />
-                                                            {asset.membershipCount} linked
-                                                        </span>
+
+                                                    {(asset.subCategory || asset.tags?.length > 0 || hiddenStatus.hidden) ? (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <HiddenBadge status={hiddenStatus} />
+                                                            {boundaryChecksEnabled ? (
+                                                                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).className}`}>
+                                                                    {getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).label}
+                                                                </span>
+                                                            ) : null}
+                                                            {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
+                                                            {visibleTags.map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
+                                                            {hiddenTagCount > 0 ? (
+                                                                <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                                                    +{hiddenTagCount} more
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : null}
+
+                                                    {detailsCollapsed ? (
+                                                        <p className="text-sm text-slate-500">
+                                                            Expand this card when you want to review linked members or the full place details. Quick actions stay available here.
+                                                        </p>
                                                     ) : null}
                                                 </div>
-
-                                                {(asset.subCategory || asset.tags?.length > 0 || hiddenStatus.hidden) ? (
-                                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                                        <HiddenBadge status={hiddenStatus} />
-                                                        {boundaryChecksEnabled ? (
-                                                            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).className}`}>
-                                                                {getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).label}
-                                                            </span>
-                                                        ) : null}
-                                                        {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
-                                                        {asset.tags?.map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
-                                                    </div>
-                                                ) : null}
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                                        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-1">
                                             <button
                                                 onClick={() => handleToggleVisibility(asset, 'hard')}
                                                 disabled={visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
@@ -1301,7 +1345,7 @@ export default function ResourcesPage() {
                                         </div>
                                     </div>
 
-                                    {inlineSoftCreateHostId === asset.id ? (
+                                    {!detailsCollapsed && inlineSoftCreateHostId === asset.id ? (
                                         <div className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                                 <div className="min-w-0">
@@ -1343,7 +1387,7 @@ export default function ResourcesPage() {
                                         </div>
                                     ) : null}
 
-                                    {canShowMembers ? (
+                                    {!detailsCollapsed && canShowMembers ? (
                                         <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
                                             <div className="flex flex-wrap items-center justify-between gap-3">
                                                 <div>
