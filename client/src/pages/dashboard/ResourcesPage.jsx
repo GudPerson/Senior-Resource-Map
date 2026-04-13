@@ -378,6 +378,7 @@ export default function ResourcesPage() {
     const [assetModal, setAssetModal] = useState(null);
     const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
     const [placeImportWizardOpen, setPlaceImportWizardOpen] = useState(false);
+    const [placeImportCloseGuard, setPlaceImportCloseGuard] = useState(null);
     const [collateralImportHostAsset, setCollateralImportHostAsset] = useState(null);
     const [templateModal, setTemplateModal] = useState(null);
     const [childModal, setChildModal] = useState(null);
@@ -604,12 +605,24 @@ export default function ResourcesPage() {
         setInlineSoftCreateHostId(null);
         setPlaceCreateChooserOpen(false);
         setPlaceImportWizardOpen(false);
+        setPlaceImportCloseGuard(null);
         setAssetModal({ mode: 'create', assetType: 'hard', data: null });
+    }
+
+    function closePlaceImportWizard({ force = false } = {}) {
+        if (!force && typeof placeImportCloseGuard === 'function') {
+            const shouldClose = placeImportCloseGuard();
+            if (!shouldClose) return false;
+        }
+        setPlaceImportWizardOpen(false);
+        setPlaceImportCloseGuard(null);
+        return true;
     }
 
     function openGooglePlaceImportWizard() {
         setInlineSoftCreateHostId(null);
         setPlaceCreateChooserOpen(false);
+        setPlaceImportCloseGuard(null);
         setPlaceImportWizardOpen(true);
     }
 
@@ -617,7 +630,7 @@ export default function ResourcesPage() {
         try {
             const existing = hardAssets.find((asset) => Number(asset.id) === Number(assetId))
                 || await api.getHardAsset(assetId);
-            setPlaceImportWizardOpen(false);
+            closePlaceImportWizard({ force: true });
             openEdit(existing, 'hard');
         } catch (err) {
             setActionNotice({ type: 'warning', message: err.message || 'Failed to load the existing place.' });
@@ -1845,7 +1858,7 @@ export default function ResourcesPage() {
                 <ResourceModal
                     title="Import Place with Google"
                     description="Resolve one Google place from a postal code search, review the suggested fields, then save it as a normal CareAround SG place."
-                    onClose={() => setPlaceImportWizardOpen(false)}
+                    onClose={() => closePlaceImportWizard()}
                     maxWidth="max-w-4xl"
                     bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
                 >
@@ -1855,12 +1868,12 @@ export default function ResourcesPage() {
                         partnerOptions={partnerOptions}
                         subregions={subregions}
                         onEditExisting={openExistingImportedHardAsset}
+                        onRegisterCloseHandler={(handler) => setPlaceImportCloseGuard(() => handler || null)}
                         onSave={async () => {
-                            setPlaceImportWizardOpen(false);
                             await load();
                             setActionNotice({ type: 'success', message: 'Place saved.' });
                         }}
-                        onCancel={() => setPlaceImportWizardOpen(false)}
+                        onCancel={() => closePlaceImportWizard({ force: true })}
                     />
                 </ResourceModal>
             ) : null}

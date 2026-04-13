@@ -349,19 +349,21 @@ export default function AssetForm({
                 throw new Error('Select a partner owner for partner-owned assets.');
             }
 
+            let savedAsset = null;
+
             if (initialData?.id) {
                 if (isHard) {
-                    await api.updateHardAsset(initialData.id, payload);
+                    savedAsset = await api.updateHardAsset(initialData.id, payload);
                 } else {
-                    await api.updateSoftAsset(initialData.id, payload);
+                    savedAsset = await api.updateSoftAsset(initialData.id, payload);
                 }
             } else if (isHard) {
-                await api.createHardAsset(payload);
+                savedAsset = await api.createHardAsset(payload);
             } else {
-                await api.createSoftAsset(payload);
+                savedAsset = await api.createSoftAsset(payload);
             }
 
-            onSave();
+            onSave(savedAsset);
         } catch (err) {
             setError(err.message || 'Failed to save asset');
             setSaving(false);
@@ -860,7 +862,7 @@ export default function AssetForm({
             {error ? <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div> : null}
 
             <div className="flex gap-3 pt-2">
-                <button type="button" onClick={onCancel} className="btn-ghost flex-1 justify-center">Cancel</button>
+                <button type="button" onClick={() => onCancel(form)} className="btn-ghost flex-1 justify-center">Cancel</button>
                 <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
                     {saving ? <Loader2 size={18} className="animate-spin" /> : 'Save Asset'}
                 </button>

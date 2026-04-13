@@ -1,29 +1,29 @@
 import {
     AlertTriangle,
     ArrowLeft,
+    CheckCircle2,
     Loader2,
     MapPin,
+    Plus,
     Search,
     Sparkles,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { api } from '../lib/api.js';
 import AssetForm from './AssetForm.jsx';
 
+function dedupeTags(values) {
+    return [...new Set((values || []).map((value) => String(value || '').trim()).filter(Boolean))];
+}
+
 function buildImportedHardAssetDraft(preview) {
     const suggestion = preview?.suggestion || {};
     const resolvedSource = preview?.resolvedSource || {};
-    const importedTags = [
-        ...new Set(
-            [
-                ...(Array.isArray(suggestion.suggestedTags) ? suggestion.suggestedTags : []),
-                ...(Array.isArray(preview?.candidateSuggestedTags) ? preview.candidateSuggestedTags : []),
-            ]
-                .map((tag) => String(tag || '').trim())
-                .filter(Boolean)
-        ),
-    ];
+    const importedTags = dedupeTags([
+        ...(Array.isArray(suggestion.suggestedTags) ? suggestion.suggestedTags : []),
+        ...(Array.isArray(preview?.candidateSuggestedTags) ? preview.candidateSuggestedTags : []),
+    ]);
 
     return {
         externalKey: '',
@@ -74,6 +74,50 @@ function buildAddressOnlyPreview(postalResults) {
     };
 }
 
+function createGooglePlaceDraft(candidate) {
+    return {
+        id: `google-place:${candidate.googlePlaceId || candidate.name || candidate.address}`,
+        sourceType: 'google-place',
+        googlePlaceId: candidate.googlePlaceId || '',
+        googleMapsUri: candidate.googleMapsUri || '',
+        displayName: candidate.name || '',
+        displayAddress: candidate.address || '',
+        displayPostalCode: candidate.postalCode || '',
+        subCategorySuggestion: candidate.subCategorySuggestion || '',
+        candidateSuggestedTags: dedupeTags([
+            ...(Array.isArray(candidate.suggestedTags) ? candidate.suggestedTags : []),
+            ...(Array.isArray(candidate.matchedKeywords) ? candidate.matchedKeywords : []),
+        ]),
+        previewData: null,
+        formDraft: null,
+        loadStatus: 'not-loaded',
+        savedAssetId: null,
+        error: '',
+    };
+}
+
+function createAddressOnlyDraft(postalResults) {
+    const resolvedPostal = postalResults?.resolvedPostal || {};
+    const preview = buildAddressOnlyPreview(postalResults);
+
+    return {
+        id: `address-only:${resolvedPostal.postalCode || resolvedPostal.address || 'draft'}`,
+        sourceType: 'address-only',
+        googlePlaceId: '',
+        googleMapsUri: '',
+        displayName: 'Address-only draft',
+        displayAddress: resolvedPostal.address || '',
+        displayPostalCode: resolvedPostal.postalCode || '',
+        subCategorySuggestion: 'Places',
+        candidateSuggestedTags: [],
+        previewData: preview,
+        formDraft: buildImportedHardAssetDraft(preview),
+        loadStatus: 'ready',
+        savedAssetId: null,
+        error: '',
+    };
+}
+
 function formatExistingMatchReason(matchReason) {
     if (matchReason === 'same_place_id') return 'This Google place already exists in CareAround SG.';
     if (matchReason === 'same_name_postal') return 'A place with the same name and postal code already exists.';
@@ -102,9 +146,220 @@ function formatCandidateDistance(candidate, anchorPostalCode) {
     return `${Math.round(distanceMeters / 1000)} km away`;
 }
 
-function CandidateRow({ candidate, loading, onSelect, onEditExisting, anchorPostalCode }) {
+function getDraftDisplayName(draft) {
+    const explicitName = String(draft?.formDraft?.name || '').trim();
+    if (explicitName) return explicitName;
+    const fallbackName = String(draft?.displayName || '').trim();
+    if (fallbackName) return fallbackName;
+    return draft?.sourceType === 'address-only' ? 'Address-only draft' : 'Queued place draft';
+}
+
+function getDraftDisplayAddress(draft) {
+    return String(draft?.formDraft?.address || draft?.displayAddress || '').trim();
+}
+
+function getDraftStatusMeta(draft, isActive, isLoading) {
+    if (isLoading || draft?.loadStatus === 'loading') {
+        return {
+            label: 'Loading preview',
+            className: 'border-brand-200 bg-brand-50 text-brand-700',
+        };
+    }
+    if (isActive) {
+        return {
+            label: 'Reviewing',
+            className: 'border-brand-200 bg-brand-50 text-brand-700',
+        };
+    }
+    if (draft?.loadStatus === 'saved') {
+        return {
+            label: 'Saved',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        };
+    }
+    if (draft?.loadStatus === 'failed') {
+        return {
+            label: 'Needs attention',
+            className: 'border-red-200 bg-red-50 text-red-700',
+        };
+    }
+    if (draft?.formDraft) {
+        return {
+            label: 'Ready',
+            className: 'border-slate-200 bg-slate-50 text-slate-600',
+        };
+    }
+    return {
+        label: 'Queued',
+        className: 'border-slate-200 bg-slate-50 text-slate-600',
+    };
+}
+
+function findNextPendingDraftId(drafts, currentDraftId) {
+    if (!Array.isArray(drafts) || drafts.length === 0) return '';
+    const currentIndex = drafts.findIndex((draft) => draft.id === currentDraftId);
+    for (let offset = 1; offset <= drafts.length; offset += 1) {
+        const candidate = drafts[(currentIndex + offset) % drafts.length];
+        if (candidate && candidate.id !== currentDraftId && candidate.loadStatus !== 'saved') {
+            return candidate.id;
+        }
+    }
+    return '';
+}
+
+function buildDiscardMessage(unsavedCount, actionLabel) {
+    const noun = unsavedCount === 1 ? 'draft' : 'drafts';
+    return `You have ${unsavedCount} queued ${noun} that haven't been saved yet. ${actionLabel} will discard this postal import session. Continue?`;
+}
+
+function QueueSummaryPanel({
+    drafts,
+    activeDraftId,
+    loadingDraftId,
+    viewMode,
+    onOpenDraft,
+    onClearQueue,
+}) {
+    if (!drafts.length) return null;
+
+    const savedCount = drafts.filter((draft) => draft.loadStatus === 'saved').length;
+    const remainingCount = drafts.length - savedCount;
+
+    return (
+        <div className="rounded-3xl border border-brand-100 bg-white px-5 py-5 shadow-sm shadow-slate-100/70">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Draft queue</p>
+                    <p className="mt-2 text-base font-semibold text-slate-900">
+                        {drafts.length} queued {drafts.length === 1 ? 'draft' : 'drafts'}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {savedCount > 0
+                            ? `${savedCount} saved, ${remainingCount} remaining in this postal search session.`
+                            : 'Add multiple places now, then review and save them one at a time.'}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={onClearQueue}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                    Clear queue
+                </button>
+            </div>
+
+            <div className="mt-4 space-y-2">
+                {drafts.map((draft) => {
+                    const isActive = viewMode === 'form' && activeDraftId === draft.id;
+                    const isLoading = loadingDraftId === draft.id;
+                    const statusMeta = getDraftStatusMeta(draft, isActive, isLoading);
+                    const canOpen = Boolean(onOpenDraft) && !isActive && !isLoading && draft.loadStatus !== 'saved';
+
+                    return (
+                        <button
+                            key={draft.id}
+                            type="button"
+                            onClick={canOpen ? () => onOpenDraft(draft.id) : undefined}
+                            disabled={!canOpen}
+                            className={`flex w-full items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                                canOpen
+                                    ? 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/40'
+                                    : 'border-slate-200 bg-slate-50/80'
+                            }`}
+                        >
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                        {getDraftDisplayName(draft)}
+                                    </p>
+                                    <span
+                                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusMeta.className}`}
+                                    >
+                                        {statusMeta.label}
+                                    </span>
+                                </div>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                    {getDraftDisplayAddress(draft) || 'Complete the full place form to finish this draft.'}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                                        {draft.sourceType === 'address-only' ? 'Address only' : 'Google place'}
+                                    </span>
+                                    {draft.savedAssetId ? (
+                                        <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                            Asset #{draft.savedAssetId}
+                                        </span>
+                                    ) : null}
+                                </div>
+                            </div>
+                            {isLoading ? <Loader2 size={16} className="mt-1 flex-shrink-0 animate-spin text-brand-700" /> : null}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function CandidateRow({
+    candidate,
+    draft,
+    loading,
+    isReviewing,
+    onAddToQueue,
+    onReviewDraft,
+    onEditExisting,
+    anchorPostalCode,
+}) {
     const existingMatch = candidate.existingMatch || null;
     const distanceLabel = formatCandidateDistance(candidate, anchorPostalCode);
+    const draftStatus = draft?.loadStatus || '';
+
+    let actionButton = (
+        <button
+            type="button"
+            onClick={() => onAddToQueue(candidate)}
+            className="btn-primary min-w-[148px] justify-center"
+        >
+            <Plus size={16} />
+            Add to queue
+        </button>
+    );
+
+    if (existingMatch && onEditExisting) {
+        actionButton = (
+            <button
+                type="button"
+                onClick={() => onEditExisting(existingMatch.id)}
+                className="btn-secondary min-w-[164px] justify-center"
+            >
+                Edit existing asset
+            </button>
+        );
+    } else if (draftStatus === 'saved') {
+        actionButton = (
+            <button
+                type="button"
+                disabled
+                className="btn-secondary min-w-[148px] justify-center cursor-not-allowed opacity-60"
+            >
+                <CheckCircle2 size={16} />
+                Saved
+            </button>
+        );
+    } else if (draft) {
+        actionButton = (
+            <button
+                type="button"
+                onClick={() => onReviewDraft(draft.id)}
+                disabled={loading || isReviewing}
+                className="btn-secondary min-w-[148px] justify-center disabled:cursor-not-allowed disabled:opacity-60"
+            >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                {loading ? 'Loading…' : isReviewing ? 'Reviewing…' : draftStatus === 'failed' ? 'Retry draft' : 'Review draft'}
+            </button>
+        );
+    }
 
     return (
         <div className={`rounded-2xl border p-4 shadow-sm shadow-slate-100/70 ${existingMatch ? 'border-slate-200 bg-slate-50/90 opacity-80' : 'border-slate-200 bg-white'}`}>
@@ -120,6 +375,11 @@ function CandidateRow({ candidate, loading, onSelect, onEditExisting, anchorPost
                         {existingMatch ? (
                             <span className="inline-flex rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                                 Already exists
+                            </span>
+                        ) : null}
+                        {!existingMatch && draftStatus && draftStatus !== 'saved' ? (
+                            <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
+                                {draftStatus === 'failed' ? 'Queued draft needs review' : 'Added to queue'}
                             </span>
                         ) : null}
                         {candidate.subCategorySuggestion ? (
@@ -147,25 +407,7 @@ function CandidateRow({ candidate, loading, onSelect, onEditExisting, anchorPost
                         </div>
                     ) : null}
                 </div>
-                {existingMatch && onEditExisting ? (
-                    <button
-                        type="button"
-                        onClick={() => onEditExisting(existingMatch.id)}
-                        className="btn-secondary min-w-[164px] justify-center"
-                    >
-                        Edit existing asset
-                    </button>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={() => onSelect(candidate)}
-                        disabled={loading}
-                        className="btn-primary min-w-[148px] justify-center disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                        {loading ? 'Loading…' : 'Use this place'}
-                    </button>
-                )}
+                {actionButton}
             </div>
         </div>
     );
@@ -200,34 +442,68 @@ export default function HardAssetImportWizard({
     onCancel,
     onSave,
     onEditExisting,
+    onRegisterCloseHandler,
 }) {
     const [postalCode, setPostalCode] = useState('');
     const [keywordQuery, setKeywordQuery] = useState('');
     const [radiusKm, setRadiusKm] = useState('1');
     const [preferredResultCount, setPreferredResultCount] = useState('8');
     const [searchLoading, setSearchLoading] = useState(false);
-    const [previewLoadingKey, setPreviewLoadingKey] = useState('');
+    const [loadingDraftId, setLoadingDraftId] = useState('');
     const [error, setError] = useState('');
-    const [preview, setPreview] = useState(null);
+    const [viewMode, setViewMode] = useState('results');
     const [postalResults, setPostalResults] = useState(null);
-    const [selectedCandidateTags, setSelectedCandidateTags] = useState([]);
+    const [draftQueue, setDraftQueue] = useState([]);
+    const [activeDraftId, setActiveDraftId] = useState('');
 
-    const importDraft = useMemo(
-        () => buildImportedHardAssetDraft(preview ? { ...preview, candidateSuggestedTags: selectedCandidateTags } : null),
-        [preview, selectedCandidateTags]
-    );
+    const exactCandidates = postalResults?.exactCandidates || [];
+    const nearbyCandidates = postalResults?.nearbyCandidates || [];
+    const hasAnyCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
+    const resolvedPostalCode = postalResults?.resolvedPostal?.postalCode || postalCode;
+    const activeDraft = draftQueue.find((draft) => draft.id === activeDraftId) || null;
+    const unsavedDraftCount = draftQueue.filter((draft) => draft.loadStatus !== 'saved').length;
+    const hasUnsavedDrafts = unsavedDraftCount > 0;
 
-    function resetPreviewState() {
-        setPreview(null);
-        setSelectedCandidateTags([]);
+    function confirmDiscardQueuedDrafts(actionLabel) {
+        if (!hasUnsavedDrafts) return true;
+        return window.confirm(buildDiscardMessage(unsavedDraftCount, actionLabel));
+    }
+
+    function resetDraftSession({ preserveResults = false } = {}) {
+        setDraftQueue([]);
+        setActiveDraftId('');
+        setViewMode('results');
+        setLoadingDraftId('');
         setError('');
+        if (!preserveResults) {
+            setPostalResults(null);
+        }
+    }
+
+    useEffect(() => {
+        if (!onRegisterCloseHandler) return undefined;
+        onRegisterCloseHandler(() => {
+            if (!hasUnsavedDrafts) return true;
+            return window.confirm(buildDiscardMessage(unsavedDraftCount, 'Closing this wizard'));
+        });
+        return () => onRegisterCloseHandler(null);
+    }, [hasUnsavedDrafts, onRegisterCloseHandler, unsavedDraftCount]);
+
+    function handleRequestClose() {
+        if (!confirmDiscardQueuedDrafts('Closing this wizard')) return;
+        onCancel();
     }
 
     async function handlePostalCandidateSearch(event) {
         event.preventDefault();
+
+        if ((postalResults || draftQueue.length > 0) && !confirmDiscardQueuedDrafts('Starting a new postal search')) {
+            return;
+        }
+
         setSearchLoading(true);
         setError('');
-        setPostalResults(null);
+        resetDraftSession();
 
         try {
             const data = await api.searchGoogleHardAssetCandidatesByPostal({
@@ -244,75 +520,224 @@ export default function HardAssetImportWizard({
         }
     }
 
-    async function handlePreviewFromCandidate(candidate) {
-        const loadingKey = candidate.googlePlaceId || 'candidate';
-        setPreviewLoadingKey(loadingKey);
+    function handleAddCandidateToQueue(candidate) {
+        const draft = createGooglePlaceDraft(candidate);
+        setDraftQueue((prev) => {
+            if (prev.some((item) => item.id === draft.id)) return prev;
+            return [...prev, draft];
+        });
         setError('');
-        setSelectedCandidateTags(Array.isArray(candidate.suggestedTags) && candidate.suggestedTags.length
-            ? candidate.suggestedTags
-            : (candidate.matchedKeywords || []));
+    }
+
+    function handleAddAddressOnlyToQueue() {
+        if (!postalResults?.resolvedPostal) return;
+        const draft = createAddressOnlyDraft(postalResults);
+        setDraftQueue((prev) => {
+            if (prev.some((item) => item.id === draft.id)) return prev;
+            return [...prev, draft];
+        });
+        setError('');
+    }
+
+    async function openDraftForReview(draftId) {
+        const draft = draftQueue.find((item) => item.id === draftId);
+        if (!draft || draft.loadStatus === 'saved') return;
+
+        if (draft.formDraft) {
+            setActiveDraftId(draftId);
+            setViewMode('form');
+            setError('');
+            return;
+        }
+
+        if (draft.sourceType !== 'google-place') return;
+
+        setLoadingDraftId(draftId);
+        setError('');
+        setDraftQueue((prev) => prev.map((item) => (
+            item.id === draftId
+                ? { ...item, loadStatus: 'loading', error: '' }
+                : item
+        )));
 
         try {
-            const data = await api.previewGoogleHardAssetImport({
-                googlePlaceId: candidate.googlePlaceId,
-                googleMapsUri: candidate.googleMapsUri,
+            const previewData = await api.previewGoogleHardAssetImport({
+                googlePlaceId: draft.googlePlaceId,
+                googleMapsUri: draft.googleMapsUri,
             });
-            setPreview(data);
+            const previewWithTags = {
+                ...previewData,
+                candidateSuggestedTags: draft.candidateSuggestedTags,
+            };
+            const formDraft = buildImportedHardAssetDraft(previewWithTags);
+            setDraftQueue((prev) => prev.map((item) => (
+                item.id === draftId
+                    ? {
+                        ...item,
+                        previewData,
+                        formDraft,
+                        loadStatus: 'ready',
+                        error: '',
+                    }
+                    : item
+            )));
+            setActiveDraftId(draftId);
+            setViewMode('form');
         } catch (err) {
-            setError(err.message || 'Failed to preview the selected Google place.');
+            const message = err.message || 'Failed to preview the selected Google place.';
+            setDraftQueue((prev) => prev.map((item) => (
+                item.id === draftId
+                    ? {
+                        ...item,
+                        loadStatus: 'failed',
+                        error: message,
+                    }
+                    : item
+            )));
+            setError(message);
+            setViewMode('results');
         } finally {
-            setPreviewLoadingKey('');
+            setLoadingDraftId('');
         }
     }
 
-    function handleUseAddressOnly() {
-        if (!postalResults?.resolvedPostal) return;
-        setSelectedCandidateTags([]);
-        setPreview(buildAddressOnlyPreview(postalResults));
+    function handleDraftCancel(formDraft) {
+        if (!activeDraftId) {
+            setViewMode('results');
+            return;
+        }
+
+        setDraftQueue((prev) => prev.map((item) => (
+            item.id === activeDraftId
+                ? {
+                    ...item,
+                    formDraft: formDraft || item.formDraft,
+                    loadStatus: 'ready',
+                    error: '',
+                }
+                : item
+        )));
         setError('');
+        setViewMode('results');
     }
 
-    const exactCandidates = postalResults?.exactCandidates || [];
-    const nearbyCandidates = postalResults?.nearbyCandidates || [];
-    const hasAnyCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
+    async function handleDraftSaved(savedAsset) {
+        const currentDraftId = activeDraftId;
+        if (!currentDraftId) return;
 
-    return preview ? (
-        <div className="space-y-5">
-            <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Imported suggestions</p>
-                        <p className="mt-1 text-sm text-slate-700">
-                            Review everything before saving. The place owner remains responsible for the final accuracy.
-                        </p>
+        const nextDraftId = findNextPendingDraftId(draftQueue, currentDraftId);
+        setDraftQueue((prev) => prev.map((item) => (
+            item.id === currentDraftId
+                ? {
+                    ...item,
+                    formDraft: item.formDraft
+                        ? {
+                            ...item.formDraft,
+                            name: savedAsset?.name || item.formDraft.name,
+                            address: savedAsset?.address || item.formDraft.address,
+                            postalCode: savedAsset?.postalCode || item.formDraft.postalCode,
+                        }
+                        : item.formDraft,
+                    loadStatus: 'saved',
+                    savedAssetId: savedAsset?.id || item.savedAssetId || null,
+                    error: '',
+                }
+                : item
+        )));
+        setError('');
+
+        await onSave?.(savedAsset);
+
+        if (nextDraftId) {
+            await openDraftForReview(nextDraftId);
+            return;
+        }
+
+        setActiveDraftId('');
+        setViewMode('results');
+    }
+
+    function handleClearQueue() {
+        if (!confirmDiscardQueuedDrafts('Clearing this queue')) return;
+        setDraftQueue([]);
+        setActiveDraftId('');
+        setViewMode('results');
+        setError('');
+        setLoadingDraftId('');
+    }
+
+    function handleResetSession() {
+        if (!confirmDiscardQueuedDrafts('Resetting this postal search')) return;
+        resetDraftSession();
+    }
+
+    function handleEditExisting(existingAssetId) {
+        if (!existingAssetId) return;
+        if (!confirmDiscardQueuedDrafts('Leaving this import session to edit an existing asset')) return;
+        onEditExisting?.(existingAssetId);
+    }
+
+    const activeAddressDraft = postalResults?.resolvedPostal
+        ? draftQueue.find((draft) => draft.id === `address-only:${postalResults.resolvedPostal.postalCode || postalResults.resolvedPostal.address || 'draft'}`) || null
+        : null;
+
+    const queueSummaryPanel = (
+        <QueueSummaryPanel
+            drafts={draftQueue}
+            activeDraftId={activeDraftId}
+            loadingDraftId={loadingDraftId}
+            viewMode={viewMode}
+            onOpenDraft={viewMode === 'results' ? openDraftForReview : null}
+            onClearQueue={handleClearQueue}
+        />
+    );
+
+    if (viewMode === 'form' && activeDraft?.formDraft) {
+        return (
+            <div className="space-y-5">
+                <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Draft review</p>
+                            <p className="mt-1 text-sm text-slate-700">
+                                Review this place in the full form. Save moves straight to the next queued draft, while cancel returns to the queue without losing your edits.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <span className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold text-brand-700">
+                                {activeDraft.sourceType === 'address-only' ? 'Address only' : 'Google place'}
+                            </span>
+                            {resolvedPostalCode ? (
+                                <span className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold text-brand-700">
+                                    Postal {resolvedPostalCode}
+                                </span>
+                            ) : null}
+                        </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={resetPreviewState}
-                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-white px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                    >
-                        <ArrowLeft size={14} />
-                        Back to import options
-                    </button>
                 </div>
-            </div>
 
-            <AssetForm
-                type="hard"
-                initialData={importDraft}
-                partnerHardAssets={partnerHardAssets}
-                currentUser={currentUser}
-                partnerOptions={partnerOptions}
-                subregions={subregions}
-                importSource={preview?.resolvedSource || null}
-                importWarnings={preview?.warnings || []}
-                duplicateMatches={preview?.duplicateMatches || []}
-                onSelectDuplicateMatch={onEditExisting}
-                onSave={onSave}
-                onCancel={onCancel}
-            />
-        </div>
-    ) : (
+                {draftQueue.length > 0 ? queueSummaryPanel : null}
+
+                <AssetForm
+                    key={activeDraft.id}
+                    type="hard"
+                    initialData={activeDraft.formDraft}
+                    partnerHardAssets={partnerHardAssets}
+                    currentUser={currentUser}
+                    partnerOptions={partnerOptions}
+                    subregions={subregions}
+                    importSource={activeDraft.previewData?.resolvedSource || null}
+                    importWarnings={activeDraft.previewData?.warnings || []}
+                    duplicateMatches={activeDraft.previewData?.duplicateMatches || []}
+                    onSelectDuplicateMatch={handleEditExisting}
+                    onSave={handleDraftSaved}
+                    onCancel={handleDraftCancel}
+                />
+            </div>
+        );
+    }
+
+    return (
         <div className="space-y-5">
             <div className="space-y-4">
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4">
@@ -323,7 +748,7 @@ export default function HardAssetImportWizard({
                         <div>
                             <h3 className="text-lg font-black text-slate-900">Search Google places by postal code</h3>
                             <p className="mt-1 text-sm leading-6 text-slate-600">
-                                Enter a 6-digit Singapore postal code, review exact place matches first, then use nearby relevant places when you want more options around that address.
+                                Run one postal search, add multiple candidate places into a draft queue, then review each full place form one at a time without losing your place in the session.
                             </p>
                         </div>
                     </div>
@@ -341,7 +766,6 @@ export default function HardAssetImportWizard({
                             value={postalCode}
                             onChange={(event) => {
                                 setPostalCode(event.target.value.replace(/\D/g, '').slice(0, 6));
-                                setPostalResults(null);
                                 setError('');
                             }}
                             placeholder="681811"
@@ -361,7 +785,6 @@ export default function HardAssetImportWizard({
                             value={keywordQuery}
                             onChange={(event) => {
                                 setKeywordQuery(event.target.value);
-                                setPostalResults(null);
                                 setError('');
                             }}
                             placeholder="Optional, e.g. dementia, rehab, dialysis"
@@ -382,7 +805,6 @@ export default function HardAssetImportWizard({
                                 value={radiusKm}
                                 onChange={(event) => {
                                     setRadiusKm(event.target.value);
-                                    setPostalResults(null);
                                     setError('');
                                 }}
                                 className="input-field"
@@ -407,7 +829,6 @@ export default function HardAssetImportWizard({
                                 value={preferredResultCount}
                                 onChange={(event) => {
                                     setPreferredResultCount(event.target.value);
-                                    setPostalResults(null);
                                     setError('');
                                 }}
                                 className="input-field"
@@ -440,10 +861,14 @@ export default function HardAssetImportWizard({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-2">
-                        <button type="button" onClick={onCancel} className="btn-secondary">
+                        <button type="button" onClick={handleRequestClose} className="btn-secondary">
                             Cancel
                         </button>
-                        <button type="submit" disabled={searchLoading || postalCode.trim().length !== 6} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
+                        <button
+                            type="submit"
+                            disabled={searchLoading || postalCode.trim().length !== 6}
+                            className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+                        >
                             {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                             {searchLoading ? 'Searching…' : 'Find Google places'}
                         </button>
@@ -451,7 +876,10 @@ export default function HardAssetImportWizard({
                 </form>
 
                 {postalResults ? (
-                    <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/70 px-5 py-5">
+                    <div className="space-y-4">
+                        {draftQueue.length > 0 ? queueSummaryPanel : null}
+
+                        <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/70 px-5 py-5">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Resolved postal anchor</p>
@@ -467,24 +895,41 @@ export default function HardAssetImportWizard({
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
+                                    {activeAddressDraft?.loadStatus === 'saved' ? (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-500 opacity-70"
+                                        >
+                                            <CheckCircle2 size={15} />
+                                            Saved
+                                        </button>
+                                    ) : activeAddressDraft ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => openDraftForReview(activeAddressDraft.id)}
+                                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                        >
+                                            <MapPin size={15} />
+                                            Review address draft
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={handleAddAddressOnlyToQueue}
+                                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                        >
+                                            <MapPin size={15} />
+                                            Add address-only draft
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
-                                        onClick={handleUseAddressOnly}
-                                        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                                    >
-                                        <MapPin size={15} />
-                                        Use address only
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setPostalResults(null);
-                                            setError('');
-                                        }}
+                                        onClick={handleResetSession}
                                         className="inline-flex min-h-11 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                                     >
                                         <ArrowLeft size={14} />
-                                        Search again
+                                        Reset session
                                     </button>
                                 </div>
                             </div>
@@ -513,16 +958,22 @@ export default function HardAssetImportWizard({
                                                 </p>
                                             </div>
                                             <div className="space-y-3">
-                                                {exactCandidates.map((candidate) => (
-                                                    <CandidateRow
-                                                        key={candidate.googlePlaceId}
-                                                        candidate={candidate}
-                                                        loading={previewLoadingKey === candidate.googlePlaceId}
-                                                        onSelect={handlePreviewFromCandidate}
-                                                        onEditExisting={onEditExisting}
-                                                        anchorPostalCode={postalResults.resolvedPostal?.postalCode || postalCode}
-                                                    />
-                                                ))}
+                                                {exactCandidates.map((candidate) => {
+                                                    const draft = draftQueue.find((item) => item.googlePlaceId === candidate.googlePlaceId) || null;
+                                                    return (
+                                                        <CandidateRow
+                                                            key={candidate.googlePlaceId}
+                                                            candidate={candidate}
+                                                            draft={draft}
+                                                            loading={loadingDraftId === draft?.id}
+                                                            isReviewing={viewMode === 'form' && activeDraftId === draft?.id}
+                                                            onAddToQueue={handleAddCandidateToQueue}
+                                                            onReviewDraft={openDraftForReview}
+                                                            onEditExisting={handleEditExisting}
+                                                            anchorPostalCode={resolvedPostalCode}
+                                                        />
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ) : null}
@@ -531,24 +982,30 @@ export default function HardAssetImportWizard({
                                         <div className="space-y-3">
                                             <div className="flex items-center gap-2">
                                                 <Search size={15} className="text-brand-600" />
-                                            <p className="text-sm font-semibold text-slate-700">
-                                                Nearby relevant places
-                                            </p>
+                                                <p className="text-sm font-semibold text-slate-700">
+                                                    Nearby relevant places
+                                                </p>
                                             </div>
                                             <p className="text-sm leading-6 text-slate-500">
                                                 Useful when the exact postal code has no matching Google place, or when you want to compare nearby venues within {postalResults.radiusLabel || formatRadiusLabel(postalResults.radiusKm || radiusKm)} of the same anchor.
                                             </p>
                                             <div className="space-y-3">
-                                                {nearbyCandidates.map((candidate) => (
-                                                    <CandidateRow
-                                                        key={candidate.googlePlaceId}
-                                                        candidate={candidate}
-                                                        loading={previewLoadingKey === candidate.googlePlaceId}
-                                                        onSelect={handlePreviewFromCandidate}
-                                                        onEditExisting={onEditExisting}
-                                                        anchorPostalCode={postalResults.resolvedPostal?.postalCode || postalCode}
-                                                    />
-                                                ))}
+                                                {nearbyCandidates.map((candidate) => {
+                                                    const draft = draftQueue.find((item) => item.googlePlaceId === candidate.googlePlaceId) || null;
+                                                    return (
+                                                        <CandidateRow
+                                                            key={candidate.googlePlaceId}
+                                                            candidate={candidate}
+                                                            draft={draft}
+                                                            loading={loadingDraftId === draft?.id}
+                                                            isReviewing={viewMode === 'form' && activeDraftId === draft?.id}
+                                                            onAddToQueue={handleAddCandidateToQueue}
+                                                            onReviewDraft={openDraftForReview}
+                                                            onEditExisting={handleEditExisting}
+                                                            anchorPostalCode={resolvedPostalCode}
+                                                        />
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ) : null}
@@ -561,6 +1018,7 @@ export default function HardAssetImportWizard({
                                     </p>
                                 </div>
                             )}
+                        </div>
                     </div>
                 ) : null}
             </div>
@@ -569,16 +1027,16 @@ export default function HardAssetImportWizard({
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">What happens next</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-800">1. Resolve one place</p>
-                        <p className="mt-1 text-sm text-slate-600">Search by postal code to identify the right place.</p>
+                        <p className="text-sm font-semibold text-slate-800">1. Search once</p>
+                        <p className="mt-1 text-sm text-slate-600">Resolve one postal code and keep that result context active until you explicitly reset it.</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-800">2. Suggest the fields</p>
-                        <p className="mt-1 text-sm text-slate-600">Address, phone, hours, website, and any confident metadata are prefilled.</p>
+                        <p className="text-sm font-semibold text-slate-800">2. Queue multiple drafts</p>
+                        <p className="mt-1 text-sm text-slate-600">Add several Google places or the address-only fallback before you start full-form review.</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-800">3. Review and save</p>
-                        <p className="mt-1 text-sm text-slate-600">You stay in control and can edit anything before the new place is saved.</p>
+                        <p className="text-sm font-semibold text-slate-800">3. Review one by one</p>
+                        <p className="mt-1 text-sm text-slate-600">Save advances to the next draft automatically, while cancel returns you to the queue with edits preserved.</p>
                     </div>
                 </div>
             </div>
