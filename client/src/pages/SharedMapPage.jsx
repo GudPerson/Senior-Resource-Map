@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CopyPlus, LogIn, Printer } from 'lucide-react';
+import { Drawer } from 'vaul';
+import { ArrowLeft, ArrowRight, CopyPlus, LogIn, Menu, Printer, Search, Sparkles, X } from 'lucide-react';
 
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
@@ -8,7 +9,6 @@ import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
-import MobileDirectoryWorkspace from '../components/mobile/MobileDirectoryWorkspace.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { api } from '../lib/api.js';
@@ -114,6 +114,162 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                 <p className="mt-4 text-sm font-medium text-red-600">{copyError}</p>
             ) : null}
         </div>
+    );
+}
+
+function SharedMapMobileControls({
+    directory,
+    query,
+    onQueryChange,
+    anchorState,
+    isAuth,
+    isOwner,
+    copying,
+    copyError,
+    onCopyToMyMaps,
+    onOpenPrintView,
+}) {
+    const [open, setOpen] = useState(false);
+
+    const runDrawerAction = useCallback((action) => {
+        setOpen(false);
+        window.requestAnimationFrame(() => {
+            action?.();
+        });
+    }, []);
+
+    return (
+        <>
+            <div className="sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
+                <div className="flex items-center gap-4">
+                    <button
+                        type="button"
+                        onClick={() => setOpen(true)}
+                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform active:scale-95"
+                        aria-label="Open shared map controls"
+                    >
+                        <Menu size={20} />
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-bold text-slate-900 sm:text-[17px]">{directory.name}</p>
+                    </div>
+                </div>
+            </div>
+
+            <Drawer.Root direction="left" open={open} onOpenChange={setOpen}>
+                <Drawer.Portal>
+                    <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35 xl:hidden" />
+                    <Drawer.Content
+                        className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
+                        style={{
+                            borderColor: 'var(--color-border)',
+                            background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
+                        }}
+                    >
+                        <Drawer.Title className="sr-only">Shared map controls</Drawer.Title>
+                        <Drawer.Description className="sr-only">
+                            Search this shared directory, adjust the distance anchor, and sign in for the full CareAround SG experience.
+                        </Drawer.Description>
+
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-600">Shared directory</p>
+                                <h2 className="mt-1 truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                aria-label="Close shared map controls"
+                                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
+                            <div className="rounded-[24px] border border-brand-100 bg-brand-50/70 p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-brand-700 shadow-sm">
+                                        <Sparkles size={18} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-brand-900">
+                                            Unlock the full CareAround SG experience
+                                        </p>
+                                        <p className="mt-1 text-[13px] leading-5 text-brand-800/90">
+                                            Sign up or log in to save this shared map, keep your own directories, and continue exploring nearby support.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 space-y-2">
+                                    {!isOwner && isAuth ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => runDrawerAction(onCopyToMyMaps)}
+                                            disabled={copying}
+                                            className="btn-primary h-12 w-full justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <CopyPlus size={16} />
+                                            {copying ? 'Saving copy…' : 'Save copy to My Maps'}
+                                        </button>
+                                    ) : (
+                                        <Link
+                                            to="/login"
+                                            onClick={() => setOpen(false)}
+                                            className="btn-primary h-12 w-full justify-center px-4 text-sm"
+                                        >
+                                            <LogIn size={16} />
+                                            Sign up or log in
+                                        </Link>
+                                    )}
+                                </div>
+
+                                {copyError ? (
+                                    <p className="mt-3 text-xs font-medium text-red-600">{copyError}</p>
+                                ) : null}
+                            </div>
+
+                            <div className="mt-4 space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => runDrawerAction(onOpenPrintView)}
+                                    className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700"
+                                >
+                                    <Printer size={16} />
+                                    Print view
+                                </button>
+                            </div>
+
+                            <div className="mt-4 space-y-4 pb-4">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                        <Search size={15} className="text-slate-500" />
+                                        Search this shared map
+                                    </div>
+                                    <DirectorySearchBar
+                                        value={query}
+                                        onChange={onQueryChange}
+                                        inputId="shared-directory-search-mobile"
+                                        compact
+                                        className="min-w-0"
+                                    />
+                                </div>
+
+                                <DirectoryDistanceControls
+                                    anchorState={anchorState}
+                                    compact
+                                    compactLayout="stacked"
+                                    className="min-w-0"
+                                />
+                            </div>
+                        </div>
+                    </Drawer.Content>
+                </Drawer.Portal>
+            </Drawer.Root>
+        </>
     );
 }
 
@@ -226,98 +382,6 @@ export default function SharedMapPage() {
         setSearchParams(nextParams);
     }
 
-    const mobileDirectoryMap = (
-        <DirectoryMap
-            activeAnchor={activeAnchor}
-            pins={interactivePresentation.pins}
-            focusedPlaceKey={focusedPlaceKey}
-            onViewSection={handleViewSection}
-            markerMode="number"
-            placeNumberByKey={interactivePresentation.placeNumberByKey}
-            emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
-            mapHeightClassName="h-[38svh] min-h-[280px] max-h-[420px]"
-        />
-    );
-
-    const mobileListContent = ({ closeSheet }) => (
-        <SharedMapDirectoryList
-            presentation={interactivePresentation}
-            mode="shared"
-            layout="mobile"
-            onViewOnMap={(placeKey) => {
-                handleViewOnMap(placeKey);
-                closeSheet();
-            }}
-            highlightPlaceKey={activePlaceKey}
-            selectionPlaceKey={highlightPlaceKey}
-            canSaveResources={Boolean(directory?.viewer?.canSaveResources)}
-            autoScrollToHighlight={false}
-        />
-    );
-
-    const mobileSearchContent = (
-        <div className="space-y-3 pb-2">
-            <DirectorySearchBar
-                value={query}
-                onChange={setQuery}
-                inputId="shared-directory-search-mobile-sheet"
-                compact
-            />
-            <p className="text-[12px] leading-5 text-slate-500">
-                Search filters the shared directory list and its linked map pins together.
-            </p>
-        </div>
-    );
-
-    const mobileDistanceContent = (
-        <DirectoryDistanceControls
-            anchorState={anchorState}
-            compact
-            compactLayout="stacked"
-            className="min-w-0 pb-2"
-        />
-    );
-
-    const mobileMoreContent = ({ closeSheet }) => (
-        <div className="space-y-2 pb-2">
-            <button
-                type="button"
-                onClick={() => {
-                    closeSheet();
-                    openPrintView();
-                }}
-                className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700"
-            >
-                <Printer size={16} />
-                Print view
-            </button>
-            {!isOwner && isAuth ? (
-                <button
-                    type="button"
-                    onClick={() => {
-                        closeSheet();
-                        handleCopyToMyMaps();
-                    }}
-                    disabled={copying}
-                    className="btn-primary h-12 w-full justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    <CopyPlus size={16} />
-                    {copying ? 'Saving copy…' : 'Save copy to My Maps'}
-                </button>
-            ) : null}
-            {!isAuth ? (
-                <Link
-                    to="/login"
-                    onClick={closeSheet}
-                    className="btn-primary h-12 w-full justify-center px-4 text-sm"
-                >
-                    <LogIn size={16} />
-                    Sign in
-                </Link>
-            ) : null}
-        </div>
-    );
-
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-50">
@@ -393,6 +457,21 @@ export default function SharedMapPage() {
                 </div>
             ) : null}
 
+            {!useDesktopLayout ? (
+                <SharedMapMobileControls
+                    directory={directory}
+                    query={query}
+                    onQueryChange={setQuery}
+                    anchorState={anchorState}
+                    isAuth={isAuth}
+                    isOwner={isOwner}
+                    copying={copying}
+                    copyError={copyError}
+                    onCopyToMyMaps={handleCopyToMyMaps}
+                    onOpenPrintView={openPrintView}
+                />
+            ) : null}
+
             <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pb-8 pt-3 sm:px-6 sm:pb-10 sm:pt-4 lg:px-8 lg:py-8">
                 {useDesktopLayout ? (
                     <>
@@ -456,15 +535,46 @@ export default function SharedMapPage() {
                         />
                     </>
                 ) : (
-                    <MobileDirectoryWorkspace
-                        eyebrow="Shared directory"
-                        title={directory.name}
-                        summary={directory.description || `${directory.summary.resourceCount} curated ${directory.summary.resourceCount === 1 ? 'resource' : 'resources'} in read-only mode.`}
-                        map={mobileDirectoryMap}
-                        listContent={mobileListContent}
-                        searchContent={mobileSearchContent}
-                        distanceContent={mobileDistanceContent}
-                        moreContent={mobileMoreContent}
+                    <SharedMapDirectoryList
+                        presentation={interactivePresentation}
+                        mode="shared"
+                        layout="responsive"
+                        onViewOnMap={handleViewOnMap}
+                        highlightPlaceKey={activePlaceKey}
+                        selectionPlaceKey={highlightPlaceKey}
+                        canSaveResources={Boolean(directory.viewer?.canSaveResources)}
+                        showDesktopHoverLogo
+                        renderDesktopMap={() => (
+                            <DirectoryMap
+                                activeAnchor={activeAnchor}
+                                pins={interactivePresentation.pins}
+                                focusedPlaceKey={focusedPlaceKey}
+                                activePlaceKey={activePlaceKey}
+                                onViewSection={handleViewSection}
+                                onHoverPlaceStart={handleMapHoverStart}
+                                onHoverPlaceEnd={handleMapHoverEnd}
+                                markerMode="number"
+                                placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                                mapHeightClassName="h-[540px]"
+                            />
+                        )}
+                        renderMobileMap={() => (
+                            <DirectoryMap
+                                activeAnchor={activeAnchor}
+                                pins={interactivePresentation.pins}
+                                focusedPlaceKey={focusedPlaceKey}
+                                activePlaceKey={activePlaceKey}
+                                onViewSection={handleViewSection}
+                                onHoverPlaceStart={handleMapHoverStart}
+                                onHoverPlaceEnd={handleMapHoverEnd}
+                                markerMode="number"
+                                placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                                mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
+                            />
+                        )}
+                        mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 pb-5 isolate disable-font-scaling"
                     />
                 )}
             </div>
