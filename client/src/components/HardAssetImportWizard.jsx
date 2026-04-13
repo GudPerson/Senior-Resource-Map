@@ -2,6 +2,8 @@ import {
     AlertTriangle,
     ArrowLeft,
     CheckCircle2,
+    ExternalLink,
+    Globe,
     Loader2,
     MapPin,
     Plus,
@@ -74,23 +76,49 @@ function buildAddressOnlyPreview(postalResults) {
     };
 }
 
-function createGooglePlaceDraft(candidate) {
+function createCandidateDraft(candidate) {
+    const candidateSource = candidate?.candidateSource === 'web_fallback' ? 'web_fallback' : 'google_places';
+    const sourceType = candidateSource === 'web_fallback' ? 'web-fallback' : 'google-place';
+    const draftSeed = candidateSource === 'web_fallback' && candidate?.draftSeed
+        ? {
+            ...candidate.draftSeed,
+            newTags: dedupeTags(candidate.draftSeed.newTags),
+        }
+        : null;
+    const previewData = candidateSource === 'web_fallback'
+        ? {
+            resolvedSource: null,
+            duplicateMatches: [],
+            warnings: [
+                'This draft came from web-grounded fallback suggestions. Review the details carefully before saving.',
+            ],
+            suggestion: {
+                suggestedTags: draftSeed?.newTags || [],
+            },
+        }
+        : null;
+
     return {
-        id: `google-place:${candidate.googlePlaceId || candidate.name || candidate.address}`,
-        sourceType: 'google-place',
+        id: `${sourceType}:${candidate.googlePlaceId || candidate.sourceUrl || candidate.name || candidate.address}`,
+        sourceType,
         googlePlaceId: candidate.googlePlaceId || '',
         googleMapsUri: candidate.googleMapsUri || '',
         displayName: candidate.name || '',
         displayAddress: candidate.address || '',
         displayPostalCode: candidate.postalCode || '',
         subCategorySuggestion: candidate.subCategorySuggestion || '',
+        candidateSource,
         candidateSuggestedTags: dedupeTags([
             ...(Array.isArray(candidate.suggestedTags) ? candidate.suggestedTags : []),
             ...(Array.isArray(candidate.matchedKeywords) ? candidate.matchedKeywords : []),
         ]),
-        previewData: null,
-        formDraft: null,
-        loadStatus: 'not-loaded',
+        sourceUrl: candidate.sourceUrl || '',
+        sourceTitle: candidate.sourceTitle || '',
+        sourceSnippet: candidate.sourceSnippet || '',
+        confidence: Number.isFinite(Number(candidate.confidence)) ? Number(candidate.confidence) : null,
+        previewData,
+        formDraft: draftSeed,
+        loadStatus: candidateSource === 'web_fallback' ? 'ready' : 'not-loaded',
         savedAssetId: null,
         error: '',
     };
@@ -128,6 +156,12 @@ function formatExistingMatchReason(matchReason) {
 function formatRadiusLabel(value) {
     if (String(value) === 'all') return 'All of SG';
     return `${value} km`;
+}
+
+function formatConfidenceLabel(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '';
+    return `${Math.round(numeric * 100)}% confidence`;
 }
 
 function formatCandidateDistance(candidate, anchorPostalCode) {
@@ -283,7 +317,11 @@ function QueueSummaryPanel({
                                 </p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-                                        {draft.sourceType === 'address-only' ? 'Address only' : 'Google place'}
+                                        {draft.sourceType === 'address-only'
+                                            ? 'Address only'
+                                            : draft.sourceType === 'web-fallback'
+                                                ? 'Web fallback'
+                                                : 'Google place'}
                                     </span>
                                     {draft.savedAssetId ? (
                                         <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
@@ -314,6 +352,8 @@ function CandidateRow({
     const existingMatch = candidate.existingMatch || null;
     const distanceLabel = formatCandidateDistance(candidate, anchorPostalCode);
     const draftStatus = draft?.loadStatus || '';
+    const isWebFallback = candidate?.candidateSource === 'web_fallback';
+    const confidenceLabel = formatConfidenceLabel(candidate?.confidence);
 
     let actionButton = (
         <button
@@ -367,9 +407,17 @@ function CandidateRow({
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                         <p className="text-base font-black text-slate-900">{candidate.name}</p>
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isWebFallback ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-brand-200 bg-brand-50 text-brand-700'}`}>
+                            {isWebFallback ? 'Web fallback' : 'Google place'}
+                        </span>
                         {distanceLabel ? (
                             <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                                 {distanceLabel}
+                            </span>
+                        ) : null}
+                        {confidenceLabel ? (
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                                {confidenceLabel}
                             </span>
                         ) : null}
                         {existingMatch ? (
@@ -389,10 +437,46 @@ function CandidateRow({
                         ) : null}
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{candidate.address}</p>
+                    {isWebFallback && candidate.sourceSnippet ? (
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {candidate.sourceSnippet}
+                        </p>
+                    ) : null}
+                    {isWebFallback && candidate.sourceTitle ? (
+                        <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                            Source: {candidate.sourceTitle}
+                        </p>
+                    ) : null}
                     {existingMatch ? (
                         <p className="mt-2 text-sm font-medium text-slate-500">
                             {formatExistingMatchReason(existingMatch.matchReason)}
                         </p>
+                    ) : null}
+                    {isWebFallback && (candidate.sourceUrl || candidate.website) ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {candidate.sourceUrl ? (
+                                <a
+                                    href={candidate.sourceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                                >
+                                    Source
+                                    <ExternalLink size={12} />
+                                </a>
+                            ) : null}
+                            {candidate.website ? (
+                                <a
+                                    href={candidate.website}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                                >
+                                    Website
+                                    <Globe size={12} />
+                                </a>
+                            ) : null}
+                        </div>
                     ) : null}
                     {candidate.matchedKeywords?.length ? (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -521,7 +605,7 @@ export default function HardAssetImportWizard({
     }
 
     function handleAddCandidateToQueue(candidate) {
-        const draft = createGooglePlaceDraft(candidate);
+        const draft = createCandidateDraft(candidate);
         setDraftQueue((prev) => {
             if (prev.some((item) => item.id === draft.id)) return prev;
             return [...prev, draft];
@@ -705,7 +789,11 @@ export default function HardAssetImportWizard({
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <span className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold text-brand-700">
-                                {activeDraft.sourceType === 'address-only' ? 'Address only' : 'Google place'}
+                                {activeDraft.sourceType === 'address-only'
+                                    ? 'Address only'
+                                    : activeDraft.sourceType === 'web-fallback'
+                                        ? 'Web fallback'
+                                        : 'Google place'}
                             </span>
                             {resolvedPostalCode ? (
                                 <span className="inline-flex rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-semibold text-brand-700">
@@ -746,9 +834,9 @@ export default function HardAssetImportWizard({
                             <Search size={18} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-slate-900">Search Google places by postal code</h3>
+                            <h3 className="text-lg font-black text-slate-900">Search places by postal code</h3>
                             <p className="mt-1 text-sm leading-6 text-slate-600">
-                                Run one postal search, add multiple candidate places into a draft queue, then review each full place form one at a time without losing your place in the session.
+                                Run one postal search, add multiple candidate places into a draft queue, then review each full place form one at a time without losing your place in the session. Google Places stays primary, while lower-confidence web fallback suggestions appear only when Google has no place candidates.
                             </p>
                         </div>
                     </div>
@@ -870,7 +958,7 @@ export default function HardAssetImportWizard({
                             className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                            {searchLoading ? 'Searching…' : 'Find Google places'}
+                            {searchLoading ? 'Searching…' : 'Find places'}
                         </button>
                     </div>
                 </form>
@@ -886,6 +974,9 @@ export default function HardAssetImportWizard({
                                     <p className="mt-2 text-base font-semibold text-slate-900">{postalResults.resolvedPostal?.postalCode || postalCode}</p>
                                     <p className="mt-1 text-sm leading-6 text-slate-600">{postalResults.resolvedPostal?.address || 'Google resolved the postcode, but no formatted address was returned.'}</p>
                                     <div className="mt-3 flex flex-wrap gap-2">
+                                        <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                            Anchor source: {postalResults.resolvedPostal?.source === 'onemap' ? 'OneMap' : 'Google Places'}
+                                        </span>
                                         <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                                             Distance radius: {postalResults.radiusLabel || formatRadiusLabel(postalResults.radiusKm || radiusKm)}
                                         </span>
@@ -938,6 +1029,30 @@ export default function HardAssetImportWizard({
                                 <div className="space-y-2">
                                     {postalResults.warnings.map((warning) => (
                                         <div key={warning} className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                            <div className="flex items-start gap-2">
+                                                <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                                                <p>{warning}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
+
+                            {postalResults.fallbackUsed ? (
+                                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                                        <p>
+                                            Google Places returned no candidate places, so web-grounded fallback suggestions are shown below. Treat them as lower-confidence suggestions and review every detail before saving.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {(postalResults.fallbackWarnings || []).length ? (
+                                <div className="space-y-2">
+                                    {postalResults.fallbackWarnings.map((warning) => (
+                                        <div key={warning} className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
                                             <div className="flex items-start gap-2">
                                                 <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
                                                 <p>{warning}</p>

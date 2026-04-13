@@ -1,4 +1,5 @@
 import { fetchWebsiteMetadata } from './websiteMetadata.js';
+import { searchVertexGroundedPlaceSuggestions } from './vertexGroundedPlaceSearch.js';
 
 const GOOGLE_MAP_HOSTS = new Set([
     'maps.app.goo.gl',
@@ -81,6 +82,32 @@ function splitRefineKeywords(value) {
 function normalizePostalCode(value) {
     const digits = String(value || '').replace(/\D/g, '');
     return digits.length === 6 ? digits : '';
+}
+
+function normalizeUrl(value) {
+    const text = normalizeText(value);
+    if (!text) return '';
+    const withProtocol = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    try {
+        return new URL(withProtocol).toString();
+    } catch {
+        return '';
+    }
+}
+
+function dedupeTags(values) {
+    const seen = new Set();
+    const next = [];
+
+    for (const rawValue of Array.isArray(values) ? values : []) {
+        const normalized = normalizeText(rawValue);
+        const key = normalized.toLowerCase();
+        if (!normalized || seen.has(key)) continue;
+        seen.add(key);
+        next.push(normalized);
+    }
+
+    return next.slice(0, 12);
 }
 
 function clampNumber(value, min, max, fallback) {
@@ -302,8 +329,56 @@ function suggestSubCategory(primaryType, availableSubCategories = []) {
     return availableSubCategories.includes(mapped) ? mapped : '';
 }
 
+function resolveDirectSubCategorySuggestion(value, availableSubCategories = []) {
+    const text = normalizeText(value);
+    if (!text) return '';
+    if (!Array.isArray(availableSubCategories) || availableSubCategories.length === 0) return text;
+    return availableSubCategories.find((item) => item.toLowerCase() === text.toLowerCase()) || text;
+}
+
 function getGoogleMapsApiKey(env) {
     return env?.GOOGLE_MAPS_API_KEY || env?.GOOGLE_PLACES_API_KEY || '';
+}
+
+async function searchOneMap(query) {
+    const response = await fetchWithTimeout(
+        `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(query)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`,
+        {},
+        8000,
+    );
+    if (!response.ok) {
+        throw new Error(`OneMap search failed: ${response.status}`);
+    }
+    const data = await response.json().catch(() => ({}));
+    return Array.isArray(data?.results) ? data.results : [];
+}
+
+function extractOneMapPostalCode(result) {
+    const direct = normalizePostalCode(result?.POSTAL);
+    if (direct) return direct;
+    const address = normalizeText(result?.ADDRESS);
+    const match = address.match(/\b\d{6}\b/);
+    return match?.[0] || '';
+}
+
+function buildOneMapAnchor(result, fallbackPostalCode = '') {
+    const latitude = Number(result?.LATITUDE);
+    const longitude = Number(result?.LONGITUDE);
+    const postalCode = extractOneMapPostalCode(result) || normalizePostalCode(fallbackPostalCode);
+    const address = normalizeText(result?.ADDRESS);
+
+    if (!postalCode || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return null;
+    }
+
+    return {
+        postalCode,
+        address,
+        googleMapsUri: '',
+        latitude,
+        longitude,
+        source: 'onemap',
+    };
 }
 
 async function runTextSearch(apiKey, textQuery, { maxResultCount = 5, regionCode, locationBias } = {}) {
@@ -463,7 +538,7 @@ async function resolveGooglePlaceById(apiKey, googlePlaceId, googleMapsUri = '')
     };
 }
 
-async function resolvePostalAnchor(apiKey, rawPostalCode) {
+async function resolvePostalAnchorWithGoogle(apiKey, rawPostalCode) {
     const postalCode = normalizePostalCode(rawPostalCode);
     if (!postalCode) {
         throw new Error('Enter a valid 6-digit Singapore postal code.');
@@ -495,7 +570,37 @@ async function resolvePostalAnchor(apiKey, rawPostalCode) {
         googleMapsUri: normalizeText(place?.googleMapsUri),
         latitude,
         longitude,
+        source: 'google_places',
     };
+}
+
+async function resolvePostalAnchorWithOneMap(rawPostalCode) {
+    const postalCode = normalizePostalCode(rawPostalCode);
+    if (!postalCode) {
+        throw new Error('Enter a valid 6-digit Singapore postal code.');
+    }
+
+    const results = await searchOneMap(postalCode);
+    const candidate = results.find((result) => extractOneMapPostalCode(result) === postalCode) || results[0];
+    const anchor = buildOneMapAnchor(candidate, postalCode);
+
+    if (!anchor) {
+        throw new Error('No OneMap location was found for that postal code.');
+    }
+
+    return anchor;
+}
+
+async function resolvePostalAnchor(apiKey, rawPostalCode) {
+    try {
+        return await resolvePostalAnchorWithGoogle(apiKey, rawPostalCode);
+    } catch (googleError) {
+        try {
+            return await resolvePostalAnchorWithOneMap(rawPostalCode);
+        } catch {
+            throw googleError;
+        }
+    }
 }
 
 function buildPostalSearchQueries(anchor, keywordQuery = '') {
@@ -580,6 +685,162 @@ function buildPostalCandidateScore(place, queryMeta, queryIndex, postalCode, key
     }
 
     return score;
+}
+
+function buildImportedHardAssetDraftSeed(candidate) {
+    return {
+        externalKey: '',
+        name: candidate.name || '',
+        country: 'SG',
+        postalCode: candidate.postalCode || '',
+        address: candidate.address || '',
+        phone: candidate.phone || '',
+        hours: '',
+        website: candidate.website || '',
+        description: candidate.description || '',
+        logoUrl: candidate.logoUrl || '',
+        bannerUrl: '',
+        galleryUrls: [],
+        subCategory: candidate.subCategorySuggestion || 'Places',
+        sourceGooglePlaceId: '',
+        sourceGoogleMapsUri: '',
+        ownershipMode: 'system',
+        partnerId: '',
+        newTags: dedupeTags(candidate.suggestedTags),
+        isHidden: false,
+        hideFrom: '',
+        hideUntil: '',
+    };
+}
+
+async function geocodeWebFallbackCandidate(rawCandidate, fallbackPostalCode = '') {
+    const searchValue = normalizeText(rawCandidate?.address || rawCandidate?.postalCode || fallbackPostalCode);
+    if (!searchValue) return null;
+
+    let results = [];
+    try {
+        results = await searchOneMap(searchValue);
+    } catch {
+        return null;
+    }
+
+    const preferredPostalCode = normalizePostalCode(rawCandidate?.postalCode) || normalizePostalCode(fallbackPostalCode);
+    const result = results.find((item) => extractOneMapPostalCode(item) === preferredPostalCode) || results[0];
+    if (!result) return null;
+
+    return buildOneMapAnchor(result, preferredPostalCode);
+}
+
+async function searchVertexFallbackCandidates(
+    env,
+    anchor,
+    availableHardSubCategories = [],
+    keywordQuery = '',
+    { radiusKm = POSTAL_SEARCH_DEFAULTS.defaultRadiusKm, preferredResultCount = POSTAL_SEARCH_DEFAULTS.defaultPreferredResultCount } = {},
+) {
+    const safeRadiusKm = sanitizeRadiusKm(radiusKm);
+    const safePreferredResultCount = sanitizePreferredResultCount(preferredResultCount);
+    const radiusMeters = safeRadiusKm === 'all' ? null : safeRadiusKm * 1000;
+    const warnings = [];
+    const candidateMap = new Map();
+    const seenSourceUrls = new Set();
+
+    const { candidates: rawCandidates, warnings: fallbackWarnings } = await searchVertexGroundedPlaceSuggestions({
+        env,
+        anchor,
+        keywordQuery,
+        categoryHints: POSTAL_SEARCH_KEYWORDS.map((keyword) => keyword.label),
+        preferredResultCount: safePreferredResultCount,
+        radiusLabel: formatRadiusLabel(safeRadiusKm),
+    });
+
+    for (const warning of fallbackWarnings || []) {
+        if (warning && !warnings.includes(warning)) {
+            warnings.push(warning);
+        }
+    }
+
+    for (const rawCandidate of rawCandidates) {
+        const geocoded = await geocodeWebFallbackCandidate(rawCandidate, anchor.postalCode);
+        if (!geocoded) continue;
+
+        const postalCode = geocoded.postalCode || normalizePostalCode(rawCandidate?.postalCode);
+        const samePostalCode = postalCode === anchor.postalCode;
+        const distanceMeters = computeDistanceMeters(anchor, geocoded);
+        if (!samePostalCode && Number.isFinite(radiusMeters) && Number.isFinite(distanceMeters) && distanceMeters > radiusMeters) {
+            continue;
+        }
+
+        const name = normalizeText(rawCandidate?.name);
+        if (!name) continue;
+
+        const sourceUrl = normalizeUrl(rawCandidate?.sourceUrl);
+        if (sourceUrl && seenSourceUrls.has(sourceUrl)) {
+            continue;
+        }
+
+        const dedupeKey = `${normalizeSearchText(name)}::${postalCode || normalizeSearchText(geocoded.address)}`;
+        const normalizedCandidate = {
+            googlePlaceId: '',
+            googleMapsUri: '',
+            candidateSource: 'web_fallback',
+            name,
+            address: normalizeText(rawCandidate?.address) || geocoded.address,
+            primaryType: '',
+            postalCode: postalCode || '',
+            subCategorySuggestion: resolveDirectSubCategorySuggestion(rawCandidate?.subCategorySuggestion, availableHardSubCategories)
+                || 'Places',
+            distanceMeters,
+            matchedKeywords: dedupeTags(rawCandidate?.suggestedTags),
+            suggestedTags: dedupeTags(rawCandidate?.suggestedTags),
+            website: normalizeUrl(rawCandidate?.website),
+            phone: normalizeText(rawCandidate?.phone),
+            description: normalizeText(rawCandidate?.description),
+            logoUrl: normalizeUrl(rawCandidate?.logoUrl),
+            sourceUrl,
+            sourceTitle: normalizeText(rawCandidate?.sourceTitle),
+            sourceSnippet: normalizeText(rawCandidate?.sourceSnippet),
+            confidence: Number.isFinite(Number(rawCandidate?.confidence)) ? Math.max(0, Math.min(1, Number(rawCandidate.confidence))) : 0.5,
+        };
+        normalizedCandidate.draftSeed = buildImportedHardAssetDraftSeed(normalizedCandidate);
+
+        const existing = candidateMap.get(dedupeKey);
+        if (!existing || normalizedCandidate.confidence > existing.confidence) {
+            candidateMap.set(dedupeKey, normalizedCandidate);
+        }
+        if (sourceUrl) {
+            seenSourceUrls.add(sourceUrl);
+        }
+    }
+
+    const candidates = [...candidateMap.values()];
+    const exactCandidates = candidates
+        .filter((candidate) => candidate.postalCode === anchor.postalCode)
+        .sort((left, right) => right.confidence - left.confidence || left.name.localeCompare(right.name))
+        .slice(0, safePreferredResultCount);
+    const exactCandidateKeys = new Set(exactCandidates.map((candidate) => `${normalizeSearchText(candidate.name)}::${candidate.postalCode}`));
+    const nearbyCandidates = candidates
+        .filter((candidate) => !exactCandidateKeys.has(`${normalizeSearchText(candidate.name)}::${candidate.postalCode}`))
+        .sort((left, right) => (
+            right.confidence - left.confidence
+            || (left.distanceMeters ?? Number.POSITIVE_INFINITY) - (right.distanceMeters ?? Number.POSITIVE_INFINITY)
+            || left.name.localeCompare(right.name)
+        ))
+        .slice(0, safePreferredResultCount);
+
+    if (exactCandidates.length === 0 && nearbyCandidates.length > 0) {
+        warnings.push(`No exact postal-code matches were found from web fallback, so nearby web suggestions within ${formatRadiusLabel(safeRadiusKm)} are shown instead.`);
+    }
+
+    if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
+        warnings.push('Web fallback did not find any clear place candidates for that postal code.');
+    }
+
+    return {
+        exactCandidates,
+        nearbyCandidates,
+        warnings,
+    };
 }
 
 async function searchPostalCandidates(
@@ -677,6 +938,7 @@ async function searchPostalCandidates(
         exactCandidates: exactCandidates.map((candidate) => ({
             googlePlaceId: candidate.googlePlaceId,
             googleMapsUri: candidate.googleMapsUri,
+            candidateSource: 'google_places',
             name: candidate.name,
             address: candidate.address,
             primaryType: candidate.primaryType,
@@ -684,10 +946,21 @@ async function searchPostalCandidates(
             subCategorySuggestion: candidate.subCategorySuggestion,
             distanceMeters: candidate.distanceMeters,
             matchedKeywords: [...candidate.matchedKeywords].slice(0, 4),
+            suggestedTags: [],
+            website: '',
+            phone: '',
+            description: '',
+            logoUrl: '',
+            sourceUrl: '',
+            sourceTitle: '',
+            sourceSnippet: '',
+            confidence: null,
+            draftSeed: null,
         })),
         nearbyCandidates: nearbyCandidates.map((candidate) => ({
             googlePlaceId: candidate.googlePlaceId,
             googleMapsUri: candidate.googleMapsUri,
+            candidateSource: 'google_places',
             name: candidate.name,
             address: candidate.address,
             primaryType: candidate.primaryType,
@@ -695,6 +968,16 @@ async function searchPostalCandidates(
             subCategorySuggestion: candidate.subCategorySuggestion,
             distanceMeters: candidate.distanceMeters,
             matchedKeywords: [...candidate.matchedKeywords].slice(0, 4),
+            suggestedTags: [],
+            website: '',
+            phone: '',
+            description: '',
+            logoUrl: '',
+            sourceUrl: '',
+            sourceTitle: '',
+            sourceSnippet: '',
+            confidence: null,
+            draftSeed: null,
         })),
         warnings,
     };
@@ -713,22 +996,55 @@ export async function searchGooglePlaceCandidatesByPostal(
     }
 
     const anchor = await resolvePostalAnchor(apiKey, postalCode);
-    const {
-        radiusKm,
-        preferredResultCount,
-        exactCandidates,
-        nearbyCandidates,
-        warnings,
-    } = await searchPostalCandidates(
+    const googleResult = await searchPostalCandidates(
         apiKey,
         anchor,
         availableHardSubCategories,
         keywordQuery,
         options,
     );
+    let {
+        radiusKm,
+        preferredResultCount,
+        exactCandidates,
+        nearbyCandidates,
+        warnings,
+    } = googleResult;
+    warnings = Array.isArray(warnings) ? [...warnings] : [];
+    let fallbackUsed = false;
+    const fallbackWarnings = [];
+
+    if (anchor.source === 'onemap') {
+        warnings.push('Google could not resolve the postal anchor, so OneMap was used to locate this postal code.');
+    }
 
     if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
-        warnings.push(`No Google place candidates were found within ${formatRadiusLabel(radiusKm)} of that postal code. Try a larger radius, add refine keywords, or create the place manually.`);
+        fallbackUsed = true;
+        try {
+            const fallbackResult = await searchVertexFallbackCandidates(
+                env,
+                anchor,
+                availableHardSubCategories,
+                keywordQuery,
+                {
+                    radiusKm,
+                    preferredResultCount,
+                },
+            );
+            exactCandidates = fallbackResult.exactCandidates;
+            nearbyCandidates = fallbackResult.nearbyCandidates;
+            for (const warning of fallbackResult.warnings || []) {
+                if (warning && !fallbackWarnings.includes(warning)) {
+                    fallbackWarnings.push(warning);
+                }
+            }
+        } catch (error) {
+            fallbackWarnings.push(error.message || 'Web fallback is unavailable right now.');
+        }
+    }
+
+    if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
+        warnings.push(`No place candidates were found within ${formatRadiusLabel(radiusKm)} of that postal code. Try a larger radius, add refine keywords, or create the place manually.`);
     }
 
     return {
@@ -739,6 +1055,8 @@ export async function searchGooglePlaceCandidatesByPostal(
         exactCandidates,
         nearbyCandidates,
         warnings,
+        fallbackUsed,
+        fallbackWarnings,
     };
 }
 
