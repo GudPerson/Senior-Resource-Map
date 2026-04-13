@@ -15,7 +15,13 @@
     "deploy:client": "node scripts/validate-cloudflare-client-env.mjs && npm run build --workspace=client && cd client && npx wrangler pages deploy dist --project-name senior-resource-map",
     "deploy:server": "npm run deploy --workspace=server",
     "test:server": "npm run test --workspace=server",
+    "test:smoke:install-browser": "npx --yes playwright@1.54.2 install chromium",
+    "test:smoke": "npx --yes playwright@1.54.2 test --config=playwright.smoke.config.mjs",
+    "verify:release": "npm run test:server && npm run build:client && npm run test:smoke",
     "audit:clean-slate": "node --env-file=server/.env server/scripts/audit_clean_slate.js",
     "reset:clean-slate": "node --env-file=server/.env server/scripts/reset_clean_slate.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.54.2"
   }
 }

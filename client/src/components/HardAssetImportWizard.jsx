@@ -360,6 +360,7 @@ function CandidateRow({
             type="button"
             onClick={() => onAddToQueue(candidate)}
             className="btn-primary min-w-[148px] justify-center"
+            data-testid={`postal-candidate-add-${candidate.googlePlaceId || candidate.name || 'candidate'}`}
         >
             <Plus size={16} />
             Add to queue
@@ -372,6 +373,7 @@ function CandidateRow({
                 type="button"
                 onClick={() => onEditExisting(existingMatch.id)}
                 className="btn-secondary min-w-[164px] justify-center"
+                data-testid={`postal-candidate-existing-${existingMatch.id}`}
             >
                 Edit existing asset
             </button>
@@ -394,6 +396,7 @@ function CandidateRow({
                 onClick={() => onReviewDraft(draft.id)}
                 disabled={loading || isReviewing}
                 className="btn-secondary min-w-[148px] justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                data-testid={`postal-draft-review-${draft.id}`}
             >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 {loading ? 'Loading…' : isReviewing ? 'Reviewing…' : draftStatus === 'failed' ? 'Retry draft' : 'Review draft'}
@@ -956,6 +959,7 @@ export default function HardAssetImportWizard({
                             type="submit"
                             disabled={searchLoading || postalCode.trim().length !== 6}
                             className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+                            data-testid="postal-import-search"
                         >
                             {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                             {searchLoading ? 'Searching…' : 'Find places'}
@@ -1000,6 +1004,7 @@ export default function HardAssetImportWizard({
                                             type="button"
                                             onClick={() => openDraftForReview(activeAddressDraft.id)}
                                             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                            data-testid="postal-address-draft-review"
                                         >
                                             <MapPin size={15} />
                                             Review address draft
@@ -1009,6 +1014,7 @@ export default function HardAssetImportWizard({
                                             type="button"
                                             onClick={handleAddAddressOnlyToQueue}
                                             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                            data-testid="postal-address-draft-add"
                                         >
                                             <MapPin size={15} />
                                             Add address-only draft
@@ -1018,6 +1024,7 @@ export default function HardAssetImportWizard({
                                         type="button"
                                         onClick={handleResetSession}
                                         className="inline-flex min-h-11 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                                        data-testid="postal-import-reset"
                                     >
                                         <ArrowLeft size={14} />
                                         Reset session

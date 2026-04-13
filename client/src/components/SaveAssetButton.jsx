@@ -75,6 +75,7 @@ export function SaveAssetButton({
             title={saved ? 'Remove from Saved Assets' : 'Save to Saved Assets'}
             aria-pressed={saved}
             disabled={pending}
+            data-testid={`save-asset-${resourceType}-${resourceId}`}
         >
             <Heart
                 size={iconSize}

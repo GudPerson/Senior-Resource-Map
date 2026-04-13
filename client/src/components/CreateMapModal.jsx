@@ -235,6 +235,7 @@ export default function CreateMapModal({
                                 return (
                                     <label
                                         key={key}
+                                        data-testid={`create-map-row-${key}`}
                                         className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${checked ? 'border-brand-300 bg-brand-50/60' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                                     >
                                         <input
@@ -242,6 +243,7 @@ export default function CreateMapModal({
                                             checked={checked}
                                             onChange={() => toggleAsset(asset)}
                                             className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            data-testid={`create-map-asset-${key}`}
                                         />
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
@@ -295,6 +297,7 @@ export default function CreateMapModal({
                                 type="submit"
                                 disabled={!canSubmit}
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                                data-testid="create-map-submit"
                             >
                                 {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create My Map' : 'Save assets')}
                             </button>

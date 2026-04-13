@@ -393,7 +393,7 @@ export default function SharedMapPage() {
                 </div>
             ) : null}
 
-            <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pb-8 pt-3 sm:px-6 sm:pb-10 sm:pt-4 lg:px-8 lg:py-8">
                 {useDesktopLayout ? (
                     <>
                         <DirectoryHeader

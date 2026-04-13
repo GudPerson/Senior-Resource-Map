@@ -134,6 +134,7 @@ test('listSavedAssets returns enriched flat saved-asset items', async () => {
             'assetKey',
             'createdAt',
             'hasCoordinates',
+            'hostHardAssetIds',
             'id',
             'lat',
             'lng',
@@ -200,6 +201,7 @@ test('toggleSavedAsset returns final saved state with item payload on save', asy
         lat: 1.38123,
         lng: 103.75001,
         detailPath: '/resource/hard/29',
+        hostHardAssetIds: [],
     });
 });
 
