@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ExternalLink, Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -378,6 +378,35 @@ export default function AssetForm({
     const selectedLocationOptions = linkedLocationOptions.filter((option) => (form.locationIds || []).includes(option.value));
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
     const websiteHref = useMemo(() => (isHard ? normalizeExternalHref(form.website) : ''), [form.website, isHard]);
+    const hasLogoImage = Boolean(form.logoUrl);
+    const hasBannerImage = Boolean(form.bannerUrl);
+
+    function moveLogoToBanner() {
+        if (!form.logoUrl) return;
+        setForm((prev) => ({
+            ...prev,
+            bannerUrl: prev.logoUrl,
+            logoUrl: '',
+        }));
+    }
+
+    function moveBannerToLogo() {
+        if (!form.bannerUrl) return;
+        setForm((prev) => ({
+            ...prev,
+            logoUrl: prev.bannerUrl,
+            bannerUrl: '',
+        }));
+    }
+
+    function swapMediaImages() {
+        if (!form.logoUrl || !form.bannerUrl) return;
+        setForm((prev) => ({
+            ...prev,
+            logoUrl: prev.bannerUrl,
+            bannerUrl: prev.logoUrl,
+        }));
+    }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -456,19 +485,64 @@ export default function AssetForm({
             ) : null}
 
             <div className="grid grid-cols-2 gap-5">
-                <div className="col-span-2 grid grid-cols-2 gap-4">
-                    <ImageUpload
-                        label="Logo / Icon"
-                        value={form.logoUrl}
-                        onChange={(url) => setField('logoUrl', url)}
-                        hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
-                    />
-                    <ImageUpload
-                        label="Hero Banner"
-                        value={form.bannerUrl}
-                        onChange={(url) => setField('bannerUrl', url)}
-                        hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
-                    />
+                <div className="col-span-2 space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                        <ImageUpload
+                            label="Logo / Icon"
+                            value={form.logoUrl}
+                            onChange={(url) => setField('logoUrl', url)}
+                            hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
+                        />
+                        <ImageUpload
+                            label="Hero Banner"
+                            value={form.bannerUrl}
+                            onChange={(url) => setField('bannerUrl', url)}
+                            hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
+                        />
+                    </div>
+
+                    {hasLogoImage || hasBannerImage ? (
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800">Image placement</p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    If the imported image landed in the wrong slot, you can reassign it here without uploading it again.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {hasLogoImage && !hasBannerImage ? (
+                                    <button
+                                        type="button"
+                                        onClick={moveLogoToBanner}
+                                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                    >
+                                        <ArrowRightLeft size={15} />
+                                        Move logo to hero
+                                    </button>
+                                ) : null}
+                                {hasBannerImage && !hasLogoImage ? (
+                                    <button
+                                        type="button"
+                                        onClick={moveBannerToLogo}
+                                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                    >
+                                        <ArrowRightLeft size={15} />
+                                        Move hero to logo
+                                    </button>
+                                ) : null}
+                                {hasLogoImage && hasBannerImage ? (
+                                    <button
+                                        type="button"
+                                        onClick={swapMediaImages}
+                                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                    >
+                                        <ArrowRightLeft size={15} />
+                                        Swap logo and hero
+                                    </button>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="col-span-2 md:col-span-1">
