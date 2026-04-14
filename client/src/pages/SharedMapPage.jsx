@@ -472,7 +472,7 @@ export default function SharedMapPage() {
                 />
             ) : null}
 
-            <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pb-8 pt-3 sm:px-6 sm:pb-10 sm:pt-4 lg:px-8 lg:py-8">
+            <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pb-8 pt-0 sm:px-6 sm:pb-10 sm:pt-0 lg:px-8 lg:py-8">
                 {useDesktopLayout ? (
                     <>
                         <DirectoryHeader
@@ -574,7 +574,7 @@ export default function SharedMapPage() {
                                 mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                             />
                         )}
-                        mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 pb-5 isolate disable-font-scaling"
+                        mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 -mx-4 bg-slate-50 px-4 pb-5 pt-2 shadow-[0_10px_22px_rgba(15,23,42,0.08)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
                     />
                 )}
             </div>
