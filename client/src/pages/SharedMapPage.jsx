@@ -140,7 +140,7 @@ function SharedMapMobileControls({
 
     return (
         <>
-            <div className="sticky top-0 z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:h-[68px] xl:hidden disable-font-scaling">
+            <div className="sticky top-0 z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
                 <div className="flex items-center gap-4">
                     <button
                         type="button"
