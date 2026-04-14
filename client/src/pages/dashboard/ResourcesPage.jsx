@@ -584,18 +584,14 @@ export default function ResourcesPage() {
     }
 
     function toggleInlineSoftCreate(asset) {
-        setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'soft-create' ? null : { id: asset.id, type: 'soft-create' }));
+        setInlineAction({ id: asset.id, type: 'soft-create' });
     }
 
     function openCollateralImport(asset) {
-        setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'import' ? null : { id: asset.id, type: 'import', asset }));
+        setInlineAction({ id: asset.id, type: 'import', asset });
     }
 
     async function openMembershipQr(asset) {
-        if (inlineAction?.id === asset.id && inlineAction?.type === 'qr') {
-            setInlineAction(null);
-            return;
-        }
         setInlineAction({ id: asset.id, type: 'qr', asset, loading: true, data: null, copied: false });
         try {
             const result = await api.generateMembershipJoinToken(asset.id);
@@ -618,7 +614,7 @@ export default function ResourcesPage() {
 
     function openEdit(asset, assetType) {
         if (assetType === 'hard') {
-            setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'edit' ? null : { id: asset.id, type: 'edit' }));
+            setInlineAction({ id: asset.id, type: 'edit' });
             return;
         }
         setInlineAction(null);
@@ -1360,31 +1356,27 @@ export default function ResourcesPage() {
                                             </button>
                                             <button 
                                                 onClick={() => openEdit(asset, 'hard')} 
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
                                             >
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? <X size={15} /> : <Pencil size={15} />}
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'Close editor' : 'Edit'}
+                                                <Pencil size={15} /> Edit
                                             </button>
                                             <button
                                                 onClick={() => toggleInlineSoftCreate(asset)}
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
                                             >
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? <X size={15} /> : <Plus size={15} />}
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'Close composer' : 'Add Offering'}
+                                                <Plus size={15} /> Add Offering
                                             </button>
                                             <button
                                                 onClick={() => openCollateralImport(asset)}
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
                                             >
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'import' ? <X size={15} /> : <Files size={15} />} 
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'Close import' : 'Import Material'}
+                                                <Files size={15} /> Import Material
                                             </button>
                                             <button 
                                                 onClick={() => openMembershipQr(asset)} 
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
                                             >
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? <X size={15} /> : <Building2 size={15} />} 
-                                                {inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'Close QR' : 'Generate Membership QR'}
+                                                <Building2 size={15} /> Generate Membership QR
                                             </button>
                                             <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
                                                 <Trash2 size={15} /> Delete
