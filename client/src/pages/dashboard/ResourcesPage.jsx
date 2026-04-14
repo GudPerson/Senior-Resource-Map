@@ -626,7 +626,6 @@ export default function ResourcesPage() {
     }
 
     function openManualHardAssetCreate() {
-        setInlineSoftCreateHostId(null);
         setPlaceCreateChooserOpen(false);
         setPlaceImportWizardOpen(false);
         setPlaceImportCloseGuard(null);
@@ -644,7 +643,6 @@ export default function ResourcesPage() {
     }
 
     function openGooglePlaceImportWizard() {
-        setInlineSoftCreateHostId(null);
         setPlaceCreateChooserOpen(false);
         setPlaceImportCloseGuard(null);
         setPlaceImportWizardOpen(true);
@@ -662,17 +660,14 @@ export default function ResourcesPage() {
     }
 
     function openTemplateCreate() {
-        setInlineSoftCreateHostId(null);
         setTemplateModal({ mode: 'create', data: null });
     }
 
     function openTemplateEdit(template) {
-        setInlineSoftCreateHostId(null);
         setTemplateModal({ mode: 'edit', data: template });
     }
 
     async function openGenerateTemplate(template) {
-        setInlineSoftCreateHostId(null);
         setGenerateModal({ template, selectedHostIds: [], loading: true, submitting: false });
         try {
             await ensureTemplateDetail(template.id);
@@ -683,20 +678,9 @@ export default function ResourcesPage() {
         }
     }
 
-    async function openMembershipQr(asset) {
-        setInlineSoftCreateHostId(null);
-        setMembershipQrModal({ asset, loading: true, data: null, copied: false });
-        try {
-            const data = await api.generateHardAssetMembershipQr(asset.id);
-            setMembershipQrModal({ asset, loading: false, data, copied: false });
-        } catch (err) {
-            setMembershipQrModal(null);
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to generate membership QR.' });
-        }
-    }
+
 
     async function openChildEditor(childId) {
-        setInlineSoftCreateHostId(null);
         setChildModal({ childId, loading: true, data: null });
         try {
             const data = await api.getSoftAsset(childId);
@@ -783,9 +767,6 @@ export default function ResourcesPage() {
         };
     }
 
-    function toggleInlineSoftCreate(hostAsset) {
-        setInlineSoftCreateHostId((prev) => (prev === hostAsset.id ? null : hostAsset.id));
-    }
 
     function buildHardVisibilityPayload(asset, nextHidden) {
         return {
