@@ -9,10 +9,12 @@ import {
     Plus,
     Search,
     Sparkles,
+    X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 import { api } from '../lib/api.js';
+import { collectSubregionPostalCodes } from '../lib/postalBoundaries.js';
 import AssetForm from './AssetForm.jsx';
 
 function dedupeTags(values) {
@@ -531,7 +533,9 @@ export default function HardAssetImportWizard({
     onEditExisting,
     onRegisterCloseHandler,
 }) {
-    const [postalCode, setPostalCode] = useState('');
+    const [postalCodes, setPostalCodes] = useState([]);
+    const [postalInput, setPostalInput] = useState('');
+    const [searchProgressMsg, setSearchProgressMsg] = useState('');
     const [keywordQuery, setKeywordQuery] = useState('');
     const [radiusKm, setRadiusKm] = useState('1');
     const [preferredResultCount, setPreferredResultCount] = useState('8');
@@ -543,10 +547,11 @@ export default function HardAssetImportWizard({
     const [draftQueue, setDraftQueue] = useState([]);
     const [activeDraftId, setActiveDraftId] = useState('');
 
+    const availablePostalCodes = useMemo(() => collectSubregionPostalCodes(subregions, currentUser?.subregionIds || []), [subregions, currentUser]);
     const exactCandidates = postalResults?.exactCandidates || [];
     const nearbyCandidates = postalResults?.nearbyCandidates || [];
     const hasAnyCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
-    const resolvedPostalCode = postalResults?.resolvedPostal?.postalCode || postalCode;
+    const resolvedPostalCode = postalResults?.resolvedPostal?.postalCode || (postalCodes.length ? postalCodes.join(', ') : postalInput);
     const activeDraft = draftQueue.find((draft) => draft.id === activeDraftId) || null;
     const unsavedDraftCount = draftQueue.filter((draft) => draft.loadStatus !== 'saved').length;
     const hasUnsavedDrafts = unsavedDraftCount > 0;
@@ -588,22 +593,64 @@ export default function HardAssetImportWizard({
             return;
         }
 
+        const rawTargetPostals = dedupeTags([...postalCodes, postalInput.replace(/\D/g, '').slice(0, 6)]).filter(p => p.length === 6);
+        if (rawTargetPostals.length === 0) {
+            setError('Please provide at least one valid 6-digit postal code.');
+            return;
+        }
+
         setSearchLoading(true);
         setError('');
         resetDraftSession();
 
         try {
-            const data = await api.searchGoogleHardAssetCandidatesByPostal({
-                postalCode,
+            const mergedExact = [];
+            const mergedNearby = [];
+            let firstResolvedPostal = null;
+
+            for (let i = 0; i < rawTargetPostals.length; i++) {
+                const targetPostal = rawTargetPostals[i];
+                if (rawTargetPostals.length > 1) {
+                    setSearchProgressMsg(`Searching ${targetPostal} (${i + 1} of ${rawTargetPostals.length})...`);
+                } else {
+                    setSearchProgressMsg('Searching...');
+                }
+
+                const data = await api.searchGoogleHardAssetCandidatesByPostal({
+                    postalCode: targetPostal,
+                    keywordQuery,
+                    radiusKm: radiusKm === 'all' ? 'all' : Number(radiusKm),
+                    preferredResultCount: Number(preferredResultCount),
+                });
+                
+                if (!firstResolvedPostal && data.resolvedPostal) {
+                    firstResolvedPostal = data.resolvedPostal;
+                }
+                
+                (data.exactCandidates || []).forEach((c) => mergedExact.push(c));
+                (data.nearbyCandidates || []).forEach((c) => mergedNearby.push(c));
+            }
+
+            const uniqueExact = Array.from(new Map(mergedExact.map(c => [c.id || c.googlePlaceId, c])).values());
+            const uniqueNearby = Array.from(new Map(mergedNearby.map(c => [c.id || c.googlePlaceId, c])).values());
+
+            setPostalResults({
+                resolvedPostal: firstResolvedPostal || { postalCode: rawTargetPostals.join(', ') },
+                exactCandidates: uniqueExact,
+                nearbyCandidates: uniqueNearby,
                 keywordQuery,
-                radiusKm: radiusKm === 'all' ? 'all' : Number(radiusKm),
-                preferredResultCount: Number(preferredResultCount),
+                radiusKm,
+                preferredResultCount
             });
-            setPostalResults(data);
+            if (postalInput) {
+                setPostalCodes((prev) => dedupeTags([...prev, postalInput.replace(/\D/g, '').slice(0, 6)]).filter(p => p.length === 6));
+                setPostalInput('');
+            }
         } catch (err) {
-            setError(err.message || 'Failed to search Google places for that postal code.');
+            setError(err.message || 'Failed to search Google places for the given postal codes.');
         } finally {
             setSearchLoading(false);
+            setSearchProgressMsg('');
         }
     }
 
@@ -846,24 +893,79 @@ export default function HardAssetImportWizard({
                 </div>
 
                 <form onSubmit={handlePostalCandidateSearch} className="space-y-4">
-                    <div>
-                        <label htmlFor="google-place-postal-code" className="mb-1 block text-sm font-semibold text-slate-700">
-                            Singapore postal code
+                    <div className="space-y-4">
+                        <label htmlFor="google-place-postal-code" className="block text-sm font-semibold text-slate-700">
+                            Singapore postal codes (multi-search)
                         </label>
-                        <input
-                            id="google-place-postal-code"
-                            inputMode="numeric"
-                            maxLength={6}
-                            value={postalCode}
-                            onChange={(event) => {
-                                setPostalCode(event.target.value.replace(/\D/g, '').slice(0, 6));
-                                setError('');
-                            }}
-                            placeholder="681811"
-                            className="input-field"
-                        />
+                        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
+                            {postalCodes.map((pc) => (
+                                <span key={pc} className="flex items-center gap-1.5 rounded-lg bg-brand-50 px-2 py-1 text-sm font-bold text-brand-700">
+                                    {pc}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setPostalCodes(prev => prev.filter(p => p !== pc));
+                                        }}
+                                        className="text-brand-500 hover:text-brand-800"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </span>
+                            ))}
+                            <input
+                                id="google-place-postal-code"
+                                inputMode="numeric"
+                                maxLength={6}
+                                value={postalInput}
+                                onChange={(event) => {
+                                    setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6));
+                                    setError('');
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ',') {
+                                        event.preventDefault();
+                                        if (postalInput.length === 6 && !postalCodes.includes(postalInput)) {
+                                            setPostalCodes([...postalCodes, postalInput]);
+                                            setPostalInput('');
+                                        }
+                                    } else if (event.key === 'Backspace' && !postalInput && postalCodes.length > 0) {
+                                        setPostalCodes(postalCodes.slice(0, -1));
+                                    }
+                                }}
+                                placeholder={postalCodes.length ? "Add another..." : "681811"}
+                                className="min-w-[120px] flex-1 border-0 bg-transparent p-1 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                            />
+                        </div>
+                        {availablePostalCodes.length > 0 && (
+                            <div className="mt-3">
+                                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Available Boundary Postals</p>
+                                <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-2 scrollbar-thin">
+                                    {availablePostalCodes.map(pc => {
+                                        const isSelected = postalCodes.includes(pc);
+                                        return (
+                                            <button
+                                                key={pc}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isSelected) {
+                                                        setPostalCodes(prev => prev.filter(p => p !== pc));
+                                                    } else {
+                                                        setPostalCodes(prev => dedupeTags([...prev, pc]).filter(p => p.length === 6));
+                                                    }
+                                                }}
+                                                className={`rounded-md border px-2 py-1 flex items-center justify-center text-[11px] font-bold transition-colors ${isSelected ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                                            >
+                                                {isSelected ? <CheckCircle2 size={12} className="mr-1" /> : <Plus size={12} className="mr-1" />}
+                                                {pc}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                         <p className="mt-2 text-xs text-slate-500">
-                            We’ll resolve the postcode, show places found at that exact postal code, and also surface nearby relevant Google places when available.
+                            We’ll search all listed postcodes sequentially, aggregating exact and nearby Google places into a combined candidate result list.
                         </p>
                     </div>
 
@@ -957,12 +1059,12 @@ export default function HardAssetImportWizard({
                         </button>
                         <button
                             type="submit"
-                            disabled={searchLoading || postalCode.trim().length !== 6}
+                            disabled={searchLoading || (postalCodes.length === 0 && postalInput.trim().length !== 6)}
                             className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
                             data-testid="postal-import-search"
                         >
                             {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                            {searchLoading ? 'Searching…' : 'Find places'}
+                            {searchLoading ? (searchProgressMsg || 'Searching…') : 'Find places'}
                         </button>
                     </div>
                 </form>
@@ -975,7 +1077,7 @@ export default function HardAssetImportWizard({
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Resolved postal anchor</p>
-                                    <p className="mt-2 text-base font-semibold text-slate-900">{postalResults.resolvedPostal?.postalCode || postalCode}</p>
+                                    <p className="mt-2 text-base font-semibold text-slate-900">{postalResults.resolvedPostal?.postalCode || (postalCodes.length ? postalCodes.join(', ') : postalInput)}</p>
                                     <p className="mt-1 text-sm leading-6 text-slate-600">{postalResults.resolvedPostal?.address || 'Google resolved the postcode, but no formatted address was returned.'}</p>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
