@@ -379,11 +379,11 @@ export default function ResourcesPage() {
     const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
     const [placeImportWizardOpen, setPlaceImportWizardOpen] = useState(false);
     const [placeImportCloseGuard, setPlaceImportCloseGuard] = useState(null);
-    const [collateralImportHostAsset, setCollateralImportHostAsset] = useState(null);
+    // collateralImportHostAsset consolidated into inlineAction
     const [templateModal, setTemplateModal] = useState(null);
     const [childModal, setChildModal] = useState(null);
     const [generateModal, setGenerateModal] = useState(null);
-    const [membershipQrModal, setMembershipQrModal] = useState(null);
+    // membershipQrModal consolidated into inlineAction
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
@@ -391,7 +391,7 @@ export default function ResourcesPage() {
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
     const [collapsedHardAssetIds, setCollapsedHardAssetIds] = useState({});
     const [collapsedMemberAssetIds, setCollapsedMemberAssetIds] = useState({});
-    const [inlineSoftCreateHostId, setInlineSoftCreateHostId] = useState(null);
+    const [inlineAction, setInlineAction] = useState(null); // { id: string, type: 'soft-create' | 'edit' | 'import' | 'qr', asset?: any, loading?: boolean, data?: any, copied?: boolean }
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
     const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
@@ -499,10 +499,10 @@ export default function ResourcesPage() {
     }, [activeTab, isStandardUser]);
 
     useEffect(() => {
-        if (activeTab !== 'hard' && inlineSoftCreateHostId) {
-            setInlineSoftCreateHostId(null);
+        if (activeTab !== 'hard' && inlineAction?.id) {
+            setInlineAction(null);
         }
-    }, [activeTab, inlineSoftCreateHostId]);
+    }, [activeTab, inlineAction?.id]);
 
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
@@ -583,8 +583,32 @@ export default function ResourcesPage() {
         }));
     }
 
+    function toggleInlineSoftCreate(asset) {
+        setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'soft-create' ? null : { id: asset.id, type: 'soft-create' }));
+    }
+
+    function openCollateralImport(asset) {
+        setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'import' ? null : { id: asset.id, type: 'import', asset }));
+    }
+
+    async function openMembershipQr(asset) {
+        if (inlineAction?.id === asset.id && inlineAction?.type === 'qr') {
+            setInlineAction(null);
+            return;
+        }
+        setInlineAction({ id: asset.id, type: 'qr', asset, loading: true, data: null, copied: false });
+        try {
+            const result = await api.generateMembershipJoinToken(asset.id);
+            setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false, data: result } : prev));
+        } catch (error) {
+            console.error('Failed to generate membership join token', error);
+            setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false } : prev));
+            setActionNotice({ type: 'warning', message: 'Failed to generate membership QR.' });
+        }
+    }
+
     function openCreate(assetType) {
-        setInlineSoftCreateHostId(null);
+        setInlineAction(null);
         if (assetType === 'hard') {
             setPlaceCreateChooserOpen(true);
             return;
@@ -593,7 +617,11 @@ export default function ResourcesPage() {
     }
 
     function openEdit(asset, assetType) {
-        setInlineSoftCreateHostId(null);
+        if (assetType === 'hard') {
+            setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'edit' ? null : { id: asset.id, type: 'edit' }));
+            return;
+        }
+        setInlineAction(null);
         if (assetType === 'soft' && asset.assetMode === 'child') {
             openChildEditor(asset.id);
             return;
@@ -711,11 +739,11 @@ export default function ResourcesPage() {
     }
 
     useEffect(() => {
-        if (!inlineSoftCreateHostId) return;
-        if (!hardAssets.some((asset) => Number(asset.id) === Number(inlineSoftCreateHostId))) {
-            setInlineSoftCreateHostId(null);
+        if (!inlineAction?.id) return;
+        if (!hardAssets.some((asset) => Number(asset.id) === Number(inlineAction.id))) {
+            setInlineAction(null);
         }
-    }, [hardAssets, inlineSoftCreateHostId]);
+    }, [hardAssets, inlineAction?.id]);
 
     function getVisibilityActionKey(assetType, assetId) {
         return `${assetType}-${assetId}`;
@@ -1272,8 +1300,8 @@ export default function ResourcesPage() {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    if (!detailsCollapsed && inlineSoftCreateHostId === asset.id) {
-                                                                        setInlineSoftCreateHostId(null);
+                                                                    if (!detailsCollapsed && inlineAction?.id === asset.id) {
+                                                                        setInlineAction(null);
                                                                     }
                                                                     toggleHardAssetDetailsCollapsed(asset.id);
                                                                 }}
@@ -1330,27 +1358,33 @@ export default function ResourcesPage() {
                                                     {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
                                                 </span>
                                             </button>
-                                            <button onClick={() => openEdit(asset, 'hard')} className="btn-ghost px-3 py-2 text-sm">
-                                                <Pencil size={15} /> Edit
+                                            <button 
+                                                onClick={() => openEdit(asset, 'hard')} 
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                            >
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? <X size={15} /> : <Pencil size={15} />}
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'Close editor' : 'Edit'}
                                             </button>
                                             <button
                                                 onClick={() => toggleInlineSoftCreate(asset)}
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineSoftCreateHostId === asset.id ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
                                             >
-                                                {inlineSoftCreateHostId === asset.id ? <X size={15} /> : <Plus size={15} />}
-                                                {inlineSoftCreateHostId === asset.id ? 'Close composer' : 'Add Offering'}
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? <X size={15} /> : <Plus size={15} />}
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'Close composer' : 'Add Offering'}
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    setInlineSoftCreateHostId(null);
-                                                    setCollateralImportHostAsset(asset);
-                                                }}
-                                                className="btn-ghost px-3 py-2 text-sm"
+                                                onClick={() => openCollateralImport(asset)}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
                                             >
-                                                <Files size={15} /> Import Material
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'import' ? <X size={15} /> : <Files size={15} />} 
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'Close import' : 'Import Material'}
                                             </button>
-                                            <button onClick={() => openMembershipQr(asset)} className="btn-ghost px-3 py-2 text-sm">
-                                                <Building2 size={15} /> Generate Membership QR
+                                            <button 
+                                                onClick={() => openMembershipQr(asset)} 
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100' : ''}`}
+                                            >
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? <X size={15} /> : <Building2 size={15} />} 
+                                                {inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'Close QR' : 'Generate Membership QR'}
                                             </button>
                                             <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
                                                 <Trash2 size={15} /> Delete
@@ -1358,19 +1392,32 @@ export default function ResourcesPage() {
                                         </div>
                                     </div>
 
-                                    {!detailsCollapsed && inlineSoftCreateHostId === asset.id ? (
+                                    {inlineAction?.id === asset.id ? (
                                         <div className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">Inline offering composer</p>
-                                                    <h3 className="mt-1 text-xl font-black text-slate-900">Add an offering for {asset.name}</h3>
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+                                                        {inlineAction.type === 'soft-create' ? 'Inline offering composer' :
+                                                         inlineAction.type === 'edit' ? 'Inline place editor' :
+                                                         inlineAction.type === 'import' ? 'Inline material import' :
+                                                         'Interactive membership QR'}
+                                                    </p>
+                                                    <h3 className="mt-1 text-xl font-black text-slate-900">
+                                                        {inlineAction.type === 'soft-create' ? `Add an offering for ${asset.name}` :
+                                                         inlineAction.type === 'edit' ? `Edit ${asset.name}` :
+                                                         inlineAction.type === 'import' ? `Import materials to ${asset.name}` :
+                                                         `Membership link for ${asset.name}`}
+                                                    </h3>
                                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                                                        Start with the essentials and keep {asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.
+                                                        {inlineAction.type === 'soft-create' ? `Start with the essentials and keep ${asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.` :
+                                                         inlineAction.type === 'edit' ? 'Update physical address, boundary, hidden status, and contact info directly without leaving the list.' :
+                                                         inlineAction.type === 'import' ? 'Upload printed collateral for this host place, review extracted offering drafts, then create or update offerings in bulk.' :
+                                                         'Users can scan this QR code to link themselves to this place as an active member. Repeat scans are safe and won\'t create duplicates.'}
                                                     </p>
                                                 </div>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setInlineSoftCreateHostId(null)}
+                                                    onClick={() => setInlineAction(null)}
                                                     className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
                                                 >
                                                     <X size={15} />
@@ -1379,23 +1426,104 @@ export default function ResourcesPage() {
                                             </div>
 
                                             <div className="mt-5 rounded-3xl border border-white/80 bg-white/95 p-5 shadow-sm shadow-slate-100">
-                                                <AssetForm
-                                                    key={`inline-soft-create-${asset.id}`}
-                                                    type="soft"
-                                                    initialData={buildInlineSoftAssetInitialData(asset)}
-                                                    partnerHardAssets={hardAssets}
-                                                    currentUser={user}
-                                                    partnerOptions={partnerOptions}
-                                                    subregions={subregions}
-                                                    audienceZones={audienceZones}
-                                                    layoutMode="inline-soft"
-                                                    onSave={async () => {
-                                                        setInlineSoftCreateHostId(null);
-                                                        await load();
-                                                        setActionNotice({ type: 'success', message: `Offering created for ${asset.name}.` });
-                                                    }}
-                                                    onCancel={() => setInlineSoftCreateHostId(null)}
-                                                />
+                                                {inlineAction.type === 'soft-create' && (
+                                                    <AssetForm
+                                                        key={`inline-soft-create-${asset.id}`}
+                                                        type="soft"
+                                                        initialData={buildInlineSoftAssetInitialData(asset)}
+                                                        partnerHardAssets={hardAssets}
+                                                        currentUser={user}
+                                                        partnerOptions={partnerOptions}
+                                                        subregions={subregions}
+                                                        audienceZones={audienceZones}
+                                                        layoutMode="inline-soft"
+                                                        onSave={async () => {
+                                                            setInlineAction(null);
+                                                            await load();
+                                                            setActionNotice({ type: 'success', message: `Offering created for ${asset.name}.` });
+                                                        }}
+                                                        onCancel={() => setInlineAction(null)}
+                                                    />
+                                                )}
+                                                {inlineAction.type === 'edit' && (
+                                                    <AssetForm
+                                                        key={`inline-edit-${asset.id}`}
+                                                        type="hard"
+                                                        initialData={asset}
+                                                        partnerHardAssets={hardAssets}
+                                                        currentUser={user}
+                                                        partnerOptions={partnerOptions}
+                                                        subregions={subregions}
+                                                        audienceZones={audienceZones}
+                                                        layoutMode="inline-soft"
+                                                        onSave={async () => {
+                                                            setInlineAction(null);
+                                                            await load();
+                                                            setActionNotice({ type: 'success', message: `Place saved.` });
+                                                        }}
+                                                        onCancel={() => setInlineAction(null)}
+                                                    />
+                                                )}
+                                                {inlineAction.type === 'import' && (
+                                                    <SoftAssetCollateralImportWizard
+                                                        hostAsset={inlineAction.asset}
+                                                        onSave={async (result) => {
+                                                            setInlineAction(null);
+                                                            await load();
+                                                            const createdCount = (result?.results || []).filter((row) => row.status === 'created').length;
+                                                            const updatedCount = (result?.results || []).filter((row) => row.status === 'updated').length;
+                                                            const skippedCount = (result?.results || []).filter((row) => row.status === 'skipped').length;
+                                                            const failedCount = (result?.results || []).filter((row) => row.status === 'failed').length;
+                                                            const summaryParts = [
+                                                                createdCount ? `${createdCount} created` : null,
+                                                                updatedCount ? `${updatedCount} updated` : null,
+                                                                skippedCount ? `${skippedCount} skipped` : null,
+                                                                failedCount ? `${failedCount} failed` : null,
+                                                            ].filter(Boolean);
+                                                            setActionNotice({
+                                                                type: failedCount ? 'warning' : 'success',
+                                                                message: summaryParts.length
+                                                                    ? `Collateral import finished for ${asset.name}: ${summaryParts.join(', ')}.`
+                                                                    : `Collateral import finished for ${asset.name}.`,
+                                                            });
+                                                        }}
+                                                        onCancel={() => setInlineAction(null)}
+                                                    />
+                                                )}
+                                                {inlineAction.type === 'qr' && (
+                                                    inlineAction.loading || !inlineAction.data ? (
+                                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                                                            Generating membership QR…
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-5">
+                                                            <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-6">
+                                                                <DirectoryQrCode value={inlineAction.data.linkUrl} compact />
+                                                                <p className="font-semibold text-slate-900">Scan to join {asset.name}</p>
+                                                            </div>
+                                                            <div>
+                                                                <label className="mb-1 block text-sm font-semibold text-slate-700">Membership link</label>
+                                                                <div className="flex gap-2">
+                                                                    <input readOnly value={inlineAction.data.linkUrl} className="input-field flex-1 bg-slate-50" />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await navigator.clipboard.writeText(inlineAction.data.linkUrl);
+                                                                                setInlineAction((prev) => prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, copied: true } : prev);
+                                                                            } catch (error) {
+                                                                                console.error('Failed to copy', error);
+                                                                            }
+                                                                        }}
+                                                                        className="btn-ghost whitespace-nowrap"
+                                                                    >
+                                                                        {inlineAction.copied ? 'Copied' : 'Copy link'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                )}
                                             </div>
                                         </div>
                                     ) : null}
@@ -1878,40 +2006,6 @@ export default function ResourcesPage() {
                 </ResourceModal>
             ) : null}
 
-            {collateralImportHostAsset ? (
-                <ResourceModal
-                    title="Import Material"
-                    description="Upload printed collateral for this host place, review extracted offering drafts, then create or update offerings in bulk."
-                    onClose={() => setCollateralImportHostAsset(null)}
-                    maxWidth="max-w-6xl"
-                    bodyClassName="max-h-[84vh] overflow-y-auto pr-1"
-                >
-                    <SoftAssetCollateralImportWizard
-                        hostAsset={collateralImportHostAsset}
-                        onSave={async (result) => {
-                            setCollateralImportHostAsset(null);
-                            await load();
-                            const createdCount = (result?.results || []).filter((row) => row.status === 'created').length;
-                            const updatedCount = (result?.results || []).filter((row) => row.status === 'updated').length;
-                            const skippedCount = (result?.results || []).filter((row) => row.status === 'skipped').length;
-                            const failedCount = (result?.results || []).filter((row) => row.status === 'failed').length;
-                            const summaryParts = [
-                                createdCount ? `${createdCount} created` : null,
-                                updatedCount ? `${updatedCount} updated` : null,
-                                skippedCount ? `${skippedCount} skipped` : null,
-                                failedCount ? `${failedCount} failed` : null,
-                            ].filter(Boolean);
-                            setActionNotice({
-                                type: failedCount ? 'warning' : 'success',
-                                message: summaryParts.length
-                                    ? `Collateral import finished for ${collateralImportHostAsset.name}: ${summaryParts.join(', ')}.`
-                                    : `Collateral import finished for ${collateralImportHostAsset.name}.`,
-                            });
-                        }}
-                        onCancel={() => setCollateralImportHostAsset(null)}
-                    />
-                </ResourceModal>
-            ) : null}
 
             {assetModal ? (
                 <ResourceModal
@@ -2063,62 +2157,6 @@ export default function ResourcesPage() {
                 </ResourceModal>
             ) : null}
 
-            {membershipQrModal ? (
-                <ResourceModal
-                    title="Generate Membership QR"
-                    description="Users can scan this QR code to link themselves to this place as an active member."
-                    onClose={() => setMembershipQrModal(null)}
-                    maxWidth="max-w-xl"
-                >
-                    {membershipQrModal.loading || !membershipQrModal.data ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                            Generating membership QR…
-                        </div>
-                    ) : (
-                        <div className="space-y-5">
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Place</p>
-                                <p className="mt-1 text-lg font-bold text-slate-900">{membershipQrModal.asset.name}</p>
-                                {membershipQrModal.asset.address ? (
-                                    <p className="mt-1 text-sm text-slate-500">{membershipQrModal.asset.address}</p>
-                                ) : null}
-                            </div>
-
-                            <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-6">
-                                <DirectoryQrCode value={membershipQrModal.data.linkUrl} compact />
-                                <p className="max-w-sm text-center text-sm text-slate-500">
-                                    Scanning this code signs the user into an active membership for this place. Repeat scans are safe and won&apos;t create duplicates.
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="mb-1 block text-sm font-semibold text-slate-700">Membership link</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        readOnly
-                                        value={membershipQrModal.data.linkUrl}
-                                        className="input-field flex-1 bg-slate-50"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            try {
-                                                await navigator.clipboard.writeText(membershipQrModal.data.linkUrl);
-                                                setMembershipQrModal((prev) => prev ? { ...prev, copied: true } : prev);
-                                            } catch (error) {
-                                                console.error(error);
-                                            }
-                                        }}
-                                        className="btn-ghost whitespace-nowrap"
-                                    >
-                                        {membershipQrModal.copied ? 'Copied' : 'Copy link'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </ResourceModal>
-            ) : null}
 
             {childModal ? (
                 <ResourceModal
