@@ -547,7 +547,7 @@ export default function HardAssetImportWizard({
     const [draftQueue, setDraftQueue] = useState([]);
     const [activeDraftId, setActiveDraftId] = useState('');
 
-    const availablePostalCodes = useMemo(() => collectSubregionPostalCodes(subregions, currentUser?.subregionIds || []), [subregions, currentUser]);
+    const availablePostalCodes = useMemo(() => Array.from(collectSubregionPostalCodes(subregions, currentUser?.subregionIds || [])), [subregions, currentUser]);
     const exactCandidates = postalResults?.exactCandidates || [];
     const nearbyCandidates = postalResults?.nearbyCandidates || [];
     const hasAnyCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
