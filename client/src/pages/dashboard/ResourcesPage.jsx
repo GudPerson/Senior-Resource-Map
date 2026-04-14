@@ -1565,7 +1565,7 @@ export default function ResourcesPage() {
                                         </div>
                                     ) : null}
 
-                                    {false ? (
+
                                 </div>
                             );
                         })}
