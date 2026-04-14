@@ -233,6 +233,43 @@ function getAssetBoundaryStatus(asset) {
     return asset?.boundaryStatus || 'no-boundary';
 }
 
+function getMemberLocationBadge(membership, asset, subregions, audienceZones) {
+    const postal = membership.user?.postalCode;
+    if (!postal) return <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">No postal code</span>;
+
+    const normalizedPostal = String(postal).replace(/\D/g, '');
+
+    let inSubregion = false;
+    if (asset.subregionId && subregions) {
+        const subregion = subregions.find((s) => Number(s.id) === Number(asset.subregionId));
+        if (subregion && Array.isArray(subregion.postalCodesList)) {
+            inSubregion = subregion.postalCodesList.some((p) => String(p).replace(/\D/g, '') === normalizedPostal);
+        }
+    }
+
+    let inAudienceZone = false;
+    if (Array.isArray(asset.audienceZoneIds) && asset.audienceZoneIds.length > 0 && audienceZones) {
+        const activeZones = audienceZones.filter((z) => asset.audienceZoneIds.map(Number).includes(Number(z.id)));
+        inAudienceZone = activeZones.some((z) => 
+            (Array.isArray(z.postalCodes) && z.postalCodes.some((p) => String(p).replace(/\D/g, '') === normalizedPostal)) ||
+            (Array.isArray(z.postalCodesList) && z.postalCodesList.some((p) => String(p).replace(/\D/g, '') === normalizedPostal))
+        );
+    } else if (Array.isArray(asset.audienceZones) && asset.audienceZones.length > 0) {
+        inAudienceZone = asset.audienceZones.some((z) => 
+            (Array.isArray(z.postalCodesList) && z.postalCodesList.some((p) => String(p).replace(/\D/g, '') === normalizedPostal)) ||
+            (Array.isArray(z.postalCodes) && z.postalCodes.some((p) => String(p).replace(/\D/g, '') === normalizedPostal))
+        );
+    }
+
+    if (inSubregion) {
+        return <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-green-700">In Subregion Boundary</span>;
+    }
+    if (inAudienceZone) {
+        return <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-700">In Audience Boundary</span>;
+    }
+    return <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-700">Outside Boundary</span>;
+}
+
 function formatAudienceMode(mode) {
     if (mode === 'partner_boundary') return 'Partner boundary';
     if (mode === 'audience_zones') return 'Audience zones';
@@ -1367,8 +1404,8 @@ export default function ResourcesPage() {
 
                                     {inlineAction?.id === asset.id ? (
                                         <div className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
-                                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                                <div className="min-w-0">
+                                            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
+                                                <div className="min-w-0 flex-1">
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
                                                         {inlineAction.type === 'soft-create' ? 'Inline offering composer' :
                                                          inlineAction.type === 'edit' ? 'Inline place editor' :
@@ -1388,14 +1425,40 @@ export default function ResourcesPage() {
                                                          'Manage linked members joining this place. Share the QR code or link below to allow new members to onboard instantly.'}
                                                     </p>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setInlineAction(null)}
-                                                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-                                                >
-                                                    <X size={15} />
-                                                    Close
-                                                </button>
+                                                <div className="flex shrink-0 flex-wrap items-start gap-3">
+                                                    {inlineAction.type === 'qr' && inlineAction.data && !inlineAction.loading && (
+                                                        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-50">
+                                                                <DirectoryQrCode value={inlineAction.data.linkUrl} compact />
+                                                            </div>
+                                                            <div className="flex flex-col pr-3">
+                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Scan to join</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await navigator.clipboard.writeText(inlineAction.data.linkUrl);
+                                                                            setInlineAction((prev) => prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, copied: true } : prev);
+                                                                        } catch (error) {
+                                                                            console.error('Failed to copy', error);
+                                                                        }
+                                                                    }}
+                                                                    className="mt-0.5 text-left text-xs font-bold text-brand-600 transition hover:text-brand-700"
+                                                                >
+                                                                    {inlineAction.copied ? 'Copied link!' : 'Copy link'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setInlineAction(null)}
+                                                        className="inline-flex min-h-[50px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                    >
+                                                        <X size={15} />
+                                                        Close
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             <div className="mt-5 rounded-3xl border border-white/80 bg-white/95 p-5 shadow-sm shadow-slate-100">
@@ -1464,45 +1527,19 @@ export default function ResourcesPage() {
                                                     />
                                                 )}
                                                 {inlineAction.type === 'qr' && (
-                                                    inlineAction.loading || !inlineAction.data ? (
+                                                    inlineAction.loading ? (
                                                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                                                            Generating membership QR…
+                                                            Loading memberships…
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-5">
-                                                            <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-6">
-                                                                <DirectoryQrCode value={inlineAction.data.linkUrl} compact />
-                                                                <p className="font-semibold text-slate-900">Scan to join {asset.name}</p>
-                                                            </div>
-                                                            <div>
-                                                                <label className="mb-1 block text-sm font-semibold text-slate-700">Membership link</label>
-                                                                <div className="flex gap-2">
-                                                                    <input readOnly value={inlineAction.data.linkUrl} className="input-field flex-1 bg-slate-50" />
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={async () => {
-                                                                            try {
-                                                                                await navigator.clipboard.writeText(inlineAction.data.linkUrl);
-                                                                                setInlineAction((prev) => prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, copied: true } : prev);
-                                                                            } catch (error) {
-                                                                                console.error('Failed to copy', error);
-                                                                            }
-                                                                        }}
-                                                                        className="btn-ghost whitespace-nowrap"
-                                                                    >
-                                                                        {inlineAction.copied ? 'Copied' : 'Copy link'}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
+                                                        <div>
                                                             {canShowMembers ? (
                                                                 <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
                                                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                                                         <div>
-                                                                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Members</p>
+                                                                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Members Directory</p>
                                                                             <p className="mt-1 text-sm text-slate-500">
-                                                                                {membersCollapsed
-                                                                                    ? 'Linked members who joined this place through the membership flow.'
-                                                                                    : 'Linked members who joined this place through the membership flow.'}
+                                                                                All linked members who have scanned this place's QR or onboarded online.
                                                                             </p>
                                                                         </div>
                                                                         <div className="flex flex-wrap items-center gap-2">
@@ -1510,19 +1547,10 @@ export default function ResourcesPage() {
                                                                                 <Users size={13} className="text-brand-600" />
                                                                                 {asset.membershipCount} total
                                                                             </span>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => toggleMembersCollapsed(asset.id)}
-                                                                                aria-expanded={!membersCollapsed}
-                                                                                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100"
-                                                                            >
-                                                                                {membersCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                                                                {membersCollapsed ? 'Show members' : 'Hide members'}
-                                                                            </button>
                                                                         </div>
                                                                     </div>
 
-                                                                    {membersCollapsed ? null : asset.memberPreview?.length ? (
+                                                                    {asset.memberPreview?.length ? (
                                                                         <div className="mt-4 space-y-2">
                                                                             {asset.memberPreview.map((membership) => (
                                                                                 <div key={membership.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
@@ -1534,13 +1562,8 @@ export default function ResourcesPage() {
                                                                                             {membership.user?.username ? `@${membership.user.username}` : membership.user?.email || 'No username'}
                                                                                         </p>
                                                                                     </div>
-                                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-green-700">
-                                                                                            {formatMembershipStatusLabel(membership.status)}
-                                                                                        </span>
-                                                                                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                                                                                            {formatMembershipMethodLabel(membership.joinMethod)}
-                                                                                        </span>
+                                                                                    <div className="flex shrink-0">
+                                                                                        {getMemberLocationBadge(membership, asset, subregions, audienceZones)}
                                                                                     </div>
                                                                                 </div>
                                                                             ))}
