@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Heart, Layers3, X } from 'lucide-react';
 import { Drawer } from 'vaul';
 
@@ -223,7 +223,8 @@ export default function DiscoverPage() {
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [search, setSearch] = useState(() => searchParams.get('q') || '');
     const [activeTab, setActiveTab] = useState('all');
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [desktopPaneMode, setDesktopPaneMode] = useState('browse');
@@ -272,6 +273,28 @@ export default function DiscoverPage() {
         setPostalInput,
         setSearchRadius,
     } = useDiscoveryLocation(hardAssets, user?.postalCode || '');
+
+    // Sync state to URL
+    useEffect(() => {
+        const nextParams = new URLSearchParams(searchParams);
+        
+        if (search.trim()) {
+            nextParams.set('q', search.trim());
+        } else {
+            nextParams.delete('q');
+        }
+
+        const postal = searchOrigin?.postalCode || (searchOrigin?.source === 'postal' ? searchOrigin.postalCode : null);
+        if (postal) {
+            nextParams.set('postal', postal);
+        } else {
+            nextParams.delete('postal');
+        }
+
+        if (nextParams.toString() !== searchParams.toString()) {
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [search, searchOrigin, setSearchParams, searchParams]);
 
     useEffect(() => {
         let isActive = true;

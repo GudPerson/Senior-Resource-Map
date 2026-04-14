@@ -140,7 +140,7 @@ function SharedMapMobileControls({
 
     return (
         <>
-            <div className="sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
+            <div className="sticky top-0 z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:h-[68px] xl:hidden disable-font-scaling">
                 <div className="flex items-center gap-4">
                     <button
                         type="button"
@@ -161,7 +161,7 @@ function SharedMapMobileControls({
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35 xl:hidden" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
+                        className="fixed bottom-0 left-0 top-0 z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl xl:hidden"
                         style={{
                             borderColor: 'var(--color-border)',
                             background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
@@ -574,7 +574,7 @@ export default function SharedMapPage() {
                                 mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                             />
                         )}
-                        mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 -mx-4 bg-slate-50 px-4 pb-5 pt-2 shadow-[0_10px_22px_rgba(15,23,42,0.08)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
+                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-30 -mx-4 bg-slate-50 px-4 pb-5 pt-2 shadow-[0_10px_22px_rgba(15,23,42,0.08)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
                     />
                 )}
             </div>

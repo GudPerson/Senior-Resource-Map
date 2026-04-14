@@ -25,26 +25,35 @@ function resolveLocalPostalMatch(hardAssets, postalCode) {
 }
 
 export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
+    const [searchParams] = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : [new URLSearchParams()];
+    const urlPostal = searchParams.get('postal');
+    const isValidUrlPostal = /^\d{6}$/.test(urlPostal || '');
+
     const storedSearchLocationRef = useRef(loadSearchLocation());
     const [userLocation, setUserLocation] = useState(() => {
+        if (isValidUrlPostal) return null; // Wait for geocoding to resolve the URL postal
         const stored = storedSearchLocationRef.current;
         return stored ? { lat: stored.lat, lng: stored.lng } : null;
     });
     const [searchRadius, setSearchRadius] = useState(100);
-    const [postalInput, setPostalInput] = useState(() => (
-        storedSearchLocationRef.current?.source === 'postal' ? storedSearchLocationRef.current.postalCode : ''
-    ));
+    const [postalInput, setPostalInput] = useState(() => {
+        if (isValidUrlPostal) return urlPostal;
+        return storedSearchLocationRef.current?.source === 'postal' ? storedSearchLocationRef.current.postalCode : '';
+    });
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [flyTarget, setFlyTarget] = useState(null);
-    const [searchOrigin, setSearchOrigin] = useState(storedSearchLocationRef.current);
+    const [searchOrigin, setSearchOrigin] = useState(() => {
+        if (isValidUrlPostal) return null; // We'll trigger a search for this in an effect
+        return storedSearchLocationRef.current;
+    });
     const [locationNotice, setLocationNotice] = useState(null);
     const [homeOrigin, setHomeOrigin] = useState(null);
     const [isResolvingHome, setIsResolvingHome] = useState(false);
     const geolocationRequestRef = useRef(0);
     const normalizedHomePostalCode = String(userPostalCode || '').trim();
     const latestLocationStateRef = useRef({
-        userLocation: storedSearchLocationRef.current ? { lat: storedSearchLocationRef.current.lat, lng: storedSearchLocationRef.current.lng } : null,
-        searchOrigin: storedSearchLocationRef.current,
+        userLocation: isValidUrlPostal ? null : (storedSearchLocationRef.current ? { lat: storedSearchLocationRef.current.lat, lng: storedSearchLocationRef.current.lng } : null),
+        searchOrigin: isValidUrlPostal ? null : storedSearchLocationRef.current,
     });
 
     useEffect(() => {
@@ -61,6 +70,34 @@ export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
         latestLocationStateRef.current = { userLocation: null, searchOrigin: null };
         clearSearchLocation();
     }, []);
+
+    // Handle initial mount with URL postal
+    const initializedRef = useRef(false);
+    useEffect(() => {
+        if (initializedRef.current || !isValidUrlPostal || hardAssets.length === 0) return;
+        initializedRef.current = true;
+
+        async function resolveUrlPostal() {
+            setIsGeocoding(true);
+            try {
+                const localMatch = resolveLocalPostalMatch(hardAssets, urlPostal);
+                const result = localMatch || await searchOneMap(urlPostal);
+                if (result) {
+                    const loc = { lat: result.lat, lng: result.lng };
+                    const nextOrigin = { ...loc, source: 'postal', postalCode: urlPostal, address: result.address || `Postal code ${urlPostal}`, updatedAt: Date.now() };
+                    setUserLocation(loc);
+                    setSearchOrigin(nextOrigin);
+                    latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
+                    // Set neighborhood zoom for URL-based landing
+                    const zoom = searchRadius <= 0.3 ? 17 : 16;
+                    setFlyTarget({ ...loc, zoom, source: 'postal' });
+                }
+            } finally {
+                setIsGeocoding(false);
+            }
+        }
+        resolveUrlPostal();
+    }, [hardAssets, isValidUrlPostal, urlPostal, searchRadius]);
 
     const runLocateMe = useCallback((options = {}) => {
         const { silent = false } = options;
