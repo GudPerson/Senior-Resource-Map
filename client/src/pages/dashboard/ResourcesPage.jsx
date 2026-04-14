@@ -1276,10 +1276,6 @@ export default function ResourcesPage() {
                         {filteredHardAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canShowMembers = typeof asset.membershipCount === 'number';
-                            const membersCollapsed = canShowMembers ? areMembersCollapsed(asset.id) : true;
-                            const detailsCollapsed = areHardAssetDetailsCollapsed(asset.id);
-                            const visibleTags = detailsCollapsed ? (asset.tags || []).slice(0, 4) : (asset.tags || []);
-                            const hiddenTagCount = Math.max((asset.tags || []).length - visibleTags.length, 0);
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
@@ -1304,28 +1300,6 @@ export default function ResourcesPage() {
                                                                 ) : null}
                                                             </div>
                                                         </div>
-                                                        <div className="flex flex-wrap items-center justify-end gap-2">
-                                                            {canShowMembers ? (
-                                                                <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-[11px] font-semibold text-brand-700">
-                                                                    <Users size={13} />
-                                                                    {asset.membershipCount} linked
-                                                                </span>
-                                                            ) : null}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (!detailsCollapsed && inlineAction?.id === asset.id) {
-                                                                        setInlineAction(null);
-                                                                    }
-                                                                    toggleHardAssetDetailsCollapsed(asset.id);
-                                                                }}
-                                                                aria-expanded={!detailsCollapsed}
-                                                                className="inline-flex min-h-9 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                                                            >
-                                                                {detailsCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                                                {detailsCollapsed ? 'Expand details' : 'Collapse details'}
-                                                            </button>
-                                                        </div>
                                                     </div>
 
                                                     {(asset.subCategory || asset.tags?.length > 0 || hiddenStatus.hidden) ? (
@@ -1337,20 +1311,11 @@ export default function ResourcesPage() {
                                                                 </span>
                                                             ) : null}
                                                             {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
-                                                            {visibleTags.map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
-                                                            {hiddenTagCount > 0 ? (
-                                                                <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                                                                    +{hiddenTagCount} more
-                                                                </span>
-                                                            ) : null}
+                                                            {(asset.tags || []).map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
                                                         </div>
                                                     ) : null}
 
-                                                    {detailsCollapsed ? (
-                                                        <p className="text-sm text-slate-500">
-                                                            Expand this card when you want to review linked members or the full place details. Quick actions stay available here.
-                                                        </p>
-                                                    ) : null}
+
                                                 </div>
                                             </div>
                                         </div>
