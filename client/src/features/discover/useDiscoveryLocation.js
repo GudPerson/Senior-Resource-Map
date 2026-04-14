@@ -25,7 +25,7 @@ function resolveLocalPostalMatch(hardAssets, postalCode) {
 }
 
 export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
-    const [searchParams] = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : [new URLSearchParams()];
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const urlPostal = searchParams.get('postal');
     const isValidUrlPostal = /^\d{6}$/.test(urlPostal || '');
 
