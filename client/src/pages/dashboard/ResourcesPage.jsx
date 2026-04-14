@@ -594,10 +594,10 @@ export default function ResourcesPage() {
     async function openMembershipQr(asset) {
         setInlineAction({ id: asset.id, type: 'qr', asset, loading: true, data: null, copied: false });
         try {
-            const result = await api.generateMembershipJoinToken(asset.id);
+            const result = await api.generateHardAssetMembershipQr(asset.id);
             setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false, data: result } : prev));
         } catch (error) {
-            console.error('Failed to generate membership join token', error);
+            console.error('Failed to generate membership QR', error);
             setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false } : prev));
             setActionNotice({ type: 'warning', message: 'Failed to generate membership QR.' });
         }
@@ -1357,7 +1357,7 @@ export default function ResourcesPage() {
                                                 onClick={() => openMembershipQr(asset)} 
                                                 className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
                                             >
-                                                <Building2 size={15} /> Generate Membership QR
+                                                <Users size={15} /> Memberships
                                             </button>
                                             <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
                                                 <Trash2 size={15} /> Delete
@@ -1373,19 +1373,19 @@ export default function ResourcesPage() {
                                                         {inlineAction.type === 'soft-create' ? 'Inline offering composer' :
                                                          inlineAction.type === 'edit' ? 'Inline place editor' :
                                                          inlineAction.type === 'import' ? 'Inline material import' :
-                                                         'Interactive membership QR'}
+                                                         'Memberships & QR'}
                                                     </p>
                                                     <h3 className="mt-1 text-xl font-black text-slate-900">
                                                         {inlineAction.type === 'soft-create' ? `Add an offering for ${asset.name}` :
                                                          inlineAction.type === 'edit' ? `Edit ${asset.name}` :
                                                          inlineAction.type === 'import' ? `Import materials to ${asset.name}` :
-                                                         `Membership link for ${asset.name}`}
+                                                         `Memberships for ${asset.name}`}
                                                     </h3>
                                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                                         {inlineAction.type === 'soft-create' ? `Start with the essentials and keep ${asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.` :
                                                          inlineAction.type === 'edit' ? 'Update physical address, boundary, hidden status, and contact info directly without leaving the list.' :
                                                          inlineAction.type === 'import' ? 'Upload printed collateral for this host place, review extracted offering drafts, then create or update offerings in bulk.' :
-                                                         'Users can scan this QR code to link themselves to this place as an active member. Repeat scans are safe and won\'t create duplicates.'}
+                                                         'Manage linked members joining this place. Share the QR code or link below to allow new members to onboard instantly.'}
                                                     </p>
                                                 </div>
                                                 <button
@@ -1494,6 +1494,70 @@ export default function ResourcesPage() {
                                                                     </button>
                                                                 </div>
                                                             </div>
+                                                            {canShowMembers ? (
+                                                                <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
+                                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                        <div>
+                                                                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Members</p>
+                                                                            <p className="mt-1 text-sm text-slate-500">
+                                                                                {membersCollapsed
+                                                                                    ? 'Linked members who joined this place through the membership flow.'
+                                                                                    : 'Linked members who joined this place through the membership flow.'}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-600">
+                                                                                <Users size={13} className="text-brand-600" />
+                                                                                {asset.membershipCount} total
+                                                                            </span>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => toggleMembersCollapsed(asset.id)}
+                                                                                aria-expanded={!membersCollapsed}
+                                                                                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100"
+                                                                            >
+                                                                                {membersCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                                                                                {membersCollapsed ? 'Show members' : 'Hide members'}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {membersCollapsed ? null : asset.memberPreview?.length ? (
+                                                                        <div className="mt-4 space-y-2">
+                                                                            {asset.memberPreview.map((membership) => (
+                                                                                <div key={membership.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                                                                                    <div className="min-w-0">
+                                                                                        <p className="truncate text-[13px] font-bold text-slate-900">
+                                                                                            {membership.user?.name || membership.user?.username || 'Unknown member'}
+                                                                                        </p>
+                                                                                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                                                                            {membership.user?.username ? `@${membership.user.username}` : membership.user?.email || 'No username'}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                                        <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-green-700">
+                                                                                            {formatMembershipStatusLabel(membership.status)}
+                                                                                        </span>
+                                                                                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                                                                            {formatMembershipMethodLabel(membership.joinMethod)}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+
+                                                                            {asset.hasMoreMembers ? (
+                                                                                <p className="px-2 pt-1 text-[11px] font-semibold text-slate-500">
+                                                                                    +{asset.membershipCount - asset.memberPreview.length} more member{asset.membershipCount - asset.memberPreview.length === 1 ? '' : 's'} linked.
+                                                                                </p>
+                                                                            ) : null}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white px-4 py-4 text-[13px] font-medium text-slate-500">
+                                                                            No linked members yet. When someone scans this place&apos;s membership QR, they&apos;ll appear here.
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            ) : null}
                                                         </div>
                                                     )
                                                 )}
@@ -1501,76 +1565,7 @@ export default function ResourcesPage() {
                                         </div>
                                     ) : null}
 
-                                    {!detailsCollapsed && canShowMembers ? (
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
-                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div>
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Members</p>
-                                                    <p className="mt-1 text-sm text-slate-500">
-                                                        {membersCollapsed
-                                                            ? 'Hidden by default so long membership lists do not overwhelm the resource view.'
-                                                            : 'Linked members who joined this place through the membership flow.'}
-                                                    </p>
-                                                </div>
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                                                        <Users size={13} />
-                                                        {asset.membershipCount} total
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleMembersCollapsed(asset.id)}
-                                                        aria-expanded={!membersCollapsed}
-                                                        className="inline-flex min-h-9 items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                                                    >
-                                                        {membersCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                                                        {membersCollapsed ? 'Show members' : 'Hide members'}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {membersCollapsed ? (
-                                                <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                                                    {asset.membershipCount > 0
-                                                        ? 'Expand this section to browse linked members and their join status.'
-                                                        : 'Expand this section later to check for new linked members.'}
-                                                </p>
-                                            ) : asset.memberPreview?.length ? (
-                                                <div className="mt-4 space-y-2">
-                                                    {asset.memberPreview.map((membership) => (
-                                                        <div key={membership.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-                                                            <div className="min-w-0">
-                                                                <p className="truncate text-sm font-semibold text-slate-900">
-                                                                    {membership.user?.name || membership.user?.username || 'Unknown member'}
-                                                                </p>
-                                                                <p className="mt-0.5 truncate text-xs text-slate-500">
-                                                                    {membership.user?.username ? `@${membership.user.username}` : membership.user?.email || 'No username'}
-                                                                </p>
-                                                            </div>
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700">
-                                                                    {formatMembershipStatusLabel(membership.status)}
-                                                                </span>
-                                                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                                                                    {formatMembershipMethodLabel(membership.joinMethod)}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-
-                                                    {asset.hasMoreMembers ? (
-                                                        <p className="px-1 text-xs text-slate-500">
-                                                            And {asset.membershipCount - asset.memberPreview.length} more linked member{asset.membershipCount - asset.memberPreview.length === 1 ? '' : 's'}.
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-                                            ) : (
-                                                <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                                    No linked members yet. When someone scans this place&apos;s membership QR, they&apos;ll appear here.
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : null}
+                                    {false ? (
                                 </div>
                             );
                         })}
