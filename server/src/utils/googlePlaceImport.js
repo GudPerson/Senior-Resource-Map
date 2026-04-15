@@ -1,5 +1,5 @@
 import { fetchWebsiteMetadata } from './websiteMetadata.js';
-import { searchVertexGroundedPlaceSuggestions } from './vertexGroundedPlaceSearch.js';
+import { searchVertexGroundedPlaceSuggestions, enrichPlaceCandidatesWithVertex } from './vertexGroundedPlaceSearch.js';
 
 const GOOGLE_MAP_HOSTS = new Set([
     'maps.app.goo.gl',
@@ -1018,7 +1018,49 @@ export async function searchGooglePlaceCandidatesByPostal(
         warnings.push('Google could not resolve the postal anchor, so OneMap was used to locate this postal code.');
     }
 
-    if (exactCandidates.length === 0 && nearbyCandidates.length === 0) {
+    // Enrich Google Places candidates with Vertex AI grounded search
+    // This runs only when we have real Places results (not web-fallback, which already has AI data)
+    const hasGooglePlacesCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
+    if (hasGooglePlacesCandidates) {
+        try {
+            const allPlacesCandidates = [...exactCandidates, ...nearbyCandidates];
+            const enrichmentMap = await enrichPlaceCandidatesWithVertex({
+                env,
+                candidates: allPlacesCandidates,
+                keywordQuery,
+            });
+
+            function applyEnrichment(candidate, index) {
+                const enrichment = enrichmentMap.get(candidate.googlePlaceId)
+                    || enrichmentMap.get(`_idx:${index}`);
+                if (!enrichment) return candidate;
+                return {
+                    ...candidate,
+                    // AI enrichment fields — only set, never overwrite existing Places data
+                    aiDescription: enrichment.description || '',
+                    aiLogoUrl: enrichment.logoUrl || '',
+                    aiServices: Array.isArray(enrichment.services) ? enrichment.services : [],
+                    groundingSourceUrl: enrichment.sourceUrl || '',
+                    groundingSourceTitle: enrichment.sourceTitle || '',
+                    groundingConfidence: Number.isFinite(enrichment.confidence) ? enrichment.confidence : null,
+                    // Merge AI services into suggestedTags (deduped)
+                    suggestedTags: dedupeTags([
+                        ...(candidate.suggestedTags || []),
+                        ...(enrichment.services || []),
+                    ]),
+                };
+            }
+
+            const exactCount = exactCandidates.length;
+            exactCandidates = exactCandidates.map((c, i) => applyEnrichment(c, i));
+            nearbyCandidates = nearbyCandidates.map((c, i) => applyEnrichment(c, exactCount + i));
+        } catch (enrichErr) {
+            // Enrichment is best-effort — never surface errors to the user
+            console.warn('enrichPlaceCandidatesWithVertex error (non-fatal):', enrichErr?.message);
+        }
+    }
+
+    if (!hasGooglePlacesCandidates) {
         fallbackUsed = true;
         try {
             const fallbackResult = await searchVertexFallbackCandidates(

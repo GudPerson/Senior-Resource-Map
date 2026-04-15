@@ -27,6 +27,7 @@ function buildImportedHardAssetDraft(preview) {
     const importedTags = dedupeTags([
         ...(Array.isArray(suggestion.suggestedTags) ? suggestion.suggestedTags : []),
         ...(Array.isArray(preview?.candidateSuggestedTags) ? preview.candidateSuggestedTags : []),
+        ...(Array.isArray(preview?.aiServices) ? preview.aiServices : []),
     ]);
 
     return {
@@ -38,8 +39,9 @@ function buildImportedHardAssetDraft(preview) {
         phone: suggestion.phone || '',
         hours: suggestion.hours || '',
         website: suggestion.website || '',
-        description: suggestion.description || '',
-        logoUrl: suggestion.logoUrl || '',
+        // Use AI-generated description/logo as fallback when Places preview has none
+        description: suggestion.description || preview?.aiDescription || '',
+        logoUrl: suggestion.logoUrl || preview?.aiLogoUrl || '',
         bannerUrl: '',
         galleryUrls: [],
         subCategory: suggestion.subCategorySuggestion || 'Places',
@@ -100,6 +102,10 @@ function createCandidateDraft(candidate) {
         }
         : null;
 
+    // Effective confidence: for Google Places candidates, prefer the AI grounding score
+    const rawConfidence = candidate?.groundingConfidence ?? candidate?.confidence;
+    const confidence = Number.isFinite(Number(rawConfidence)) ? Number(rawConfidence) : null;
+
     return {
         id: `${sourceType}:${candidate.googlePlaceId || candidate.sourceUrl || candidate.name || candidate.address}`,
         sourceType,
@@ -117,7 +123,14 @@ function createCandidateDraft(candidate) {
         sourceUrl: candidate.sourceUrl || '',
         sourceTitle: candidate.sourceTitle || '',
         sourceSnippet: candidate.sourceSnippet || '',
-        confidence: Number.isFinite(Number(candidate.confidence)) ? Number(candidate.confidence) : null,
+        confidence,
+        // AI enrichment fields carried into the queue object
+        aiDescription: candidate.aiDescription || '',
+        aiLogoUrl: candidate.aiLogoUrl || '',
+        aiServices: Array.isArray(candidate.aiServices) ? candidate.aiServices : [],
+        groundingSourceUrl: candidate.groundingSourceUrl || '',
+        groundingSourceTitle: candidate.groundingSourceTitle || '',
+        groundingConfidence: candidate.groundingConfidence ?? null,
         previewData,
         formDraft: draftSeed,
         loadStatus: candidateSource === 'web_fallback' ? 'ready' : 'not-loaded',
@@ -355,7 +368,12 @@ function CandidateRow({
     const distanceLabel = formatCandidateDistance(candidate, anchorPostalCode);
     const draftStatus = draft?.loadStatus || '';
     const isWebFallback = candidate?.candidateSource === 'web_fallback';
-    const confidenceLabel = formatConfidenceLabel(candidate?.confidence);
+    const isEnrichedGooglePlace = !isWebFallback && Boolean(candidate?.groundingConfidence != null || candidate?.aiDescription || candidate?.groundingSourceUrl);
+    const displayConfidence = isWebFallback ? candidate?.confidence : (candidate?.groundingConfidence ?? candidate?.confidence);
+    const confidenceLabel = formatConfidenceLabel(displayConfidence);
+    const aiDescription = candidate?.aiDescription || '';
+    const aiLogoUrl = candidate?.aiLogoUrl || '';
+    const groundingSourceUrl = candidate?.groundingSourceUrl || candidate?.sourceUrl || '';
 
     let actionButton = (
         <button
@@ -411,10 +429,35 @@ function CandidateRow({
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
+                        {aiLogoUrl ? (
+                            <img
+                                src={aiLogoUrl}
+                                alt=""
+                                aria-hidden="true"
+                                className="h-9 w-9 flex-shrink-0 rounded-lg object-contain border border-slate-100 bg-slate-50 p-0.5"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                        ) : null}
                         <p className="text-base font-black text-slate-900">{candidate.name}</p>
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isWebFallback ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-brand-200 bg-brand-50 text-brand-700'}`}>
-                            {isWebFallback ? 'Web fallback' : 'Google place'}
-                        </span>
+                        {(isWebFallback && groundingSourceUrl) ? (
+                            <a
+                                href={groundingSourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100"
+                            >
+                                Web
+                                <ExternalLink size={10} />
+                            </a>
+                        ) : isWebFallback ? (
+                            <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
+                                Web fallback
+                            </span>
+                        ) : (
+                            <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
+                                Google place
+                            </span>
+                        )}
                         {distanceLabel ? (
                             <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                                 {distanceLabel}
@@ -442,12 +485,14 @@ function CandidateRow({
                         ) : null}
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{candidate.address}</p>
-                    {isWebFallback && candidate.sourceSnippet ? (
+                    {aiDescription ? (
+                        <p className="mt-2 text-sm leading-6 text-slate-600 italic">{aiDescription}</p>
+                    ) : isWebFallback && candidate.sourceSnippet ? (
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                             {candidate.sourceSnippet}
                         </p>
                     ) : null}
-                    {isWebFallback && candidate.sourceTitle ? (
+                    {isWebFallback && candidate.sourceTitle && !aiDescription ? (
                         <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
                             Source: {candidate.sourceTitle}
                         </p>
@@ -457,9 +502,9 @@ function CandidateRow({
                             {formatExistingMatchReason(existingMatch.matchReason)}
                         </p>
                     ) : null}
-                    {isWebFallback && (candidate.sourceUrl || candidate.website) ? (
+                    {(isWebFallback || isEnrichedGooglePlace) && (candidate.sourceUrl || candidate.groundingSourceUrl || candidate.website) ? (
                         <div className="mt-2 flex flex-wrap gap-2">
-                            {candidate.sourceUrl ? (
+                            {isWebFallback && candidate.sourceUrl ? (
                                 <a
                                     href={candidate.sourceUrl}
                                     target="_blank"
@@ -467,6 +512,17 @@ function CandidateRow({
                                     className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50"
                                 >
                                     Source
+                                    <ExternalLink size={12} />
+                                </a>
+                            ) : null}
+                            {isEnrichedGooglePlace && candidate.groundingSourceUrl ? (
+                                <a
+                                    href={candidate.groundingSourceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                                >
+                                    {candidate.groundingSourceTitle || 'AI source'}
                                     <ExternalLink size={12} />
                                 </a>
                             ) : null}
@@ -702,6 +758,10 @@ export default function HardAssetImportWizard({
             const previewWithTags = {
                 ...previewData,
                 candidateSuggestedTags: draft.candidateSuggestedTags,
+                // Merge AI enrichment from the candidate as fallbacks for empty Places preview fields
+                aiDescription: draft.aiDescription || '',
+                aiLogoUrl: draft.aiLogoUrl || '',
+                aiServices: Array.isArray(draft.aiServices) ? draft.aiServices : [],
             };
             const formDraft = buildImportedHardAssetDraft(previewWithTags);
             setDraftQueue((prev) => prev.map((item) => (

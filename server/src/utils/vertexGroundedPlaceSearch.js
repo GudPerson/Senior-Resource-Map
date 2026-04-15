@@ -377,3 +377,175 @@ export async function searchVertexGroundedPlaceSuggestions({
 
     return { candidates, warnings };
 }
+
+// ---------------------------------------------------------------------------
+// Enrichment: Deep-sense Google Places candidates with Vertex AI grounding
+// ---------------------------------------------------------------------------
+
+function buildEnrichmentPrompt({ candidates, keywordQuery = '' }) {
+    const keywordLine = keywordQuery
+        ? `The user searched with these keywords: ${keywordQuery}.`
+        : 'No extra search keywords were provided.';
+
+    const candidateList = candidates
+        .map((c, i) => {
+            const parts = [`${i + 1}. Name: "${c.name || ''}"`];
+            if (c.address) parts.push(`   Address: "${c.address}"`);
+            if (c.postalCode) parts.push(`   Postal code: ${c.postalCode}`);
+            if (c.googlePlaceId) parts.push(`   googlePlaceId: ${c.googlePlaceId}`);
+            if (c.website) parts.push(`   Known website: ${c.website}`);
+            return parts.join('\n');
+        })
+        .join('\n\n');
+
+    return [
+        'You are helping CareAround SG enrich community resource place data for Singapore.',
+        'The following places were returned by Google Places API. Use Google Search grounding to cross-reference each one.',
+        keywordLine,
+        'For each place, find:',
+        '  - description: a 2–3 sentence plain-English summary of the organization, the services it provides (e.g. dementia care, rehab, counselling), and who it serves.',
+        '  - services: an array of up to 8 concise service or programme tags (e.g. "dementia", "physiotherapy", "home care", "senior activities").',
+        '  - logoUrl: a direct image URL to the organization\'s official logo, if clearly findable.',
+        '  - sourceUrl: the most authoritative web page you used (official site or gov portal preferred).',
+        '  - sourceTitle: short page title of that source.',
+        '  - confidence: a float 0–1 reflecting how confident you are in the accuracy of the enriched data.',
+        'If the place name is ambiguous (e.g. "Blk 183"), use the address/postal code to identify the specific tenant or agency.',
+        'Return ONLY JSON matching the schema. No markdown, no explanation.',
+        'If enrichment is unavailable for a place, include its index with empty strings and confidence 0.',
+        '',
+        'Places to enrich:',
+        candidateList,
+    ].join('\n');
+}
+
+function normalizeEnrichmentItem(raw) {
+    return {
+        index: typeof raw?.index === 'number' ? raw.index : -1,
+        googlePlaceId: normalizeText(raw?.googlePlaceId),
+        description: normalizeLongText(raw?.description),
+        services: dedupeTags(raw?.services),
+        logoUrl: normalizeUrl(raw?.logoUrl),
+        sourceUrl: normalizeUrl(raw?.sourceUrl),
+        sourceTitle: normalizeText(raw?.sourceTitle),
+        confidence: normalizeConfidence(raw?.confidence),
+    };
+}
+
+/**
+ * Enrich a list of Google Places candidates with Vertex AI grounded search.
+ * Returns a Map keyed by `googlePlaceId` (with positional fallback by index).
+ * Gracefully returns an empty Map if Vertex is unconfigured or the call fails.
+ *
+ * @param {{ env: object, candidates: object[], keywordQuery?: string }} opts
+ * @returns {Promise<Map<string, object>>}
+ */
+export async function enrichPlaceCandidatesWithVertex({ env, candidates, keywordQuery = '' }) {
+    if (!Array.isArray(candidates) || candidates.length === 0) return new Map();
+
+    let config;
+    try {
+        config = resolveVertexConfig(env);
+    } catch {
+        // Vertex not configured — degrade gracefully
+        return new Map();
+    }
+
+    let accessToken;
+    try {
+        accessToken = await getVertexAccessToken(config);
+    } catch (err) {
+        console.warn('enrichPlaceCandidatesWithVertex: token error, skipping enrichment.', err?.message);
+        return new Map();
+    }
+
+    const host = config.location === 'global'
+        ? 'aiplatform.googleapis.com'
+        : `${config.location}-aiplatform.googleapis.com`;
+    const endpoint = `https://${host}/v1/projects/${config.projectId}/locations/${config.location}/publishers/google/models/${config.model}:generateContent`;
+
+    const prompt = buildEnrichmentPrompt({ candidates, keywordQuery });
+
+    let responseJson;
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [{ text: prompt }],
+                    },
+                ],
+                tools: [{ googleSearch: {} }],
+                generationConfig: {
+                    temperature: 0.1,
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: 'object',
+                        properties: {
+                            enriched: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        index: { type: 'number' },
+                                        googlePlaceId: { type: 'string' },
+                                        description: { type: 'string' },
+                                        services: { type: 'array', items: { type: 'string' } },
+                                        logoUrl: { type: 'string' },
+                                        sourceUrl: { type: 'string' },
+                                        sourceTitle: { type: 'string' },
+                                        confidence: { type: 'number' },
+                                    },
+                                    required: ['index'],
+                                },
+                            },
+                        },
+                        required: ['enriched'],
+                    },
+                },
+            }),
+        });
+        responseJson = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            console.warn('enrichPlaceCandidatesWithVertex: Vertex returned non-OK, skipping enrichment.', responseJson?.error?.message);
+            return new Map();
+        }
+    } catch (err) {
+        console.warn('enrichPlaceCandidatesWithVertex: fetch error, skipping enrichment.', err?.message);
+        return new Map();
+    }
+
+    let rawText;
+    try {
+        rawText = extractTextFromVertexResponse(responseJson);
+    } catch {
+        return new Map();
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(rawText);
+    } catch {
+        return new Map();
+    }
+
+    const enriched = Array.isArray(parsed?.enriched) ? parsed.enriched : [];
+    const result = new Map();
+
+    for (const raw of enriched) {
+        const item = normalizeEnrichmentItem(raw);
+        // Key by googlePlaceId if present, otherwise by positional index into the input array
+        const candidate = candidates[item.index];
+        const key = candidate?.googlePlaceId || (item.index >= 0 ? `_idx:${item.index}` : null);
+        if (key) {
+            result.set(key, item);
+        }
+    }
+
+    return result;
+}
