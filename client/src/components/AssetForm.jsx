@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -151,6 +151,7 @@ export default function AssetForm({
     const currentRole = normalizeRole(currentUser?.role);
     const [form, setForm] = useState(() => buildInitialForm(type, initialData, currentUser));
     const [saving, setSaving] = useState(false);
+    const [enriching, setEnriching] = useState(false);
     const [creatingSubCategory, setCreatingSubCategory] = useState(false);
     const [error, setError] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
@@ -271,6 +272,31 @@ export default function AssetForm({
             setError(err.message || 'Failed to create sub-category.');
         } finally {
             setCreatingSubCategory(false);
+        }
+    }
+
+    async function handleEnrichDraft() {
+        setEnriching(true);
+        setError('');
+        try {
+            const data = await api.enrichHardAssetDraft({
+                googlePlaceId: form.sourceGooglePlaceId || '',
+                name: form.name,
+                address: form.address,
+                postalCode: form.postalCode,
+            });
+            if (data) {
+                setForm((prev) => ({
+                    ...prev,
+                    description: prev.description || data.description || '',
+                    logoUrl: prev.logoUrl || data.logoUrl || '',
+                    newTags: [...new Set([...prev.newTags, ...(data.services || [])])],
+                }));
+            }
+        } catch (err) {
+            setError(err.message || 'Failed to enrich draft');
+        } finally {
+            setEnriching(false);
         }
     }
 
@@ -434,6 +460,28 @@ export default function AssetForm({
                     <p className="mt-2 text-sm text-slate-600">
                         These values are suggestions only. Review them carefully before saving this place.
                     </p>
+                </div>
+            ) : null}
+
+            {isHard && !initialData?.id ? (
+                <div className="rounded-2xl border border-brand-200 bg-brand-50/70 px-4 py-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">AI Grounding</p>
+                            <p className="mt-1 text-sm text-slate-700">
+                                Uses postal code, name, and address to find a better description, services, and logo.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleEnrichDraft}
+                            disabled={enriching || !form.name || !form.postalCode || !form.address}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-bold text-brand-700 transition-colors hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {enriching ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            {enriching ? 'Enriching...' : 'Enrich with AI'}
+                        </button>
+                    </div>
                 </div>
             ) : null}
 

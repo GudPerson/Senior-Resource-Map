@@ -483,30 +483,6 @@ export async function enrichPlaceCandidatesWithVertex({ env, candidates, keyword
                 tools: [{ googleSearch: {} }],
                 generationConfig: {
                     temperature: 0.1,
-                    responseMimeType: 'application/json',
-                    responseSchema: {
-                        type: 'object',
-                        properties: {
-                            enriched: {
-                                type: 'array',
-                                items: {
-                                    type: 'object',
-                                    properties: {
-                                        index: { type: 'number' },
-                                        googlePlaceId: { type: 'string' },
-                                        description: { type: 'string' },
-                                        services: { type: 'array', items: { type: 'string' } },
-                                        logoUrl: { type: 'string' },
-                                        sourceUrl: { type: 'string' },
-                                        sourceTitle: { type: 'string' },
-                                        confidence: { type: 'number' },
-                                    },
-                                    required: ['index'],
-                                },
-                            },
-                        },
-                        required: ['enriched'],
-                    },
                 },
             }),
         });
@@ -529,20 +505,43 @@ export async function enrichPlaceCandidatesWithVertex({ env, candidates, keyword
 
     let parsed;
     try {
-        parsed = JSON.parse(rawText);
+        // Strip markdown code fences if present (model may wrap JSON when not in controlled-generation mode)
+        const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+        parsed = JSON.parse(cleanedText);
     } catch {
         return new Map();
     }
 
-    const enriched = Array.isArray(parsed?.enriched) ? parsed.enriched : [];
+    // The model sometimes uses variant key names like "enriched_places" instead of "enriched".
+    // Find the first top-level array in the parsed response.
+    const enriched = (() => {
+        if (Array.isArray(parsed?.enriched)) return parsed.enriched;
+        if (Array.isArray(parsed)) return parsed;
+        for (const key of Object.keys(parsed || {})) {
+            if (Array.isArray(parsed[key])) return parsed[key];
+        }
+        return [];
+    })();
     const result = new Map();
 
-    for (const raw of enriched) {
+    for (let arrayPos = 0; arrayPos < enriched.length; arrayPos++) {
+        const raw = enriched[arrayPos];
         const item = normalizeEnrichmentItem(raw);
-        // Key by googlePlaceId if present, otherwise by positional index into the input array
-        const candidate = candidates[item.index];
-        const key = candidate?.googlePlaceId || (item.index >= 0 ? `_idx:${item.index}` : null);
-        if (key) {
+
+        // Determine which input candidate this enrichment belongs to:
+        // 1. Explicit 0-based index from the model
+        // 2. Explicit 1-based index (subtract 1)
+        // 3. Fall back to array position (assumes model returns items in order)
+        let candidateIndex = item.index;
+        if (candidateIndex < 0 || candidateIndex >= candidates.length) {
+            // Try 1-based → 0-based
+            const oneBased = typeof raw?.index === 'number' ? raw.index - 1 : -1;
+            candidateIndex = (oneBased >= 0 && oneBased < candidates.length) ? oneBased : arrayPos;
+        }
+
+        const candidate = candidates[candidateIndex];
+        const key = candidate?.googlePlaceId || `_idx:${candidateIndex}`;
+        if (key && !result.has(key)) {
             result.set(key, item);
         }
     }

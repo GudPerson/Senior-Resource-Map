@@ -1021,12 +1021,13 @@ export async function searchGooglePlaceCandidatesByPostal(
     // Enrich Google Places candidates with Vertex AI grounded search
     // This runs only when we have real Places results (not web-fallback, which already has AI data)
     const hasGooglePlacesCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
-    if (hasGooglePlacesCandidates) {
+    if (hasGooglePlacesCandidates && options?.enrich === true) {
         try {
             const allPlacesCandidates = [...exactCandidates, ...nearbyCandidates];
+            const candidatesToEnrich = allPlacesCandidates.slice(0, 4);
             const enrichmentMap = await enrichPlaceCandidatesWithVertex({
                 env,
-                candidates: allPlacesCandidates,
+                candidates: candidatesToEnrich,
                 keywordQuery,
             });
 

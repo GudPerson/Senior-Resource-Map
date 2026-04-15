@@ -179,6 +179,7 @@ export const api = {
     createHardAsset: (body) => request('POST', '/hard-assets', body),
     searchGoogleHardAssetCandidatesByPostal: (body) => request('POST', '/hard-assets/import/google-candidates', body),
     previewGoogleHardAssetImport: (body) => request('POST', '/hard-assets/import/google-preview', body),
+    enrichHardAssetDraft: (body) => request('POST', '/hard-assets/import/enrich-draft', body),
     updateHardAsset: (id, body) => request('PUT', `/hard-assets/${id}`, body),
     generateHardAssetMembershipQr: (id) => request('POST', `/hard-assets/${id}/membership-qr`),
     deleteHardAsset: (id) => request('DELETE', `/hard-assets/${id}`),

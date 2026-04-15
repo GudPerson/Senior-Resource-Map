@@ -595,6 +595,7 @@ export default function HardAssetImportWizard({
     const [keywordQuery, setKeywordQuery] = useState('');
     const [radiusKm, setRadiusKm] = useState('1');
     const [preferredResultCount, setPreferredResultCount] = useState('8');
+    const [enableEnrichment, setEnableEnrichment] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [loadingDraftId, setLoadingDraftId] = useState('');
     const [error, setError] = useState('');
@@ -677,6 +678,7 @@ export default function HardAssetImportWizard({
                     keywordQuery,
                     radiusKm: radiusKm === 'all' ? 'all' : Number(radiusKm),
                     preferredResultCount: Number(preferredResultCount),
+                    enrich: enableEnrichment,
                 });
                 
                 if (!firstResolvedPostal && data.resolvedPostal) {
@@ -1096,6 +1098,22 @@ export default function HardAssetImportWizard({
                                 Controls the maximum number of exact and nearby candidates we surface in the results list.
                             </p>
                         </div>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50/50 px-4 py-3">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-900">Enrich top 4 places with Vertex AI</p>
+                            <p className="mt-1 text-xs text-slate-600">Extracts services, refines description and improves quality (takes longer).</p>
+                        </div>
+                        <label className="relative inline-flex cursor-pointer items-center">
+                            <input
+                                type="checkbox"
+                                checked={enableEnrichment}
+                                onChange={(e) => setEnableEnrichment(e.target.checked)}
+                                className="peer sr-only"
+                            />
+                            <div className="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-500/30"></div>
+                        </label>
                     </div>
 
                     {error ? (

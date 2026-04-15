@@ -16,6 +16,7 @@ import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMet
 import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
 import { resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
+import { enrichPlaceCandidatesWithVertex } from '../utils/vertexGroundedPlaceSearch.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -599,6 +600,7 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
         const keywordQuery = normalizeText(body?.keywordQuery);
         const radiusKm = parseRadiusFilter(body?.radiusKm);
         const preferredResultCount = parsePositiveNumber(body?.preferredResultCount);
+        const enrich = body?.enrich === true;
         if (!postalCode) {
             return c.json({ error: 'postalCode is required' }, 400);
         }
@@ -612,6 +614,7 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
             {
                 radiusKm,
                 preferredResultCount,
+                enrich,
             },
         );
         const manageableAssets = await loadManageableHardAssetsForDuplicateChecks(db, user, role);
@@ -874,5 +877,37 @@ export const deleteHardAsset = async (c) => {
     } catch (err) {
         console.error(err);
         return c.json({ error: err.message || 'Failed to delete hard asset' }, err.status || 500);
+    }
+};
+
+export const enrichHardAssetDraft = async (c) => {
+    try {
+        const user = c.get('user');
+        const role = normalizeRole(user?.role);
+        
+        if (role === 'standard' || role === 'guest') {
+            return c.json({ error: 'Insufficient permissions' }, 403);
+        }
+
+        const body = await c.req.json();
+        const candidate = {
+            googlePlaceId: body.googlePlaceId || '',
+            name: body.name || '',
+            address: body.address || '',
+            postalCode: body.postalCode || ''
+        };
+        
+        const enrichmentMap = await enrichPlaceCandidatesWithVertex({
+            env: c.env,
+            candidates: [candidate],
+            keywordQuery: ''
+        });
+
+        const enrichment = enrichmentMap.get(candidate.googlePlaceId) || enrichmentMap.get(`_idx:0`);
+        
+        return c.json(enrichment || {});
+    } catch (err) {
+        console.error(err);
+        return c.json({ error: err.message || 'Failed to enrich draft' }, err.status || 500);
     }
 };
