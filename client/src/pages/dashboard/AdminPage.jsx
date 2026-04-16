@@ -989,7 +989,7 @@ export default function AdminPage() {
                             }
                             const batchData = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
                             const csvString = Papa.unparse(batchData);
-                            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvString], { type: 'text/csv;charset=utf-8' });
+                            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8' });
                             const batchFile = new File([blob], `batch_${i}.csv`, { type: 'text/csv' });
                             
                             const result = await api.importWorkbook(resourceType, batchFile);

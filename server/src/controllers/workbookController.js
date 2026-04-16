@@ -1270,39 +1270,44 @@ export async function exportWorkbookData(c) {
 }
 
 export async function importWorkbookData(c) {
-    const resourceType = c.req.param('resourceType');
-    const config = RESOURCE_TYPES[resourceType];
-    if (!config) return c.json({ error: 'Unsupported workbook resource type.' }, 400);
+    try {
+        const resourceType = c.req.param('resourceType');
+        const config = RESOURCE_TYPES[resourceType];
+        if (!config) return c.json({ error: 'Unsupported workbook resource type.' }, 400);
 
-    const actor = c.get('user');
-    const body = await c.req.parseBody();
-    const file = body.file;
-    if (!file || typeof file.arrayBuffer !== 'function') {
-        return c.json({ error: 'Upload a .xlsx or .csv file using the "file" field.' }, 400);
+        const actor = c.get('user');
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file.arrayBuffer !== 'function') {
+            return c.json({ error: 'Upload a .xlsx or .csv file using the "file" field.' }, 400);
+        }
+
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const rows = await parseWorkbookRows(file, resourceType);
+        const references = {
+            partnerLookup: await loadPartnerLookup(db),
+            subregionLookup: await loadSubregionLookup(db),
+            audienceZoneLookup: await loadAudienceZoneLookup(db),
+        };
+
+        let report;
+        if (resourceType === 'places') {
+            report = await importPlaces(db, actor, rows, references, c.env);
+        } else if (resourceType === 'standalone-offerings') {
+            report = await importStandaloneOfferings(db, actor, rows, references, c.env);
+        } else if (resourceType === 'templates') {
+            report = await importTemplates(db, actor, rows, references, c.env);
+        } else if (resourceType === 'template-rollouts') {
+            report = await importTemplateRollouts(db, actor, rows, c.env);
+        } else {
+            return c.json({ error: `Import for ${resourceType} is not implemented yet.` }, 501);
+        }
+
+        return c.json(report);
+    } catch (error) {
+        console.error('importWorkbookData error:', error);
+        return c.json({ error: error.message || 'An unexpected error occurred during workbook import.' }, 500);
     }
-
-    const db = getDb(c.env);
-    await ensureBoundarySchema(db, c.env);
-
-    const rows = await parseWorkbookRows(file, resourceType);
-    const references = {
-        partnerLookup: await loadPartnerLookup(db),
-        subregionLookup: await loadSubregionLookup(db),
-        audienceZoneLookup: await loadAudienceZoneLookup(db),
-    };
-
-    let report;
-    if (resourceType === 'places') {
-        report = await importPlaces(db, actor, rows, references, c.env);
-    } else if (resourceType === 'standalone-offerings') {
-        report = await importStandaloneOfferings(db, actor, rows, references, c.env);
-    } else if (resourceType === 'templates') {
-        report = await importTemplates(db, actor, rows, references, c.env);
-    } else if (resourceType === 'template-rollouts') {
-        report = await importTemplateRollouts(db, actor, rows, c.env);
-    } else {
-        return c.json({ error: `Import for ${resourceType} is not implemented yet.` }, 501);
-    }
-
-    return c.json(report);
 }
