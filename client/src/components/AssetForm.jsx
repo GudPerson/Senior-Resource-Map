@@ -463,7 +463,7 @@ export default function AssetForm({
                 </div>
             ) : null}
 
-            {isHard ? (
+            {isHard && !initialData?.id ? (
                 <div className="rounded-2xl border border-brand-200 bg-brand-50/70 px-4 py-3">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
