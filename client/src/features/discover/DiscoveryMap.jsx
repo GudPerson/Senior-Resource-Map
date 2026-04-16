@@ -308,13 +308,13 @@ function MapBackgroundEvents({ enabled = true, onBackgroundClick, onMapMoveEnd }
             const ne = bounds.getNorthEast();
             const sw = bounds.getSouthWest();
             // Estimate radius in km (using rough lat degree length ~111km)
-            const radius = Math.min(
+            const radius = Math.round(Math.min(
                 100, // Cap at 100km
                 Math.max(
                     0.2, // Min 200m
                     (ne.lat - sw.lat) * 111 / 2
                 )
-            );
+            ) * 10) / 10;
             onMapMoveEnd?.({ lat: center.lat, lng: center.lng, radius });
         }
     });

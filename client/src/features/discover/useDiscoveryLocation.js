@@ -194,7 +194,6 @@ export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
                     source: 'home',
                     postalCode: normalizedHomePostalCode,
                     address: result.address || `Postal code ${normalizedHomePostalCode}`,
-                    updatedAt: Date.now(),
                     restored: false,
                 });
             } finally {

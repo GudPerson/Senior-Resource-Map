@@ -2,6 +2,7 @@ import { Search } from 'lucide-react';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { buildSavedAssetKey } from '../../lib/savedAssets.js';
 import DiscoveryMobileBrowseCard from './DiscoveryMobileBrowseCard.jsx';
+import Pagination from '../../components/Pagination.jsx';
 
 export function DiscoveryResultsList({
     filtered,
@@ -18,6 +19,10 @@ export function DiscoveryResultsList({
     scrollContainerRef = null,
     selectedAssetKey = null,
     subCatColors,
+    page = 1,
+    pageSize = 20,
+    totalCount = 0,
+    onPageChange,
 }) {
     const isCompactMobile = !isDesktop && mobileCardDensity === 'compact';
 
@@ -87,6 +92,17 @@ export function DiscoveryResultsList({
                             })()}
                         </div>
                     ))}
+                </div>
+            )}
+
+            {!loading && totalCount > pageSize && (
+                <div className="mt-6 border-t border-slate-100 pt-6">
+                    <Pagination
+                        currentPage={page}
+                        totalCount={totalCount}
+                        pageSize={pageSize}
+                        onPageChange={onPageChange}
+                    />
                 </div>
             )}
         </div>

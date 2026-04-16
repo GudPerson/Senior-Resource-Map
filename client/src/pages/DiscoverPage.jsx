@@ -274,6 +274,8 @@ export default function DiscoverPage() {
         setSearchOrigin,
         setSearchRadius,
     } = useDiscoveryLocation(hardAssets, user?.postalCode || '');
+    const [page, setPage] = useState(1);
+    const listPageSize = 20;
 
     const handleMapMoveEnd = useCallback((data) => {
         const { lat, lng, radius } = data;
@@ -284,14 +286,12 @@ export default function DiscoverPage() {
         }
 
         // Only update origin if we don't have one or if we've panned significantly
-        if (!searchOrigin) {
-            setSearchOrigin({ lat, lng, source: 'map-pan', updatedAt: Date.now() });
-        } else {
-            const dist = getDistance(searchOrigin.lat, searchOrigin.lng, lat, lng);
-            // If panned more than 50% of current radius, update origin to re-fetch
-            if (dist > searchRadius * 0.5) {
-                setSearchOrigin({ lat, lng, source: 'map-pan', updatedAt: Date.now() });
-            }
+        // Only update origin if we don't have one or if we've panned significantly (30% of current radius)
+        const dist = searchOrigin ? getDistance(searchOrigin.lat, searchOrigin.lng, lat, lng) : 0;
+        
+        if (!searchOrigin || dist > searchRadius * 0.3) {
+            setSearchOrigin(prev => ({ ...prev, lat, lng, source: 'map-pan' }));
+            setSearchRadius(Math.round(radius * 10) / 10);
         }
     }, [searchOrigin, searchRadius, setSearchOrigin, setSearchRadius]);
 
@@ -329,6 +329,7 @@ export default function DiscoverPage() {
                     lat: searchOrigin?.lat || undefined,
                     lng: searchOrigin?.lng || undefined,
                     radius: searchRadius < 100 ? searchRadius : undefined,
+                    pageSize: 400, // Show significantly more results on the map
                 };
 
                 const [hard, soft, subcategories] = await Promise.all([
@@ -373,6 +374,11 @@ export default function DiscoverPage() {
         return () => {
             isActive = false;
         };
+    }, [search, searchOrigin, searchRadius]);
+
+    // Reset page when search or location changes
+    useEffect(() => {
+        setPage(1);
     }, [search, searchOrigin, searchRadius]);
     
     const clearHoveredCardState = useCallback(() => {
@@ -1377,7 +1383,11 @@ export default function DiscoverPage() {
 
     const resultsList = (
         <DiscoveryResultsList
-            filtered={filtered}
+            filtered={filtered.slice((page - 1) * listPageSize, page * listPageSize)}
+            totalCount={filtered.length}
+            page={page}
+            pageSize={listPageSize}
+            onPageChange={setPage}
             isDesktop={isDesktop}
             loading={loading}
             mobileCardDensity={mobileCardDensity}

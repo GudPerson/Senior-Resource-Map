@@ -39,6 +39,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
+import Pagination from '../../components/Pagination.jsx';
 
 const TagBadge = ({ tag, onClick }) => (
     <span
