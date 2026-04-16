@@ -54,10 +54,12 @@ const RESOURCE_TYPES = {
         columns: [
             ['externalKey', true, 'Stable unique identifier used for round-trip import/export.'],
             ['name', true, 'Human-readable place name.'],
-            ['subCategory', true, 'Must match a configured hard-asset subcategory.'],
+            ['subCategory', false, 'Optional. Defaults to Uncategorized.'],
             ['country', true, 'Two-letter country code. Use SG for Singapore data.'],
             ['postalCode', true, '6-digit postal code used to derive the place subregion.'],
-            ['address', true, 'Operator-facing address text.'],
+            ['address', false, 'Optional operator-facing address text. Auto-fills if empty.'],
+            ['lat', false, 'Optional latitude. Skips geocoding if provided.'],
+            ['lng', false, 'Optional longitude. Skips geocoding if provided.'],
             ['ownershipMode', true, 'system or partner.'],
             ['partnerUsername', false, 'Required when ownershipMode is partner unless the uploader is the partner owner.'],
             ['phone', false, 'Optional contact phone number.'],
@@ -599,6 +601,8 @@ async function exportRowsForPlaces(db, actor) {
             country: asset.country || 'SG',
             postalCode: asset.postalCode || '',
             address: asset.address || '',
+            lat: asset.lat ? String(asset.lat) : '',
+            lng: asset.lng ? String(asset.lng) : '',
             ownershipMode: asset.partnerId ? 'partner' : 'system',
             partnerUsername: asset.partner?.username || '',
             phone: asset.phone || '',
@@ -762,14 +766,16 @@ async function importPlaces(db, actor, rows, references, env) {
         try {
             const externalKey = normalizeText(row.externalKey);
             const name = normalizeText(row.name);
-            const subCategory = normalizeText(row.subCategory);
+            const subCategory = normalizeText(row.subCategory) || 'Uncategorized';
             const country = normalizeText(row.country);
             const postalCode = normalizeText(row.postalCode);
-            const address = normalizeText(row.address);
+            const address = normalizeText(row.address) || (`Singapore ${postalCode}`);
             const ownershipMode = normalizeOwnershipModeValue(row.ownershipMode);
+            const latRaw = normalizeText(row.lat);
+            const lngRaw = normalizeText(row.lng);
 
-            if (!externalKey || !name || !subCategory || !country || !postalCode || !address) {
-                throw new Error('externalKey, name, subCategory, country, postalCode, address, and ownershipMode are required.');
+            if (!externalKey || !name || !country || !postalCode || !ownershipMode) {
+                throw new Error('externalKey, name, country, postalCode, and ownershipMode are required.');
             }
 
             const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
@@ -791,7 +797,18 @@ async function importPlaces(db, actor, rows, references, env) {
                 throw new Error('Existing place is outside your allowed scope.');
             }
 
-            const coords = await geocodePostalCode(postalCode, country);
+            let coords;
+            if (latRaw && lngRaw) {
+                const latNum = parseFloat(latRaw);
+                const lngNum = parseFloat(lngRaw);
+                if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
+                    coords = { lat: latNum, lng: lngNum };
+                }
+            }
+            if (!coords) {
+                coords = await geocodePostalCode(postalCode, country);
+            }
+
             const payload = {
                 partnerId: owner?.id || null,
                 createdByUserId: existing?.createdByUserId || actor.id,

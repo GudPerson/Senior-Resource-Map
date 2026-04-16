@@ -957,6 +957,110 @@ export default function AdminPage() {
         setImportCopyNotice('');
         setLoading(true);
 
+        const isCSV = file.name.toLowerCase().endsWith('.csv');
+
+        if (isCSV) {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results) => {
+                    try {
+                        const data = results.data;
+                        const BATCH_SIZE = 500;
+                        const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+                        const cumulativeReport = {
+                            type: 'success',
+                            resourceType,
+                            resourceLabel,
+                            fileName: file.name,
+                            timestamp: Date.now(),
+                            totalRows: 0,
+                            createdCount: 0,
+                            updatedCount: 0,
+                            skippedCount: 0,
+                            failedCount: 0,
+                            errors: [],
+                            warnings: [],
+                        };
+
+                        for (let i = 0; i < totalBatches; i++) {
+                            if (totalBatches > 1) {
+                                console.log(`Uploading ${resourceLabel} CSV batch ${i + 1} of ${totalBatches}...`);
+                            }
+                            const batchData = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+                            const csvString = Papa.unparse(batchData);
+                            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvString], { type: 'text/csv;charset=utf-8' });
+                            const batchFile = new File([blob], `batch_${i}.csv`, { type: 'text/csv' });
+                            
+                            const result = await api.importWorkbook(resourceType, batchFile);
+                            
+                            cumulativeReport.totalRows += Number(result?.totalRows || 0);
+                            cumulativeReport.createdCount += Number(result?.createdCount || 0);
+                            cumulativeReport.updatedCount += Number(result?.updatedCount || 0);
+                            cumulativeReport.skippedCount += Number(result?.skippedCount || 0);
+                            cumulativeReport.failedCount += Number(result?.failedCount || 0);
+                            
+                            if (result?.errors?.length) {
+                                cumulativeReport.errors.push(`[Batch ${i + 1}]:`, ...result.errors);
+                                cumulativeReport.type = 'warning';
+                            }
+                            if (result?.warnings?.length) {
+                                cumulativeReport.warnings.push(`[Batch ${i + 1}]:`, ...result.warnings);
+                                if (cumulativeReport.type === 'success') cumulativeReport.type = 'warning';
+                            }
+                        }
+
+                        if (cumulativeReport.failedCount > 0 && cumulativeReport.createdCount + cumulativeReport.updatedCount === 0) {
+                            cumulativeReport.type = 'error';
+                        }
+
+                        if (cumulativeReport.createdCount + cumulativeReport.updatedCount > 0) {
+                            await loadAll();
+                        }
+                        
+                        setImportReport(cumulativeReport);
+                    } catch (err) {
+                        setImportReport({
+                            type: 'error',
+                            resourceType,
+                            resourceLabel,
+                            fileName: file.name,
+                            timestamp: Date.now(),
+                            totalRows: 0,
+                            createdCount: 0,
+                            updatedCount: 0,
+                            skippedCount: 0,
+                            failedCount: 1,
+                            errors: [err.message || 'Import failed.'],
+                            warnings: [],
+                        });
+                    } finally {
+                        setLoading(false);
+                        e.target.value = null;
+                    }
+                },
+                error: (err) => {
+                    setImportReport({
+                        type: 'error',
+                        resourceType,
+                        resourceLabel,
+                        fileName: file.name,
+                        timestamp: Date.now(),
+                        totalRows: 0,
+                        createdCount: 0,
+                        updatedCount: 0,
+                        skippedCount: 0,
+                        failedCount: 1,
+                        errors: [`File parsing error: ${err.message}`],
+                        warnings: [],
+                    });
+                    setLoading(false);
+                    e.target.value = null;
+                }
+            });
+            return;
+        }
+
         try {
             const result = await api.importWorkbook(resourceType, file);
             const createdCount = Number(result?.createdCount || 0);
