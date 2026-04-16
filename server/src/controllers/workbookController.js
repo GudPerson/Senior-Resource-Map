@@ -759,7 +759,7 @@ async function resolveTemplateExport(resourceType, db, actor) {
 async function importPlaces(db, actor, rows, references, env) {
     const report = buildImportReport('places');
     const affectedSubregions = new Set();
-    const payloads = [];
+    const payloadMap = new Map();
 
     // 1. Pre-process and collect keys for bulk fetching
     const uniquePostals = new Set();
@@ -871,7 +871,7 @@ async function importPlaces(db, actor, rows, references, env) {
 
             const finalKey = existing?.externalKey || externalKey || await buildDeterministicExternalKey('place', name);
 
-            payloads.push({
+            const payload = {
                 partnerId: owner?.id || null,
                 createdByUserId: existing?.createdByUserId || actor.id,
                 externalKey: finalKey,
@@ -895,14 +895,17 @@ async function importPlaces(db, actor, rows, references, env) {
                 hideUntil: parseNullableDate(row.hideUntil),
                 isDeleted: false,
                 updatedAt: new Date(),
-            });
+            };
 
+            payloadMap.set(finalKey, payload);
             affectedSubregions.add(derivedSubregion.id);
         } catch (err) {
             report.failedCount += 1;
             report.errors.push(`Row ${rowNumber}: ${err.message}`);
         }
     }
+
+    const payloads = Array.from(payloadMap.values());
 
     // 5. Final Bulk Upsert
     if (payloads.length > 0) {
@@ -935,7 +938,7 @@ async function importPlaces(db, actor, rows, references, env) {
             .returning({ id: hardAssets.id });
         
         report.createdCount = inserted.length;
-        report.updatedCount = Number(payloads.length - inserted.length); // Approximation since Drizzle returning might vary
+        report.updatedCount = Math.max(0, payloads.length - inserted.length);
         report.skippedCount = 0;
     }
 
