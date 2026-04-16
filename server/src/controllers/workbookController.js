@@ -765,7 +765,11 @@ async function importPlaces(db, actor, rows, references, env) {
     const uniquePostals = new Set();
     const processedRows = rows.map(row => {
         const name = normalizeText(row.name);
-        const country = normalizeText(row.country);
+        let countryCode = normalizeText(row.country);
+        if (countryCode.toLowerCase() === 'singapore') countryCode = 'SG';
+        if (countryCode.length > 2) countryCode = countryCode.substring(0, 2).toUpperCase();
+        
+        const country = countryCode;
         const postalCode = normalizeText(row.postalCode);
         const externalKey = normalizeText(row.externalKey);
         const ownershipMode = normalizeOwnershipModeValue(row.ownershipMode);
@@ -824,7 +828,8 @@ async function importPlaces(db, actor, rows, references, env) {
 
         try {
             const { name, country, postalCode, externalKey, ownershipMode } = row;
-            const subCategory = normalizeText(row.subCategory) || 'Uncategorized';
+            const subCategoryFull = normalizeText(row.subCategory) || 'Uncategorized';
+            const subCategory = subCategoryFull.length > 50 ? subCategoryFull.substring(0, 50) : subCategoryFull;
             const address = normalizeText(row.address) || (`Singapore ${postalCode}`);
             const latRaw = normalizeText(row.lat);
             const lngRaw = normalizeText(row.lng);
