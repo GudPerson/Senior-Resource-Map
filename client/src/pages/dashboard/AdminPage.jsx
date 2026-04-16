@@ -987,7 +987,13 @@ export default function AdminPage() {
                             if (totalBatches > 1) {
                                 console.log(`Uploading ${resourceLabel} CSV batch ${i + 1} of ${totalBatches}...`);
                             }
-                            const batchData = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+                            // Map data to ensure required fields are present for legacy worker validation
+                            const batchData = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE).map(row => ({
+                                ...row,
+                                subCategory: row.subCategory || 'Uncategorized',
+                                address: row.address || `Singapore ${row.postalCode || ''}`
+                            }));
+                            
                             const csvString = Papa.unparse(batchData);
                             const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8' });
                             const batchFile = new File([blob], `batch_${i}.csv`, { type: 'text/csv' });
@@ -1007,6 +1013,11 @@ export default function AdminPage() {
                             if (result?.warnings?.length) {
                                 cumulativeReport.warnings.push(`[Batch ${i + 1}]:`, ...result.warnings);
                                 if (cumulativeReport.type === 'success') cumulativeReport.type = 'warning';
+                            }
+
+                            // Add a small delay between batches to avoid overlapping network requests or edge limits
+                            if (i < totalBatches - 1) {
+                                await new Promise(resolve => setTimeout(resolve, 500));
                             }
                         }
 
