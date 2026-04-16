@@ -906,10 +906,10 @@ async function importPlaces(db, actor, rows, references, env) {
 
     // 5. Final Bulk Upsert
     if (payloads.length > 0) {
-        // Use onConflictUpdate to allow users to patch existing items via re-upload
+        // Use onConflictDoUpdate to allow users to patch existing items via re-upload
         const inserted = await db.insert(hardAssets)
             .values(payloads)
-            .onConflictUpdate({
+            .onConflictDoUpdate({
                 target: [hardAssets.externalKey],
                 set: {
                     partnerId: sql`EXCLUDED.partner_id`,
