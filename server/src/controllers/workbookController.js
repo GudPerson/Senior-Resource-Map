@@ -36,7 +36,7 @@ import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.j
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
 import { syncAssetTags } from '../utils/tags.js';
-import { buildChildExternalKey, resolveOrCreateExternalKey } from '../utils/externalKeys.js';
+import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
 
