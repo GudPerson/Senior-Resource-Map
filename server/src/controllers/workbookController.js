@@ -774,8 +774,14 @@ async function importPlaces(db, actor, rows, references, env) {
             const latRaw = normalizeText(row.lat);
             const lngRaw = normalizeText(row.lng);
 
-            if (!externalKey || !name || !country || !postalCode || !ownershipMode) {
-                throw new Error('externalKey, name, country, postalCode, and ownershipMode are required.');
+            const missingFields = [];
+            if (!name) missingFields.push('name');
+            if (!country) missingFields.push('country');
+            if (!postalCode) missingFields.push('postalCode');
+            if (!ownershipMode) missingFields.push('ownershipMode');
+
+            if (missingFields.length > 0) {
+                throw new Error(`The following fields are required: ${missingFields.join(', ')}`);
             }
 
             const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');

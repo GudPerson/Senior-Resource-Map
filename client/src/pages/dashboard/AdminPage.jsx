@@ -987,12 +987,41 @@ export default function AdminPage() {
                             if (totalBatches > 1) {
                                 console.log(`Uploading ${resourceLabel} CSV batch ${i + 1} of ${totalBatches}...`);
                             }
-                            // Map data to ensure required fields are present for legacy worker validation
-                            const batchData = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE).map(row => ({
-                                ...row,
-                                subCategory: row.subCategory || 'Uncategorized',
-                                address: row.address || `Singapore ${row.postalCode || ''}`
-                            }));
+                            // Map data to ensure required fields are present and headers are clean
+                            const batchData = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE).map(row => {
+                                // Extract values using keys that might contain asterisks (e.g., "* name")
+                                const rawEntries = Object.entries(row);
+                                const findVal = (key) => {
+                                    const entry = rawEntries.find(([k]) => 
+                                        k.trim().replace(/\*/g, '').toLowerCase() === key.toLowerCase()
+                                    );
+                                    return entry ? entry[1] : undefined;
+                                };
+
+                                const name = findVal('name') || '';
+                                const postalCode = findVal('postalCode') || '';
+                                const subCategory = findVal('subCategory') || 'Uncategorized';
+                                const country = findVal('country') || 'SG';
+                                const externalKey = findVal('externalKey') || '';
+                                const ownershipMode = findVal('ownershipMode') || 'System';
+                                const lat = findVal('lat');
+                                const lng = findVal('lng');
+                                const address = findVal('address') || `Singapore ${postalCode}`;
+
+                                // Return a clean object with standard keys for the backend
+                                return {
+                                    ...row, // Preserve other custom columns
+                                    externalKey,
+                                    name,
+                                    subCategory,
+                                    country,
+                                    postalCode,
+                                    address,
+                                    ownershipMode,
+                                    lat,
+                                    lng
+                                };
+                            });
                             
                             const csvString = Papa.unparse(batchData);
                             const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8' });
