@@ -758,19 +758,73 @@ async function resolveTemplateExport(resourceType, db, actor) {
 async function importPlaces(db, actor, rows, references, env) {
     const report = buildImportReport('places');
     const affectedSubregions = new Set();
+    const payloads = [];
 
-    for (const row of rows) {
+    // 1. Pre-process and collect keys for bulk fetching
+    const uniquePostals = new Set();
+    const processedRows = rows.map(row => {
+        const name = normalizeText(row.name);
+        const country = normalizeText(row.country);
+        const postalCode = normalizeText(row.postalCode);
+        const externalKey = normalizeText(row.externalKey);
+        const ownershipMode = normalizeOwnershipModeValue(row.ownershipMode);
+        
+        if (postalCode) uniquePostals.add(postalCode);
+        
+        return {
+            ...row,
+            name,
+            country,
+            postalCode,
+            externalKey,
+            ownershipMode,
+            __rowNumber: row.__rowNumber
+        };
+    });
+
+    // 2. Bulk Fetch Subregions
+    const subregionMap = new Map();
+    if (uniquePostals.size > 0) {
+        const matches = await db
+            .select({
+                postalCode: subregionPostalCodes.postalCode,
+                subregion: {
+                    id: subregions.id,
+                    name: subregions.name,
+                    subregionCode: subregions.subregionCode
+                }
+            })
+            .from(subregionPostalCodes)
+            .innerJoin(subregions, eq(subregionPostalCodes.subregionId, subregions.id))
+            .where(inArray(subregionPostalCodes.postalCode, Array.from(uniquePostals)));
+        
+        matches.forEach(m => {
+            if (!subregionMap.has(m.postalCode)) {
+                subregionMap.set(m.postalCode, m.subregion);
+            }
+        });
+    }
+
+    // 3. Bulk Fetch Existing Assets (to check ownership/permissions)
+    const initialKeys = processedRows.map(r => r.externalKey).filter(Boolean);
+    const existingAssetMap = new Map();
+    if (initialKeys.length > 0) {
+        const existingAssets = await db.query.hardAssets.findMany({
+            where: inArray(hardAssets.externalKey, initialKeys),
+            with: { partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } } }
+        });
+        existingAssets.forEach(a => existingAssetMap.set(a.externalKey, a));
+    }
+
+    // 4. In-memory processing
+    for (const row of processedRows) {
         report.totalRows += 1;
         const rowNumber = row.__rowNumber;
 
         try {
-            const externalKey = normalizeText(row.externalKey);
-            const name = normalizeText(row.name);
+            const { name, country, postalCode, externalKey, ownershipMode } = row;
             const subCategory = normalizeText(row.subCategory) || 'Uncategorized';
-            const country = normalizeText(row.country);
-            const postalCode = normalizeText(row.postalCode);
             const address = normalizeText(row.address) || (`Singapore ${postalCode}`);
-            const ownershipMode = normalizeOwnershipModeValue(row.ownershipMode);
             const latRaw = normalizeText(row.lat);
             const lngRaw = normalizeText(row.lng);
 
@@ -784,7 +838,11 @@ async function importPlaces(db, actor, rows, references, env) {
                 throw new Error(`The following fields are required: ${missingFields.join(', ')}`);
             }
 
-            const derivedSubregion = await resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+            const derivedSubregion = subregionMap.get(postalCode);
+            if (!derivedSubregion) {
+                throw new Error(`Postal code ${postalCode} does not match any configured subregion.`);
+            }
+
             if (!Array.isArray(actor.subregionIds) || !actor.subregionIds.includes(derivedSubregion.id)) {
                 if (normalizeRole(actor.role) !== 'super_admin') {
                     throw new Error('Derived subregion is outside your allowed scope.');
@@ -792,12 +850,7 @@ async function importPlaces(db, actor, rows, references, env) {
             }
 
             const owner = resolvePartnerOwner(actor, ownershipMode, row.partnerUsername, references.partnerLookup, derivedSubregion.id);
-            const existing = await db.query.hardAssets.findFirst({
-                where: eq(hardAssets.externalKey, externalKey),
-                with: {
-                    partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
-                },
-            });
+            const existing = externalKey ? existingAssetMap.get(externalKey) : null;
 
             if (existing && !actorCanManageAsset(actor, existing, existing.partner)) {
                 throw new Error('Existing place is outside your allowed scope.');
@@ -815,15 +868,12 @@ async function importPlaces(db, actor, rows, references, env) {
                 coords = await geocodePostalCode(postalCode, country);
             }
 
-            const payload = {
+            const finalKey = existing?.externalKey || externalKey || await buildDeterministicExternalKey('place', name);
+
+            payloads.push({
                 partnerId: owner?.id || null,
                 createdByUserId: existing?.createdByUserId || actor.id,
-                externalKey: existing?.externalKey || await resolveOrCreateExternalKey(db, hardAssets, hardAssets.externalKey, {
-                    requestedKey: externalKey,
-                    prefix: 'place',
-                    name,
-                    ignoreId: existing?.id || null,
-                }),
+                externalKey: finalKey,
                 subregionId: derivedSubregion.id,
                 name,
                 subCategory,
@@ -844,24 +894,25 @@ async function importPlaces(db, actor, rows, references, env) {
                 hideUntil: parseNullableDate(row.hideUntil),
                 isDeleted: false,
                 updatedAt: new Date(),
-            };
+            });
 
-            let assetId;
-            if (existing) {
-                await db.update(hardAssets).set(payload).where(eq(hardAssets.id, existing.id));
-                assetId = existing.id;
-                report.updatedCount += 1;
-            } else {
-                const [created] = await db.insert(hardAssets).values(payload).returning({ id: hardAssets.id });
-                assetId = created.id;
-                report.createdCount += 1;
-            }
-
-            await syncAssetTags(db, assetId, 'hard', splitDelimitedList(row.tags));
             affectedSubregions.add(derivedSubregion.id);
-        } catch (error) {
-            rowError(report, rowNumber, error.message);
+        } catch (err) {
+            report.failedCount += 1;
+            report.errors.push(`Row ${rowNumber}: ${err.message}`);
         }
+    }
+
+    // 5. Final Bulk Upsert
+    if (payloads.length > 0) {
+        const inserted = await db.insert(hardAssets)
+            .values(payloads)
+            .onConflictDoNothing({ target: hardAssets.externalKey })
+            .returning({ id: hardAssets.id });
+        
+        report.createdCount = inserted.length;
+        report.updatedCount = 0;
+        report.skippedCount = payloads.length - inserted.length;
     }
 
     for (const subregionId of affectedSubregions) {
