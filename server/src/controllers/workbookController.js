@@ -9,6 +9,7 @@ import {
     softAssetParents,
     softAssets,
     subCategories,
+    subregionPostalCodes,
     subregions,
     users,
 } from '../db/schema.js';
