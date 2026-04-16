@@ -298,7 +298,7 @@ export const getHardAssets = async (c) => {
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
         const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10));
-        const pageSize = Math.min(100, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10)));
+        const pageSize = Math.min(500, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10)));
         const offset = (page - 1) * pageSize;
         const query = c.req.query('q');
         const lat = parseFloat(c.req.query('lat'));
