@@ -271,8 +271,29 @@ export default function DiscoverPage() {
         searchRadius,
         setFlyTarget,
         setPostalInput,
+        setSearchOrigin,
         setSearchRadius,
     } = useDiscoveryLocation(hardAssets, user?.postalCode || '');
+
+    const handleMapMoveEnd = useCallback((data) => {
+        const { lat, lng, radius } = data;
+        
+        // Update radius based on map view
+        if (Math.abs(radius - searchRadius) > 0.1) {
+            setSearchRadius(radius);
+        }
+
+        // Only update origin if we don't have one or if we've panned significantly
+        if (!searchOrigin) {
+            setSearchOrigin({ lat, lng, source: 'map-pan', updatedAt: Date.now() });
+        } else {
+            const dist = getDistance(searchOrigin.lat, searchOrigin.lng, lat, lng);
+            // If panned more than 50% of current radius, update origin to re-fetch
+            if (dist > searchRadius * 0.5) {
+                setSearchOrigin({ lat, lng, source: 'map-pan', updatedAt: Date.now() });
+            }
+        }
+    }, [searchOrigin, searchRadius, setSearchOrigin, setSearchRadius]);
 
     // Sync state to URL
     useEffect(() => {
@@ -303,13 +324,23 @@ export default function DiscoverPage() {
             setLoading(true);
 
             try {
+                const params = {
+                    q: search || undefined,
+                    lat: searchOrigin?.lat || undefined,
+                    lng: searchOrigin?.lng || undefined,
+                    radius: searchRadius < 100 ? searchRadius : undefined,
+                };
+
                 const [hard, soft, subcategories] = await Promise.all([
-                    withTimeout(api.getHardAssets().catch(() => []), []),
-                    withTimeout(api.getSoftAssets().catch(() => []), []),
+                    withTimeout(api.getHardAssets(params).catch(() => ({ data: [] })), { data: [] }),
+                    withTimeout(api.getSoftAssets(params).catch(() => ({ data: [] })), { data: [] }),
                     withTimeout(api.getSubCategories().catch(() => []), []),
                 ]);
 
                 if (!isActive) return;
+
+                const hardData = Array.isArray(hard) ? hard : (hard.data || []);
+                const softData = Array.isArray(soft) ? soft : (soft.data || []);
 
                 const colors = {};
                 const metaByKey = {};
@@ -328,8 +359,8 @@ export default function DiscoverPage() {
 
                 setSubCatColors(colors);
                 setSubCategoryMetaByKey(metaByKey);
-                setHardAssets(hard);
-                setSoftAssets(soft);
+                setHardAssets(hardData);
+                setSoftAssets(softData);
             } finally {
                 if (isActive) {
                     setLoading(false);
@@ -342,7 +373,7 @@ export default function DiscoverPage() {
         return () => {
             isActive = false;
         };
-    }, []);
+    }, [search, searchOrigin, searchRadius]);
     
     const clearHoveredCardState = useCallback(() => {
         setHoveredPinKeys([]);
@@ -1267,6 +1298,7 @@ export default function DiscoverPage() {
                 onBackgroundClick={isDesktop ? handleMapBackgroundClick : handleMobileMapBackgroundClick}
                 onMapHoverEnd={handleMapHoverEnd}
                 onMapHoverStart={handleMapHoverStart}
+                onMapMoveEnd={handleMapMoveEnd}
                 onTrackedPinLayoutChange={setTrackedPostalGroupLayout}
                 onSelectGroupPin={handleMapPinSelect}
                 onSelectPin={handleMapPinSelect}

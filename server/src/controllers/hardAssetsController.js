@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql, or, ilike } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { hardAssets, subCategories, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
@@ -297,7 +297,53 @@ export const getHardAssets = async (c) => {
         const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
+        const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10));
+        const pageSize = Math.min(100, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10)));
+        const offset = (page - 1) * pageSize;
+        const query = c.req.query('q');
+        const lat = parseFloat(c.req.query('lat'));
+        const lng = parseFloat(c.req.query('lng'));
+        const radius = parseFloat(c.req.query('radius')); // in km
+
+        const whereClauses = [eq(hardAssets.isDeleted, false)];
+
+        if (user?.role === 'regional_admin' || user?.role === 'partner') {
+            if (user.subregionIds && user.subregionIds.length > 0) {
+                whereClauses.push(inArray(hardAssets.subregionId, user.subregionIds));
+            }
+        }
+
+        if (query) {
+            whereClauses.push(or(
+                ilike(hardAssets.name, `%${query}%`),
+                ilike(hardAssets.address, `%${query}%`),
+                ilike(hardAssets.postalCode, `%${query}%`),
+                ilike(hardAssets.description, `%${query}%`)
+            ));
+        }
+
+        // Geographic Radius Filtering (Haversine approximation for D1/SQLite)
+        if (!isNaN(lat) && !isNaN(lng) && !isNaN(radius)) {
+            const earthRadiusKm = 6371;
+            whereClauses.push(sql`
+                (${earthRadiusKm} * acos(
+                    cos(radians(${lat})) * cos(radians(CAST(${hardAssets.lat} AS DECIMAL))) *
+                    cos(radians(CAST(${hardAssets.lng} AS DECIMAL)) - radians(${lng})) +
+                    sin(radians(${lat})) * sin(radians(CAST(${hardAssets.lat} AS DECIMAL)))
+                )) <= ${radius}
+            `);
+        }
+
+        const finalWhere = and(...whereClauses);
+
+        // Get total count for pagination
+        const countResult = await db.select({ count: sql`count(*)` })
+            .from(hardAssets)
+            .where(finalWhere);
+        const totalCount = Number(countResult[0]?.count || 0);
+
         const options = {
+            where: finalWhere,
             with: {
                 partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
                 creator: { columns: { id: true, name: true } },
@@ -371,20 +417,16 @@ export const getHardAssets = async (c) => {
                                         name: true,
                                         partnerUserId: true,
                                     },
+                                        },
+                                    },
                                 },
-                            },
-                        },
                     },
                 },
             },
             orderBy: [desc(hardAssets.updatedAt)],
+            limit: pageSize,
+            offset: offset,
         };
-
-        if (user?.role === 'regional_admin' || user?.role === 'partner') {
-            if (user.subregionIds && user.subregionIds.length > 0) {
-                options.where = inArray(hardAssets.subregionId, user.subregionIds);
-            }
-        }
 
         const assets = await db.query.hardAssets.findMany(options);
 
@@ -411,7 +453,15 @@ export const getHardAssets = async (c) => {
                 membershipSummariesByAssetId.get(asset.id) || null,
             ));
 
-        return c.json(formatted);
+        return c.json({
+            data: formatted,
+            pagination: {
+                totalCount,
+                page,
+                pageSize,
+                totalPages: Math.ceil(totalCount / pageSize),
+            }
+        });
     } catch (err) {
         console.error(err);
         return c.json({ error: err.message || 'Failed to fetch hard assets' }, err.status || 500);

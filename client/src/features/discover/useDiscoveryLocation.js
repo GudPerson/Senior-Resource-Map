@@ -278,6 +278,7 @@ export function useDiscoveryLocation(hardAssets = [], userPostalCode = '') {
         searchRadius,
         setFlyTarget,
         setPostalInput,
+        setSearchOrigin,
         setSearchRadius,
         userLocation,
         clearLocationSearch,

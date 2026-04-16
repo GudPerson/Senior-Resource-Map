@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
+import Pagination from '../../components/Pagination.jsx';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 const ASSET_WORKBOOKS = [
@@ -195,6 +196,9 @@ export default function AdminPage() {
     const [partnerBoundaryModalUser, setPartnerBoundaryModalUser] = useState(null);
     const [partnerBoundaryData, setPartnerBoundaryData] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
+    const [resourcePage, setResourcePage] = useState(1);
+    const [resourcePageSize] = useState(50);
+    const [resourceTotalCount, setResourceTotalCount] = useState(0);
     const canEditUserRoles = canChangeUserRoles(currentRole);
     const creatableRoles = getCreatableUserRoles(currentRole);
     const superAdminRoleOptions = getCreatableUserRoles('super_admin');
@@ -212,7 +216,7 @@ export default function AdminPage() {
         setLoading(true);
         try {
             const results = await Promise.allSettled([
-                api.getResources(),
+                api.getResources({ page: resourcePage, pageSize: resourcePageSize, q: resourceSearch }),
                 api.getUsers(),
                 api.getSubCategories(),
                 api.getSubregions(),
@@ -220,8 +224,10 @@ export default function AdminPage() {
             ]);
 
             if (results[0].status === 'fulfilled') {
-                const items = results[0].value;
+                const resData = results[0].value;
+                const items = resData.data || [];
                 setResources(items);
+                setResourceTotalCount(resData.pagination?.totalCount || 0);
                 setSelectedResources((prev) => prev.filter((key) => items.some((item) => getResourceSelectionKey(item) === key)));
             }
             if (results[1].status === 'fulfilled') {
@@ -259,7 +265,7 @@ export default function AdminPage() {
         }
     }
 
-    useEffect(() => { loadAll(); }, []);
+    useEffect(() => { loadAll(); }, [resourcePage, resourceSearch]);
 
     function getResourceSelectionKey(resource) {
         const assetType = resource.category === 'Places' ? 'hard' : 'soft';
@@ -1948,6 +1954,12 @@ export default function AdminPage() {
                             </tbody>
                         </table>
                     </div>
+                    <Pagination 
+                        totalCount={resourceTotalCount} 
+                        pageSize={resourcePageSize} 
+                        currentPage={resourcePage} 
+                        onPageChange={setResourcePage} 
+                    />
                     {filteredResources.length === 0 && (
                         <div className="text-center py-12 text-slate-400">No resources match the current sort and filter settings.</div>
                     )}

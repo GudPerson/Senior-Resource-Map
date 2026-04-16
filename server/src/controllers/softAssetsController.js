@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql, or, ilike } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import { softAssets, softAssetLocations } from '../db/schema.js';
@@ -205,25 +205,45 @@ export const getSoftAssets = async (c) => {
         const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
-        const options = {
-            with: softAssetWithRelations,
-            orderBy: [desc(softAssets.updatedAt)],
-        };
+        const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10));
+        const pageSize = Math.min(100, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10)));
+        const offset = (page - 1) * pageSize;
+        const query = c.req.query('q');
+
+        const whereClauses = [eq(softAssets.isDeleted, false)];
 
         if ((role === 'regional_admin' || role === 'partner') && Array.isArray(user?.subregionIds) && user.subregionIds.length > 0) {
-            options.where = inArray(softAssets.subregionId, user.subregionIds);
+            whereClauses.push(inArray(softAssets.subregionId, user.subregionIds));
         }
 
+        if (query) {
+            whereClauses.push(or(
+                ilike(softAssets.name, `%${query}%`),
+                ilike(softAssets.description, `%${query}%`),
+                ilike(softAssets.subCategory, `%${query}%`)
+            ));
+        }
+
+        const finalWhere = and(...whereClauses);
+
+        // Get total count for pagination
+        const countResult = await db.select({ count: sql`count(*)` })
+            .from(softAssets)
+            .where(finalWhere);
+        const totalCount = Number(countResult[0]?.count || 0);
+
+        const options = {
+            where: finalWhere,
+            with: softAssetWithRelations,
+            orderBy: [desc(softAssets.updatedAt)],
+            limit: pageSize,
+            offset: offset,
+        };
+
         const assets = await db.query.softAssets.findMany(options);
-        const visibleAssets = assets
-            .filter((asset) => isAssetVisible(asset, user, {
-                ownerPartner: asset.partner,
-                allowedPartnerAudienceIds,
-                allowedAudienceZoneIds,
-                treatMemberOnlyAsVisible: true,
-            }));
+
         const eligibilityContext = await buildEligibilityContext(db, user);
-        const membershipHostIdMap = await buildMembershipHostIdMap(db, visibleAssets);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, assets);
         const formatted = assets
             .filter((asset) => isAssetVisible(asset, user, {
                 ownerPartner: asset.partner,
@@ -246,7 +266,15 @@ export const getSoftAssets = async (c) => {
             .filter(({ raw, formatted }) => canExposeFormattedSoftAsset(raw, formatted))
             .map(({ formatted }) => formatted);
 
-        return c.json(formatted);
+        return c.json({
+            data: formatted,
+            pagination: {
+                totalCount,
+                page,
+                pageSize,
+                totalPages: Math.ceil(totalCount / pageSize),
+            }
+        });
     } catch (err) {
         console.error('getSoftAssets Error:', err);
         return c.json({ error: err.message || 'Failed to fetch soft assets' }, err.status || 500);

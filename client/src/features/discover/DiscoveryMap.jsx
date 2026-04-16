@@ -287,7 +287,7 @@ function SavedMapCameraController({ baseAnchorPoint = null, focusRequest, intera
     return null;
 }
 
-function MapBackgroundEvents({ enabled = true, onBackgroundClick }) {
+function MapBackgroundEvents({ enabled = true, onBackgroundClick, onMapMoveEnd }) {
     useMapEvents({
         click(event) {
             const clickTarget = event.originalEvent?.target;
@@ -301,6 +301,22 @@ function MapBackgroundEvents({ enabled = true, onBackgroundClick }) {
                 onBackgroundClick?.();
             }
         },
+        moveend(event) {
+            const map = event.target;
+            const center = map.getCenter();
+            const bounds = map.getBounds();
+            const ne = bounds.getNorthEast();
+            const sw = bounds.getSouthWest();
+            // Estimate radius in km (using rough lat degree length ~111km)
+            const radius = Math.min(
+                100, // Cap at 100km
+                Math.max(
+                    0.2, // Min 200m
+                    (ne.lat - sw.lat) * 111 / 2
+                )
+            );
+            onMapMoveEnd?.({ lat: center.lat, lng: center.lng, radius });
+        }
     });
 
     return null;
@@ -359,6 +375,7 @@ export function DiscoveryMap({
     onBackgroundClick,
     onMapHoverEnd,
     onMapHoverStart,
+    onMapMoveEnd,
     onTrackedPinLayoutChange,
     onSelectGroupPin,
     onSelectPin,
@@ -403,7 +420,11 @@ export function DiscoveryMap({
                     pins={renderedPins}
                     onTrackedPinLayoutChange={onTrackedPinLayoutChange}
                 />
-                <MapBackgroundEvents enabled={Boolean(onBackgroundClick)} onBackgroundClick={onBackgroundClick} />
+                <MapBackgroundEvents 
+                    enabled={Boolean(onBackgroundClick)} 
+                    onBackgroundClick={onBackgroundClick} 
+                    onMapMoveEnd={onMapMoveEnd}
+                />
                 {renderedPins.map((pin) => {
                     const markerKey = pin.pinKey;
                     const emphasis = emphasisLookup.get(markerKey) || 'default';

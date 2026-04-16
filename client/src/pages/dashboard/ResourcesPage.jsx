@@ -398,6 +398,7 @@ function ResourceModal({
     );
 }
 
+
 export default function ResourcesPage() {
     const { user } = useAuth();
     const [hardAssets, setHardAssets] = useState([]);
@@ -432,6 +433,12 @@ export default function ResourcesPage() {
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
     const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
+    const [hardAssetsPage, setHardAssetsPage] = useState(1);
+    const [softAssetsPage, setSoftAssetsPage] = useState(1);
+    const [hardAssetsTotal, setHardAssetsTotal] = useState(0);
+    const [softAssetsTotal, setSoftAssetsTotal] = useState(0);
+    const [hardAssetsPageSize] = useState(50);
+    const [softAssetsPageSize] = useState(50);
 
     const normalizedRole = normalizeRole(user?.role);
     const isStandardUser = isStandardUserRole(user?.role);
@@ -449,8 +456,8 @@ export default function ResourcesPage() {
         setLoading(true);
         try {
             const requests = [
-                api.getHardAssets(),
-                api.getSoftAssets(),
+                api.getHardAssets({ page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
+                api.getSoftAssets({ page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
             ];
 
             if (!isStandardUser) {
@@ -483,17 +490,31 @@ export default function ResourcesPage() {
                 const favorites = await api.getFavorites();
                 const favoriteHardIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'hard').map((favorite) => favorite.resourceId));
                 const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
+                
+                const hardRes = await api.getHardAssets({ q: normalizedQuery });
+                const softRes = await api.getSoftAssets({ q: normalizedQuery });
+                const hard = hardRes.data || [];
+                const soft = softRes.data || [];
+
                 setHardAssets(hard.filter((asset) => favoriteHardIds.has(asset.id)));
                 setSoftAssets(soft.filter((asset) => favoriteSoftIds.has(asset.id)));
+                setHardAssetsTotal(hardRes.pagination?.totalCount || 0);
+                setSoftAssetsTotal(softRes.pagination?.totalCount || 0);
                 setSoftAssetParents([]);
                 setAudienceZones([]);
             } else {
                 if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                    setHardAssets(hard);
-                    setSoftAssets(soft);
+                    setHardAssets(hard.data || []);
+                    setSoftAssets(soft.data || []);
+                    setHardAssetsTotal(hard.pagination?.totalCount || 0);
+                    setSoftAssetsTotal(soft.pagination?.totalCount || 0);
                 } else {
-                    setHardAssets(hard.filter((asset) => asset.partnerId === user.id));
-                    setSoftAssets(soft.filter((asset) => asset.partnerId === user.id));
+                    const hardData = hard.data || [];
+                    const softData = soft.data || [];
+                    setHardAssets(hardData.filter((asset) => asset.partnerId === user.id));
+                    setSoftAssets(softData.filter((asset) => asset.partnerId === user.id));
+                    setHardAssetsTotal(hard.pagination?.totalCount || 0);
+                    setSoftAssetsTotal(soft.pagination?.totalCount || 0);
                 }
                 setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             }
@@ -527,7 +548,7 @@ export default function ResourcesPage() {
         if (isStandardUser) return undefined;
         load();
         return undefined;
-    }, [isStandardUser]);
+    }, [isStandardUser, hardAssetsPage, softAssetsPage, normalizedQuery]);
 
     useEffect(() => {
         if (isStandardUser && activeTab === 'templates') {
@@ -543,18 +564,28 @@ export default function ResourcesPage() {
 
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
-            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            hardAssets.filter((asset) => {
+                if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
+                    return false;
+                }
+                return true;
+            }),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, hardAssets, sortOrder]
     );
 
     const filteredSoftAssets = useMemo(
         () => sortResourceItems(
-            softAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            softAssets.filter((asset) => {
+                if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
+                    return false;
+                }
+                return true;
+            }),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, softAssets, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, softAssets, sortOrder]
     );
 
     const filteredTemplates = useMemo(
@@ -1557,6 +1588,12 @@ export default function ResourcesPage() {
                                 </div>
                             );
                         })}
+                        <Pagination 
+                            totalCount={hardAssetsTotal} 
+                            pageSize={hardAssetsPageSize} 
+                            currentPage={hardAssetsPage} 
+                            onPageChange={setHardAssetsPage} 
+                        />
                     </div>
                 )
             ) : activeTab === 'soft' ? (
@@ -1690,6 +1727,12 @@ export default function ResourcesPage() {
                                 </div>
                             );
                         })}
+                        <Pagination 
+                            totalCount={softAssetsTotal} 
+                            pageSize={softAssetsPageSize} 
+                            currentPage={softAssetsPage} 
+                            onPageChange={setSoftAssetsPage} 
+                        />
                     </div>
                 )
             ) : (

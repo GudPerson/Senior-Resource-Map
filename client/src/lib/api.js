@@ -174,7 +174,14 @@ export const api = {
     createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
     // Hard Assets
-    getHardAssets: () => request('GET', '/hard-assets'),
+    getHardAssets: (params = {}) => {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) searchParams.append(key, value);
+        });
+        const qs = searchParams.toString();
+        return request('GET', `/hard-assets${qs ? `?${qs}` : ''}`);
+    },
     getHardAsset: (id) => request('GET', `/hard-assets/${id}`),
     createHardAsset: (body) => request('POST', '/hard-assets', body),
     searchGoogleHardAssetCandidatesByPostal: (body) => request('POST', '/hard-assets/import/google-candidates', body),
@@ -185,7 +192,14 @@ export const api = {
     deleteHardAsset: (id) => request('DELETE', `/hard-assets/${id}`),
 
     // Soft Assets
-    getSoftAssets: () => request('GET', '/soft-assets'),
+    getSoftAssets: (params = {}) => {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) searchParams.append(key, value);
+        });
+        const qs = searchParams.toString();
+        return request('GET', `/soft-assets${qs ? `?${qs}` : ''}`);
+    },
     getSoftAsset: (id) => request('GET', `/soft-assets/${id}`),
     createSoftAsset: (body) => request('POST', '/soft-assets', body),
     previewSoftAssetCollateralImport: (formData) => requestFormData('/soft-assets/import/collateral/preview', formData),
@@ -287,15 +301,24 @@ export const api = {
     redeemMembershipLink: (body) => request('POST', '/memberships/link', body),
 
     // Combined Helpers (for Admin/Partner generic tables)
-    getResources: async () => {
-        const [hard, soft] = await Promise.all([
-            api.getHardAssets(),
-            api.getSoftAssets()
+    getResources: async (params = {}) => {
+        const [hardRes, softRes] = await Promise.all([
+            api.getHardAssets(params),
+            api.getSoftAssets(params)
         ]);
-        return [
-            ...hard.map(h => ({ ...h, category: 'Places' })),
-            ...soft.map(s => ({ ...s, category: 'Offerings', address: '— (Service/Program)' }))
-        ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        const hard = hardRes.data || [];
+        const soft = softRes.data || [];
+        return {
+            data: [
+                ...hard.map(h => ({ ...h, category: 'Places' })),
+                ...soft.map(s => ({ ...s, category: 'Offerings', address: '— (Service/Program)' }))
+            ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
+            pagination: {
+                totalCount: (hardRes.pagination?.totalCount || 0) + (softRes.pagination?.totalCount || 0),
+                page: params.page || 1,
+                pageSize: params.pageSize || 50,
+            }
+        };
     },
 
     // Public API
