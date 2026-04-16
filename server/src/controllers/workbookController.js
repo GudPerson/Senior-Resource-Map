@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import {
@@ -905,14 +905,37 @@ async function importPlaces(db, actor, rows, references, env) {
 
     // 5. Final Bulk Upsert
     if (payloads.length > 0) {
+        // Use onConflictUpdate to allow users to patch existing items via re-upload
         const inserted = await db.insert(hardAssets)
             .values(payloads)
-            .onConflictDoNothing({ target: hardAssets.externalKey })
+            .onConflictUpdate({
+                target: [hardAssets.externalKey],
+                set: {
+                    partnerId: sql`EXCLUDED.partner_id`,
+                    subregionId: sql`EXCLUDED.subregion_id`,
+                    name: sql`EXCLUDED.name`,
+                    subCategory: sql`EXCLUDED.sub_category`,
+                    address: sql`EXCLUDED.address`,
+                    lat: sql`EXCLUDED.lat`,
+                    lng: sql`EXCLUDED.lng`,
+                    phone: sql`EXCLUDED.phone`,
+                    hours: sql`EXCLUDED.hours`,
+                    website: sql`EXCLUDED.website`,
+                    description: sql`EXCLUDED.description`,
+                    logoUrl: sql`EXCLUDED.logo_url`,
+                    bannerUrl: sql`EXCLUDED.banner_url`,
+                    galleryUrls: sql`EXCLUDED.gallery_urls`,
+                    isHidden: sql`EXCLUDED.is_hidden`,
+                    hideFrom: sql`EXCLUDED.hide_from`,
+                    hideUntil: sql`EXCLUDED.hide_until`,
+                    updatedAt: sql`EXCLUDED.updated_at`
+                }
+            })
             .returning({ id: hardAssets.id });
         
         report.createdCount = inserted.length;
-        report.updatedCount = 0;
-        report.skippedCount = payloads.length - inserted.length;
+        report.updatedCount = Number(payloads.length - inserted.length); // Approximation since Drizzle returning might vary
+        report.skippedCount = 0;
     }
 
     for (const subregionId of affectedSubregions) {
