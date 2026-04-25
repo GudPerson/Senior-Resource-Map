@@ -52,7 +52,7 @@ These surfaces are approved on the stabilization branch and should not be reopen
 | Dashboard resources/admin | Recovered and locked on stabilization branch; punctuation-normalized resource search retested locally | User-approved stabilization branch behavior | Load `/dashboard/resources` and `/dashboard/admin`, test search, counts, export | Search stable, counts consistent, filtered workbook export works, admin search does not reload on every letter, names with parentheses remain searchable | 2026-04-25 |
 | Workbook import/export | Recovered and locked on stabilization branch; local full/filtered exports and import reports revalidated | Local verification artifacts in `output/workbook-local-2026-04-25T05-42-07-819Z` | Run places export/import, standalone offering import, template import, rollout import, filtered workbook flows, error-report flows; re-open exported `.xlsx` files with `openpyxl` | No timeout/subrequest regressions; reports accurate; filtered/full export formats round-trip safely; `.xlsx` files include `Guide`, `Data`, and `Reference` sheets | 2026-04-25 |
 | Asset create/edit forms | Recovered and locked on stabilization branch; place create, inline place edit, offering create/edit, template create/edit, and rollout edit checked locally | Local browser verification on `/dashboard/resources` with current `server/.env` API | Open place/offering/template forms and edit existing assets | No blank screens; hard-place inline edit renders expected fields; modal create/edit flows render expected fields; rollout editor opens inherited/local sections | 2026-04-25 |
-| AI enrichment | Local no-config fallback recovered; live Vertex enrichment still needs credentialed confirmation | Local browser/API verification with current `server/.env` showing Vertex env absent and `/api/hard-assets/import/enrich-draft` returning `{}` | Fill a place draft name, postal code, and address; click `Enrich with AI`; call enrichment endpoint directly | Button enables only with required draft fields; unconfigured/empty enrichment response gives visible feedback instead of silently doing nothing; configured Vertex environment still must confirm description/logo/tag suggestions | 2026-04-25 |
+| AI enrichment | Partially recovered; local no-config fallback is fixed and live Vertex/Google enrichment returns descriptions + service tags, but logo suggestions were not observed in credentialed probes | Live Worker API `https://senior-resource-map-api.joshuachua79.workers.dev/api` with configured `VERTEX_AI_*` and `GOOGLE_MAPS_API_KEY` secrets | Fill a place draft name, postal code, and address; call `/hard-assets/import/enrich-draft`; call `/hard-assets/import/google-candidates` with `enrich: true`; preview selected Google candidates | Button enables only with required draft fields; unconfigured/empty enrichment response gives visible feedback instead of silently doing nothing; live Vertex returns grounded descriptions, service tags, source titles, and confidence; logo URL enrichment remains incomplete | 2026-04-26 |
 
 ## Current recovery order
 
@@ -71,7 +71,7 @@ Completed and locked:
 - Asset create/edit forms
 
 Active next recovery family:
-- AI enrichment credentialed confirmation
+- AI logo enrichment follow-up
 
 ## Recovery workflow
 
