@@ -17,6 +17,7 @@ import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
 import { resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
 import { enrichPlaceCandidatesWithVertex } from '../utils/vertexGroundedPlaceSearch.js';
+import { fetchWebsiteMetadata } from '../utils/websiteMetadata.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -954,6 +955,12 @@ export const enrichHardAssetDraft = async (c) => {
         });
 
         const enrichment = enrichmentMap.get(candidate.googlePlaceId) || enrichmentMap.get(`_idx:0`);
+        if (enrichment && !enrichment.logoUrl && enrichment.sourceUrl) {
+            const metadata = await fetchWebsiteMetadata(enrichment.sourceUrl);
+            if (metadata.logoUrl) {
+                enrichment.logoUrl = metadata.logoUrl;
+            }
+        }
         
         return c.json(enrichment || {});
     } catch (err) {

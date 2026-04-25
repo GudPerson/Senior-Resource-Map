@@ -11,37 +11,62 @@ function decodeHtmlEntities(value) {
         .replace(/&gt;/gi, '>');
 }
 
-function escapeRegExp(value) {
-    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 function extractMetaContent(html, selectors = []) {
-    for (const selector of selectors) {
-        const attribute = selector.attribute || 'property';
-        const value = escapeRegExp(selector.value);
-        const pattern = new RegExp(
-            `<meta[^>]+${attribute}=["']${value}["'][^>]+content=["']([^"']+)["'][^>]*>|<meta[^>]+content=["']([^"']+)["'][^>]+${attribute}=["']${value}["'][^>]*>`,
-            'i',
-        );
-        const match = html.match(pattern);
-        const content = decodeHtmlEntities(match?.[1] || match?.[2] || '');
-        if (content) return normalizeWhitespace(content);
-    }
-    return '';
+    return extractMetaContents(html, selectors)[0] || '';
 }
 
-function extractLinkHref(html, selectors = []) {
-    for (const relValue of selectors) {
-        const value = escapeRegExp(relValue);
-        const pattern = new RegExp(
-            `<link[^>]+rel=["'][^"']*${value}[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>|<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*${value}[^"']*["'][^>]*>`,
-            'i',
-        );
-        const match = html.match(pattern);
-        const href = decodeHtmlEntities(match?.[1] || match?.[2] || '');
-        if (href) return normalizeWhitespace(href);
+function parseAttributes(tag) {
+    const attrs = {};
+    const pattern = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+    let match;
+    while ((match = pattern.exec(tag))) {
+        const name = String(match[1] || '').toLowerCase();
+        if (!name || name.startsWith('<')) continue;
+        attrs[name] = decodeHtmlEntities(match[2] || match[3] || match[4] || '');
     }
-    return '';
+    return attrs;
+}
+
+function extractTags(html, tagName) {
+    const pattern = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+    return Array.from(html.matchAll(pattern), (match) => match[0]);
+}
+
+function extractMetaContents(html, selectors = []) {
+    const metaTags = extractTags(html, 'meta').map(parseAttributes);
+    const matches = [];
+
+    for (const selector of selectors) {
+        const attribute = String(selector.attribute || 'property').toLowerCase();
+        const expectedValue = String(selector.value || '').toLowerCase();
+        for (const attrs of metaTags) {
+            const selectorValue = String(attrs[attribute] || '').toLowerCase();
+            const content = normalizeWhitespace(attrs.content || '');
+            if (selectorValue === expectedValue && content) {
+                matches.push(content);
+            }
+        }
+    }
+
+    return [...new Set(matches)];
+}
+
+function extractLinkHrefs(html, selectors = []) {
+    const linkTags = extractTags(html, 'link').map(parseAttributes);
+    const matches = [];
+
+    for (const relValue of selectors) {
+        const expectedRel = String(relValue || '').toLowerCase();
+        for (const attrs of linkTags) {
+            const rel = String(attrs.rel || '').toLowerCase();
+            const href = normalizeWhitespace(attrs.href || '');
+            if (rel.includes(expectedRel) && href) {
+                matches.push(href);
+            }
+        }
+    }
+
+    return [...new Set(matches)];
 }
 
 function extractJsonLdBlocks(html) {
@@ -106,6 +131,91 @@ function extractJsonLdHints(html) {
     return { description, logoUrl };
 }
 
+function extractFirstSrcsetUrl(value) {
+    const first = String(value || '').split(',')[0]?.trim() || '';
+    return first.split(/\s+/)[0] || '';
+}
+
+function extractLikelyLogoImages(html) {
+    const matches = [];
+    const imgTags = extractTags(html, 'img').map(parseAttributes);
+    const logoPattern = /\b(logo|brand|site-logo|navbar-logo|header-logo)\b/i;
+
+    for (const attrs of imgTags) {
+        const src = normalizeWhitespace(
+            attrs.src
+            || attrs['data-src']
+            || attrs['data-lazy-src']
+            || extractFirstSrcsetUrl(attrs.srcset)
+            || ''
+        );
+        if (!src) continue;
+
+        const hintText = [
+            attrs.alt,
+            attrs.title,
+            attrs.class,
+            attrs.id,
+            attrs.src,
+            attrs['data-src'],
+            attrs['data-lazy-src'],
+        ].map((value) => String(value || '')).join(' ');
+
+        if (logoPattern.test(hintText)) {
+            matches.push(src);
+        }
+    }
+
+    return [...new Set(matches)];
+}
+
+function buildLogoCandidates({ html, resolvedUrl, jsonLd }) {
+    const candidates = [];
+    const add = (value, source, priority) => {
+        const url = toAbsoluteUrl(value, resolvedUrl);
+        if (!url) return;
+        candidates.push({ url, source, priority });
+    };
+
+    add(jsonLd.logoUrl, 'json-ld-logo', 100);
+
+    for (const value of extractMetaContents(html, [
+        { attribute: 'property', value: 'og:logo' },
+        { attribute: 'name', value: 'twitter:logo' },
+    ])) {
+        add(value, 'meta-logo', 95);
+    }
+
+    for (const value of extractLikelyLogoImages(html)) {
+        add(value, 'logo-image', 90);
+    }
+
+    for (const value of extractMetaContents(html, [
+        { attribute: 'name', value: 'twitter:image' },
+        { attribute: 'name', value: 'twitter:image:src' },
+        { attribute: 'property', value: 'og:image' },
+        { attribute: 'property', value: 'og:image:url' },
+    ])) {
+        add(value, 'meta-image', 70);
+    }
+
+    for (const value of extractLinkHrefs(html, ['apple-touch-icon', 'icon', 'shortcut icon'])) {
+        add(value, 'link-icon', 55);
+    }
+
+    try {
+        add('/favicon.ico', 'favicon-fallback', 30);
+    } catch {
+        // ignore malformed resolvedUrl; toAbsoluteUrl handles the real validation
+    }
+
+    const deduped = new Map();
+    for (const candidate of candidates.sort((left, right) => right.priority - left.priority)) {
+        if (!deduped.has(candidate.url)) deduped.set(candidate.url, candidate);
+    }
+    return [...deduped.values()];
+}
+
 function toAbsoluteUrl(candidate, baseUrl) {
     if (!candidate) return '';
     try {
@@ -145,6 +255,73 @@ async function fetchHtml(url) {
     };
 }
 
+function looksLikeImageUrl(value) {
+    try {
+        const pathname = new URL(value).pathname.toLowerCase();
+        return /\.(?:avif|gif|ico|jpe?g|png|svg|webp)$/.test(pathname);
+    } catch {
+        return false;
+    }
+}
+
+async function isFetchImageResponse(response, url) {
+    if (!response?.ok) return false;
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    if (contentType.startsWith('image/')) return true;
+    return looksLikeImageUrl(url);
+}
+
+async function validateImageUrl(url) {
+    const timeoutSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+        ? AbortSignal.timeout(4000)
+        : undefined;
+
+    const requestOptions = {
+        headers: {
+            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'User-Agent': 'CareAroundSGImport/1.0',
+        },
+        redirect: 'follow',
+        signal: timeoutSignal,
+    };
+
+    try {
+        const headResponse = await fetch(url, { ...requestOptions, method: 'HEAD' });
+        if (await isFetchImageResponse(headResponse, url)) return true;
+    } catch {
+        // Some sites reject HEAD; fall back to a tiny GET below.
+    }
+
+    try {
+        const getResponse = await fetch(url, {
+            ...requestOptions,
+            method: 'GET',
+            headers: {
+                ...requestOptions.headers,
+                Range: 'bytes=0-2047',
+            },
+        });
+        const isImage = await isFetchImageResponse(getResponse, url);
+        try {
+            await getResponse.body?.cancel?.();
+        } catch {
+            // Ignore body cleanup failures; validation already has the response headers it needs.
+        }
+        return isImage;
+    } catch {
+        return false;
+    }
+}
+
+async function chooseValidatedLogoUrl(candidates) {
+    for (const candidate of candidates) {
+        if (await validateImageUrl(candidate.url)) {
+            return candidate.url;
+        }
+    }
+    return '';
+}
+
 export async function fetchWebsiteMetadata(url) {
     if (!url) {
         return {
@@ -162,16 +339,9 @@ export async function fetchWebsiteMetadata(url) {
             { attribute: 'property', value: 'og:description' },
             { attribute: 'name', value: 'twitter:description' },
         ]);
-        const metaLogo = extractMetaContent(html, [
-            { attribute: 'property', value: 'og:logo' },
-            { attribute: 'name', value: 'twitter:image' },
-            { attribute: 'property', value: 'og:image' },
-        ]);
-        const linkLogo = extractLinkHref(html, ['apple-touch-icon', 'icon', 'shortcut icon']);
 
         const description = normalizeWhitespace(jsonLd.description || metaDescription);
-        const logoCandidate = jsonLd.logoUrl || metaLogo || linkLogo;
-        const logoUrl = toAbsoluteUrl(logoCandidate, resolvedUrl);
+        const logoUrl = await chooseValidatedLogoUrl(buildLogoCandidates({ html, resolvedUrl, jsonLd }));
 
         return {
             description,
