@@ -2,6 +2,22 @@
 
 This is the pre-ship stabilization checklist for launch-safe changes.
 
+## Current stabilization scope
+
+Locked and approved on the stabilization branch:
+
+- My Directory saved assets
+- Private Maps interactive
+- Private Maps print/export
+- Shared maps
+- Dashboard resources
+- Dashboard admin resources
+- Discover
+
+Active next recovery family:
+
+- Workbook import/export
+
 ## 1. Green baseline
 
 - Run `npm run test:server`

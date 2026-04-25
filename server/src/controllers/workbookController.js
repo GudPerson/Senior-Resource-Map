@@ -47,6 +47,7 @@ const CONTENT_TYPES = {
 
 const XLSX_FORMAT = 'xlsx';
 const CSV_FORMAT = 'csv';
+const FILTERED_EXPORT_REFRESH_ERROR = 'Some filtered results are no longer available or outside your scope. Refresh My Resources and try again.';
 
 const RESOURCE_TYPES = {
     'places': {
@@ -152,8 +153,53 @@ function normalizeText(value) {
     return String(value).trim();
 }
 
+function chunkArray(values, size = 500) {
+    const chunks = [];
+    for (let index = 0; index < values.length; index += size) {
+        chunks.push(values.slice(index, index + size));
+    }
+    return chunks;
+}
+
 function normalizeHeader(value) {
     return normalizeText(value).replace(/\*/g, '').replace(/[^a-z0-9]+/gi, '').toLowerCase();
+}
+
+function createHttpError(status, message) {
+    const error = new Error(message);
+    error.status = status;
+    return error;
+}
+
+function parseFilteredExportIds(value) {
+    if (!Array.isArray(value) || value.length === 0) {
+        throw createHttpError(400, 'Provide a non-empty ids array for filtered workbook export.');
+    }
+
+    const normalized = value.map((entry) => Number.parseInt(String(entry), 10));
+    if (normalized.some((entry) => !Number.isInteger(entry) || entry <= 0)) {
+        throw createHttpError(400, 'Filtered workbook export ids must be positive integers.');
+    }
+
+    const unique = new Set(normalized);
+    if (unique.size !== normalized.length) {
+        throw createHttpError(400, 'Filtered workbook export ids must not contain duplicates.');
+    }
+
+    return normalized;
+}
+
+function orderScopedRecords(records, orderedIds) {
+    if (!Array.isArray(orderedIds)) return records;
+
+    const recordsById = new Map(records.map((record) => [record.id, record]));
+    return orderedIds.map((id) => {
+        const record = recordsById.get(id);
+        if (!record) {
+            throw createHttpError(409, FILTERED_EXPORT_REFRESH_ERROR);
+        }
+        return record;
+    });
 }
 
 function splitDelimitedList(value, delimiters = /[,\n]+/) {
@@ -278,13 +324,6 @@ function createDataSheet(resourceType, rows) {
     const dataRows = rows.map((row) => config.columns.map(([key]) => row[key] ?? ''));
     const sheet = XLSX.utils.aoa_to_sheet([headerLabels, ...dataRows]);
     sheet['!cols'] = config.columns.map(([key]) => ({ wch: Math.max(16, key.length + 4) }));
-
-    config.columns.forEach(([key, required, description], index) => {
-        const cellRef = XLSX.utils.encode_cell({ r: 0, c: index });
-        if (sheet[cellRef]) {
-            sheet[cellRef].c = [{ a: 'CareAround', t: `${description}${required ? ' Required field.' : ''}` }];
-        }
-    });
 
     return sheet;
 }
@@ -435,6 +474,36 @@ async function loadTemplateByExternalKey(db, externalKey) {
     });
 }
 
+async function loadTemplatesByExternalKeys(db, keys) {
+    const normalized = [...new Set(keys.map((key) => normalizeText(key)).filter(Boolean))];
+    if (normalized.length === 0) return [];
+
+    return db.query.softAssetParents.findMany({
+        where: and(inArray(softAssetParents.externalKey, normalized), eq(softAssetParents.isDeleted, false)),
+        with: {
+            partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
+        },
+    });
+}
+
+async function loadExistingRolloutChildren(db, parentIds, hostIds) {
+    const normalizedParentIds = [...new Set((parentIds || []).filter(Number.isInteger))];
+    const normalizedHostIds = [...new Set((hostIds || []).filter(Number.isInteger))];
+    if (normalizedParentIds.length === 0 || normalizedHostIds.length === 0) return [];
+
+    return db.query.softAssets.findMany({
+        where: and(
+            eq(softAssets.assetMode, 'child'),
+            inArray(softAssets.parentSoftAssetId, normalizedParentIds),
+            inArray(softAssets.hostHardAssetId, normalizedHostIds),
+        ),
+    });
+}
+
+function buildRolloutPairKey(parentId, hostId) {
+    return `${parentId}:${hostId}`;
+}
+
 function buildImportReport(resourceType) {
     return {
         resourceType,
@@ -455,6 +524,28 @@ function rowError(report, rowNumber, message) {
 
 function rowWarning(report, rowNumber, message) {
     report.warnings.push(`Row ${rowNumber}: ${message}`);
+}
+
+function valuesAreEqual(left, right) {
+    if (Array.isArray(left) || Array.isArray(right)) {
+        if (!Array.isArray(left) || !Array.isArray(right)) return false;
+        if (left.length !== right.length) return false;
+        return left.every((value, index) => valuesAreEqual(value, right[index]));
+    }
+
+    if (left instanceof Date || right instanceof Date) {
+        if (!(left instanceof Date) || !(right instanceof Date)) return false;
+        return left.getTime() === right.getTime();
+    }
+
+    return left === right;
+}
+
+function patchHasEffectiveChanges(current, patch) {
+    return Object.entries(patch || {}).some(([key, value]) => {
+        if (key === 'updatedAt') return false;
+        return !valuesAreEqual(current?.[key], value);
+    });
 }
 
 async function geocodePostalCode(postalCode, country = 'SG') {
@@ -583,9 +674,30 @@ function buildReferenceRows(resourceType, references) {
     return rows;
 }
 
-async function exportRowsForPlaces(db, actor) {
+function serializeRolloutExportRow(record) {
+    return {
+        templateExternalKey: record.parent?.externalKey || '',
+        hostExternalKey: record.hostHardAsset?.externalKey || '',
+        isHidden: record.isHidden ? 'TRUE' : 'FALSE',
+        schedule: record.schedule || '',
+        contactPhone: record.contactPhone || '',
+        contactEmail: record.contactEmail || '',
+        ctaLabel: record.ctaLabel || '',
+        ctaUrl: record.ctaUrl || '',
+        venueNote: record.venueNote || '',
+        overrideFields: encodeList(record.overriddenFields || []),
+        resetFields: '',
+    };
+}
+
+async function exportRowsForPlaces(db, actor, options = {}) {
+    const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
+    const where = orderedIds
+        ? and(eq(hardAssets.isDeleted, false), inArray(hardAssets.id, orderedIds))
+        : eq(hardAssets.isDeleted, false);
+
     const assets = await db.query.hardAssets.findMany({
-        where: eq(hardAssets.isDeleted, false),
+        where,
         with: {
             partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
             tags: { with: { tag: true } },
@@ -593,8 +705,10 @@ async function exportRowsForPlaces(db, actor) {
         orderBy: [desc(hardAssets.updatedAt)],
     });
 
-    return assets
-        .filter((asset) => actorCanManageAsset(actor, asset, asset.partner))
+    return orderScopedRecords(
+        assets.filter((asset) => actorCanManageAsset(actor, asset, asset.partner)),
+        orderedIds
+    )
         .map((asset) => ({
             externalKey: asset.externalKey || '',
             name: asset.name || '',
@@ -620,11 +734,15 @@ async function exportRowsForPlaces(db, actor) {
         }));
 }
 
-async function exportRowsForStandaloneOfferings(db, actor) {
+async function exportRowsForStandaloneOfferings(db, actor, options = {}) {
+    const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
     const subregionRows = await db.select({ id: subregions.id, subregionCode: subregions.subregionCode }).from(subregions);
     const subregionMap = new Map(subregionRows.map((row) => [row.id, row.subregionCode || '']));
+    const where = orderedIds
+        ? and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'), inArray(softAssets.id, orderedIds))
+        : and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'));
     const assets = await db.query.softAssets.findMany({
-        where: and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone')),
+        where,
         with: {
             partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
             tags: { with: { tag: true } },
@@ -642,8 +760,10 @@ async function exportRowsForStandaloneOfferings(db, actor) {
         orderBy: [desc(softAssets.updatedAt)],
     });
 
-    return assets
-        .filter((asset) => actorCanManageAsset(actor, asset, asset.partner))
+    return orderScopedRecords(
+        assets.filter((asset) => actorCanManageAsset(actor, asset, asset.partner)),
+        orderedIds
+    )
         .map((asset) => ({
             externalKey: asset.externalKey || '',
             name: asset.name || '',
@@ -673,9 +793,13 @@ async function exportRowsForStandaloneOfferings(db, actor) {
         }));
 }
 
-async function exportRowsForTemplates(db, actor) {
+async function exportRowsForTemplates(db, actor, options = {}) {
+    const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
+    const where = orderedIds
+        ? and(eq(softAssetParents.isDeleted, false), inArray(softAssetParents.id, orderedIds))
+        : eq(softAssetParents.isDeleted, false);
     const parents = await db.query.softAssetParents.findMany({
-        where: eq(softAssetParents.isDeleted, false),
+        where,
         with: {
             partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
             audienceZones: {
@@ -687,8 +811,10 @@ async function exportRowsForTemplates(db, actor) {
         orderBy: [desc(softAssetParents.updatedAt)],
     });
 
-    return parents
-        .filter((parent) => canManageSoftAssetParent(actor, parent, parent.partner))
+    return orderScopedRecords(
+        parents.filter((parent) => canManageSoftAssetParent(actor, parent, parent.partner)),
+        orderedIds
+    )
         .map((parent) => ({
             externalKey: parent.externalKey || '',
             name: parent.name || '',
@@ -708,51 +834,68 @@ async function exportRowsForTemplates(db, actor) {
         }));
 }
 
-async function exportRowsForRollouts(db, actor) {
-    const parents = await db.query.softAssetParents.findMany({
-        where: eq(softAssetParents.isDeleted, false),
-        with: {
-            partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
-            children: {
-                where: eq(softAssets.isDeleted, false),
-                with: {
-                    hostHardAsset: { columns: { externalKey: true, name: true } },
+async function exportRowsForRollouts(db, actor, options = {}) {
+    const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
+    if (!orderedIds) {
+        const parents = await db.query.softAssetParents.findMany({
+            where: eq(softAssetParents.isDeleted, false),
+            with: {
+                partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
+                children: {
+                    where: eq(softAssets.isDeleted, false),
+                    with: {
+                        hostHardAsset: { columns: { externalKey: true, name: true } },
+                    },
                 },
             },
-        },
-        orderBy: [desc(softAssetParents.updatedAt)],
-    });
-
-    const rows = [];
-    parents
-        .filter((parent) => canManageSoftAssetParent(actor, parent, parent.partner))
-        .forEach((parent) => {
-            (parent.children || []).forEach((child) => {
-                if (!isChildSoftAsset(child)) return;
-                rows.push({
-                    templateExternalKey: parent.externalKey || '',
-                    hostExternalKey: child.hostHardAsset?.externalKey || '',
-                    isHidden: child.isHidden ? 'TRUE' : 'FALSE',
-                    schedule: child.schedule || '',
-                    contactPhone: child.contactPhone || '',
-                    contactEmail: child.contactEmail || '',
-                    ctaLabel: child.ctaLabel || '',
-                    ctaUrl: child.ctaUrl || '',
-                    venueNote: child.venueNote || '',
-                    overrideFields: encodeList(child.overriddenFields || []),
-                    resetFields: '',
-                });
-            });
+            orderBy: [desc(softAssetParents.updatedAt)],
         });
 
-    return rows;
+        const rows = [];
+        parents
+            .filter((parent) => canManageSoftAssetParent(actor, parent, parent.partner))
+            .forEach((parent) => {
+                (parent.children || []).forEach((child) => {
+                    if (!isChildSoftAsset(child)) return;
+                    rows.push(serializeRolloutExportRow({ ...child, parent }));
+                });
+            });
+
+        return rows;
+    }
+
+    const children = await db.query.softAssets.findMany({
+        where: and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'child'), inArray(softAssets.id, orderedIds)),
+        with: {
+            parent: {
+                with: {
+                    partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
+                },
+            },
+            hostHardAsset: { columns: { id: true, externalKey: true, name: true } },
+        },
+        orderBy: [desc(softAssets.updatedAt)],
+    });
+
+    const manageableChildren = children.filter((child) => (
+        isChildSoftAsset(child)
+        && child.parent
+        && canManageSoftAssetParent(actor, child.parent, child.parent.partner)
+    ));
+    const orderedChildren = orderScopedRecords(manageableChildren, orderedIds);
+
+    if (orderedChildren.some((child) => !child.parent?.externalKey || !child.hostHardAsset?.externalKey)) {
+        throw createHttpError(409, FILTERED_EXPORT_REFRESH_ERROR);
+    }
+
+    return orderedChildren.map(serializeRolloutExportRow);
 }
 
-async function resolveTemplateExport(resourceType, db, actor) {
-    if (resourceType === 'places') return exportRowsForPlaces(db, actor);
-    if (resourceType === 'standalone-offerings') return exportRowsForStandaloneOfferings(db, actor);
-    if (resourceType === 'templates') return exportRowsForTemplates(db, actor);
-    if (resourceType === 'template-rollouts') return exportRowsForRollouts(db, actor);
+async function resolveTemplateExport(resourceType, db, actor, options = {}) {
+    if (resourceType === 'places') return exportRowsForPlaces(db, actor, options);
+    if (resourceType === 'standalone-offerings') return exportRowsForStandaloneOfferings(db, actor, options);
+    if (resourceType === 'templates') return exportRowsForTemplates(db, actor, options);
+    if (resourceType === 'template-rollouts') return exportRowsForRollouts(db, actor, options);
     throw new Error(`Unsupported workbook resource "${resourceType}".`);
 }
 
@@ -760,6 +903,9 @@ async function importPlaces(db, actor, rows, references, env) {
     const report = buildImportReport('places');
     const affectedSubregions = new Set();
     const payloadMap = new Map();
+    const existingFinalKeysBeforeUpsert = new Set();
+    const PREFETCH_BATCH_SIZE = 20;
+    const UPSERT_BATCH_SIZE = 100;
 
     // 1. Pre-process and collect keys for bulk fetching
     const uniquePostals = new Set();
@@ -790,35 +936,39 @@ async function importPlaces(db, actor, rows, references, env) {
     // 2. Bulk Fetch Subregions
     const subregionMap = new Map();
     if (uniquePostals.size > 0) {
-        const matches = await db
-            .select({
-                postalCode: subregionPostalCodes.postalCode,
-                subregion: {
-                    id: subregions.id,
-                    name: subregions.name,
-                    subregionCode: subregions.subregionCode
+        for (const postalChunk of chunkArray(Array.from(uniquePostals), PREFETCH_BATCH_SIZE)) {
+            const matches = await db
+                .select({
+                    postalCode: subregionPostalCodes.postalCode,
+                    subregion: {
+                        id: subregions.id,
+                        name: subregions.name,
+                        subregionCode: subregions.subregionCode
+                    }
+                })
+                .from(subregionPostalCodes)
+                .innerJoin(subregions, eq(subregionPostalCodes.subregionId, subregions.id))
+                .where(inArray(subregionPostalCodes.postalCode, postalChunk));
+
+            matches.forEach(m => {
+                if (!subregionMap.has(m.postalCode)) {
+                    subregionMap.set(m.postalCode, m.subregion);
                 }
-            })
-            .from(subregionPostalCodes)
-            .innerJoin(subregions, eq(subregionPostalCodes.subregionId, subregions.id))
-            .where(inArray(subregionPostalCodes.postalCode, Array.from(uniquePostals)));
-        
-        matches.forEach(m => {
-            if (!subregionMap.has(m.postalCode)) {
-                subregionMap.set(m.postalCode, m.subregion);
-            }
-        });
+            });
+        }
     }
 
     // 3. Bulk Fetch Existing Assets (to check ownership/permissions)
-    const initialKeys = processedRows.map(r => r.externalKey).filter(Boolean);
+    const initialKeys = [...new Set(processedRows.map(r => r.externalKey).filter(Boolean))];
     const existingAssetMap = new Map();
     if (initialKeys.length > 0) {
-        const existingAssets = await db.query.hardAssets.findMany({
-            where: inArray(hardAssets.externalKey, initialKeys),
-            with: { partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } } }
-        });
-        existingAssets.forEach(a => existingAssetMap.set(a.externalKey, a));
+        for (const keyChunk of chunkArray(initialKeys, PREFETCH_BATCH_SIZE)) {
+            const existingAssets = await db.query.hardAssets.findMany({
+                where: inArray(hardAssets.externalKey, keyChunk),
+                with: { partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } } }
+            });
+            existingAssets.forEach(a => existingAssetMap.set(a.externalKey, a));
+        }
     }
 
     // 4. In-memory processing
@@ -875,6 +1025,9 @@ async function importPlaces(db, actor, rows, references, env) {
             }
 
             const finalKey = existing?.externalKey || externalKey || await buildDeterministicExternalKey('place', name);
+            if (existing?.externalKey) {
+                existingFinalKeysBeforeUpsert.add(existing.externalKey);
+            }
 
             const payload = {
                 partnerId: owner?.id || null,
@@ -914,36 +1067,36 @@ async function importPlaces(db, actor, rows, references, env) {
 
     // 5. Final Bulk Upsert
     if (payloads.length > 0) {
-        // Use onConflictDoUpdate to allow users to patch existing items via re-upload
-        const inserted = await db.insert(hardAssets)
-            .values(payloads)
-            .onConflictDoUpdate({
-                target: [hardAssets.externalKey],
-                set: {
-                    partnerId: sql`EXCLUDED.partner_id`,
-                    subregionId: sql`EXCLUDED.subregion_id`,
-                    name: sql`EXCLUDED.name`,
-                    subCategory: sql`EXCLUDED.sub_category`,
-                    address: sql`EXCLUDED.address`,
-                    lat: sql`EXCLUDED.lat`,
-                    lng: sql`EXCLUDED.lng`,
-                    phone: sql`EXCLUDED.phone`,
-                    hours: sql`EXCLUDED.hours`,
-                    website: sql`EXCLUDED.website`,
-                    description: sql`EXCLUDED.description`,
-                    logoUrl: sql`EXCLUDED.logo_url`,
-                    bannerUrl: sql`EXCLUDED.banner_url`,
-                    galleryUrls: sql`EXCLUDED.gallery_urls`,
-                    isHidden: sql`EXCLUDED.is_hidden`,
-                    hideFrom: sql`EXCLUDED.hide_from`,
-                    hideUntil: sql`EXCLUDED.hide_until`,
-                    updatedAt: sql`EXCLUDED.updated_at`
-                }
-            })
-            .returning({ id: hardAssets.id });
-        
-        report.createdCount = inserted.length;
-        report.updatedCount = Math.max(0, payloads.length - inserted.length);
+        for (const payloadChunk of chunkArray(payloads, UPSERT_BATCH_SIZE)) {
+            await db.insert(hardAssets)
+                .values(payloadChunk)
+                .onConflictDoUpdate({
+                    target: [hardAssets.externalKey],
+                    set: {
+                        partnerId: sql`EXCLUDED.partner_id`,
+                        subregionId: sql`EXCLUDED.subregion_id`,
+                        name: sql`EXCLUDED.name`,
+                        subCategory: sql`EXCLUDED.sub_category`,
+                        address: sql`EXCLUDED.address`,
+                        lat: sql`EXCLUDED.lat`,
+                        lng: sql`EXCLUDED.lng`,
+                        phone: sql`EXCLUDED.phone`,
+                        hours: sql`EXCLUDED.hours`,
+                        website: sql`EXCLUDED.website`,
+                        description: sql`EXCLUDED.description`,
+                        logoUrl: sql`EXCLUDED.logo_url`,
+                        bannerUrl: sql`EXCLUDED.banner_url`,
+                        galleryUrls: sql`EXCLUDED.gallery_urls`,
+                        isHidden: sql`EXCLUDED.is_hidden`,
+                        hideFrom: sql`EXCLUDED.hide_from`,
+                        hideUntil: sql`EXCLUDED.hide_until`,
+                        updatedAt: sql`EXCLUDED.updated_at`
+                    }
+                });
+        }
+
+        report.createdCount = payloads.filter((payload) => !existingFinalKeysBeforeUpsert.has(payload.externalKey)).length;
+        report.updatedCount = payloads.filter((payload) => existingFinalKeysBeforeUpsert.has(payload.externalKey)).length;
         report.skippedCount = 0;
     }
 
@@ -1208,6 +1361,22 @@ async function importTemplates(db, actor, rows, references, env) {
 async function importTemplateRollouts(db, actor, rows, env) {
     const report = buildImportReport('template-rollouts');
     const affectedSubregions = new Set();
+    const templateKeys = [...new Set(rows.map((row) => normalizeText(row.templateExternalKey)).filter(Boolean))];
+    const hostKeys = [...new Set(rows.map((row) => normalizeText(row.hostExternalKey)).filter(Boolean))];
+    const [templates, hosts] = await Promise.all([
+        loadTemplatesByExternalKeys(db, templateKeys),
+        loadHardAssetByExternalKeys(db, hostKeys),
+    ]);
+    const templatesByExternalKey = new Map(templates.map((parent) => [normalizeText(parent.externalKey), parent]));
+    const hostsByExternalKey = new Map(hosts.map((host) => [normalizeText(host.externalKey), host]));
+    const existingChildren = await loadExistingRolloutChildren(
+        db,
+        templates.map((parent) => parent.id),
+        hosts.map((host) => host.id),
+    );
+    const existingChildrenByPair = new Map(
+        existingChildren.map((child) => [buildRolloutPairKey(child.parentSoftAssetId, child.hostHardAssetId), child])
+    );
 
     for (const row of rows) {
         report.totalRows += 1;
@@ -1220,15 +1389,15 @@ async function importTemplateRollouts(db, actor, rows, env) {
                 throw new Error('templateExternalKey and hostExternalKey are required.');
             }
 
-            const parent = await loadTemplateByExternalKey(db, templateExternalKey);
-            if (!parent || parent.isDeleted) {
+            const parent = templatesByExternalKey.get(templateExternalKey);
+            if (!parent) {
                 throw new Error(`Template "${templateExternalKey}" was not found.`);
             }
             if (!canManageSoftAssetParent(actor, parent, parent.partner)) {
                 throw new Error('Template is outside your allowed scope.');
             }
 
-            const [host] = await loadHardAssetByExternalKeys(db, [hostExternalKey]);
+            const host = hostsByExternalKey.get(hostExternalKey);
             if (!host) {
                 throw new Error(`Host "${hostExternalKey}" was not found.`);
             }
@@ -1245,15 +1414,11 @@ async function importTemplateRollouts(db, actor, rows, env) {
                 throw new Error(`overrideFields and resetFields cannot both include: ${conflictingFields.join(', ')}.`);
             }
 
-            const existing = await db.query.softAssets.findFirst({
-                where: and(
-                    eq(softAssets.parentSoftAssetId, parent.id),
-                    eq(softAssets.hostHardAssetId, host.id),
-                    eq(softAssets.assetMode, 'child')
-                ),
-            });
+            const rolloutPairKey = buildRolloutPairKey(parent.id, host.id);
+            const existing = existingChildrenByPair.get(rolloutPairKey) || null;
 
             let child = existing;
+            let rowChanged = false;
             if (!child) {
                 const [created] = await db.insert(softAssets).values(
                     buildChildValuesFromParent(
@@ -1269,14 +1434,17 @@ async function importTemplateRollouts(db, actor, rows, env) {
                 ).returning();
                 await syncAssetTags(db, created.id, 'soft', Array.isArray(parent.tags) ? parent.tags : []);
                 child = created;
+                existingChildrenByPair.set(rolloutPairKey, created);
                 report.createdCount += 1;
-            } else {
-                report.updatedCount += 1;
+                rowChanged = true;
             }
 
             const editableBody = {};
             if (normalizeText(row.isHidden)) {
-                editableBody.isHidden = parseBoolean(row.isHidden, child.isHidden);
+                const nextHidden = parseBoolean(row.isHidden, child.isHidden);
+                if (!existing || nextHidden !== Boolean(child.isHidden)) {
+                    editableBody.isHidden = nextHidden;
+                }
             }
 
             for (const field of CHILD_OVERRIDE_FIELDS) {
@@ -1288,19 +1456,41 @@ async function importTemplateRollouts(db, actor, rows, env) {
 
             if (Object.keys(editableBody).length > 0) {
                 const patch = buildChildEditablePatch(editableBody, child);
-                patch.isDeleted = false;
-                await db.update(softAssets).set(patch).where(eq(softAssets.id, child.id));
-                child = { ...child, ...patch };
+                if (child.isDeleted) {
+                    patch.isDeleted = false;
+                }
+                if (patchHasEffectiveChanges(child, patch)) {
+                    await db.update(softAssets).set(patch).where(eq(softAssets.id, child.id));
+                    child = { ...child, ...patch };
+                    existingChildrenByPair.set(rolloutPairKey, child);
+                    rowChanged = true;
+                }
             } else if (child.isDeleted) {
                 await db.update(softAssets).set({ isDeleted: false, updatedAt: new Date() }).where(eq(softAssets.id, child.id));
                 child = { ...child, isDeleted: false };
+                existingChildrenByPair.set(rolloutPairKey, child);
+                rowChanged = true;
             }
 
             if (resetFields.length > 0) {
                 const patch = buildChildOverrideResetPatch(parent, child, resetFields);
-                patch.isDeleted = false;
-                await db.update(softAssets).set(patch).where(eq(softAssets.id, child.id));
-                child = { ...child, ...patch };
+                if (child.isDeleted) {
+                    patch.isDeleted = false;
+                }
+                if (patchHasEffectiveChanges(child, patch)) {
+                    await db.update(softAssets).set(patch).where(eq(softAssets.id, child.id));
+                    child = { ...child, ...patch };
+                    existingChildrenByPair.set(rolloutPairKey, child);
+                    rowChanged = true;
+                }
+            }
+
+            if (existing) {
+                if (rowChanged) {
+                    report.updatedCount += 1;
+                } else {
+                    report.skippedCount += 1;
+                }
             }
 
             affectedSubregions.add(host.subregionId);
@@ -1356,6 +1546,43 @@ export async function exportWorkbookData(c) {
     c.header('Content-Type', CONTENT_TYPES[format]);
     c.header('Content-Disposition', `attachment; filename="${config.fileStem}_export.${format}"`);
     return c.body(body);
+}
+
+export async function exportFilteredWorkbookData(c) {
+    try {
+        const resourceType = c.req.param('resourceType');
+        const config = RESOURCE_TYPES[resourceType];
+        if (!config) return c.json({ error: 'Unsupported workbook resource type.' }, 400);
+
+        let payload;
+        try {
+            payload = await c.req.json();
+        } catch {
+            return c.json({ error: 'Provide a JSON body with ids for filtered workbook export.' }, 400);
+        }
+
+        const format = normalizeText(payload?.format || XLSX_FORMAT).toLowerCase() || XLSX_FORMAT;
+        if (!CONTENT_TYPES[format]) return c.json({ error: 'Unsupported workbook format.' }, 400);
+
+        const orderedIds = parseFilteredExportIds(payload?.ids);
+        const actor = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const references = await buildWorkbookReferences(db);
+        const rows = await resolveTemplateExport(resourceType, db, actor, { orderedIds });
+        const referenceRows = buildReferenceRows(resourceType, references);
+        const body = format === XLSX_FORMAT
+            ? buildWorkbookBuffer(resourceType, rows, referenceRows)
+            : buildCsvBuffer(resourceType, rows);
+
+        c.header('Content-Type', CONTENT_TYPES[format]);
+        c.header('Content-Disposition', `attachment; filename="${config.fileStem}_filtered_export.${format}"`);
+        return c.body(body);
+    } catch (error) {
+        console.error('exportFilteredWorkbookData error:', error);
+        return c.json({ error: error.message || 'Failed to export filtered workbook.' }, error.status || 500);
+    }
 }
 
 export async function importWorkbookData(c) {

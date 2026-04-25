@@ -6,6 +6,8 @@ import { toPng } from 'html-to-image';
 
 import MapDirectoryExportPanel from './MapDirectoryExportPanel.jsx';
 
+const TRANSPARENT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
 function buildFileName(directoryName) {
     const slug = String(directoryName || 'carearound-directory')
         .trim()
@@ -131,7 +133,8 @@ export default function MapImageExportButton({
                 Math.ceil(exportNode.getBoundingClientRect().height),
             );
             const dataUrl = await toPng(exportRef.current, {
-                cacheBust: true,
+                cacheBust: false,
+                imagePlaceholder: TRANSPARENT_IMAGE_PLACEHOLDER,
                 pixelRatio: 2,
                 backgroundColor: '#ffffff',
                 width: exportNodeWidth,
@@ -166,7 +169,7 @@ export default function MapImageExportButton({
             {exportRoot ? createPortal(
                 <div
                     className="pointer-events-none fixed left-0 top-0 overflow-visible p-8"
-                    style={{ opacity: 0.001 }}
+                    style={{ left: '-10000px', opacity: 0.001 }}
                     aria-hidden="true"
                 >
                     <div ref={exportRef}>

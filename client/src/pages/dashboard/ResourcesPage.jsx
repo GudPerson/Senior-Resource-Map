@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Select from 'react-select';
 import Papa from 'papaparse';
@@ -234,6 +234,19 @@ function getAssetBoundaryStatus(asset) {
     return asset?.boundaryStatus || 'no-boundary';
 }
 
+function getVisiblePageRange(page, pageSize, totalCount, visibleCount) {
+    if (totalCount <= 0 || visibleCount <= 0) {
+        return { start: 0, end: 0 };
+    }
+
+    const start = ((page - 1) * pageSize) + 1;
+    const end = start + visibleCount - 1;
+    return {
+        start,
+        end: Math.min(totalCount, end),
+    };
+}
+
 function getMemberLocationBadge(membership, asset, subregions, audienceZones) {
     const postal = membership.user?.postalCode;
     if (!postal) return <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">No postal code</span>;
@@ -292,37 +305,87 @@ function getTemplateHostOptions(template, hardAssets, subregions) {
     });
 }
 
+function normalizeResourceSearchText(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[()[\]{}]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function parseResourceSearchGroups(value) {
+    const groupSeen = new Set();
+    const groups = [];
+
+    for (const rawGroup of String(value || '').split('/')) {
+        const phraseSeen = new Set();
+        const phrases = rawGroup
+            .split(',')
+            .map((phrase) => normalizeResourceSearchText(phrase))
+            .filter((phrase) => {
+                if (!phrase || phraseSeen.has(phrase)) return false;
+                phraseSeen.add(phrase);
+                return true;
+            });
+
+        if (phrases.length === 0) continue;
+
+        const groupKey = phrases.join(' && ');
+        if (groupSeen.has(groupKey)) continue;
+        groupSeen.add(groupKey);
+        groups.push(phrases);
+    }
+
+    return groups;
+}
+
+function buildResourceSearchTerms(terms) {
+    return terms
+        .flatMap((term) => (Array.isArray(term) ? term : [term]))
+        .map((term) => normalizeResourceSearchText(term))
+        .filter(Boolean);
+}
+
+function matchesResourceSearchGroups(terms, groups) {
+    if (groups.length === 0) return true;
+    const normalizedTerms = buildResourceSearchTerms(terms);
+    return groups.some((group) => group.every((phrase) => normalizedTerms.some((term) => term.includes(phrase))));
+}
+
 function filterAssetWithQuery(asset, query, boundaryChecksEnabled, boundaryFilter) {
     if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
         return false;
     }
 
     if (!query) return true;
+    const groups = parseResourceSearchGroups(query);
 
-    return (
-        asset.name?.toLowerCase().includes(query) ||
-        asset.subCategory?.toLowerCase().includes(query) ||
-        asset.postalCode?.toLowerCase().includes(query) ||
-        asset.address?.toLowerCase().includes(query) ||
-        asset.location?.name?.toLowerCase().includes(query) ||
-        asset.hostLocation?.name?.toLowerCase().includes(query) ||
-        asset.parentSummary?.name?.toLowerCase().includes(query) ||
-        asset.audienceZones?.some((zone) => zone.name?.toLowerCase().includes(query) || zone.zoneCode?.toLowerCase().includes(query)) ||
-        asset.locations?.some((location) => `${location?.name || ''} ${location?.postalCode || ''}`.toLowerCase().includes(query)) ||
-        asset.tags?.some((tag) => tag.toLowerCase().includes(query))
-    );
+    return matchesResourceSearchGroups([
+        asset.name,
+        asset.subCategory,
+        asset.postalCode,
+        asset.address,
+        asset.location?.name,
+        asset.hostLocation?.name,
+        asset.parentSummary?.name,
+        asset.audienceZones?.flatMap((zone) => [zone.name, zone.zoneCode]),
+        asset.locations?.map((location) => `${location?.name || ''} ${location?.postalCode || ''}`),
+        asset.tags,
+    ], groups);
 }
 
 function filterTemplateWithQuery(template, query) {
     if (!query) return true;
+    const groups = parseResourceSearchGroups(query);
 
-    return (
-        template.name?.toLowerCase().includes(query) ||
-        template.subCategory?.toLowerCase().includes(query) ||
-        template.partnerName?.toLowerCase().includes(query) ||
-        template.audienceZones?.some((zone) => zone.name?.toLowerCase().includes(query) || zone.zoneCode?.toLowerCase().includes(query)) ||
-        template.tags?.some((tag) => tag.toLowerCase().includes(query))
-    );
+    return matchesResourceSearchGroups([
+        template.name,
+        template.subCategory,
+        template.partnerName,
+        template.audienceZones?.flatMap((zone) => [zone.name, zone.zoneCode]),
+        template.tags,
+    ], groups);
 }
 
 function formatMembershipStatusLabel(status) {
@@ -350,6 +413,53 @@ const RESOURCE_LIST_SORT_OPTIONS = [
 
 function compareResourceListText(left, right) {
     return String(left || '').trim().toLowerCase().localeCompare(String(right || '').trim().toLowerCase());
+}
+
+function normalizePaginatedResponse(response, defaultPageSize = 500) {
+    if (Array.isArray(response)) {
+        return {
+            data: response,
+            pagination: {
+                page: 1,
+                pageSize: response.length || defaultPageSize,
+                totalCount: response.length,
+                totalPages: 1,
+            },
+        };
+    }
+
+    return {
+        data: Array.isArray(response?.data) ? response.data : [],
+        pagination: {
+            page: Number(response?.pagination?.page || 1),
+            pageSize: Number(response?.pagination?.pageSize || defaultPageSize),
+            totalCount: Number(response?.pagination?.totalCount || 0),
+            totalPages: Number(response?.pagination?.totalPages || 1),
+        },
+    };
+}
+
+async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
+    const firstResponse = normalizePaginatedResponse(await fetchPage({ ...params, page: 1, pageSize }), pageSize);
+    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
+    const combined = [firstResponse.data];
+
+    if (totalPages > 1) {
+        const remainingResponses = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, index) => fetchPage({ ...params, page: index + 2, pageSize }))
+        );
+        combined.push(...remainingResponses.map((response) => normalizePaginatedResponse(response, pageSize).data));
+    }
+
+    const flattened = combined.flatMap((page) => page);
+    const seenIds = new Set();
+    return flattened.filter((item) => {
+        const id = item?.id;
+        if (!Number.isInteger(id)) return true;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+    });
 }
 
 function getResourceUpdatedTime(asset) {
@@ -434,18 +544,33 @@ export default function ResourcesPage() {
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
     const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
+    const [exportingFilteredWorkbook, setExportingFilteredWorkbook] = useState(false);
     const [hardAssetsPage, setHardAssetsPage] = useState(1);
     const [softAssetsPage, setSoftAssetsPage] = useState(1);
     const [hardAssetsTotal, setHardAssetsTotal] = useState(0);
     const [softAssetsTotal, setSoftAssetsTotal] = useState(0);
     const [hardAssetsPageSize] = useState(50);
     const [softAssetsPageSize] = useState(50);
+    const loadRequestIdRef = useRef(0);
 
     const normalizedRole = normalizeRole(user?.role);
     const isStandardUser = isStandardUserRole(user?.role);
     const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner';
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const normalizedQuery = deferredSearchTerm.trim().toLowerCase();
+    const needsFullAssetDataset = !isStandardUser || Boolean(normalizedQuery) || (boundaryChecksEnabled && boundaryFilter !== 'all');
+    const assetLoadKey = useMemo(() => (
+        needsFullAssetDataset
+            ? ['full', normalizedRole, user?.id || 'anon'].join(':')
+            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon'].join(':')
+    ), [
+        hardAssetsPage,
+        needsFullAssetDataset,
+        normalizedQuery,
+        normalizedRole,
+        softAssetsPage,
+        user?.id,
+    ]);
 
     useEffect(() => {
         if (!actionNotice) return undefined;
@@ -454,11 +579,17 @@ export default function ResourcesPage() {
     }, [actionNotice]);
 
     async function load() {
+        const requestId = loadRequestIdRef.current + 1;
+        loadRequestIdRef.current = requestId;
         setLoading(true);
         try {
             const requests = [
-                api.getHardAssets({ page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
-                api.getSoftAssets({ page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
+                needsFullAssetDataset
+                    ? fetchAllPaginatedResults(api.getHardAssets)
+                    : api.getHardAssets({ page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
+                needsFullAssetDataset
+                    ? fetchAllPaginatedResults(api.getSoftAssets)
+                    : api.getSoftAssets({ page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
             ];
 
             if (!isStandardUser) {
@@ -474,6 +605,7 @@ export default function ResourcesPage() {
             }
 
             const responses = await Promise.all(requests);
+            if (requestId !== loadRequestIdRef.current) return;
             let cursor = 0;
             const hard = responses[cursor++] || [];
             const soft = responses[cursor++] || [];
@@ -486,36 +618,38 @@ export default function ResourcesPage() {
             const fetchedPartnerBoundary = normalizedRole === 'partner'
                 ? (responses[cursor++] || null)
                 : null;
+            const hardResponse = normalizePaginatedResponse(hard, hardAssetsPageSize);
+            const softResponse = normalizePaginatedResponse(soft, softAssetsPageSize);
+            const hardData = hardResponse.data || [];
+            const softData = softResponse.data || [];
 
             if (isStandardUser) {
                 const favorites = await api.getFavorites();
                 const favoriteHardIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'hard').map((favorite) => favorite.resourceId));
                 const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
-                
-                const hardRes = await api.getHardAssets({ q: normalizedQuery });
-                const softRes = await api.getSoftAssets({ q: normalizedQuery });
-                const hard = hardRes.data || [];
-                const soft = softRes.data || [];
 
-                setHardAssets(hard.filter((asset) => favoriteHardIds.has(asset.id)));
-                setSoftAssets(soft.filter((asset) => favoriteSoftIds.has(asset.id)));
-                setHardAssetsTotal(hardRes.pagination?.totalCount || 0);
-                setSoftAssetsTotal(softRes.pagination?.totalCount || 0);
+                const favoriteHardAssets = hardData.filter((asset) => favoriteHardIds.has(asset.id));
+                const favoriteSoftAssets = softData.filter((asset) => favoriteSoftIds.has(asset.id));
+
+                setHardAssets(favoriteHardAssets);
+                setSoftAssets(favoriteSoftAssets);
+                setHardAssetsTotal(favoriteHardAssets.length);
+                setSoftAssetsTotal(favoriteSoftAssets.length);
                 setSoftAssetParents([]);
                 setAudienceZones([]);
             } else {
                 if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                    setHardAssets(hard.data || []);
-                    setSoftAssets(soft.data || []);
-                    setHardAssetsTotal(hard.pagination?.totalCount || 0);
-                    setSoftAssetsTotal(soft.pagination?.totalCount || 0);
+                    setHardAssets(hardData);
+                    setSoftAssets(softData);
+                    setHardAssetsTotal(needsFullAssetDataset ? hardData.length : (hardResponse.pagination?.totalCount || 0));
+                    setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
                 } else {
-                    const hardData = hard.data || [];
-                    const softData = soft.data || [];
-                    setHardAssets(hardData.filter((asset) => asset.partnerId === user.id));
-                    setSoftAssets(softData.filter((asset) => asset.partnerId === user.id));
-                    setHardAssetsTotal(hard.pagination?.totalCount || 0);
-                    setSoftAssetsTotal(soft.pagination?.totalCount || 0);
+                    const partnerHardAssets = hardData.filter((asset) => asset.partnerId === user.id);
+                    const partnerSoftAssets = softData.filter((asset) => asset.partnerId === user.id);
+                    setHardAssets(partnerHardAssets);
+                    setSoftAssets(partnerSoftAssets);
+                    setHardAssetsTotal(needsFullAssetDataset ? partnerHardAssets.length : (hardResponse.pagination?.totalCount || 0));
+                    setSoftAssetsTotal(needsFullAssetDataset ? partnerSoftAssets.length : (softResponse.pagination?.totalCount || 0));
                 }
                 setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             }
@@ -538,10 +672,13 @@ export default function ResourcesPage() {
                 setPartnerBoundary(fetchedPartnerBoundary);
             }
         } catch (err) {
+            if (requestId !== loadRequestIdRef.current) return;
             console.error(err);
             setActionNotice({ type: 'warning', message: err.message || 'Failed to load assets.' });
         } finally {
-            setLoading(false);
+            if (requestId === loadRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     }
 
@@ -549,7 +686,12 @@ export default function ResourcesPage() {
         if (isStandardUser) return undefined;
         load();
         return undefined;
-    }, [isStandardUser, hardAssetsPage, softAssetsPage, normalizedQuery]);
+    }, [assetLoadKey, isStandardUser]);
+
+    useEffect(() => {
+        setHardAssetsPage(1);
+        setSoftAssetsPage(1);
+    }, [boundaryFilter, normalizedQuery]);
 
     useEffect(() => {
         if (isStandardUser && activeTab === 'templates') {
@@ -565,28 +707,18 @@ export default function ResourcesPage() {
 
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
-            hardAssets.filter((asset) => {
-                if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
-                    return false;
-                }
-                return true;
-            }),
+            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, hardAssets, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, sortOrder]
     );
 
     const filteredSoftAssets = useMemo(
         () => sortResourceItems(
-            softAssets.filter((asset) => {
-                if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
-                    return false;
-                }
-                return true;
-            }),
+            softAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, softAssets, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, softAssets, sortOrder]
     );
 
     const filteredTemplates = useMemo(
@@ -596,6 +728,62 @@ export default function ResourcesPage() {
         ),
         [normalizedQuery, softAssetParents, sortOrder]
     );
+    const hardUsesClientOnlyFilter = needsFullAssetDataset;
+    const softUsesClientOnlyFilter = needsFullAssetDataset;
+    const visibleHardAssets = useMemo(
+        () => (
+            hardUsesClientOnlyFilter
+                ? filteredHardAssets.slice((hardAssetsPage - 1) * hardAssetsPageSize, hardAssetsPage * hardAssetsPageSize)
+                : filteredHardAssets
+        ),
+        [filteredHardAssets, hardAssetsPage, hardAssetsPageSize, hardUsesClientOnlyFilter]
+    );
+    const visibleSoftAssets = useMemo(
+        () => (
+            softUsesClientOnlyFilter
+                ? filteredSoftAssets.slice((softAssetsPage - 1) * softAssetsPageSize, softAssetsPage * softAssetsPageSize)
+                : filteredSoftAssets
+        ),
+        [filteredSoftAssets, softAssetsPage, softAssetsPageSize, softUsesClientOnlyFilter]
+    );
+    const hardTabCount = hardUsesClientOnlyFilter ? filteredHardAssets.length : hardAssetsTotal;
+    const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
+    const hardPageRange = getVisiblePageRange(hardAssetsPage, hardAssetsPageSize, hardTabCount, visibleHardAssets.length);
+    const softPageRange = getVisiblePageRange(softAssetsPage, softAssetsPageSize, softTabCount, visibleSoftAssets.length);
+    const canExportFilteredWorkbook = !isStandardUser && ['super_admin', 'regional_admin', 'partner'].includes(normalizedRole);
+    const activeFilteredExportCount = activeTab === 'hard'
+        ? hardTabCount
+        : activeTab === 'soft'
+            ? softTabCount
+            : filteredTemplates.length;
+
+    function scopeHardAssetsForCurrentUser(items) {
+        if (normalizedRole !== 'partner') return items;
+        return items.filter((asset) => asset.partnerId === user?.id);
+    }
+
+    function scopeSoftAssetsForCurrentUser(items) {
+        if (normalizedRole !== 'partner') return items;
+        return items.filter((asset) => asset.partnerId === user?.id);
+    }
+
+    async function resolveHardAssetsForFilteredExport() {
+        if (hardUsesClientOnlyFilter) return filteredHardAssets;
+        const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets);
+        return sortResourceItems(
+            scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            sortOrder,
+        );
+    }
+
+    async function resolveSoftAssetsForFilteredExport() {
+        if (softUsesClientOnlyFilter) return filteredSoftAssets;
+        const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets);
+        return sortResourceItems(
+            scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            sortOrder,
+        );
+    }
 
     async function refreshTemplateDetail(templateId) {
         if (!templateId) return null;
@@ -932,7 +1120,7 @@ export default function ResourcesPage() {
     }
 
     function downloadFile(content, fileName, mimeType = 'text/csv;charset=utf-8') {
-        const blob = new Blob([content], { type: mimeType });
+        const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -960,6 +1148,91 @@ export default function ResourcesPage() {
             data: (partnerBoundary.postalCodes || []).map((postalCode) => [partnerBoundary.partnerUsername, postalCode]),
         });
         downloadFile(`\uFEFF${csv}`, `${partnerBoundary.partnerUsername || 'partner'}_boundary_export.csv`);
+    }
+
+    async function handleExportFilteredWorkbook() {
+        if (!canExportFilteredWorkbook || exportingFilteredWorkbook) return;
+
+        const uniqueIdsInOrder = (items) => {
+            const seen = new Set();
+            return items
+                .map((item) => item?.id)
+                .filter((id) => Number.isInteger(id) && !seen.has(id) && seen.add(id));
+        };
+
+        const completedExports = [];
+        setExportingFilteredWorkbook(true);
+
+        try {
+            const exportJobs = [];
+            if (activeTab === 'hard') {
+                const exportableHardAssets = await resolveHardAssetsForFilteredExport();
+                const ids = uniqueIdsInOrder(exportableHardAssets);
+                if (ids.length > 0) {
+                    exportJobs.push({
+                        resourceType: 'places',
+                        ids,
+                        summary: `${ids.length} place${ids.length === 1 ? '' : 's'}`,
+                    });
+                }
+            } else if (activeTab === 'soft') {
+                const exportableSoftAssets = await resolveSoftAssetsForFilteredExport();
+                const standaloneIds = uniqueIdsInOrder(exportableSoftAssets.filter((asset) => asset.assetMode !== 'child'));
+                const rolloutIds = uniqueIdsInOrder(exportableSoftAssets.filter((asset) => asset.assetMode === 'child'));
+
+                if (standaloneIds.length > 0) {
+                    exportJobs.push({
+                        resourceType: 'standalone-offerings',
+                        ids: standaloneIds,
+                        summary: `${standaloneIds.length} standalone offering${standaloneIds.length === 1 ? '' : 's'}`,
+                    });
+                }
+                if (rolloutIds.length > 0) {
+                    exportJobs.push({
+                        resourceType: 'template-rollouts',
+                        ids: rolloutIds,
+                        summary: `${rolloutIds.length} template rollout${rolloutIds.length === 1 ? '' : 's'}`,
+                    });
+                }
+            } else {
+                const ids = uniqueIdsInOrder(filteredTemplates);
+                if (ids.length > 0) {
+                    exportJobs.push({
+                        resourceType: 'templates',
+                        ids,
+                        summary: `${ids.length} template${ids.length === 1 ? '' : 's'}`,
+                    });
+                }
+            }
+
+            if (exportJobs.length === 0) {
+                setActionNotice({ type: 'warning', message: 'No filtered workbook rows available to export.' });
+                return;
+            }
+
+            for (const job of exportJobs) {
+                const { blob, fileName, contentType } = await api.exportFilteredWorkbook(job.resourceType, job.ids, 'xlsx');
+                downloadFile(blob, fileName || `${job.resourceType}_filtered_export.xlsx`, contentType);
+                completedExports.push(job.summary);
+            }
+
+            setActionNotice({
+                type: 'success',
+                message: completedExports.length === 1
+                    ? `Exported filtered workbook for ${completedExports[0]}.`
+                    : `Exported filtered workbooks for ${completedExports.join(' and ')}.`,
+            });
+        } catch (err) {
+            const partialMessage = completedExports.length > 0
+                ? `Downloaded ${completedExports.join(' and ')} before the export stopped. `
+                : '';
+            setActionNotice({
+                type: 'warning',
+                message: `${partialMessage}${err.message || 'Failed to export filtered workbook.'}`,
+            });
+        } finally {
+            setExportingFilteredWorkbook(false);
+        }
     }
 
     function handlePartnerBoundaryUpload(e) {
@@ -1042,8 +1315,8 @@ export default function ResourcesPage() {
     }
 
     const searchPlaceholder = activeTab === 'templates'
-        ? 'Search templates by name, category, owner, or tag...'
-        : 'Search assets by name, category, postal code, or tag...';
+        ? 'Search templates by name, category, owner, or tag. Use , for all and / for any'
+        : 'Search assets by name, category, postal code, or tag. Use , for all and / for any';
 
     const generateHostOptions = useMemo(() => {
         if (!generateModal?.template) return [];
@@ -1223,6 +1496,21 @@ export default function ResourcesPage() {
                             <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                     </select>
+                    {canExportFilteredWorkbook ? (
+                        <button
+                            type="button"
+                            onClick={handleExportFilteredWorkbook}
+                            disabled={exportingFilteredWorkbook || activeFilteredExportCount === 0}
+                            className="btn-ghost min-h-[44px] justify-center px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 xl:w-auto"
+                        >
+                            {exportingFilteredWorkbook ? (
+                                <RefreshCw size={16} className="animate-spin" />
+                            ) : (
+                                <Download size={16} />
+                            )}
+                            Export filtered workbook
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -1243,7 +1531,7 @@ export default function ResourcesPage() {
                         }`}
                     >
                         <Building2 size={18} strokeWidth={activeTab === 'hard' ? 2.5 : 2} />
-                        Places ({filteredHardAssets.length})
+                        Places ({hardTabCount})
                     </button>
                     <button
                         onClick={() => setActiveTab('soft')}
@@ -1254,7 +1542,7 @@ export default function ResourcesPage() {
                         }`}
                     >
                         <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
-                        Offerings ({filteredSoftAssets.length})
+                        Offerings ({softTabCount})
                     </button>
                     {!isStandardUser ? (
                         <button
@@ -1290,7 +1578,7 @@ export default function ResourcesPage() {
                     />
                 ) : isStandardUser ? (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredHardAssets.map((asset) => (
+                        {visibleHardAssets.map((asset) => (
                             <AssetCard
                                 key={asset.id}
                                 asset={asset}
@@ -1305,7 +1593,10 @@ export default function ResourcesPage() {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {filteredHardAssets.map((asset) => {
+                        <p className="text-sm text-slate-500">
+                            Showing {hardPageRange.start}-{hardPageRange.end} of {hardTabCount} places
+                        </p>
+                        {visibleHardAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canShowMembers = typeof asset.membershipCount === 'number';
 
@@ -1589,11 +1880,11 @@ export default function ResourcesPage() {
                                 </div>
                             );
                         })}
-                        <Pagination 
-                            totalCount={hardAssetsTotal} 
-                            pageSize={hardAssetsPageSize} 
-                            currentPage={hardAssetsPage} 
-                            onPageChange={setHardAssetsPage} 
+                        <Pagination
+                            totalCount={hardTabCount}
+                            pageSize={hardAssetsPageSize}
+                            currentPage={hardAssetsPage}
+                            onPageChange={setHardAssetsPage}
                         />
                     </div>
                 )
@@ -1611,7 +1902,7 @@ export default function ResourcesPage() {
                     />
                 ) : isStandardUser ? (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredSoftAssets.map((asset) => (
+                        {visibleSoftAssets.map((asset) => (
                             <AssetCard
                                 key={asset.id}
                                 asset={asset}
@@ -1626,7 +1917,10 @@ export default function ResourcesPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        {filteredSoftAssets.map((asset) => {
+                        <p className="md:col-span-2 text-sm text-slate-500">
+                            Showing {softPageRange.start}-{softPageRange.end} of {softTabCount} offerings
+                        </p>
+                        {visibleSoftAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
                             const isChild = asset.assetMode === 'child';
                             const isVisibilitySaving = visibilityActionKey === getVisibilityActionKey('soft', asset.id);
@@ -1728,11 +2022,11 @@ export default function ResourcesPage() {
                                 </div>
                             );
                         })}
-                        <Pagination 
-                            totalCount={softAssetsTotal} 
-                            pageSize={softAssetsPageSize} 
-                            currentPage={softAssetsPage} 
-                            onPageChange={setSoftAssetsPage} 
+                        <Pagination
+                            totalCount={softTabCount}
+                            pageSize={softAssetsPageSize}
+                            currentPage={softAssetsPage}
+                            onPageChange={setSoftAssetsPage}
                         />
                     </div>
                 )

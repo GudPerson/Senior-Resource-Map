@@ -5,6 +5,7 @@ export default function DirectoryQrCode({
     value,
     className = '',
     compact = false,
+    compactSize = 'default',
 }) {
     const [src, setSrc] = useState('');
 
@@ -48,12 +49,20 @@ export default function DirectoryQrCode({
     if (!value) return null;
 
     if (compact) {
+        const compactShellClassName = compactSize === 'sm'
+            ? 'h-[88px] w-[88px] rounded-[14px]'
+            : 'h-[92px] w-[92px] rounded-[16px]';
+        const compactImageClassName = compactSize === 'sm' ? 'h-[72px] w-[72px]' : 'h-[72px] w-[72px]';
+        const compactPlaceholderClassName = compactSize === 'sm'
+            ? 'h-[72px] w-[72px]'
+            : 'h-[72px] w-[72px]';
+
         return (
-            <div className={`flex h-[92px] w-[92px] items-center justify-center rounded-[16px] border border-slate-200 bg-white ${className}`}>
+            <div className={`flex items-center justify-center border border-slate-200 bg-white ${compactShellClassName} ${className}`}>
                 {src ? (
-                    <img src={src} alt="QR code linking to the interactive directory" className="h-[72px] w-[72px]" />
+                    <img src={src} alt="QR code linking to the interactive directory" className={compactImageClassName} />
                 ) : (
-                    <div className="h-[72px] w-[72px] animate-pulse rounded-xl bg-slate-200" />
+                    <div className={`${compactPlaceholderClassName} animate-pulse rounded-xl bg-slate-200`} />
                 )}
             </div>
         );

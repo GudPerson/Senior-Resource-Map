@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Minus, Plus } from 'lucide-react';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
@@ -22,45 +23,90 @@ const ANCHOR_ONLY_ZOOM = 15;
 const DESKTOP_FIT_MAX_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const MOBILE_FIT_MAX_ZOOM = 18;
 const DESKTOP_GROUP_FOCUS_MAX_ZOOM = 17;
-const DESKTOP_FIT_PADDING_TOP_LEFT = [24, 24];
-const DESKTOP_FIT_PADDING_BOTTOM_RIGHT = [24, 24];
+const DESKTOP_FIT_PADDING_TOP_LEFT = [18, 18];
+const DESKTOP_FIT_PADDING_BOTTOM_RIGHT = [18, 18];
+const DESKTOP_ANCHOR_FIT_PADDING_TOP_LEFT = [24, 24];
+const DESKTOP_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [40, 60];
 const DESKTOP_GROUP_FOCUS_PADDING_TOP_LEFT = [40, 40];
 const DESKTOP_GROUP_FOCUS_PADDING_BOTTOM_RIGHT = [40, 40];
-const MOBILE_FIT_PADDING_TOP_LEFT = [16, 56];
-const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [16, 24];
+const MOBILE_FIT_PADDING_TOP_LEFT = [12, 24];
+const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [12, 24];
+const MOBILE_ANCHOR_FIT_PADDING_TOP_LEFT = [20, 60];
+const MOBILE_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [28, 92];
 const SINGLE_PIN_FOCUS_NOOP_DISTANCE_PX = 4;
 const SINGLE_PIN_FOCUS_SETTLE_DISTANCE_PX = 22;
 const SINGLE_PIN_FOCUS_SETTLE_ZOOM_DELTA = 0.18;
+
+function renderLocationAnchorGlyph(isHome) {
+    if (isHome) {
+        return `
+            <img
+                src="${homeAnchorImage}"
+                alt=""
+                style="width:36px;height:36px;display:block;filter:drop-shadow(0 12px 20px rgba(15,118,110,0.24));"
+            />
+        `;
+    }
+
+    return `
+        <svg viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true" style="display:block;">
+            <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" fill="#f35f68" />
+        </svg>
+    `;
+}
 
 function createLocationAnchorIcon(anchorPoint = null) {
     const isHome = anchorPoint?.source === 'home' || anchorPoint?.kind === 'home';
     const ringColor = '#0f766e';
     const shellColor = '#ffffff';
-    const glyphColor = '#e11d48';
-    const haloColor = isHome ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.18)';
-    const iconSvg = isHome
-        ? `
-            <img src="${homeAnchorImage}" alt="" style="width:36px;height:36px;display:block;filter:drop-shadow(0 12px 20px rgba(15,118,110,0.24));" />
-        `
-        : `
-            <svg viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true">
-                <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" fill="${glyphColor}" />
-            </svg>
-        `;
+    const haloColor = isHome ? 'rgba(249,115,22,0.34)' : 'rgba(249,115,22,0.28)';
+    const pinScale = isHome ? 1.04 : 1;
+    const pulseBump = isHome ? 0.09 : 0.08;
+    const coreSize = isHome ? 38 : 34;
+    const topOffset = isHome ? 4 : 6;
 
     return L.divIcon({
         className: '',
         html: `
-            <div aria-hidden="true" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
-                <div style="position:absolute;inset:${isHome ? '1px' : '2px'};border-radius:999px;background:${haloColor};"></div>
-                <div style="position:relative;z-index:1;width:${isHome ? '36px' : '34px'};height:${isHome ? '36px' : '34px'};${isHome ? '' : `border-radius:999px;background:${shellColor};border:4px solid ${ringColor};box-shadow:0 12px 24px rgba(15,118,110,0.24);`}display:flex;align-items:center;justify-content:center;overflow:visible;">
-                    ${iconSvg}
+            <div
+                aria-hidden="true"
+                class="saved-place-pin-marker saved-place-pin-marker--primary saved-place-pin-marker--location-anchor"
+                style="
+                    position:relative;
+                    width:52px;
+                    height:58px;
+                    overflow:visible;
+                    pointer-events:none;
+                    --saved-pin-scale:${pinScale};
+                    --saved-pin-pulse-bump:${pulseBump};
+                    --saved-pin-halo-color:${haloColor};
+                "
+            >
+                <div
+                    class="saved-place-pin-marker__pin"
+                    style="position:absolute;inset:0;z-index:1;display:flex;align-items:flex-start;justify-content:center;padding-top:${topOffset}px;"
+                >
+                    <div
+                        style="
+                            width:${coreSize}px;
+                            height:${coreSize}px;
+                            border-radius:999px;
+                            background:${shellColor};
+                            ${isHome ? '' : `border:4px solid ${ringColor};box-shadow:0 12px 24px rgba(15,118,110,0.24);`}
+                            display:flex;
+                            align-items:center;
+                            justify-content:center;
+                            overflow:visible;
+                        "
+                    >
+                        ${renderLocationAnchorGlyph(isHome)}
+                    </div>
                 </div>
             </div>
         `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -20],
+        iconSize: [52, 58],
+        iconAnchor: [26, 23],
+        popupAnchor: [0, -24],
     });
 }
 
@@ -81,15 +127,15 @@ function buildAnchorSignature(anchorPoint = null) {
     ].join(':');
 }
 
-function getCameraPoints(savedPlacePins = [], anchorPoint = null) {
+function getCameraPoints(savedPlacePins = [], anchorPoint = null, { includeAnchorInBounds = true } = {}) {
     const points = savedPlacePins.map((pin) => [pin.lat, pin.lng]);
-    if (anchorPoint) {
+    if (anchorPoint && includeAnchorInBounds) {
         points.push([anchorPoint.lat, anchorPoint.lng]);
     }
     return points;
 }
 
-function getFitConfig(interactionMode) {
+function getFitConfig(interactionMode, hasAnchor = false) {
     if (interactionMode === 'desktop') {
         return {
             maxZoom: DESKTOP_FIT_MAX_ZOOM,
@@ -105,7 +151,43 @@ function getFitConfig(interactionMode) {
     };
 }
 
-function fitCameraTargets(map, savedPlacePins, anchorPoint, interactionMode) {
+function getAnchorViewportPadding(interactionMode) {
+    if (interactionMode === 'desktop') {
+        return {
+            paddingTopLeft: DESKTOP_ANCHOR_FIT_PADDING_TOP_LEFT,
+            paddingBottomRight: DESKTOP_ANCHOR_FIT_PADDING_BOTTOM_RIGHT,
+        };
+    }
+
+    return {
+        paddingTopLeft: MOBILE_ANCHOR_FIT_PADDING_TOP_LEFT,
+        paddingBottomRight: MOBILE_ANCHOR_FIT_PADDING_BOTTOM_RIGHT,
+    };
+}
+
+function queueAnchorVisibilityPan(map, anchorPoint, interactionMode) {
+    if (!anchorPoint) return;
+
+    const anchorLatLng = L.latLng(anchorPoint.lat, anchorPoint.lng);
+    const anchorPadding = getAnchorViewportPadding(interactionMode);
+
+    map.once('moveend', () => {
+        map.panInside(anchorLatLng, {
+            animate: true,
+            duration: 0.28,
+            paddingTopLeft: anchorPadding.paddingTopLeft,
+            paddingBottomRight: anchorPadding.paddingBottomRight,
+        });
+    });
+}
+
+function fitCameraTargets(
+    map,
+    savedPlacePins,
+    anchorPoint,
+    interactionMode,
+    { includeAnchorInBounds = true, keepAnchorVisible = true } = {},
+) {
     const size = map.getSize();
     if (!size?.x || !size?.y) {
         map.invalidateSize(false);
@@ -126,11 +208,14 @@ function fitCameraTargets(map, savedPlacePins, anchorPoint, interactionMode) {
         return true;
     }
 
-    const points = getCameraPoints(savedPlacePins, anchorPoint);
+    const points = getCameraPoints(savedPlacePins, anchorPoint, { includeAnchorInBounds });
     if (!points.length) return false;
 
     const bounds = L.latLngBounds(points);
     const fitConfig = getFitConfig(interactionMode);
+    if (keepAnchorVisible) {
+        queueAnchorVisibilityPan(map, anchorPoint, interactionMode);
+    }
     map.flyToBounds(bounds, {
         animate: true,
         duration: 0.8,
@@ -188,7 +273,16 @@ function focusMapRequest(map, focusRequest, interactionMode) {
     }
 
     if (focusRequest.kind === 'saved-fit') {
-        return fitCameraTargets(map, focusRequest.savedPlacePins || [], focusRequest.anchorPoint || null, interactionMode);
+        return fitCameraTargets(
+            map,
+            focusRequest.savedPlacePins || [],
+            focusRequest.anchorPoint || null,
+            interactionMode,
+            {
+                includeAnchorInBounds: focusRequest.includeAnchorInBounds ?? false,
+                keepAnchorVisible: focusRequest.keepAnchorVisible ?? true,
+            },
+        );
     }
 
     const fitConfig = getFitConfig(interactionMode);
@@ -209,11 +303,12 @@ function focusMapRequest(map, focusRequest, interactionMode) {
     return true;
 }
 
-function SavedMapCameraController({ baseAnchorPoint = null, focusRequest, interactionMode, savedPlacePins }) {
+function SavedMapCameraController({ baseAnchorPoint = null, focusRequest, interactionMode, layoutSignature = 'default', savedPlacePins }) {
     const map = useMap();
     const lastFitSignatureRef = useRef('');
     const lastSavedSignatureRef = useRef('');
     const lastFocusRequestIdRef = useRef(null);
+    const lastLayoutSignatureRef = useRef(layoutSignature);
     const suppressInitialFitRef = useRef(false);
 
     useEffect(() => {
@@ -267,7 +362,10 @@ function SavedMapCameraController({ baseAnchorPoint = null, focusRequest, intera
         let frameId = null;
 
         const attemptFit = () => {
-            if (fitCameraTargets(map, savedPlacePins, baseAnchorPoint, interactionMode)) {
+            if (fitCameraTargets(map, savedPlacePins, baseAnchorPoint, interactionMode, {
+                includeAnchorInBounds: false,
+                keepAnchorVisible: false,
+            })) {
                 lastFitSignatureRef.current = nextSignature;
                 return;
             }
@@ -283,6 +381,46 @@ function SavedMapCameraController({ baseAnchorPoint = null, focusRequest, intera
             }
         };
     }, [baseAnchorPoint, interactionMode, map, savedPlacePins]);
+
+    useEffect(() => {
+        if (layoutSignature === lastLayoutSignatureRef.current) return undefined;
+
+        lastLayoutSignatureRef.current = layoutSignature;
+
+        if (!savedPlacePins.length && !baseAnchorPoint && !focusRequest) {
+            return undefined;
+        }
+
+        let frameOneId = null;
+        let frameTwoId = null;
+
+        const reapplyCamera = () => {
+            map.invalidateSize(false);
+
+            frameTwoId = window.requestAnimationFrame(() => {
+                if (focusRequest) {
+                    focusMapRequest(map, focusRequest, interactionMode);
+                    return;
+                }
+
+                fitCameraTargets(map, savedPlacePins, baseAnchorPoint, interactionMode, {
+                    includeAnchorInBounds: false,
+                    keepAnchorVisible: false,
+                });
+            });
+        };
+
+        frameOneId = window.requestAnimationFrame(reapplyCamera);
+
+        return () => {
+            if (frameOneId !== null) {
+                window.cancelAnimationFrame(frameOneId);
+            }
+            if (frameTwoId !== null) {
+                window.cancelAnimationFrame(frameTwoId);
+            }
+        };
+    }, [baseAnchorPoint, focusRequest, interactionMode, layoutSignature, map, savedPlacePins]);
 
     return null;
 }
@@ -368,14 +506,76 @@ function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPi
     return null;
 }
 
+function DiscoveryMapControlStack({ canReset = false, onResetView }) {
+    const map = useMap();
+
+    return (
+        <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
+            <div className="flex flex-col gap-2">
+                <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
+                    <button
+                        type="button"
+                        title="Zoom in"
+                        aria-label="Zoom in"
+                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            map.zoomIn();
+                        }}
+                    >
+                        <Plus size={18} />
+                    </button>
+                </div>
+                <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
+                    <button
+                        type="button"
+                        title="Zoom out"
+                        aria-label="Zoom out"
+                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            map.zoomOut();
+                        }}
+                    >
+                        <Minus size={18} />
+                    </button>
+                </div>
+                {canReset ? (
+                    <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
+                        <button
+                            type="button"
+                            title="Reset map view"
+                            aria-label="Reset map view"
+                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                onResetView?.();
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M15 21h6v-6M9 3H3v6M21 21l-7-7M3 3l7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 export function DiscoveryMap({
     cameraAnchor = null,
     focusRequest = null,
     interactionMode = 'desktop',
+    layoutSignature = 'default',
     onBackgroundClick,
     onMapHoverEnd,
     onMapHoverStart,
     onMapMoveEnd,
+    onResetView,
     onTrackedPinLayoutChange,
     onSelectGroupPin,
     onSelectPin,
@@ -413,6 +613,7 @@ export function DiscoveryMap({
                     baseAnchorPoint={cameraAnchor}
                     focusRequest={focusRequest}
                     interactionMode={interactionMode}
+                    layoutSignature={layoutSignature}
                     savedPlacePins={savedPlacePins}
                 />
                 <TrackedPinLayoutReporter
@@ -425,10 +626,13 @@ export function DiscoveryMap({
                     onBackgroundClick={onBackgroundClick} 
                     onMapMoveEnd={onMapMoveEnd}
                 />
+                <DiscoveryMapControlStack
+                    canReset={Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor))}
+                    onResetView={onResetView}
+                />
                 {renderedPins.map((pin) => {
                     const markerKey = pin.pinKey;
                     const emphasis = emphasisLookup.get(markerKey) || 'default';
-                    const isTransient = pin.tone === 'temporary' || pin.isTransient;
                     const isPostalGroup = pin.kind === 'postal-group';
                     const baseZIndexOffset = isPostalGroup ? 800 : (pin.isExpandedChild ? 1000 : 900);
                     const zIndexOffset = emphasis === 'primary'
@@ -457,7 +661,7 @@ export function DiscoveryMap({
                             position={[pin.displayLat ?? pin.lat, pin.displayLng ?? pin.lng]}
                             icon={icon}
                             zIndexOffset={zIndexOffset}
-                            eventHandlers={isTransient ? undefined : {
+                            eventHandlers={{
                                 click: (event) => {
                                     event.originalEvent?.stopPropagation?.();
                                     if (isPostalGroup) {

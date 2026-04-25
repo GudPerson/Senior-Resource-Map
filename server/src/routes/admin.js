@@ -8,6 +8,7 @@ router.use('*', authenticateToken, isAdmin);
 
 router.get('/workbooks/:resourceType/template', workbookController.downloadWorkbookTemplate);
 router.get('/workbooks/:resourceType/export', workbookController.exportWorkbookData);
+router.post('/workbooks/:resourceType/export-filtered', workbookController.exportFilteredWorkbookData);
 router.post('/imports/:resourceType', workbookController.importWorkbookData);
 
 export default router;

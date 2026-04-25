@@ -25,6 +25,9 @@ const DIRECTORY_ANCHOR_ONLY_ZOOM = 15;
 const DIRECTORY_FIT_PADDING_TOP_LEFT = [44, 44];
 const DIRECTORY_FIT_PADDING_BOTTOM_RIGHT = [44, 52];
 const DIRECTORY_CLUSTER_BOUNDS_PADDING = [56, 56];
+const DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT = [72, 118];
+const DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT = [72, 84];
+const DIRECTORY_COMPACT_MAP_HEIGHT = 380;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -353,6 +356,27 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
                 cluster.spiderfy();
                 return;
             }
+            if (mapInstance && typeof mapInstance.fitBounds === 'function' && typeof cluster.getAllChildMarkers === 'function') {
+                const childPoints = cluster.getAllChildMarkers()
+                    .map((marker) => marker.getLatLng?.())
+                    .filter(Boolean);
+                const bounds = childPoints.length ? L.latLngBounds(childPoints) : null;
+                const mapSize = typeof mapInstance.getSize === 'function' ? mapInstance.getSize() : null;
+
+                if (bounds?.isValid?.()) {
+                    const compactMap = mapSize?.y && mapSize.y <= DIRECTORY_COMPACT_MAP_HEIGHT;
+                    mapInstance.fitBounds(bounds, compactMap
+                        ? {
+                            paddingTopLeft: DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT,
+                            paddingBottomRight: DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT,
+                            maxZoom: 17,
+                        }
+                        : {
+                            padding: DIRECTORY_CLUSTER_BOUNDS_PADDING,
+                        });
+                    return;
+                }
+            }
             if (typeof cluster.zoomToBounds === 'function') {
                 cluster.zoomToBounds({ padding: DIRECTORY_CLUSTER_BOUNDS_PADDING });
             }
@@ -492,6 +516,7 @@ export default function DirectoryMap({
     showPopup = true,
     showZoomControl = interactive,
     showAttribution = true,
+    showProviderBadgeLogo = true,
     mapHeightClassName = 'h-[340px]',
     onMapReadyForCapture,
     onMapCaptureError,
@@ -729,7 +754,7 @@ export default function DirectoryMap({
                 ) : null}
                 {renderedMarkers}
             </MapContainer>
-            <OneMapBadge />
+            <OneMapBadge showLogo={showProviderBadgeLogo} />
         </div>
     );
 }

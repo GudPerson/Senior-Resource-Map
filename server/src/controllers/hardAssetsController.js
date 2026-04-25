@@ -423,7 +423,7 @@ export const getHardAssets = async (c) => {
                     },
                 },
             },
-            orderBy: [desc(hardAssets.updatedAt)],
+            orderBy: [desc(hardAssets.updatedAt), desc(hardAssets.id)],
             limit: pageSize,
             offset: offset,
         };

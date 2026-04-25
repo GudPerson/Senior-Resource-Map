@@ -1,8 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { buildSavedAssetKey } from '../../lib/savedAssets.js';
 import DiscoveryMobileBrowseCard from './DiscoveryMobileBrowseCard.jsx';
-import Pagination from '../../components/Pagination.jsx';
 
 export function DiscoveryResultsList({
     filtered,
@@ -19,16 +19,39 @@ export function DiscoveryResultsList({
     scrollContainerRef = null,
     selectedAssetKey = null,
     subCatColors,
-    page = 1,
     pageSize = 20,
     totalCount = 0,
-    onPageChange,
+    onLoadMore,
 }) {
     const isCompactMobile = !isDesktop && mobileCardDensity === 'compact';
+    const canLoadMore = totalCount > filtered.length;
+    const autoLoadPendingRef = useRef(false);
+    const AUTO_LOAD_THRESHOLD_PX = 240;
+
+    const requestMoreResults = () => {
+        if (loading || !canLoadMore || !onLoadMore || autoLoadPendingRef.current) {
+            return;
+        }
+        autoLoadPendingRef.current = true;
+        onLoadMore();
+    };
+
+    const handleScroll = (event) => {
+        const root = event.currentTarget;
+        const remainingScroll = root.scrollHeight - root.scrollTop - root.clientHeight;
+        if (remainingScroll <= AUTO_LOAD_THRESHOLD_PX) {
+            requestMoreResults();
+        }
+    };
+
+    useEffect(() => {
+        autoLoadPendingRef.current = false;
+    }, [filtered.length]);
 
     return (
         <div
             ref={scrollContainerRef}
+            onScroll={handleScroll}
             className={`relative flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 lg:p-5 ${isDesktop ? 'pb-20' : 'pb-28'} scroll-smooth hide-scrollbar`}
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
@@ -95,16 +118,22 @@ export function DiscoveryResultsList({
                 </div>
             )}
 
-            {!loading && totalCount > pageSize && (
+            {!loading && totalCount > pageSize ? (
                 <div className="mt-6 border-t border-slate-100 pt-6">
-                    <Pagination
-                        currentPage={page}
-                        totalCount={totalCount}
-                        pageSize={pageSize}
-                        onPageChange={onPageChange}
-                    />
+                    <div className="flex flex-col items-center gap-3">
+                        <p className="text-sm text-slate-500">
+                            Showing {filtered.length} of {totalCount} results
+                        </p>
+                        {canLoadMore ? (
+                            <>
+                                <p className="text-xs text-slate-400">
+                                    More results load automatically as you reach the end.
+                                </p>
+                            </>
+                        ) : null}
+                    </div>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

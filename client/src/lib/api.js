@@ -119,13 +119,23 @@ async function requestFormData(path, formData) {
     throw new Error('Upload failed');
 }
 
-async function requestBlob(path) {
+async function requestBlob(path, options = {}) {
+    const method = options.method || 'GET';
+    const hasBody = options.body !== undefined;
+    const requestHeaders = hasBody
+        ? headers(options.headers || {})
+        : {
+            ...getSessionAuthHeaders(),
+            ...(options.headers || {}),
+        };
+
     for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
         const base = BASE_CANDIDATES[i];
         const res = await fetch(`${base}${path}`, {
-            method: 'GET',
-            headers: getSessionAuthHeaders(),
+            method,
+            headers: requestHeaders,
             credentials: 'include',
+            ...(hasBody ? { body: JSON.stringify(options.body) } : {}),
         });
         const contentType = res.headers.get('content-type') || '';
         const isJson = contentType.includes('application/json');
@@ -244,6 +254,10 @@ export const api = {
     // Admin asset workbooks
     downloadWorkbookTemplate: (resourceType, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/template?format=${encodeURIComponent(format)}`),
     exportWorkbook: (resourceType, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/export?format=${encodeURIComponent(format)}`),
+    exportFilteredWorkbook: (resourceType, ids, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/export-filtered`, {
+        method: 'POST',
+        body: { ids, format },
+    }),
     importWorkbook: (resourceType, file) => {
         const formData = new FormData();
         formData.append('file', file);

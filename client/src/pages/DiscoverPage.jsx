@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Heart, Layers3, X } from 'lucide-react';
 import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
+import { stripMarkdownLite } from '../lib/markdownLite.js';
+import { normalizePostalCode } from '../lib/postalBoundaries.js';
+import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
@@ -36,6 +39,66 @@ function withTimeout(promise, fallback, timeoutMs = 8000) {
     ]);
 }
 
+function normalizePaginatedResponse(response, defaultPageSize = 500) {
+    if (Array.isArray(response)) {
+        return {
+            data: response,
+            pagination: {
+                page: 1,
+                pageSize: response.length || defaultPageSize,
+                totalCount: response.length,
+                totalPages: 1,
+            },
+        };
+    }
+
+    return {
+        data: Array.isArray(response?.data) ? response.data : [],
+        pagination: {
+            page: Number(response?.pagination?.page || 1),
+            pageSize: Number(response?.pagination?.pageSize || defaultPageSize),
+            totalCount: Number(response?.pagination?.totalCount || 0),
+            totalPages: Number(response?.pagination?.totalPages || 1),
+        },
+    };
+}
+
+async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
+    const fallback = {
+        data: [],
+        pagination: {
+            page: 1,
+            pageSize,
+            totalCount: 0,
+            totalPages: 1,
+        },
+    };
+
+    const firstResponse = normalizePaginatedResponse(
+        await withTimeout(fetchPage({ ...params, page: 1, pageSize }).catch(() => fallback), fallback),
+        pageSize,
+    );
+
+    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
+    if (totalPages === 1) {
+        return firstResponse.data;
+    }
+
+    const remainingResponses = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, index) => (
+            withTimeout(
+                fetchPage({ ...params, page: index + 2, pageSize }).catch(() => fallback),
+                fallback,
+            )
+        ))
+    );
+
+    return [
+        ...firstResponse.data,
+        ...remainingResponses.flatMap((response) => normalizePaginatedResponse(response, pageSize).data),
+    ];
+}
+
 function createFocusRequestIdGenerator() {
     let current = 0;
     return () => {
@@ -53,11 +116,151 @@ function normalizeSubCategoryLookupKey(value) {
     return String(value).trim().toLowerCase();
 }
 
+function normalizeSearchText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function parseDiscoverySearchGroups(value) {
+    const groupSeen = new Set();
+    const groups = [];
+
+    for (const rawGroup of String(value || '').split('/')) {
+        const phraseSeen = new Set();
+        const phrases = rawGroup
+            .split(',')
+            .map((phrase) => normalizeSearchText(phrase))
+            .filter((phrase) => {
+                if (!phrase || phraseSeen.has(phrase)) return false;
+                phraseSeen.add(phrase);
+                return true;
+            });
+
+        if (phrases.length === 0) continue;
+
+        const groupKey = phrases.join(' && ');
+        if (groupSeen.has(groupKey)) continue;
+        groupSeen.add(groupKey);
+        groups.push(phrases);
+    }
+
+    return groups;
+}
+
+function computeDiscoverySearchMatch(text, nameText, groups = []) {
+    if (!text || groups.length === 0) {
+        return {
+            matches: true,
+            bestGroupPhraseCount: 0,
+            matchedGroupCount: 0,
+            matchedPhraseCount: 0,
+            nameMatchCount: 0,
+        };
+    }
+
+    let matchedGroupCount = 0;
+    let bestGroupPhraseCount = 0;
+    const matchedPhrases = new Set();
+    const matchedNamePhrases = new Set();
+
+    for (const phrases of groups) {
+        const groupMatches = phrases.every((phrase) => text.includes(phrase));
+        if (!groupMatches) continue;
+
+        matchedGroupCount += 1;
+        bestGroupPhraseCount = Math.max(bestGroupPhraseCount, phrases.length);
+
+        for (const phrase of phrases) {
+            matchedPhrases.add(phrase);
+            if (nameText?.includes(phrase)) {
+                matchedNamePhrases.add(phrase);
+            }
+        }
+    }
+
+    return {
+        matches: matchedGroupCount > 0,
+        bestGroupPhraseCount,
+        matchedGroupCount,
+        matchedPhraseCount: matchedPhrases.size,
+        nameMatchCount: matchedNamePhrases.size,
+    };
+}
+
+function isSingaporeWideSubregion(subregion) {
+    const normalizedCode = normalizeSearchText(subregion?.subregionCode || subregion?.subregionId);
+    const normalizedName = normalizeSearchText(subregion?.name);
+    return normalizedCode === 'sg' || normalizedCode === 'sin' || normalizedName === 'singapore';
+}
+
+function getDiscoverySubregionLabel(subregion) {
+    if (!subregion) return '';
+    if (isSingaporeWideSubregion(subregion)) return 'SG';
+    return subregion.subregionCode || subregion.name || '';
+}
+
+function hasPostalCodeInBoundary(postalCode, postalCodeSet) {
+    if (!(postalCodeSet instanceof Set) || postalCodeSet.size === 0) return false;
+    const normalizedPostalCode = normalizePostalCode(postalCode);
+    return normalizedPostalCode ? postalCodeSet.has(normalizedPostalCode) : false;
+}
+
+function normalizeTagNames(tags = []) {
+    return (Array.isArray(tags) ? tags : [])
+        .map((tag) => {
+            if (typeof tag === 'string') return tag;
+            return tag?.name || tag?.label || tag?.tag?.name || '';
+        })
+        .filter(Boolean);
+}
+
+function buildDiscoverySearchHaystack(resource) {
+    const directTerms = [
+        resource.name,
+        stripMarkdownLite(resource.description),
+        resource.address,
+        resource.subCategory,
+        resource.postalCode,
+        ...(Array.isArray(resource.locations)
+            ? resource.locations.flatMap((location) => [
+                location?.name,
+                location?.address,
+                location?.postalCode,
+            ])
+            : []),
+        ...normalizeTagNames(resource.tags),
+    ];
+
+    const relatedOfferingTerms = resource._type === 'hard' && Array.isArray(resource.softAssets)
+        ? resource.softAssets.flatMap((offering) => [
+            offering?.name,
+            stripMarkdownLite(offering?.description),
+            offering?.subCategory,
+            ...normalizeTagNames(offering?.tags),
+            ...(Array.isArray(offering?.locations)
+                ? offering.locations.flatMap((location) => [
+                    location?.name,
+                    location?.address,
+                    location?.postalCode,
+                ])
+                : []),
+        ])
+        : [];
+
+    return [...directTerms, ...relatedOfferingTerms]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+}
+
 function DiscoverPostalGroupListPanel({
     anchorLayout = null,
     group,
     highlightedPinKey = null,
+    hoverPreview = false,
     isDesktop = false,
+    onHoverPin,
+    onHoverPanelEnter,
+    onHoverPanelLeave,
     onClose,
     onSelectPin,
 }) {
@@ -69,23 +272,51 @@ function DiscoverPostalGroupListPanel({
     const panelWidth = trackedWidth
         ? Math.min(isDesktop ? 420 : Math.max(280, trackedWidth - (horizontalMargin * 2)), trackedWidth - (horizontalMargin * 2))
         : fallbackWidth;
+    const memberCount = Math.max(1, Number(group?.memberPins?.length || 0));
     const minVisibleHeight = isDesktop ? 190 : 170;
     const preferredMaxHeight = isDesktop ? 520 : 420;
     const bottomPadding = isDesktop ? 24 : 16;
-    const desiredTop = anchorLayout ? anchorLayout.y + 8 : null;
+    const topPadding = isDesktop ? 12 : 16;
+    const hoverPreviewPinClearance = hoverPreview && isDesktop ? 88 : 0;
+    const verticalGap = hoverPreview && isDesktop ? 16 : 8;
+    const belowGap = hoverPreview && isDesktop ? 20 : verticalGap;
+    const estimatedPanelHeight = Math.min(preferredMaxHeight, Math.max(minVisibleHeight, 112 + (memberCount * 76)));
+    const desiredTop = anchorLayout ? anchorLayout.y + belowGap : null;
     const clampedLeft = (anchorLayout && panelWidth)
         ? Math.max(horizontalMargin, Math.min(anchorLayout.x - (panelWidth / 2), anchorLayout.width - horizontalMargin - panelWidth))
         : null;
+    const availableAbove = anchorLayout
+        ? Math.max(140, anchorLayout.y - topPadding - hoverPreviewPinClearance - verticalGap)
+        : preferredMaxHeight;
+    const availableBelow = anchorLayout
+        ? Math.max(140, anchorLayout.height - anchorLayout.y - bottomPadding - belowGap)
+        : preferredMaxHeight;
+    const placement = hoverPreview && isDesktop && anchorLayout
+        ? (
+            availableAbove >= estimatedPanelHeight
+                ? 'above'
+                : availableBelow >= estimatedPanelHeight
+                    ? 'below'
+                    : availableAbove >= availableBelow
+                        ? 'above'
+                        : 'below'
+        )
+        : 'below';
+    const panelMaxHeight = Math.min(
+        preferredMaxHeight,
+        placement === 'above' ? availableAbove : availableBelow,
+        estimatedPanelHeight,
+    );
     const clampedTop = anchorLayout
-        ? Math.min(
-            desiredTop,
-            Math.max(12, anchorLayout.height - bottomPadding - minVisibleHeight),
+        ? (
+            placement === 'above'
+                ? Math.max(topPadding, anchorLayout.y - hoverPreviewPinClearance - verticalGap - panelMaxHeight)
+                : Math.min(
+                    desiredTop,
+                    Math.max(topPadding, anchorLayout.height - bottomPadding - panelMaxHeight),
+                )
         )
         : null;
-    const availableHeight = (anchorLayout && clampedTop !== null)
-        ? Math.max(140, anchorLayout.height - clampedTop - bottomPadding)
-        : preferredMaxHeight;
-    const panelMaxHeight = Math.min(preferredMaxHeight, availableHeight);
     const panelStyle = anchorLayout && panelWidth && clampedLeft !== null && clampedTop !== null
         ? {
             left: `${clampedLeft}px`,
@@ -102,6 +333,8 @@ function DiscoverPostalGroupListPanel({
         <div
             className={`pointer-events-auto absolute z-[600] ${panelStyle ? '' : (isDesktop ? 'left-1/2 top-1/2 w-[420px] max-w-[calc(100%-3rem)] -translate-x-1/2' : 'inset-x-3 bottom-5')}`}
             style={panelStyle}
+            onMouseEnter={() => onHoverPanelEnter?.(group)}
+            onMouseLeave={() => onHoverPanelLeave?.(group)}
         >
             <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white/96 shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur">
                 <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
@@ -138,7 +371,8 @@ function DiscoverPostalGroupListPanel({
                                 <button
                                     key={pin.pinKey}
                                     type="button"
-                                    onClick={() => onSelectPin?.(pin)}
+                                    onMouseEnter={() => onHoverPin?.(pin, group)}
+                                    onClick={() => onSelectPin?.(pin, group)}
                                     className={`flex w-full items-center gap-3 rounded-[22px] border px-3 py-3 text-left transition ${
                                         isHighlighted
                                             ? 'border-brand-300 bg-brand-50/70 shadow-sm'
@@ -180,43 +414,6 @@ function DiscoverPostalGroupListPanel({
     );
 }
 
-function DiscoverPostalGroupHoverHint({ anchorLayout = null, isDesktop = false }) {
-    if (!isDesktop || !anchorLayout) return null;
-
-    const panelWidth = 188;
-    const panelHeight = 44;
-    const horizontalMargin = 16;
-    const left = Math.max(
-        horizontalMargin,
-        Math.min(
-            anchorLayout.x - (panelWidth / 2),
-            anchorLayout.width - horizontalMargin - panelWidth,
-        ),
-    );
-    const top = Math.max(
-        16,
-        Math.min(
-            anchorLayout.y + 8,
-            anchorLayout.height - 16 - panelHeight,
-        ),
-    );
-
-    return (
-        <div
-            className="pointer-events-none absolute z-[610]"
-            style={{
-                left: `${left}px`,
-                top: `${top}px`,
-                width: `${panelWidth}px`,
-            }}
-        >
-            <div className="rounded-full border border-amber-200 bg-white/96 px-3 py-2 text-center text-[12px] font-bold tracking-[0.01em] text-slate-700 shadow-[0_18px_36px_-22px_rgba(15,23,42,0.45)] backdrop-blur">
-                Click to expand list
-            </div>
-        </div>
-    );
-}
-
 export default function DiscoverPage() {
     const [subCatColors, setSubCatColors] = useState({});
     const [subCategoryMetaByKey, setSubCategoryMetaByKey] = useState({});
@@ -226,6 +423,10 @@ export default function DiscoverPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState(() => searchParams.get('q') || '');
     const [activeTab, setActiveTab] = useState('all');
+    const [discoverySubregions, setDiscoverySubregions] = useState([]);
+    const [selectedDiscoverySubregionId, setSelectedDiscoverySubregionId] = useState('');
+    const [favoritesActionNotice, setFavoritesActionNotice] = useState('');
+    const [saveAllPendingAction, setSaveAllPendingAction] = useState(null);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
     const [desktopPaneMode, setDesktopPaneMode] = useState('browse');
     const [selectedPlacePinKey, setSelectedPlacePinKey] = useState(null);
@@ -247,53 +448,47 @@ export default function DiscoverPage() {
     const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
 
-    const navigate = useNavigate();
     const resultsListRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
+    const postalGroupHoverCloseTimeoutRef = useRef(null);
+    const previousSearchPanelCollapsedRef = useRef(false);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const isTouchDesktop = useMediaQuery('(min-width: 1024px) and (pointer: coarse)');
     const { isDragging, listWidth, maxPaneWidth, setPaneWidth, startDragging } = useSplitPaneResize(450);
     const { user, isAuth } = useAuth();
-    const { savedAssets, savedAssetsLoading } = useSavedAssets();
+    const normalizedUserRole = normalizeRole(user?.role);
+    const canUseDiscoverySubregions = isAuth && canAccessAdmin(normalizedUserRole);
+    const {
+        bulkPending: isBulkFavoritesPending,
+        bulkRemoveSavedAssets,
+        bulkSaveSavedAssets,
+        savedAssetKeys,
+        savedAssets,
+        savedAssetsLoading,
+    } = useSavedAssets();
     const {
         clearLocationSearch,
         effectiveOrigin,
         effectiveUserLocation,
         flyTarget,
+        handleHomeAnchor,
         handleLocateMe,
         handlePostalSearch,
-        homeOrigin,
-        isResolvingHome,
+        hasHomePostalCode,
         isGeocoding,
         locationNotice,
         postalInput,
         searchOrigin,
         searchRadius,
-        setFlyTarget,
         setPostalInput,
-        setSearchOrigin,
+        setFlyTarget,
         setSearchRadius,
-    } = useDiscoveryLocation(hardAssets, user?.postalCode || '');
-    const [page, setPage] = useState(1);
+    } = useDiscoveryLocation(hardAssets, user?.postalCode);
     const listPageSize = 20;
-
-    const handleMapMoveEnd = useCallback((data) => {
-        const { lat, lng, radius } = data;
-        
-        // Update radius based on map view
-        if (Math.abs(radius - searchRadius) > 0.1) {
-            setSearchRadius(radius);
-        }
-
-        // Only update origin if we don't have one or if we've panned significantly
-        // Only update origin if we don't have one or if we've panned significantly (30% of current radius)
-        const dist = searchOrigin ? getDistance(searchOrigin.lat, searchOrigin.lng, lat, lng) : 0;
-        
-        if (!searchOrigin || dist > searchRadius * 0.3) {
-            setSearchOrigin(prev => ({ ...prev, lat, lng, source: 'map-pan' }));
-            setSearchRadius(Math.round(radius * 10) / 10);
-        }
-    }, [searchOrigin, searchRadius, setSearchOrigin, setSearchRadius]);
+    const [visibleCount, setVisibleCount] = useState(listPageSize);
+    const hasLocationAnchor = Boolean(searchOrigin);
+    const hasUserSelectedLocationFilter = Boolean(searchOrigin && searchOrigin.source !== 'home');
+    const searchGroups = useMemo(() => parseDiscoverySearchGroups(search), [search]);
 
     // Sync state to URL
     useEffect(() => {
@@ -305,7 +500,7 @@ export default function DiscoverPage() {
             nextParams.delete('q');
         }
 
-        const postal = searchOrigin?.postalCode || (searchOrigin?.source === 'postal' ? searchOrigin.postalCode : null);
+        const postal = searchOrigin?.source === 'postal' ? searchOrigin.postalCode : null;
         if (postal) {
             nextParams.set('postal', postal);
         } else {
@@ -324,24 +519,13 @@ export default function DiscoverPage() {
             setLoading(true);
 
             try {
-                const params = {
-                    q: search || undefined,
-                    lat: searchOrigin?.lat || undefined,
-                    lng: searchOrigin?.lng || undefined,
-                    radius: searchRadius < 100 ? searchRadius : undefined,
-                    pageSize: 400, // Show significantly more results on the map
-                };
-
-                const [hard, soft, subcategories] = await Promise.all([
-                    withTimeout(api.getHardAssets(params).catch(() => ({ data: [] })), { data: [] }),
-                    withTimeout(api.getSoftAssets(params).catch(() => ({ data: [] })), { data: [] }),
+                const [hardData, softData, subcategories] = await Promise.all([
+                    fetchAllPaginatedResults(api.getHardAssets),
+                    fetchAllPaginatedResults(api.getSoftAssets),
                     withTimeout(api.getSubCategories().catch(() => []), []),
                 ]);
 
                 if (!isActive) return;
-
-                const hardData = Array.isArray(hard) ? hard : (hard.data || []);
-                const softData = Array.isArray(soft) ? soft : (soft.data || []);
 
                 const colors = {};
                 const metaByKey = {};
@@ -374,13 +558,88 @@ export default function DiscoverPage() {
         return () => {
             isActive = false;
         };
-    }, [search, searchOrigin, searchRadius]);
+    }, []);
 
-    // Reset page when search or location changes
     useEffect(() => {
-        setPage(1);
-    }, [search, searchOrigin, searchRadius]);
-    
+        let isActive = true;
+
+        async function loadDiscoverySubregions() {
+            if (!canUseDiscoverySubregions) {
+                if (isActive) {
+                    setDiscoverySubregions([]);
+                    setSelectedDiscoverySubregionId('');
+                }
+                return;
+            }
+
+            try {
+                const fetchedSubregions = await withTimeout(api.getSubregions().catch(() => []), []);
+                if (!isActive) return;
+
+                setDiscoverySubregions(Array.isArray(fetchedSubregions) ? fetchedSubregions : []);
+            } catch (err) {
+                console.error(err);
+                if (isActive) {
+                    setDiscoverySubregions([]);
+                    setSelectedDiscoverySubregionId('');
+                }
+            }
+        }
+
+        loadDiscoverySubregions();
+
+        return () => {
+            isActive = false;
+        };
+    }, [canUseDiscoverySubregions]);
+
+    const discoverySubregionOptions = useMemo(() => {
+        if (!canUseDiscoverySubregions) return [];
+
+        const boundedSubregions = discoverySubregions
+            .filter((subregion) => Number(subregion?.postalCodeCount || 0) > 0)
+            .map((subregion) => ({
+                ...subregion,
+                discoveryLabel: getDiscoverySubregionLabel(subregion),
+                postalCodeSet: new Set(
+                    (Array.isArray(subregion?.postalCodesList) ? subregion.postalCodesList : [])
+                        .map((postalCode) => normalizePostalCode(postalCode))
+                        .filter(Boolean)
+                ),
+            }));
+
+        const singaporeWideSubregion = boundedSubregions.find((subregion) => isSingaporeWideSubregion(subregion));
+        if (!singaporeWideSubregion) return [];
+
+        const otherSubregions = boundedSubregions
+            .filter((subregion) => Number(subregion.id) !== Number(singaporeWideSubregion.id))
+            .sort((left, right) => left.discoveryLabel.localeCompare(right.discoveryLabel));
+
+        return [singaporeWideSubregion, ...otherSubregions];
+    }, [canUseDiscoverySubregions, discoverySubregions]);
+
+    useEffect(() => {
+        if (discoverySubregionOptions.length === 0) {
+            setSelectedDiscoverySubregionId('');
+            return;
+        }
+
+        const hasCurrentSelection = discoverySubregionOptions.some((subregion) => String(subregion.id) === String(selectedDiscoverySubregionId));
+        if (hasCurrentSelection) return;
+
+        setSelectedDiscoverySubregionId(String(discoverySubregionOptions[0].id));
+    }, [discoverySubregionOptions, selectedDiscoverySubregionId]);
+
+    const activeDiscoverySubregion = useMemo(() => (
+        discoverySubregionOptions.find((subregion) => String(subregion.id) === String(selectedDiscoverySubregionId)) || null
+    ), [discoverySubregionOptions, selectedDiscoverySubregionId]);
+    const hasScopedDiscoverySubregion = Boolean(activeDiscoverySubregion && !isSingaporeWideSubregion(activeDiscoverySubregion));
+
+    // Reset visible batch when filters change
+    useEffect(() => {
+        setVisibleCount(listPageSize);
+    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, searchRadius, showFavoritesOnly]);
+
     const clearHoveredCardState = useCallback(() => {
         setHoveredPinKeys([]);
         setHoveredPrimaryPinKey(null);
@@ -397,6 +656,20 @@ export default function DiscoverPage() {
         setTransientPrimaryPinKey(null);
         setTransientFocusAssetKey(null);
     }, []);
+    const cancelPostalGroupHoverClose = useCallback(() => {
+        if (postalGroupHoverCloseTimeoutRef.current !== null) {
+            window.clearTimeout(postalGroupHoverCloseTimeoutRef.current);
+            postalGroupHoverCloseTimeoutRef.current = null;
+        }
+    }, []);
+    const clearDesktopPinPreview = useCallback(() => {
+        if (!isDesktop || lockedPrimaryPinKey) return;
+        setHoveredPinKeys([]);
+        setHoveredPrimaryPinKey(null);
+        setHoveredMapPinKey(null);
+        setSelectedPlacePinKey(null);
+        setDesktopPaneMode('browse');
+    }, [isDesktop, lockedPrimaryPinKey]);
 
     useEffect(() => {
         if (!isDesktop) {
@@ -408,10 +681,6 @@ export default function DiscoverPage() {
     }, [isDesktop]);
 
     useEffect(() => {
-        if (searchOrigin && isDesktop) {
-            setIsSearchPanelCollapsed(true);
-        }
-        
         // Clear focus states when the location search changes
         clearHoveredCardState();
         clearLockedCardState();
@@ -437,27 +706,25 @@ export default function DiscoverPage() {
         [visibleHardAssets]
     );
 
-    const combined = useMemo(() => {
+    const allDiscoveryItems = useMemo(() => {
         const items = [];
 
-        if (activeTab === 'all' || activeTab === 'hard') {
-            items.push(...visibleHardAssets.map((asset) => ({ ...asset, _type: 'hard' })));
-        }
-        if (activeTab === 'all' || activeTab === 'soft') {
-            items.push(...visibleSoftAssets.map((asset) => ({ ...asset, _type: 'soft' })));
-        }
+        items.push(...visibleHardAssets.map((asset) => ({ ...asset, _type: 'hard' })));
+        items.push(...visibleSoftAssets.map((asset) => ({ ...asset, _type: 'soft' })));
 
         return items.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
-    }, [activeTab, visibleHardAssets, visibleSoftAssets]);
+    }, [visibleHardAssets, visibleSoftAssets]);
 
-    const filtered = useMemo(() => {
-        let items = combined.map((resource) => {
+    const filteredUniverse = useMemo(() => {
+        let items = allDiscoveryItems.map((resource, index) => {
             const displayLocation = resource._type === 'hard' ? resource : getBestLocation(resource, effectiveUserLocation);
             const lat = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lat) : null;
             const lng = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lng) : null;
             const distance = effectiveUserLocation && Number.isFinite(lat) && Number.isFinite(lng)
                 ? getDistance(effectiveUserLocation.lat, effectiveUserLocation.lng, lat, lng)
                 : null;
+            const searchHaystack = buildDiscoverySearchHaystack(resource);
+            const nameHaystack = normalizeSearchText(resource.name);
 
             return {
                 ...resource,
@@ -466,37 +733,163 @@ export default function DiscoverPage() {
                 _displayLng: lng,
                 _displayLocation: displayLocation,
                 _locationCount: resource._type === 'soft' ? getAssetLocations(resource).length : 1,
+                _baseIndex: index,
+                _nameHaystack: nameHaystack,
+                _searchHaystack: searchHaystack,
             };
         });
 
-        if (effectiveUserLocation) {
-            if (searchRadius < 100) {
-                items = items.filter((resource) => resource._distance !== null && resource._distance <= searchRadius);
-            }
+        if (activeDiscoverySubregion?.postalCodeSet?.size) {
+            items = items.filter((resource) => {
+                if (resource._type === 'hard') {
+                    return hasPostalCodeInBoundary(resource.postalCode, activeDiscoverySubregion.postalCodeSet);
+                }
 
-            items.sort((left, right) => {
-                if (left._distance === null) return 1;
-                if (right._distance === null) return -1;
-                return left._distance - right._distance;
+                return getAssetLocations(resource).some((location) => (
+                    hasPostalCodeInBoundary(location?.postalCode, activeDiscoverySubregion.postalCodeSet)
+                ));
             });
         }
 
-        const query = search.toLowerCase();
-        return items.filter((resource) => {
+        if (effectiveUserLocation && !hasScopedDiscoverySubregion) {
+            if (searchRadius < 100) {
+                items = items.filter((resource) => resource._distance !== null && resource._distance <= searchRadius);
+            }
+        }
+
+        items = items.filter((resource) => {
             if (showFavoritesOnly && user) {
-                const isSavedResource = savedAssets.some((savedAsset) => savedAsset.resourceId === resource.id && savedAsset.resourceType === resource._type);
+                const isSavedResource = savedAssetKeys.has(buildSavedAssetKey(resource._type, resource.id));
                 if (!isSavedResource) return false;
             }
 
-            if (!query) return true;
+            if (searchGroups.length === 0) return true;
 
-            const matchName = resource.name.toLowerCase().includes(query);
-            const matchDescription = (resource.description || '').toLowerCase().includes(query);
-            const matchTag = resource.tags?.some((tag) => tag.toLowerCase().includes(query));
-            const matchCategory = resource.subCategory?.toLowerCase().includes(query);
-            return matchName || matchDescription || matchTag || matchCategory;
+            const searchMatch = computeDiscoverySearchMatch(
+                resource._searchHaystack,
+                resource._nameHaystack,
+                searchGroups,
+            );
+            if (!searchMatch.matches) return false;
+
+            resource._matchedGroupCount = searchMatch.matchedGroupCount;
+            resource._bestGroupPhraseCount = searchMatch.bestGroupPhraseCount;
+            resource._matchedPhraseCount = searchMatch.matchedPhraseCount;
+            resource._nameMatchCount = searchMatch.nameMatchCount;
+            return true;
         });
-    }, [combined, effectiveUserLocation, savedAssets, search, searchRadius, showFavoritesOnly, user]);
+
+        items.sort((left, right) => {
+            if (effectiveUserLocation) {
+                if (left._distance === null && right._distance === null) {
+                    // Continue to search/base ordering below.
+                } else if (left._distance === null) {
+                    return 1;
+                } else if (right._distance === null) {
+                    return -1;
+                } else if (left._distance !== right._distance) {
+                    return left._distance - right._distance;
+                }
+            }
+
+            if (searchGroups.length > 0) {
+                if ((right._bestGroupPhraseCount || 0) !== (left._bestGroupPhraseCount || 0)) {
+                    return (right._bestGroupPhraseCount || 0) - (left._bestGroupPhraseCount || 0);
+                }
+
+                if ((right._matchedGroupCount || 0) !== (left._matchedGroupCount || 0)) {
+                    return (right._matchedGroupCount || 0) - (left._matchedGroupCount || 0);
+                }
+
+                if ((right._matchedPhraseCount || 0) !== (left._matchedPhraseCount || 0)) {
+                    return (right._matchedPhraseCount || 0) - (left._matchedPhraseCount || 0);
+                }
+
+                if ((right._nameMatchCount || 0) !== (left._nameMatchCount || 0)) {
+                    return (right._nameMatchCount || 0) - (left._nameMatchCount || 0);
+                }
+            }
+
+            return left._baseIndex - right._baseIndex;
+        });
+
+        return items;
+    }, [
+        activeDiscoverySubregion,
+        allDiscoveryItems,
+        effectiveUserLocation,
+        hasScopedDiscoverySubregion,
+        savedAssetKeys,
+        searchGroups,
+        searchRadius,
+        showFavoritesOnly,
+        user,
+    ]);
+
+    const tabCounts = useMemo(() => ({
+        all: filteredUniverse.length,
+        hard: filteredUniverse.reduce((count, resource) => (resource._type === 'hard' ? count + 1 : count), 0),
+        soft: filteredUniverse.reduce((count, resource) => (resource._type === 'soft' ? count + 1 : count), 0),
+    }), [filteredUniverse]);
+
+    const filtered = useMemo(() => {
+        if (activeTab === 'all') {
+            return filteredUniverse;
+        }
+
+        return filteredUniverse.filter((resource) => resource._type === activeTab);
+    }, [activeTab, filteredUniverse]);
+
+    const displayedResources = useMemo(
+        () => filtered.slice(0, visibleCount),
+        [filtered, visibleCount]
+    );
+
+    const saveAllTargetItems = useMemo(() => (
+        filtered.map((resource) => ({
+            resourceType: resource._type,
+            resourceId: resource.id,
+        }))
+    ), [filtered]);
+
+    const savedWithinFilteredCount = useMemo(() => (
+        saveAllTargetItems.reduce((count, item) => (
+            savedAssetKeys.has(buildSavedAssetKey(item.resourceType, item.resourceId)) ? count + 1 : count
+        ), 0)
+    ), [saveAllTargetItems, savedAssetKeys]);
+
+    const isSaveAllChecked = saveAllTargetItems.length > 0 && savedWithinFilteredCount === saveAllTargetItems.length;
+    const isSaveAllIndeterminate = savedWithinFilteredCount > 0 && savedWithinFilteredCount < saveAllTargetItems.length;
+    const hasMeaningfulDiscoveryContext = useMemo(() => (
+        searchGroups.length > 0 || hasScopedDiscoverySubregion
+    ), [hasScopedDiscoverySubregion, searchGroups.length]);
+    const canShowSaveAllControl = Boolean(user) && hasMeaningfulDiscoveryContext;
+
+    const handleToggleSaveAll = useCallback(async (nextChecked) => {
+        if (!user || saveAllTargetItems.length === 0 || isBulkFavoritesPending) return;
+
+        setFavoritesActionNotice('');
+        setSaveAllPendingAction(nextChecked ? 'save' : 'remove');
+
+        try {
+            if (nextChecked) {
+                await bulkSaveSavedAssets(saveAllTargetItems);
+            } else {
+                await bulkRemoveSavedAssets(saveAllTargetItems);
+            }
+        } catch (err) {
+            console.error(err);
+            setFavoritesActionNotice(err.message || 'Discovery favorites could not be updated. Please try again.');
+        } finally {
+            setSaveAllPendingAction(null);
+        }
+    }, [
+        bulkRemoveSavedAssets,
+        bulkSaveSavedAssets,
+        isBulkFavoritesPending,
+        saveAllTargetItems,
+        user,
+    ]);
 
     const savedPlacePinData = useMemo(() => (
         buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, {
@@ -509,6 +902,14 @@ export default function DiscoverPage() {
     const savedPlacePinLookup = useMemo(
         () => new Map(savedPlacePins.map((pin) => [pin.pinKey, pin])),
         [savedPlacePins]
+    );
+    const transientPlacePinLookup = useMemo(
+        () => new Map(transientPlacePins.map((pin) => [pin.pinKey, pin])),
+        [transientPlacePins]
+    );
+    const interactivePinLookup = useMemo(
+        () => new Map([...savedPlacePins, ...transientPlacePins].map((pin) => [pin.pinKey, pin])),
+        [savedPlacePins, transientPlacePins]
     );
     const groupedSavedPlacePinData = useMemo(
         () => buildPostalGroupedSavedPlacePins(savedPlacePins),
@@ -528,20 +929,26 @@ export default function DiscoverPage() {
         [expandedPostalGroupKey, isDesktop, postalGroups]
     );
     const selectedPlacePin = useMemo(
-        () => (selectedPlacePinKey ? savedPlacePinLookup.get(selectedPlacePinKey) || null : null),
-        [selectedPlacePinKey, savedPlacePinLookup]
+        () => (selectedPlacePinKey ? interactivePinLookup.get(selectedPlacePinKey) || null : null),
+        [interactivePinLookup, selectedPlacePinKey]
     );
     const activePostalGroup = useMemo(() => {
         if (!expandedPostalGroupKey) return null;
         const group = postalGroupLookup.get(expandedPostalGroupKey) || null;
         return group?.isPostalGroup ? group : null;
     }, [expandedPostalGroupKey, postalGroupLookup]);
+    const hoveredPostalGroup = useMemo(() => {
+        if (activePostalGroup || !hoveredPostalGroupKey) return null;
+        const group = postalGroupLookup.get(hoveredPostalGroupKey) || null;
+        return group?.isPostalGroup ? group : null;
+    }, [activePostalGroup, hoveredPostalGroupKey, postalGroupLookup]);
+    const visiblePostalGroup = activePostalGroup || hoveredPostalGroup;
 
     useEffect(() => {
-        if (!activePostalGroup) {
+        if (!visiblePostalGroup) {
             setTrackedPostalGroupLayout(null);
         }
-    }, [activePostalGroup]);
+    }, [visiblePostalGroup]);
 
     useEffect(() => {
         if (!hoveredPostalGroupKey) return;
@@ -551,6 +958,12 @@ export default function DiscoverPage() {
         }
     }, [hoveredPostalGroupKey, postalGroupLookup]);
 
+    useEffect(() => () => {
+        if (postalGroupHoverCloseTimeoutRef.current !== null) {
+            window.clearTimeout(postalGroupHoverCloseTimeoutRef.current);
+        }
+    }, []);
+
     useEffect(() => {
         if (!flyTarget) return;
         if (savedPlacePins.length) {
@@ -559,6 +972,8 @@ export default function DiscoverPage() {
                 requestId: nextFocusRequestId(),
                 savedPlacePins,
                 anchorPoint: flyTarget,
+                includeAnchorInBounds: false,
+                keepAnchorVisible: true,
                 source: `location-${flyTarget.source || 'set'}`,
             });
         } else {
@@ -602,12 +1017,12 @@ export default function DiscoverPage() {
     }, [isDesktop, mobileMode, selectedPlacePinKey]);
 
     useEffect(() => {
-        if (selectedPlacePinKey && !savedPlacePinLookup.has(selectedPlacePinKey)) {
+        if (selectedPlacePinKey && !interactivePinLookup.has(selectedPlacePinKey)) {
             setSelectedPlacePinKey(null);
             setDesktopPaneMode('browse');
             setHoveredMapPinKey(null);
         }
-    }, [savedPlacePinLookup, selectedPlacePinKey]);
+    }, [interactivePinLookup, selectedPlacePinKey]);
 
     useEffect(() => {
         if (!expandedPostalGroupKey) return;
@@ -618,18 +1033,18 @@ export default function DiscoverPage() {
     }, [expandedPostalGroupKey, postalGroupLookup]);
 
     useEffect(() => {
-        setHoveredPinKeys((current) => current.filter((pinKey) => savedPlacePinLookup.has(pinKey)));
-        setLockedPinKeys((current) => current.filter((pinKey) => savedPlacePinLookup.has(pinKey)));
-        if (hoveredPrimaryPinKey && !savedPlacePinLookup.has(hoveredPrimaryPinKey)) {
+        setHoveredPinKeys((current) => current.filter((pinKey) => interactivePinLookup.has(pinKey)));
+        setLockedPinKeys((current) => current.filter((pinKey) => interactivePinLookup.has(pinKey)));
+        if (hoveredPrimaryPinKey && !interactivePinLookup.has(hoveredPrimaryPinKey)) {
             setHoveredPrimaryPinKey(null);
         }
-        if (lockedPrimaryPinKey && !savedPlacePinLookup.has(lockedPrimaryPinKey)) {
+        if (lockedPrimaryPinKey && !interactivePinLookup.has(lockedPrimaryPinKey)) {
             setLockedPrimaryPinKey(null);
         }
-        if (hoveredMapPinKey && !savedPlacePinLookup.has(hoveredMapPinKey)) {
+        if (hoveredMapPinKey && !interactivePinLookup.has(hoveredMapPinKey)) {
             setHoveredMapPinKey(null);
         }
-    }, [hoveredMapPinKey, hoveredPrimaryPinKey, lockedPrimaryPinKey, savedPlacePinLookup]);
+    }, [hoveredMapPinKey, hoveredPrimaryPinKey, interactivePinLookup, lockedPrimaryPinKey]);
 
     useEffect(() => {
         if (!lockedAssetKey) return;
@@ -770,6 +1185,8 @@ export default function DiscoverPage() {
         kind: 'saved-fit',
         requestId: nextFocusRequestId(),
         anchorPoint: effectiveOrigin,
+        includeAnchorInBounds: false,
+        keepAnchorVisible: false,
         savedPlacePins,
         source,
     }), [effectiveOrigin, savedPlacePins]);
@@ -801,18 +1218,33 @@ export default function DiscoverPage() {
             }
 
             const pinKey = `transient-${assetKey}`;
+            const transientCategoryIconUrl = subCategoryMetaByKey[normalizeSubCategoryLookupKey(normalizedAsset.subCategory)]?.iconUrl || null;
             return {
                 assetKey,
                 primaryPinKey: pinKey,
                 pins: [
                     {
                         pinKey,
+                        placeKey: resolveSavedPlaceKey({
+                            hardAssetId: normalizedAsset.id,
+                            lat: normalizedAsset.lat,
+                            lng: normalizedAsset.lng,
+                        }) || pinKey,
                         title: normalizedAsset.name,
                         address: normalizedAsset.address || null,
                         lat: Number.parseFloat(normalizedAsset.lat),
                         lng: Number.parseFloat(normalizedAsset.lng),
-                        totalOfferingsCount: Math.max(1, Array.isArray(normalizedAsset.softAssets) ? normalizedAsset.softAssets.length : 0),
-                        tone: 'temporary',
+                        postalCode: normalizedAsset.postalCode || '',
+                        placeAsset: normalizedAsset,
+                        totalOfferingsCount: Array.isArray(normalizedAsset.softAssets) ? normalizedAsset.softAssets.length : 0,
+                        detailTargetType: 'hard',
+                        detailTargetId: normalizedAsset.id,
+                        detailTargetFallbackAsset: normalizedAsset,
+                        sourceAssetKey: assetKey,
+                        sourceAssetType: 'hard',
+                        sourceAssetId: normalizedAsset.id,
+                        categoryIconUrl: transientCategoryIconUrl,
+                        tone: 'preview',
                         isTransient: true,
                     },
                 ],
@@ -842,6 +1274,7 @@ export default function DiscoverPage() {
             return { assetKey, pins: [], primaryPinKey: null };
         }
 
+        const transientCategoryIconUrl = subCategoryMetaByKey[normalizeSubCategoryLookupKey(normalizedAsset.subCategory)]?.iconUrl || null;
         const pins = orderedLocations.map((location, index) => {
             const placeAsset = Number.isInteger(location?.id)
                 ? visibleHardAssetLookup.get(location.id) || location
@@ -855,12 +1288,23 @@ export default function DiscoverPage() {
 
             return {
                 pinKey: `transient-${assetKey}-${resolvedPlaceKey}`,
+                placeKey: resolvedPlaceKey,
                 title: placeAsset?.name || location.name || normalizedAsset.name,
                 address: placeAsset?.address || location.address || normalizedAsset.address || null,
                 lat: Number.parseFloat(location.lat),
                 lng: Number.parseFloat(location.lng),
-                totalOfferingsCount: Math.max(1, Array.isArray(placeAsset?.softAssets) ? placeAsset.softAssets.length : 0),
-                tone: 'temporary',
+                postalCode: placeAsset?.postalCode || location?.postalCode || '',
+                placeAsset: Number.isInteger(placeAsset?.id) ? placeAsset : null,
+                locationId: Number.isInteger(location?.id) ? location.id : null,
+                totalOfferingsCount: Array.isArray(placeAsset?.softAssets) ? placeAsset.softAssets.length : 0,
+                detailTargetType: 'soft',
+                detailTargetId: normalizedAsset.id,
+                detailTargetFallbackAsset: normalizedAsset,
+                sourceAssetKey: assetKey,
+                sourceAssetType: 'soft',
+                sourceAssetId: normalizedAsset.id,
+                categoryIconUrl: transientCategoryIconUrl,
+                tone: 'preview',
                 isTransient: true,
             };
         });
@@ -870,7 +1314,7 @@ export default function DiscoverPage() {
             pins,
             primaryPinKey: pins[0]?.pinKey || null,
         };
-    }, [effectiveUserLocation, visibleHardAssetLookup]);
+    }, [effectiveUserLocation, subCategoryMetaByKey, visibleHardAssetLookup]);
 
     const handleHoverAssetOnMap = useCallback((asset) => {
         const pinKeys = resolveSavedPinKeysForAsset(asset);
@@ -1014,8 +1458,13 @@ export default function DiscoverPage() {
             return;
         }
 
+        const isTransientPin = Boolean(pin?.isTransient || pin?.tone === 'preview' || pin?.tone === 'temporary');
         clearHoveredCardState();
-        clearTransientFocusState();
+        if (!isTransientPin) {
+            clearTransientFocusState();
+        } else {
+            setTransientPrimaryPinKey(pin.pinKey);
+        }
         setHoveredMapPinKey(pin.pinKey);
         setHoveredPostalGroupKey(null);
         setSelectedPlacePinKey(pin.pinKey);
@@ -1048,27 +1497,144 @@ export default function DiscoverPage() {
         saveBrowseScrollPosition,
     ]);
 
-    const handlePostalGroupMemberSelect = useCallback((pin) => {
+    const handlePostalGroupMemberSelect = useCallback((pin, group = null) => {
+        cancelPostalGroupHoverClose();
+
+        if (!isDesktop) {
+            setHoveredPostalGroupKey(null);
+            setExpandedPostalGroupKey(null);
+            handleMapPinSelect(pin);
+            return;
+        }
+
+        const groupKey = group?.postalGroupKey || pin?.postalGroupKey || postalGroupKeyByPinKey.get(pin?.pinKey) || null;
+        const activeGroup = groupKey ? (postalGroupLookup.get(groupKey) || null) : null;
+
+        clearHoveredCardState();
+        clearTransientFocusState();
         setHoveredPostalGroupKey(null);
-        setExpandedPostalGroupKey(null);
+        setHoveredMapPinKey(pin.pinKey);
+        setSelectedPlacePinKey(pin.pinKey);
+        setExpandedPostalGroupKey(groupKey);
+
+        if (desktopPaneMode !== 'detail') {
+            saveBrowseScrollPosition();
+        }
+        setDesktopPaneMode('detail');
+        setLockedAssetKey(pin.primarySavedAsset?.assetKey || null);
+        setLockedPinKeys([pin.pinKey]);
+        setLockedPrimaryPinKey(pin.pinKey);
+
+        const groupFocus = activeGroup?.isPostalGroup
+            ? createPostalGroupFocusRequest(activeGroup, 'group-member-click')
+            : null;
+
+        if (groupFocus) {
+            setMapFocusRequest(groupFocus);
+            return;
+        }
+
         handleMapPinSelect(pin);
-    }, [handleMapPinSelect]);
+    }, [
+        cancelPostalGroupHoverClose,
+        clearHoveredCardState,
+        clearTransientFocusState,
+        createPostalGroupFocusRequest,
+        desktopPaneMode,
+        handleMapPinSelect,
+        isDesktop,
+        postalGroupKeyByPinKey,
+        postalGroupLookup,
+        saveBrowseScrollPosition,
+    ]);
+
+    const handlePostalGroupPreviewStart = useCallback((pin, group = null) => {
+        if (!isDesktop || !pin || lockedPrimaryPinKey) return;
+
+        cancelPostalGroupHoverClose();
+        if (desktopPaneMode !== 'detail') {
+            saveBrowseScrollPosition();
+        }
+
+        const groupKey = group?.postalGroupKey || pin.postalGroupKey || postalGroupKeyByPinKey.get(pin.pinKey) || null;
+        if (groupKey) {
+            setHoveredPostalGroupKey(groupKey);
+        }
+
+        setHoveredPinKeys([pin.pinKey]);
+        setHoveredPrimaryPinKey(pin.pinKey);
+        setHoveredMapPinKey(pin.pinKey);
+        setSelectedPlacePinKey(pin.pinKey);
+        setDesktopPaneMode('detail');
+    }, [
+        cancelPostalGroupHoverClose,
+        desktopPaneMode,
+        isDesktop,
+        lockedPrimaryPinKey,
+        postalGroupKeyByPinKey,
+        saveBrowseScrollPosition,
+    ]);
+
+    const schedulePostalGroupHoverClose = useCallback((groupKey, options = {}) => {
+        if (!isDesktop || expandedPostalGroupKey || !groupKey) {
+            if (options.clearPreview) {
+                clearDesktopPinPreview();
+            }
+            return;
+        }
+
+        cancelPostalGroupHoverClose();
+        postalGroupHoverCloseTimeoutRef.current = window.setTimeout(() => {
+            setHoveredPostalGroupKey((current) => (current === groupKey ? null : current));
+            if (options.clearPreview) {
+                clearDesktopPinPreview();
+            }
+            postalGroupHoverCloseTimeoutRef.current = null;
+        }, 120);
+    }, [
+        cancelPostalGroupHoverClose,
+        clearDesktopPinPreview,
+        expandedPostalGroupKey,
+        isDesktop,
+    ]);
+
+    const handlePostalGroupPanelHoverEnter = useCallback((group) => {
+        if (!isDesktop || !group?.postalGroupKey) return;
+        cancelPostalGroupHoverClose();
+        if (!expandedPostalGroupKey) {
+            setHoveredPostalGroupKey(group.postalGroupKey);
+        }
+    }, [cancelPostalGroupHoverClose, expandedPostalGroupKey, isDesktop]);
+
+    const handlePostalGroupPanelHoverLeave = useCallback((group) => {
+        if (!group?.postalGroupKey) return;
+        if (expandedPostalGroupKey) {
+            clearDesktopPinPreview();
+            return;
+        }
+        schedulePostalGroupHoverClose(group.postalGroupKey, { clearPreview: true });
+    }, [clearDesktopPinPreview, expandedPostalGroupKey, schedulePostalGroupHoverClose]);
 
     const handleCloseDetailMode = useCallback(() => {
+        clearHoveredCardState();
         setDesktopPaneMode('browse');
         setSelectedPlacePinKey(null);
         setHoveredMapPinKey(null);
         clearLockedCardState();
         clearTransientFocusState();
-    }, [clearLockedCardState, clearTransientFocusState]);
+    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState]);
 
     const handleCloseMobileDetail = useCallback(() => {
         setSelectedPlacePinKey(null);
         setHoveredMapPinKey(null);
+        if (selectedPlacePinKey && transientPlacePinLookup.has(selectedPlacePinKey)) {
+            clearTransientFocusState();
+            return;
+        }
         if (savedPlacePins.length) {
             setMapFocusRequest(createSavedFitFocusRequest('detail-close'));
         }
-    }, [createSavedFitFocusRequest, savedPlacePins.length]);
+    }, [clearTransientFocusState, createSavedFitFocusRequest, savedPlacePins.length, selectedPlacePinKey, transientPlacePinLookup]);
 
     const handleMapBackgroundClick = useCallback(() => {
         if (desktopPaneMode === 'detail') {
@@ -1104,9 +1670,34 @@ export default function DiscoverPage() {
         selectedPlacePinKey,
     ]);
 
+    const handleResetDiscoveryMapView = useCallback(() => {
+        cancelPostalGroupHoverClose();
+        clearHoveredCardState();
+        clearLockedCardState();
+        clearTransientFocusState();
+        setHoveredMapPinKey(null);
+        setHoveredPostalGroupKey(null);
+        setSelectedPlacePinKey(null);
+        setExpandedPostalGroupKey(null);
+        setDesktopPaneMode('browse');
+
+        if (savedPlacePins.length || effectiveOrigin) {
+            setMapFocusRequest(createSavedFitFocusRequest('manual-reset'));
+        }
+    }, [
+        cancelPostalGroupHoverClose,
+        clearHoveredCardState,
+        clearLockedCardState,
+        clearTransientFocusState,
+        createSavedFitFocusRequest,
+        effectiveOrigin,
+        savedPlacePins.length,
+    ]);
+
     const handleMapHoverStart = useCallback((pinKey, meta = null) => {
         if (meta?.kind === 'postal-group') {
-            if (!isDesktop || expandedPostalGroupKey) return;
+            if (!isDesktop || expandedPostalGroupKey || lockedPrimaryPinKey) return;
+            cancelPostalGroupHoverClose();
             setHoveredPostalGroupKey(pinKey);
             return;
         }
@@ -1114,22 +1705,30 @@ export default function DiscoverPage() {
         if (desktopPaneMode !== 'detail') {
             saveBrowseScrollPosition();
         }
+        cancelPostalGroupHoverClose();
         setHoveredPostalGroupKey(null);
         setHoveredMapPinKey(pinKey);
         setSelectedPlacePinKey(pinKey);
         setDesktopPaneMode('detail');
-    }, [desktopPaneMode, expandedPostalGroupKey, isDesktop, lockedPrimaryPinKey, saveBrowseScrollPosition]);
+    }, [
+        cancelPostalGroupHoverClose,
+        desktopPaneMode,
+        expandedPostalGroupKey,
+        isDesktop,
+        lockedPrimaryPinKey,
+        saveBrowseScrollPosition,
+    ]);
 
     const handleMapHoverEnd = useCallback((pinKey, meta = null) => {
         if (meta?.kind === 'postal-group') {
-            setHoveredPostalGroupKey((current) => (current === pinKey ? null : current));
+            schedulePostalGroupHoverClose(pinKey, { clearPreview: true });
             return;
         }
         if (lockedPrimaryPinKey) return;
         setHoveredMapPinKey((current) => (current === pinKey ? null : current));
         setSelectedPlacePinKey((current) => (current === pinKey ? null : current));
         setDesktopPaneMode((current) => (current === 'detail' ? 'browse' : current));
-    }, [lockedPrimaryPinKey]);
+    }, [lockedPrimaryPinKey, schedulePostalGroupHoverClose]);
 
     const activeRelatedPinKeys = hoveredPinKeys.length ? hoveredPinKeys : lockedPinKeys;
     const activePrimaryPinKey = hoveredPrimaryPinKey || lockedPrimaryPinKey;
@@ -1156,8 +1755,14 @@ export default function DiscoverPage() {
         });
 
         transientPlacePins.forEach((pin) => {
-            // Only highlight transient pins if they are the primary focus
-            const emphasis = transientPrimaryPinKey === pin.pinKey ? 'primary' : 'default';
+            let emphasis = 'default';
+
+            if (selectedPlacePinKey === pin.pinKey || (!selectedPlacePinKey && hoveredMapPinKey === pin.pinKey)) {
+                emphasis = 'primary';
+            } else if (activePrimaryPinKey === pin.pinKey || transientPrimaryPinKey === pin.pinKey) {
+                emphasis = 'primary';
+            }
+
             nextMap.set(pin.pinKey, emphasis);
         });
 
@@ -1199,12 +1804,11 @@ export default function DiscoverPage() {
         });
 
         transientPlacePins.forEach((pin) => {
-            const emphasis = transientPrimaryPinKey === pin.pinKey ? 'primary' : 'default';
-            nextMap.set(pin.pinKey, emphasis);
+            nextMap.set(pin.pinKey, childPinEmphasisByKey.get(pin.pinKey) || 'default');
         });
 
         return nextMap;
-    }, [activePostalGroup, childPinEmphasisByKey, hoveredPostalGroupKey, renderedSavedPlacePins, transientPlacePins, transientPrimaryPinKey]);
+    }, [activePostalGroup, childPinEmphasisByKey, hoveredPostalGroupKey, renderedSavedPlacePins, transientPlacePins]);
 
     const selectedBrowseAssetKey = desktopPaneMode === 'browse' ? lockedAssetKey : null;
     const touchDesktopPanePresetWidths = useMemo(() => (
@@ -1258,30 +1862,78 @@ export default function DiscoverPage() {
         }
 
         event.preventDefault();
+    }, [handlePostalSearch, postalInput]);
 
-        if (
-            search.trim()
-            || activeTab !== 'all'
-            || (showFavoritesOnly && user)
-            || searchRadius < 100
-        ) {
-            setIsSearchPanelCollapsed(true);
-        }
-    }, [activeTab, handlePostalSearch, postalInput, search, searchRadius, showFavoritesOnly, user]);
+    const handleSearchChange = useCallback((value) => {
+        setFavoritesActionNotice('');
+        setSearch(value);
+    }, []);
+
+    const handleCollapseSearchPanel = useCallback(() => {
+        setIsSearchPanelCollapsed(true);
+    }, []);
+
+    const handleExpandSearchPanel = useCallback(() => {
+        setIsSearchPanelCollapsed(false);
+    }, []);
+
+    const handleHomeAnchorAndCollapse = useCallback(async () => {
+        await handleHomeAnchor();
+    }, [handleHomeAnchor]);
 
     const handleLocateMeAndCollapse = useCallback(() => {
         handleLocateMe();
-        if (isDesktop) {
-            setIsSearchPanelCollapsed(true);
-        }
-    }, [handleLocateMe, isDesktop]);
+    }, [handleLocateMe]);
+
+    const handleDesktopRailDragStart = useCallback((event) => {
+        startDragging(event);
+    }, [startDragging]);
 
     const handleClearLocationSearch = useCallback(() => {
         clearLocationSearch();
-        if (isDesktop && !search.trim() && activeTab === 'all' && !(showFavoritesOnly && user)) {
+        if (
+            isDesktop
+            && searchGroups.length === 0
+            && activeTab === 'all'
+            && !(showFavoritesOnly && user)
+            && !hasScopedDiscoverySubregion
+        ) {
             setIsSearchPanelCollapsed(false);
         }
-    }, [activeTab, clearLocationSearch, isDesktop, search, showFavoritesOnly, user]);
+    }, [activeTab, clearLocationSearch, hasScopedDiscoverySubregion, isDesktop, searchGroups.length, showFavoritesOnly, user]);
+
+    useEffect(() => {
+        const previousCollapsed = previousSearchPanelCollapsedRef.current;
+        previousSearchPanelCollapsedRef.current = isSearchPanelCollapsed;
+
+        if (previousCollapsed === isSearchPanelCollapsed) {
+            return undefined;
+        }
+
+        if (!isDesktop || (!savedPlacePins.length && !effectiveOrigin)) {
+            return undefined;
+        }
+
+        let frameOneId = null;
+        let frameTwoId = null;
+
+        frameOneId = window.requestAnimationFrame(() => {
+            frameTwoId = window.requestAnimationFrame(() => {
+                setMapFocusRequest(createSavedFitFocusRequest(
+                    isSearchPanelCollapsed ? 'panel-collapse' : 'panel-expand'
+                ));
+            });
+        });
+
+        return () => {
+            if (frameOneId !== null) {
+                window.cancelAnimationFrame(frameOneId);
+            }
+            if (frameTwoId !== null) {
+                window.cancelAnimationFrame(frameTwoId);
+            }
+        };
+    }, [createSavedFitFocusRequest, effectiveOrigin, isDesktop, isSearchPanelCollapsed, savedPlacePins.length]);
 
     const savedMapEmptyState = (
         <SavedMapEmptyState
@@ -1301,38 +1953,42 @@ export default function DiscoverPage() {
                 cameraAnchor={effectiveOrigin}
                 focusRequest={mapFocusRequest}
                 interactionMode={isDesktop ? 'desktop' : 'mobile'}
+                layoutSignature={isDesktop ? (isSearchPanelCollapsed ? 'desktop-collapsed' : 'desktop-expanded') : `mobile-${mobileMode}`}
                 onBackgroundClick={isDesktop ? handleMapBackgroundClick : handleMobileMapBackgroundClick}
                 onMapHoverEnd={handleMapHoverEnd}
                 onMapHoverStart={handleMapHoverStart}
-                onMapMoveEnd={handleMapMoveEnd}
+                onResetView={handleResetDiscoveryMapView}
                 onTrackedPinLayoutChange={setTrackedPostalGroupLayout}
                 onSelectGroupPin={handleMapPinSelect}
                 onSelectPin={handleMapPinSelect}
                 pinEmphasisByKey={pinEmphasisByKey}
                 renderedSavedPlacePins={renderedSavedPlacePins}
                 savedPlacePins={savedPlacePins}
-                trackedPinKey={activePostalGroup?.postalGroupKey || hoveredPostalGroupKey || null}
+                trackedPinKey={visiblePostalGroup?.postalGroupKey || null}
                 transientPlacePins={transientPlacePins}
                 userLocation={effectiveUserLocation}
             />
-            {hoveredPostalGroupKey && !activePostalGroup ? (
-                <DiscoverPostalGroupHoverHint
-                    anchorLayout={trackedPostalGroupLayout?.pinKey === hoveredPostalGroupKey ? trackedPostalGroupLayout : null}
-                    isDesktop={isDesktop}
-                />
-            ) : null}
-            {activePostalGroup ? (
+            {visiblePostalGroup ? (
                 <DiscoverPostalGroupListPanel
-                    anchorLayout={trackedPostalGroupLayout}
-                    group={activePostalGroup}
-                    highlightedPinKey={lockedPrimaryPinKey || hoveredPrimaryPinKey || null}
+                    anchorLayout={trackedPostalGroupLayout?.pinKey === visiblePostalGroup.postalGroupKey ? trackedPostalGroupLayout : null}
+                    group={visiblePostalGroup}
+                    highlightedPinKey={lockedPrimaryPinKey || hoveredPrimaryPinKey || hoveredMapPinKey || selectedPlacePinKey || null}
+                    hoverPreview={!activePostalGroup}
                     isDesktop={isDesktop}
-                    onClose={() => setExpandedPostalGroupKey(null)}
+                    onClose={() => {
+                        cancelPostalGroupHoverClose();
+                        clearDesktopPinPreview();
+                        setHoveredPostalGroupKey(null);
+                        setExpandedPostalGroupKey(null);
+                    }}
+                    onHoverPanelEnter={handlePostalGroupPanelHoverEnter}
+                    onHoverPanelLeave={handlePostalGroupPanelHoverLeave}
+                    onHoverPin={handlePostalGroupPreviewStart}
                     onSelectPin={handlePostalGroupMemberSelect}
                 />
             ) : null}
         </div>
-    ) : (savedAssetsLoading && isAuth) || (isResolvingHome && isAuth && Boolean(user?.postalCode)) ? (
+    ) : (savedAssetsLoading && isAuth) ? (
         <div className="flex h-full items-center justify-center p-6">
             <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
                 <div className="h-10 w-10 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
@@ -1346,35 +2002,52 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
-            canClearLocationSearch={Boolean(searchOrigin)}
+            activeSubregionLabel={activeDiscoverySubregion?.discoveryLabel || ''}
+            canShowSaveAll={canShowSaveAllControl}
+            canUseSubregionScope={discoverySubregionOptions.length > 0}
+            canClearLocationSearch={hasUserSelectedLocationFilter}
             clearLocationSearch={handleClearLocationSearch}
+            discoverySubregionOptions={discoverySubregionOptions}
+            distanceOverridden={hasScopedDiscoverySubregion}
+            favoritesActionNotice={favoritesActionNotice}
+            handleHomeAnchor={handleHomeAnchorAndCollapse}
             handleLocateMe={handleLocateMeAndCollapse}
             handlePostalSearch={handlePostalSearch}
+            hasHomePostalCode={hasHomePostalCode}
             isCollapsed={isSearchPanelCollapsed}
             isGeocoding={isGeocoding}
+            isSaveAllChecked={isSaveAllChecked}
+            isSaveAllIndeterminate={isSaveAllIndeterminate}
+            isSaveAllPending={Boolean(saveAllPendingAction) || isBulkFavoritesPending}
             locationNotice={locationNotice}
             mobileMode={mobileMode}
             mobileCardDensity={mobileCardDensity}
             onApplySearch={handleApplySearch}
             onChangeMobileCardDensity={setMobileCardDensity}
-            onCollapse={() => setIsSearchPanelCollapsed(true)}
-            onExpand={() => setIsSearchPanelCollapsed(false)}
+            onCollapse={handleCollapseSearchPanel}
+            onExpand={handleExpandSearchPanel}
             onOpenBrowse={() => setMobileMode('browse')}
             onOpenMap={() => setMobileMode('map')}
             onOpenMobileBrowseDrawer={() => setMobileBrowseDrawerOpen(true)}
-            onSearchChange={setSearch}
+            onSearchChange={handleSearchChange}
+            onToggleSaveAll={handleToggleSaveAll}
             pinCount={savedPlacePins.length}
             postalInput={postalInput}
             resultCount={filtered.length}
             savedAssetCount={savedAssetCount}
+            saveAllCount={saveAllTargetItems.length}
+            saveAllPendingLabel={saveAllPendingAction === 'remove' ? 'Clearing saved…' : 'Saving all…'}
             search={search}
-            searchOrigin={searchOrigin || homeOrigin}
+            searchOrigin={searchOrigin}
             searchRadius={searchRadius}
+            selectedDiscoverySubregionId={selectedDiscoverySubregionId}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
+            setSelectedDiscoverySubregion={setSelectedDiscoverySubregionId}
             setSearchRadius={setSearchRadius}
             setShowFavoritesOnly={setShowFavoritesOnly}
             showFavoritesOnly={showFavoritesOnly}
+            tabCounts={tabCounts}
             unmappableSavedCount={unmappableSavedCount}
             user={user}
             userLocation={effectiveUserLocation}
@@ -1383,20 +2056,19 @@ export default function DiscoverPage() {
 
     const resultsList = (
         <DiscoveryResultsList
-            filtered={filtered.slice((page - 1) * listPageSize, page * listPageSize)}
+            filtered={displayedResources}
             totalCount={filtered.length}
-            page={page}
             pageSize={listPageSize}
-            onPageChange={setPage}
+            onLoadMore={() => setVisibleCount((current) => current + listPageSize)}
             isDesktop={isDesktop}
             loading={loading}
             mobileCardDensity={mobileCardDensity}
             onCardHoverEnd={handleClearHoveredAssetOnMap}
             onCardHoverStart={handleHoverAssetOnMap}
             onCardLockOnMap={handleLockAssetOnMap}
-            onCategoryClick={setSearch}
+            onCategoryClick={handleSearchChange}
             onFocusAssetOnMap={handleFocusAssetOnMap}
-            onTagClick={setSearch}
+            onTagClick={handleSearchChange}
             savedMapAssetKeys={savedMapAssetKeys}
             scrollContainerRef={resultsListRef}
             selectedAssetKey={selectedBrowseAssetKey}
@@ -1418,6 +2090,8 @@ export default function DiscoverPage() {
             {resultsList}
         </>
     );
+
+    const desktopRailWidth = listWidth;
 
     const mobileBrowseDrawer = !isDesktop && mobileMode === 'map' ? (
         <MobileBottomSheet
@@ -1518,7 +2192,7 @@ export default function DiscoverPage() {
                 <div
                     className="flex h-full flex-shrink-0 flex-col overflow-hidden z-20"
                     style={{
-                        width: `${listWidth}px`,
+                        width: `${desktopRailWidth}px`,
                         backgroundColor: 'rgba(255,255,255,0.84)',
                         borderRight: '1px solid var(--color-border)',
                         boxShadow: '28px 0 54px rgba(15, 89, 91, 0.08)',
@@ -1528,11 +2202,11 @@ export default function DiscoverPage() {
                     {desktopLeftPane}
                 </div>
 
-                {!isTouchDesktop ? (
+                {!isTouchDesktop && desktopPaneMode === 'browse' ? (
                     <div
                         className={`absolute z-30 h-full w-2 cursor-col-resize transition-colors ${isDragging ? 'bg-brand-500 opacity-60' : 'hover:bg-brand-300 hover:opacity-60'}`}
-                        onMouseDown={startDragging}
-                        style={{ left: `${listWidth - 4}px` }}
+                        onMouseDown={handleDesktopRailDragStart}
+                        style={{ left: `${desktopRailWidth - 4}px` }}
                     />
                 ) : null}
 
@@ -1542,7 +2216,7 @@ export default function DiscoverPage() {
                         onClick={handleTouchDesktopPaneToggle}
                         className="absolute z-30 top-1/2 flex h-20 w-8 -translate-y-1/2 items-center justify-center rounded-r-2xl border border-l-0 bg-white/92 shadow-[14px_0_24px_rgba(15,89,91,0.12)] backdrop-blur"
                         style={{
-                            left: `${listWidth - 1}px`,
+                            left: `${desktopRailWidth - 1}px`,
                             borderColor: 'var(--color-border)',
                             color: 'var(--color-brand-strong)',
                         }}

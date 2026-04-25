@@ -472,6 +472,7 @@ function DirectoryPlaceGroupCard({
     const placeDetailPath = getGroupDetailPath(group);
     const visibleRows = getVisibleGroupRows(group);
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
+    const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
 
     if (!interactive) {
         if (isPostalGroup) {
@@ -479,7 +480,7 @@ function DirectoryPlaceGroupCard({
                 <section
                     ref={sectionRef}
                     className={`break-inside-avoid rounded-[18px] border border-slate-200/90 bg-white/90 px-3 py-2.5 transition ${
-                        highlighted ? 'border-brand-300 ring-2 ring-brand-100' : ''
+                        highlighted ? printHighlightClassName : ''
                     }`}
                 >
                     <div className="flex items-start gap-2.5">
@@ -496,27 +497,38 @@ function DirectoryPlaceGroupCard({
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="space-y-3">
-                                {group.nestedPlaces.map((nestedPlace) => (
-                                    <div key={nestedPlace.placeKey} className="space-y-1.5">
+                                {group.nestedPlaces.map((nestedPlace) => {
+                                    const nestedPlaceDetailPath = getGroupDetailPath(nestedPlace);
+                                    const nestedPlaceTitle = nestedPlaceDetailPath && allowPrintLinks ? (
+                                        <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+                                            {nestedPlace.name}
+                                        </Link>
+                                    ) : (
                                         <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
                                             {nestedPlace.name}
                                         </h3>
-                                        <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
-                                            {getVisibleGroupRows(nestedPlace).map((row) => (
-                                                <DirectoryResourceRow
-                                                    key={row.rowKey}
-                                                    row={row}
-                                                    place={nestedPlace}
-                                                    mode={mode}
-                                                    interactive={false}
-                                                    canSaveResources={canSaveResources}
-                                                    allowPrintLinks={allowPrintLinks}
-                                                    compactPrint={compactPrint}
-                                                />
-                                            ))}
+                                    );
+
+                                    return (
+                                        <div key={nestedPlace.placeKey} className="space-y-1.5">
+                                            {nestedPlaceTitle}
+                                            <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
+                                                {getVisibleGroupRows(nestedPlace).map((row) => (
+                                                    <DirectoryResourceRow
+                                                        key={row.rowKey}
+                                                        row={row}
+                                                        place={nestedPlace}
+                                                        mode={mode}
+                                                        interactive={false}
+                                                        canSaveResources={canSaveResources}
+                                                        allowPrintLinks={allowPrintLinks}
+                                                        compactPrint={compactPrint}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -536,7 +548,7 @@ function DirectoryPlaceGroupCard({
             <section
                 ref={sectionRef}
                 className={`break-inside-avoid rounded-[18px] border border-slate-200/90 bg-white/90 px-3 py-2.5 transition ${
-                    highlighted ? 'border-brand-300 ring-2 ring-brand-100' : ''
+                    highlighted ? printHighlightClassName : ''
                 }`}
             >
                 <div className="flex items-start gap-2.5">

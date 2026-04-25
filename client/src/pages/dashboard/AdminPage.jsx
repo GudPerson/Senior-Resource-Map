@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
+import { stripMarkdownLite } from '../../lib/markdownLite.js';
 import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil } from 'lucide-react';
 import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -139,6 +140,112 @@ function compareListText(left, right) {
     return normalizeListText(left).localeCompare(normalizeListText(right));
 }
 
+function normalizePaginatedResponse(response, defaultPageSize = 500) {
+    if (Array.isArray(response)) {
+        return {
+            data: response,
+            pagination: {
+                page: 1,
+                pageSize: response.length || defaultPageSize,
+                totalCount: response.length,
+                totalPages: 1,
+            },
+        };
+    }
+
+    return {
+        data: Array.isArray(response?.data) ? response.data : [],
+        pagination: {
+            page: Number(response?.pagination?.page || 1),
+            pageSize: Number(response?.pagination?.pageSize || defaultPageSize),
+            totalCount: Number(response?.pagination?.totalCount || 0),
+            totalPages: Number(response?.pagination?.totalPages || 1),
+        },
+    };
+}
+
+async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
+    const fallback = {
+        data: [],
+        pagination: {
+            page: 1,
+            pageSize,
+            totalCount: 0,
+            totalPages: 1,
+        },
+    };
+
+    const firstResponse = normalizePaginatedResponse(
+        await fetchPage({ ...params, page: 1, pageSize }).catch(() => fallback),
+        pageSize,
+    );
+
+    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
+    if (totalPages === 1) {
+        return firstResponse.data;
+    }
+
+    const remainingResponses = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, index) => (
+            fetchPage({ ...params, page: index + 2, pageSize }).catch(() => fallback)
+        ))
+    );
+
+    return [
+        ...firstResponse.data,
+        ...remainingResponses.flatMap((response) => normalizePaginatedResponse(response, pageSize).data),
+    ];
+}
+
+function getAdminResourceAddress(resource) {
+    if (resource.category === 'Offerings') {
+        return resource.location?.address || resource.location?.name || resource.address || '— (Service/Program)';
+    }
+
+    return resource.address || '—';
+}
+
+function getAdminResourcePostalCode(resource) {
+    if (resource.category === 'Offerings') {
+        return resource.location?.postalCode || resource.postalCode || '';
+    }
+
+    return resource.postalCode || '';
+}
+
+function normalizeTagList(tags = []) {
+    return (Array.isArray(tags) ? tags : [])
+        .map((tag) => {
+            if (typeof tag === 'string') return tag;
+            return tag?.name || tag?.label || tag?.tag?.name || '';
+        })
+        .filter(Boolean);
+}
+
+async function fetchAllAdminResources() {
+    const [hard, soft] = await Promise.all([
+        fetchAllPaginatedResults(api.getHardAssets),
+        fetchAllPaginatedResults(api.getSoftAssets),
+    ]);
+
+    return [
+        ...hard.map((resource) => ({
+            ...resource,
+            category: 'Places',
+            address: getAdminResourceAddress({ ...resource, category: 'Places' }),
+            postalCode: getAdminResourcePostalCode({ ...resource, category: 'Places' }),
+            tags: normalizeTagList(resource.tags),
+        })),
+        ...soft.map((resource) => ({
+            ...resource,
+            category: 'Offerings',
+            address: getAdminResourceAddress({ ...resource, category: 'Offerings' }),
+            postalCode: getAdminResourcePostalCode({ ...resource, category: 'Offerings' }),
+            tags: normalizeTagList(resource.tags),
+        })),
+    ].sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+}
+
 export default function AdminPage() {
     const { user: currentUser } = useAuth();
     const currentRole = normalizeRole(currentUser?.role);
@@ -169,6 +276,7 @@ export default function AdminPage() {
     });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
     const [audienceZoneFeedback, setAudienceZoneFeedback] = useState(null);
+    const [resourceSearchInput, setResourceSearchInput] = useState('');
     const [resourceSearch, setResourceSearch] = useState('');
     const [resourceBoundaryFilter, setResourceBoundaryFilter] = useState('all');
     const [resourceTypeFilter, setResourceTypeFilter] = useState('all');
@@ -198,7 +306,6 @@ export default function AdminPage() {
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
     const [resourcePage, setResourcePage] = useState(1);
     const [resourcePageSize] = useState(50);
-    const [resourceTotalCount, setResourceTotalCount] = useState(0);
     const canEditUserRoles = canChangeUserRoles(currentRole);
     const creatableRoles = getCreatableUserRoles(currentRole);
     const superAdminRoleOptions = getCreatableUserRoles('super_admin');
@@ -212,11 +319,18 @@ export default function AdminPage() {
         }
     }, [availableTabs, defaultTab, tab]);
 
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setResourceSearch(resourceSearchInput);
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [resourceSearchInput]);
+
     async function loadAll() {
         setLoading(true);
         try {
             const results = await Promise.allSettled([
-                api.getResources({ page: resourcePage, pageSize: resourcePageSize, q: resourceSearch }),
+                fetchAllAdminResources(),
                 api.getUsers(),
                 api.getSubCategories(),
                 api.getSubregions(),
@@ -224,10 +338,8 @@ export default function AdminPage() {
             ]);
 
             if (results[0].status === 'fulfilled') {
-                const resData = results[0].value;
-                const items = resData.data || [];
+                const items = results[0].value || [];
                 setResources(items);
-                setResourceTotalCount(resData.pagination?.totalCount || 0);
                 setSelectedResources((prev) => prev.filter((key) => items.some((item) => getResourceSelectionKey(item) === key)));
             }
             if (results[1].status === 'fulfilled') {
@@ -265,7 +377,7 @@ export default function AdminPage() {
         }
     }
 
-    useEffect(() => { loadAll(); }, [resourcePage, resourceSearch]);
+    useEffect(() => { loadAll(); }, [currentRole]);
 
     function getResourceSelectionKey(resource) {
         const assetType = resource.category === 'Places' ? 'hard' : 'soft';
@@ -1502,6 +1614,7 @@ export default function AdminPage() {
 
             const haystack = [
                 resource.name,
+                stripMarkdownLite(resource.description),
                 resource.address,
                 resource.partnerName,
                 resource.subCategory,
@@ -1536,6 +1649,21 @@ export default function AdminPage() {
 
         return filteredItems;
     }, [resources, resourceSearch, resourceBoundaryFilter, resourceSort, resourceTypeFilter, boundaryChecksEnabled]);
+
+    useEffect(() => {
+        setResourcePage(1);
+    }, [resourceBoundaryFilter, resourceSearch, resourceSort, resourceTypeFilter]);
+
+    const paginatedResources = useMemo(() => (
+        filteredResources.slice((resourcePage - 1) * resourcePageSize, resourcePage * resourcePageSize)
+    ), [filteredResources, resourcePage, resourcePageSize]);
+
+    const resourceHeadlineCount = resourceSearch.trim()
+        ? filteredResources.length
+        : resources.length;
+    const resourceHeadlineLabel = resourceSearch.trim()
+        ? 'Matching Resources'
+        : 'Total Resources';
 
     const filteredUsers = useMemo(() => {
         const query = userSearch.trim().toLowerCase();
@@ -1697,7 +1825,7 @@ export default function AdminPage() {
         .filter((candidate) => canManageUserRecord(candidate))
         .map((candidate) => candidate.id);
     const allManageableUsersSelected = manageableVisibleUserIds.length > 0 && manageableVisibleUserIds.every((id) => selectedUsers.includes(id));
-    const visibleResourceKeys = filteredResources.map((resource) => getResourceSelectionKey(resource));
+    const visibleResourceKeys = paginatedResources.map((resource) => getResourceSelectionKey(resource));
     const allVisibleResourcesSelected = visibleResourceKeys.length > 0 && visibleResourceKeys.every((key) => selectedResources.includes(key));
     const visibleSubregionIds = filteredSubregions.map((subregion) => subregion.id);
     const allVisibleSubregionsSelected = visibleSubregionIds.length > 0 && visibleSubregionIds.every((id) => selectedSubregions.includes(id));
@@ -1712,26 +1840,26 @@ export default function AdminPage() {
     const adminStatCards = useMemo(() => {
         if (currentRole === 'partner') {
             return [
-                { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
+                { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
                 { label: 'Managed Users', val: users.filter((candidate) => normalizeRole(candidate.role) === 'standard').length, color: 'bg-green-50 text-green-700', icon: Users },
             ];
         }
 
         if (currentRole === 'regional_admin') {
             return [
-                { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
+                { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
                 { label: 'Managed Partners', val: users.filter((candidate) => normalizeRole(candidate.role) === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
                 { label: 'Scoped Subregions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
             ];
         }
 
         return [
-            { label: 'Total Resources', val: resources.length, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
+            { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
             { label: 'Total Users', val: users.length, color: 'bg-green-50 text-green-700', icon: Users },
             { label: 'Partners', val: users.filter((candidate) => normalizeRole(candidate.role) === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
             { label: 'Admins', val: users.filter((candidate) => ['super_admin', 'regional_admin'].includes(normalizeRole(candidate.role))).length, color: 'bg-red-50 text-red-700', icon: Shield },
         ];
-    }, [currentRole, resources.length, subregions.length, users]);
+    }, [currentRole, resourceHeadlineCount, resourceHeadlineLabel, resources.length, subregions.length, users]);
 
     return (
         <div className="p-6 lg:p-8">
@@ -1828,8 +1956,8 @@ export default function AdminPage() {
                             <div className="relative flex-1">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
-                                    value={resourceSearch}
-                                    onChange={(e) => setResourceSearch(e.target.value)}
+                                    value={resourceSearchInput}
+                                    onChange={(e) => setResourceSearchInput(e.target.value)}
                                     placeholder="Search resources, addresses, tags, partner, or postal code"
                                     className="input-field w-full pl-10"
                                 />
@@ -1912,7 +2040,7 @@ export default function AdminPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredResources.map(r => (
+                                {paginatedResources.map(r => (
                                     <tr key={getResourceSelectionKey(r)} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(getResourceSelectionKey(r)) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
@@ -1954,11 +2082,11 @@ export default function AdminPage() {
                             </tbody>
                         </table>
                     </div>
-                    <Pagination 
-                        totalCount={resourceTotalCount} 
-                        pageSize={resourcePageSize} 
-                        currentPage={resourcePage} 
-                        onPageChange={setResourcePage} 
+                    <Pagination
+                        totalCount={filteredResources.length}
+                        pageSize={resourcePageSize}
+                        currentPage={resourcePage}
+                        onPageChange={setResourcePage}
                     />
                     {filteredResources.length === 0 && (
                         <div className="text-center py-12 text-slate-400">No resources match the current sort and filter settings.</div>

@@ -235,7 +235,7 @@ export const getSoftAssets = async (c) => {
         const options = {
             where: finalWhere,
             with: softAssetWithRelations,
-            orderBy: [desc(softAssets.updatedAt)],
+            orderBy: [desc(softAssets.updatedAt), desc(softAssets.id)],
             limit: pageSize,
             offset: offset,
         };
