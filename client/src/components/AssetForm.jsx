@@ -30,6 +30,60 @@ function normalizeExternalHref(value) {
     }
 }
 
+function normalizeFormText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isGenericSingaporeAddress(value, postalCode) {
+    const address = normalizeFormText(value)
+        .toLowerCase()
+        .replace(/[,.]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const postal = normalizeFormText(postalCode);
+
+    return !address
+        || address === 'singapore'
+        || (postal && (address === postal || address === `singapore ${postal}`));
+}
+
+function buildEnrichmentPatch(form, data, services) {
+    const patch = {};
+    const appliedFields = [];
+
+    const nextAddress = normalizeFormText(data?.address);
+    if (
+        nextAddress
+        && isGenericSingaporeAddress(form.address, form.postalCode)
+        && normalizeFormText(form.address).toLowerCase() !== nextAddress.toLowerCase()
+    ) {
+        patch.address = nextAddress;
+        appliedFields.push('address');
+    }
+
+    [
+        ['phone', 'phone'],
+        ['website', 'website'],
+        ['hours', 'hours'],
+        ['description', 'description'],
+        ['logoUrl', 'logo'],
+    ].forEach(([field, label]) => {
+        const value = normalizeFormText(data?.[field]);
+        if (!value || normalizeFormText(form[field])) return;
+        patch[field] = value;
+        appliedFields.push(label);
+    });
+
+    const existingTags = new Set((form.newTags || []).map((tag) => String(tag).toLowerCase()));
+    const nextTags = services.filter((tag) => !existingTags.has(String(tag).toLowerCase()));
+    if (nextTags.length > 0) {
+        patch.newTags = [...new Set([...(form.newTags || []), ...nextTags])];
+        appliedFields.push('tags');
+    }
+
+    return { patch, appliedFields };
+}
+
 function buildInitialForm(type, initialData, currentUser) {
     if (initialData) {
         return {
@@ -286,21 +340,31 @@ export default function AssetForm({
                 name: form.name,
                 address: form.address,
                 postalCode: form.postalCode,
+                website: form.website,
+                subCategory: form.subCategory,
             });
             const services = Array.isArray(data?.services) ? data.services.filter(Boolean) : [];
-            const hasSuggestions = Boolean(data?.description || data?.logoUrl || services.length);
+            const hasSuggestions = Boolean(
+                data?.address
+                || data?.phone
+                || data?.website
+                || data?.hours
+                || data?.description
+                || data?.logoUrl
+                || services.length
+            );
             if (!hasSuggestions) {
                 setEnrichmentNotice('No AI suggestions were returned for this place. Check AI enrichment configuration or try a more specific name and address.');
                 return;
             }
             if (data) {
-                setForm((prev) => ({
-                    ...prev,
-                    description: prev.description || data.description || '',
-                    logoUrl: prev.logoUrl || data.logoUrl || '',
-                    newTags: [...new Set([...prev.newTags, ...services])],
-                }));
-                setEnrichmentNotice('AI suggestions were applied to empty fields and tags.');
+                const { patch, appliedFields } = buildEnrichmentPatch(form, data, services);
+                if (appliedFields.length === 0) {
+                    setEnrichmentNotice('AI suggestions were returned, but your existing fields already have values.');
+                    return;
+                }
+                setForm((prev) => ({ ...prev, ...patch }));
+                setEnrichmentNotice(`AI suggestions were applied to ${appliedFields.join(', ')}.`);
             }
         } catch (err) {
             setError(err.message || 'Failed to enrich draft');
@@ -478,13 +542,13 @@ export default function AssetForm({
                         <div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">AI Grounding</p>
                             <p className="mt-1 text-sm text-slate-700">
-                                Uses postal code, name, and address to find a better description, services, and logo.
+                                Uses name and postal code to find a better address, hours, description, services, and logo.
                             </p>
                         </div>
                         <button
                             type="button"
                             onClick={handleEnrichDraft}
-                            disabled={enriching || !form.name || !form.postalCode || !form.address}
+                            disabled={enriching || !form.name || !form.postalCode}
                             className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-bold text-brand-700 transition-colors hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {enriching ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}

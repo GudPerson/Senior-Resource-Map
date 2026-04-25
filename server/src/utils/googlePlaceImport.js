@@ -337,7 +337,12 @@ function resolveDirectSubCategorySuggestion(value, availableSubCategories = []) 
 }
 
 function getGoogleMapsApiKey(env) {
-    return env?.GOOGLE_MAPS_API_KEY || env?.GOOGLE_PLACES_API_KEY || '';
+    const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
+    return env?.GOOGLE_MAPS_API_KEY
+        || env?.GOOGLE_PLACES_API_KEY
+        || processEnv.GOOGLE_MAPS_API_KEY
+        || processEnv.GOOGLE_PLACES_API_KEY
+        || '';
 }
 
 async function searchOneMap(query) {
@@ -506,6 +511,120 @@ async function searchPlaces(apiKey, queryCandidates) {
     }
 
     return top.place;
+}
+
+function buildDraftEnrichmentQueries(candidate) {
+    const name = normalizeText(candidate?.name);
+    const postalCode = normalizePostalCode(candidate?.postalCode);
+    const address = normalizeText(candidate?.address);
+    const queries = [
+        name && postalCode ? `${name} ${postalCode}` : '',
+        name && address ? `${name} ${address}` : '',
+        name ? `${name} Singapore` : '',
+    ].filter(Boolean);
+
+    return [...new Set(queries)];
+}
+
+function scoreDraftPlaceMatch(place, candidate) {
+    const primaryType = normalizeText(place?.primaryType).toLowerCase();
+    if (primaryType === 'postal_code') return -Infinity;
+
+    const candidateName = normalizeText(candidate?.name);
+    const candidatePostalCode = normalizePostalCode(candidate?.postalCode);
+    const candidateAddress = normalizeText(candidate?.address);
+    const placeName = placeDisplayName(place);
+    const placeAddress = normalizeText(place?.formattedAddress);
+    const samePostalCode = candidatePostalCode && extractPostalCode(place) === candidatePostalCode;
+    const nameOverlap = computeTokenOverlap(placeName, candidateName);
+    const addressOverlap = computeTokenOverlap(placeAddress, candidateAddress);
+
+    let score = nameOverlap * 3;
+    if (samePostalCode) score += 3;
+    if (addressOverlap > 0) score += addressOverlap * 0.5;
+    if (normalizeSearchText(placeName) === normalizeSearchText(candidateName)) score += 1;
+    if (nameOverlap === 0 && !samePostalCode) score -= 3;
+
+    return score;
+}
+
+function inferDraftEnrichmentTags(place, candidate, availableHardSubCategories = []) {
+    const primaryType = normalizeText(place?.primaryType).replace(/_/g, ' ');
+    const subCategorySuggestion = suggestSubCategory(place?.primaryType, availableHardSubCategories);
+    const category = normalizeText(subCategorySuggestion || candidate?.subCategory);
+    const searchable = normalizeSearchText([placeDisplayName(place), primaryType, category].filter(Boolean).join(' '));
+    const tags = [category, primaryType];
+
+    if (/\b(active ageing|senior citizen|senior|eldercare)\b/.test(searchable)) tags.push('senior activities');
+    if (/\b(clinic|medical|doctor|polyclinic|health)\b/.test(searchable)) tags.push('healthcare');
+    if (/\b(community|social service)\b/.test(searchable)) tags.push('community support');
+    if (/\b(nursing|care home|assisted living)\b/.test(searchable)) tags.push('care services');
+    if (/\b(temple|church|mosque)\b/.test(searchable)) tags.push('faith community');
+
+    return dedupeTags(tags);
+}
+
+function mapGooglePlaceToDraftEnrichment(place, websiteMetadata, candidate, availableHardSubCategories = []) {
+    const website = normalizeText(place?.websiteUri);
+    const description = normalizeText(
+        place?.editorialSummary?.text
+        || place?.editorialSummary
+        || websiteMetadata?.description
+    );
+
+    return {
+        index: 0,
+        googlePlaceId: normalizeText(place?.id),
+        address: normalizeText(place?.formattedAddress),
+        postalCode: extractPostalCode(place),
+        website,
+        phone: normalizeText(place?.nationalPhoneNumber),
+        hours: formatOpeningHours(place),
+        description,
+        services: inferDraftEnrichmentTags(place, candidate, availableHardSubCategories),
+        logoUrl: normalizeText(websiteMetadata?.logoUrl),
+        sourceUrl: website || normalizeText(place?.googleMapsUri),
+        sourceTitle: placeDisplayName(place),
+        confidence: 0.78,
+    };
+}
+
+export async function enrichHardAssetDraftFromGooglePlaces(env, candidate, availableHardSubCategories = []) {
+    const apiKey = getGoogleMapsApiKey(env);
+    if (!apiKey) return null;
+
+    const queries = buildDraftEnrichmentQueries(candidate);
+    if (queries.length === 0) return null;
+
+    const placeMap = new Map();
+    for (const query of queries) {
+        const places = await runTextSearch(apiKey, query, {
+            maxResultCount: 5,
+            regionCode: 'SG',
+        });
+
+        for (const place of places) {
+            const placeId = normalizeText(place?.id);
+            if (!placeId || placeMap.has(placeId)) continue;
+            placeMap.set(placeId, place);
+        }
+    }
+
+    const best = [...placeMap.values()]
+        .map((place) => ({
+            place,
+            score: scoreDraftPlaceMatch(place, candidate),
+        }))
+        .filter(({ score }) => score > 0)
+        .sort((left, right) => right.score - left.score)[0]?.place || null;
+
+    if (!best) return null;
+
+    const detailedPlace = await fetchPlaceDetails(apiKey, best);
+    const website = normalizeText(detailedPlace?.websiteUri);
+    const websiteMetadata = website ? await fetchWebsiteMetadata(website) : { description: '', logoUrl: '' };
+
+    return mapGooglePlaceToDraftEnrichment(detailedPlace, websiteMetadata, candidate, availableHardSubCategories);
 }
 
 async function resolveGooglePlaceFromShareUrl(apiKey, shareUrl) {
@@ -695,7 +814,7 @@ function buildImportedHardAssetDraftSeed(candidate) {
         postalCode: candidate.postalCode || '',
         address: candidate.address || '',
         phone: candidate.phone || '',
-        hours: '',
+        hours: candidate.hours || '',
         website: candidate.website || '',
         description: candidate.description || '',
         logoUrl: candidate.logoUrl || '',
@@ -795,6 +914,7 @@ async function searchVertexFallbackCandidates(
             suggestedTags: dedupeTags(rawCandidate?.suggestedTags),
             website: normalizeUrl(rawCandidate?.website),
             phone: normalizeText(rawCandidate?.phone),
+            hours: normalizeText(rawCandidate?.hours || rawCandidate?.openingHours || rawCandidate?.operatingHours),
             description: normalizeText(rawCandidate?.description),
             logoUrl: normalizeUrl(rawCandidate?.logoUrl),
             sourceUrl,

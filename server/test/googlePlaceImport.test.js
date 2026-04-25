@@ -160,6 +160,7 @@ test('postal search uses Vertex web fallback when Google returns zero place cand
                                                 postalCode: '681811',
                                                 website: 'https://riverlife.example/aac',
                                                 phone: '61234567',
+                                                hours: 'Monday to Friday, 9am to 6pm',
                                                 description: 'Community programmes and wellness support for seniors.',
                                                 logoUrl: 'https://riverlife.example/logo.png',
                                                 subCategorySuggestion: 'Active Ageing Centre',
@@ -202,6 +203,7 @@ test('postal search uses Vertex web fallback when Google returns zero place cand
         assert.equal(result.exactCandidates[0].candidateSource, 'web_fallback');
         assert.equal(result.exactCandidates[0].sourceUrl, 'https://riverlife.example/aac');
         assert.equal(result.exactCandidates[0].draftSeed.name, 'RiverLife Active Ageing Centre');
+        assert.equal(result.exactCandidates[0].draftSeed.hours, 'Monday to Friday, 9am to 6pm');
         assert.match(result.fallbackWarnings.join(' '), /grounded web fallback/i);
     } finally {
         global.fetch = originalFetch;

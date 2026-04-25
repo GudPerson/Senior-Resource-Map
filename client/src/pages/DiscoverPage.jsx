@@ -739,7 +739,7 @@ export default function DiscoverPage() {
             };
         });
 
-        if (activeDiscoverySubregion?.postalCodeSet?.size) {
+        if (activeDiscoverySubregion?.postalCodeSet?.size && !isSingaporeWideSubregion(activeDiscoverySubregion)) {
             items = items.filter((resource) => {
                 if (resource._type === 'hard') {
                     return hasPostalCodeInBoundary(resource.postalCode, activeDiscoverySubregion.postalCodeSet);

@@ -15,8 +15,8 @@ import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata } from '../utils/eligibility.js';
 import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
-import { resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
-import { enrichPlaceCandidatesWithVertex } from '../utils/vertexGroundedPlaceSearch.js';
+import { enrichHardAssetDraftFromGooglePlaces, resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
+import { enrichPlaceCandidatesWithVertex, searchVertexGroundedPlaceSuggestions } from '../utils/vertexGroundedPlaceSearch.js';
 import { fetchWebsiteMetadata } from '../utils/websiteMetadata.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
@@ -74,6 +74,451 @@ function parseRadiusFilter(value) {
 
 function normalizeName(value) {
     return normalizeText(value).toLowerCase();
+}
+
+const ENRICHMENT_STOP_WORDS = new Set([
+    'active',
+    'ageing',
+    'aging',
+    'centre',
+    'center',
+    'singapore',
+    'sg',
+    'the',
+    'and',
+    'for',
+]);
+
+const FEI_YUE_ACTIVE_AGEING_DESCRIPTION = 'Fei Yue Community Service promotes social engagement and well-being of seniors through Active Ageing Centres and community programmes.';
+const FEI_YUE_ACTIVE_AGEING_SERVICES = ['active ageing', 'senior activities', 'community programmes'];
+const FEI_YUE_ACTIVE_AGEING_ENTRIES = [
+    {
+        name: 'Fei Yue Active Ageing Centre (Hougang)',
+        postalCode: '531174',
+        address: 'Blk 174A Hougang Avenue 1 #01-1505, Singapore 531174',
+        phone: '6538 0234',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Hougang Dewcourt)',
+        postalCode: '533376',
+        address: 'Blk 376C Hougang Street 32 #01-32, Singapore 533376',
+        phone: '6202 4699',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Holland Close)',
+        postalCode: '271001',
+        address: 'Blk 1 Holland Close #02-115, Singapore 271001',
+        phone: '6774 4044',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Commonwealth)',
+        postalCode: '140107',
+        address: 'Blk 107 Commonwealth Crescent #01-230, Singapore 140107',
+        phone: '6471 2022',
+        hours: 'Monday to Friday, 2pm to 5:30pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Bukit Batok)',
+        postalCode: '650183',
+        address: 'Blk 183 Bukit Batok West Ave 8 #01-101, Singapore 650183',
+        phone: '6561 4404',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Bukit Batok extension)',
+        postalCode: '651210',
+        address: 'Blk 210A Bukit Batok St 21 #01-294, Singapore 651210',
+        phone: '6563 3662',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Teck Whye)',
+        postalCode: '680009',
+        address: 'Blk 9 Teck Whye Lane #01-268, Singapore 680009',
+        phone: '6893 6606',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Teck Whye extension)',
+        postalCode: '681165',
+        address: 'Blk 165A Teck Whye Crescent #01-331, Singapore 681165',
+        phone: '6380 9155',
+        hours: 'Monday to Friday, 2pm to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Senja)',
+        postalCode: '672634',
+        address: 'Blk 634B Senja Road #02-227, Singapore 672634',
+        phone: '6351 9555',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Limbang)',
+        postalCode: '680536',
+        address: 'Blk 536 Choa Chu Kang Street 51 #01-142, Singapore 680536',
+        phone: '6659 0616',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Limbang Green)',
+        postalCode: '680574',
+        address: 'Blk 574 Choa Chu Kang St 52 #01-296, Singapore 680574',
+        phone: '6661 9499',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Sunshine Court)',
+        postalCode: '683476',
+        address: 'Blk 476C Choa Chu Kang Avenue 5 #01-43, Singapore 683476',
+        phone: '6334 0180',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+    {
+        name: 'Fei Yue Active Ageing Centre (Brickland)',
+        postalCode: '681809',
+        address: 'Blk 809A Choa Chu Kang Ave 1 #01-628, Singapore 681809',
+        phone: '6950 6322',
+        hours: 'Monday to Friday, 9.30am to 6pm',
+    },
+];
+
+const OFFICIAL_DIRECTORY_SOURCES = [
+    {
+        label: 'Fei Yue Active Ageing Centres',
+        url: 'https://fycs.org/active-ageing-centres/',
+        matches: (candidate) => /\bfei\s+yue\b/i.test(candidate?.name || ''),
+        description: FEI_YUE_ACTIVE_AGEING_DESCRIPTION,
+        services: FEI_YUE_ACTIVE_AGEING_SERVICES,
+        entries: FEI_YUE_ACTIVE_AGEING_ENTRIES,
+    },
+];
+
+function tokenizeEnrichmentText(value) {
+    return normalizeText(value)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .split(' ')
+        .filter((token) => token.length > 1 && !ENRICHMENT_STOP_WORDS.has(token));
+}
+
+function computeTokenOverlap(left, right) {
+    const leftTokens = new Set(tokenizeEnrichmentText(left));
+    if (leftTokens.size === 0) return 0;
+    const rightTokens = new Set(tokenizeEnrichmentText(right));
+    if (rightTokens.size === 0) return 0;
+
+    let matches = 0;
+    leftTokens.forEach((token) => {
+        if (rightTokens.has(token)) matches += 1;
+    });
+    return matches / leftTokens.size;
+}
+
+function hasUsefulEnrichment(enrichment) {
+    return Boolean(
+        enrichment?.address
+        || enrichment?.phone
+        || enrichment?.website
+        || enrichment?.hours
+        || enrichment?.description
+        || enrichment?.logoUrl
+        || (Array.isArray(enrichment?.services) && enrichment.services.length > 0)
+    );
+}
+
+function needsCorePlaceEnrichment(enrichment) {
+    return !normalizeText(enrichment?.address)
+        || !normalizeText(enrichment?.website)
+        || !normalizeText(enrichment?.phone)
+        || !normalizeText(enrichment?.hours)
+        || !normalizeText(enrichment?.description)
+        || !Array.isArray(enrichment?.services)
+        || enrichment.services.length === 0;
+}
+
+function scoreGroundedDraftSuggestion(candidate, suggestion) {
+    const nameOverlap = computeTokenOverlap(candidate?.name, suggestion?.name);
+    const evidenceText = [
+        suggestion?.name,
+        suggestion?.address,
+        suggestion?.description,
+        suggestion?.sourceSnippet,
+        ...(Array.isArray(suggestion?.suggestedTags) ? suggestion.suggestedTags : []),
+    ].filter(Boolean).join(' ');
+    const categoryOverlap = computeTokenOverlap(candidate?.subCategory, evidenceText);
+    const samePostalCode = normalizeText(candidate?.postalCode) && normalizeText(candidate?.postalCode) === normalizeText(suggestion?.postalCode);
+
+    let score = nameOverlap * 3;
+    if (samePostalCode) score += 3;
+    if (categoryOverlap > 0) score += categoryOverlap;
+    if (suggestion?.description) score += 1;
+    if (suggestion?.logoUrl) score += 0.75;
+    if (suggestion?.sourceUrl || suggestion?.website) score += 0.5;
+    if (nameOverlap === 0 && !samePostalCode) score -= 2;
+
+    return score;
+}
+
+function mapGroundedDraftSuggestionToEnrichment(suggestion) {
+    if (!suggestion) return null;
+
+    return {
+        index: 0,
+        googlePlaceId: '',
+        address: suggestion.address || '',
+        postalCode: suggestion.postalCode || '',
+        website: suggestion.website || '',
+        phone: suggestion.phone || '',
+        hours: suggestion.hours || '',
+        description: suggestion.description || '',
+        services: Array.isArray(suggestion.suggestedTags) ? suggestion.suggestedTags : [],
+        logoUrl: suggestion.logoUrl || '',
+        sourceUrl: suggestion.sourceUrl || suggestion.website || '',
+        sourceTitle: suggestion.sourceTitle || suggestion.name || '',
+        confidence: Number.isFinite(Number(suggestion.confidence)) ? Number(suggestion.confidence) : 0.5,
+    };
+}
+
+function mapOfficialDirectoryEntryToEnrichment(entry, source) {
+    if (!entry) return null;
+
+    return {
+        index: 0,
+        googlePlaceId: '',
+        address: entry.address || '',
+        postalCode: entry.postalCode || '',
+        website: source.url,
+        phone: entry.phone || '',
+        hours: entry.hours || '',
+        description: source.description || '',
+        services: Array.isArray(source.services) ? source.services : [],
+        logoUrl: '',
+        sourceUrl: source.url,
+        sourceTitle: source.label,
+        confidence: 0.95,
+    };
+}
+
+function findOfficialDirectoryEntry(candidate, source) {
+    const entries = Array.isArray(source?.entries) ? source.entries : [];
+    if (entries.length === 0) return null;
+
+    const postalCode = normalizeText(candidate?.postalCode);
+    if (postalCode) {
+        const exactPostalMatch = entries.find((entry) => normalizeText(entry.postalCode) === postalCode);
+        if (exactPostalMatch) return exactPostalMatch;
+    }
+
+    const candidateTokens = tokenizeEnrichmentText(candidate?.name);
+    if (candidateTokens.length < 3) return null;
+
+    return entries
+        .map((entry) => ({
+            entry,
+            score: computeTokenOverlap(candidate?.name, entry.name),
+        }))
+        .filter(({ score }) => score >= 0.75)
+        .sort((left, right) => right.score - left.score)[0]?.entry || null;
+}
+
+function enrichDraftFromStaticOfficialDirectory(candidate) {
+    const source = OFFICIAL_DIRECTORY_SOURCES.find((entry) => entry.matches(candidate));
+    if (!source) return null;
+
+    return mapOfficialDirectoryEntryToEnrichment(findOfficialDirectoryEntry(candidate, source), source);
+}
+
+function mergeEnrichmentWithFallback(enrichment, fallback) {
+    if (!fallback) return enrichment;
+    if (!enrichment) return fallback;
+
+    const merged = { ...fallback, ...enrichment };
+    ['address', 'postalCode', 'website', 'phone', 'hours', 'description', 'logoUrl', 'sourceUrl', 'sourceTitle'].forEach((field) => {
+        if (!normalizeText(enrichment[field]) && normalizeText(fallback[field])) {
+            merged[field] = fallback[field];
+        }
+    });
+
+    const services = [...(fallback.services || []), ...(enrichment.services || [])]
+        .map((service) => normalizeText(service))
+        .filter(Boolean);
+    merged.services = [...new Set(services)];
+    merged.confidence = Math.max(Number(enrichment.confidence) || 0, Number(fallback.confidence) || 0);
+
+    return merged;
+}
+
+function decodeBasicHtmlEntities(value) {
+    return String(value || '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>');
+}
+
+function htmlToDirectoryText(html) {
+    return decodeBasicHtmlEntities(String(html || '')
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\r/g, '\n'))
+        .split('\n')
+        .map((line) => normalizeText(line))
+        .filter(Boolean)
+        .join('\n');
+}
+
+function extractOfficialDirectoryBlock(text, candidate) {
+    const lines = String(text || '').split('\n').map(normalizeText).filter(Boolean);
+    if (lines.length === 0) return [];
+
+    const postalCode = normalizeText(candidate?.postalCode);
+    const nameTokens = tokenizeEnrichmentText(candidate?.name);
+    const startIndex = lines.findIndex((line, index) => {
+        const nextLines = lines.slice(index, index + 8).join(' ');
+        const samePostal = postalCode && nextLines.includes(postalCode);
+        const nameOverlap = computeTokenOverlap(candidate?.name, line);
+        return samePostal && (nameOverlap >= 0.45 || nameTokens.some((token) => line.toLowerCase().includes(token)));
+    });
+
+    if (startIndex < 0) return [];
+
+    const block = [];
+    for (let index = startIndex; index < lines.length; index += 1) {
+        const line = lines[index];
+        if (index > startIndex && /^fei\s+yue\b/i.test(line) && !line.includes(postalCode)) break;
+        block.push(line);
+        if (/^operating\s+hours\s*:/i.test(line)) break;
+        if (block.length >= 12) break;
+    }
+
+    return block;
+}
+
+function parseOfficialDirectoryBlock(block, source, metadata = {}) {
+    if (!Array.isArray(block) || block.length === 0) return null;
+
+    const addressLines = [];
+    let phone = '';
+    let hours = '';
+    let postalCode = '';
+
+    for (const line of block.slice(1)) {
+        const telMatch = line.match(/^tel\s*:\s*(.+)$/i);
+        if (telMatch) {
+            phone = normalizeText(telMatch[1]);
+            continue;
+        }
+
+        const hoursMatch = line.match(/^operating\s+hours\s*:\s*(.+)$/i);
+        if (hoursMatch) {
+            hours = normalizeText(hoursMatch[1]);
+            continue;
+        }
+
+        if (/^(fax|email|centre\s+head)\s*:/i.test(line)) continue;
+
+        const postalMatch = line.match(/\b(\d{6})\b/);
+        if (postalMatch) postalCode = postalMatch[1];
+        addressLines.push(line);
+    }
+
+    const address = normalizeText(addressLines.join(', '));
+    if (!address && !phone && !hours) return null;
+
+    return {
+        index: 0,
+        googlePlaceId: '',
+        address,
+        postalCode,
+        website: source.url,
+        phone,
+        hours,
+        description: metadata.description || source.description || '',
+        services: Array.isArray(source.services) ? source.services : [],
+        logoUrl: '',
+        sourceUrl: source.url,
+        sourceTitle: source.label,
+        confidence: 0.9,
+    };
+}
+
+async function enrichDraftFromOfficialDirectory(candidate) {
+    const source = OFFICIAL_DIRECTORY_SOURCES.find((entry) => entry.matches(candidate));
+    if (!source) return null;
+
+    const staticEnrichment = enrichDraftFromStaticOfficialDirectory(candidate);
+    if (staticEnrichment) return staticEnrichment;
+
+    try {
+        const response = await fetch(source.url, {
+            headers: {
+                Accept: 'text/html,application/xhtml+xml',
+                'User-Agent': 'CareAroundSGImport/1.0',
+            },
+            redirect: 'follow',
+        });
+        if (!response.ok) return null;
+
+        const html = await response.text();
+        const text = htmlToDirectoryText(html);
+        const block = extractOfficialDirectoryBlock(text, candidate);
+        const metadata = await fetchWebsiteMetadata(source.url);
+        return parseOfficialDirectoryBlock(block, source, metadata);
+    } catch (err) {
+        console.warn('enrichHardAssetDraft: official directory fallback skipped.', err?.message);
+        return null;
+    }
+}
+
+async function enrichDraftWithGroundedSearch(env, candidate) {
+    if (!candidate?.name || !candidate?.postalCode) return null;
+
+    try {
+        const { candidates = [] } = await searchVertexGroundedPlaceSuggestions({
+            env,
+            anchor: {
+                postalCode: candidate.postalCode,
+                address: candidate.address,
+            },
+            keywordQuery: [candidate.name, candidate.subCategory].filter(Boolean).join(' '),
+            categoryHints: [candidate.subCategory, 'Active Ageing Centre', 'senior activities'].filter(Boolean),
+            preferredResultCount: 4,
+            radiusLabel: 'Singapore',
+        });
+
+        const bestSuggestion = candidates
+            .map((suggestion) => ({
+                suggestion,
+                score: scoreGroundedDraftSuggestion(candidate, suggestion),
+            }))
+            .filter((entry) => entry.score > 0)
+            .sort((left, right) => right.score - left.score)[0]?.suggestion || null;
+
+        return mapGroundedDraftSuggestionToEnrichment(bestSuggestion);
+    } catch (err) {
+        console.warn('enrichHardAssetDraft: grounded fallback skipped.', err?.message);
+        return null;
+    }
+}
+
+async function enrichDraftWithGooglePlaces(env, candidate) {
+    if (!candidate?.name || !candidate?.postalCode) return null;
+
+    try {
+        return await enrichHardAssetDraftFromGooglePlaces(env, candidate);
+    } catch (err) {
+        console.warn('enrichHardAssetDraft: Google Places fallback skipped.', err?.message);
+        return null;
+    }
 }
 
 function buildDuplicateMatch(existingAsset, matchReason) {
@@ -945,16 +1390,32 @@ export const enrichHardAssetDraft = async (c) => {
             googlePlaceId: body.googlePlaceId || '',
             name: body.name || '',
             address: body.address || '',
-            postalCode: body.postalCode || ''
+            postalCode: body.postalCode || '',
+            website: body.website || '',
+            subCategory: body.subCategory || '',
         };
+        const officialDirectoryEnrichment = enrichDraftFromStaticOfficialDirectory(candidate);
         
         const enrichmentMap = await enrichPlaceCandidatesWithVertex({
             env: c.env,
             candidates: [candidate],
-            keywordQuery: ''
+            keywordQuery: candidate.name,
         });
 
-        const enrichment = enrichmentMap.get(candidate.googlePlaceId) || enrichmentMap.get(`_idx:0`);
+        let enrichment = enrichmentMap.get(candidate.googlePlaceId) || enrichmentMap.get(`_idx:0`);
+        enrichment = mergeEnrichmentWithFallback(enrichment, officialDirectoryEnrichment);
+        if (needsCorePlaceEnrichment(enrichment)) {
+            const googlePlacesEnrichment = await enrichDraftWithGooglePlaces(c.env, candidate);
+            enrichment = mergeEnrichmentWithFallback(enrichment, googlePlacesEnrichment);
+            enrichment = mergeEnrichmentWithFallback(enrichment, officialDirectoryEnrichment);
+        }
+        if (!hasUsefulEnrichment(enrichment)) {
+            enrichment = await enrichDraftWithGroundedSearch(c.env, candidate) || enrichment;
+            enrichment = mergeEnrichmentWithFallback(enrichment, officialDirectoryEnrichment);
+        }
+        if (!hasUsefulEnrichment(enrichment)) {
+            enrichment = await enrichDraftFromOfficialDirectory(candidate) || enrichment;
+        }
         if (enrichment && !enrichment.logoUrl && enrichment.sourceUrl) {
             const metadata = await fetchWebsiteMetadata(enrichment.sourceUrl);
             if (metadata.logoUrl) {
