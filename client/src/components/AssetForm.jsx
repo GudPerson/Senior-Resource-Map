@@ -152,6 +152,7 @@ export default function AssetForm({
     const [form, setForm] = useState(() => buildInitialForm(type, initialData, currentUser));
     const [saving, setSaving] = useState(false);
     const [enriching, setEnriching] = useState(false);
+    const [enrichmentNotice, setEnrichmentNotice] = useState('');
     const [creatingSubCategory, setCreatingSubCategory] = useState(false);
     const [error, setError] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
@@ -278,6 +279,7 @@ export default function AssetForm({
     async function handleEnrichDraft() {
         setEnriching(true);
         setError('');
+        setEnrichmentNotice('');
         try {
             const data = await api.enrichHardAssetDraft({
                 googlePlaceId: form.sourceGooglePlaceId || '',
@@ -285,13 +287,20 @@ export default function AssetForm({
                 address: form.address,
                 postalCode: form.postalCode,
             });
+            const services = Array.isArray(data?.services) ? data.services.filter(Boolean) : [];
+            const hasSuggestions = Boolean(data?.description || data?.logoUrl || services.length);
+            if (!hasSuggestions) {
+                setEnrichmentNotice('No AI suggestions were returned for this place. Check AI enrichment configuration or try a more specific name and address.');
+                return;
+            }
             if (data) {
                 setForm((prev) => ({
                     ...prev,
                     description: prev.description || data.description || '',
                     logoUrl: prev.logoUrl || data.logoUrl || '',
-                    newTags: [...new Set([...prev.newTags, ...(data.services || [])])],
+                    newTags: [...new Set([...prev.newTags, ...services])],
                 }));
+                setEnrichmentNotice('AI suggestions were applied to empty fields and tags.');
             }
         } catch (err) {
             setError(err.message || 'Failed to enrich draft');
@@ -482,6 +491,11 @@ export default function AssetForm({
                             {enriching ? 'Enriching...' : 'Enrich with AI'}
                         </button>
                     </div>
+                    {enrichmentNotice ? (
+                        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                            {enrichmentNotice}
+                        </p>
+                    ) : null}
                 </div>
             ) : null}
 

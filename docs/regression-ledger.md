@@ -50,9 +50,9 @@ These surfaces are approved on the stabilization branch and should not be reopen
 | Private Maps print/export | Recovered and locked on stabilization branch; print card links and map interactivity retested locally; hidden export surface moved off-screen after it was found overlapping live map hit-testing; print header copy wraps without truncating | `865461f4`, `940cc182` + user-approved stabilization layout pass | Open `?view=print`, test layout, grouped asset detail links, pin/cluster hover, top-edge pin hover, cluster click zoom/spiderfy, map reset, Save as image, header title/description wrapping, distance-anchor note placement, and `elementFromPoint` on visible marker centers | Wide layout, QR present, map name is not truncated, description wraps before QR area, distance anchor note sits just above map, grouped print entries navigate to detail pages, hover highlights matching card(s) with orange ring, top-edge pins remain responsive, cluster click expands, reset restores full map, export clone does not intercept marker hit-testing, capture succeeds, print preview matches approved baseline | 2026-04-25 |
 | Shared maps | Recovered and locked on stabilization branch | User-approved stabilization branch behavior | Open shared directory as guest/logged-in user, test copy/save flows | Shared view loads, copy/save behavior correct | 2026-04-22 |
 | Dashboard resources/admin | Recovered and locked on stabilization branch; punctuation-normalized resource search retested locally | User-approved stabilization branch behavior | Load `/dashboard/resources` and `/dashboard/admin`, test search, counts, export | Search stable, counts consistent, filtered workbook export works, admin search does not reload on every letter, names with parentheses remain searchable | 2026-04-25 |
-| Workbook import/export | Locally recovered; pending credentialed smoke/manual review before locking | Local verification artifacts in `output/workbook-local-2026-04-25T05-42-07-819Z` | Run places export/import, standalone offering import, template import, rollout import, filtered workbook flows, error-report flows | No timeout/subrequest regressions; reports accurate; filtered/full export formats round-trip safely | 2026-04-25 |
-| Asset create/edit forms | Not yet stabilized | TBD | Open place/offering/template forms and edit existing assets | No blank screens; field behavior and detail links intact | TBD |
-| AI enrichment | Not yet stabilized | TBD | Run enrichment on existing asset and verify persisted fields | Description/tags and supported metadata behave consistently | TBD |
+| Workbook import/export | Recovered and locked on stabilization branch; local full/filtered exports and import reports revalidated | Local verification artifacts in `output/workbook-local-2026-04-25T05-42-07-819Z` | Run places export/import, standalone offering import, template import, rollout import, filtered workbook flows, error-report flows; re-open exported `.xlsx` files with `openpyxl` | No timeout/subrequest regressions; reports accurate; filtered/full export formats round-trip safely; `.xlsx` files include `Guide`, `Data`, and `Reference` sheets | 2026-04-25 |
+| Asset create/edit forms | Recovered and locked on stabilization branch; place create, inline place edit, offering create/edit, template create/edit, and rollout edit checked locally | Local browser verification on `/dashboard/resources` with current `server/.env` API | Open place/offering/template forms and edit existing assets | No blank screens; hard-place inline edit renders expected fields; modal create/edit flows render expected fields; rollout editor opens inherited/local sections | 2026-04-25 |
+| AI enrichment | Local no-config fallback recovered; live Vertex enrichment still needs credentialed confirmation | Local browser/API verification with current `server/.env` showing Vertex env absent and `/api/hard-assets/import/enrich-draft` returning `{}` | Fill a place draft name, postal code, and address; click `Enrich with AI`; call enrichment endpoint directly | Button enables only with required draft fields; unconfigured/empty enrichment response gives visible feedback instead of silently doing nothing; configured Vertex environment still must confirm description/logo/tag suggestions | 2026-04-25 |
 
 ## Current recovery order
 
@@ -67,9 +67,11 @@ Completed and locked:
 - Discover
 - My Directory + Private Maps
 - Dashboard resources/admin
+- Workbook import/export
+- Asset create/edit forms
 
 Active next recovery family:
-- Workbook import/export (local API/browser verification green; credentialed smoke/manual review still pending)
+- AI enrichment credentialed confirmation
 
 ## Recovery workflow
 
