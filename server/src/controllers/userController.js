@@ -9,7 +9,7 @@ import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../uti
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
-import { normalizeDateOfBirth, normalizeGender, normalizePropertyType } from '../utils/profileAttributes.js';
+import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -143,8 +143,11 @@ async function loadUserWithSubregions(db, id) {
             phone: true,
             postalCode: true,
             dateOfBirth: true,
+            chasCard: true,
+            caregiverStatus: true,
             gender: true,
             propertyType: true,
+            volunteerInterest: true,
             createdAt: true,
             managerUserId: true,
         },
@@ -185,8 +188,11 @@ async function loadUserWithSubregions(db, id) {
         phone: userRow.phone,
         postalCode: userRow.postalCode,
         dateOfBirth: userRow.dateOfBirth,
+        chasCard: userRow.chasCard,
+        caregiverStatus: userRow.caregiverStatus,
         gender: userRow.gender,
         propertyType: userRow.propertyType,
+        volunteerInterest: userRow.volunteerInterest,
         createdAt: userRow.createdAt,
         managerUserId: userRow.managerUserId,
         managerName: userRow.manager?.name || null,
@@ -337,8 +343,11 @@ function buildUserResponse(userRow, boundaryContext) {
         phone: userRow.phone,
         postalCode: userRow.postalCode,
         dateOfBirth: userRow.dateOfBirth,
+        chasCard: userRow.chasCard,
+        caregiverStatus: userRow.caregiverStatus,
         gender: userRow.gender,
         propertyType: userRow.propertyType,
+        volunteerInterest: userRow.volunteerInterest,
         createdAt: userRow.createdAt,
         managerUserId: userRow.managerUserId || null,
         managerName: userRow.managerName || null,
@@ -507,8 +516,11 @@ export const getUsers = async (c) => {
                 phone: true,
                 postalCode: true,
                 dateOfBirth: true,
+                chasCard: true,
+                caregiverStatus: true,
                 gender: true,
                 propertyType: true,
+                volunteerInterest: true,
                 createdAt: true,
                 managerUserId: true,
             },
@@ -573,8 +585,11 @@ export const updateProfile = async (c) => {
         if (body.name) updates.name = body.name;
         if (body.phone !== undefined) updates.phone = body.phone;
         if (body.dateOfBirth !== undefined) updates.dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
+        if (body.chasCard !== undefined) updates.chasCard = normalizeChasCard(body.chasCard);
+        if (body.caregiverStatus !== undefined) updates.caregiverStatus = normalizeYesNo(body.caregiverStatus, 'Caregiver status');
         if (body.gender !== undefined) updates.gender = normalizeGender(body.gender);
         if (body.propertyType !== undefined) updates.propertyType = normalizePropertyType(body.propertyType);
+        if (body.volunteerInterest !== undefined) updates.volunteerInterest = normalizeYesNo(body.volunteerInterest, 'Volunteer interest');
         if (body.postalCode !== undefined) {
             updates.postalCode = currentRole === 'super_admin' || currentRole === 'standard'
                 ? normalizeOptionalPostalCode(body.postalCode)

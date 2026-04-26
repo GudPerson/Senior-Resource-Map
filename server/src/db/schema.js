@@ -31,8 +31,11 @@ export const users = pgTable('users', {
   phone: varchar('phone', { length: 50 }),
   postalCode: varchar('postal_code', { length: 20 }).notNull().default(''),
   dateOfBirth: text('date_of_birth'),
+  chasCard: varchar('chas_card', { length: 20 }),
+  caregiverStatus: varchar('caregiver_status', { length: 10 }),
   gender: varchar('gender', { length: 40 }),
   propertyType: varchar('property_type', { length: 60 }),
+  volunteerInterest: varchar('volunteer_interest', { length: 10 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

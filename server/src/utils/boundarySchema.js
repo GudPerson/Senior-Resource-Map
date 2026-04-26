@@ -27,8 +27,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) NOT NULL DEFAULT ''`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TEXT`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS chas_card VARCHAR(20)`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS caregiver_status VARCHAR(10)`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS property_type VARCHAR(60)`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS volunteer_interest VARCHAR(10)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS users_manager_user_idx ON users (manager_user_id)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);

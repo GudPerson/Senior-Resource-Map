@@ -14,6 +14,17 @@ export const GENDER_OPTIONS = Object.freeze([
     'female',
 ]);
 
+export const CHAS_CARD_OPTIONS = Object.freeze([
+    'green',
+    'orange',
+    'blue',
+]);
+
+export const YES_NO_OPTIONS = Object.freeze([
+    'yes',
+    'no',
+]);
+
 function normalizeText(value) {
     if (value === undefined || value === null) return '';
     return String(value).trim();
@@ -24,6 +35,28 @@ export function normalizeGender(value) {
     if (!normalized) return null;
     if (!GENDER_OPTIONS.includes(normalized)) {
         const error = new Error('Gender must be one of the supported values.');
+        error.status = 400;
+        throw error;
+    }
+    return normalized;
+}
+
+export function normalizeChasCard(value) {
+    const normalized = normalizeText(value).toLowerCase();
+    if (!normalized) return null;
+    if (!CHAS_CARD_OPTIONS.includes(normalized)) {
+        const error = new Error('CHAS card must be one of the supported values.');
+        error.status = 400;
+        throw error;
+    }
+    return normalized;
+}
+
+export function normalizeYesNo(value, fieldLabel = 'This field') {
+    const normalized = normalizeText(value).toLowerCase();
+    if (!normalized) return null;
+    if (!YES_NO_OPTIONS.includes(normalized)) {
+        const error = new Error(`${fieldLabel} must be Yes or No.`);
         error.status = 400;
         throw error;
     }
@@ -75,4 +108,3 @@ export function getAgeFromDateOfBirth(dateOfBirth, now = new Date()) {
 
     return age >= 0 ? age : null;
 }
-

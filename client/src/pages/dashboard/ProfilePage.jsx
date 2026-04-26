@@ -4,8 +4,10 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { User, Phone, Lock, CheckCircle, Link2, MapPin } from 'lucide-react';
 import {
+    CHAS_CARD_OPTIONS,
     GENDER_OPTIONS,
     PROPERTY_TYPE_OPTIONS,
+    YES_NO_OPTIONS,
     getProfileFieldLabel,
 } from '../../lib/profileAttributes.js';
 
@@ -26,8 +28,11 @@ export default function ProfilePage() {
         phone: user?.phone || '',
         postalCode: user?.postalCode || '',
         dateOfBirth: user?.dateOfBirth || '',
+        chasCard: user?.chasCard || '',
+        caregiverStatus: user?.caregiverStatus || '',
         gender: user?.gender || '',
         propertyType: user?.propertyType || '',
+        volunteerInterest: user?.volunteerInterest || '',
         password: '',
         confirmPassword: '',
     });
@@ -39,8 +44,11 @@ export default function ProfilePage() {
     const returnTo = normalizeReturnTo(searchParams.get('returnTo'));
     const missingEligibilityFields = [
         !form.dateOfBirth ? 'dateOfBirth' : null,
+        !form.chasCard ? 'chasCard' : null,
+        !form.caregiverStatus ? 'caregiverStatus' : null,
         !form.gender ? 'gender' : null,
         !form.propertyType ? 'propertyType' : null,
+        !form.volunteerInterest ? 'volunteerInterest' : null,
     ].filter(Boolean);
 
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
@@ -52,10 +60,13 @@ export default function ProfilePage() {
             phone: user?.phone || '',
             postalCode: user?.postalCode || '',
             dateOfBirth: user?.dateOfBirth || '',
+            chasCard: user?.chasCard || '',
+            caregiverStatus: user?.caregiverStatus || '',
             gender: user?.gender || '',
             propertyType: user?.propertyType || '',
+            volunteerInterest: user?.volunteerInterest || '',
         }));
-    }, [user?.dateOfBirth, user?.gender, user?.name, user?.phone, user?.postalCode, user?.propertyType]);
+    }, [user?.caregiverStatus, user?.chasCard, user?.dateOfBirth, user?.gender, user?.name, user?.phone, user?.postalCode, user?.propertyType, user?.volunteerInterest]);
 
     useEffect(() => {
         let cancelled = false;
@@ -104,8 +115,11 @@ export default function ProfilePage() {
                 phone: form.phone,
                 postalCode: form.postalCode,
                 dateOfBirth: form.dateOfBirth || null,
+                chasCard: form.chasCard || null,
+                caregiverStatus: form.caregiverStatus || null,
                 gender: form.gender || null,
                 propertyType: form.propertyType || null,
+                volunteerInterest: form.volunteerInterest || null,
             };
             if (form.password) updates.password = form.password;
             const updated = await api.updateMe(updates);
@@ -189,6 +203,24 @@ export default function ProfilePage() {
                                 <input id="profile-dob" type="date" value={form.dateOfBirth} onChange={set('dateOfBirth')} className="input-field" />
                             </div>
                             <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">CHAS card</label>
+                                <select id="profile-chas-card" value={form.chasCard} onChange={set('chasCard')} className="input-field">
+                                    <option value="">Select CHAS card</option>
+                                    {CHAS_CARD_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Are you a caregiver?</label>
+                                <select id="profile-caregiver-status" value={form.caregiverStatus} onChange={set('caregiverStatus')} className="input-field">
+                                    <option value="">Select option</option>
+                                    {YES_NO_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Gender</label>
                                 <select id="profile-gender" value={form.gender} onChange={set('gender')} className="input-field">
                                     <option value="">Select gender</option>
@@ -202,6 +234,15 @@ export default function ProfilePage() {
                                 <select id="profile-property-type" value={form.propertyType} onChange={set('propertyType')} className="input-field">
                                     <option value="">Select property type</option>
                                     {PROPERTY_TYPE_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Are you interested to be a volunteer?</label>
+                                <select id="profile-volunteer-interest" value={form.volunteerInterest} onChange={set('volunteerInterest')} className="input-field">
+                                    <option value="">Select option</option>
+                                    {YES_NO_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
                                     ))}
                                 </select>

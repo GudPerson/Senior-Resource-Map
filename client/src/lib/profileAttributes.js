@@ -3,6 +3,17 @@ export const GENDER_OPTIONS = [
     { value: 'female', label: 'Female' },
 ];
 
+export const CHAS_CARD_OPTIONS = [
+    { value: 'green', label: 'Green' },
+    { value: 'orange', label: 'Orange' },
+    { value: 'blue', label: 'Blue' },
+];
+
+export const YES_NO_OPTIONS = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' },
+];
+
 export const PROPERTY_TYPE_OPTIONS = [
     { value: 'hdb_1_2_room', label: 'HDB 1-2 Room' },
     { value: 'hdb_3_room', label: 'HDB 3 Room' },
@@ -16,8 +27,11 @@ export const PROPERTY_TYPE_OPTIONS = [
 
 export const PROFILE_FIELD_LABELS = {
     dateOfBirth: 'date of birth',
+    chasCard: 'CHAS card',
+    caregiverStatus: 'caregiver status',
     gender: 'gender',
     propertyType: 'property type',
+    volunteerInterest: 'volunteer interest',
 };
 
 export function normalizeGender(value) {

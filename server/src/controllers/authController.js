@@ -8,7 +8,7 @@ import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestTok
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
-import { normalizeDateOfBirth, normalizeGender, normalizePropertyType } from '../utils/profileAttributes.js';
+import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
 
 const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
 
@@ -39,8 +39,11 @@ async function loadUserWithSubregions(db, userId) {
         phone: users.phone,
         postalCode: users.postalCode,
         dateOfBirth: users.dateOfBirth,
+        chasCard: users.chasCard,
+        caregiverStatus: users.caregiverStatus,
         gender: users.gender,
         propertyType: users.propertyType,
+        volunteerInterest: users.volunteerInterest,
         managerUserId: users.managerUserId,
     }).from(users).where(eq(users.id, userId));
 
@@ -92,8 +95,11 @@ export const register = async (c) => {
         await ensureBoundarySchema(db, c.env);
         const postalCode = normalizeOptionalPostalCode(body.postalCode);
         const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
+        const chasCard = normalizeChasCard(body.chasCard);
+        const caregiverStatus = normalizeYesNo(body.caregiverStatus, 'Caregiver status');
         const gender = normalizeGender(body.gender);
         const propertyType = normalizePropertyType(body.propertyType);
+        const volunteerInterest = normalizeYesNo(body.volunteerInterest, 'Volunteer interest');
         const derivedSubregion = postalCode
             ? await resolveSingleSubregionByPostal(db, postalCode, 'Postal code')
             : null;
@@ -127,8 +133,11 @@ export const register = async (c) => {
             role: 'standard',
             postalCode,
             dateOfBirth,
+            chasCard,
+            caregiverStatus,
             gender,
             propertyType,
+            volunteerInterest,
             managerUserId: null,
         }).returning();
 
@@ -173,8 +182,11 @@ export const login = async (c) => {
                 phone: users.phone,
                 postalCode: users.postalCode,
                 dateOfBirth: users.dateOfBirth,
+                chasCard: users.chasCard,
+                caregiverStatus: users.caregiverStatus,
                 gender: users.gender,
                 propertyType: users.propertyType,
+                volunteerInterest: users.volunteerInterest,
                 managerUserId: users.managerUserId,
             }).from(users).where(
                 isEmail ? eq(users.email, loginId) : eq(users.username, loginId)
@@ -192,8 +204,11 @@ export const login = async (c) => {
                 phone: users.phone,
                 postalCode: users.postalCode,
                 dateOfBirth: users.dateOfBirth,
+                chasCard: users.chasCard,
+                caregiverStatus: users.caregiverStatus,
                 gender: users.gender,
                 propertyType: users.propertyType,
+                volunteerInterest: users.volunteerInterest,
                 managerUserId: users.managerUserId,
             }).from(users).where(
                 isEmail ? eq(users.email, loginId.toLowerCase()) : eq(users.username, loginId)
@@ -288,8 +303,11 @@ export const googleAuth = async (c) => {
         if (!user) {
             const postalCode = normalizeOptionalPostalCode(body.postalCode);
             const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
+            const chasCard = normalizeChasCard(body.chasCard);
+            const caregiverStatus = normalizeYesNo(body.caregiverStatus, 'Caregiver status');
             const gender = normalizeGender(body.gender);
             const propertyType = normalizePropertyType(body.propertyType);
+            const volunteerInterest = normalizeYesNo(body.volunteerInterest, 'Volunteer interest');
             const derivedSubregion = postalCode
                 ? await resolveSingleSubregionByPostal(db, postalCode, 'Postal code')
                 : null;
@@ -314,8 +332,11 @@ export const googleAuth = async (c) => {
                 role: 'standard',
                 postalCode,
                 dateOfBirth,
+                chasCard,
+                caregiverStatus,
                 gender,
                 propertyType,
+                volunteerInterest,
                 managerUserId: null,
             }).returning();
 
