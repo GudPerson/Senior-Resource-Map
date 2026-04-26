@@ -26,6 +26,25 @@ function createVertexServiceAccountJson() {
     });
 }
 
+function googlePlace({
+    id,
+    name,
+    postalCode,
+    latitude = 1.3881,
+    longitude = 103.7451,
+    primaryType = 'senior_citizen_center',
+}) {
+    return {
+        id,
+        displayName: { text: name },
+        formattedAddress: `${name}, Singapore ${postalCode}`,
+        postalAddress: { postalCode },
+        location: { latitude, longitude },
+        googleMapsUri: `https://maps.google.com/?cid=${id}`,
+        primaryType,
+    };
+}
+
 test('postal search falls back to OneMap when Google cannot resolve the postal anchor', async () => {
     const originalFetch = global.fetch;
 
@@ -89,6 +108,149 @@ test('postal search falls back to OneMap when Google cannot resolve the postal a
         assert.equal(result.exactCandidates.length, 1);
         assert.equal(result.exactCandidates[0].candidateSource, 'google_places');
         assert.match(result.warnings.join(' '), /OneMap/i);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('postal search limits preferredResultCount to one combined Google candidate per postcode', async () => {
+    const originalFetch = global.fetch;
+
+    global.fetch = async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://places.googleapis.com/v1/places:searchText') {
+            const body = JSON.parse(init.body);
+            const query = body.textQuery;
+
+            if (query === '681811') {
+                return jsonResponse({ places: [] });
+            }
+
+            if (query === '681811 active ageing centre') {
+                return jsonResponse({
+                    places: [
+                        googlePlace({
+                            id: 'exact-place-1',
+                            name: 'Anchor Active Ageing Centre',
+                            postalCode: '681811',
+                        }),
+                        googlePlace({
+                            id: 'nearby-place-1',
+                            name: 'Nearby Active Ageing Centre',
+                            postalCode: '681812',
+                            latitude: 1.3885,
+                            longitude: 103.7455,
+                        }),
+                    ],
+                });
+            }
+
+            return jsonResponse({ places: [] });
+        }
+
+        if (url.startsWith('https://www.onemap.gov.sg/api/common/elastic/search')) {
+            return jsonResponse({
+                results: [
+                    {
+                        ADDRESS: '1 Anchor Road Singapore 681811',
+                        LATITUDE: '1.3880',
+                        LONGITUDE: '103.7450',
+                        POSTAL: '681811',
+                    },
+                ],
+            });
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const result = await searchGooglePlaceCandidatesByPostal(
+            { GOOGLE_MAPS_API_KEY: 'test-google-key' },
+            '681811',
+            ['Active Ageing Centre'],
+            '',
+            { radiusKm: 1, preferredResultCount: 1 },
+        );
+
+        assert.equal(result.preferredResultCount, 1);
+        assert.equal(result.exactCandidates.length, 1);
+        assert.equal(result.nearbyCandidates.length, 0);
+        assert.equal(result.exactCandidates[0].googlePlaceId, 'exact-place-1');
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('postal search fills one result slot with nearby Google candidate when no exact match exists', async () => {
+    const originalFetch = global.fetch;
+
+    global.fetch = async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://places.googleapis.com/v1/places:searchText') {
+            const body = JSON.parse(init.body);
+            const query = body.textQuery;
+
+            if (query === '681811') {
+                return jsonResponse({ places: [] });
+            }
+
+            if (query === '681811 active ageing centre') {
+                return jsonResponse({
+                    places: [
+                        googlePlace({
+                            id: 'nearby-place-1',
+                            name: 'Nearby Active Ageing Centre',
+                            postalCode: '681812',
+                            latitude: 1.3885,
+                            longitude: 103.7455,
+                        }),
+                        googlePlace({
+                            id: 'nearby-place-2',
+                            name: 'Second Nearby Active Ageing Centre',
+                            postalCode: '681813',
+                            latitude: 1.3886,
+                            longitude: 103.7456,
+                        }),
+                    ],
+                });
+            }
+
+            return jsonResponse({ places: [] });
+        }
+
+        if (url.startsWith('https://www.onemap.gov.sg/api/common/elastic/search')) {
+            return jsonResponse({
+                results: [
+                    {
+                        ADDRESS: '1 Anchor Road Singapore 681811',
+                        LATITUDE: '1.3880',
+                        LONGITUDE: '103.7450',
+                        POSTAL: '681811',
+                    },
+                ],
+            });
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const result = await searchGooglePlaceCandidatesByPostal(
+            { GOOGLE_MAPS_API_KEY: 'test-google-key' },
+            '681811',
+            ['Active Ageing Centre'],
+            '',
+            { radiusKm: 1, preferredResultCount: 1 },
+        );
+
+        assert.equal(result.preferredResultCount, 1);
+        assert.equal(result.exactCandidates.length, 0);
+        assert.equal(result.nearbyCandidates.length, 1);
+        assert.equal(result.nearbyCandidates[0].googlePlaceId, 'nearby-place-1');
+        assert.match(result.warnings.join(' '), /No exact postal-code matches/i);
     } finally {
         global.fetch = originalFetch;
     }
@@ -170,6 +332,22 @@ test('postal search uses Vertex web fallback when Google returns zero place cand
                                                 sourceSnippet: 'Programmes, exercise, and befriending support for seniors.',
                                                 confidence: 0.82,
                                             },
+                                            {
+                                                name: 'Nearby Silver Support Centre',
+                                                address: '125 Anchor Road, Singapore 681812',
+                                                postalCode: '681812',
+                                                website: 'https://nearby.example/aac',
+                                                phone: '61234568',
+                                                hours: 'Monday to Friday, 10am to 5pm',
+                                                description: 'Nearby social support and wellness activities for seniors.',
+                                                logoUrl: 'https://nearby.example/logo.png',
+                                                subCategorySuggestion: 'Active Ageing Centre',
+                                                suggestedTags: ['seniors'],
+                                                sourceUrl: 'https://nearby.example/aac',
+                                                sourceTitle: 'Nearby Silver Support Centre',
+                                                sourceSnippet: 'Senior wellness and community activities.',
+                                                confidence: 0.72,
+                                            },
                                         ],
                                     }),
                                 },
@@ -193,13 +371,15 @@ test('postal search uses Vertex web fallback when Google returns zero place cand
             '681811',
             ['Active Ageing Centre'],
             'active ageing centre',
-            { radiusKm: 1, preferredResultCount: 4 },
+            { radiusKm: 1, preferredResultCount: 1 },
         );
 
         assert.equal(sawGroundedVertexRequest, true);
+        assert.equal(result.preferredResultCount, 1);
         assert.equal(result.resolvedPostal.source, 'onemap');
         assert.equal(result.fallbackUsed, true);
         assert.equal(result.exactCandidates.length, 1);
+        assert.equal(result.nearbyCandidates.length, 0);
         assert.equal(result.exactCandidates[0].candidateSource, 'web_fallback');
         assert.equal(result.exactCandidates[0].sourceUrl, 'https://riverlife.example/aac');
         assert.equal(result.exactCandidates[0].draftSeed.name, 'RiverLife Active Ageing Centre');

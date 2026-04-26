@@ -54,7 +54,7 @@ const POSTAL_SEARCH_DEFAULTS = {
     minRadiusKm: 0.5,
     defaultPreferredResultCount: 8,
     maxPreferredResultCount: 20,
-    minPreferredResultCount: 4,
+    minPreferredResultCount: 1,
 };
 
 const SEARCH_FIELD_MASK = 'places.id,places.name,places.displayName,places.formattedAddress,places.postalAddress,places.location,places.nationalPhoneNumber,places.regularOpeningHours,places.websiteUri,places.googleMapsUri,places.primaryType,places.editorialSummary';
@@ -934,11 +934,12 @@ async function searchVertexFallbackCandidates(
     }
 
     const candidates = [...candidateMap.values()];
-    const exactCandidates = candidates
+    const exactCandidatePool = candidates
         .filter((candidate) => candidate.postalCode === anchor.postalCode)
-        .sort((left, right) => right.confidence - left.confidence || left.name.localeCompare(right.name))
-        .slice(0, safePreferredResultCount);
+        .sort((left, right) => right.confidence - left.confidence || left.name.localeCompare(right.name));
+    const exactCandidates = exactCandidatePool.slice(0, safePreferredResultCount);
     const exactCandidateKeys = new Set(exactCandidates.map((candidate) => `${normalizeSearchText(candidate.name)}::${candidate.postalCode}`));
+    const remainingCandidateSlots = Math.max(0, safePreferredResultCount - exactCandidates.length);
     const nearbyCandidates = candidates
         .filter((candidate) => !exactCandidateKeys.has(`${normalizeSearchText(candidate.name)}::${candidate.postalCode}`))
         .sort((left, right) => (
@@ -946,7 +947,7 @@ async function searchVertexFallbackCandidates(
             || (left.distanceMeters ?? Number.POSITIVE_INFINITY) - (right.distanceMeters ?? Number.POSITIVE_INFINITY)
             || left.name.localeCompare(right.name)
         ))
-        .slice(0, safePreferredResultCount);
+        .slice(0, remainingCandidateSlots);
 
     if (exactCandidates.length === 0 && nearbyCandidates.length > 0) {
         warnings.push(`No exact postal-code matches were found from web fallback, so nearby web suggestions within ${formatRadiusLabel(safeRadiusKm)} are shown instead.`);
@@ -1033,11 +1034,12 @@ async function searchPostalCandidates(
     }
 
     const candidates = [...candidateMap.values()];
-    const exactCandidates = candidates
+    const exactCandidatePool = candidates
         .filter((candidate) => candidate.postalCode === anchor.postalCode)
-        .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
-        .slice(0, safePreferredResultCount);
+        .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name));
+    const exactCandidates = exactCandidatePool.slice(0, safePreferredResultCount);
     const exactCandidateIds = new Set(exactCandidates.map((candidate) => candidate.googlePlaceId));
+    const remainingCandidateSlots = Math.max(0, safePreferredResultCount - exactCandidates.length);
     const nearbyCandidates = candidates
         .filter((candidate) => !exactCandidateIds.has(candidate.googlePlaceId))
         .sort((left, right) => (
@@ -1045,7 +1047,7 @@ async function searchPostalCandidates(
             || (left.distanceMeters ?? Number.POSITIVE_INFINITY) - (right.distanceMeters ?? Number.POSITIVE_INFINITY)
             || left.name.localeCompare(right.name)
         ))
-        .slice(0, safePreferredResultCount);
+        .slice(0, remainingCandidateSlots);
 
     if (exactCandidates.length === 0 && nearbyCandidates.length > 0) {
         warnings.push(`No exact postal-code matches were found, so nearby Google places within ${formatRadiusLabel(safeRadiusKm)} are shown instead.`);

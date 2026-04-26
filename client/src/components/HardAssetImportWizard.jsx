@@ -570,6 +570,7 @@ const RADIUS_OPTIONS = [
 ];
 
 const PREFERRED_RESULT_OPTIONS = [
+    { value: '1', label: '1' },
     { value: '4', label: '4' },
     { value: '6', label: '6' },
     { value: '8', label: '8' },
@@ -594,7 +595,7 @@ export default function HardAssetImportWizard({
     const [searchProgressMsg, setSearchProgressMsg] = useState('');
     const [keywordQuery, setKeywordQuery] = useState('');
     const [radiusKm, setRadiusKm] = useState('1');
-    const [preferredResultCount, setPreferredResultCount] = useState('8');
+    const [preferredResultCount, setPreferredResultCount] = useState('1');
     const [enableEnrichment, setEnableEnrichment] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [loadingDraftId, setLoadingDraftId] = useState('');
@@ -1095,7 +1096,7 @@ export default function HardAssetImportWizard({
                                 ))}
                             </select>
                             <p className="mt-2 text-xs text-slate-500">
-                                Controls the maximum number of exact and nearby candidates we surface in the results list.
+                                Maximum candidates per postal code. Exact matches appear first; nearby matches fill any remaining slots.
                             </p>
                         </div>
                     </div>
