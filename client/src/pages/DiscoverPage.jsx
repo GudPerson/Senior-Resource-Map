@@ -9,6 +9,7 @@ import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { normalizePostalCode } from '../lib/postalBoundaries.js';
 import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
+import { useA11y } from '../contexts/A11yContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -109,6 +110,11 @@ function createFocusRequestIdGenerator() {
 
 const nextFocusRequestId = createFocusRequestIdGenerator();
 const SAVED_PIN_FOCUS_ZOOM = 18;
+const DISCOVERY_DESKTOP_BASE_PANE_WIDTH = 430;
+const DISCOVERY_DESKTOP_MAX_ACCESSIBLE_PANE_WIDTH = 620;
+const DISCOVERY_DESKTOP_MAX_ACCESSIBLE_FONT_SCALE = 1.5;
+const DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_TOP = 32;
+const DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_DELTA = 14;
 const TOUCH_DESKTOP_PANE_PRESET_WIDTHS = [450, 676, 992];
 
 function normalizeSubCategoryLookupKey(value) {
@@ -450,11 +456,37 @@ export default function DiscoverPage() {
 
     const resultsListRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
+    const autoCollapseScrollTopRef = useRef(0);
     const postalGroupHoverCloseTimeoutRef = useRef(null);
     const previousSearchPanelCollapsedRef = useRef(false);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const isTouchDesktop = useMediaQuery('(min-width: 1024px) and (pointer: coarse)');
-    const { isDragging, listWidth, maxPaneWidth, setPaneWidth, startDragging } = useSplitPaneResize(450);
+    const { zoomLevel } = useA11y();
+    const discoveryPaneMinWidth = useMemo(() => {
+        if (!isDesktop) return DISCOVERY_DESKTOP_BASE_PANE_WIDTH;
+
+        const normalizedZoomLevel = Math.min(
+            DISCOVERY_DESKTOP_MAX_ACCESSIBLE_FONT_SCALE,
+            Math.max(1, Number(zoomLevel) || 1),
+        );
+        const zoomProgress = (
+            (normalizedZoomLevel - 1)
+            / (DISCOVERY_DESKTOP_MAX_ACCESSIBLE_FONT_SCALE - 1)
+        );
+
+        return Math.round(
+            DISCOVERY_DESKTOP_BASE_PANE_WIDTH
+            + (
+                DISCOVERY_DESKTOP_MAX_ACCESSIBLE_PANE_WIDTH
+                - DISCOVERY_DESKTOP_BASE_PANE_WIDTH
+            ) * zoomProgress,
+        );
+    }, [isDesktop, zoomLevel]);
+    const discoveryPaneInitialWidth = Math.max(450, discoveryPaneMinWidth);
+    const { isDragging, listWidth, maxPaneWidth, setPaneWidth, startDragging } = useSplitPaneResize(
+        discoveryPaneInitialWidth,
+        { minWidth: discoveryPaneMinWidth },
+    );
     const { user, isAuth } = useAuth();
     const normalizedUserRole = normalizeRole(user?.role);
     const canUseDiscoverySubregions = isAuth && canAccessAdmin(normalizedUserRole);
@@ -1062,6 +1094,7 @@ export default function DiscoverPage() {
         const frameId = window.requestAnimationFrame(() => {
             if (resultsListRef.current) {
                 resultsListRef.current.scrollTop = lastBrowseScrollTopRef.current;
+                autoCollapseScrollTopRef.current = lastBrowseScrollTopRef.current;
             }
         });
 
@@ -1814,8 +1847,8 @@ export default function DiscoverPage() {
     const touchDesktopPanePresetWidths = useMemo(() => (
         TOUCH_DESKTOP_PANE_PRESET_WIDTHS
             .filter((width, index) => index === 0 || maxPaneWidth >= width)
-            .map((width) => Math.round(Math.max(430, Math.min(width, maxPaneWidth))))
-    ), [maxPaneWidth]);
+            .map((width) => Math.round(Math.max(discoveryPaneMinWidth, Math.min(width, maxPaneWidth))))
+    ), [discoveryPaneMinWidth, maxPaneWidth]);
     const activeTouchDesktopPanePresetIndex = useMemo(() => {
         if (!touchDesktopPanePresetWidths.length) return 0;
 
@@ -1870,12 +1903,33 @@ export default function DiscoverPage() {
     }, []);
 
     const handleCollapseSearchPanel = useCallback(() => {
+        if (resultsListRef.current) {
+            autoCollapseScrollTopRef.current = resultsListRef.current.scrollTop;
+        }
         setIsSearchPanelCollapsed(true);
     }, []);
 
     const handleExpandSearchPanel = useCallback(() => {
+        if (resultsListRef.current) {
+            autoCollapseScrollTopRef.current = resultsListRef.current.scrollTop;
+        }
         setIsSearchPanelCollapsed(false);
     }, []);
+
+    const handleResultsListScroll = useCallback((event) => {
+        const nextScrollTop = event.currentTarget.scrollTop;
+        const previousScrollTop = autoCollapseScrollTopRef.current;
+        autoCollapseScrollTopRef.current = nextScrollTop;
+
+        if (!isDesktop || desktopPaneMode !== 'browse' || isSearchPanelCollapsed) {
+            return;
+        }
+
+        const scrolledDown = nextScrollTop - previousScrollTop >= DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_DELTA;
+        if (nextScrollTop >= DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_TOP && scrolledDown) {
+            setIsSearchPanelCollapsed(true);
+        }
+    }, [desktopPaneMode, isDesktop, isSearchPanelCollapsed]);
 
     const handleHomeAnchorAndCollapse = useCallback(async () => {
         await handleHomeAnchor();
@@ -2068,6 +2122,7 @@ export default function DiscoverPage() {
             onCardLockOnMap={handleLockAssetOnMap}
             onCategoryClick={handleSearchChange}
             onFocusAssetOnMap={handleFocusAssetOnMap}
+            onResultsScroll={handleResultsListScroll}
             onTagClick={handleSearchChange}
             savedMapAssetKeys={savedMapAssetKeys}
             scrollContainerRef={resultsListRef}

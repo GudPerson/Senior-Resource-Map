@@ -31,14 +31,14 @@ export default function Navbar() {
     return (
         <>
             <nav
-                className="hc-nav sticky top-0 z-50 shadow-sm disable-font-scaling"
+                className="hc-nav sticky top-0 z-50 shadow-sm disable-font-scaling navbar-static-scale"
                 style={{
                     backgroundColor: 'var(--color-nav-bg)',
                     borderBottom: '1px solid var(--color-border)',
                 }}
             >
-                <div className="w-full px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-[56px] sm:h-[64px] gap-2">
+                <div className="navbar-shell w-full px-4 sm:px-6 lg:px-8">
+                    <div className="navbar-row flex items-center justify-between h-[56px] sm:h-[64px] gap-2">
 
                         {/* Logo */}
                         <Link to="/" className="flex items-center gap-2 flex-shrink-0 min-w-0">
@@ -46,7 +46,7 @@ export default function Navbar() {
                         </Link>
 
                         {/* Right controls */}
-                        <div className="flex items-center gap-1.5 sm:gap-2">
+                        <div className="navbar-controls flex items-center gap-1.5 sm:gap-2">
 
 
 
@@ -84,7 +84,7 @@ export default function Navbar() {
                                         <span className="hidden sm:inline">{highContrast ? 'Normal' : 'Contrast'}</span>
                                     </button>
 
-                                    <div className="flex items-center rounded-xl" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
+                                    <div className="navbar-zoom-group flex items-center rounded-xl" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
                                         <button
                                             id="decrease-zoom"
                                             onClick={decreaseZoom}
@@ -95,28 +95,25 @@ export default function Navbar() {
                                         >
                                             A-
                                         </button>
-                                        {canIncreaseZoom ? (
-                                            <>
-                                                <div className="w-px h-5" style={{ backgroundColor: 'var(--color-border)' }}></div>
-                                                <button
-                                                    id="increase-zoom"
-                                                    onClick={increaseZoom}
-                                                    title="Increase Zoom"
-                                                    aria-label="Increase Zoom"
-                                                    className="flex items-center justify-center px-2.5 py-2 transition-all min-h-[40px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] rounded-r-xl font-bold text-xs"
-                                                    style={{ color: 'var(--color-text-secondary)' }}
-                                                >
-                                                    A+
-                                                </button>
-                                            </>
-                                        ) : null}
+                                        <div className="w-px h-5" style={{ backgroundColor: 'var(--color-border)' }}></div>
+                                        <button
+                                            id="increase-zoom"
+                                            onClick={increaseZoom}
+                                            disabled={!canIncreaseZoom}
+                                            title="Increase Zoom"
+                                            aria-label="Increase Zoom"
+                                            className="flex items-center justify-center px-2.5 py-2 transition-all min-h-[40px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] rounded-r-xl font-bold text-xs disabled:cursor-not-allowed disabled:opacity-45"
+                                            style={{ color: 'var(--color-text-secondary)' }}
+                                        >
+                                            A+
+                                        </button>
                                     </div>
                                 </>
                             )}
 
                             {/* Auth */}
                             {isAuth ? (
-                                <div className="flex items-center gap-1.5">
+                                <div className="navbar-auth-controls flex items-center gap-1.5">
                                     {isImpersonating ? (
                                         <div
                                             className="hidden lg:flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold"
@@ -139,7 +136,7 @@ export default function Navbar() {
                                         title={accountLabel}
                                         aria-label={accountLabel}
                                         className={joinClasses(
-                                            'btn-ghost text-xs sm:text-sm px-2.5 py-2 flex',
+                                            'navbar-auth-button btn-ghost text-xs sm:text-sm px-2.5 py-2 flex',
                                             dashboardButtonActive ? 'border border-brand-200 bg-brand-50 text-brand-700' : ''
                                         )}
                                     >
@@ -149,7 +146,7 @@ export default function Navbar() {
                                     <button
                                         id="nav-logout"
                                         onClick={handleLogout}
-                                        className="btn-ghost text-xs sm:text-sm px-2.5 py-2"
+                                        className="navbar-auth-button btn-ghost text-xs sm:text-sm px-2.5 py-2"
                                     >
                                         <LogOut size={16} />
                                         <span className="hidden sm:inline">{isImpersonating ? 'Exit User View' : 'Logout'}</span>
@@ -159,7 +156,7 @@ export default function Navbar() {
                                 <Link
                                     to="/login"
                                     id="nav-login"
-                                    className="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
+                                    className="navbar-auth-button btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
                                 >
                                     <LogIn size={16} />
                                     <span className="hidden sm:inline">Login</span>
@@ -225,20 +222,17 @@ export default function Navbar() {
                                 >
                                     A-
                                 </button>
-                                {canIncreaseZoom ? (
-                                    <>
-                                        <div className="h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
-                                        <button
-                                            type="button"
-                                            onClick={increaseZoom}
-                                            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-r-2xl px-3 text-sm font-bold"
-                                            style={{ color: 'var(--color-text-secondary)' }}
-                                            aria-label="Increase text size"
-                                        >
-                                            A+
-                                        </button>
-                                    </>
-                                ) : null}
+                                <div className="h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
+                                <button
+                                    type="button"
+                                    onClick={increaseZoom}
+                                    disabled={!canIncreaseZoom}
+                                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-r-2xl px-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-45"
+                                    style={{ color: 'var(--color-text-secondary)' }}
+                                    aria-label="Increase text size"
+                                >
+                                    A+
+                                </button>
                             </div>
                         </div>
                     </div>

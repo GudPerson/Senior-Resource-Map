@@ -14,6 +14,7 @@ export function DiscoveryResultsList({
     onCardLockOnMap,
     onCategoryClick,
     onFocusAssetOnMap,
+    onResultsScroll,
     onTagClick,
     savedMapAssetKeys = new Set(),
     scrollContainerRef = null,
@@ -38,6 +39,7 @@ export function DiscoveryResultsList({
 
     const handleScroll = (event) => {
         const root = event.currentTarget;
+        onResultsScroll?.(event);
         const remainingScroll = root.scrollHeight - root.scrollTop - root.clientHeight;
         if (remainingScroll <= AUTO_LOAD_THRESHOLD_PX) {
             requestMoreResults();

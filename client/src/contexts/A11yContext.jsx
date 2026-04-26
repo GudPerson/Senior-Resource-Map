@@ -2,8 +2,17 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const A11yContext = createContext(null);
 const MIN_ZOOM = 0.6;
-const DESKTOP_MAX_ZOOM = 1.6;
-const MOBILE_MAX_ZOOM = 1.2;
+const ZOOM_STEP = 0.1;
+const MAX_ZOOM_STEPS_FROM_MIN = 5;
+const MAX_ZOOM = Number((MIN_ZOOM + (ZOOM_STEP * MAX_ZOOM_STEPS_FROM_MIN)).toFixed(1));
+const DESKTOP_MAX_ZOOM = MAX_ZOOM;
+const MOBILE_MAX_ZOOM = MAX_ZOOM;
+
+function normalizeZoomLevel(value, maxZoom = getCurrentMaxZoom()) {
+    const numericZoom = Number(value);
+    const roundedZoom = Number.isFinite(numericZoom) ? Number(numericZoom.toFixed(1)) : 1;
+    return Math.min(Math.max(roundedZoom, MIN_ZOOM), maxZoom);
+}
 
 function getCurrentMaxZoom() {
     if (typeof window === 'undefined') {
@@ -17,8 +26,7 @@ export function A11yProvider({ children }) {
     const [highContrast, setHighContrast] = useState(() => localStorage.getItem('sc_hc') === 'true');
     const [maxZoom, setMaxZoom] = useState(getCurrentMaxZoom);
     const [zoomLevel, setZoomLevel] = useState(() => {
-        const storedZoom = Number(localStorage.getItem('sc_zoom') || 1);
-        return Math.min(Math.max(storedZoom, MIN_ZOOM), getCurrentMaxZoom());
+        return normalizeZoomLevel(localStorage.getItem('sc_zoom') || 1);
     });
 
     useEffect(() => {
@@ -40,7 +48,7 @@ export function A11yProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        setZoomLevel((currentZoom) => Math.min(Math.max(currentZoom, MIN_ZOOM), maxZoom));
+        setZoomLevel((currentZoom) => normalizeZoomLevel(currentZoom, maxZoom));
     }, [maxZoom]);
 
     useEffect(() => {
@@ -59,8 +67,8 @@ export function A11yProvider({ children }) {
             maxZoom,
             canIncreaseZoom,
             canDecreaseZoom,
-            increaseZoom: () => setZoomLevel(z => Math.min(z + 0.1, maxZoom)),
-            decreaseZoom: () => setZoomLevel(z => Math.max(z - 0.1, MIN_ZOOM))
+            increaseZoom: () => setZoomLevel(z => normalizeZoomLevel(z + ZOOM_STEP, maxZoom)),
+            decreaseZoom: () => setZoomLevel(z => normalizeZoomLevel(z - ZOOM_STEP, maxZoom))
         }}>
             {children}
         </A11yContext.Provider>

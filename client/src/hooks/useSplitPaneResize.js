@@ -1,18 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const MIN_PANE_WIDTH = 430;
-const MAX_PANE_WIDTH_RATIO = 0.7;
+const DEFAULT_MIN_PANE_WIDTH = 430;
+const DEFAULT_MAX_PANE_WIDTH_RATIO = 0.7;
 
-export function useSplitPaneResize(initialWidth = 450) {
+export function useSplitPaneResize(initialWidth = 450, options = {}) {
+    const minWidth = Number.isFinite(Number(options.minWidth))
+        ? Number(options.minWidth)
+        : DEFAULT_MIN_PANE_WIDTH;
+    const maxPaneWidthRatio = Number.isFinite(Number(options.maxPaneWidthRatio))
+        ? Number(options.maxPaneWidthRatio)
+        : DEFAULT_MAX_PANE_WIDTH_RATIO;
+    const maxWidth = Number.isFinite(Number(options.maxWidth))
+        ? Number(options.maxWidth)
+        : Infinity;
+
     const getMaxPaneWidth = useCallback(() => (
         typeof window === 'undefined'
-            ? Math.max(MIN_PANE_WIDTH, initialWidth)
-            : Math.max(MIN_PANE_WIDTH, window.innerWidth * MAX_PANE_WIDTH_RATIO)
-    ), [initialWidth]);
+            ? Math.max(minWidth, Math.min(initialWidth, maxWidth))
+            : Math.max(minWidth, Math.min(window.innerWidth * maxPaneWidthRatio, maxWidth))
+    ), [initialWidth, maxPaneWidthRatio, maxWidth, minWidth]);
 
     const clampPaneWidth = useCallback((width) => (
-        Math.max(MIN_PANE_WIDTH, Math.min(width, getMaxPaneWidth()))
-    ), [getMaxPaneWidth]);
+        Math.max(minWidth, Math.min(width, getMaxPaneWidth()))
+    ), [getMaxPaneWidth, minWidth]);
 
     const [listWidth, setListWidth] = useState(() => clampPaneWidth(initialWidth));
     const [isDragging, setIsDragging] = useState(false);
