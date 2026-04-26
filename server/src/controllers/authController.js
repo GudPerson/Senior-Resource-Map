@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { normalizeRole } from '../utils/roles.js';
 import { canDirectlyManageUser } from '../utils/ownership.js';
 import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
-import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
@@ -93,6 +93,7 @@ export const register = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
         const postalCode = normalizeOptionalPostalCode(body.postalCode);
         const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
         const chasCard = normalizeChasCard(body.chasCard);
@@ -169,6 +170,7 @@ export const login = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
         const isEmail = loginId.includes('@');
 
         // Try exact match first
@@ -257,6 +259,7 @@ export const me = async (c) => {
         const sessionUser = await verifySessionToken(token, c);
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
         const liveUser = await loadUserWithSubregions(db, sessionUser.id);
 
         if (!liveUser) {
@@ -297,6 +300,7 @@ export const googleAuth = async (c) => {
         const { email, name } = payload;
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
 
         let [user] = await db.select().from(users).where(eq(users.email, email));
 

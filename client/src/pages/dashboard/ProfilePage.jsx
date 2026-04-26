@@ -192,12 +192,22 @@ export default function ProfilePage() {
                         </div>
 
                         {missingEligibilityFields.length ? (
-                            <p className="mt-3 text-xs text-amber-700">
-                                Missing: {missingEligibilityFields.map((field) => getProfileFieldLabel(field)).join(', ')}
-                            </p>
+                            <div className="mt-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Still needed</p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {missingEligibilityFields.map((field) => (
+                                        <span
+                                            key={field}
+                                            className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800"
+                                        >
+                                            {getProfileFieldLabel(field)}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
                         ) : null}
 
-                        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Date of birth</label>
                                 <input id="profile-dob" type="date" value={form.dateOfBirth} onChange={set('dateOfBirth')} className="input-field" />
@@ -207,15 +217,6 @@ export default function ProfilePage() {
                                 <select id="profile-chas-card" value={form.chasCard} onChange={set('chasCard')} className="input-field">
                                     <option value="">Select CHAS card</option>
                                     {CHAS_CARD_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Are you a caregiver?</label>
-                                <select id="profile-caregiver-status" value={form.caregiverStatus} onChange={set('caregiverStatus')} className="input-field">
-                                    <option value="">Select option</option>
-                                    {YES_NO_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
                                     ))}
                                 </select>
@@ -238,7 +239,16 @@ export default function ProfilePage() {
                                     ))}
                                 </select>
                             </div>
-                            <div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Are you a caregiver?</label>
+                                <select id="profile-caregiver-status" value={form.caregiverStatus} onChange={set('caregiverStatus')} className="input-field">
+                                    <option value="">Select option</option>
+                                    {YES_NO_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2">
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Are you interested to be a volunteer?</label>
                                 <select id="profile-volunteer-interest" value={form.volunteerInterest} onChange={set('volunteerInterest')} className="input-field">
                                     <option value="">Select option</option>

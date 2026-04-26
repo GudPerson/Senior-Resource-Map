@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { subregions, users, userSubregions } from '../db/schema.js';
-import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
 import { getOwnershipStatus, canDirectlyManageUser, canRoleOwnUser } from '../utils/ownership.js';
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
@@ -370,6 +370,7 @@ export const createUser = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
 
         const creatorRole = normalizeRole(creator.role);
         if (getCreatableRoles(creatorRole).length === 0) {
@@ -420,6 +421,7 @@ export const bulkCreateUsers = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
 
         const results = {
             message: 'Bulk import processed',
@@ -503,6 +505,7 @@ export const getUsers = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
         const creatorRole = normalizeRole(creator.role);
         const boundaryContext = await loadScopedBoundaryContext(db, creator);
 
@@ -580,6 +583,7 @@ export const updateProfile = async (c) => {
         const currentRole = normalizeRole(user.role);
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
         const updates = {};
 
         if (body.name) updates.name = body.name;
@@ -644,6 +648,7 @@ export const updateUserRole = async (c) => {
         const body = await c.req.json();
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
 
         const existingUser = await loadUserWithSubregions(db, id);
         if (!existingUser) return c.json({ error: 'User not found.' }, 404);
@@ -697,6 +702,7 @@ export const updateUserManager = async (c) => {
         const body = await c.req.json();
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
 
         const targetUser = await loadUserWithSubregions(db, id);
         if (!targetUser) return c.json({ error: 'User not found.' }, 404);
@@ -733,6 +739,7 @@ export const deleteUser = async (c) => {
         const creator = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
         const creatorRole = normalizeRole(creator.role);
 
         if (id === creator.id) return c.json({ error: 'Cannot delete yourself.' }, 400);

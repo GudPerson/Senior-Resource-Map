@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 
 let ensureBoundarySchemaPromise = null;
+let ensureUserPreferenceColumnsPromise = null;
 
 export function shouldRunRuntimeSchemaBootstrap(envVars = {}) {
     const env = envVars?.env ?? envVars ?? {};
@@ -221,4 +222,19 @@ export async function ensureBoundarySchema(db, envVars = {}) {
     }
 
     await ensureBoundarySchemaPromise;
+}
+
+export async function ensureUserPreferenceColumns(db) {
+    if (!ensureUserPreferenceColumnsPromise) {
+        ensureUserPreferenceColumnsPromise = (async () => {
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS chas_card VARCHAR(20)`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS caregiver_status VARCHAR(10)`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS volunteer_interest VARCHAR(10)`);
+        })().catch((err) => {
+            ensureUserPreferenceColumnsPromise = null;
+            throw err;
+        });
+    }
+
+    await ensureUserPreferenceColumnsPromise;
 }
