@@ -1,13 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
+import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import { Trash2 } from 'lucide-react';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
+
+const DirectoryReturnPathContext = React.createContext('');
+
+function useDirectoryDetailPath(path) {
+    const returnTo = React.useContext(DirectoryReturnPathContext);
+    return useMemo(() => appendMapReturnTo(path, returnTo), [path, returnTo]);
+}
 
 function StatusBadge({ status }) {
     if (status === 'unavailable') {
@@ -263,7 +271,8 @@ function DirectoryResourceRow({
     allowPrintLinks = false,
     compactPrint = false,
 }) {
-    const canOpenDetail = Boolean(row.detailPath) && row.status !== 'unavailable';
+    const detailPath = useDirectoryDetailPath(row.detailPath);
+    const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const access = row?.resourceType === 'soft' ? (row.access || OFFERING_ACCESS.GRANTED) : null;
     const isAccessRestricted = row?.resourceType === 'soft' && access !== OFFERING_ACCESS.GRANTED;
     const rowTitleClassName = interactive
@@ -272,7 +281,7 @@ function DirectoryResourceRow({
 
     if (!interactive) {
         const printRowTitle = canOpenDetail && allowPrintLinks ? (
-            <Link to={row.detailPath} reloadDocument className={`font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+            <Link to={detailPath} reloadDocument className={`font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                 {row.name}
             </Link>
         ) : (
@@ -301,7 +310,7 @@ function DirectoryResourceRow({
                         <span className="mt-[0.6em] h-1 w-1 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                             {canOpenDetail ? (
-                                <Link to={row.detailPath} reloadDocument className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                                <Link to={detailPath} reloadDocument className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                                     {row.name}
                                 </Link>
                             ) : (
@@ -415,7 +424,7 @@ function DirectoryNestedPlaceSection({
     canSaveResources,
     onRemoveResource,
 }) {
-    const nestedPlaceDetailPath = getGroupDetailPath(nestedPlace);
+    const nestedPlaceDetailPath = useDirectoryDetailPath(getGroupDetailPath(nestedPlace));
     const visibleRows = getVisibleGroupRows(nestedPlace);
     const titleClassName = compactInteractive ? 'text-[15px]' : 'text-[17px]';
 
@@ -469,7 +478,7 @@ function DirectoryPlaceGroupCard({
     showDesktopHoverLogo = false,
     logoRevealed = false,
 }) {
-    const placeDetailPath = getGroupDetailPath(group);
+    const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
@@ -753,9 +762,10 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
         lat: null,
         lng: null,
     }), [row.contextLabel, row.locationLabel, row.placeName]);
+    const detailPath = useDirectoryDetailPath(row.detailPath);
 
     if (!interactive) {
-        const canOpenDetail = Boolean(row.detailPath) && row.status !== 'unavailable';
+        const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
 
         return (
             <div className="border-b border-slate-200/80 pb-2 last:border-b-0 last:pb-0">
@@ -763,7 +773,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                     <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" />
                     <div className="min-w-0 flex-1">
                         {canOpenDetail ? (
-                            <Link to={row.detailPath} reloadDocument className="text-[12px] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
+                            <Link to={detailPath} reloadDocument className="text-[12px] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
                                 {row.name}
                             </Link>
                         ) : (
@@ -797,8 +807,8 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                                 Not shown on map
                             </span>
                         </div>
-                        {row.detailPath && row.status !== 'unavailable' ? (
-                            <Link to={row.detailPath} reloadDocument className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
+                        {detailPath && row.status !== 'unavailable' ? (
+                            <Link to={detailPath} reloadDocument className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
                                 {row.name}
                             </Link>
                         ) : (
@@ -846,8 +856,8 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
 
                 {interactive ? (
                     <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
-                        {row.detailPath && row.status !== 'unavailable' ? (
-                            <Link to={row.detailPath} reloadDocument className="text-brand-700 transition hover:text-brand-800">
+                        {detailPath && row.status !== 'unavailable' ? (
+                            <Link to={detailPath} reloadDocument className="text-brand-700 transition hover:text-brand-800">
                                 View details
                             </Link>
                         ) : (
@@ -972,6 +982,7 @@ export default function SharedMapDirectoryList({
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
 }) {
+    const location = useLocation();
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
     const mobileMapWrapperRef = useRef(null);
@@ -986,6 +997,9 @@ export default function SharedMapDirectoryList({
     const rightGroups = presentation?.rightGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
     const interactive = layout !== 'print';
+    const detailReturnPath = useMemo(() => (
+        interactive ? normalizeMapReturnPath(buildCurrentAppPath(location)) : ''
+    ), [interactive, location.hash, location.pathname, location.search]);
     const compactPrint = !interactive && (
         mappedGroups.length >= 7
         || mappedGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
@@ -1044,108 +1058,114 @@ export default function SharedMapDirectoryList({
 
     if (!mappedGroups.length && !unmappedRows.length) {
         return (
-            <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
-                No places or resources match this directory search.
-            </div>
+            <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+                <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
+                    No places or resources match this directory search.
+                </div>
+            </DirectoryReturnPathContext.Provider>
         );
     }
 
     if (resolvedLayout === 'mobile') {
         return (
-            <div className={`space-y-4 ${className}`}>
-                {renderMobileMap ? (
-                    <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
-                        {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
-                        <MapLegend mobile />
-                    </div>
-                ) : null}
+            <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+                <div className={`space-y-4 ${className}`}>
+                    {renderMobileMap ? (
+                        <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
+                            {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
+                            <MapLegend mobile />
+                        </div>
+                    ) : null}
 
-                <DirectoryGroupColumn
-                    groups={mappedGroups}
-                    mode={mode}
-                    interactive
-                    fullCardLink={false}
-                    onViewOnMap={onViewOnMap}
-                    onRemoveResource={onRemoveResource}
-                    canSaveResources={canSaveResources}
-                    highlightPlaceKey={flashPlaceKey}
-                    highlightPlaceKeys={highlightPlaceKeys}
-                    sectionRefs={sectionRefs}
-                    clusterMapping={clusterMapping}
-                    showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealPlaceKeys={logoRevealPlaceKeys}
-                />
+                    <DirectoryGroupColumn
+                        groups={mappedGroups}
+                        mode={mode}
+                        interactive
+                        fullCardLink={false}
+                        onViewOnMap={onViewOnMap}
+                        onRemoveResource={onRemoveResource}
+                        canSaveResources={canSaveResources}
+                        highlightPlaceKey={flashPlaceKey}
+                        highlightPlaceKeys={highlightPlaceKeys}
+                        sectionRefs={sectionRefs}
+                        clusterMapping={clusterMapping}
+                        showDesktopHoverLogo={showDesktopHoverLogo}
+                        logoRevealPlaceKeys={logoRevealPlaceKeys}
+                    />
 
-                <DirectoryUnmappedSection
-                    rows={unmappedRows}
-                    interactive
-                    mode={mode}
-                    canSaveResources={canSaveResources}
-                    onRemoveResource={onRemoveResource}
-                />
-            </div>
+                    <DirectoryUnmappedSection
+                        rows={unmappedRows}
+                        interactive
+                        mode={mode}
+                        canSaveResources={canSaveResources}
+                        onRemoveResource={onRemoveResource}
+                    />
+                </div>
+            </DirectoryReturnPathContext.Provider>
         );
     }
 
     return (
-        <div className={`space-y-6 ${className}`}>
-            <div className={`grid gap-5 ${desktopGridClassName}`}>
-                <DirectoryGroupColumn
-                    groups={leftGroups}
-                    mode={mode}
-                    interactive={interactive}
-                    compactInteractive={compactInteractiveDesktop}
-                    fullCardLink={interactive}
-                    onViewOnMap={onViewOnMap}
-                    onRemoveResource={onRemoveResource}
-                    canSaveResources={canSaveResources}
-                    highlightPlaceKey={flashPlaceKey}
-                    highlightPlaceKeys={highlightPlaceKeys}
-                    sectionRefs={sectionRefs}
-                    preserveSlot
-                    allowPrintLinks={allowPrintLinks}
-                    compactPrint={compactPrint}
-                    clusterMapping={clusterMapping}
-                    showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealPlaceKeys={logoRevealPlaceKeys}
-                />
+        <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+            <div className={`space-y-6 ${className}`}>
+                <div className={`grid gap-5 ${desktopGridClassName}`}>
+                    <DirectoryGroupColumn
+                        groups={leftGroups}
+                        mode={mode}
+                        interactive={interactive}
+                        compactInteractive={compactInteractiveDesktop}
+                        fullCardLink={interactive}
+                        onViewOnMap={onViewOnMap}
+                        onRemoveResource={onRemoveResource}
+                        canSaveResources={canSaveResources}
+                        highlightPlaceKey={flashPlaceKey}
+                        highlightPlaceKeys={highlightPlaceKeys}
+                        sectionRefs={sectionRefs}
+                        preserveSlot
+                        allowPrintLinks={allowPrintLinks}
+                        compactPrint={compactPrint}
+                        clusterMapping={clusterMapping}
+                        showDesktopHoverLogo={showDesktopHoverLogo}
+                        logoRevealPlaceKeys={logoRevealPlaceKeys}
+                    />
 
-                <div
-                    ref={desktopMapWrapperRef}
-                    className={`${interactive ? 'lg:sticky lg:top-6' : ''} scroll-mt-[56px] sm:scroll-mt-[64px] ${desktopMapWrapperClassName}`.trim()}
-                >
-                    {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
-                    {resolvedLayout !== 'print' && <MapLegend />}
+                    <div
+                        ref={desktopMapWrapperRef}
+                        className={`${interactive ? 'lg:sticky lg:top-6' : ''} scroll-mt-[56px] sm:scroll-mt-[64px] ${desktopMapWrapperClassName}`.trim()}
+                    >
+                        {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
+                        {resolvedLayout !== 'print' && <MapLegend />}
+                    </div>
+
+                    <DirectoryGroupColumn
+                        groups={rightGroups}
+                        mode={mode}
+                        interactive={interactive}
+                        compactInteractive={compactInteractiveDesktop}
+                        fullCardLink={interactive}
+                        onViewOnMap={onViewOnMap}
+                        onRemoveResource={onRemoveResource}
+                        canSaveResources={canSaveResources}
+                        highlightPlaceKey={flashPlaceKey}
+                        highlightPlaceKeys={highlightPlaceKeys}
+                        sectionRefs={sectionRefs}
+                        preserveSlot
+                        allowPrintLinks={allowPrintLinks}
+                        compactPrint={compactPrint}
+                        clusterMapping={clusterMapping}
+                        showDesktopHoverLogo={showDesktopHoverLogo}
+                        logoRevealPlaceKeys={logoRevealPlaceKeys}
+                    />
                 </div>
 
-                <DirectoryGroupColumn
-                    groups={rightGroups}
-                    mode={mode}
+                <DirectoryUnmappedSection
+                    rows={unmappedRows}
                     interactive={interactive}
-                    compactInteractive={compactInteractiveDesktop}
-                    fullCardLink={interactive}
-                    onViewOnMap={onViewOnMap}
-                    onRemoveResource={onRemoveResource}
+                    mode={mode}
                     canSaveResources={canSaveResources}
-                    highlightPlaceKey={flashPlaceKey}
-                    highlightPlaceKeys={highlightPlaceKeys}
-                    sectionRefs={sectionRefs}
-                    preserveSlot
-                    allowPrintLinks={allowPrintLinks}
-                    compactPrint={compactPrint}
-                    clusterMapping={clusterMapping}
-                    showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealPlaceKeys={logoRevealPlaceKeys}
+                    onRemoveResource={onRemoveResource}
                 />
             </div>
-
-            <DirectoryUnmappedSection
-                rows={unmappedRows}
-                interactive={interactive}
-                mode={mode}
-                canSaveResources={canSaveResources}
-                onRemoveResource={onRemoveResource}
-            />
-        </div>
+        </DirectoryReturnPathContext.Provider>
     );
 }

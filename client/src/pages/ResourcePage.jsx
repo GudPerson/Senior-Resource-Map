@@ -1,12 +1,18 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { ArrowLeft } from 'lucide-react';
 import SaveAssetButton from '../components/SaveAssetButton.jsx';
 import ResourceDetailContent from '../components/ResourceDetailContent.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
-import { openResourceDetail } from '../lib/appNavigation.js';
+import {
+    buildCurrentAppPath,
+    getDocumentMapReferrerPath,
+    hardNavigate,
+    normalizeMapReturnPath,
+    openResourceDetail,
+} from '../lib/appNavigation.js';
 import {
     GEOLOCATION_OPTIONS,
     getSearchLocationLabel,
@@ -17,6 +23,8 @@ import {
 export default function ResourcePage() {
     const { type, id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const [asset, setAsset] = useState(null);
     const [subCatColors, setSubCatColors] = useState({});
@@ -79,6 +87,11 @@ export default function ResourcePage() {
     }, [type, sortOrigin]);
 
     const isHard = type === 'hard';
+    const currentPath = buildCurrentAppPath(location);
+    const mapReturnPath = useMemo(() => (
+        normalizeMapReturnPath(searchParams.get('returnTo'), currentPath)
+            || getDocumentMapReferrerPath(currentPath)
+    ), [currentPath, searchParams]);
     const savedAssetSummary = !asset ? null : {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -87,6 +100,20 @@ export default function ResourcePage() {
         lng: isHard ? asset?.lng : asset?.location?.lng || asset?.locations?.[0]?.lng,
         detailPath: `/resource/${type}/${asset.id}`,
     };
+
+    function handleReturn() {
+        if (mapReturnPath) {
+            hardNavigate(mapReturnPath, navigate);
+            return;
+        }
+
+        if (typeof window !== 'undefined' && window.history.length <= 1) {
+            navigate('/discover', { replace: true });
+            return;
+        }
+
+        navigate(-1);
+    }
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--page-gradient)' }}>
@@ -106,7 +133,7 @@ export default function ResourcePage() {
             {/* Header / Banner */}
             <div className="sticky top-[56px] z-40 border-b shadow-sm sm:top-[64px]" style={{ backgroundColor: 'rgba(255,255,255,0.94)', borderColor: 'var(--color-border)', backdropFilter: 'blur(16px)' }}>
                 <div className={`max-w-4xl mx-auto flex items-center gap-3 px-4 ${isMobile ? 'py-2.5' : 'py-3'}`}>
-                    <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition">
+                    <button onClick={handleReturn} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition" aria-label="Return to previous page">
                         <ArrowLeft size={isMobile ? 20 : 24} />
                     </button>
                     <div className="min-w-0 flex-1">
