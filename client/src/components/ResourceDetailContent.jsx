@@ -328,7 +328,7 @@ export default function ResourceDetailContent({
                             <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Clock size={22} /></div>
                             <div>
                                 <p className="font-bold text-slate-900 mb-1">{isHard ? 'Operating Hours' : 'Schedule'}</p>
-                                <p className="text-slate-700">{asset.schedule || asset.hours}</p>
+                                <p className="whitespace-pre-line text-slate-700">{asset.schedule || asset.hours}</p>
                             </div>
                         </div>
                     ) : null}
@@ -425,8 +425,9 @@ export default function ResourceDetailContent({
                                 <div className="flex-1 min-w-0">
                                     <h3 className={isCompact ? 'line-clamp-3 text-lg font-bold leading-tight text-slate-900' : 'line-clamp-2 text-base font-bold leading-tight text-slate-900 sm:text-lg'}>{softAsset.name}</h3>
                                     {softAsset.schedule ? (
-                                        <p className={isCompact ? 'mt-1 flex items-center gap-1 text-sm text-slate-500' : 'mt-1 flex items-center gap-1 text-xs text-slate-500 sm:text-sm'}>
-                                            <Clock size={14} /> {softAsset.schedule}
+                                        <p className={isCompact ? 'mt-1 flex items-start gap-1 text-sm text-slate-500' : 'mt-1 flex items-start gap-1 text-xs text-slate-500 sm:text-sm'}>
+                                            <Clock size={14} className="mt-0.5 flex-shrink-0" />
+                                            <span className="whitespace-pre-line">{softAsset.schedule}</span>
                                         </p>
                                     ) : null}
                                     {softAsset.description ? (

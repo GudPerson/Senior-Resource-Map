@@ -255,7 +255,7 @@ export function DiscoveryInspector({
                                     <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
                                         {isHard ? 'Operating hours' : 'Schedule'}
                                     </p>
-                                    <p className="mt-1 text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
+                                    <p className="mt-1 whitespace-pre-line text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
                                         {asset.schedule || asset.hours}
                                     </p>
                                 </div>

@@ -238,7 +238,7 @@ export const AssetCard = React.memo(({
                 {(asset.schedule || asset.hours) && (
                     <div className="flex items-start gap-2 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                         <Clock size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
-                        <span>{asset.schedule || asset.hours}</span>
+                        <span className="whitespace-pre-line">{asset.schedule || asset.hours}</span>
                     </div>
                 )}
                 {asset.tags && asset.tags.length > 0 && (

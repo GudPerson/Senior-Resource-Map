@@ -93,6 +93,12 @@ function normalizeConfidence(value) {
     return Math.max(0, Math.min(1, numeric));
 }
 
+function normalizeVisibilityAction(value, isHidden = false) {
+    const action = normalizeText(value).toLowerCase();
+    if (action === 'hide' || isHidden) return 'hide';
+    return 'preserve';
+}
+
 function normalizeReviewBucket(value, row = {}) {
     try {
         return normalizeSoftAssetBucket(value, null)
@@ -165,6 +171,7 @@ function formatExistingSoftAsset(asset) {
         ctaLabel: asset.ctaLabel || '',
         ctaUrl: asset.ctaUrl || '',
         venueNote: asset.venueNote || '',
+        isHidden: Boolean(asset.isHidden),
         newTags: (asset.tags || []).map((entry) => entry.tag?.name).filter(Boolean),
         partner: asset.partner || null,
     };
@@ -254,6 +261,8 @@ function buildRowPayload(row) {
         ctaUrl: normalizeOptionalUrl(row?.ctaUrl),
         venueNote: normalizeOptionalText(row?.venueNote),
         newTags: normalizeTags(row?.newTags),
+        isHidden: Boolean(row?.isHidden),
+        visibilityAction: normalizeVisibilityAction(row?.visibilityAction, row?.isHidden),
     };
 }
 
@@ -294,7 +303,7 @@ async function createStandaloneSoftAssetFromDraft(db, user, hostAsset, draftPayl
         availabilityEnabled: false,
         availabilityCount: 0,
         availabilityUnit: null,
-        isHidden: false,
+        isHidden: Boolean(draftPayload.isHidden),
         hideFrom: null,
         hideUntil: null,
     }).returning({ id: softAssets.id, name: softAssets.name });
@@ -309,7 +318,7 @@ async function createStandaloneSoftAssetFromDraft(db, user, hostAsset, draftPayl
 }
 
 async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
-    await db.update(softAssets).set({
+    const patch = {
         name: draftPayload.name,
         bucket: draftPayload.bucket,
         subCategory: draftPayload.subCategory,
@@ -321,7 +330,13 @@ async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
         ctaUrl: draftPayload.ctaUrl,
         venueNote: draftPayload.venueNote,
         updatedAt: new Date(),
-    }).where(eq(softAssets.id, assetId));
+    };
+
+    if (draftPayload.visibilityAction === 'hide') {
+        patch.isHidden = true;
+    }
+
+    await db.update(softAssets).set(patch).where(eq(softAssets.id, assetId));
 
     await syncAssetTags(db, assetId, 'soft', draftPayload.newTags);
 }

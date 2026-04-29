@@ -865,7 +865,13 @@ export default function AssetForm({
                     <>
                         <div className="col-span-2">
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Schedule</label>
-                            <input value={form.schedule || ''} onChange={(e) => setField('schedule', e.target.value)} placeholder="e.g. Every Tuesday at 10 AM" className="input-field" />
+                            <textarea
+                                rows={3}
+                                value={form.schedule || ''}
+                                onChange={(e) => setField('schedule', e.target.value)}
+                                placeholder="e.g. Every Tuesday at 10 AM"
+                                className="input-field"
+                            />
                         </div>
                         <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                             {selectedLinkedLocations.length > 0 ? (

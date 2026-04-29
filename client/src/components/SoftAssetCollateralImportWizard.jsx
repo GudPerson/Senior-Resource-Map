@@ -6,6 +6,8 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronUp,
+    Clock,
+    EyeOff,
     FileText,
     Files,
     Loader2,
@@ -21,7 +23,24 @@ function normalizeText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function splitScheduleLines(value) {
+    return String(value || '')
+        .split(/\n+/)
+        .map(normalizeText)
+        .filter(Boolean);
+}
+
+function countScheduleSessions(value, fallbackSessions = []) {
+    const lines = splitScheduleLines(value);
+    if (lines.length) return lines.length;
+    return Array.isArray(fallbackSessions) ? fallbackSessions.filter(Boolean).length : 0;
+}
+
 function buildDraftRowState(row, index) {
+    const scheduleSessions = Array.isArray(row.scheduleSessions) ? row.scheduleSessions.filter(Boolean) : [];
+    const schedule = row.schedule || scheduleSessions.join('\n');
+    const isHidden = Boolean(row.isHidden);
+
     return {
         id: row.id || `draft-${index + 1}`,
         action: 'create',
@@ -31,7 +50,13 @@ function buildDraftRowState(row, index) {
         name: row.name || '',
         subCategory: row.subCategorySuggestion || row.bucket || 'Programmes',
         description: row.description || '',
-        schedule: row.schedule || '',
+        schedule,
+        scheduleSessions,
+        sessionCount: Number(row.sessionCount) || countScheduleSessions(schedule, scheduleSessions),
+        groupedFromCount: Number(row.groupedFromCount) || 1,
+        availabilityStatus: row.availabilityStatus || 'unknown',
+        isHidden,
+        visibilityAction: row.visibilityAction || (isHidden ? 'hide' : 'preserve'),
         newTags: Array.isArray(row.newTags) ? row.newTags : [],
         contactPhone: row.contactPhone || '',
         contactEmail: row.contactEmail || '',
@@ -42,6 +67,11 @@ function buildDraftRowState(row, index) {
         confidence: Number.isFinite(Number(row.confidence)) ? Number(row.confidence) : 0.5,
         matchCandidates: Array.isArray(row.matchCandidates) ? row.matchCandidates : [],
     };
+}
+
+function getAvailabilityBadgeClasses(status) {
+    if (status === 'full') return 'border-red-200 bg-red-50 text-red-700';
+    return 'border-slate-200 bg-slate-50 text-slate-600';
 }
 
 function formatConfidenceLabel(value) {
@@ -190,6 +220,10 @@ export default function SoftAssetCollateralImportWizard({
                     subCategory: row.subCategory,
                     description: row.description,
                     schedule: row.schedule,
+                    scheduleSessions: row.scheduleSessions,
+                    availabilityStatus: row.availabilityStatus,
+                    isHidden: row.isHidden,
+                    visibilityAction: row.isHidden ? 'hide' : 'preserve',
                     newTags: row.newTags,
                     contactPhone: row.contactPhone,
                     contactEmail: row.contactEmail,
@@ -259,6 +293,28 @@ export default function SoftAssetCollateralImportWizard({
                                         <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getConfidenceBadgeClasses(row.confidence)}`}>
                                             {formatConfidenceLabel(row.confidence)}
                                         </div>
+                                        {row.sessionCount ? (
+                                            <div className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                <Clock size={13} />
+                                                {row.sessionCount} {row.sessionCount === 1 ? 'session' : 'sessions'}
+                                            </div>
+                                        ) : null}
+                                        {row.groupedFromCount > 1 ? (
+                                            <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                                Grouped from {row.groupedFromCount} entries
+                                            </div>
+                                        ) : null}
+                                        {row.availabilityStatus === 'full' ? (
+                                            <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getAvailabilityBadgeClasses(row.availabilityStatus)}`}>
+                                                Marked full
+                                            </div>
+                                        ) : null}
+                                        {row.isHidden ? (
+                                            <div className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                                                <EyeOff size={13} />
+                                                Hide after save
+                                            </div>
+                                        ) : null}
                                         <button
                                             type="button"
                                             onClick={() => updateRow(row.id, { expanded: !row.expanded })}
@@ -359,14 +415,42 @@ export default function SoftAssetCollateralImportWizard({
                                             </div>
                                             <div>
                                                 <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                                    Schedule
+                                                    Exact sessions
                                                 </label>
-                                                <input
+                                                <textarea
+                                                    rows={Math.min(Math.max(row.sessionCount || 1, 2), 6)}
                                                     value={row.schedule}
-                                                    onChange={(event) => updateRow(row.id, { schedule: event.target.value })}
+                                                    onChange={(event) => updateRow(row.id, {
+                                                        schedule: event.target.value,
+                                                        scheduleSessions: splitScheduleLines(event.target.value),
+                                                        sessionCount: countScheduleSessions(event.target.value),
+                                                    })}
                                                     className="input-field"
-                                                    placeholder="Mondays 2pm to 4pm"
+                                                    placeholder={'4 May 2026 (Monday), 9am-10am\n11 May 2026 (Monday), 9am-10am'}
                                                 />
+                                            </div>
+
+                                            <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-700">Hide from discovery after save</p>
+                                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                                            Use this for programmes that are already full. Existing offerings are only hidden when this stays switched on.
+                                                        </p>
+                                                    </div>
+                                                    <label className="relative inline-flex cursor-pointer items-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(row.isHidden)}
+                                                            onChange={(event) => updateRow(row.id, {
+                                                                isHidden: event.target.checked,
+                                                                visibilityAction: event.target.checked ? 'hide' : 'preserve',
+                                                            })}
+                                                            className="peer sr-only"
+                                                        />
+                                                        <span className="h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-red-500 peer-checked:after:translate-x-full" />
+                                                    </label>
+                                                </div>
                                             </div>
 
                                             <div className="lg:col-span-2">
