@@ -272,6 +272,18 @@ export const api = {
         return data.secure_url;
     },
 
+    // Partner-only resource content
+    getPrivateResourceContent: (resourceType, resourceId) => request('GET', `/private-resource-content/${resourceType}/${resourceId}`),
+    updatePrivateResourceContent: (resourceType, resourceId, body) => request('PUT', `/private-resource-content/${resourceType}/${resourceId}`, body),
+    getPrivateResourceAccessCandidates: (resourceType, resourceId) => request('GET', `/private-resource-content/${resourceType}/${resourceId}/access-candidates`),
+    uploadPrivateResourceFile: (resourceType, resourceId, file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return requestFormData(`/private-resource-content/${resourceType}/${resourceId}/files`, formData);
+    },
+    downloadPrivateResourceFile: (resourceType, resourceId, fileId) => requestBlob(`/private-resource-content/${resourceType}/${resourceId}/files/${fileId}/download`),
+    deletePrivateResourceFile: (resourceType, resourceId, fileId) => request('DELETE', `/private-resource-content/${resourceType}/${resourceId}/files/${fileId}`),
+
     // Users (admin + profile)
     getUsers: () => request('GET', '/users'),
     createUser: (body) => request('POST', '/users', body),

@@ -11,6 +11,7 @@ import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
+import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -974,6 +975,19 @@ export default function AssetForm({
                         rows={3}
                     />
                 </div>
+
+                {initialData?.id ? (
+                    <div className="col-span-2">
+                        <PrivateResourceContentEditor
+                            resourceType={isHard ? 'hard' : 'soft'}
+                            resourceId={initialData.id}
+                        />
+                    </div>
+                ) : (
+                    <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                        Save this resource first, then edit it again to add partner-only notes and files.
+                    </div>
+                )}
 
                 <div className="col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Tags (Press enter to add)</label>

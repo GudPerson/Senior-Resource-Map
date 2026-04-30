@@ -18,6 +18,7 @@ import subregionRoutes from './routes/subregions.js';
 import partnerRoutes from './routes/partners.js';
 import audienceZoneRoutes from './routes/audienceZones.js';
 import membershipsRoutes from './routes/memberships.js';
+import privateResourceContentRoutes from './routes/privateResourceContent.js';
 
 function readConfiguredOrigins() {
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
@@ -76,6 +77,7 @@ app.route('/api/subregions', subregionRoutes);
 app.route('/api/partners', partnerRoutes);
 app.route('/api/audience-zones', audienceZoneRoutes);
 app.route('/api/memberships', membershipsRoutes);
+app.route('/api/private-resource-content', privateResourceContentRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

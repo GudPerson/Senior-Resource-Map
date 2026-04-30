@@ -12,6 +12,7 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
+import PartnerPrivatePanel from './PartnerPrivatePanel.jsx';
 
 function TagBadge({ tag }) {
     return (
@@ -340,6 +341,12 @@ export default function ResourceDetailContent({
                         </button>
                     </div>
                 ) : null}
+
+                <PartnerPrivatePanel
+                    resourceType={type}
+                    resourceId={asset.id}
+                    compact={isCompact}
+                />
             </div>
 
             {isHard && asset.softAssets && asset.softAssets.length > 0 ? (

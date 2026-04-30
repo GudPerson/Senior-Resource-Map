@@ -68,6 +68,39 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS private_resource_contents (
+                    id SERIAL PRIMARY KEY,
+                    resource_type VARCHAR(20) NOT NULL,
+                    resource_id INTEGER NOT NULL,
+                    notes TEXT,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS private_resource_content_access (
+                    id SERIAL PRIMARY KEY,
+                    content_id INTEGER NOT NULL REFERENCES private_resource_contents(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS private_resource_content_files (
+                    id SERIAL PRIMARY KEY,
+                    content_id INTEGER NOT NULL REFERENCES private_resource_contents(id) ON DELETE CASCADE,
+                    file_name TEXT NOT NULL,
+                    mime_type VARCHAR(160) NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    file_data TEXT NOT NULL,
+                    uploaded_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS soft_asset_parents (
                     id SERIAL PRIMARY KEY,
                     external_key VARCHAR(160),
@@ -196,6 +229,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_maps_share_token_unique ON my_maps (share_token) WHERE share_token IS NOT NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_assets_map_idx ON my_map_assets (map_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_assets_map_resource_unique ON my_map_assets (map_id, resource_type, resource_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_contents_resource_unique ON private_resource_contents (resource_type, resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_contents_resource_idx ON private_resource_contents (resource_type, resource_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_content_access_content_user_unique ON private_resource_content_access (content_id, user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_content_access_user_idx ON private_resource_content_access (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_content_files_content_idx ON private_resource_content_files (content_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zone_postal_codes_zone_idx ON audience_zone_postal_codes (audience_zone_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zone_postal_codes_postal_idx ON audience_zone_postal_codes (postal_code)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_audience_zones_zone_idx ON soft_asset_audience_zones (audience_zone_id)`);

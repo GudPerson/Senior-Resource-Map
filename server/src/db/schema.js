@@ -212,6 +212,44 @@ export const myMapAssets = pgTable('my_map_assets', {
   mapResourceUnique: uniqueIndex('my_map_assets_map_resource_unique').on(table.mapId, table.resourceType, table.resourceId),
 }));
 
+export const privateResourceContents = pgTable('private_resource_contents', {
+  id: serial('id').primaryKey(),
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  notes: text('notes'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  resourceUnique: uniqueIndex('private_resource_contents_resource_unique').on(table.resourceType, table.resourceId),
+  resourceIdx: index('private_resource_contents_resource_idx').on(table.resourceType, table.resourceId),
+}));
+
+export const privateResourceContentAccess = pgTable('private_resource_content_access', {
+  id: serial('id').primaryKey(),
+  contentId: integer('content_id').references(() => privateResourceContents.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  contentUserUnique: uniqueIndex('private_resource_content_access_content_user_unique').on(table.contentId, table.userId),
+  userIdx: index('private_resource_content_access_user_idx').on(table.userId),
+}));
+
+export const privateResourceContentFiles = pgTable('private_resource_content_files', {
+  id: serial('id').primaryKey(),
+  contentId: integer('content_id').references(() => privateResourceContents.id, { onDelete: 'cascade' }).notNull(),
+  fileName: text('file_name').notNull(),
+  mimeType: varchar('mime_type', { length: 160 }).notNull(),
+  fileSize: integer('file_size').notNull(),
+  fileData: text('file_data').notNull(),
+  uploadedByUserId: integer('uploaded_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  contentIdx: index('private_resource_content_files_content_idx').on(table.contentId),
+}));
+
 export const tags = pgTable('tags', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
@@ -294,6 +332,50 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   partnerPostalCodes: many(partnerPostalCodes),
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
   createdAudienceZones: many(audienceZones, { relationName: 'audience_zone_creator' }),
+  privateContentGrants: many(privateResourceContentAccess),
+}));
+
+export const privateResourceContentsRelations = relations(privateResourceContents, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [privateResourceContents.createdByUserId],
+    references: [users.id],
+    relationName: 'private_resource_content_creator',
+  }),
+  updater: one(users, {
+    fields: [privateResourceContents.updatedByUserId],
+    references: [users.id],
+    relationName: 'private_resource_content_updater',
+  }),
+  accessGrants: many(privateResourceContentAccess),
+  files: many(privateResourceContentFiles),
+}));
+
+export const privateResourceContentAccessRelations = relations(privateResourceContentAccess, ({ one }) => ({
+  content: one(privateResourceContents, {
+    fields: [privateResourceContentAccess.contentId],
+    references: [privateResourceContents.id],
+  }),
+  user: one(users, {
+    fields: [privateResourceContentAccess.userId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [privateResourceContentAccess.createdByUserId],
+    references: [users.id],
+    relationName: 'private_resource_content_access_creator',
+  }),
+}));
+
+export const privateResourceContentFilesRelations = relations(privateResourceContentFiles, ({ one }) => ({
+  content: one(privateResourceContents, {
+    fields: [privateResourceContentFiles.contentId],
+    references: [privateResourceContents.id],
+  }),
+  uploader: one(users, {
+    fields: [privateResourceContentFiles.uploadedByUserId],
+    references: [users.id],
+    relationName: 'private_resource_content_file_uploader',
+  }),
 }));
 
 export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({
