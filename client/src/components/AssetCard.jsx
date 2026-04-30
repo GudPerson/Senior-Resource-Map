@@ -5,6 +5,7 @@ import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetB
 import { openResourceDetail } from '../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import SaveAssetButton from './SaveAssetButton.jsx';
 
@@ -33,21 +34,12 @@ export const TagBadge = ({ tag, onClick }) => (
     </span>
 );
 
-export const LinkifiedText = ({ text }) => {
-    if (!text) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = text.split(urlRegex);
-    return (
-        <>
-            {parts.map((part, i) => {
-                if (part.match(urlRegex)) {
-                    return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="hover:underline break-all" style={{ color: 'var(--color-brand)' }} onClick={e => e.stopPropagation()}>{part}</a>;
-                }
-                return part;
-            })}
-        </>
-    );
-};
+export const LinkifiedText = ({ text }) => (
+    <MarkdownLiteText
+        text={text}
+        compact
+    />
+);
 
 export const AssetCard = React.memo(({
     asset,
@@ -182,9 +174,12 @@ export const AssetCard = React.memo(({
 
             {/* Description */}
             {asset.description && (
-                <p className={`text-sm mb-3 leading-relaxed ${!showExpandedDescription ? 'line-clamp-2' : ''}`} style={{ color: 'var(--color-text-secondary)' }}>
-                    <LinkifiedText text={asset.description} />
-                </p>
+                <MarkdownLiteText
+                    text={asset.description}
+                    compact
+                    className={`mb-3 text-sm leading-relaxed ${!showExpandedDescription ? 'line-clamp-2' : ''}`}
+                    style={{ color: 'var(--color-text-secondary)' }}
+                />
             )}
 
             {!isHard ? (

@@ -10,6 +10,7 @@ import {
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 
 function TagBadge({ tag }) {
@@ -17,33 +18,6 @@ function TagBadge({ tag }) {
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-300">
             #{tag}
         </span>
-    );
-}
-
-function LinkifiedText({ text }) {
-    if (!text) return null;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = text.split(urlRegex);
-    return (
-        <>
-            {parts.map((part, index) => {
-                if (part.match(urlRegex)) {
-                    return (
-                        <a
-                            key={index}
-                            href={part}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand-600 hover:underline break-all"
-                            onClick={(event) => event.stopPropagation()}
-                        >
-                            {part}
-                        </a>
-                    );
-                }
-                return part;
-            })}
-        </>
     );
 }
 
@@ -258,7 +232,7 @@ export default function ResourceDetailContent({
 
                 <div className={copyClass}>
                     {asset.description ? (
-                        <p className="whitespace-pre-wrap"><LinkifiedText text={asset.description} /></p>
+                        <MarkdownLiteText text={asset.description} />
                     ) : (
                         <p className="italic text-slate-400">No description provided.</p>
                     )}
@@ -431,7 +405,11 @@ export default function ResourceDetailContent({
                                         </p>
                                     ) : null}
                                     {softAsset.description ? (
-                                        <p className={isCompact ? 'mt-2 line-clamp-3 text-sm text-slate-600' : 'mt-2 line-clamp-2 text-xs text-slate-600 sm:text-sm'}><LinkifiedText text={softAsset.description} /></p>
+                                        <MarkdownLiteText
+                                            text={softAsset.description}
+                                            compact
+                                            className={isCompact ? 'mt-2 line-clamp-3 text-sm text-slate-600' : 'mt-2 line-clamp-2 text-xs text-slate-600 sm:text-sm'}
+                                        />
                                     ) : null}
                                 </div>
                             </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { Clock, EyeOff, FileText, Link2, Loader2, Lock, Mail, MapPin, Package2, Phone, RotateCcw } from 'lucide-react';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -155,7 +156,15 @@ export default function SoftAssetChildForm({
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white px-4 py-3 md:col-span-2">
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Description</p>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-700">{form.description || 'No shared description set.'}</p>
+                        {form.description ? (
+                            <MarkdownLiteText
+                                text={form.description}
+                                compact
+                                className="mt-1 text-sm leading-relaxed text-slate-700"
+                            />
+                        ) : (
+                            <p className="mt-1 text-sm leading-relaxed text-slate-700">No shared description set.</p>
+                        )}
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white px-4 py-3">
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Audience</p>

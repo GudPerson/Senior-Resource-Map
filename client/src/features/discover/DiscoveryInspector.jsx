@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { getDistance } from '../../lib/geo.js';
 import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../../lib/softAssetBuckets.js';
-import { LinkifiedText, TagBadge } from '../../components/AssetCard.jsx';
+import { TagBadge } from '../../components/AssetCard.jsx';
+import MarkdownLiteText from '../../components/MarkdownLiteText.jsx';
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import { getAssetLocations, getBestLocation, hasValidCoordinates } from './discoverUtils.js';
 
@@ -193,9 +194,12 @@ export function DiscoveryInspector({
                             Summary
                         </p>
                         {asset.description ? (
-                            <p className="text-sm leading-7" style={{ color: 'var(--color-text-secondary)' }}>
-                                <LinkifiedText text={asset.description} />
-                            </p>
+                            <MarkdownLiteText
+                                text={asset.description}
+                                compact
+                                className="text-sm leading-7"
+                                style={{ color: 'var(--color-text-secondary)' }}
+                            />
                         ) : (
                             <p className="text-sm italic" style={{ color: 'var(--color-text-muted)' }}>
                                 No description provided yet.

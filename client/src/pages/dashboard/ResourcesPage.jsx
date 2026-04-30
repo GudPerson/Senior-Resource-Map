@@ -31,6 +31,7 @@ import {
 import AssetForm from '../../components/AssetForm.jsx';
 import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
 import HardAssetImportWizard from '../../components/HardAssetImportWizard.jsx';
+import MarkdownLiteText from '../../components/MarkdownLiteText.jsx';
 import SoftAssetCollateralImportWizard from '../../components/SoftAssetCollateralImportWizard.jsx';
 import SoftAssetChildForm from '../../components/SoftAssetChildForm.jsx';
 import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
@@ -2091,7 +2092,11 @@ export default function ResourcesPage() {
                                                         </div>
 
                                                         {template.description ? (
-                                                            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{template.description}</p>
+                                                            <MarkdownLiteText
+                                                                text={template.description}
+                                                                compact
+                                                                className="mt-3 max-w-3xl text-sm leading-7 text-slate-600"
+                                                            />
                                                         ) : null}
 
                                                         <div className="mt-3 flex flex-wrap gap-1.5">
