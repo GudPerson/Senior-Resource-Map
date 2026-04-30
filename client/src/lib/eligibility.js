@@ -19,7 +19,7 @@ function normalizeRange(range) {
 function normalizeAnyOf(entry) {
     if (!entry || typeof entry !== 'object') return null;
     const values = Array.isArray(entry.anyOf)
-        ? [...new Set(entry.anyOf.map((value) => String(value || '').trim()).filter(Boolean))]
+        ? [...new Set(entry.anyOf.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean))]
         : [];
     return values.length ? { anyOf: values } : null;
 }
@@ -33,11 +33,17 @@ export function normalizeEligibilityRules(rawRules) {
     const normalizedCriteria = {};
     const age = normalizeRange(criteria.age);
     const gender = normalizeAnyOf(criteria.gender);
+    const chasCard = normalizeAnyOf(criteria.chasCard);
+    const caregiverStatus = normalizeAnyOf(criteria.caregiverStatus);
     const propertyType = normalizeAnyOf(criteria.propertyType);
+    const volunteerInterest = normalizeAnyOf(criteria.volunteerInterest);
 
     if (age) normalizedCriteria.age = age;
     if (gender) normalizedCriteria.gender = gender;
+    if (chasCard) normalizedCriteria.chasCard = chasCard;
+    if (caregiverStatus) normalizedCriteria.caregiverStatus = caregiverStatus;
     if (propertyType) normalizedCriteria.propertyType = propertyType;
+    if (volunteerInterest) normalizedCriteria.volunteerInterest = volunteerInterest;
 
     if (!Object.keys(normalizedCriteria).length) {
         return null;
@@ -70,8 +76,20 @@ export function summarizeEligibilityRules(rules) {
         summary.push(`Gender: ${criteria.gender.anyOf.join(', ')}`);
     }
 
+    if (criteria.chasCard?.anyOf?.length) {
+        summary.push(`CHAS card: ${criteria.chasCard.anyOf.join(', ')}`);
+    }
+
+    if (criteria.caregiverStatus?.anyOf?.length) {
+        summary.push(`Caregiver: ${criteria.caregiverStatus.anyOf.join(', ')}`);
+    }
+
     if (criteria.propertyType?.anyOf?.length) {
         summary.push(`Property type: ${criteria.propertyType.anyOf.join(', ')}`);
+    }
+
+    if (criteria.volunteerInterest?.anyOf?.length) {
+        summary.push(`Volunteer interest: ${criteria.volunteerInterest.anyOf.join(', ')}`);
     }
 
     return summary;

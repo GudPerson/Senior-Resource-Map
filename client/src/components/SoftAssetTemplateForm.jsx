@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Clock, FileText, Globe, Loader2, Users } from 'lucide-react';
+import { Clock, Globe, Loader2, Users } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -9,6 +9,7 @@ import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
+import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
 
 function buildInitialForm(initialData, currentUser) {
     if (initialData) {
@@ -280,13 +281,12 @@ export default function SoftAssetTemplateForm({
                 </div>
 
                 <div className="col-span-2">
-                    <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><FileText size={13} /> Description</label>
-                    <textarea
-                        rows={4}
+                    <MarkdownDescriptionField
+                        id="template-description"
                         value={form.description || ''}
-                        onChange={(e) => setField('description', e.target.value)}
+                        onChange={(value) => setField('description', value)}
                         placeholder="Canonical description shared by all local rollouts."
-                        className="input-field resize-none"
+                        rows={4}
                     />
                 </div>
 

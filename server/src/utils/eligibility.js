@@ -76,11 +76,35 @@ export function normalizeEligibilityRules(rawRules) {
         }
     }
 
+    const chasCard = normalizeRuleObject(criteria.chasCard);
+    if (chasCard) {
+        const anyOf = normalizeRuleArray(chasCard.anyOf);
+        if (anyOf.length > 0) {
+            normalized.criteria.chasCard = { anyOf };
+        }
+    }
+
+    const caregiverStatus = normalizeRuleObject(criteria.caregiverStatus);
+    if (caregiverStatus) {
+        const anyOf = normalizeRuleArray(caregiverStatus.anyOf);
+        if (anyOf.length > 0) {
+            normalized.criteria.caregiverStatus = { anyOf };
+        }
+    }
+
     const propertyType = normalizeRuleObject(criteria.propertyType);
     if (propertyType) {
         const anyOf = normalizeRuleArray(propertyType.anyOf);
         if (anyOf.length > 0) {
             normalized.criteria.propertyType = { anyOf };
+        }
+    }
+
+    const volunteerInterest = normalizeRuleObject(criteria.volunteerInterest);
+    if (volunteerInterest) {
+        const anyOf = normalizeRuleArray(volunteerInterest.anyOf);
+        if (anyOf.length > 0) {
+            normalized.criteria.volunteerInterest = { anyOf };
         }
     }
 
@@ -97,8 +121,17 @@ export function getMissingEligibilityProfileFields(rules, user) {
     if (rules.criteria.gender && !user?.gender) {
         missing.push('gender');
     }
+    if (rules.criteria.chasCard && !user?.chasCard) {
+        missing.push('chasCard');
+    }
+    if (rules.criteria.caregiverStatus && !user?.caregiverStatus) {
+        missing.push('caregiverStatus');
+    }
     if (rules.criteria.propertyType && !user?.propertyType) {
         missing.push('propertyType');
+    }
+    if (rules.criteria.volunteerInterest && !user?.volunteerInterest) {
+        missing.push('volunteerInterest');
     }
     return missing;
 }
@@ -134,12 +167,39 @@ function evaluateRuleCriteria(rules, user) {
         }
     }
 
+    if (rules.criteria.chasCard) {
+        const userChasCard = String(user?.chasCard || '').trim().toLowerCase();
+        if (!userChasCard) {
+            missingProfileFields.push('chasCard');
+        } else if (!rules.criteria.chasCard.anyOf.includes(userChasCard)) {
+            hardMismatches.push('chasCard');
+        }
+    }
+
+    if (rules.criteria.caregiverStatus) {
+        const userCaregiverStatus = String(user?.caregiverStatus || '').trim().toLowerCase();
+        if (!userCaregiverStatus) {
+            missingProfileFields.push('caregiverStatus');
+        } else if (!rules.criteria.caregiverStatus.anyOf.includes(userCaregiverStatus)) {
+            hardMismatches.push('caregiverStatus');
+        }
+    }
+
     if (rules.criteria.propertyType) {
         const userPropertyType = String(user?.propertyType || '').trim().toLowerCase();
         if (!userPropertyType) {
             missingProfileFields.push('propertyType');
         } else if (!rules.criteria.propertyType.anyOf.includes(userPropertyType)) {
             hardMismatches.push('propertyType');
+        }
+    }
+
+    if (rules.criteria.volunteerInterest) {
+        const userVolunteerInterest = String(user?.volunteerInterest || '').trim().toLowerCase();
+        if (!userVolunteerInterest) {
+            missingProfileFields.push('volunteerInterest');
+        } else if (!rules.criteria.volunteerInterest.anyOf.includes(userVolunteerInterest)) {
+            hardMismatches.push('volunteerInterest');
         }
     }
 

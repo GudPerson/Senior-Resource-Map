@@ -1,8 +1,10 @@
 import Select from 'react-select';
 
 import {
+    CHAS_CARD_OPTIONS,
     GENDER_OPTIONS,
     PROPERTY_TYPE_OPTIONS,
+    YES_NO_OPTIONS,
 } from '../lib/profileAttributes.js';
 import {
     normalizeEligibilityRules,
@@ -18,7 +20,10 @@ function buildEditableRules(rules) {
         ageMin: normalized?.criteria?.age?.min ?? rawCriteria?.age?.min ?? '',
         ageMax: normalized?.criteria?.age?.max ?? rawCriteria?.age?.max ?? '',
         genders: normalized?.criteria?.gender?.anyOf ?? rawCriteria?.gender?.anyOf ?? [],
+        chasCards: normalized?.criteria?.chasCard?.anyOf ?? rawCriteria?.chasCard?.anyOf ?? [],
+        caregiverStatuses: normalized?.criteria?.caregiverStatus?.anyOf ?? rawCriteria?.caregiverStatus?.anyOf ?? [],
         propertyTypes: normalized?.criteria?.propertyType?.anyOf ?? rawCriteria?.propertyType?.anyOf ?? [],
+        volunteerInterests: normalized?.criteria?.volunteerInterest?.anyOf ?? rawCriteria?.volunteerInterest?.anyOf ?? [],
     };
 }
 
@@ -34,8 +39,17 @@ function buildRulesPayload(state) {
             gender: {
                 anyOf: state.genders,
             },
+            chasCard: {
+                anyOf: state.chasCards,
+            },
+            caregiverStatus: {
+                anyOf: state.caregiverStatuses,
+            },
             propertyType: {
                 anyOf: state.propertyTypes,
+            },
+            volunteerInterest: {
+                anyOf: state.volunteerInterests,
             },
         },
     }) || { version: 1, criteria: {} };
@@ -136,6 +150,30 @@ export default function EligibilityRulesEditor({
                         />
                     </div>
                     <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Eligible CHAS cards</label>
+                        <Select
+                            isMulti
+                            options={CHAS_CARD_OPTIONS}
+                            value={CHAS_CARD_OPTIONS.filter((option) => rulesState.chasCards.includes(option.value))}
+                            onChange={(selected) => update({ chasCards: Array.isArray(selected) ? selected.map((item) => item.value) : [] })}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                            placeholder="Select CHAS cards..."
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Caregiver status</label>
+                        <Select
+                            isMulti
+                            options={YES_NO_OPTIONS}
+                            value={YES_NO_OPTIONS.filter((option) => rulesState.caregiverStatuses.includes(option.value))}
+                            onChange={(selected) => update({ caregiverStatuses: Array.isArray(selected) ? selected.map((item) => item.value) : [] })}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                            placeholder="Select caregiver status..."
+                        />
+                    </div>
+                    <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Eligible property types</label>
                         <Select
                             isMulti
@@ -145,6 +183,18 @@ export default function EligibilityRulesEditor({
                             className="react-select-container"
                             classNamePrefix="react-select"
                             placeholder="Select property types..."
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Volunteer interest</label>
+                        <Select
+                            isMulti
+                            options={YES_NO_OPTIONS}
+                            value={YES_NO_OPTIONS.filter((option) => rulesState.volunteerInterests.includes(option.value))}
+                            onChange={(selected) => update({ volunteerInterests: Array.isArray(selected) ? selected.map((item) => item.value) : [] })}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                            placeholder="Select volunteer interest..."
                         />
                     </div>
                 </div>

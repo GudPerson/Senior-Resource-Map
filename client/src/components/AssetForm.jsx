@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, Phone, Clock, FileText, Package2, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, Phone, Clock, Package2, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -10,6 +10,7 @@ import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
+import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -966,8 +967,12 @@ export default function AssetForm({
                 )}
 
                 <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1"><FileText size={13} className="inline mr-1" />Description</label>
-                    <textarea rows={3} value={form.description || ''} onChange={(e) => setField('description', e.target.value)} placeholder="Brief description..." className="input-field resize-none" />
+                    <MarkdownDescriptionField
+                        id="asset-description"
+                        value={form.description || ''}
+                        onChange={(value) => setField('description', value)}
+                        rows={3}
+                    />
                 </div>
 
                 <div className="col-span-2">
