@@ -12,6 +12,7 @@ import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
+import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -975,6 +976,19 @@ export default function AssetForm({
                         rows={3}
                     />
                 </div>
+
+                {initialData?.id ? (
+                    <div className="col-span-2">
+                        <TranslationReviewPanel
+                            resourceType={isHard ? 'hard' : 'soft'}
+                            resourceId={initialData.id}
+                        />
+                    </div>
+                ) : (
+                    <div className="col-span-2 rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
+                        Save this resource first, then edit it again to review Mandarin, Malay, and Tamil translations.
+                    </div>
+                )}
 
                 {initialData?.id ? (
                     <div className="col-span-2">

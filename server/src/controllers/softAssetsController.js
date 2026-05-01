@@ -38,6 +38,18 @@ import {
     parseLinkedHardAssetIds,
     resolveAssetOwner,
 } from '../utils/softAssetScope.js';
+import {
+    attachTranslations,
+    loadTranslationsForResources,
+    syncResourceTranslations,
+} from '../utils/resourceTranslations.js';
+import {
+    cleanOneLineText,
+    cleanOptionalOneLineText,
+    cleanOptionalText,
+    cleanTagList,
+    normalizeUrlText,
+} from '../utils/inputValidation.js';
 
 const softAssetWithRelations = {
     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
@@ -120,6 +132,58 @@ function normalizeAvailabilityUnit(value) {
     return text ? text : null;
 }
 
+function sanitizeSoftAssetPayload(body = {}) {
+    return {
+        ...body,
+        externalKey: cleanOptionalOneLineText(body.externalKey, 160) || undefined,
+        name: cleanOneLineText(body.name, 255),
+        bucket: cleanOptionalOneLineText(body.bucket, 40),
+        subCategory: cleanOneLineText(body.subCategory || 'Programmes', 80),
+        description: cleanOptionalText(body.description, 10000),
+        schedule: cleanOptionalText(body.schedule, 6000),
+        logoUrl: normalizeUrlText(body.logoUrl, 2000),
+        bannerUrl: normalizeUrlText(body.bannerUrl, 2000),
+        galleryUrls: Array.isArray(body.galleryUrls)
+            ? body.galleryUrls.map((url) => normalizeUrlText(url, 2000)).filter(Boolean).slice(0, 12)
+            : [],
+        newTags: cleanTagList(body.newTags),
+        contactPhone: cleanOptionalOneLineText(body.contactPhone, 50),
+        contactEmail: cleanOptionalOneLineText(body.contactEmail, 255),
+        ctaLabel: cleanOptionalOneLineText(body.ctaLabel, 255),
+        ctaUrl: normalizeUrlText(body.ctaUrl, 2000),
+        venueNote: cleanOptionalText(body.venueNote, 3000),
+        availabilityUnit: cleanOptionalOneLineText(body.availabilityUnit, 80),
+    };
+}
+
+function sanitizeSoftAssetPatch(body = {}) {
+    const full = sanitizeSoftAssetPayload(body);
+    const patch = { ...body };
+    [
+        'externalKey',
+        'name',
+        'bucket',
+        'subCategory',
+        'description',
+        'schedule',
+        'logoUrl',
+        'bannerUrl',
+        'galleryUrls',
+        'newTags',
+        'contactPhone',
+        'contactEmail',
+        'ctaLabel',
+        'ctaUrl',
+        'venueNote',
+        'availabilityUnit',
+    ].forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+            patch[field] = full[field];
+        }
+    });
+    return patch;
+}
+
 function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds) {
     const allLocations = getSoftAssetLocations(asset);
     const visibleLocations = allLocations
@@ -165,6 +229,49 @@ function formatSoftAssetWithAccess(
         eligibilityRules: asset.eligibilityRules || null,
         ...getOfferingAccessMetadata(asset, viewer, eligibilityContext, membershipHostIdMap),
     };
+}
+
+async function attachSoftAssetTranslations(db, formattedAssets) {
+    const assets = Array.isArray(formattedAssets) ? formattedAssets : [formattedAssets].filter(Boolean);
+    if (assets.length === 0) return formattedAssets;
+
+    const softTranslationMap = await loadTranslationsForResources(db, 'soft', assets.map((asset) => asset.id));
+    const hardLocationIds = assets
+        .flatMap((asset) => (asset.locations || []).map((location) => location.id).filter(Boolean));
+    const hardTranslationMap = await loadTranslationsForResources(db, 'hard', hardLocationIds);
+
+    const attachOne = (asset) => attachTranslations({
+        ...asset,
+        locations: (asset.locations || []).map((location) => attachTranslations(
+            location,
+            hardTranslationMap.get(`hard:${location.id}`) || {},
+        )),
+        location: asset.location
+            ? attachTranslations(asset.location, hardTranslationMap.get(`hard:${asset.location.id}`) || {})
+            : asset.location,
+        hostLocation: asset.hostLocation
+            ? attachTranslations(asset.hostLocation, hardTranslationMap.get(`hard:${asset.hostLocation.id}`) || {})
+            : asset.hostLocation,
+    }, softTranslationMap.get(`soft:${asset.id}`) || {});
+
+    return Array.isArray(formattedAssets) ? assets.map(attachOne) : attachOne(assets[0]);
+}
+
+async function triggerSoftAssetTranslation(db, env, asset, user) {
+    try {
+        return await syncResourceTranslations(db, env, {
+            resourceType: 'soft',
+            resourceId: asset.id,
+            source: asset,
+            updatedByUserId: user?.id || null,
+        });
+    } catch (err) {
+        console.error('Soft asset translation trigger failed:', { assetId: asset?.id, message: err.message });
+        return {
+            status: 'failed',
+            message: err.message || 'English was saved, but auto-translation failed.',
+        };
+    }
 }
 
 function canExposeFormattedSoftAsset(asset, formatted) {
@@ -266,8 +373,10 @@ export const getSoftAssets = async (c) => {
             .filter(({ raw, formatted }) => canExposeFormattedSoftAsset(raw, formatted))
             .map(({ formatted }) => formatted);
 
+        const formattedWithTranslations = await attachSoftAssetTranslations(db, formatted);
+
         return c.json({
-            data: formatted,
+            data: formattedWithTranslations,
             pagination: {
                 totalCount,
                 page,
@@ -316,7 +425,7 @@ export const getSoftAssetById = async (c) => {
             return c.json({ error: 'Not found' }, 404);
         }
 
-        return c.json(formatted);
+        return c.json(await attachSoftAssetTranslations(db, formatted));
     } catch (err) {
         console.error('getSoftAssetById Error:', err);
         return c.json({ error: err.message || 'Failed to fetch soft asset' }, err.status || 500);
@@ -334,7 +443,7 @@ export const createSoftAsset = async (c) => {
             return c.json({ error: 'Only partners and admins can create resources' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeSoftAssetPayload(await c.req.json());
         if ((body?.assetMode && body.assetMode !== SOFT_ASSET_MODES.STANDALONE) || body?.parentSoftAssetId || body?.hostHardAssetId) {
             return c.json({ error: 'Generated child offerings must be created from a parent template.' }, 400);
         }
@@ -437,9 +546,10 @@ export const createSoftAsset = async (c) => {
             throw syncError;
         }
 
+        const translationStatus = await triggerSoftAssetTranslation(db, c.env, asset, user);
         await rebuildSoftAssetCaches([finalSubregionId], c.env, user);
 
-        return c.json(asset, 201);
+        return c.json({ ...asset, translationStatus }, 201);
     } catch (err) {
         console.error('createSoftAsset Error:', err);
         return c.json({ error: err.message || 'Failed to create soft asset' }, err.status || 500);
@@ -459,7 +569,7 @@ export const patchSoftAssetAvailability = async (c) => {
             return c.json({ error: 'Insufficient permissions to edit this asset' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeSoftAssetPatch(await c.req.json());
         const nextAvailabilityEnabled = body?.availabilityEnabled !== undefined
             ? Boolean(body.availabilityEnabled)
             : normalizeAvailabilityEnabled(existing.availabilityEnabled);
@@ -498,8 +608,8 @@ export const patchSoftAssetAvailability = async (c) => {
 
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, refreshed ? [refreshed] : []);
-        return c.json(
-            formatSoftAssetWithAccess(
+        const translationStatus = await triggerSoftAssetTranslation(db, c.env, refreshed, user);
+        const formatted = formatSoftAssetWithAccess(
                 refreshed,
                 boundaryContext,
                 user,
@@ -507,8 +617,11 @@ export const patchSoftAssetAvailability = async (c) => {
                 allowedAudienceZoneIds,
                 eligibilityContext,
                 membershipHostIdMap,
-            )
         );
+        return c.json({
+            ...(await attachSoftAssetTranslations(db, formatted)),
+            translationStatus,
+        });
     } catch (err) {
         console.error('patchSoftAssetAvailability Error:', err);
         return c.json({ error: err.message || 'Failed to update offering availability' }, err.status || 500);
@@ -529,13 +642,17 @@ export const updateSoftAsset = async (c) => {
             return c.json({ error: 'Insufficient permissions to edit this asset' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeSoftAssetPatch(await c.req.json());
 
         if (isChildSoftAsset(existing)) {
             const patch = buildChildEditablePatch(body, existing);
             await db.update(softAssets).set(patch).where(eq(softAssets.id, id));
+            const refreshedChild = await loadSoftAssetById(db, id);
+            const translationStatus = refreshedChild
+                ? await triggerSoftAssetTranslation(db, c.env, refreshedChild, user)
+                : { status: 'skipped', message: 'Offering was saved but could not be reloaded for translation.' };
             await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
-            return c.json({ success: true, id, assetMode: existing.assetMode });
+            return c.json({ success: true, id, assetMode: existing.assetMode, translationStatus });
         }
 
         const nextLinkedIds = body.locationIds !== undefined || body.locationId !== undefined
@@ -619,9 +736,14 @@ export const updateSoftAsset = async (c) => {
 
         await syncSoftAssetAudienceZones(db, id, nextAudienceZoneIds);
 
+        const refreshed = await loadSoftAssetById(db, id);
+        const translationStatus = refreshed
+            ? await triggerSoftAssetTranslation(db, c.env, refreshed, user)
+            : { status: 'skipped', message: 'Offering was saved but could not be reloaded for translation.' };
+
         await rebuildSoftAssetCaches([finalSubregionId, existing.subregionId], c.env, user);
 
-        return c.json({ success: true, id, assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE });
+        return c.json({ success: true, id, assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE, translationStatus });
     } catch (err) {
         console.error('updateSoftAsset Error:', err);
         return c.json({ error: err.message || 'Failed to update soft asset' }, err.status || 500);

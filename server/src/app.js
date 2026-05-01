@@ -19,6 +19,14 @@ import partnerRoutes from './routes/partners.js';
 import audienceZoneRoutes from './routes/audienceZones.js';
 import membershipsRoutes from './routes/memberships.js';
 import privateResourceContentRoutes from './routes/privateResourceContent.js';
+import resourceTranslationsRoutes from './routes/resourceTranslations.js';
+import {
+    aiRateLimit,
+    authRateLimit,
+    securityHeaders,
+    translationRateLimit,
+    uploadRateLimit,
+} from './middleware/security.js';
 
 function readConfiguredOrigins() {
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
@@ -54,11 +62,24 @@ function resolveCorsOrigin(origin) {
 
 const app = new Hono();
 
+app.use('*', securityHeaders);
 app.use('*', cors({
     origin: resolveCorsOrigin,
     credentials: true,
     allowHeaders: ['Content-Type', 'X-Session-Token'],
 }));
+
+app.use('/api/auth/login', authRateLimit);
+app.use('/api/auth/register', authRateLimit);
+app.use('/api/auth/google', authRateLimit);
+app.use('/api/upload', uploadRateLimit);
+app.use('/api/upload/*', uploadRateLimit);
+app.use('/api/private-resource-content/*', uploadRateLimit);
+app.use('/api/private-resource-content/*/files', uploadRateLimit);
+app.use('/api/private-resource-content/*/files/*', uploadRateLimit);
+app.use('/api/hard-assets/import/*', aiRateLimit);
+app.use('/api/soft-assets/import/*', aiRateLimit);
+app.use('/api/resource-translations/*', translationRateLimit);
 
 app.route('/api/auth', authRoutes);
 app.route('/api/hard-assets', hardAssetsRoutes);
@@ -78,6 +99,7 @@ app.route('/api/partners', partnerRoutes);
 app.route('/api/audience-zones', audienceZoneRoutes);
 app.route('/api/memberships', membershipsRoutes);
 app.route('/api/private-resource-content', privateResourceContentRoutes);
+app.route('/api/resource-translations', resourceTranslationsRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

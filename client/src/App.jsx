@@ -7,6 +7,7 @@ import AuthPage from './pages/AuthPage.jsx';
 
 import { canAccessAdmin, normalizeRole } from './lib/roles.js';
 import { SavedAssetsProvider } from './contexts/SavedAssetsContext.jsx';
+import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -29,21 +30,24 @@ function ProtectedRoute({ children, requireAdmin, requireDirectoryAccess }) {
 
 export default function App() {
     return (
-        <SavedAssetsProvider>
-            <BrowserRouter>
-                <AppShell />
-            </BrowserRouter>
-        </SavedAssetsProvider>
+        <LocaleProvider>
+            <SavedAssetsProvider>
+                <BrowserRouter>
+                    <AppShell />
+                </BrowserRouter>
+            </SavedAssetsProvider>
+        </LocaleProvider>
     );
 }
 
 function RouteLoadingFallback() {
+    const { t } = useLocale();
     return (
         <div className="flex min-h-[calc(100vh-88px)] items-center justify-center px-6 py-16">
             <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
                 <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
-                    Loading page…
+                    {t('loadingPage')}
                 </div>
             </div>
         </div>

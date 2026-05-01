@@ -18,6 +18,18 @@ import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
 import { enrichHardAssetDraftFromGooglePlaces, resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
 import { enrichPlaceCandidatesWithVertex, searchVertexGroundedPlaceSuggestions } from '../utils/vertexGroundedPlaceSearch.js';
 import { fetchWebsiteMetadata } from '../utils/websiteMetadata.js';
+import {
+    attachTranslations,
+    loadTranslationsForResources,
+    syncResourceTranslations,
+} from '../utils/resourceTranslations.js';
+import {
+    cleanOneLineText,
+    cleanOptionalOneLineText,
+    cleanOptionalText,
+    cleanTagList,
+    normalizeUrlText,
+} from '../utils/inputValidation.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -734,6 +746,93 @@ function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
     };
 }
 
+async function attachHardAssetTranslations(db, formattedAssets) {
+    const assets = Array.isArray(formattedAssets) ? formattedAssets : [formattedAssets].filter(Boolean);
+    if (assets.length === 0) return formattedAssets;
+
+    const hardTranslationMap = await loadTranslationsForResources(db, 'hard', assets.map((asset) => asset.id));
+    const nestedSoftIds = assets.flatMap((asset) => (asset.softAssets || []).map((softAsset) => softAsset.id).filter(Boolean));
+    const softTranslationMap = await loadTranslationsForResources(db, 'soft', nestedSoftIds);
+    const attachOne = (asset) => attachTranslations({
+        ...asset,
+        softAssets: (asset.softAssets || []).map((softAsset) => attachTranslations(
+            softAsset,
+            softTranslationMap.get(`soft:${softAsset.id}`) || {},
+        )),
+    }, hardTranslationMap.get(`hard:${asset.id}`) || {});
+
+    return Array.isArray(formattedAssets) ? assets.map(attachOne) : attachOne(assets[0]);
+}
+
+async function triggerHardAssetTranslation(db, env, asset, user) {
+    try {
+        return await syncResourceTranslations(db, env, {
+            resourceType: 'hard',
+            resourceId: asset.id,
+            source: asset,
+            updatedByUserId: user?.id || null,
+        });
+    } catch (err) {
+        console.error('Hard asset translation trigger failed:', { assetId: asset?.id, message: err.message });
+        return {
+            status: 'failed',
+            message: err.message || 'English was saved, but auto-translation failed.',
+        };
+    }
+}
+
+function sanitizeHardAssetPayload(body = {}) {
+    return {
+        ...body,
+        externalKey: cleanOptionalOneLineText(body.externalKey, 160) || undefined,
+        name: cleanOneLineText(body.name, 255),
+        country: cleanOneLineText(body.country, 2),
+        postalCode: cleanOneLineText(body.postalCode, 20),
+        address: cleanOneLineText(body.address, 1000),
+        phone: cleanOptionalOneLineText(body.phone, 50),
+        hours: cleanOptionalText(body.hours, 3000),
+        website: normalizeUrlText(body.website, 2000),
+        description: cleanOptionalText(body.description, 10000),
+        logoUrl: normalizeUrlText(body.logoUrl, 2000),
+        bannerUrl: normalizeUrlText(body.bannerUrl, 2000),
+        galleryUrls: Array.isArray(body.galleryUrls)
+            ? body.galleryUrls.map((url) => normalizeUrlText(url, 2000)).filter(Boolean).slice(0, 12)
+            : [],
+        newTags: cleanTagList(body.newTags),
+        subCategory: cleanOneLineText(body.subCategory || 'Places', 80),
+        sourceGooglePlaceId: cleanOptionalOneLineText(body.sourceGooglePlaceId, 255),
+        sourceGoogleMapsUri: normalizeUrlText(body.sourceGoogleMapsUri, 2000),
+    };
+}
+
+function sanitizeHardAssetPatch(body = {}) {
+    const full = sanitizeHardAssetPayload(body);
+    const patch = { ...body };
+    [
+        'externalKey',
+        'name',
+        'country',
+        'postalCode',
+        'address',
+        'phone',
+        'hours',
+        'website',
+        'description',
+        'logoUrl',
+        'bannerUrl',
+        'galleryUrls',
+        'newTags',
+        'subCategory',
+        'sourceGooglePlaceId',
+        'sourceGoogleMapsUri',
+    ].forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+            patch[field] = full[field];
+        }
+    });
+    return patch;
+}
+
 export const getHardAssets = async (c) => {
     try {
         const user = c.get('user');
@@ -899,8 +998,10 @@ export const getHardAssets = async (c) => {
                 membershipSummariesByAssetId.get(asset.id) || null,
             ));
 
+        const formattedWithTranslations = await attachHardAssetTranslations(db, formatted);
+
         return c.json({
-            data: formatted,
+            data: formattedWithTranslations,
             pagination: {
                 totalCount,
                 page,
@@ -1019,18 +1120,16 @@ export const getHardAssetById = async (c) => {
         const membershipSummary = actorCanManageAsset(user, asset, asset.partner)
             ? (await loadMembershipSummariesForAssets(db, [asset.id])).get(asset.id) || null
             : null;
-        const formatted = {
-            ...formatHardAsset(
-                asset,
-                await loadScopedBoundaryContext(db, user),
-                user,
-                allowedPartnerAudienceIds,
-                allowedAudienceZoneIds,
-                eligibilityContext,
-                membershipHostIdMap,
-                membershipSummary,
-            ),
-        };
+        const formatted = await attachHardAssetTranslations(db, formatHardAsset(
+            asset,
+            await loadScopedBoundaryContext(db, user),
+            user,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+            eligibilityContext,
+            membershipHostIdMap,
+            membershipSummary,
+        ));
 
         return c.json(formatted);
     } catch (err) {
@@ -1050,7 +1149,7 @@ export const previewGoogleHardAssetImport = async (c) => {
             return c.json({ error: 'Insufficient permissions to import places' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeHardAssetPayload(await c.req.json());
         const googlePlaceId = normalizeText(body?.googlePlaceId);
         const googleMapsUri = normalizeText(body?.googleMapsUri);
         if (!googlePlaceId) {
@@ -1091,7 +1190,7 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
             return c.json({ error: 'Insufficient permissions to import places' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeHardAssetPatch(await c.req.json());
         const postalCode = normalizeText(body?.postalCode);
         const keywordQuery = normalizeText(body?.keywordQuery);
         const radiusKm = parseRadiusFilter(body?.radiusKm);
@@ -1140,7 +1239,7 @@ export const createHardAsset = async (c) => {
             return c.json({ error: 'Insufficient permissions to create resources' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeHardAssetPayload(await c.req.json());
         const {
             name,
             country,
@@ -1213,8 +1312,9 @@ export const createHardAsset = async (c) => {
             throw syncError;
         }
 
+        const translationStatus = await triggerHardAssetTranslation(db, c.env, asset, user);
         await rebuildMapCache(getCacheRegionId(derivedSubregion.id), c.env);
-        return c.json(asset, 201);
+        return c.json({ ...asset, translationStatus }, 201);
     } catch (err) {
         console.error(err);
         return c.json({ error: err.message || 'Failed to create hard asset' }, err.status || 500);
@@ -1284,7 +1384,7 @@ export const updateHardAsset = async (c) => {
             return c.json({ error: 'Insufficient permissions to edit this asset' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeHardAssetPatch(await c.req.json());
         const nextPostalCode = body.postalCode ?? existing.postalCode;
         const nextCountry = body.country ?? existing.country;
         const derivedRouting = await resolveWritableSubregionByPostal(db, nextPostalCode, user, 'Postal code');
@@ -1340,8 +1440,15 @@ export const updateHardAsset = async (c) => {
             await syncAssetTags(db, id, 'hard', body.newTags);
         }
 
+        const refreshed = await db.query.hardAssets.findFirst({
+            where: eq(hardAssets.id, id),
+        });
+        const translationStatus = refreshed
+            ? await triggerHardAssetTranslation(db, c.env, refreshed, user)
+            : { status: 'skipped', message: 'Asset was saved but could not be reloaded for translation.' };
+
         await rebuildMapCache(getCacheRegionId(existing.subregionId, derivedSubregion.id), c.env);
-        return c.json({ success: true, id });
+        return c.json({ success: true, id, translationStatus });
     } catch (err) {
         console.error(err);
         return c.json({ error: err.message || 'Failed to update hard asset' }, err.status || 500);

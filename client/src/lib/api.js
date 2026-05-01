@@ -284,6 +284,11 @@ export const api = {
     downloadPrivateResourceFile: (resourceType, resourceId, fileId) => requestBlob(`/private-resource-content/${resourceType}/${resourceId}/files/${fileId}/download`),
     deletePrivateResourceFile: (resourceType, resourceId, fileId) => request('DELETE', `/private-resource-content/${resourceType}/${resourceId}/files/${fileId}`),
 
+    // Resource translations
+    getResourceTranslations: (resourceType, resourceId) => request('GET', `/resource-translations/${resourceType}/${resourceId}`),
+    updateResourceTranslation: (resourceType, resourceId, locale, body) => request('PUT', `/resource-translations/${resourceType}/${resourceId}/${encodeURIComponent(locale)}`, body),
+    regenerateResourceTranslations: (resourceType, resourceId, body = {}) => request('POST', `/resource-translations/${resourceType}/${resourceId}/regenerate`, body),
+
     // Users (admin + profile)
     getUsers: () => request('GET', '/users'),
     createUser: (body) => request('POST', '/users', body),

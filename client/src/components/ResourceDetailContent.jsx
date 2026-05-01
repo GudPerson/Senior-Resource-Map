@@ -13,6 +13,8 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import PartnerPrivatePanel from './PartnerPrivatePanel.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
+import { localizeResource } from '../lib/localization.js';
 
 function TagBadge({ tag }) {
     return (
@@ -32,7 +34,7 @@ function formatDistance(distance) {
 }
 
 export default function ResourceDetailContent({
-    asset,
+    asset: rawAsset,
     className = '',
     containerWidth = null,
     layoutMode = 'page',
@@ -44,6 +46,8 @@ export default function ResourceDetailContent({
 }) {
     const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
     const isPhone = useMediaQuery('(max-width: 639px)');
+    const { locale, t } = useLocale();
+    const asset = useMemo(() => localizeResource(rawAsset, locale), [rawAsset, locale]);
 
     if (!asset) return null;
 
@@ -192,7 +196,7 @@ export default function ResourceDetailContent({
                                         borderColor: 'var(--color-border)',
                                     }}
                                 >
-                                    Available in {availablePlaceCount} {availablePlaceCount === 1 ? 'place' : 'places'}
+                                    {t('availableIn')} {availablePlaceCount} {availablePlaceCount === 1 ? t('placesSingular') : t('placesPlural')}
                                 </span>
                                 {availabilityEnabled ? (
                                     <span
@@ -215,7 +219,7 @@ export default function ResourceDetailContent({
                                             borderColor: 'var(--color-border)',
                                         }}
                                     >
-                                        Sorted nearest to {sortOriginLabel}
+                                        {t('sortedNearestTo')} {sortOriginLabel}
                                     </span>
                                 ) : null}
                             </div>
@@ -235,7 +239,7 @@ export default function ResourceDetailContent({
                     {asset.description ? (
                         <MarkdownLiteText text={asset.description} />
                     ) : (
-                        <p className="italic text-slate-400">No description provided.</p>
+                        <p className="italic text-slate-400">{t('noDescription')}</p>
                     )}
                 </div>
 
@@ -244,7 +248,7 @@ export default function ResourceDetailContent({
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><MapPin size={22} /></div>
                             <div>
-                                <p className="font-bold text-slate-900 mb-1">Address</p>
+                                <p className="font-bold text-slate-900 mb-1">{t('address')}</p>
                                 <p className="text-slate-700">{primaryAddress}</p>
                             </div>
                         </div>
@@ -256,7 +260,7 @@ export default function ResourceDetailContent({
                                 <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><MapPin size={22} /></div>
                                 <div>
                                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                                        <p className="font-bold text-slate-900">Place: {location.name}</p>
+                                        <p className="font-bold text-slate-900">{t('placeLabel')}: {location.name}</p>
                                         {location._distance !== undefined && location._distance !== null ? (
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
                                                 {formatDistance(location._distance)}
@@ -271,7 +275,7 @@ export default function ResourceDetailContent({
                                                 onClick={() => onNavigateToResource?.('hard', location.id)}
                                                 className="text-brand-600 text-sm font-bold hover:underline block"
                                             >
-                                                View Details
+                                                {t('viewDetails')}
                                             </button>
                                         ) : null}
                                         <button
@@ -280,7 +284,7 @@ export default function ResourceDetailContent({
                                             className="text-brand-600 text-sm font-bold hover:underline flex items-center gap-1"
                                         >
                                             <Navigation size={14} />
-                                            Directions
+                                            {t('directions')}
                                         </button>
                                     </div>
                                 </div>
@@ -292,8 +296,8 @@ export default function ResourceDetailContent({
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 bg-slate-100 rounded-xl text-slate-500 shrink-0"><MapPin size={22} /></div>
                             <div>
-                                <p className="font-bold text-slate-900 mb-1">Linked Places</p>
-                                <p className="text-slate-700">This offering does not have any linked places yet.</p>
+                                <p className="font-bold text-slate-900 mb-1">{t('linkedPlaces')}</p>
+                                <p className="text-slate-700">{t('noLinkedPlaces')}</p>
                             </div>
                         </div>
                     ) : null}
@@ -302,7 +306,7 @@ export default function ResourceDetailContent({
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Clock size={22} /></div>
                             <div>
-                                <p className="font-bold text-slate-900 mb-1">{isHard ? 'Operating Hours' : 'Schedule'}</p>
+                                <p className="font-bold text-slate-900 mb-1">{isHard ? t('operatingHours') : t('schedule')}</p>
                                 <p className="whitespace-pre-line text-slate-700">{asset.schedule || asset.hours}</p>
                             </div>
                         </div>
@@ -312,7 +316,7 @@ export default function ResourceDetailContent({
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Phone size={22} /></div>
                             <div>
-                                <p className="font-bold text-slate-900 mb-1">Contact</p>
+                                <p className="font-bold text-slate-900 mb-1">{t('contact')}</p>
                                 <p className="text-slate-700">{phone}</p>
                             </div>
                         </div>
@@ -321,7 +325,7 @@ export default function ResourceDetailContent({
 
                 {asset.tags && asset.tags.length > 0 ? (
                     <div className="mt-8 pt-6 border-t border-slate-200">
-                        <h3 className="font-bold text-slate-900 mb-3 text-sm uppercase tracking-wider">Tags</h3>
+                        <h3 className="font-bold text-slate-900 mb-3 text-sm uppercase tracking-wider">{t('tags')}</h3>
                         <div className="flex flex-wrap gap-2">
                             {asset.tags.map((tag) => <TagBadge key={tag} tag={tag} />)}
                         </div>
@@ -337,7 +341,7 @@ export default function ResourceDetailContent({
                             style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
                         >
                             <Navigation size={20} />
-                            {isHard ? 'Get Directions (Google Maps)' : 'Get Directions to Nearest Place'}
+                            {isHard ? t('getDirections') : t('getDirectionsNearest')}
                         </button>
                     </div>
                 ) : null}
@@ -356,9 +360,9 @@ export default function ResourceDetailContent({
                 >
                     <div className={relatedHeaderClass}>
                         <div>
-                            <h2 className={isCompact ? 'text-2xl font-bold text-slate-900 leading-tight' : 'text-xl font-bold text-slate-900 sm:text-2xl'}>Available Offerings & Resources</h2>
+                            <h2 className={isCompact ? 'text-2xl font-bold text-slate-900 leading-tight' : 'text-xl font-bold text-slate-900 sm:text-2xl'}>{t('availableOfferings')}</h2>
                             <p className="mt-1 text-sm text-slate-500">
-                                Browse by bucket instead of one long mixed list.
+                                {t('browseByBucket')}
                             </p>
                         </div>
                         <div className={bucketGridClass}>
@@ -425,9 +429,9 @@ export default function ResourceDetailContent({
                                 className="rounded-2xl border border-dashed px-5 py-8 text-center"
                                 style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(248,252,251,0.82)' }}
                             >
-                                <p className="text-base font-bold text-slate-900">No {activeSoftBucket.toLowerCase()} here yet</p>
+                                <p className="text-base font-bold text-slate-900">{t('noBucketItems', { bucket: activeSoftBucket.toLowerCase() })}</p>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Switch tabs to check the other soft-asset buckets.
+                                    {t('switchTabs')}
                                 </p>
                             </div>
                         )}

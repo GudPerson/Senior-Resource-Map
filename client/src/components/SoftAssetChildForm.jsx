@@ -4,6 +4,7 @@ import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/av
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
+import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -255,6 +256,15 @@ export default function SoftAssetChildForm({
                     </div>
                     <textarea value={form.venueNote} onChange={(e) => setField('venueNote', e.target.value)} rows={3} placeholder="Entrance instructions, room number, or host-specific venue note." className="input-field resize-none" />
                 </div>
+
+                {initialData?.id ? (
+                    <div className="md:col-span-2">
+                        <TranslationReviewPanel
+                            resourceType="soft"
+                            resourceId={initialData.id}
+                        />
+                    </div>
+                ) : null}
 
                 {initialData?.id ? (
                     <div className="md:col-span-2">

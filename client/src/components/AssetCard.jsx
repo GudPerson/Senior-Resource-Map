@@ -8,6 +8,8 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import SaveAssetButton from './SaveAssetButton.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
+import { localizeResource } from '../lib/localization.js';
 
 function hasValidCoordinates(value) {
     return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
@@ -42,7 +44,7 @@ export const LinkifiedText = ({ text }) => (
 );
 
 export const AssetCard = React.memo(({
-    asset,
+    asset: rawAsset,
     type,
     onCardClickAction,
     onCardHoverEnd,
@@ -54,6 +56,8 @@ export const AssetCard = React.memo(({
     onTagClick,
     onCategoryClick,
 }) => {
+    const { locale, t } = useLocale();
+    const asset = localizeResource(rawAsset, locale);
     const isHard = type === 'hard';
     const linkedLocations = isHard ? [] : getLinkedLocations(asset);
     const displayLocation = isHard ? asset : (asset._displayLocation || linkedLocations[0] || null);
@@ -134,7 +138,7 @@ export const AssetCard = React.memo(({
                     onClick={onCategoryClick ? (e) => { e.stopPropagation(); onCategoryClick(asset.subCategory) } : undefined}
                 >
                     {isHard ? <Building2 size={14} className="opacity-80" style={{ color: catColor }} /> : <CalendarDays size={14} className="opacity-80" style={{ color: catColor }} />}
-                    {asset.subCategory || (isHard ? 'Place' : 'Offering')}
+                    {asset.subCategory || (isHard ? t('place') : t('offering'))}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {asset._distance !== undefined && asset._distance !== null && (
@@ -221,10 +225,10 @@ export const AssetCard = React.memo(({
                     >
                         <MapPin size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
                         <div className="min-w-0">
-                            <div>{isHard ? address : `Available in ${locationCount} ${locationCount === 1 ? 'place' : 'places'}`}</div>
+                            <div>{isHard ? address : `${t('availableIn')} ${locationCount} ${locationCount === 1 ? t('placesSingular') : t('placesPlural')}`}</div>
                             {!isHard && displayLocation?.address && (
                                 <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                                    {asset._distance !== undefined && asset._distance !== null && locationCount > 1 ? `Nearest: ${displayLocation.address}` : displayLocation.address}
+                                    {asset._distance !== undefined && asset._distance !== null && locationCount > 1 ? `${t('nearest')}: ${displayLocation.address}` : displayLocation.address}
                                 </div>
                             )}
                         </div>

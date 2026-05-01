@@ -10,6 +10,7 @@ import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
+import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 
 function buildInitialForm(initialData, currentUser) {
     if (initialData) {
@@ -289,6 +290,19 @@ export default function SoftAssetTemplateForm({
                         rows={4}
                     />
                 </div>
+
+                {initialData?.id ? (
+                    <div className="col-span-2">
+                        <TranslationReviewPanel
+                            resourceType="template"
+                            resourceId={initialData.id}
+                        />
+                    </div>
+                ) : (
+                    <div className="col-span-2 rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
+                        Save this template first, then edit it again to review Mandarin, Malay, and Tamil translations.
+                    </div>
+                )}
 
                 <div className="col-span-2">
                     <label className="mb-1 block text-sm font-semibold text-slate-700">Tags</label>

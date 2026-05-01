@@ -34,6 +34,18 @@ import {
     resolveAssetOwner,
 } from '../utils/softAssetScope.js';
 import { syncAssetTags } from '../utils/tags.js';
+import {
+    attachTranslations,
+    loadTranslationsForResources,
+    syncResourceTranslations,
+} from '../utils/resourceTranslations.js';
+import {
+    cleanOneLineText,
+    cleanOptionalOneLineText,
+    cleanOptionalText,
+    cleanTagList,
+    normalizeUrlText,
+} from '../utils/inputValidation.js';
 
 const baseParentColumns = {
     id: true,
@@ -123,6 +135,49 @@ function formatSoftAssetParent(parent, options = {}) {
     };
 }
 
+async function attachSoftAssetParentTranslations(db, formattedParents) {
+    const parents = Array.isArray(formattedParents) ? formattedParents : [formattedParents].filter(Boolean);
+    if (parents.length === 0) return formattedParents;
+
+    const translationMap = await loadTranslationsForResources(db, 'template', parents.map((parent) => parent.id));
+    const attachOne = (parent) => attachTranslations(parent, translationMap.get(`template:${parent.id}`) || {});
+    return Array.isArray(formattedParents) ? parents.map(attachOne) : attachOne(parents[0]);
+}
+
+async function triggerSoftAssetParentTranslation(db, env, parent, user) {
+    try {
+        return await syncResourceTranslations(db, env, {
+            resourceType: 'template',
+            resourceId: parent.id,
+            source: parent,
+            updatedByUserId: user?.id || null,
+        });
+    } catch (err) {
+        console.error('Template translation trigger failed:', { parentId: parent?.id, message: err.message });
+        return {
+            status: 'failed',
+            message: err.message || 'English was saved, but auto-translation failed.',
+        };
+    }
+}
+
+async function triggerGeneratedChildTranslation(db, env, child, user) {
+    try {
+        return await syncResourceTranslations(db, env, {
+            resourceType: 'soft',
+            resourceId: child.id,
+            source: child,
+            updatedByUserId: user?.id || null,
+        });
+    } catch (err) {
+        console.error('Generated child translation trigger failed:', { childId: child?.id, message: err.message });
+        return {
+            status: 'failed',
+            message: err.message || 'English was saved, but auto-translation failed.',
+        };
+    }
+}
+
 function buildParentPatch(body, existingParent, owner, audienceMode) {
     return {
         partnerId: owner?.id || null,
@@ -144,6 +199,48 @@ function buildParentPatch(body, existingParent, owner, audienceMode) {
             : (body.tags !== undefined ? normalizeTagList(body.tags) : (Array.isArray(existingParent.tags) ? existingParent.tags : [])),
         updatedAt: new Date(),
     };
+}
+
+function sanitizeParentPayload(body = {}) {
+    return {
+        ...body,
+        externalKey: cleanOptionalOneLineText(body.externalKey, 160) || undefined,
+        name: cleanOneLineText(body.name, 255),
+        bucket: cleanOptionalOneLineText(body.bucket, 40),
+        subCategory: cleanOneLineText(body.subCategory || 'Programmes', 80),
+        description: cleanOptionalText(body.description, 10000),
+        schedule: cleanOptionalText(body.schedule, 6000),
+        logoUrl: normalizeUrlText(body.logoUrl, 2000),
+        bannerUrl: normalizeUrlText(body.bannerUrl, 2000),
+        galleryUrls: Array.isArray(body.galleryUrls)
+            ? body.galleryUrls.map((url) => normalizeUrlText(url, 2000)).filter(Boolean).slice(0, 12)
+            : [],
+        newTags: cleanTagList(body.newTags),
+        tags: cleanTagList(body.tags),
+    };
+}
+
+function sanitizeParentPatch(body = {}) {
+    const full = sanitizeParentPayload(body);
+    const patch = { ...body };
+    [
+        'externalKey',
+        'name',
+        'bucket',
+        'subCategory',
+        'description',
+        'schedule',
+        'logoUrl',
+        'bannerUrl',
+        'galleryUrls',
+        'newTags',
+        'tags',
+    ].forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+            patch[field] = full[field];
+        }
+    });
+    return patch;
 }
 
 async function loadParentDetail(db, id) {
@@ -229,7 +326,7 @@ export const getSoftAssetParents = async (c) => {
             .filter((parent) => canManageSoftAssetParent(user, parent, parent.partner))
             .map((parent) => formatSoftAssetParent(parent));
 
-        return c.json(visibleParents);
+        return c.json(await attachSoftAssetParentTranslations(db, visibleParents));
     } catch (err) {
         console.error('getSoftAssetParents Error:', err);
         return c.json({ error: err.message || 'Failed to fetch offering templates' }, err.status || 500);
@@ -251,7 +348,7 @@ export const getSoftAssetParentById = async (c) => {
             return c.json({ error: 'Insufficient permissions to view this template' }, 403);
         }
 
-        return c.json(formatSoftAssetParent(parent, { includeChildren: true }));
+        return c.json(await attachSoftAssetParentTranslations(db, formatSoftAssetParent(parent, { includeChildren: true })));
     } catch (err) {
         console.error('getSoftAssetParentById Error:', err);
         return c.json({ error: err.message || 'Failed to fetch offering template' }, err.status || 500);
@@ -269,7 +366,7 @@ export const createSoftAssetParent = async (c) => {
             return c.json({ error: 'Only partners and admins can create templates' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeParentPayload(await c.req.json());
         if (!body?.name) {
             return c.json({ error: 'Name is required' }, 400);
         }
@@ -300,7 +397,9 @@ export const createSoftAssetParent = async (c) => {
         await syncSoftAssetParentAudienceZones(db, parent.id, audienceZoneIds);
 
         const created = await loadParentDetail(db, parent.id);
-        return c.json(formatSoftAssetParent(created, { includeChildren: true }), 201);
+        const translationStatus = await triggerSoftAssetParentTranslation(db, c.env, created, user);
+        const formatted = await attachSoftAssetParentTranslations(db, formatSoftAssetParent(created, { includeChildren: true }));
+        return c.json({ ...formatted, translationStatus }, 201);
     } catch (err) {
         console.error('createSoftAssetParent Error:', err);
         return c.json({ error: err.message || 'Failed to create offering template' }, err.status || 500);
@@ -323,7 +422,7 @@ export const updateSoftAssetParent = async (c) => {
             return c.json({ error: 'Insufficient permissions to edit this template' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = sanitizeParentPatch(await c.req.json());
         let owner = existing.partner || null;
         if (role === 'partner') {
             owner = user;
@@ -355,6 +454,12 @@ export const updateSoftAssetParent = async (c) => {
             const childPatch = buildChildPropagationPatch(refreshed, child);
             await db.update(softAssets).set(childPatch).where(eq(softAssets.id, child.id));
             await syncAssetTags(db, child.id, 'soft', refreshed.tags || []);
+            const refreshedChild = await db.query.softAssets.findFirst({
+                where: eq(softAssets.id, child.id),
+            });
+            if (refreshedChild) {
+                await triggerGeneratedChildTranslation(db, c.env, refreshedChild, user);
+            }
             if (Number.isInteger(child.subregionId)) {
                 affectedSubregions.add(child.subregionId);
             }
@@ -369,7 +474,9 @@ export const updateSoftAssetParent = async (c) => {
         }
 
         const updated = await loadParentDetail(db, id);
-        return c.json(formatSoftAssetParent(updated, { includeChildren: true }));
+        const translationStatus = await triggerSoftAssetParentTranslation(db, c.env, updated, user);
+        const formatted = await attachSoftAssetParentTranslations(db, formatSoftAssetParent(updated, { includeChildren: true }));
+        return c.json({ ...formatted, translationStatus });
     } catch (err) {
         console.error('updateSoftAssetParent Error:', err);
         return c.json({ error: err.message || 'Failed to update offering template' }, err.status || 500);
@@ -489,6 +596,7 @@ export const generateSoftAssetChildren = async (c) => {
                 )
             ).returning();
             await syncAssetTags(db, child.id, 'soft', parent.tags || []);
+            await triggerGeneratedChildTranslation(db, c.env, child, user);
             created.push(child);
         }
 

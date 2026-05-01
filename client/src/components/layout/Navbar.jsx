@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Sun, Moon, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useA11y } from '../../contexts/A11yContext.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import MobileBottomSheet from '../mobile/MobileBottomSheet.jsx';
 import BrandLockup from './BrandLockup.jsx';
@@ -14,6 +15,7 @@ function joinClasses(...parts) {
 export default function Navbar() {
     const { user, isAuth, isImpersonating, logout } = useAuth();
     const { highContrast, toggleHighContrast, canIncreaseZoom, increaseZoom, decreaseZoom } = useA11y();
+    const { locale, locales, setLocale, t } = useLocale();
     const location = useLocation();
     const navigate = useNavigate();
     const isMobile = useMediaQuery('(max-width: 639px)');
@@ -49,6 +51,21 @@ export default function Navbar() {
                         <div className="navbar-controls flex items-center gap-1.5 sm:gap-2">
 
 
+                            <label className="sr-only" htmlFor="locale-select">{t('language')}</label>
+                            <select
+                                id="locale-select"
+                                value={locale}
+                                onChange={(event) => setLocale(event.target.value)}
+                                className="min-h-[40px] max-w-[88px] rounded-xl border bg-white px-2 py-2 text-xs font-bold text-slate-700 shadow-sm sm:min-h-[44px] sm:max-w-[132px] sm:px-3"
+                                style={{ borderColor: 'var(--color-border)' }}
+                                title={t('language')}
+                            >
+                                {locales.map((item) => (
+                                    <option key={item.code} value={item.code}>
+                                        {isMobile ? item.shortLabel : item.label}
+                                    </option>
+                                ))}
+                            </select>
 
                             {isMobile ? (
                                 <button
@@ -81,7 +98,7 @@ export default function Navbar() {
                                         }}
                                     >
                                         {highContrast ? <Moon size={15} /> : <Sun size={15} />}
-                                        <span className="hidden sm:inline">{highContrast ? 'Normal' : 'Contrast'}</span>
+                                        <span className="hidden sm:inline">{highContrast ? t('normal') : t('contrast')}</span>
                                     </button>
 
                                     <div className="navbar-zoom-group flex items-center rounded-xl" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
@@ -149,7 +166,7 @@ export default function Navbar() {
                                         className="navbar-auth-button btn-ghost text-xs sm:text-sm px-2.5 py-2"
                                     >
                                         <LogOut size={16} />
-                                        <span className="hidden sm:inline">{isImpersonating ? 'Exit User View' : 'Logout'}</span>
+                                        <span className="hidden sm:inline">{isImpersonating ? 'Exit User View' : t('logout')}</span>
                                     </button>
                                 </div>
                             ) : (
@@ -159,7 +176,7 @@ export default function Navbar() {
                                     className="navbar-auth-button btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
                                 >
                                     <LogIn size={16} />
-                                    <span className="hidden sm:inline">Login</span>
+                                    <span className="hidden sm:inline">{t('login')}</span>
                                 </Link>
                             )}
                         </div>

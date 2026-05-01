@@ -101,6 +101,20 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS resource_translations (
+                    id SERIAL PRIMARY KEY,
+                    resource_type VARCHAR(30) NOT NULL,
+                    resource_id INTEGER NOT NULL,
+                    locale VARCHAR(12) NOT NULL,
+                    fields JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    field_meta JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    reviewed_at TIMESTAMP,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS soft_asset_parents (
                     id SERIAL PRIMARY KEY,
                     external_key VARCHAR(160),
@@ -234,6 +248,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_content_access_content_user_unique ON private_resource_content_access (content_id, user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_content_access_user_idx ON private_resource_content_access (user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_content_files_content_idx ON private_resource_content_files (content_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS resource_translations_resource_locale_unique ON resource_translations (resource_type, resource_id, locale)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS resource_translations_resource_idx ON resource_translations (resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zone_postal_codes_zone_idx ON audience_zone_postal_codes (audience_zone_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zone_postal_codes_postal_idx ON audience_zone_postal_codes (postal_code)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_audience_zones_zone_idx ON soft_asset_audience_zones (audience_zone_id)`);

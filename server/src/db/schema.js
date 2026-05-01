@@ -250,6 +250,22 @@ export const privateResourceContentFiles = pgTable('private_resource_content_fil
   contentIdx: index('private_resource_content_files_content_idx').on(table.contentId),
 }));
 
+export const resourceTranslations = pgTable('resource_translations', {
+  id: serial('id').primaryKey(),
+  resourceType: varchar('resource_type', { length: 30 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  locale: varchar('locale', { length: 12 }).notNull(),
+  fields: jsonb('fields').notNull().default('{}'),
+  fieldMeta: jsonb('field_meta').notNull().default('{}'),
+  reviewedAt: timestamp('reviewed_at'),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  resourceLocaleUnique: uniqueIndex('resource_translations_resource_locale_unique').on(table.resourceType, table.resourceId, table.locale),
+  resourceIdx: index('resource_translations_resource_idx').on(table.resourceType, table.resourceId),
+}));
+
 export const tags = pgTable('tags', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
@@ -333,6 +349,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
   createdAudienceZones: many(audienceZones, { relationName: 'audience_zone_creator' }),
   privateContentGrants: many(privateResourceContentAccess),
+  resourceTranslations: many(resourceTranslations),
 }));
 
 export const privateResourceContentsRelations = relations(privateResourceContents, ({ one, many }) => ({
@@ -375,6 +392,14 @@ export const privateResourceContentFilesRelations = relations(privateResourceCon
     fields: [privateResourceContentFiles.uploadedByUserId],
     references: [users.id],
     relationName: 'private_resource_content_file_uploader',
+  }),
+}));
+
+export const resourceTranslationsRelations = relations(resourceTranslations, ({ one }) => ({
+  updatedBy: one(users, {
+    fields: [resourceTranslations.updatedByUserId],
+    references: [users.id],
+    relationName: 'resource_translation_updater',
   }),
 }));
 
