@@ -181,19 +181,19 @@ export default function ProfilePage() {
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">Eligibility details</p>
+                                <p className="text-sm font-semibold text-slate-800">Personalise your recommendations</p>
                                 <p className="mt-1 text-xs text-slate-500">
-                                    These details help check which restricted offerings may be available to you.
+                                    These optional details help us show programmes, services, and support that may be more relevant to you.
                                 </p>
                             </div>
                             <div className={`rounded-full px-3 py-1 text-xs font-semibold ${missingEligibilityFields.length ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'}`}>
-                                {missingEligibilityFields.length ? `${missingEligibilityFields.length} field${missingEligibilityFields.length === 1 ? '' : 's'} missing` : 'Complete'}
+                                {missingEligibilityFields.length ? `${missingEligibilityFields.length} optional detail${missingEligibilityFields.length === 1 ? '' : 's'}` : 'Complete'}
                             </div>
                         </div>
 
                         {missingEligibilityFields.length ? (
                             <div className="mt-3">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Details still needed</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Help us personalise your results</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     {missingEligibilityFields.map((field) => (
                                         <span
