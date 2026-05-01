@@ -140,13 +140,13 @@ export default function ProfilePage() {
 
             {user?.needsPostalCode ? (
                 <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    Add your postal code to personalize nearby results and unlock any partner-boundary offerings you qualify for.
+                    Add your postal code to see nearby resources and services available in your partner area.
                 </div>
             ) : null}
 
             {isEligibilityPrompt ? (
                 <div className="mb-6 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
-                    Complete your profile details to check whether you qualify for locked offerings.
+                    Add the missing details to check whether this restricted offering is available to you.
                     {returnTo ? (
                         <span className="ml-2">
                             <Link to={returnTo} className="font-semibold underline">
@@ -175,15 +175,15 @@ export default function ProfilePage() {
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code {user?.role === 'standard' ? '(recommended)' : ''}</label>
                         <input id="profile-postal-code" type="text" value={form.postalCode} onChange={set('postalCode')} placeholder="680153" className=" input-field" autoComplete="postal-code" />
-                        <p className="text-xs text-slate-400 mt-1">Optional. Used to check whether you are inside the postal-code boundary assigned to your subregion.</p>
+                        <p className="text-xs text-slate-400 mt-1">Optional. Used to show nearby resources and services for your service area.</p>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <p className="text-sm font-semibold text-slate-800">Eligibility profile</p>
+                                <p className="text-sm font-semibold text-slate-800">Eligibility details</p>
                                 <p className="mt-1 text-xs text-slate-500">
-                                    These details help determine whether you qualify for restricted offerings.
+                                    These details help check which restricted offerings may be available to you.
                                 </p>
                             </div>
                             <div className={`rounded-full px-3 py-1 text-xs font-semibold ${missingEligibilityFields.length ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'}`}>
@@ -193,7 +193,7 @@ export default function ProfilePage() {
 
                         {missingEligibilityFields.length ? (
                             <div className="mt-3">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Still needed</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Details still needed</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     {missingEligibilityFields.map((field) => (
                                         <span

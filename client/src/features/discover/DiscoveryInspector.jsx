@@ -142,7 +142,7 @@ export function DiscoveryInspector({
                                         border: '1px solid var(--color-border)',
                                     }}
                                 >
-                                    Available in {locations.length} {locations.length === 1 ? 'place' : 'places'}
+                                    Available at {locations.length} {locations.length === 1 ? 'place' : 'places'}
                                 </span>
                             )}
                             {distance !== null && (

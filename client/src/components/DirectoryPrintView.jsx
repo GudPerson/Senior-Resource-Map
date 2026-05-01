@@ -39,7 +39,7 @@ function PrintDirectoryBoardHeader({
     const rightHeaderBlock = (
         <div className="flex w-[292px] max-w-[292px] flex-col">
             <p className="mb-2.5 w-full whitespace-nowrap text-left text-[10px] font-bold uppercase leading-3 tracking-[0.18em] text-brand-600">
-                Scan QR code for interactive directory
+                Scan QR code for interactive map
             </p>
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -67,7 +67,7 @@ function PrintDirectoryBoardHeader({
                 <div className="min-w-0 flex-1">
                     <BrandLockup compact />
                     {(() => {
-                        const name = directory?.name || 'Untitled directory';
+                        const name = directory?.name || 'Untitled map';
                         return (
                             <h1 className="mt-4 break-words text-[1.35rem] font-black leading-[1.08] text-slate-900" title={name}>
                                 {name}
@@ -154,7 +154,7 @@ function PrintDirectoryMap({
                 showProviderBadgeLogo={interactive}
                 mapHeightClassName={interactive ? 'h-[360px]' : 'h-[300px]'}
                 className={presentation.activeAnchorNote ? 'mt-3' : (interactive ? 'mt-8' : 'mt-5')}
-                emptyLabel="No mappable places in this directory"
+                emptyLabel="No mappable places in this map"
                 onMapReadyForCapture={onMapReadyForCapture}
                 onMapCaptureError={onMapCaptureError}
                 onClusterChange={onClusterChange}

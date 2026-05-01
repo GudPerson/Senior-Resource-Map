@@ -60,7 +60,7 @@ export default function DirectoryQrCode({
         return (
             <div className={`flex items-center justify-center border border-slate-200 bg-white ${compactShellClassName} ${className}`}>
                 {src ? (
-                    <img src={src} alt="QR code linking to the interactive directory" className={compactImageClassName} />
+                    <img src={src} alt="QR code linking to the interactive map" className={compactImageClassName} />
                 ) : (
                     <div className={`${compactPlaceholderClassName} animate-pulse rounded-xl bg-slate-200`} />
                 )}
@@ -70,18 +70,18 @@ export default function DirectoryQrCode({
 
     return (
         <div className={`rounded-[24px] border border-slate-200 bg-white p-4 ${className}`}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600">Interactive directory</p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">Scan to open interactive directory</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600">Interactive map</p>
+            <p className="mt-2 text-sm font-semibold text-slate-900">Scan to open interactive map</p>
             <div className="mt-3 flex items-center gap-4">
                 <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
                     {src ? (
-                        <img src={src} alt="QR code linking to the interactive directory" className="h-20 w-20" />
+                        <img src={src} alt="QR code linking to the interactive map" className="h-20 w-20" />
                     ) : (
                         <div className="h-16 w-16 animate-pulse rounded-xl bg-slate-200" />
                     )}
                 </div>
                 <p className="text-xs leading-6 text-slate-500">
-                    Use the live shared page for map interaction, saving, and the full directory context.
+                    Use the live shared page for map interaction, saving, and the full resource list.
                 </p>
             </div>
         </div>

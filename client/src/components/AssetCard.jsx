@@ -269,7 +269,7 @@ export const AssetCard = React.memo(({
                         style={{ backgroundColor: 'var(--color-badge-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                     >
                         <Navigation size={14} style={{ color: 'var(--color-brand)' }} />
-                        Get Directions
+                        Get directions
                     </button>
                 </div>
             )}

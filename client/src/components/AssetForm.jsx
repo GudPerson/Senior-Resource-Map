@@ -403,7 +403,7 @@ export default function AssetForm({
                 delete payload.bucket;
                 if (hardSubregionResult.status !== 'ok') {
                     if (hardSubregionResult.status === 'missing') {
-                        throw new Error('Postal code does not match any configured subregion boundary.');
+                        throw new Error('Postal code does not match any configured service area.');
                     }
                     if (hardSubregionResult.status === 'ambiguous') {
                         // Save is allowed; the API will route this place under the preferred matched subregion.
@@ -427,17 +427,17 @@ export default function AssetForm({
                         payload.subregionId = currentUser?.subregionIds?.[0] || null;
                     } else {
                         if (!payload.subregionId) {
-                            throw new Error('Select a target subregion when no linked place is chosen.');
+                            throw new Error('Select a service area when no linked place is chosen.');
                         }
                     }
                 } else {
                     if (linkedLocationSubregions.length > 1) {
-                        throw new Error('Linked places must all belong to the same subregion.');
+                        throw new Error('Linked places must all belong to the same service area.');
                     }
                 }
 
                 if (payload.audienceMode === 'partner_boundary' && payload.ownershipMode !== 'partner') {
-                    throw new Error('Partner-boundary audience is only allowed for partner-owned offerings.');
+                    throw new Error('Partner-area audience is only allowed for partner-owned offerings.');
                 }
                 if (payload.audienceMode === 'audience_zones' && payload.audienceZoneIds.length === 0) {
                     throw new Error('Select at least one audience zone for audience-zone offerings.');
@@ -799,20 +799,20 @@ export default function AssetForm({
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Postal Code *</label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1">Postal code *</label>
                             <input required value={form.postalCode} onChange={(e) => setField('postalCode', e.target.value)} placeholder="680153" className="input-field" />
                         </div>
                         <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
                             {hardSubregionResult.status === 'ok' ? (
-                                <span className="text-green-700 font-medium">Derived subregion: {hardSubregionResult.subregion.subregionCode || 'No code'} · {hardSubregionResult.subregion.name}</span>
+                                <span className="text-green-700 font-medium">Service area found: {hardSubregionResult.subregion.subregionCode || 'No code'} · {hardSubregionResult.subregion.name}</span>
                             ) : hardSubregionResult.status === 'ambiguous' ? (
                                 <span className="text-amber-700">
-                                    Postal code matches multiple subregions. This place can still be saved and will route under {preferredHardSubregion?.subregionCode || 'No code'} · {preferredHardSubregion?.name || 'the preferred matched subregion'} for boundary-based management.
+                                    Postal code matches multiple service areas. This place can still be saved and will use {preferredHardSubregion?.subregionCode || 'No code'} · {preferredHardSubregion?.name || 'the preferred service area'} for area-based management.
                                 </span>
                             ) : hardSubregionResult.status === 'missing' ? (
-                                <span className="text-red-700">Postal code does not match any configured subregion boundary.</span>
+                                <span className="text-red-700">Postal code does not match any configured service area.</span>
                             ) : (
-                                <span className="text-slate-500">Enter a valid 6-digit postal code to route this place into a subregion automatically.</span>
+                                <span className="text-slate-500">Enter a valid 6-digit postal code to place this resource in a service area automatically.</span>
                             )}
                         </div>
                         <div className="col-span-2">
@@ -879,35 +879,35 @@ export default function AssetForm({
                         <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                             {selectedLinkedLocations.length > 0 ? (
                                 linkedLocationSubregions.length === 1 && derivedSoftSubregion ? (
-                                    <span className="text-green-700 font-medium">Target subregion derived from linked places: {derivedSoftSubregion.subregionCode || 'No code'} · {derivedSoftSubregion.name}</span>
+                                    <span className="text-green-700 font-medium">Service area found from linked places: {derivedSoftSubregion.subregionCode || 'No code'} · {derivedSoftSubregion.name}</span>
                                 ) : (
-                                    <span className="text-amber-700">Linked places span multiple subregions. Keep linked places within one subregion.</span>
+                                    <span className="text-amber-700">Linked places span multiple service areas. Keep linked places within one service area.</span>
                                 )
                             ) : currentRole === 'partner' ? (
-                                <span className="text-green-700 font-medium">Target subregion fixed to your partner scope.</span>
+                                <span className="text-green-700 font-medium">Service area fixed to your partner account.</span>
                             ) : (
-                                <span>Select a target subregion below when the offering is not linked to a place.</span>
+                                <span>Select a service area below when the offering is not linked to a place.</span>
                             )}
                         </div>
                         {selectedLinkedLocations.length === 0 ? (
                             <div className="col-span-2">
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Target Subregion</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Service area</label>
                                 {currentRole === 'partner' ? (
                                     <input
                                         readOnly
-                                        value={availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(currentUser?.subregionIds?.[0]))?.name || 'Assigned subregion'}
+                                        value={availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(currentUser?.subregionIds?.[0]))?.name || 'Assigned service area'}
                                         className="input-field bg-slate-50"
                                     />
                                 ) : (
                                     <select className="input-field" value={form.subregionId || ''} onChange={(e) => setField('subregionId', e.target.value)}>
-                                        <option value="">Select target subregion</option>
+                                        <option value="">Select service area</option>
                                         {availableTargetSubregions.map((subregion) => (
                                             <option key={subregion.id} value={subregion.id}>{subregion.subregionCode || subregion.name} · {subregion.name}</option>
                                         ))}
                                     </select>
                                 )}
                                 {explicitTargetSubregion ? (
-                                    <p className="mt-1 text-xs text-green-700 font-medium">Selected subregion: {explicitTargetSubregion.subregionCode || 'No code'} · {explicitTargetSubregion.name}</p>
+                                    <p className="mt-1 text-xs text-green-700 font-medium">Selected service area: {explicitTargetSubregion.subregionCode || 'No code'} · {explicitTargetSubregion.name}</p>
                                 ) : null}
                             </div>
                         ) : null}
@@ -1034,20 +1034,20 @@ export default function AssetForm({
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Audience Mode</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Who can see this?</label>
                                 <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
                                     <option value="public">Public</option>
-                                    <option value="audience_zones">Audience zones</option>
-                                    {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner boundary</option> : null}
+                                    <option value="audience_zones">Target areas</option>
+                                    {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner area</option> : null}
                                 </select>
                                 <p className="mt-1 text-xs text-slate-500">
-                                    Public offerings are open to everyone. Audience-zone offerings target one or more overlapping service catchments. Partner-boundary offerings remain tied to the partner&apos;s own member boundary.
+                                    Public offerings are open to everyone. Target-area offerings show only in selected postal-code areas. Partner-area offerings stay tied to the partner&apos;s own member area.
                                 </p>
                             </div>
                             <div className="flex items-center justify-between border border-slate-200 rounded-xl px-4 py-3 bg-white">
                                 <div>
-                                    <p className="text-sm font-semibold text-slate-700">Member Only</p>
-                                    <p className="text-xs text-slate-500">Require users to be logged in to view this offering</p>
+                                    <p className="text-sm font-semibold text-slate-700">For linked members</p>
+                                    <p className="text-xs text-slate-500">Require users to be signed in and linked before they can view this offering</p>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" checked={Boolean(form.isMemberOnly)} onChange={(e) => setField('isMemberOnly', e.target.checked)} className="sr-only peer" />

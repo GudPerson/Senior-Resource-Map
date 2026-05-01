@@ -202,7 +202,7 @@ export default function SoftAssetTemplateForm({
                         className={`input-field ${initialData?.id ? 'bg-slate-50 text-slate-500' : ''}`}
                     />
                     <p className="mt-1 text-xs text-slate-500">
-                        Stable workbook identifier used to manage template imports and rollout exports.
+                        Stable workbook identifier used to manage template imports and place-version exports.
                     </p>
                 </div>
 
@@ -286,7 +286,7 @@ export default function SoftAssetTemplateForm({
                         id="template-description"
                         value={form.description || ''}
                         onChange={(value) => setField('description', value)}
-                        placeholder="Canonical description shared by all local rollouts."
+                        placeholder="Main description shared by all place versions."
                         rows={4}
                     />
                 </div>
@@ -322,26 +322,26 @@ export default function SoftAssetTemplateForm({
                 <div className="flex items-center gap-2">
                     <Globe size={16} className="text-brand-600" />
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-800">Audience Rules</h3>
-                        <p className="text-xs text-slate-500">These settings cascade to generated child offerings unless you change the parent later.</p>
+                        <h3 className="text-sm font-semibold text-slate-800">Who can see this?</h3>
+                        <p className="text-xs text-slate-500">These settings are copied to generated place versions unless you change the template later.</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">Audience Mode</label>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Audience</label>
                         <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
                             <option value="public">Public</option>
-                            <option value="audience_zones">Audience zones</option>
-                            {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner boundary</option> : null}
+                            <option value="audience_zones">Target areas</option>
+                            {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner area</option> : null}
                         </select>
-                        <p className="mt-1 text-xs text-slate-500">Audience-zone templates can target overlapping service catchments. Partner-boundary templates can only generate partner-owned child offerings.</p>
+                        <p className="mt-1 text-xs text-slate-500">Target-area templates can show in selected postal-code areas. Partner-area templates can only generate partner-owned place versions.</p>
                     </div>
 
                     <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
                         <div>
-                            <p className="text-sm font-semibold text-slate-700">Member Only</p>
-                            <p className="text-xs text-slate-500">Require login for all generated child offerings.</p>
+                            <p className="text-sm font-semibold text-slate-700">For linked members</p>
+                            <p className="text-xs text-slate-500">Require sign-in and a linked membership for all generated place versions.</p>
                         </div>
                         <label className="relative inline-flex cursor-pointer items-center">
                             <input type="checkbox" checked={Boolean(form.isMemberOnly)} onChange={(e) => setField('isMemberOnly', e.target.checked)} className="peer sr-only" />
@@ -351,7 +351,7 @@ export default function SoftAssetTemplateForm({
                 </div>
                 {form.audienceMode === 'audience_zones' ? (
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">Audience Zones</label>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Target areas</label>
                         <Select
                             isMulti
                             options={audienceZoneOptions}
@@ -359,20 +359,20 @@ export default function SoftAssetTemplateForm({
                             onChange={(selected) => setField('audienceZoneIds', Array.isArray(selected) ? selected.map((item) => item.value) : [])}
                             className="react-select-container"
                             classNamePrefix="react-select"
-                            placeholder="Select one or more audience zones..."
+                            placeholder="Select one or more target areas..."
                         />
-                        <p className="mt-1 text-xs text-slate-500">Generated child offerings will inherit these eligibility zones from the template.</p>
+                        <p className="mt-1 text-xs text-slate-500">Generated place versions will use these target areas from the template.</p>
                     </div>
                 ) : null}
 
                 <EligibilityRulesEditor
                     value={form.eligibilityRules}
                     onChange={(rules) => setField('eligibilityRules', rules)}
-                    description="These demographic rules are copied into generated child assets."
+                    description="These demographic rules are copied into generated place versions."
                 />
 
                 <div className="rounded-xl border border-dashed border-brand-200 bg-white px-4 py-3 text-xs text-slate-600">
-                    Save the template first, then generate hidden host-specific child offerings from the rollout panel.
+                    Save the template first, then generate hidden place-specific offerings from the template panel.
                 </div>
             </div>
 

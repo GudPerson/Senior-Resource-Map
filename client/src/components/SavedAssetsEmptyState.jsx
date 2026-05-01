@@ -5,14 +5,14 @@ function getStateCopy(mode) {
     if (mode === 'no-results') {
         return {
             icon: SearchX,
-            title: 'No saved assets match your search',
+            title: 'No saved resources match your search',
             description: 'Try a different search term or clear it to see all of your saved resources.',
         };
     }
 
     return {
         icon: BookOpen,
-        title: 'No saved assets yet',
+        title: 'No saved resources yet',
         description: 'Save places and offerings from Discover to build your personal directory.',
     };
 }

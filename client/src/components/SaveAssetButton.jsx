@@ -71,8 +71,8 @@ export function SaveAssetButton({
                 ...(saved ? resolvedVariant.savedStyle : resolvedVariant.unsavedStyle),
                 ...style,
             }}
-            aria-label={saved ? 'Remove saved asset' : 'Save asset'}
-            title={saved ? 'Remove from Saved Assets' : 'Save to Saved Assets'}
+            aria-label={saved ? 'Remove saved resource' : 'Save resource'}
+            title={saved ? 'Remove from Saved Resources' : 'Save to Saved Resources'}
             aria-pressed={saved}
             disabled={pending}
             data-testid={`save-asset-${resourceType}-${resourceId}`}

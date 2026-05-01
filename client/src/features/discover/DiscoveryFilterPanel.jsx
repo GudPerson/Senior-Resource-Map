@@ -165,7 +165,7 @@ function buildSummaryChips({
     if (activeSubregionLabel) {
         summaryChips.push({
             key: 'subregion',
-            label: `Scope: ${activeSubregionLabel}`,
+            label: `Service area: ${activeSubregionLabel}`,
         });
     }
 
@@ -303,7 +303,7 @@ function MobileFilterSheet({
             open={isOpen}
             onOpenChange={onOpenChange}
             title="Refine your browse view"
-            description="Adjust location, distance, asset type, and card density."
+            description="Choose your location, distance, resource type, and view size."
             headerActions={(
                 <button type="button" onClick={() => onOpenChange(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
                     Done
@@ -374,7 +374,7 @@ function MobileFilterSheet({
                         {canUseSubregionScope ? (
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Subregion scope
+                                    Service area
                                 </span>
                                 <div
                                     className="relative flex items-center gap-2 rounded-2xl border px-3"
@@ -399,7 +399,7 @@ function MobileFilterSheet({
                                 </div>
                                 {activeSubregionLabel ? (
                                     <p className="text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                        Discovery is scoped to the {activeSubregionLabel} boundary set.
+                                        Results are limited to the selected service area: {activeSubregionLabel}.
                                     </p>
                                 ) : null}
                             </label>
@@ -431,7 +431,7 @@ function MobileFilterSheet({
 
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Asset type
+                                    Resource type
                                 </span>
                                 <select
                                     value={activeTab}
@@ -448,7 +448,7 @@ function MobileFilterSheet({
 
                         {distanceOverridden ? (
                             <p className="text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                The selected subregion scope overrides distance filtering.
+                                When a service area is selected, it replaces the distance filter.
                             </p>
                         ) : null}
 
@@ -951,7 +951,7 @@ function DesktopFilterPanel({
                         className="rounded-xl px-4 py-2.5 text-xs font-bold leading-relaxed border animate-in fade-in slide-in-from-top-1"
                         style={{ backgroundColor: 'rgba(248,250,252,0.92)', color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}
                     >
-                        Subregion scope is active, so distance is used for context only and no longer filters results.
+                        A service area is selected, so distance is shown for context only and no longer filters results.
                     </div>
                 ) : null}
 
@@ -1148,7 +1148,7 @@ export function DiscoveryFilterPanel(props) {
 
                             {savedAssetCount > 0 && mapDisabled ? (
                                 <div className="rounded-2xl border px-3 py-2 text-[12px] font-medium leading-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)', color: 'var(--color-text-secondary)' }}>
-                                    Your saved assets are list-only right now, so the map will unlock after you save a place or offering with a valid location.
+                                    Your saved resources do not have map locations yet. The map will appear after you save a place or offering with a valid address.
                                 </div>
                             ) : null}
 

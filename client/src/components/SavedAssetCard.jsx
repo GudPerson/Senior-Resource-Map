@@ -23,7 +23,7 @@ function StatusBadge({ asset }) {
     if (asset.status === 'unavailable') {
         return (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                Unavailable
+                No longer available
             </span>
         );
     }
@@ -31,7 +31,7 @@ function StatusBadge({ asset }) {
     if (!asset.hasCoordinates) {
         return (
             <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                List only
+                Not shown on map
             </span>
         );
     }

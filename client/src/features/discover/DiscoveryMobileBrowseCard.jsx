@@ -34,7 +34,7 @@ export function DiscoveryMobileBrowseCard({
     const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
     const summaryAddress = isHard
         ? asset.address
-        : (displayLocation?.address || `Available in ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
+        : (displayLocation?.address || `Available at ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
     const handleOpenDetails = () => openResourceDetail(type, asset.id, navigate);
     const handleOpenDirections = () => {
         const target = isHard ? asset : displayLocation;
@@ -177,7 +177,7 @@ export function DiscoveryMobileBrowseCard({
                             className={`font-semibold tracking-[0.01em] ${isCompact ? 'mb-1 text-[11px] leading-relaxed' : 'mb-1 text-[12px] leading-relaxed'}`}
                             style={{ color: 'var(--color-brand-strong)' }}
                         >
-                            Available in {otherLocationCount} other {otherLocationCount === 1 ? 'place' : 'places'}
+                            Available at {otherLocationCount} other {otherLocationCount === 1 ? 'place' : 'places'}
                         </p>
                     ) : null}
                     <p className={`pr-10 ${isCompact ? 'line-clamp-2 text-[13px] leading-relaxed' : 'line-clamp-2 text-sm leading-relaxed'}`}>

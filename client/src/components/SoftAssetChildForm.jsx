@@ -100,7 +100,7 @@ export default function SoftAssetChildForm({
 
             await onSave?.(payload);
         } catch (err) {
-            setError(err.message || 'Failed to save child offering');
+            setError(err.message || 'Failed to save this place version');
             setSaving(false);
             return;
         }
@@ -129,7 +129,7 @@ export default function SoftAssetChildForm({
                 <div className="mb-3 flex items-center gap-2">
                     <Lock size={16} className="text-slate-500" />
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-800">Inherited From Template</h3>
+                        <h3 className="text-sm font-semibold text-slate-800">Inherited from template</h3>
                         <p className="text-xs text-slate-500">These fields stay aligned with the parent template and are read-only here.</p>
                     </div>
                 </div>
@@ -137,10 +137,10 @@ export default function SoftAssetChildForm({
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div className="rounded-xl border border-white/80 bg-white px-4 py-3">
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Template</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-800">{form.parentSummary?.name || 'Generated child offering'}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">{form.parentSummary?.name || 'Generated place version'}</p>
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Host Location</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Host place</p>
                         <p className="mt-1 text-sm font-semibold text-slate-800">{form.hostLocation?.name || 'No host assigned'}</p>
                         {form.hostLocation?.address ? <p className="mt-1 text-xs text-slate-500">{form.hostLocation.address}</p> : null}
                     </div>
@@ -172,9 +172,9 @@ export default function SoftAssetChildForm({
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Audience</p>
                         <p className="mt-1 text-sm font-semibold text-slate-800">
                             {form.audienceMode === 'partner_boundary'
-                                ? 'Partner boundary'
+                                ? 'Partner area'
                                 : form.audienceMode === 'audience_zones'
-                                    ? 'Audience zones'
+                                    ? 'Target areas'
                                     : 'Public'}
                         </p>
                         {form.audienceMode === 'audience_zones' && form.audienceZones?.length ? (
@@ -203,8 +203,8 @@ export default function SoftAssetChildForm({
                     <div className="flex items-center gap-2">
                         <MapPin size={16} className="text-brand-600" />
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-800">Host-Specific Details</h3>
-                            <p className="text-xs text-slate-500">These fields can diverge from the parent template for one host rollout.</p>
+                            <h3 className="text-sm font-semibold text-slate-800">Local place details</h3>
+                            <p className="text-xs text-slate-500">These fields can be different from the parent template for this place.</p>
                         </div>
                     </div>
                 </div>
@@ -235,7 +235,7 @@ export default function SoftAssetChildForm({
 
                 <div>
                     <div className="mb-1 flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-1 text-sm font-semibold text-slate-700"><Link2 size={13} /> CTA Label</label>
+                        <label className="flex items-center gap-1 text-sm font-semibold text-slate-700"><Link2 size={13} /> Action button label</label>
                         <ResetButton visible={overriddenFieldSet.has('ctaLabel')} onClick={() => handleReset('ctaLabel')} disabled={resettingField === 'ctaLabel'} />
                     </div>
                     <input value={form.ctaLabel} onChange={(e) => setField('ctaLabel', e.target.value)} placeholder="Register now" className="input-field" />
@@ -243,7 +243,7 @@ export default function SoftAssetChildForm({
 
                 <div>
                     <div className="mb-1 flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-1 text-sm font-semibold text-slate-700"><Link2 size={13} /> CTA URL</label>
+                        <label className="flex items-center gap-1 text-sm font-semibold text-slate-700"><Link2 size={13} /> Action button link</label>
                         <ResetButton visible={overriddenFieldSet.has('ctaUrl')} onClick={() => handleReset('ctaUrl')} disabled={resettingField === 'ctaUrl'} />
                     </div>
                     <input value={form.ctaUrl} onChange={(e) => setField('ctaUrl', e.target.value)} placeholder="https://example.com/register" className="input-field" />
@@ -280,7 +280,7 @@ export default function SoftAssetChildForm({
                         <Package2 size={16} className="text-brand-600" />
                         <div>
                             <h3 className="text-sm font-semibold text-slate-800">Availability tracking</h3>
-                            <p className="text-xs text-slate-500">Track host-specific remaining slots, tickets, or vouchers for this rollout.</p>
+                            <p className="text-xs text-slate-500">Track remaining slots, tickets, or vouchers for this place.</p>
                         </div>
                     </div>
 
@@ -288,7 +288,7 @@ export default function SoftAssetChildForm({
                         <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
                             <div>
                                 <p className="text-sm font-semibold text-slate-700">Enable availability tracking</p>
-                                <p className="text-xs text-slate-500">When on, this rollout’s count is shown publicly.</p>
+                                <p className="text-xs text-slate-500">When on, this place's count is shown publicly.</p>
                             </div>
                             <span className="relative inline-flex items-center">
                                 <input
@@ -332,15 +332,15 @@ export default function SoftAssetChildForm({
                 <div className="flex items-center gap-2">
                     <EyeOff size={16} className="text-brand-600" />
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-800">Rollout Visibility</h3>
-                        <p className="text-xs text-slate-500">Generated child offerings start hidden until the local rollout is ready.</p>
+                        <h3 className="text-sm font-semibold text-slate-800">Local visibility</h3>
+                        <p className="text-xs text-slate-500">Generated place-specific offerings start hidden until they are ready.</p>
                     </div>
                 </div>
 
                 <label htmlFor={visibilityToggleId} className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
                     <div>
                         <p className="text-sm font-semibold text-slate-700">Hide from app</p>
-                        <p className="text-xs text-slate-500">Keep this host rollout off public discovery.</p>
+                        <p className="text-xs text-slate-500">Keep this place-specific offering off public discovery.</p>
                     </div>
                     <span className="relative inline-flex items-center">
                         <input
@@ -371,7 +371,7 @@ export default function SoftAssetChildForm({
             <div className="flex gap-3 pt-2">
                 <button type="button" onClick={onCancel} className="btn-ghost flex-1 justify-center">Cancel</button>
                 <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : 'Save Local Rollout'}
+                    {saving ? <Loader2 size={18} className="animate-spin" /> : 'Save place version'}
                 </button>
             </div>
         </form>

@@ -14,14 +14,14 @@ export default function DirectorySearchBar({
     const searchField = (
         <>
             <label htmlFor={inputId} className="sr-only">
-                Search this directory
+                Search this map
             </label>
             <div className="relative">
                 <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                     id={inputId}
                     type="search"
-                    aria-label="Search this directory"
+                    aria-label="Search this map"
                     value={value}
                     onChange={(event) => onChange?.(event.target.value)}
                     placeholder={placeholder}
@@ -32,7 +32,7 @@ export default function DirectorySearchBar({
                         type="button"
                         onClick={() => onChange?.('')}
                         className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                        aria-label="Clear directory search"
+                        aria-label="Clear map search"
                     >
                         <X size={16} />
                     </button>

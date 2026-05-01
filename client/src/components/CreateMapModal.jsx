@@ -138,15 +138,15 @@ export default function CreateMapModal({
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
-                            {isCreateMode ? 'Create My Map' : 'Manage Map Assets'}
+                            {isCreateMode ? 'Create map' : 'Manage map resources'}
                         </p>
                         <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                            {isCreateMode ? 'Create a named map from saved assets' : 'Add or remove saved assets'}
+                            {isCreateMode ? 'Create a named map from saved resources' : 'Add or remove saved resources'}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
                             {isCreateMode
-                                ? 'Select the saved assets you want to group together.'
-                                : 'Choose which saved assets should be included in this map.'}
+                                ? 'Select the saved resources you want to group together.'
+                                : 'Choose which saved resources should be included in this map.'}
                         </p>
                     </div>
                     <button
@@ -180,7 +180,7 @@ export default function CreateMapModal({
 
                     <div className="mb-4">
                         <label htmlFor="create-map-search" className="block text-sm font-semibold text-slate-700">
-                            Select saved assets
+                            Select saved resources
                         </label>
                         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
                             <div className="relative flex-1">
@@ -190,7 +190,7 @@ export default function CreateMapModal({
                                     type="search"
                                     value={query}
                                     onChange={(event) => setQuery(event.target.value)}
-                                    placeholder="Search your saved assets"
+                                    placeholder="Search your saved resources"
                                     className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                 />
                             </div>
@@ -214,17 +214,17 @@ export default function CreateMapModal({
                             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm">
                                 <Map size={24} />
                             </div>
-                            <h3 className="mt-4 text-lg font-bold text-slate-900">No saved assets available</h3>
+                            <h3 className="mt-4 text-lg font-bold text-slate-900">No saved resources available</h3>
                             <p className="mt-2 text-sm text-slate-500">
                                 {isCreateMode
-                                    ? 'Save assets from Discover first, then create a map from them.'
-                                    : 'You have no saved assets yet. Save assets from Discover first.'}
+                                    ? 'Save resources from Discover first, then create a map from them.'
+                                    : 'You have no saved resources yet. Save resources from Discover first.'}
                             </p>
                         </div>
                     ) : filteredAssets.length === 0 ? (
                         <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
-                            <h3 className="text-lg font-bold text-slate-900">No saved assets match your search</h3>
-                            <p className="mt-2 text-sm text-slate-500">Try a different search term to see more saved assets.</p>
+                            <h3 className="text-lg font-bold text-slate-900">No saved resources match your search</h3>
+                            <p className="mt-2 text-sm text-slate-500">Try a different search term to see more saved resources.</p>
                         </div>
                     ) : (
                         <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
@@ -260,11 +260,11 @@ export default function CreateMapModal({
                                                 </span>
                                                 {asset.status === 'unavailable' ? (
                                                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                                                        Unavailable
+                                                        No longer available
                                                     </span>
                                                 ) : !asset.hasCoordinates ? (
                                                     <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                                        List only
+                                                        Not shown on map
                                                     </span>
                                                 ) : null}
                                             </div>
@@ -287,7 +287,7 @@ export default function CreateMapModal({
 
                     <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-500">
-                            {selectedAssets.length} {selectedAssets.length === 1 ? 'asset selected' : 'assets selected'}
+                            {selectedAssets.length} {selectedAssets.length === 1 ? 'resource selected' : 'resources selected'}
                         </p>
                         <div className="flex flex-col gap-3 sm:flex-row">
                             <button type="button" onClick={onClose} className="btn-ghost justify-center">
@@ -299,7 +299,7 @@ export default function CreateMapModal({
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                                 data-testid="create-map-submit"
                             >
-                                {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create My Map' : 'Save assets')}
+                                {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create map' : 'Save resources')}
                             </button>
                         </div>
                     </div>

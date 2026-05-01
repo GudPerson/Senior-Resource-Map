@@ -73,7 +73,7 @@ function sortMaps(items, sortOrder) {
 }
 
 function formatSectionLabel(section) {
-    return section === DIRECTORY_SECTIONS.maps ? 'My Maps' : 'Saved Assets';
+    return section === DIRECTORY_SECTIONS.maps ? 'My Maps' : 'Saved Resources';
 }
 
 function SavedAssetsLoadingState() {
@@ -122,8 +122,8 @@ function DirectoryTabs({ activeSection, onSelect }) {
     return (
         <div className="mt-6 inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner">
             {[
-                { value: DIRECTORY_SECTIONS.saved, label: 'Saved Assets', icon: Bookmark },
-                { value: DIRECTORY_SECTIONS.maps, label: 'Private Maps', icon: Map },
+                { value: DIRECTORY_SECTIONS.saved, label: 'Saved Resources', icon: Bookmark },
+                { value: DIRECTORY_SECTIONS.maps, label: 'My Maps', icon: Map },
             ].map((tab) => {
                 const active = activeSection === tab.value;
                 const Icon = tab.icon;
@@ -267,7 +267,7 @@ export default function MyDirectoryPage() {
                 detailPath: asset.detailPath,
             });
         } catch (err) {
-            setActionError(err.message || 'Failed to remove this saved asset.');
+            setActionError(err.message || 'Failed to remove this saved resource.');
         }
     }
 
@@ -319,7 +319,7 @@ export default function MyDirectoryPage() {
     }
 
     async function handleDeleteMap(map) {
-        const confirmed = window.confirm(`Delete "${map.name}"? This removes the map and its asset list.`);
+        const confirmed = window.confirm(`Delete "${map.name}"? This removes the map and the resources inside it. Your saved resources will stay in My Directory.`);
         if (!confirmed) return;
 
         setDeletingMapId(map.id);
@@ -368,7 +368,7 @@ export default function MyDirectoryPage() {
                             <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>My Directory</h1>
                             <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps
-                                    ? 'Your private maps built from saved assets.'
+                                    ? 'Maps you created from your saved resources.'
                                     : 'Your saved resources in one place.'}
                             </p>
                             <DirectoryTabs activeSection={activeSection} onSelect={switchSection} />
@@ -378,9 +378,9 @@ export default function MyDirectoryPage() {
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                                 <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Saved assets</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Saved resources</p>
                                         <p className="mt-1 text-sm font-semibold text-slate-600">
-                                            {totalSavedCount} saved {totalSavedCount === 1 ? 'asset' : 'assets'}
+                                            {totalSavedCount} saved {totalSavedCount === 1 ? 'resource' : 'resources'}
                                             {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
                                         </p>
                                     </div>
@@ -397,7 +397,7 @@ export default function MyDirectoryPage() {
                                 <div className="hidden border-b border-slate-100 pb-5 lg:flex lg:flex-row lg:items-end lg:justify-between lg:gap-4">
                                     <div className="min-w-0 flex-1">
                                         <label htmlFor="saved-assets-search" className="block text-sm font-semibold text-slate-700">
-                                            Search saved assets
+                                            Search saved resources
                                         </label>
                                         <div className="relative mt-2">
                                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -446,7 +446,7 @@ export default function MyDirectoryPage() {
 
                                 <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-sm font-medium text-slate-600">
-                                        {totalSavedCount} saved {totalSavedCount === 1 ? 'asset' : 'assets'}
+                                        {totalSavedCount} saved {totalSavedCount === 1 ? 'resource' : 'resources'}
                                         {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
                                     </p>
                                     {actionError ? (
@@ -481,7 +481,7 @@ export default function MyDirectoryPage() {
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                                 <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Private maps</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">My Maps</p>
                                         <p className="mt-1 text-sm font-semibold text-slate-600">
                                             {maps.length} {maps.length === 1 ? 'map' : 'maps'}
                                             {hasMapSearch ? ` • ${filteredMaps.length} matching` : ''}
@@ -500,13 +500,13 @@ export default function MyDirectoryPage() {
                                 <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                         <div>
-                                            <p className="text-sm font-semibold text-slate-700">Private maps built from your saved assets</p>
+                                            <p className="text-sm font-semibold text-slate-700">Maps built from your saved resources</p>
                                             <p className="mt-1 text-sm text-slate-500">
                                                 Keep related resources together in named maps you can revisit later.
                                             </p>
                                         </div>
                                         <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
-                                            Create My Map
+                                            Create map
                                         </button>
                                     </div>
 
@@ -635,8 +635,8 @@ export default function MyDirectoryPage() {
             <MobileBottomSheet
                 open={activeSection === DIRECTORY_SECTIONS.saved && mobileSavedControlsOpen}
                 onOpenChange={setMobileSavedControlsOpen}
-                title="Refine saved assets"
-                description="Search and sort your saved resources without crowding the page header."
+                title="Filter saved resources"
+                description="Search and sort your saved resources."
                 headerActions={(
                     <button type="button" onClick={() => setMobileSavedControlsOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
                         Done
@@ -646,7 +646,7 @@ export default function MyDirectoryPage() {
                 <div className="space-y-4 pb-2">
                     <div>
                         <label htmlFor="saved-assets-search-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                            Search saved assets
+                            Search saved resources
                         </label>
                         <div className="relative mt-2">
                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -698,7 +698,7 @@ export default function MyDirectoryPage() {
                 open={activeSection === DIRECTORY_SECTIONS.maps && mobileMapControlsOpen}
                 onOpenChange={setMobileMapControlsOpen}
                 title="Refine maps"
-                description="Search and sort your private maps without crowding the page header."
+                description="Search and sort your maps."
                 headerActions={(
                     <button type="button" onClick={() => setMobileMapControlsOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
                         Done

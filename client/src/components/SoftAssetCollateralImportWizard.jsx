@@ -199,7 +199,7 @@ export default function SoftAssetCollateralImportWizard({
             setPreviewData(data);
             setDraftRows((data.draftRows || []).map(buildDraftRowState));
         } catch (err) {
-            setError(err.message || 'Failed to preview the uploaded collateral.');
+            setError(err.message || 'Failed to preview the uploaded flyer or programme material.');
         } finally {
             setPreviewLoading(false);
         }
@@ -515,7 +515,7 @@ export default function SoftAssetCollateralImportWizard({
 
                                             <div>
                                                 <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                                    CTA label
+                                                    Action button label
                                                 </label>
                                                 <input
                                                     value={row.ctaLabel}
@@ -526,7 +526,7 @@ export default function SoftAssetCollateralImportWizard({
                                             </div>
                                             <div>
                                                 <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                                    CTA URL
+                                                    Action button link
                                                 </label>
                                                 <input
                                                     value={row.ctaUrl}

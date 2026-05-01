@@ -13,8 +13,8 @@ export default function MyMapsEmptyState({
             <h2 className="mt-5 text-xl font-bold text-slate-900">No maps yet</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
                 {hasSavedAssets
-                    ? 'Create a named map from your saved assets to keep related resources together.'
-                    : 'Save a few places or offerings first, then group them into a private map here.'}
+                    ? 'Create a named map from your saved resources to keep related resources together.'
+                    : 'Save a few places or offerings first, then group them into your own map here.'}
             </p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <button
@@ -22,7 +22,7 @@ export default function MyMapsEmptyState({
                     onClick={onCreate}
                     className="btn-primary inline-flex justify-center"
                 >
-                    Create My Map
+                    Create map
                 </button>
                 {!hasSavedAssets ? (
                     <Link to="/discover" className="btn-ghost inline-flex justify-center">

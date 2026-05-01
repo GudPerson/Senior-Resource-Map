@@ -219,15 +219,15 @@ const EmptyState = ({ icon: Icon, title, description, action }) => (
 function getBoundaryBadgeMeta(status) {
     switch (status) {
         case 'inside':
-            return { label: 'Inside boundary', className: 'bg-green-50 text-green-700 border-green-200' };
+            return { label: 'Inside partner area', className: 'bg-green-50 text-green-700 border-green-200' };
         case 'outside':
-            return { label: 'Outside boundary', className: 'bg-red-50 text-red-700 border-red-200' };
+            return { label: 'Outside partner area', className: 'bg-red-50 text-red-700 border-red-200' };
         case 'missing-postal':
             return { label: 'No postal code', className: 'bg-amber-50 text-amber-700 border-amber-200' };
         case 'no-location':
             return { label: 'No linked location', className: 'bg-amber-50 text-amber-700 border-amber-200' };
         default:
-            return { label: 'No boundary set', className: 'bg-slate-100 text-slate-600 border-slate-200' };
+            return { label: 'No partner area set', className: 'bg-slate-100 text-slate-600 border-slate-200' };
     }
 }
 
@@ -277,17 +277,17 @@ function getMemberLocationBadge(membership, asset, subregions, audienceZones) {
     }
 
     if (inSubregion) {
-        return <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-green-700">In Subregion Boundary</span>;
+        return <span className="inline-flex rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-green-700">In service area</span>;
     }
     if (inAudienceZone) {
-        return <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-700">In Audience Boundary</span>;
+        return <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-700">In target area</span>;
     }
-    return <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-700">Outside Boundary</span>;
+    return <span className="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-700">Outside area</span>;
 }
 
 function formatAudienceMode(mode) {
-    if (mode === 'partner_boundary') return 'Partner boundary';
-    if (mode === 'audience_zones') return 'Audience zones';
+    if (mode === 'partner_boundary') return 'Partner area';
+    if (mode === 'audience_zones') return 'Target areas';
     return 'Public';
 }
 
@@ -815,7 +815,7 @@ export default function ResourcesPage() {
         try {
             await ensureTemplateDetail(templateId);
         } catch (err) {
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to load template rollouts.' });
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load place versions.' });
         }
     }
 
@@ -930,7 +930,7 @@ export default function ResourcesPage() {
         try {
             await ensureTemplateDetail(template.id);
         } catch (err) {
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to load rollout data.' });
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load place-version data.' });
         } finally {
             setGenerateModal((prev) => prev ? { ...prev, loading: false } : null);
         }
@@ -945,7 +945,7 @@ export default function ResourcesPage() {
             setChildModal({ childId, loading: false, data });
         } catch (err) {
             setChildModal(null);
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to load child asset.' });
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load place version.' });
         }
     }
 
@@ -1192,7 +1192,7 @@ export default function ResourcesPage() {
                     exportJobs.push({
                         resourceType: 'template-rollouts',
                         ids: rolloutIds,
-                        summary: `${rolloutIds.length} template rollout${rolloutIds.length === 1 ? '' : 's'}`,
+                        summary: `${rolloutIds.length} place version${rolloutIds.length === 1 ? '' : 's'}`,
                     });
                 }
             } else {
@@ -1281,10 +1281,10 @@ export default function ResourcesPage() {
             setExpandedTemplateIds((prev) => [...new Set([...prev, response.parentId])]);
             setActionNotice({
                 type: 'success',
-                message: `Generated ${response.createdCount} child asset(s). ${response.skippedCount ? `${response.skippedCount} host(s) already had a rollout.` : ''}`.trim(),
+                message: `Generated ${response.createdCount} place version(s). ${response.skippedCount ? `${response.skippedCount} host(s) already had a place version.` : ''}`.trim(),
             });
         } catch (err) {
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to generate child assets.' });
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to generate place versions.' });
             setGenerateModal((prev) => prev ? { ...prev, submitting: false } : null);
         }
     }
@@ -1298,7 +1298,7 @@ export default function ResourcesPage() {
             childModal.data.parentSummary?.id ? refreshTemplateDetail(childModal.data.parentSummary.id).catch(() => null) : Promise.resolve(),
         ]);
         setChildModal(null);
-        setActionNotice({ type: 'success', message: 'Child asset updated.' });
+        setActionNotice({ type: 'success', message: 'Place version updated.' });
     }
 
     async function handleChildResetOverrides(fields) {
@@ -1419,18 +1419,18 @@ export default function ResourcesPage() {
                 <div className="card mb-6 border border-slate-200">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">Partner Boundary</h2>
+                            <h2 className="text-lg font-bold text-slate-900">Partner area</h2>
                             <p className="mt-1 text-sm text-slate-500">
-                                Upload the exact postcode set used to target partner-boundary offerings to your managed members.
+                                Upload the exact postcode set used to show partner-area offerings to your managed members.
                             </p>
                             <p className="mt-2 text-xs text-slate-500">
-                                Current boundary: <span className="font-semibold text-slate-700">{partnerBoundary?.postalCodeCount || 0}</span> postcode(s)
+                                Current partner area: <span className="font-semibold text-slate-700">{partnerBoundary?.postalCodeCount || 0}</span> postcode(s)
                             </p>
                         </div>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <label className="btn-secondary flex cursor-pointer items-center justify-center gap-2">
                                 <input type="file" accept=".csv" className="hidden" onChange={handlePartnerBoundaryUpload} />
-                                <Upload size={16} /> Upload Boundary CSV
+                                <Upload size={16} /> Upload area CSV
                             </label>
                             <button type="button" onClick={handleDownloadPartnerBoundaryTemplate} className="btn-ghost flex items-center justify-center gap-2">
                                 <Download size={16} /> Template
@@ -1480,12 +1480,12 @@ export default function ResourcesPage() {
                             onChange={(e) => setBoundaryFilter(e.target.value)}
                             className="input-field xl:w-48"
                         >
-                            <option value="all">All boundary status</option>
-                            <option value="inside">Inside boundary</option>
-                            <option value="outside">Outside boundary</option>
+                            <option value="all">All partner-area status</option>
+                            <option value="inside">Inside partner area</option>
+                            <option value="outside">Outside partner area</option>
                             <option value="missing-postal">Missing postal code</option>
                             <option value="no-location">No linked location</option>
-                            <option value="no-boundary">No boundary set</option>
+                            <option value="no-boundary">No partner area set</option>
                         </select>
                     ) : null}
                     <select
@@ -1517,7 +1517,7 @@ export default function ResourcesPage() {
 
             {boundaryChecksEnabled && activeTab !== 'templates' ? (
                 <p className="mb-6 text-xs text-slate-500">
-                    Boundary checks use the exact postal code set assigned to your scoped subregion(s).
+                    Partner-area checks use the exact postal code set assigned to your service area.
                 </p>
             ) : null}
 
@@ -1709,8 +1709,8 @@ export default function ResourcesPage() {
                                                     </h3>
                                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                                         {inlineAction.type === 'soft-create' ? `Start with the essentials and keep ${asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.` :
-                                                         inlineAction.type === 'edit' ? 'Update physical address, boundary, hidden status, and contact info directly without leaving the list.' :
-                                                         inlineAction.type === 'import' ? 'Upload printed collateral for this host place, review extracted offering drafts, then create or update offerings in bulk.' :
+                                                         inlineAction.type === 'edit' ? 'Update physical address, partner-area status, hidden status, and contact info directly without leaving the list.' :
+                                                         inlineAction.type === 'import' ? 'Upload printed flyer or programme material for this place, review extracted offering drafts, then create or update offerings in bulk.' :
                                                          'Manage linked members joining this place. Share the QR code or link below to allow new members to onboard instantly.'}
                                                     </p>
                                                 </div>
@@ -1961,9 +1961,9 @@ export default function ResourcesPage() {
                                                     {getBoundaryBadgeMeta(getAssetBoundaryStatus(asset)).label}
                                                 </span>
                                             ) : null}
-                                            {isChild ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Child rollout</span> : null}
-                                            {asset.audienceMode === 'partner_boundary' ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Partner boundary</span> : null}
-                                            {asset.audienceMode === 'audience_zones' ? <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700">Audience zones</span> : null}
+                                            {isChild ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Place version</span> : null}
+                                            {asset.audienceMode === 'partner_boundary' ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Partner area</span> : null}
+                                            {asset.audienceMode === 'audience_zones' ? <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700">Target areas</span> : null}
                                             {asset.isMemberOnly ? <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">Member-only</span> : null}
                                             {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
                                             {asset.tags?.map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
@@ -2011,10 +2011,10 @@ export default function ResourcesPage() {
                                             {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
                                         </button>
                                         <button onClick={() => openEdit(asset, 'soft')} className="btn-ghost flex-1 justify-center py-2 text-sm">
-                                            <Pencil size={15} /> {isChild ? 'Edit Child Asset' : 'Edit'}
+                                            <Pencil size={15} /> {isChild ? 'Edit place version' : 'Edit'}
                                         </button>
                                         <button
-                                            onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Child asset' : 'Offering', parentId: asset.parentSummary?.id || null })}
+                                            onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Place version' : 'Offering', parentId: asset.parentSummary?.id || null })}
                                             className="btn-ghost flex-1 justify-center py-2 text-sm text-red-600 hover:border-red-100 hover:bg-red-50"
                                         >
                                             <Trash2 size={15} /> Delete
@@ -2036,7 +2036,7 @@ export default function ResourcesPage() {
                     <EmptyState
                         icon={Files}
                         title="No templates found"
-                        description="Create a parent template to generate host-specific child assets."
+                        description="Create a parent template to generate place-specific versions."
                         action={!searchTerm ? (
                             <button onClick={openTemplateCreate} className="btn-primary mx-auto">
                                 <Plus size={16} /> Create Template
@@ -2121,7 +2121,7 @@ export default function ResourcesPage() {
 
                                             <div className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-sm shadow-slate-200/70 backdrop-blur">
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    <RolloutMetric label="Child assets" value={template.childCount} />
+                                                    <RolloutMetric label="Place versions" value={template.childCount} />
                                                     <RolloutMetric label="Live" value={template.liveChildCount} />
                                                     <RolloutMetric label="Hidden" value={template.hiddenChildCount} />
                                                     <RolloutMetric label="Overrides" value={template.overriddenChildCount} />
@@ -2129,7 +2129,7 @@ export default function ResourcesPage() {
 
                                                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
                                                     <button type="button" onClick={() => openGenerateTemplate(template)} className="btn-primary whitespace-nowrap justify-center">
-                                                        <Plus size={16} /> Generate Child Assets
+                                                        <Plus size={16} /> Generate place versions
                                                     </button>
                                                     <button type="button" onClick={() => openTemplateEdit(template)} className="btn-ghost whitespace-nowrap justify-center">
                                                         <Pencil size={15} /> Edit Template
@@ -2140,7 +2140,7 @@ export default function ResourcesPage() {
                                                         className="btn-ghost whitespace-nowrap justify-center"
                                                     >
                                                         {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                                                        {isExpanded ? 'Hide Child Assets' : 'Manage Child Assets'}
+                                                        {isExpanded ? 'Hide place versions' : 'Manage place versions'}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -2158,8 +2158,8 @@ export default function ResourcesPage() {
                                         <div className="bg-slate-50/70 px-5 py-5">
                                             <div className="mb-4 flex items-center justify-between gap-3">
                                                 <div>
-                                                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Child Assets</h3>
-                                                    <p className="mt-1 text-sm text-slate-500">Each child asset is tied to exactly one host and starts hidden until locally prepared.</p>
+                                                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Place versions</h3>
+                                                    <p className="mt-1 text-sm text-slate-500">Each place version is tied to exactly one host place and starts hidden until locally prepared.</p>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -2174,7 +2174,7 @@ export default function ResourcesPage() {
 
                                             {isTemplateLoading && !detail ? (
                                                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                                                    Loading rollout details...
+                                                    Loading place-version details...
                                                 </div>
                                             ) : detail?.children?.length ? (
                                                 <div className="space-y-3">
@@ -2203,18 +2203,18 @@ export default function ResourcesPage() {
                                                                             {child.overriddenFields?.length ? (
                                                                                 <p className="mt-2 text-xs text-slate-500">Local fields: {child.overriddenFields.join(', ')}</p>
                                                                             ) : (
-                                                                                <p className="mt-2 text-xs text-slate-500">No local overrides yet. This rollout is still fully controlled by the parent template.</p>
+                                                                                <p className="mt-2 text-xs text-slate-500">No local edits yet. This place version is still fully controlled by the parent template.</p>
                                                                             )}
                                                                         </div>
                                                                     </div>
 
                                                                     <div className="flex flex-wrap items-center gap-2">
                                                                         <button type="button" onClick={() => openChildEditor(child.id)} className="btn-primary whitespace-nowrap">
-                                                                            <Pencil size={15} /> Edit Rollout
+                                                                            <Pencil size={15} /> Edit place version
                                                                         </button>
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => setDeleteTarget({ id: child.id, assetType: 'soft', label: 'Child asset', parentId: template.id })}
+                                                                            onClick={() => setDeleteTarget({ id: child.id, assetType: 'soft', label: 'Place version', parentId: template.id })}
                                                                             className="btn-ghost whitespace-nowrap text-red-600 hover:border-red-100 hover:bg-red-50"
                                                                         >
                                                                             <Trash2 size={15} /> Delete
@@ -2227,10 +2227,10 @@ export default function ResourcesPage() {
                                                 </div>
                                             ) : (
                                                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
-                                                    <p className="text-base font-semibold text-slate-700">No child assets yet</p>
-                                                    <p className="mt-1 text-sm text-slate-500">Generate hidden child assets for selected hosts to start local rollout management.</p>
+                                                    <p className="text-base font-semibold text-slate-700">No place versions yet</p>
+                                                    <p className="mt-1 text-sm text-slate-500">Generate hidden place versions for selected hosts to start local management.</p>
                                                     <button type="button" onClick={() => openGenerateTemplate(template)} className="btn-primary mx-auto mt-4">
-                                                        <Plus size={16} /> Generate First Child Asset
+                                                        <Plus size={16} /> Generate first place version
                                                     </button>
                                                 </div>
                                             )}
@@ -2333,7 +2333,7 @@ export default function ResourcesPage() {
             {templateModal ? (
                 <ResourceModal
                     title={`${templateModal.mode === 'create' ? 'Create' : 'Edit'} Template`}
-                    description="Save canonical content once, then generate hidden host-specific child assets."
+                    description="Save shared content once, then generate hidden place-specific versions."
                     onClose={() => setTemplateModal(null)}
                 >
                     <SoftAssetTemplateForm
@@ -2357,8 +2357,8 @@ export default function ResourcesPage() {
 
             {generateModal ? (
                 <ResourceModal
-                    title="Generate Child Assets"
-                    description="Select the hosts that should receive a hidden local rollout from this template."
+                    title="Generate place versions"
+                    description="Select the host places that should receive a hidden place-specific version from this template."
                     onClose={() => setGenerateModal(null)}
                     maxWidth="max-w-[min(96vw,1100px)]"
                     bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
@@ -2367,7 +2367,7 @@ export default function ResourcesPage() {
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Template</p>
                             <p className="mt-1 text-lg font-bold text-slate-900">{generateModal.template.name}</p>
-                            <p className="mt-1 text-sm text-slate-500">{generateModal.template.childCount} existing child asset(s)</p>
+                            <p className="mt-1 text-sm text-slate-500">{generateModal.template.childCount} existing place version(s)</p>
                         </div>
 
                         <div>
@@ -2387,7 +2387,7 @@ export default function ResourcesPage() {
                                 placeholder={generateModal.loading ? 'Loading hosts...' : 'Select one or more hosts...'}
                             />
                             <p className="mt-2 text-xs text-slate-500">
-                                Child assets are created hidden by default. Existing parent-host pairs are skipped automatically.
+                                Place versions are created hidden by default. Existing template-place pairs are skipped automatically.
                             </p>
                         </div>
 
@@ -2415,7 +2415,7 @@ export default function ResourcesPage() {
                                                         </span>
                                                     ) : (
                                                         <span className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">
-                                                            New hidden child asset
+                                                            New hidden place version
                                                         </span>
                                                     )}
                                                 </div>
@@ -2449,7 +2449,7 @@ export default function ResourcesPage() {
                                 className="btn-primary flex-1 justify-center disabled:opacity-50"
                             >
                                 {generateModal.submitting ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
-                                Generate Child Assets
+                                Generate place versions
                             </button>
                         </div>
                     </div>
@@ -2459,14 +2459,14 @@ export default function ResourcesPage() {
 
             {childModal ? (
                 <ResourceModal
-                    title="Edit Child Asset"
+                    title="Edit place version"
                     description="Adjust only the host-local fields for this generated offering."
                     onClose={() => setChildModal(null)}
                     maxWidth="max-w-3xl"
                 >
                     {childModal.loading || !childModal.data ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-                            Loading child asset...
+                            Loading place version...
                         </div>
                     ) : (
                         <SoftAssetChildForm
@@ -2488,7 +2488,7 @@ export default function ResourcesPage() {
                             {deleteTarget.assetType === 'hard'
                                 ? 'This will permanently remove this place. Ensure no offerings are solely relying on it.'
                                 : deleteTarget.assetType === 'template'
-                                    ? 'Deleting a template also deletes all of its generated child assets.'
+                                    ? 'Deleting a template also deletes all of its generated place versions.'
                                     : 'This action cannot be undone. It will be permanently removed from the directory.'}
                         </p>
                         <div className="flex gap-3">

@@ -21,7 +21,7 @@ function StatusBadge({ status }) {
     if (status === 'unavailable') {
         return (
             <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                Unavailable
+                No longer available
             </span>
         );
     }
@@ -29,7 +29,7 @@ function StatusBadge({ status }) {
     if (status === 'list_only') {
         return (
             <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                List only
+                Not shown on map
             </span>
         );
     }
@@ -1060,7 +1060,7 @@ export default function SharedMapDirectoryList({
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
-                    No places or resources match this directory search.
+                    No places or resources match this map search.
                 </div>
             </DirectoryReturnPathContext.Provider>
         );

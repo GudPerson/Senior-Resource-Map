@@ -61,7 +61,7 @@ function OwnerHeader({
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
                             <Plus size={16} />
-                            Manage assets
+                            Manage resources
                         </button>
                         <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Pencil size={16} />
@@ -92,7 +92,7 @@ function OwnerHeader({
                         value={query}
                         onChange={onQueryChange}
                         inputId="directory-search-desktop"
-                        placeholder="Search directory"
+                        placeholder="Search this map"
                         compact
                         className="min-w-0"
                     />
@@ -156,9 +156,9 @@ function MyMapMobileControls({
                             background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
                         }}
                     >
-                        <Drawer.Title className="sr-only">Map controls</Drawer.Title>
+                        <Drawer.Title className="sr-only">Map options</Drawer.Title>
                         <Drawer.Description className="sr-only">
-                            Manage this map, search the directory, and adjust distance settings.
+                            Manage this map, search the resources, and adjust distance settings.
                         </Drawer.Description>
 
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
@@ -169,7 +169,7 @@ function MyMapMobileControls({
                             <button
                                 type="button"
                                 onClick={() => setOpen(false)}
-                                aria-label="Close map controls"
+                            aria-label="Close map options"
                                 className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
                             >
                                 <X size={18} />
@@ -189,7 +189,7 @@ function MyMapMobileControls({
                             <div className="mt-4 space-y-2">
                                 <button type="button" onClick={() => runDrawerAction(onAddAssets)} className="btn-primary h-12 w-full justify-center px-4 text-sm">
                                     <Plus size={16} />
-                                    Manage assets
+                                    Manage resources
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Pencil size={16} />
@@ -197,7 +197,7 @@ function MyMapMobileControls({
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Printer size={16} />
-                                    Print view
+                                    Print-friendly view
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Link2 size={16} />
@@ -231,13 +231,13 @@ function MyMapMobileControls({
 function EmptyOwnerDirectory({ onAddAssets }) {
     return (
         <div className="rounded-[32px] border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
-            <h2 className="text-2xl font-bold text-slate-900">This directory is empty</h2>
+            <h2 className="text-2xl font-bold text-slate-900">This map has no resources yet</h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                Add saved resources to turn this private map into a grouped directory you can share or export later.
+                Add saved resources to build a map you can view, print, export, or share.
             </p>
             <button type="button" onClick={onAddAssets} className="btn-primary mt-6 inline-flex justify-center">
                 <Plus size={16} />
-                Add from Saved Assets
+                Add from Saved Resources
             </button>
         </div>
     );
@@ -345,7 +345,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setEditError(err.message || 'Failed to update this directory.');
+            setEditError(err.message || 'Failed to update this map.');
         } finally {
             setEditSubmitting(false);
         }
@@ -372,7 +372,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setAddError(err.message || 'Failed to update directory resources.');
+            setAddError(err.message || 'Failed to update map resources.');
         } finally {
             setAddSubmitting(false);
         }
@@ -386,7 +386,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setActionError(err.message || 'Failed to remove this resource from the directory.');
+            setActionError(err.message || 'Failed to remove this resource from the map.');
         }
     }
 
@@ -547,7 +547,7 @@ export default function MyMapDetailPage() {
                         generatedAt={new Date()}
                         activeAnchor={activeAnchor}
                         shareUrl={sharedDirectoryUrl}
-                        footerNote={directory.share?.isShared ? 'Open the shared link for the full interactive directory.' : ''}
+                        footerNote={directory.share?.isShared ? 'Open the shared link for the full interactive map.' : ''}
                         className="w-full"
                     />
                 </div>
@@ -643,7 +643,7 @@ export default function MyMapDetailPage() {
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                        emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                                        emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
                                         mapHeightClassName="h-[42vh] min-h-[400px] max-h-[620px]"
                                     />
                                 )}
@@ -665,7 +665,7 @@ export default function MyMapDetailPage() {
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                        emptyLabel={query ? 'No mappable places match this directory search.' : 'This directory does not have any mappable places yet.'}
+                                        emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}

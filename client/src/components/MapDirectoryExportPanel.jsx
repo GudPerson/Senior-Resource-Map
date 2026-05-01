@@ -18,7 +18,7 @@ export default function MapDirectoryExportPanel({
             exportWidth={exportWidth}
             activeAnchor={activeAnchor}
             shareUrl={shareUrl}
-            footerNote={directory?.share?.isShared ? 'Open the shared link for the full interactive directory.' : ''}
+            footerNote={directory?.share?.isShared ? 'Open the shared link for the full interactive map.' : ''}
             onMapReadyForCapture={onMapReadyForCapture}
             onMapCaptureError={onMapCaptureError}
         />

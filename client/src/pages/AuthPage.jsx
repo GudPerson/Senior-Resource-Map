@@ -68,14 +68,14 @@ export default function AuthPage({ isPartner = false }) {
             login(res.user);
             navigate(resolvePostAuthDestination(), { replace: true });
         } catch (err) {
-            setError(err.message || 'Google Auth Failed');
+            setError(err.message || 'Google sign-in did not work. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleError = () => {
-        setError('Google Login was unsuccessful. Try again later.');
+        setError('Google sign-in did not work. Please try again.');
     };
 
     return (
@@ -87,7 +87,7 @@ export default function AuthPage({ isPartner = false }) {
                     <BrandLockup showTagline className="justify-center" textClassName="text-center" />
                     <h1 className="mt-6 text-3xl font-bold" style={{ color: 'var(--color-text)' }}>{isPartner ? 'Partner Sign In' : 'Sign In'}</h1>
                     <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                        {isPartner ? 'Access your partner or admin account' : 'Access your user account'}
+                        {isPartner ? 'Manage resources, users, and service areas.' : 'Save resources, create maps, and keep your profile up to date.'}
                     </p>
                 </div>
 
@@ -142,7 +142,7 @@ export default function AuthPage({ isPartner = false }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Postal Code (optional)</label>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Postal code (optional)</label>
                                 <input
                                     id="auth-postal-code"
                                     type="text"
@@ -153,7 +153,7 @@ export default function AuthPage({ isPartner = false }) {
                                     autoComplete="postal-code"
                                 />
                                 <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                                    Add it now to personalize nearby and partner-boundary services, or skip and complete it later.
+                                    Add it now to see nearby resources and services available in your partner area. You can also add it later.
                                 </p>
                             </div>
                         </>
@@ -218,7 +218,7 @@ export default function AuthPage({ isPartner = false }) {
                     {isPartner ? (
                         <>Looking for user login? <Link to="/login" className="text-brand-600 font-semibold hover:underline">Click here</Link></>
                     ) : (
-                        <>Are you a Partner or Admin? <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">Log in here</Link></>
+                        <>Staff or admin? <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">Log in here</Link></>
                     )}
                 </div>
             </div>

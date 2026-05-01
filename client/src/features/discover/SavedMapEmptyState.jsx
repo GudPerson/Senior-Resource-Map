@@ -30,17 +30,17 @@ export function SavedMapEmptyState({
         ? 'Sign in to build your saved map'
         : hasSavedAssets
             ? 'No saved places to map yet'
-            : 'Save assets to pin them here';
+            : 'Save resources to pin them here';
 
     const description = shouldShowPostalWizard
-        ? 'We can centre the map around Home even before you save places, and use it to personalize nearby results across the app.'
+        ? 'We can centre the map around Home even before you save places, and use it to show nearby results across the app.'
         : !isAuthenticated
         ? 'Once you sign in and save useful resources, your personal discovery map will appear here.'
         : hasSavedAssets
             ? unmappableCount > 0
-                ? `${unmappableCount} saved ${unmappableCount === 1 ? 'asset has' : 'assets have'} no usable map location right now. Keep browsing and save places with valid coordinates to see them pinned here.`
+                ? `${unmappableCount} saved ${unmappableCount === 1 ? 'resource has' : 'resources have'} no usable map location right now. Keep browsing and save places with valid coordinates to see them pinned here.`
                 : 'Keep browsing and save places or offerings to see them pinned here.'
-            : 'Your discovery map only shows places represented by assets you have saved.';
+            : 'Your discovery map only shows places linked to resources you have saved.';
 
     async function handleSavePostalCode(event) {
         event.preventDefault();
@@ -129,7 +129,7 @@ export function SavedMapEmptyState({
                 ) : null}
                 {onBrowse ? (
                     <button type="button" onClick={onBrowse} className="btn-primary mt-6 inline-flex justify-center">
-                        Browse directory
+                        Browse resources
                     </button>
                 ) : null}
             </div>

@@ -107,7 +107,7 @@ export default function DashboardPage() {
                                     Add your postal code to finish setup
                                 </div>
                                 <p className="mt-1 text-sm text-amber-900/80">
-                                    You can already browse public resources. Add your 6-digit postal code to personalize nearby results and unlock any partner-boundary offerings you qualify for.
+                                    You can already browse public resources. Add your 6-digit postal code to see nearby resources and services available in your partner area.
                                 </p>
                             </div>
 
