@@ -123,8 +123,8 @@ export default function ResourcePage() {
 
     if (!asset) {
         return <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: 'var(--page-gradient)' }}>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Resource not found</h2>
-            <button onClick={() => navigate('/discover')} className="text-brand-600 font-bold hover:underline">Return to Discover</button>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">We couldn’t find this resource</h2>
+            <button onClick={() => navigate('/discover')} className="text-brand-600 font-bold hover:underline">Back to Discover</button>
         </div>;
     }
 
@@ -133,14 +133,14 @@ export default function ResourcePage() {
             {/* Header / Banner */}
             <div className="sticky top-[56px] z-40 border-b shadow-sm sm:top-[64px]" style={{ backgroundColor: 'rgba(255,255,255,0.94)', borderColor: 'var(--color-border)', backdropFilter: 'blur(16px)' }}>
                 <div className={`max-w-4xl mx-auto flex items-center gap-3 px-4 ${isMobile ? 'py-2.5' : 'py-3'}`}>
-                    <button onClick={handleReturn} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition" aria-label="Return to previous page">
+                    <button onClick={handleReturn} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition" aria-label="Back">
                         <ArrowLeft size={isMobile ? 20 : 24} />
                     </button>
                     <div className="min-w-0 flex-1">
                         <p className={`truncate font-bold text-slate-900 ${isMobile ? 'text-lg leading-tight' : 'text-xl'}`}>{asset.name}</p>
                         {isMobile ? (
                             <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                {type === 'hard' ? 'Place detail' : 'Offering detail'}
+                                {type === 'hard' ? 'Place details' : 'Programme/service details'}
                             </p>
                         ) : null}
                     </div>

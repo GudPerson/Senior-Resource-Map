@@ -25,22 +25,22 @@ export function SavedMapEmptyState({
     }, [user?.postalCode]);
 
     const title = shouldShowPostalWizard
-        ? 'Add your home postal code to activate this map'
+        ? 'Add your home postal code to start your map'
         : !isAuthenticated
-        ? 'Sign in to build your saved map'
+        ? 'Sign in to build your personal map'
         : hasSavedAssets
-            ? 'No saved places to map yet'
-            : 'Save resources to pin them here';
+            ? 'No saved places on the map yet'
+            : 'Save resources to see them here';
 
     const description = shouldShowPostalWizard
-        ? 'We can centre the map around Home even before you save places, and use it to show nearby results across the app.'
+        ? 'We can centre the map around your home area even before you save places, and use it to show nearby results across the app.'
         : !isAuthenticated
-        ? 'Once you sign in and save useful resources, your personal discovery map will appear here.'
+        ? 'Once you sign in and save useful resources, your personal map will appear here.'
         : hasSavedAssets
             ? unmappableCount > 0
-                ? `${unmappableCount} saved ${unmappableCount === 1 ? 'resource has' : 'resources have'} no usable map location right now. Keep browsing and save places with valid coordinates to see them pinned here.`
-                : 'Keep browsing and save places or offerings to see them pinned here.'
-            : 'Your discovery map only shows places linked to resources you have saved.';
+                ? `${unmappableCount} saved ${unmappableCount === 1 ? 'resource does' : 'resources do'} not have a usable map location yet. Keep browsing and save places with valid addresses to see them here.`
+                : 'Keep browsing and save places, programmes, or services to see them here.'
+            : 'Your map shows saved resources that have a place or address.';
 
     async function handleSavePostalCode(event) {
         event.preventDefault();
@@ -109,7 +109,7 @@ export function SavedMapEmptyState({
                             <p className="text-xs font-medium text-red-600">{postalCodeError}</p>
                         ) : (
                             <p className="text-xs leading-5" style={{ color: 'var(--color-text-muted)' }}>
-                                We’ll save this to your profile and use it as your Home fallback across the app.
+                                We’ll save this to your profile and use it as your home location in the app.
                             </p>
                         )}
                         <div className="flex flex-col gap-2 sm:flex-row">

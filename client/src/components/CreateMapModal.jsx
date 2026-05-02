@@ -10,7 +10,7 @@ function normalizeText(value) {
 }
 
 function typeLabel(resourceType) {
-    return resourceType === 'hard' ? 'Place' : 'Offering';
+    return resourceType === 'hard' ? 'Place' : 'Programme/service';
 }
 
 export default function CreateMapModal({
@@ -87,7 +87,7 @@ export default function CreateMapModal({
             );
             
             if (hasCheckedOfferings) {
-                setValidationError(`Cannot remove ${asset.name} because its corresponding offerings at the same location are still selected.`);
+                setValidationError(`Keep ${asset.name} selected while programmes or services at this place are still selected.`);
                 return;
             }
         }
@@ -138,15 +138,15 @@ export default function CreateMapModal({
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
-                            {isCreateMode ? 'Create map' : 'Manage map resources'}
+                            {isCreateMode ? 'Create map' : 'Choose map resources'}
                         </p>
                         <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                            {isCreateMode ? 'Create a named map from saved resources' : 'Add or remove saved resources'}
+                            {isCreateMode ? 'Create a map from saved resources' : 'Choose what stays in this map'}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
                             {isCreateMode
-                                ? 'Select the saved resources you want to group together.'
-                                : 'Choose which saved resources should be included in this map.'}
+                                ? 'Pick the saved resources you want to keep together.'
+                                : 'Tick the saved resources you want included in this map.'}
                         </p>
                     </div>
                     <button
@@ -180,7 +180,7 @@ export default function CreateMapModal({
 
                     <div className="mb-4">
                         <label htmlFor="create-map-search" className="block text-sm font-semibold text-slate-700">
-                            Select saved resources
+                            Choose saved resources
                         </label>
                         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
                             <div className="relative flex-1">
@@ -202,7 +202,7 @@ export default function CreateMapModal({
                                         onClick={() => setFilter(f)}
                                         className={`flex-1 rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
-                                        {f === 'hard' ? 'Place' : f === 'soft' ? 'Offering' : 'All'}
+                                        {f === 'hard' ? 'Place' : f === 'soft' ? 'Programme/service' : 'All'}
                                     </button>
                                 ))}
                             </div>
@@ -214,17 +214,17 @@ export default function CreateMapModal({
                             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm">
                                 <Map size={24} />
                             </div>
-                            <h3 className="mt-4 text-lg font-bold text-slate-900">No saved resources available</h3>
+                            <h3 className="mt-4 text-lg font-bold text-slate-900">No saved resources yet</h3>
                             <p className="mt-2 text-sm text-slate-500">
                                 {isCreateMode
-                                    ? 'Save resources from Discover first, then create a map from them.'
-                                    : 'You have no saved resources yet. Save resources from Discover first.'}
+                                    ? 'Browse Discover and save a few resources first, then create a map from them.'
+                                    : 'Browse Discover and save a few resources first.'}
                             </p>
                         </div>
                     ) : filteredAssets.length === 0 ? (
                         <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
                             <h3 className="text-lg font-bold text-slate-900">No saved resources match your search</h3>
-                            <p className="mt-2 text-sm text-slate-500">Try a different search term to see more saved resources.</p>
+                            <p className="mt-2 text-sm text-slate-500">Try another search term or clear the search.</p>
                         </div>
                     ) : (
                         <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
@@ -256,7 +256,7 @@ export default function CreateMapModal({
                                                     </span>
                                                 ) : null}
                                                 <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                                    ID: {asset.resourceId}
+                                                    Resource #{asset.resourceId}
                                                 </span>
                                                 {asset.status === 'unavailable' ? (
                                                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
@@ -270,7 +270,7 @@ export default function CreateMapModal({
                                             </div>
                                             <p className="mt-2 text-sm font-semibold text-slate-900">{asset.name}</p>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                {asset.address || 'Location details are not available.'}
+                                                {asset.address || 'Location details are not available yet.'}
                                             </p>
                                         </div>
                                     </label>
@@ -299,7 +299,7 @@ export default function CreateMapModal({
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                                 data-testid="create-map-submit"
                             >
-                                {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create map' : 'Save resources')}
+                                {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create map' : 'Update map')}
                             </button>
                         </div>
                     </div>

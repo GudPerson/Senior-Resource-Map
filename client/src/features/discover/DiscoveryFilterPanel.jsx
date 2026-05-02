@@ -105,10 +105,10 @@ function HomePostalCodeCta({ compact = false }) {
             <div className={`flex ${compact ? 'flex-col gap-2' : 'items-center justify-between gap-3'}`}>
                 <div className="min-w-0">
                     <p className={`${compact ? 'text-[13px]' : 'text-sm'} font-bold leading-tight`} style={{ color: 'var(--color-text)' }}>
-                        Save your home postal code to unlock Home Search.
+                        Add your home postal code for nearby suggestions.
                     </p>
                     <p className={`mt-1 ${compact ? 'text-[12px]' : 'text-[13px]'} leading-5`} style={{ color: 'var(--color-text-secondary)' }}>
-                        This helps Discovery surface nearby programmes and services based on your home location.
+                        This helps us show programmes, services, and support near your home.
                     </p>
                 </div>
                 <Link
@@ -151,7 +151,7 @@ function buildSummaryChips({
     if (activeTab !== 'all') {
         summaryChips.push({
             key: 'tab',
-            label: activeTab === 'hard' ? 'Places only' : 'Offerings only',
+            label: activeTab === 'hard' ? 'Places only' : 'Programmes & services only',
         });
     }
 
@@ -248,7 +248,7 @@ function SaveAllToggleControl({
             </span>
             <span className="min-w-0">
                 <span className={`block ${DISCOVERY_LABEL_TEXT_CLASS} leading-none`}>
-                    {pending ? pendingLabel : 'Save matching'}
+                    {pending ? pendingLabel : 'Save these results'}
                 </span>
                 <span className="mt-1 block text-[0.76rem] leading-none opacity-75">
                     {count} {count === 1 ? 'result' : 'results'}
@@ -302,8 +302,8 @@ function MobileFilterSheet({
         <MobileBottomSheet
             open={isOpen}
             onOpenChange={onOpenChange}
-            title="Refine your browse view"
-            description="Choose your location, distance, resource type, and view size."
+            title="Choose what to show"
+            description="Adjust location, distance, resource type, and card size."
             headerActions={(
                 <button type="button" onClick={() => onOpenChange(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
                     Done
@@ -381,7 +381,7 @@ function MobileFilterSheet({
                                     style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}
                                 >
                                     <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                                        Scope
+                                        Area
                                     </span>
                                     <select
                                         value={selectedDiscoverySubregionId}
@@ -431,7 +431,7 @@ function MobileFilterSheet({
 
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Resource type
+                                    Show
                                 </span>
                                 <select
                                     value={activeTab}
@@ -441,7 +441,7 @@ function MobileFilterSheet({
                                 >
                                     <option value="all">All ({tabCounts.all})</option>
                                     <option value="hard">Places ({tabCounts.hard})</option>
-                                    <option value="soft">Offerings ({tabCounts.soft})</option>
+                                    <option value="soft">Programmes & services ({tabCounts.soft})</option>
                                 </select>
                             </label>
                         </div>
@@ -460,7 +460,7 @@ function MobileFilterSheet({
                                             Saved only
                                         </span>
                                         <span className="mt-1 block text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                            Review only assets already saved to your account.
+                                            Show only resources you have saved.
                                         </span>
                                     </span>
                                     <div className="relative inline-block w-8 align-middle transition duration-200 ease-in">
@@ -492,7 +492,7 @@ function MobileFilterSheet({
                         {onChangeMobileCardDensity ? (
                             <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
                                 <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Browse card layout
+                                    Card layout
                                 </p>
                                 <div className="mt-3 grid grid-cols-2 gap-2">
                                     {[
@@ -647,7 +647,7 @@ function DesktopFilterPanel({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand)' }}>
-                                    Search Summary
+                                    Current search
                                 </p>
                                 <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>
                                     Showing {resultCount} {resultCount === 1 ? 'resource' : 'resources'}
@@ -703,10 +703,10 @@ function DesktopFilterPanel({
                 <div className="flex items-start justify-between">
                     <div className="min-w-0 pr-12">
                         <h1 className="text-[1.6rem] font-black leading-tight tracking-tight" style={{ color: 'var(--color-text)' }}>
-                            Find care around you
+                            Find care and support near you
                         </h1>
                         <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-                            Search nearby support, services, and programmes.
+                            Search for nearby places, programmes, services, and support.
                         </p>
                     </div>
                     <button
@@ -819,7 +819,7 @@ function DesktopFilterPanel({
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                                 <input
                                     type="search"
-                                    placeholder="Search names, services, or tags. Use , for all and / for any"
+                                    placeholder="Search by name, service, tag, or address"
                                     value={search}
                                     onChange={(event) => onSearchChange(event.target.value)}
                                     className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
@@ -837,7 +837,7 @@ function DesktopFilterPanel({
                                 style={{ borderColor: 'var(--color-border)' }}
                             >
                                 <span className={`shrink-0 ${DISCOVERY_LABEL_TEXT_CLASS}`} style={{ color: 'var(--color-text-muted)' }}>
-                                    Scope
+                                    Area
                                 </span>
                                 <select
                                     value={selectedDiscoverySubregionId}
@@ -859,7 +859,7 @@ function DesktopFilterPanel({
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                             <input
                                 type="search"
-                                placeholder="Search names, services, or tags. Use , for all and / for any"
+                                placeholder="Search by name, service, tag, or address"
                                 value={search}
                                 onChange={(event) => onSearchChange(event.target.value)}
                                 className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
@@ -879,7 +879,7 @@ function DesktopFilterPanel({
                         {[
                             { value: 'all', label: 'All', count: tabCounts.all },
                             { value: 'hard', label: 'Places', count: tabCounts.hard },
-                            { value: 'soft', label: 'Offerings', count: tabCounts.soft },
+                            { value: 'soft', label: 'Programmes & services', count: tabCounts.soft },
                         ].map((tab) => (
                             <button
                                 key={tab.value}
@@ -931,7 +931,7 @@ function DesktopFilterPanel({
                                 <div className="toggle-label block h-4 cursor-pointer overflow-hidden rounded-full" style={{ backgroundColor: showFavoritesOnly ? '#10b981' : 'var(--color-border)' }} />
                             </div>
                             <span className={DISCOVERY_LABEL_TEXT_CLASS} style={{ color: 'var(--color-text-secondary)' }}>
-                                Saved Only
+                                Saved only
                             </span>
                         </label>
                     ) : null}
@@ -1086,7 +1086,7 @@ export function DiscoveryFilterPanel(props) {
                                         <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
                                             {userLocation
                                                 ? `Anchored around ${getSearchLocationLabel(searchOrigin)}`
-                                                : 'Review the browse list first, then switch into the map only when you want spatial focus.'}
+                                                : 'Browse the list first, then open the map when you want to see where resources are.'}
                                         </p>
                                     </div>
                                     <button
@@ -1106,7 +1106,7 @@ export function DiscoveryFilterPanel(props) {
                                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
                                     <input
                                         type="search"
-                                        placeholder="Search names, tags..."
+                                        placeholder="Search names, services, tags..."
                                         value={search}
                                         onChange={(event) => onSearchChange(event.target.value)}
                                         className="w-full rounded-2xl border py-3 pl-10 pr-3 text-[15px] font-medium leading-none focus:outline-none focus:ring-2"
@@ -1148,7 +1148,7 @@ export function DiscoveryFilterPanel(props) {
 
                             {savedAssetCount > 0 && mapDisabled ? (
                                 <div className="rounded-2xl border px-3 py-2 text-[12px] font-medium leading-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)', color: 'var(--color-text-secondary)' }}>
-                                    Your saved resources do not have map locations yet. The map will appear after you save a place or offering with a valid address.
+                                    Your saved resources do not have map locations yet. The map will appear after you save a place, programme, or service with a valid address.
                                 </div>
                             ) : null}
 
@@ -1166,7 +1166,7 @@ export function DiscoveryFilterPanel(props) {
                         >
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                    Map workspace
+                                    Map view
                                 </p>
                                 <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
                                     {pinCount > 0
@@ -1175,8 +1175,8 @@ export function DiscoveryFilterPanel(props) {
                                 </p>
                                 <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
                                     {pinCount > 0
-                                        ? 'Use the map to compare saved places, then open the quick list when you want to scan cards without leaving the map.'
-                                        : 'This map is currently centred around your active location anchor. Save places to pin them here.'}
+                                        ? 'Use the map to compare saved places. Open the list when you want to scan the resource cards.'
+                                        : 'This map is centred around your selected location. Save places to pin them here.'}
                                 </p>
                             </div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1208,7 +1208,7 @@ export function DiscoveryFilterPanel(props) {
                             </div>
                             {savedAssetCount > 0 && unmappableSavedCount > 0 ? (
                                 <p className="mt-2 text-[12px] font-medium leading-5" style={{ color: 'var(--color-text-muted)' }}>
-                                    {unmappableSavedCount} saved {unmappableSavedCount === 1 ? 'asset is' : 'assets are'} list-only right now and not shown on the map.
+                                    {unmappableSavedCount} saved {unmappableSavedCount === 1 ? 'resource is' : 'resources are'} shown in the list only and not shown on the map.
                                 </p>
                             ) : null}
                         </div>

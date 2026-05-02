@@ -208,7 +208,7 @@ function isGroupLogoRevealed(group, logoRevealPlaceKeys = []) {
 }
 
 function getSecondaryCategory(row) {
-    return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? 'Place' : 'Offering');
+    return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? 'Place' : 'Programme/service');
 }
 
 function HiddenLogoSlot({ logoRow, revealed = false, compactInteractive = false }) {
@@ -804,7 +804,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             ) : null}
                             <StatusBadge status={row.status || 'list_only'} />
                             <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-900">
-                                Not shown on map
+                                List only
                             </span>
                         </div>
                         {detailPath && row.status !== 'unavailable' ? (
@@ -821,7 +821,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             <p className="mt-1 text-sm text-slate-400">{row.locationLabel}</p>
                         ) : null}
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                            <span>{row.resourceType === 'hard' ? 'Place' : 'Offering'}</span>
+                            <span>{row.resourceType === 'hard' ? 'Place' : 'Programme/service'}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
                                 <span className="normal-case tracking-normal text-brand-700">
@@ -940,7 +940,7 @@ function DirectoryUnmappedSection({
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Unmapped resources</p>
                 <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Resources not shown on map</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
-                    These offerings belong in the directory but do not have a real mappable host location.
+                    These programmes or services are in the directory but do not have a place or address to show on the map.
                 </p>
             </div>
 

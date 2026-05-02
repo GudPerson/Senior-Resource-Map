@@ -347,10 +347,10 @@ function DiscoverPostalGroupListPanel({
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">
                             <Layers3 size={14} />
-                            Shared postal code
+                            Same postal code
                         </div>
                         <p className="mt-1 text-base font-bold leading-tight text-slate-900">
-                            {group.hardAssetCount} {group.hardAssetCount === 1 ? 'asset' : 'assets'} at the same location
+                            {group.hardAssetCount} saved {group.hardAssetCount === 1 ? 'place' : 'places'} at this location
                         </p>
                         {group.postalCode ? (
                             <p className="mt-1 text-sm text-slate-500">Postal code {group.postalCode}</p>
@@ -370,7 +370,7 @@ function DiscoverPostalGroupListPanel({
                     <div className="space-y-2">
                         {(group.memberPins || []).map((pin) => {
                             const isHighlighted = highlightedPinKey === pin.pinKey;
-                            const offeringsLabel = `${pin.totalOfferingsCount || 0} ${(pin.totalOfferingsCount || 0) === 1 ? 'offering' : 'offerings'}`;
+                            const offeringsLabel = `${pin.totalOfferingsCount || 0} ${(pin.totalOfferingsCount || 0) === 1 ? 'programme/service' : 'programmes/services'}`;
                             const previewImageUrl = pin.placeAsset?.logoUrl || pin.primarySavedAsset?.liveAsset?.logoUrl || pin.categoryIconUrl || null;
 
                             return (
@@ -2152,8 +2152,8 @@ export default function DiscoverPage() {
         <MobileBottomSheet
             open={mobileBrowseDrawerOpen}
             onOpenChange={setMobileBrowseDrawerOpen}
-            title="Quick List"
-            description={`Showing ${filtered.length} ${filtered.length === 1 ? 'resource' : 'resources'}`}
+            title="Resources on this map"
+            description={`Showing ${filtered.length} matching ${filtered.length === 1 ? 'resource' : 'resources'}`}
             headerActions={(
                 <div className="flex items-center gap-2">
                     <button
@@ -2164,7 +2164,7 @@ export default function DiscoverPage() {
                         }}
                         className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
                     >
-                        Browse screen
+                        Back to browse
                     </button>
                     <button
                         type="button"
@@ -2181,9 +2181,9 @@ export default function DiscoverPage() {
                 <div className="mx-4 mt-1 mb-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>
                     <label className="flex items-center justify-between gap-4">
                         <div>
-                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saved assets only</p>
+                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saved resources only</p>
                             <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                Narrow this quick list to items you have already saved.
+                                Show only resources you have saved.
                             </p>
                         </div>
                         <input
@@ -2221,7 +2221,7 @@ export default function DiscoverPage() {
                         {selectedPlacePin?.title || 'Saved place details'}
                     </Drawer.Title>
                     <Drawer.Description className="sr-only">
-                        View saved place details and related resources for the selected map pin.
+                        View this saved place and related resources for the selected map pin.
                     </Drawer.Description>
                     <div className="mx-auto mt-3 h-1.5 w-12 rounded-full" style={{ backgroundColor: 'var(--color-border-strong)' }} />
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -2300,7 +2300,7 @@ export default function DiscoverPage() {
                 <div className="absolute inset-0 z-[2000] flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
                     <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
                         <div className="h-12 w-12 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
-                        <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Loading Directory…</p>
+                        <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Loading resources…</p>
                     </div>
                 </div>
             ) : null}

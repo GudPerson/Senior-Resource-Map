@@ -233,11 +233,11 @@ function EmptyOwnerDirectory({ onAddAssets }) {
         <div className="rounded-[32px] border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
             <h2 className="text-2xl font-bold text-slate-900">This map has no resources yet</h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                Add saved resources to build a map you can view, print, export, or share.
+                Add saved resources to build a map you can view, print, save as an image, or share.
             </p>
             <button type="button" onClick={onAddAssets} className="btn-primary mt-6 inline-flex justify-center">
                 <Plus size={16} />
-                Add from Saved Resources
+                Add from My Directory
             </button>
         </div>
     );
@@ -643,7 +643,7 @@ export default function MyMapDetailPage() {
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                        emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
+                                        emptyLabel={query ? 'No places on the map match this search.' : 'This map does not have any places to show yet.'}
                                         mapHeightClassName="h-[42vh] min-h-[400px] max-h-[620px]"
                                     />
                                 )}
@@ -665,7 +665,7 @@ export default function MyMapDetailPage() {
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                        emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
+                                        emptyLabel={query ? 'No places on the map match this search.' : 'This map does not have any places to show yet.'}
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}

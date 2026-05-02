@@ -368,7 +368,7 @@ export default function MyDirectoryPage() {
                             <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>My Directory</h1>
                             <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps
-                                    ? 'Maps you created from your saved resources.'
+                                    ? 'Maps you created from resources you saved.'
                                     : 'Your saved resources in one place.'}
                             </p>
                             <DirectoryTabs activeSection={activeSection} onSelect={switchSection} />
@@ -500,9 +500,9 @@ export default function MyDirectoryPage() {
                                 <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                         <div>
-                                            <p className="text-sm font-semibold text-slate-700">Maps built from your saved resources</p>
+                                            <p className="text-sm font-semibold text-slate-700">Maps built from resources you saved</p>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Keep related resources together in named maps you can revisit later.
+                                                Keep related resources together in maps you can revisit, print, or share.
                                             </p>
                                         </div>
                                         <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
@@ -577,7 +577,7 @@ export default function MyDirectoryPage() {
                                     <MyMapsEmptyState hasSavedAssets={hasSavedAssets} onCreate={() => setCreateModalOpen(true)} />
                                 ) : !hasFilteredMaps ? (
                                     <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
-                                        <p className="text-lg font-semibold text-slate-700">No maps match your current search.</p>
+                                        <p className="text-lg font-semibold text-slate-700">No maps match your search.</p>
                                         <p className="mt-2 text-sm text-slate-500">Try another name or clear the current filter.</p>
                                         <button type="button" onClick={() => setMapSearchTerm('')} className="btn-ghost mt-5">
                                             Clear Search

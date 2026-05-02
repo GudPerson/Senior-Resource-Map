@@ -66,8 +66,8 @@ export function DiscoveryResultsList({
             ) : filtered.length === 0 ? (
                 <div className="text-center py-10 px-4 rounded-2xl border-2 border-dashed" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
                     <Search size={40} className="mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-                    <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>No results found</p>
-                    <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters or search terms.</p>
+                    <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>No matching resources yet</p>
+                    <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Try a broader search, a different postal code, or fewer filters.</p>
                 </div>
             ) : (
                 <div
@@ -129,7 +129,7 @@ export function DiscoveryResultsList({
                         {canLoadMore ? (
                             <>
                                 <p className="text-xs text-slate-400">
-                                    More results load automatically as you reach the end.
+                                    Keep scrolling to see more.
                                 </p>
                             </>
                         ) : null}

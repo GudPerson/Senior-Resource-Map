@@ -10,11 +10,11 @@ export default function MyMapsEmptyState({
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm">
                 <Map size={28} />
             </div>
-            <h2 className="mt-5 text-xl font-bold text-slate-900">No maps yet</h2>
+            <h2 className="mt-5 text-xl font-bold text-slate-900">Create your first map</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
                 {hasSavedAssets
-                    ? 'Create a named map from your saved resources to keep related resources together.'
-                    : 'Save a few places or offerings first, then group them into your own map here.'}
+                    ? 'Group saved resources into a map you can revisit, print, or share.'
+                    : 'Save a few places, programmes, or services first, then group them into your own map here.'}
             </p>
             <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <button
@@ -27,7 +27,7 @@ export default function MyMapsEmptyState({
                 {!hasSavedAssets ? (
                     <Link to="/discover" className="btn-ghost inline-flex justify-center">
                         <Compass size={16} />
-                        Back to Discover
+                        Browse resources
                     </Link>
                 ) : null}
             </div>

@@ -6,14 +6,14 @@ function getStateCopy(mode) {
         return {
             icon: SearchX,
             title: 'No saved resources match your search',
-            description: 'Try a different search term or clear it to see all of your saved resources.',
+            description: 'Try another search term or clear the search to see everything you saved.',
         };
     }
 
     return {
         icon: BookOpen,
         title: 'No saved resources yet',
-        description: 'Save places and offerings from Discover to build your personal directory.',
+        description: 'Save places, programmes, and services from Discover to build your personal directory.',
     };
 }
 
@@ -45,7 +45,7 @@ export default function SavedAssetsEmptyState({
             ) : (
                 <Link to="/discover" className="btn-primary mt-6 inline-flex justify-center">
                     <Compass size={16} />
-                    Back to Discover
+                    Browse resources
                 </Link>
             )}
         </div>

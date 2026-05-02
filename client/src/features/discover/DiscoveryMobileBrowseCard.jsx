@@ -26,7 +26,7 @@ export function DiscoveryMobileBrowseCard({
     const displayLocation = isHard ? asset : asset._displayLocation;
     const totalLocationCount = isHard ? 1 : (asset._locationCount || 0);
     const otherLocationCount = !isHard && totalLocationCount > 1 ? totalLocationCount - 1 : 0;
-    const categoryLabel = asset.subCategory || (isHard ? 'Place' : 'Offering');
+    const categoryLabel = asset.subCategory || (isHard ? 'Place' : 'Programme/service');
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
@@ -181,7 +181,7 @@ export function DiscoveryMobileBrowseCard({
                         </p>
                     ) : null}
                     <p className={`pr-10 ${isCompact ? 'line-clamp-2 text-[13px] leading-relaxed' : 'line-clamp-2 text-sm leading-relaxed'}`}>
-                        {summaryAddress || 'Location details unavailable'}
+                        {summaryAddress || 'Location details are not available yet.'}
                     </p>
                     {asset._distance !== undefined && asset._distance !== null ? (
                         <div className="absolute bottom-0 right-0">

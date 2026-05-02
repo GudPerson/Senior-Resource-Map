@@ -4,7 +4,7 @@ import { ArrowRight, Clock3, MapPin, Tag, Trash2 } from 'lucide-react';
 import { buildSavedAssetDetailPath } from '../lib/savedAssets.js';
 
 function formatResourceType(resourceType) {
-    return resourceType === 'hard' ? 'Place' : 'Offering';
+    return resourceType === 'hard' ? 'Place' : 'Programme/service';
 }
 
 function formatSavedDate(value) {
@@ -31,7 +31,7 @@ function StatusBadge({ asset }) {
     if (!asset.hasCoordinates) {
         return (
             <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                Not shown on map
+                List only
             </span>
         );
     }
@@ -80,7 +80,7 @@ export default function SavedAssetCard({
                     <div className="flex items-start gap-2 text-sm text-slate-600">
                         <MapPin size={16} className="mt-0.5 flex-shrink-0 text-slate-400" />
                         <p className="leading-6">
-                            {asset.address || (asset.status === 'unavailable' ? 'Location is no longer available.' : 'Location details are not available.')}
+                            {asset.address || (asset.status === 'unavailable' ? 'Location is no longer available.' : 'Location details are not available yet.')}
                         </p>
                     </div>
                 </div>

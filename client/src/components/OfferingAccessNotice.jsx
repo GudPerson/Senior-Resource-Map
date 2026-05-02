@@ -26,7 +26,7 @@ export default function OfferingAccessNotice({
     const returnTo = buildSafeReturnTo(location);
     const missingFieldsText = formatMissingProfileFields(missingProfileFields);
     const isLocked = access === OFFERING_ACCESS.LOCKED_MISSING_DATA;
-    const ctaLabel = isAuth ? 'Complete profile to check eligibility' : 'Sign in and complete profile to check eligibility';
+    const ctaLabel = isAuth ? 'Add details to check this' : 'Sign in to check this';
 
     return (
         <div
@@ -40,16 +40,16 @@ export default function OfferingAccessNotice({
                 <Lock size={compact ? 13 : 15} className="mt-0.5 flex-shrink-0" />
                 <div className="min-w-0">
                     <p className="font-semibold">
-                        {isLocked ? 'Eligibility check locked' : 'Eligibility requirements not met'}
+                        {isLocked ? 'A few profile details are needed' : 'This may not match your profile'}
                     </p>
                     {isLocked ? (
                         <p className="mt-1 leading-relaxed">
                             {missingFieldsText
-                                ? `Add ${missingFieldsText} to check eligibility for this offering.`
-                                : 'Complete your profile to check eligibility for this offering.'}
+                                ? `Add ${missingFieldsText} to see whether this programme or service may be relevant to you.`
+                                : 'Add a few optional profile details to see whether this may be relevant to you.'}
                         </p>
                     ) : (
-                        <p className="mt-1 leading-relaxed">Eligibility requirements not met.</p>
+                        <p className="mt-1 leading-relaxed">This programme or service is currently shown as not matching your saved profile details.</p>
                     )}
 
                     {isLocked ? (
