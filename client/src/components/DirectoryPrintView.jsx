@@ -126,7 +126,7 @@ function PrintDirectoryMap({
             />
 
             {presentation.activeAnchorNote ? (
-                <p className="mt-4 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-[12px] font-semibold leading-5 text-sky-700">
+                <p className="mt-4 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-[12px] font-semibold leading-5 text-brand-700">
                     {presentation.activeAnchorNote}
                 </p>
             ) : null}
@@ -161,20 +161,20 @@ function PrintDirectoryMap({
             />
 
             {/* Legend — self-contained inside the print map card */}
-            <div className="mt-3 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600">
-                <div className="flex items-center gap-1.5">
-                    <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
+            <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[15px] font-bold text-slate-600">
+                <div className="flex items-center gap-2">
+                    <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
                     <span>Single</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="flex h-[1.1em] w-[1.1em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.7em] font-black text-white shadow-sm">1</div>
+                <div className="flex items-center gap-2">
+                    <div className="flex h-[1.3em] w-[1.3em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.78em] font-black text-white shadow-sm">1</div>
                     <span>Resource #</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="flex -space-x-1.5">
-                        <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-blue-500 shadow-sm" />
-                        <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-pink-500 shadow-sm" />
-                        <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-orange-500 shadow-sm" />
+                <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-blue-500 shadow-sm" />
+                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-pink-500 shadow-sm" />
+                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-orange-500 shadow-sm" />
                     </div>
                     <span>Clusters</span>
                 </div>
