@@ -1,25 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { MapPin, X } from 'lucide-react';
+import { Info, MapPin, X } from 'lucide-react';
 import { api } from '../../lib/api.js';
-import { canAccessAdmin, getRoleMeta, isStandardUserRole } from '../../lib/roles.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { DEFAULT_LOCALE } from '../../lib/i18n.js';
+import { isStandardUserRole } from '../../lib/roles.js';
 import { DashboardMobileNavigation, DashboardSidebar, getDashboardSectionLabel } from '../../components/dashboard/DashboardNavigation.jsx';
 
 export default function DashboardPage() {
     const { user, login, logout, isImpersonating } = useAuth();
+    const { locale, t } = useLocale();
     const navigate = useNavigate();
     const location = useLocation();
-    const roleMeta = getRoleMeta(user?.role);
     const [postalCode, setPostalCode] = useState(user?.postalCode || '');
     const [postalCodeError, setPostalCodeError] = useState('');
     const [postalCodeSaving, setPostalCodeSaving] = useState(false);
     const [postalPromptDismissed, setPostalPromptDismissed] = useState(false);
     const postalPromptDismissKey = user?.id ? `carearound:postal-prompt-dismissed:${user.id}` : null;
     const shouldPromptForPostalCode = isStandardUserRole(user?.role) && user?.needsPostalCode && !isImpersonating;
+    const showAdminEnglishNotice = locale !== DEFAULT_LOCALE
+        && (location.pathname.startsWith('/dashboard/admin') || location.pathname.startsWith('/dashboard/resources'));
     const sectionLabel = useMemo(
-        () => getDashboardSectionLabel(location.pathname),
-        [location.pathname],
+        () => getDashboardSectionLabel(location.pathname, t),
+        [location.pathname, t],
     );
 
     useEffect(() => {
@@ -59,7 +63,7 @@ export default function DashboardPage() {
     async function handlePostalCodeSubmit(e) {
         e.preventDefault();
         if (!postalCode.trim()) {
-            setPostalCodeError('Enter a valid 6-digit postal code, or skip for now.');
+            setPostalCodeError(t('postalPromptInvalid'));
             return;
         }
 
@@ -73,7 +77,7 @@ export default function DashboardPage() {
             }
             setPostalPromptDismissed(false);
         } catch (err) {
-            setPostalCodeError(err.message || 'Failed to save your postal code.');
+            setPostalCodeError(err.message || t('discoveryPostalSaveFailed'));
         } finally {
             setPostalCodeSaving(false);
         }
@@ -94,7 +98,7 @@ export default function DashboardPage() {
                 <DashboardMobileNavigation
                     isImpersonating={isImpersonating}
                     onLogout={handleLogout}
-                    sectionContextLabel="Dashboard"
+                    sectionContextLabel={t('dashboard')}
                     sectionLabel={sectionLabel}
                     user={user}
                 />
@@ -104,10 +108,10 @@ export default function DashboardPage() {
                             <div className="max-w-2xl">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                                     <MapPin size={16} />
-                                    Add your postal code to finish setup
+                                    {t('addPostalSetupTitle')}
                                 </div>
                                 <p className="mt-1 text-sm text-amber-900/80">
-                                    You can already browse public resources. Add your 6-digit postal code to see nearby resources and services available in your partner area.
+                                    {t('addPostalSetupBody')}
                                 </p>
                             </div>
 
@@ -124,16 +128,27 @@ export default function DashboardPage() {
                                     {postalCodeError ? (
                                         <p className="mt-2 text-xs font-medium text-red-700">{postalCodeError}</p>
                                     ) : (
-                                        <p className="mt-2 text-xs text-amber-900/70">You can also add or update this later in your profile.</p>
+                                        <p className="mt-2 text-xs text-amber-900/70">{t('addPostalLater')}</p>
                                     )}
                                 </div>
                                 <button type="submit" disabled={postalCodeSaving} className="btn-primary min-w-[140px] justify-center disabled:opacity-60">
-                                    {postalCodeSaving ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Save postal code'}
+                                    {postalCodeSaving ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : t('savePostalCode')}
                                 </button>
                                 <button type="button" onClick={dismissPostalPrompt} className="btn-ghost min-w-[120px] justify-center whitespace-nowrap">
-                                    <X size={16} /> Skip for now
+                                    <X size={16} /> {t('skipForNow')}
                                 </button>
                             </form>
+                        </div>
+                    </div>
+                ) : null}
+                {showAdminEnglishNotice ? (
+                    <div className="border-b border-sky-200 bg-sky-50/80 px-6 py-3 lg:px-8">
+                        <div className="flex max-w-5xl items-start gap-3 text-sm text-sky-900">
+                            <Info size={17} className="mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="font-semibold">{t('dashboardOpsEnglishTitle')}</p>
+                                <p className="mt-1 text-sky-900/80">{t('dashboardOpsEnglishBody')}</p>
+                            </div>
                         </div>
                     </div>
                 ) : null}

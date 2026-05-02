@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, BookOpen, Files, LayoutDashboard, LogOut, Map, Menu, Shield, User } from 'lucide-react';
 
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { canAccessAdmin, getRoleMeta, isStandardUserRole } from '../../lib/roles.js';
 
 function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
@@ -23,14 +24,18 @@ function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
     );
 }
 
-export function getDashboardSectionLabel(pathname) {
-    if (pathname === '/dashboard' || pathname === '/dashboard/') return 'Overview';
-    if (pathname.startsWith('/dashboard/profile')) return 'Profile';
-    if (pathname.startsWith('/dashboard/admin')) return 'Admin';
-    if (pathname.startsWith('/my-directory/maps/')) return 'My Maps';
-    if (pathname.startsWith('/my-directory')) return 'My Directory';
-    if (pathname.startsWith('/dashboard/resources')) return 'My Resources';
-    return 'Menu';
+function label(t, key, fallback, params) {
+    return typeof t === 'function' ? t(key, params) : fallback;
+}
+
+export function getDashboardSectionLabel(pathname, t) {
+    if (pathname === '/dashboard' || pathname === '/dashboard/') return label(t, 'overview', 'Overview');
+    if (pathname.startsWith('/dashboard/profile')) return label(t, 'profileTitle', 'Profile');
+    if (pathname.startsWith('/dashboard/admin')) return label(t, 'overviewAdminTitle', 'Admin');
+    if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'My Maps');
+    if (pathname.startsWith('/my-directory')) return label(t, 'myDirectory', 'My Directory');
+    if (pathname.startsWith('/dashboard/resources')) return label(t, 'overviewResourcesTitle', 'My Resources');
+    return label(t, 'dashboard', 'Menu');
 }
 
 export function DashboardSidebar({
@@ -39,6 +44,7 @@ export function DashboardSidebar({
     onNavigate,
     user,
 }) {
+    const { t } = useLocale();
     const roleMeta = getRoleMeta(user?.role);
     const isStandardUser = isStandardUserRole(user?.role);
     const canShowAdmin = canAccessAdmin(user?.role);
@@ -57,19 +63,19 @@ export function DashboardSidebar({
                         </span>
                         {isImpersonating ? (
                             <p className="mt-1 text-[11px] font-semibold text-brand-700">
-                                User view via {user?.impersonatedBy?.name || 'admin'}
+                                {t('dashboardUserViewVia', { name: user?.impersonatedBy?.name || 'admin' })}
                             </p>
                         ) : null}
                     </div>
                 </div>
             </div>
 
-            <SidebarLink to="/discover" icon={Map} label="Discovery Map" id="dash-discover" onNavigate={onNavigate} />
-            <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Overview" id="dash-overview" onNavigate={onNavigate} />
+            <SidebarLink to="/discover" icon={Map} label={t('overviewDiscoverTitle')} id="dash-discover" onNavigate={onNavigate} />
+            <SidebarLink to="/dashboard" icon={LayoutDashboard} label={t('overview')} id="dash-overview" onNavigate={onNavigate} />
             <SidebarLink
                 to="/my-directory"
                 icon={BookOpen}
-                label="My Directory"
+                label={t('myDirectory')}
                 id="dash-directory"
                 onNavigate={onNavigate}
             />
@@ -77,14 +83,14 @@ export function DashboardSidebar({
                 <SidebarLink
                     to="/dashboard/resources"
                     icon={Files}
-                    label="My Resources"
+                    label={t('overviewResourcesTitle')}
                     id="dash-managed-resources"
                     onNavigate={onNavigate}
                 />
             ) : null}
-            <SidebarLink to="/dashboard/profile" icon={User} label="Profile" id="dash-profile" onNavigate={onNavigate} />
+            <SidebarLink to="/dashboard/profile" icon={User} label={t('profileTitle')} id="dash-profile" onNavigate={onNavigate} />
             {canShowAdmin ? (
-                <SidebarLink to="/dashboard/admin" icon={Shield} label="Admin" id="dash-admin" onNavigate={onNavigate} />
+                <SidebarLink to="/dashboard/admin" icon={Shield} label={t('overviewAdminTitle')} id="dash-admin" onNavigate={onNavigate} />
             ) : null}
 
             <div className="mt-auto">
@@ -93,7 +99,7 @@ export function DashboardSidebar({
                     onClick={onLogout}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all text-base font-semibold min-h-[44px]"
                 >
-                    <LogOut size={20} /> {isImpersonating ? 'Exit User View' : 'Logout'}
+                    <LogOut size={20} /> {isImpersonating ? t('exitUserView') : t('logout')}
                 </button>
             </div>
         </>
@@ -107,6 +113,7 @@ export function DashboardMobileNavigation({
     sectionLabel,
     user,
 }) {
+    const { t } = useLocale();
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
     const [navbarOffset, setNavbarOffset] = useState(() => (
         typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches ? 64 : 56
@@ -196,7 +203,7 @@ export function DashboardMobileNavigation({
                         type="button"
                         onClick={() => setMobileSidebarOpen((open) => !open)}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm"
-                        aria-label={mobileSidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                        aria-label={mobileSidebarOpen ? t('dashboardCloseNavigation') : t('dashboardOpenNavigation')}
                         aria-expanded={mobileSidebarOpen}
                     >
                         <Menu size={20} />
