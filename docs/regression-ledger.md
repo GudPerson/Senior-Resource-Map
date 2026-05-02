@@ -94,3 +94,12 @@ Do not deploy a stabilization fix unless:
 - `npm run build:client` is green
 - `npm run test:smoke` is green for the touched flow set
 - the relevant ledger row(s) above have been updated
+
+## Security Dependency Follow-Ups
+
+Last reviewed: 2026-05-02.
+
+- `hono`, `@hono/node-server`, and transitive YAML/minimatch-style advisories were updated with non-breaking audit fixes.
+- `drizzle-orm` still reports a high-severity advisory. The available npm audit fix is a breaking major upgrade, so handle it as a dedicated database-query migration with full server regression coverage.
+- `xlsx` still reports high-severity advisories and npm audit lists no patched replacement in the current package. Handle this as a dedicated workbook import/export migration or containment pass, because it touches locked workbook flows.
+- Production session signing now requires a real `JWT_SECRET`; local development keeps the fallback only outside production.

@@ -8,7 +8,7 @@ export const SESSION_HEADER_NAME = 'x-session-token';
 const DEFAULT_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 function isProduction(c) {
-    return c.env.NODE_ENV === 'production';
+    return c?.env?.NODE_ENV === 'production';
 }
 
 function buildCookieOptions(c) {
@@ -23,7 +23,12 @@ function buildCookieOptions(c) {
 }
 
 export function getSessionSecret(c) {
-    return c.env.JWT_SECRET || 'seniorcare-secret-key';
+    const configuredSecret = String(c?.env?.JWT_SECRET || '').trim();
+    if (configuredSecret) return configuredSecret;
+    if (isProduction(c)) {
+        throw new Error('JWT_SECRET is required in production.');
+    }
+    return 'seniorcare-secret-key';
 }
 
 export function needsPostalCodeCompletion(user) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { Hono } from 'hono';
 
-import { buildSessionPayload, clearAuthCookie, setAuthCookie } from '../src/utils/sessionAuth.js';
+import { buildSessionPayload, clearAuthCookie, getSessionSecret, setAuthCookie } from '../src/utils/sessionAuth.js';
 
 test('production session cookie is cross-site compatible', async () => {
     const app = new Hono();
@@ -84,4 +84,19 @@ test('session payload flags standard users without postal codes for completion',
     assert.equal(standardWithoutPostal.needsPostalCode, true);
     assert.equal(standardWithPostal.needsPostalCode, false);
     assert.equal(partnerWithoutPostal.needsPostalCode, false);
+});
+
+test('production sessions require an explicit JWT secret', () => {
+    assert.throws(
+        () => getSessionSecret({ env: { NODE_ENV: 'production' } }),
+        /JWT_SECRET is required in production/
+    );
+    assert.equal(
+        getSessionSecret({ env: { NODE_ENV: 'production', JWT_SECRET: ' configured-secret ' } }),
+        'configured-secret'
+    );
+});
+
+test('development sessions keep the local fallback secret', () => {
+    assert.equal(getSessionSecret({ env: { NODE_ENV: 'development' } }), 'seniorcare-secret-key');
 });
