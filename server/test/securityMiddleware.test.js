@@ -82,6 +82,7 @@ test('request body guard returns a clean malformed JSON error', async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Content-Length': '9',
                 Origin: 'https://app.carearound.sg',
             },
             body: '{"email":',
@@ -100,6 +101,7 @@ test('request body guard allows bodyless JSON-labelled requests for existing rou
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Content-Length': '0',
                 Origin: 'https://app.carearound.sg',
             },
         }),

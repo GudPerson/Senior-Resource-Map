@@ -90,6 +90,13 @@ function getBodyLimitBytes(c) {
     return isLargeBodyRoute(pathname) ? DEFAULT_FILE_BODY_LIMIT_BYTES : DEFAULT_JSON_BODY_LIMIT_BYTES;
 }
 
+function shouldValidateJsonBody(c, contentLength) {
+    if (!isJsonContentType(c.req.header('content-type')) || c.req.raw.body === null) return false;
+    if (contentLength === 0) return false;
+    if (contentLength === null && !c.req.header('transfer-encoding')) return false;
+    return true;
+}
+
 export async function requestBodyGuard(c, next) {
     if (!BODY_METHODS.has(c.req.method.toUpperCase())) {
         await next();
@@ -105,7 +112,7 @@ export async function requestBodyGuard(c, next) {
         }, 413);
     }
 
-    if (isJsonContentType(c.req.header('content-type')) && c.req.raw.body !== null) {
+    if (shouldValidateJsonBody(c, contentLength)) {
         try {
             await c.req.raw.clone().json();
         } catch {
