@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import {
@@ -39,6 +40,7 @@ import { syncAssetTags } from '../utils/tags.js';
 import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
+import { positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
 
 const CONTENT_TYPES = {
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -48,6 +50,16 @@ const CONTENT_TYPES = {
 const XLSX_FORMAT = 'xlsx';
 const CSV_FORMAT = 'csv';
 const FILTERED_EXPORT_REFRESH_ERROR = 'Some filtered results are no longer available or outside your scope. Refresh My Resources and try again.';
+
+const filteredWorkbookExportBodySchema = z.object({
+    ids: positiveIntListSchema('Filtered workbook export ids', 1000),
+    format: z.preprocess(
+        (value) => value === undefined || value === null || value === ''
+            ? XLSX_FORMAT
+            : String(value).trim().toLowerCase(),
+        z.enum([XLSX_FORMAT, CSV_FORMAT]),
+    ),
+});
 
 const RESOURCE_TYPES = {
     'places': {
@@ -1554,13 +1566,14 @@ export async function exportFilteredWorkbookData(c) {
         const config = RESOURCE_TYPES[resourceType];
         if (!config) return c.json({ error: 'Unsupported workbook resource type.' }, 400);
 
-        let payload;
+        let rawPayload;
         try {
-            payload = await c.req.json();
+            rawPayload = await c.req.json();
         } catch {
             return c.json({ error: 'Provide a JSON body with ids for filtered workbook export.' }, 400);
         }
 
+        const payload = validateRequestBody(rawPayload, filteredWorkbookExportBodySchema, 'Filtered workbook export');
         const format = normalizeText(payload?.format || XLSX_FORMAT).toLowerCase() || XLSX_FORMAT;
         if (!CONTENT_TYPES[format]) return c.json({ error: 'Unsupported workbook format.' }, 400);
 

@@ -4,8 +4,11 @@ import { z } from 'zod';
 
 import app from '../src/app.js';
 import {
+    flexibleImportRowsSchema,
+    identifierListSchema,
     optionalTextSchema,
     positiveIntValueSchema,
+    positiveIntListSchema,
     validateRequestBody,
 } from '../src/utils/inputValidation.js';
 
@@ -34,6 +37,67 @@ test('validateRequestBody rejects malformed request shapes with a 400 status', (
     assert.throws(
         () => validateRequestBody({ resourceId: { value: 42 } }, schema),
         (err) => err.status === 400 && /Resource id must be a positive number/.test(err.message),
+    );
+});
+
+test('flexible import rows preserve spreadsheet-like scalar cells and remove control characters', () => {
+    const schema = z.object({
+        rows: flexibleImportRowsSchema('Boundary rows'),
+    });
+
+    const parsed = validateRequestBody({
+        rows: [
+            {
+                'Postal Code': ' 680801\u0000 ',
+                'Subregion ID': 12,
+                active: true,
+                blank: null,
+            },
+        ],
+    }, schema);
+
+    assert.deepEqual(parsed.rows, [
+        {
+            'Postal Code': '680801',
+            'Subregion ID': 12,
+            active: true,
+            blank: null,
+        },
+    ]);
+});
+
+test('flexible import rows reject nested objects instead of passing malformed cells to importers', () => {
+    const schema = z.object({
+        rows: flexibleImportRowsSchema('Boundary rows'),
+    });
+
+    assert.throws(
+        () => validateRequestBody({
+            rows: [{ postalCode: { nested: '680801' } }],
+        }, schema),
+        (err) => err.status === 400 && /Boundary rows|Invalid input/.test(err.message),
+    );
+});
+
+test('list validators normalize ids and reject duplicates early', () => {
+    const schema = z.object({
+        numericIds: positiveIntListSchema('Numeric IDs'),
+        mixedIds: identifierListSchema('Subregion IDs'),
+    });
+
+    const parsed = validateRequestBody({
+        numericIds: ['10', 11],
+        mixedIds: [' CCK-1 ', 12],
+    }, schema);
+
+    assert.deepEqual(parsed, {
+        numericIds: [10, 11],
+        mixedIds: ['CCK-1', '12'],
+    });
+
+    assert.throws(
+        () => validateRequestBody({ numericIds: [10, '10'], mixedIds: ['CCK-1'] }, schema),
+        (err) => err.status === 400 && /Numeric IDs must not contain duplicates/.test(err.message),
     );
 });
 

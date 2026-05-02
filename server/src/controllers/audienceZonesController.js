@@ -1,4 +1,5 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import { audienceZones } from '../db/schema.js';
@@ -10,6 +11,42 @@ import {
 import { normalizePostalCode, parsePostalCodeListInput } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { normalizeOwnershipMode, resolveAssetOwner } from '../utils/softAssetScope.js';
+import {
+    flexibleImportRowsSchema,
+    optionalOneLineTextSchema,
+    optionalPositiveIntValueSchema,
+    optionalTextSchema,
+    positiveIntListSchema,
+    postalCodeListInputSchema,
+    requiredOneLineTextSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
+
+const audienceZoneCreateBodySchema = z.object({
+    name: requiredOneLineTextSchema('Name', 160),
+    zoneCode: optionalOneLineTextSchema(80),
+    description: optionalTextSchema(2000),
+    ownershipMode: z.enum(['system', 'partner']).optional(),
+    partnerId: optionalPositiveIntValueSchema('Partner owner'),
+    postalCodes: postalCodeListInputSchema,
+});
+
+const audienceZoneUpdateBodySchema = z.object({
+    name: optionalOneLineTextSchema(160),
+    zoneCode: optionalOneLineTextSchema(80),
+    description: optionalTextSchema(2000),
+    ownershipMode: z.enum(['system', 'partner']).optional(),
+    partnerId: optionalPositiveIntValueSchema('Partner owner'),
+    postalCodes: postalCodeListInputSchema,
+});
+
+const audienceZoneBoundaryUploadBodySchema = z.object({
+    rows: flexibleImportRowsSchema('Boundary rows'),
+});
+
+const audienceZoneBulkDeleteBodySchema = z.object({
+    ids: positiveIntListSchema('Audience zone IDs'),
+});
 
 function normalizeText(value) {
     if (value === undefined || value === null) return null;
@@ -168,7 +205,7 @@ export const createAudienceZone = async (c) => {
             return c.json({ error: 'Only partners and admins can create audience zones.' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), audienceZoneCreateBodySchema, 'Audience zone details');
         const name = normalizeText(body?.name);
         const zoneCode = normalizeText(body?.zoneCode);
         const description = normalizeText(body?.description);
@@ -221,7 +258,7 @@ export const updateAudienceZone = async (c) => {
             return c.json({ error: 'Insufficient permissions to edit this audience zone.' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), audienceZoneUpdateBodySchema, 'Audience zone details');
         const role = normalizeRole(actor?.role);
         let owner = existing.ownerPartner || null;
         if (role === 'partner') {
@@ -269,10 +306,7 @@ export const bulkUploadAudienceZoneBoundaries = async (c) => {
             return c.json({ error: 'Only partners and admins can manage audience-zone boundaries.' }, 403);
         }
 
-        const body = await c.req.json();
-        if (!Array.isArray(body?.rows) || body.rows.length === 0) {
-            return c.json({ error: 'Boundary CSV must include at least one row.' }, 400);
-        }
+        const body = validateRequestBody(await c.req.json(), audienceZoneBoundaryUploadBodySchema, 'Audience-zone boundary upload');
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
@@ -381,21 +415,15 @@ export const bulkDeleteAudienceZones = async (c) => {
             return c.json({ error: 'Permission denied' }, 403);
         }
 
-        const body = await c.req.json();
-        const { ids } = body;
-        if (!Array.isArray(ids) || ids.length === 0) return c.json({ error: 'No IDs provided' }, 400);
+        const { ids } = validateRequestBody(await c.req.json(), audienceZoneBulkDeleteBodySchema, 'Audience zone delete list');
 
         const db = getDb(c.env);
-        const normalized = ids.map(id => Number.parseInt(id, 10)).filter(id => !Number.isNaN(id));
-
-        if (normalized.length === 0) {
-            return c.json({ error: 'Invalid audience zone ID list.' }, 400);
-        }
+        const normalized = ids;
 
         await db.delete(audienceZones).where(inArray(audienceZones.id, normalized));
         return c.json({ success: true, count: normalized.length });
     } catch (err) {
         console.error('bulkDeleteAudienceZones Error:', err);
-        return c.json({ error: err.message || 'Bulk delete failed' }, 500);
+        return c.json({ error: err.message || 'Bulk delete failed' }, err.status || 500);
     }
 };

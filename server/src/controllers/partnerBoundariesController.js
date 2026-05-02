@@ -1,10 +1,23 @@
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { partnerPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { canDirectlyManageUser } from '../utils/ownership.js';
 import { normalizePostalCode, parsePostalCodeListInput } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
+import {
+    flexibleImportRowSchema,
+    postalCodeListInputSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
+
+const partnerBoundaryUploadBodySchema = z.object({
+    rows: z.array(flexibleImportRowSchema).max(5000, 'Boundary rows cannot contain more than 5000 rows per request.').optional(),
+    postalCodes: postalCodeListInputSchema,
+}).refine((body) => Array.isArray(body.rows) || body.postalCodes !== undefined, {
+    message: 'Boundary upload requires rows or postalCodes.',
+});
 
 function clientError(message, status = 400) {
     const err = new Error(message);
@@ -123,7 +136,7 @@ export const bulkUploadPartnerBoundaries = async (c) => {
             return c.json({ error: 'Invalid partner id.' }, 400);
         }
 
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), partnerBoundaryUploadBodySchema, 'Partner boundary upload');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 

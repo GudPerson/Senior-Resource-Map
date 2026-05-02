@@ -1,9 +1,46 @@
 import { getDb } from '../db/index.js';
 import { subregionPostalCodes, subregions } from '../db/schema.js';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode, parsePostalCodeListInput, serializePostalCodeList } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
+import {
+    flexibleImportRowsSchema,
+    identifierListSchema,
+    optionalOneLineTextSchema,
+    optionalPositiveIntValueSchema,
+    optionalTextSchema,
+    postalCodeListInputSchema,
+    requiredOneLineTextSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
+
+const subregionCreateBodySchema = z.object({
+    id: optionalPositiveIntValueSchema('Record ID'),
+    name: requiredOneLineTextSchema('Name', 160),
+    subregionCode: optionalOneLineTextSchema(80),
+    subregionId: optionalOneLineTextSchema(80),
+    description: optionalTextSchema(2000),
+    postalCodes: postalCodeListInputSchema,
+    boundaryPostalCodes: postalCodeListInputSchema,
+    postalPatterns: postalCodeListInputSchema,
+    postalCodeList: postalCodeListInputSchema,
+});
+
+const subregionBulkRowsBodySchema = z.object({
+    rows: flexibleImportRowsSchema('Subregion rows'),
+});
+
+const subregionBoundaryUploadBodySchema = z.object({
+    rows: flexibleImportRowsSchema('Boundary rows'),
+    mode: z.enum(['replace', 'append']).optional(),
+    finalize: z.boolean().optional(),
+});
+
+const subregionBulkDeleteBodySchema = z.object({
+    ids: identifierListSchema('Subregion IDs'),
+});
 
 let ensureSubregionSchemaPromise = null;
 
@@ -347,7 +384,8 @@ export const createSubregion = async (c) => {
         const db = getDb(c.env);
         await ensureSubregionSchema(db, c.env);
 
-        const payload = parseCreatePayload(await c.req.json());
+        const body = validateRequestBody(await c.req.json(), subregionCreateBodySchema, 'Subregion details');
+        const payload = parseCreatePayload(body);
         if (payload.error) {
             return c.json({ error: payload.error }, 400);
         }
@@ -403,9 +441,7 @@ export const bulkCreateSubregions = async (c) => {
             return c.json({ error: 'Permission denied' }, 403);
         }
 
-        const body = await c.req.json();
-        const { rows } = body;
-        if (!Array.isArray(rows)) return c.json({ error: 'Invalid data' }, 400);
+        const { rows } = validateRequestBody(await c.req.json(), subregionBulkRowsBodySchema, 'Subregion import');
 
         const db = getDb(c.env);
         await ensureSubregionSchema(db, c.env);
@@ -473,7 +509,7 @@ export const bulkCreateSubregions = async (c) => {
         return c.json(results);
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Bulk import failed' }, 500);
+        return c.json({ error: err.message || 'Bulk import failed' }, err.status || 500);
     }
 };
 
@@ -485,11 +521,8 @@ export const bulkUploadSubregionBoundaries = async (c) => {
             return c.json({ error: 'Only Super Admins and Regional Admins can manage subregion boundaries.' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), subregionBoundaryUploadBodySchema, 'Subregion boundary upload');
         const { rows, mode = 'replace', finalize = true } = body;
-        if (!Array.isArray(rows) || rows.length === 0) {
-            return c.json({ error: 'Boundary CSV must include at least one row.' }, 400);
-        }
 
         const db = getDb(c.env);
         await ensureSubregionSchema(db, c.env);
@@ -600,7 +633,7 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         });
     } catch (err) {
         console.error(err);
-        return c.json({ error: err.message || 'Upload failed' }, 500);
+        return c.json({ error: err.message || 'Upload failed' }, err.status || 500);
     }
 };
 
@@ -611,9 +644,7 @@ export const bulkDeleteSubregions = async (c) => {
             return c.json({ error: 'Permission denied' }, 403);
         }
 
-        const body = await c.req.json();
-        const { ids } = body;
-        if (!Array.isArray(ids) || ids.length === 0) return c.json({ error: 'No IDs provided' }, 400);
+        const { ids } = validateRequestBody(await c.req.json(), subregionBulkDeleteBodySchema, 'Subregion delete list');
 
         const db = getDb(c.env);
         const normalized = ids.map(normalizeText).filter(Boolean);
@@ -644,7 +675,7 @@ export const bulkDeleteSubregions = async (c) => {
         return c.json({ success: true, deletedCount: matchedIds.length, deletedIds: matchedIds });
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Bulk delete failed' }, 500);
+        return c.json({ error: err.message || 'Bulk delete failed' }, err.status || 500);
     }
 };
 

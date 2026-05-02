@@ -147,5 +147,98 @@ export function positiveIntValueSchema(label = 'id') {
     });
 }
 
+export function optionalPositiveIntValueSchema(label = 'id') {
+    return z.union([positiveIntValueSchema(label), z.null(), z.literal('')])
+        .optional()
+        .transform((value) => {
+            if (value === '') return undefined;
+            return value;
+        });
+}
+
+export const importCellValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()])
+    .optional()
+    .transform((value) => {
+        if (typeof value === 'string') return cleanText(value, 5000);
+        return value;
+    });
+
+export const flexibleImportRowSchema = z.record(z.string().max(160), importCellValueSchema)
+    .refine((row) => Object.keys(row).length <= 120, {
+        message: 'Each import row must contain 120 columns or fewer.',
+    });
+
+export function flexibleImportRowsSchema(label = 'Rows', maxRows = 5000) {
+    return z.array(flexibleImportRowSchema, {
+        invalid_type_error: `${label} must be a list of row objects.`,
+    })
+        .min(1, `${label} must include at least one row.`)
+        .max(maxRows, `${label} cannot contain more than ${maxRows} rows per request.`);
+}
+
+export function positiveIntListSchema(label = 'IDs', maxItems = 1000) {
+    return z.array(positiveIntValueSchema(label), {
+        invalid_type_error: `${label} must be a list.`,
+    })
+        .min(1, `${label} must include at least one value.`)
+        .max(maxItems, `${label} cannot contain more than ${maxItems} values.`)
+        .transform((values, ctx) => {
+            const seen = new Set();
+            const unique = [];
+            for (const value of values) {
+                if (seen.has(value)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `${label} must not contain duplicates.`,
+                    });
+                    return z.NEVER;
+                }
+                seen.add(value);
+                unique.push(value);
+            }
+            return unique;
+        });
+}
+
+export function identifierListSchema(label = 'IDs', maxItems = 1000) {
+    return z.array(z.union([z.string(), z.number()]), {
+        invalid_type_error: `${label} must be a list.`,
+    })
+        .min(1, `${label} must include at least one value.`)
+        .max(maxItems, `${label} cannot contain more than ${maxItems} values.`)
+        .transform((values, ctx) => {
+            const seen = new Set();
+            const unique = [];
+            for (const value of values) {
+                const text = cleanOneLineText(value, 160);
+                if (!text) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `${label} must not contain blank values.`,
+                    });
+                    return z.NEVER;
+                }
+                const key = text.toLowerCase();
+                if (seen.has(key)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `${label} must not contain duplicates.`,
+                    });
+                    return z.NEVER;
+                }
+                seen.add(key);
+                unique.push(text);
+            }
+            return unique;
+        });
+}
+
+export const postalCodeListInputSchema = z.union([
+    z.string(),
+    z.number(),
+    z.array(z.union([z.string(), z.number(), z.null()])).max(10000),
+    z.null(),
+]).optional();
+
 export const safeResourceTypeSchema = z.enum(['hard', 'soft', 'template']);
 export const safeLocaleSchema = z.enum(['zh-CN', 'ms', 'ta']);
