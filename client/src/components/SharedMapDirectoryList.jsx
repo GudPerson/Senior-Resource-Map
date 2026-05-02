@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
@@ -18,10 +19,11 @@ function useDirectoryDetailPath(path) {
 }
 
 function StatusBadge({ status }) {
+    const { t } = useLocale();
     if (status === 'unavailable') {
         return (
             <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                No longer available
+                {t('noLongerAvailable')}
             </span>
         );
     }
@@ -29,7 +31,7 @@ function StatusBadge({ status }) {
     if (status === 'list_only') {
         return (
             <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                Not shown on map
+                {t('notShownOnMap')}
             </span>
         );
     }
@@ -59,6 +61,7 @@ function AvailabilityCountBadge({ row, compact = false }) {
 }
 
 function MapLegend({ mobile = false }) {
+    const { t } = useLocale();
     return (
         <div className={`flex items-center justify-between border border-slate-200 bg-white px-4 py-2 text-[16px] font-bold text-slate-600 isolate ${
             mobile
@@ -67,11 +70,11 @@ function MapLegend({ mobile = false }) {
         }`}>
             <div className="flex items-center gap-1.5">
                 <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
-                <span>Single</span>
+                <span>{t('legendSingle')}</span>
             </div>
             <div className="flex items-center gap-1.5">
                 <div className="flex h-[1.1em] w-[1.1em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.7em] font-black text-white shadow-sm">1</div>
-                <span>Resource #</span>
+                <span>{t('legendResourceNumber')}</span>
             </div>
             <div className="flex items-center gap-1.5">
                 <div className="flex -space-x-1.5">
@@ -79,7 +82,7 @@ function MapLegend({ mobile = false }) {
                     <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-pink-500 shadow-sm" />
                     <div className="h-[0.9em] w-[0.9em] rounded-full border border-white bg-orange-500 shadow-sm" />
                 </div>
-                <span>Clusters</span>
+                <span>{t('legendClusters')}</span>
             </div>
         </div>
     );
@@ -118,6 +121,7 @@ function useResponsiveDirectoryLayout(enabled) {
 function SaveResourceAction({ row, place, enabled = true }) {
     const { isAuth } = useAuth();
     const { isSaved, isSavedAssetPending, toggleSavedAsset } = useSavedAssets();
+    const { t } = useLocale();
 
     if (!enabled || !isAuth || !row.saveEligible || row.status === 'unavailable') {
         return null;
@@ -143,7 +147,7 @@ function SaveResourceAction({ row, place, enabled = true }) {
     }
 
     if (saved) {
-        return <span className="text-sm font-semibold text-brand-700">Saved</span>;
+        return <span className="text-sm font-semibold text-brand-700">{t('saved')}</span>;
     }
 
     return (
@@ -153,7 +157,7 @@ function SaveResourceAction({ row, place, enabled = true }) {
             disabled={pending}
             className="text-sm font-semibold text-brand-700 transition hover:text-brand-800 disabled:cursor-wait disabled:opacity-60"
         >
-            {pending ? 'Saving…' : 'Save'}
+            {pending ? t('saving') : t('save')}
         </button>
     );
 }
@@ -207,11 +211,12 @@ function isGroupLogoRevealed(group, logoRevealPlaceKeys = []) {
     return (logoRevealPlaceKeys || []).some((value) => matchesGroupKey(group, value));
 }
 
-function getSecondaryCategory(row) {
-    return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? 'Place' : 'Programme/service');
+function getSecondaryCategory(row, t) {
+    return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? t('placeType') : t('offeringType'));
 }
 
 function HiddenLogoSlot({ logoRow, revealed = false, compactInteractive = false }) {
+    const { t } = useLocale();
     const [logoFitMode, setLogoFitMode] = useState('cover');
     const slotClassName = compactInteractive ? 'h-[34px] w-[34px]' : 'h-[38px] w-[38px]';
     const imageClassName = logoFitMode === 'contain'
@@ -229,7 +234,7 @@ function HiddenLogoSlot({ logoRow, revealed = false, compactInteractive = false 
             {logoRow?.logoUrl ? (
                 <img
                     src={logoRow.logoUrl}
-                    alt={logoRow.name || 'Asset logo'}
+                    alt={logoRow.name || t('assetLogoAlt')}
                     className={imageClassName}
                     onLoad={(event) => {
                         const { naturalWidth, naturalHeight } = event.currentTarget;
@@ -350,6 +355,7 @@ function DirectoryPlaceBadge({
     logoRevealed = false,
     onViewOnMap,
 }) {
+    const { t } = useLocale();
     const [logoFitMode, setLogoFitMode] = useState('cover');
     const hasHoverLogo = Boolean(hoverLogoRow?.logoUrl);
     const wrapperClassName = compactInteractive ? 'h-[42px] w-[42px]' : 'h-[46px] w-[46px]';
@@ -380,8 +386,8 @@ function DirectoryPlaceBadge({
                 onViewOnMap?.(group.placeKey);
             }}
             className={`relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`}
-            aria-label={`View ${group.name} on map`}
-            title="View on map"
+            aria-label={`${t('viewOnMap')}: ${group.name}`}
+            title={t('viewOnMap')}
         >
             <span
                 className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
@@ -757,6 +763,7 @@ function DirectoryPlaceGroupCard({
 }
 
 function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource }) {
+    const { t } = useLocale();
     const place = useMemo(() => ({
         address: row.locationLabel || row.contextLabel || row.placeName || '',
         lat: null,
@@ -804,7 +811,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             ) : null}
                             <StatusBadge status={row.status || 'list_only'} />
                             <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-900">
-                                List only
+                                {t('listOnly')}
                             </span>
                         </div>
                         {detailPath && row.status !== 'unavailable' ? (
@@ -821,7 +828,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             <p className="mt-1 text-sm text-slate-400">{row.locationLabel}</p>
                         ) : null}
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                            <span>{row.resourceType === 'hard' ? 'Place' : 'Programme/service'}</span>
+                            <span>{row.resourceType === 'hard' ? t('placeType') : t('offeringType')}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
                                 <span className="normal-case tracking-normal text-brand-700">
@@ -847,7 +854,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                                     className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 transition hover:text-red-600"
                                 >
                                     <Trash2 size={15} />
-                                    Remove
+                                    {t('remove')}
                                 </button>
                             ) : null}
                         </div>
@@ -858,10 +865,10 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                     <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
                         {detailPath && row.status !== 'unavailable' ? (
                             <Link to={detailPath} reloadDocument className="text-brand-700 transition hover:text-brand-800">
-                                View details
+                                {t('viewDetails')}
                             </Link>
                         ) : (
-                            <span className="text-slate-400">View details unavailable</span>
+                            <span className="text-slate-400">{t('viewDetailsUnavailable')}</span>
                         )}
                     </div>
                 ) : null}
@@ -930,6 +937,7 @@ function DirectoryUnmappedSection({
     canSaveResources,
     onRemoveResource,
 }) {
+    const { t } = useLocale();
     if (!rows.length) {
         return null;
     }
@@ -937,10 +945,10 @@ function DirectoryUnmappedSection({
     return (
         <section className={`border border-slate-200 ${interactive ? 'rounded-[28px] bg-white p-5 shadow-sm sm:p-6' : 'rounded-[30px] bg-slate-50/70 p-5 shadow-none sm:p-6'}`}>
             <div className={`border-b ${interactive ? 'border-slate-100 pb-4' : 'border-slate-200/80 pb-3'}`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Unmapped resources</p>
-                <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Resources not shown on map</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('unmappedResources')}</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{t('resourcesNotShownOnMap')}</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">
-                    These programmes or services are in the directory but do not have a place or address to show on the map.
+                    {t('unmappedResourcesDescription')}
                 </p>
             </div>
 
@@ -982,6 +990,7 @@ export default function SharedMapDirectoryList({
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
 }) {
+    const { t } = useLocale();
     const location = useLocation();
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
@@ -1060,7 +1069,7 @@ export default function SharedMapDirectoryList({
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
-                    No places or resources match this map search.
+                    {t('noMapSearchResults')}
                 </div>
             </DirectoryReturnPathContext.Provider>
         );

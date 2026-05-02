@@ -6,6 +6,7 @@ import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
 function normalizeReturnTo(value) {
     const text = String(value || '').trim();
@@ -20,6 +21,7 @@ export default function AuthPage({ isPartner = false }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
+    const { t } = useLocale();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -68,14 +70,14 @@ export default function AuthPage({ isPartner = false }) {
             login(res.user);
             navigate(resolvePostAuthDestination(), { replace: true });
         } catch (err) {
-            setError(err.message || 'Google sign-in did not work. Please try again.');
+            setError(err.message || t('googleSignInFailed'));
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleError = () => {
-        setError('Google sign-in did not work. Please try again.');
+        setError(t('googleSignInFailed'));
     };
 
     return (
@@ -85,16 +87,16 @@ export default function AuthPage({ isPartner = false }) {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <BrandLockup showTagline className="justify-center" textClassName="text-center" />
-                    <h1 className="mt-6 text-3xl font-bold" style={{ color: 'var(--color-text)' }}>{isPartner ? 'Partner Sign In' : 'Sign In'}</h1>
+                    <h1 className="mt-6 text-3xl font-bold" style={{ color: 'var(--color-text)' }}>{isPartner ? t('partnerSignIn') : t('signInTitle')}</h1>
                     <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                        {isPartner ? 'Manage resources, users, and service areas.' : 'Save resources, create maps, and keep your profile up to date.'}
+                        {isPartner ? t('partnerSignInSubtitle') : t('userSignInSubtitle')}
                     </p>
                 </div>
 
                 {/* Tabs - Only show Register if NOT partner */}
                 {!isPartner && (
                     <div className="flex rounded-2xl p-1 mb-6" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
-                        {[{ key: 'login', label: 'Sign In', Icon: LogIn }, { key: 'register', label: 'Register', Icon: UserPlus }].map(({ key, label, Icon }) => (
+                        {[{ key: 'login', label: t('signIn'), Icon: LogIn }, { key: 'register', label: t('register'), Icon: UserPlus }].map(({ key, label, Icon }) => (
                             <button
                                 key={key}
                                 id={`auth-tab-${key}`}
@@ -119,7 +121,7 @@ export default function AuthPage({ isPartner = false }) {
                         />
                         <div className="flex items-center w-full my-6">
                             <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
-                            <div className="px-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>OR</div>
+                            <div className="px-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{t('or')}</div>
                             <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
                         </div>
                     </div>
@@ -130,19 +132,19 @@ export default function AuthPage({ isPartner = false }) {
                     {tab === 'register' && !isPartner && (
                         <>
                             <div>
-                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Your Name</label>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>{t('yourName')}</label>
                                 <input
                                     id="auth-name"
                                     type="text"
                                     required
-                                    placeholder="e.g. John Doe"
+                                    placeholder={t('namePlaceholder')}
                                     value={form.name}
                                     onChange={set('name')}
                                     className=" input-field"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Postal code (optional)</label>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>{t('postalCodeOptional')}</label>
                                 <input
                                     id="auth-postal-code"
                                     type="text"
@@ -153,7 +155,7 @@ export default function AuthPage({ isPartner = false }) {
                                     autoComplete="postal-code"
                                 />
                                 <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                                    Add it now to see nearby resources and services available in your partner area. You can also add it later.
+                                    {t('registerPostalHelp')}
                                 </p>
                             </div>
                         </>
@@ -161,20 +163,20 @@ export default function AuthPage({ isPartner = false }) {
 
                     <div>
                         <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
-                            {isPartner ? 'Username' : 'Email Address'}
+                            {isPartner ? t('username') : t('emailAddress')}
                         </label>
                         <input
                             id="auth-login-id"
                             type={isPartner ? 'text' : 'email'}
                             required
-                            placeholder={isPartner ? 'Enter your username' : 'you@example.com'}
+                            placeholder={isPartner ? t('enterUsername') : t('emailPlaceholder')}
                             value={isPartner ? form.username : form.email}
                             onChange={isPartner ? set('username') : set('email')}
                             className=" input-field"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Password</label>
+                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>{t('password')}</label>
                         <div className="relative">
                             <input
                                 id="auth-password"
@@ -189,7 +191,7 @@ export default function AuthPage({ isPartner = false }) {
                                 type="button"
                                 onClick={() => setShowPass(v => !v)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                aria-label={showPass ? 'Hide password' : 'Show password'}
+                                aria-label={showPass ? t('hidePassword') : t('showPassword')}
                             >
                                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
@@ -210,15 +212,15 @@ export default function AuthPage({ isPartner = false }) {
                     >
                         {loading ? (
                             <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : tab === 'login' ? <><LogIn size={18} /> Sign In</> : <><UserPlus size={18} /> Create Account</>}
+                        ) : tab === 'login' ? <><LogIn size={18} /> {t('signIn')}</> : <><UserPlus size={18} /> {t('createAccount')}</>}
                     </button>
                 </form>
 
                 <div className="mt-4 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     {isPartner ? (
-                        <>Looking for user login? <Link to="/login" className="text-brand-600 font-semibold hover:underline">Click here</Link></>
+                        <>{t('lookingForUserLogin')} <Link to="/login" className="text-brand-600 font-semibold hover:underline">{t('clickHere')}</Link></>
                     ) : (
-                        <>Staff or admin? <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">Log in here</Link></>
+                        <>{t('staffOrAdmin')} <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">{t('logInHere')}</Link></>
                     )}
                 </div>
             </div>

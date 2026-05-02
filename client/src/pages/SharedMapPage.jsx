@@ -10,23 +10,25 @@ import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 
 function UnavailableState({ message }) {
+    const { t } = useLocale();
     return (
         <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-12 sm:px-6 lg:px-8">
             <div className="w-full rounded-[32px] border border-slate-200 bg-white p-8 text-center shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Shared Map</p>
-                <h1 className="mt-3 text-3xl font-bold text-slate-900">This shared map is no longer available</h1>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('sharedMap')}</p>
+                <h1 className="mt-3 text-3xl font-bold text-slate-900">{t('sharedMapUnavailableTitle')}</h1>
                 <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                    {message || 'The owner may have unpublished or removed this map.'}
+                    {message || t('sharedMapUnavailableDefault')}
                 </p>
                 <div className="mt-6 flex justify-center">
                     <Link to="/discover" className="btn-primary justify-center">
-                        Explore CareAround SG
+                        {t('exploreCareAround')}
                         <ArrowRight size={16} />
                     </Link>
                 </div>
@@ -36,12 +38,13 @@ function UnavailableState({ message }) {
 }
 
 function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView }) {
+    const { t } = useLocale();
     return (
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                     <span className="inline-flex rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-                        Shared Map
+                        {t('sharedMap')}
                     </span>
                     <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
                         {directory.name}
@@ -60,7 +63,7 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                         className="btn-ghost justify-center border border-slate-200 text-slate-700"
                     >
                         <Printer size={16} />
-                        Print-friendly view
+                        {t('printFriendlyView')}
                     </button>
                     {!isOwner && isAuth ? (
                         <button
@@ -70,7 +73,7 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                             className="btn-primary justify-center self-start disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <CopyPlus size={16} />
-                            {copying ? 'Copying…' : 'Copy to My Maps'}
+                            {copying ? t('copying') : t('copyToMyMaps')}
                         </button>
                     ) : null}
                 </div>
@@ -78,35 +81,35 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
 
             <div className="mt-6 flex flex-wrap gap-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Curated resources</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('curatedResources')}</p>
                     <p className="mt-1 text-2xl font-extrabold text-slate-900">{directory.summary.resourceCount}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Places</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('places')}</p>
                     <p className="mt-1 text-2xl font-extrabold text-slate-900">{directory.summary.placeCount}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Mode</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">View-only map</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{t('mode')}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">{t('viewOnlyMap')}</p>
                 </div>
             </div>
 
             {!isAuth ? (
                 <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-brand-100 bg-brand-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className="text-sm font-semibold text-brand-800">Sign in to save resources or keep your own copy of this map.</p>
-                        <p className="mt-1 text-sm text-brand-700">You can browse this shared map without an account.</p>
+                        <p className="text-sm font-semibold text-brand-800">{t('signInToSaveSharedTitle')}</p>
+                        <p className="mt-1 text-sm text-brand-700">{t('signInToSaveSharedDescription')}</p>
                     </div>
                     <Link to="/login" className="btn-primary justify-center">
                         <LogIn size={16} />
-                        Sign in
+                        {t('signIn')}
                     </Link>
                 </div>
             ) : null}
 
             {isOwner ? (
                 <p className="mt-5 text-sm font-medium text-slate-500">
-                    You are viewing the public view-only version of your shared map.
+                    {t('ownerViewingPublicShared')}
                 </p>
             ) : null}
 
@@ -130,6 +133,7 @@ function SharedMapMobileControls({
     onOpenPrintView,
 }) {
     const [open, setOpen] = useState(false);
+    const { t } = useLocale();
 
     const runDrawerAction = useCallback((action) => {
         setOpen(false);
@@ -146,7 +150,7 @@ function SharedMapMobileControls({
                         type="button"
                         onClick={() => setOpen(true)}
                         className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-transform active:scale-95"
-                        aria-label="Open shared map controls"
+                        aria-label={t('openSharedMapControls')}
                     >
                         <Menu size={20} />
                     </button>
@@ -167,21 +171,21 @@ function SharedMapMobileControls({
                             background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
                         }}
                     >
-                        <Drawer.Title className="sr-only">Shared map controls</Drawer.Title>
+                        <Drawer.Title className="sr-only">{t('sharedMapControls')}</Drawer.Title>
                         <Drawer.Description className="sr-only">
-                            Search this shared map, adjust the distance anchor, and sign in to save or personalise it.
+                            {t('sharedMapControlsDescription')}
                         </Drawer.Description>
 
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-600">Shared Map</p>
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-600">{t('sharedMap')}</p>
                                 <h2 className="mt-1 truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
                             </div>
 
                             <button
                                 type="button"
                                 onClick={() => setOpen(false)}
-                                aria-label="Close shared map controls"
+                                aria-label={t('closeSharedMapControls')}
                                 className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
                             >
                                 <X size={18} />
@@ -196,10 +200,10 @@ function SharedMapMobileControls({
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-brand-900">
-                                            Sign in to save and personalise this map
+                                            {t('signInSavePersonalizeMap')}
                                         </p>
                                         <p className="mt-1 text-[13px] leading-5 text-brand-800/90">
-                                            Sign up or log in to save resources, keep your own copy, and continue exploring nearby support.
+                                            {t('signInSavePersonalizeMapHelp')}
                                         </p>
                                     </div>
                                 </div>
@@ -213,7 +217,7 @@ function SharedMapMobileControls({
                                             className="btn-primary h-12 w-full justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             <CopyPlus size={16} />
-                                            {copying ? 'Copying…' : 'Copy to My Maps'}
+                                            {copying ? t('copying') : t('copyToMyMaps')}
                                         </button>
                                     ) : (
                                         <Link
@@ -222,7 +226,7 @@ function SharedMapMobileControls({
                                             className="btn-primary h-12 w-full justify-center px-4 text-sm"
                                         >
                                             <LogIn size={16} />
-                                            Sign up or log in
+                                            {t('signUpOrLogIn')}
                                         </Link>
                                     )}
                                 </div>
@@ -239,7 +243,7 @@ function SharedMapMobileControls({
                                     className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700"
                                 >
                                     <Printer size={16} />
-                                    Print-friendly view
+                                    {t('printFriendlyView')}
                                 </button>
                             </div>
 
@@ -247,7 +251,7 @@ function SharedMapMobileControls({
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                                         <Search size={15} className="text-slate-500" />
-                                        Search this shared map
+                                        {t('searchThisMap')}
                                     </div>
                                     <DirectorySearchBar
                                         value={query}
@@ -278,6 +282,7 @@ export default function SharedMapPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuth, user } = useAuth();
+    const { t } = useLocale();
     const [directory, setDirectory] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -303,11 +308,11 @@ export default function SharedMapPage() {
             setDirectory(nextDirectory);
         } catch (err) {
             console.error(err);
-            setError(err.message || 'This shared map is no longer available');
+            setError(err.message || t('sharedMapUnavailableTitle'));
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, [token, t]);
 
     useEffect(() => {
         loadDirectory();
@@ -364,7 +369,7 @@ export default function SharedMapPage() {
             navigate(`/my-directory/maps/${copied.id}`);
         } catch (err) {
             console.error(err);
-            setCopyError(err.message || 'Failed to copy this shared map.');
+            setCopyError(err.message || t('failedCopySharedMap'));
         } finally {
             setCopying(false);
         }
@@ -422,7 +427,7 @@ export default function SharedMapPage() {
                             className="btn-ghost justify-center border border-slate-200 text-slate-700"
                         >
                             <ArrowLeft size={16} />
-                            Back to interactive view
+                            {t('backToInteractiveView')}
                         </button>
                     </div>
                 </div>
@@ -434,7 +439,7 @@ export default function SharedMapPage() {
                         generatedAt={new Date()}
                         activeAnchor={activeAnchor}
                         shareUrl={sharedDirectoryUrl}
-                        footerNote="Open the shared link for the full interactive map."
+                        footerNote={t('openSharedLinkForInteractiveMap')}
                         className="mx-auto"
                     />
                 </div>
@@ -450,7 +455,7 @@ export default function SharedMapPage() {
                         <BrandLockup />
                         {!isAuth ? (
                             <Link to="/login" className="btn-ghost justify-center border border-slate-200 text-slate-700">
-                                Sign in
+                                {t('signIn')}
                             </Link>
                         ) : null}
                     </div>
@@ -513,7 +518,7 @@ export default function SharedMapPage() {
                                     onHoverPlaceEnd={handleMapHoverEnd}
                                     markerMode="number"
                                     placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                    emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
+                                    emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
                                     mapHeightClassName="h-[540px]"
                                 />
                             )}
@@ -528,7 +533,7 @@ export default function SharedMapPage() {
                                     onHoverPlaceEnd={handleMapHoverEnd}
                                     markerMode="number"
                                     placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                    emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
+                                    emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
                                     mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                 />
                             )}
@@ -555,7 +560,7 @@ export default function SharedMapPage() {
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 markerMode="number"
                                 placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
+                                emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
                                 mapHeightClassName="h-[540px]"
                             />
                         )}
@@ -570,7 +575,7 @@ export default function SharedMapPage() {
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 markerMode="number"
                                 placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                emptyLabel={query ? 'No mappable places match this map search.' : 'This map does not have any mappable places yet.'}
+                                emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
                                 mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                             />
                         )}

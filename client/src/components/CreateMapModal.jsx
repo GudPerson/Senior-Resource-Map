@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Map, Search, X } from 'lucide-react';
 
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
 const EMPTY_ASSET_KEYS = [];
 
@@ -9,8 +10,8 @@ function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
 }
 
-function typeLabel(resourceType) {
-    return resourceType === 'hard' ? 'Place' : 'Programme/service';
+function typeLabel(resourceType, t) {
+    return resourceType === 'hard' ? t('placeType') : t('offeringType');
 }
 
 export default function CreateMapModal({
@@ -23,6 +24,7 @@ export default function CreateMapModal({
     onClose,
     onSubmit,
 }) {
+    const { t } = useLocale();
     const [name, setName] = useState('');
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState('all');
@@ -43,12 +45,12 @@ export default function CreateMapModal({
         if (!normalized) return assets;
 
         return assets.filter((asset) => (
-            [asset.name, asset.subCategory, asset.address, typeLabel(asset.resourceType)]
+            [asset.name, asset.subCategory, asset.address, typeLabel(asset.resourceType, t)]
                 .map(normalizeText)
                 .join(' ')
                 .includes(normalized)
         ));
-    }, [query, filter, savedAssets]);
+    }, [query, filter, savedAssets, t]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -87,7 +89,7 @@ export default function CreateMapModal({
             );
             
             if (hasCheckedOfferings) {
-                setValidationError(`Keep ${asset.name} selected while programmes or services at this place are still selected.`);
+                setValidationError(t('keepPlaceSelected', { name: asset.name }));
                 return;
             }
         }
@@ -138,22 +140,22 @@ export default function CreateMapModal({
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
-                            {isCreateMode ? 'Create map' : 'Choose map resources'}
+                            {isCreateMode ? t('createMap') : t('chooseMapResources')}
                         </p>
                         <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                            {isCreateMode ? 'Create a map from saved resources' : 'Choose what stays in this map'}
+                            {isCreateMode ? t('createMapFromSaved') : t('chooseWhatStaysInMap')}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
                             {isCreateMode
-                                ? 'Pick the saved resources you want to keep together.'
-                                : 'Tick the saved resources you want included in this map.'}
+                                ? t('pickSavedResourcesTogether')
+                                : t('tickSavedResourcesIncluded')}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                        aria-label="Close"
+                        aria-label={t('close')}
                     >
                         <X size={20} />
                     </button>
@@ -163,14 +165,14 @@ export default function CreateMapModal({
                     {isCreateMode ? (
                         <div className="mb-5">
                             <label htmlFor="create-map-name" className="block text-sm font-semibold text-slate-700">
-                                Map name
+                                {t('mapName')}
                             </label>
                             <input
                                 id="create-map-name"
                                 type="text"
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
-                                placeholder="For example, North-west support options"
+                                placeholder={t('mapNamePlaceholder')}
                                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                 maxLength={255}
                                 autoFocus
@@ -180,7 +182,7 @@ export default function CreateMapModal({
 
                     <div className="mb-4">
                         <label htmlFor="create-map-search" className="block text-sm font-semibold text-slate-700">
-                            Choose saved resources
+                            {t('chooseSavedResources')}
                         </label>
                         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
                             <div className="relative flex-1">
@@ -190,7 +192,7 @@ export default function CreateMapModal({
                                     type="search"
                                     value={query}
                                     onChange={(event) => setQuery(event.target.value)}
-                                    placeholder="Search your saved resources"
+                                    placeholder={t('searchYourSavedResources')}
                                     className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                 />
                             </div>
@@ -202,7 +204,7 @@ export default function CreateMapModal({
                                         onClick={() => setFilter(f)}
                                         className={`flex-1 rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
-                                        {f === 'hard' ? 'Place' : f === 'soft' ? 'Programme/service' : 'All'}
+                                        {f === 'hard' ? t('placeType') : f === 'soft' ? t('offeringType') : t('all')}
                                     </button>
                                 ))}
                             </div>
@@ -214,17 +216,17 @@ export default function CreateMapModal({
                             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm">
                                 <Map size={24} />
                             </div>
-                            <h3 className="mt-4 text-lg font-bold text-slate-900">No saved resources yet</h3>
+                            <h3 className="mt-4 text-lg font-bold text-slate-900">{t('noSavedResourcesTitle')}</h3>
                             <p className="mt-2 text-sm text-slate-500">
                                 {isCreateMode
-                                    ? 'Browse Discover and save a few resources first, then create a map from them.'
-                                    : 'Browse Discover and save a few resources first.'}
+                                    ? t('noSavedResourcesForMapCreate')
+                                    : t('noSavedResourcesForMapManage')}
                             </p>
                         </div>
                     ) : filteredAssets.length === 0 ? (
                         <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
-                            <h3 className="text-lg font-bold text-slate-900">No saved resources match your search</h3>
-                            <p className="mt-2 text-sm text-slate-500">Try another search term or clear the search.</p>
+                            <h3 className="text-lg font-bold text-slate-900">{t('noSavedResultsTitle')}</h3>
+                            <p className="mt-2 text-sm text-slate-500">{t('tryAnotherSearchOrClear')}</p>
                         </div>
                     ) : (
                         <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
@@ -248,7 +250,7 @@ export default function CreateMapModal({
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
-                                                    {typeLabel(asset.resourceType)}
+                                                    {typeLabel(asset.resourceType, t)}
                                                 </span>
                                                 {asset.subCategory ? (
                                                     <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
@@ -256,21 +258,21 @@ export default function CreateMapModal({
                                                     </span>
                                                 ) : null}
                                                 <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                                    Resource #{asset.resourceId}
+                                                    {t('resourceNumber', { id: asset.resourceId })}
                                                 </span>
                                                 {asset.status === 'unavailable' ? (
                                                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                                                        No longer available
+                                                        {t('noLongerAvailable')}
                                                     </span>
                                                 ) : !asset.hasCoordinates ? (
                                                     <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                                        Not shown on map
+                                                        {t('notShownOnMap')}
                                                     </span>
                                                 ) : null}
                                             </div>
                                             <p className="mt-2 text-sm font-semibold text-slate-900">{asset.name}</p>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                {asset.address || 'Location details are not available yet.'}
+                                                {asset.address || t('locationDetailsUnavailable')}
                                             </p>
                                         </div>
                                     </label>
@@ -287,11 +289,14 @@ export default function CreateMapModal({
 
                     <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-500">
-                            {selectedAssets.length} {selectedAssets.length === 1 ? 'resource selected' : 'resources selected'}
+                            {t('selectedResourcesCount', {
+                                count: selectedAssets.length,
+                                label: selectedAssets.length === 1 ? t('resourceSelected') : t('resourcesSelected'),
+                            })}
                         </p>
                         <div className="flex flex-col gap-3 sm:flex-row">
                             <button type="button" onClick={onClose} className="btn-ghost justify-center">
-                                Cancel
+                                {t('cancel')}
                             </button>
                             <button
                                 type="submit"
@@ -299,7 +304,7 @@ export default function CreateMapModal({
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                                 data-testid="create-map-submit"
                             >
-                                {submitting ? (isCreateMode ? 'Creating…' : 'Saving…') : (isCreateMode ? 'Create map' : 'Update map')}
+                                {submitting ? (isCreateMode ? t('creating') : t('saving')) : (isCreateMode ? t('createMap') : t('updateMap'))}
                             </button>
                         </div>
                     </div>

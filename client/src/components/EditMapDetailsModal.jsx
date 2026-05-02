@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pencil, X } from 'lucide-react';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
 export default function EditMapDetailsModal({
     isOpen,
@@ -9,6 +10,7 @@ export default function EditMapDetailsModal({
     onClose,
     onSubmit,
 }) {
+    const { t } = useLocale();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
 
@@ -36,14 +38,14 @@ export default function EditMapDetailsModal({
             <div className="w-full max-w-2xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Map details</p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">Update this directory title and description</h2>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('mapDetails')}</p>
+                        <h2 className="mt-2 text-2xl font-bold text-slate-900">{t('updateDirectoryTitleDescription')}</h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                        aria-label="Close"
+                        aria-label={t('close')}
                     >
                         <X size={20} />
                     </button>
@@ -52,7 +54,7 @@ export default function EditMapDetailsModal({
                 <form onSubmit={handleSubmit} className="space-y-5 px-5 py-5 sm:px-6">
                     <div>
                         <label htmlFor="edit-map-name" className="block text-sm font-semibold text-slate-700">
-                            Directory title
+                            {t('directoryTitle')}
                         </label>
                         <input
                             id="edit-map-name"
@@ -67,13 +69,13 @@ export default function EditMapDetailsModal({
 
                     <div>
                         <label htmlFor="edit-map-description" className="block text-sm font-semibold text-slate-700">
-                            Description or subtitle
+                            {t('descriptionOrSubtitle')}
                         </label>
                         <textarea
                             id="edit-map-description"
                             value={description}
                             onChange={(event) => setDescription(event.target.value)}
-                            placeholder="Add a short note to explain what this directory is for."
+                            placeholder={t('mapDescriptionPlaceholder')}
                             className="mt-2 min-h-[132px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                             maxLength={500}
                         />
@@ -88,17 +90,17 @@ export default function EditMapDetailsModal({
 
                     <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
                         <button type="button" onClick={onClose} className="btn-ghost justify-center">
-                            Cancel
+                            {t('cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={!canSubmit}
                             className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {submitting ? 'Saving…' : (
+                            {submitting ? t('saving') : (
                                 <>
                                     <Pencil size={16} />
-                                    Save details
+                                    {t('saveDetails')}
                                 </>
                             )}
                         </button>

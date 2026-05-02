@@ -11,26 +11,31 @@ import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
 import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import { DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
-
-const SORT_OPTIONS = [
-    { value: 'recent', label: 'Recently saved' },
-    { value: 'name-asc', label: 'Name A-Z' },
-    { value: 'name-desc', label: 'Name Z-A' },
-];
-
-const MAP_SORT_OPTIONS = [
-    { value: 'recent', label: 'Recently updated' },
-    { value: 'name-asc', label: 'Name A-Z' },
-    { value: 'name-desc', label: 'Name Z-A' },
-];
 
 const DIRECTORY_SECTIONS = {
     saved: 'saved-assets',
     maps: 'my-maps',
 };
+
+function getSortOptions(t) {
+    return [
+        { value: 'recent', label: t('recentlySaved') },
+        { value: 'name-asc', label: t('nameAZ') },
+        { value: 'name-desc', label: t('nameZA') },
+    ];
+}
+
+function getMapSortOptions(t) {
+    return [
+        { value: 'recent', label: t('recentlyUpdated') },
+        { value: 'name-asc', label: t('nameAZ') },
+        { value: 'name-desc', label: t('nameZA') },
+    ];
+}
 
 function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
@@ -72,8 +77,8 @@ function sortMaps(items, sortOrder) {
     });
 }
 
-function formatSectionLabel(section) {
-    return section === DIRECTORY_SECTIONS.maps ? 'My Maps' : 'Saved Resources';
+function formatSectionLabel(section, t) {
+    return section === DIRECTORY_SECTIONS.maps ? t('myMaps') : t('savedResources');
 }
 
 function SavedAssetsLoadingState() {
@@ -119,11 +124,12 @@ function MyMapsLoadingState() {
 }
 
 function DirectoryTabs({ activeSection, onSelect }) {
+    const { t } = useLocale();
     return (
         <div className="mt-6 inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner">
             {[
-                { value: DIRECTORY_SECTIONS.saved, label: 'Saved Resources', icon: Bookmark },
-                { value: DIRECTORY_SECTIONS.maps, label: 'My Maps', icon: Map },
+                { value: DIRECTORY_SECTIONS.saved, label: t('savedResources'), icon: Bookmark },
+                { value: DIRECTORY_SECTIONS.maps, label: t('myMaps'), icon: Map },
             ].map((tab) => {
                 const active = activeSection === tab.value;
                 const Icon = tab.icon;
@@ -149,6 +155,7 @@ function DirectoryTabs({ activeSection, onSelect }) {
 
 export default function MyDirectoryPage() {
     const { user, logout, isImpersonating } = useAuth();
+    const { t } = useLocale();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const {
@@ -182,6 +189,8 @@ export default function MyDirectoryPage() {
     const [mobileSavedControlsOpen, setMobileSavedControlsOpen] = useState(false);
     const [mobileMapControlsOpen, setMobileMapControlsOpen] = useState(false);
     const isCompactDirectory = useMediaQuery('(max-width: 1023px)');
+    const sortOptions = useMemo(() => getSortOptions(t), [t]);
+    const mapSortOptions = useMemo(() => getMapSortOptions(t), [t]);
 
     useEffect(() => {
         const nextSection = searchParams.get('section') === DIRECTORY_SECTIONS.maps
@@ -241,13 +250,13 @@ export default function MyDirectoryPage() {
             return items;
         } catch (err) {
             console.error(err);
-            setMapsError(err.message || 'Failed to load your maps.');
+            setMapsError(err.message || t('failedLoadMaps'));
             setMapsLoaded(true);
             return [];
         } finally {
             setMapsLoading(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (activeSection !== DIRECTORY_SECTIONS.maps || mapsLoaded) return;
@@ -267,7 +276,7 @@ export default function MyDirectoryPage() {
                 detailPath: asset.detailPath,
             });
         } catch (err) {
-            setActionError(err.message || 'Failed to remove this saved resource.');
+            setActionError(err.message || t('failedRemoveSavedResource'));
         }
     }
 
@@ -292,7 +301,7 @@ export default function MyDirectoryPage() {
             navigate(`/my-directory/maps/${created.id}`);
         } catch (err) {
             console.error(err);
-            setCreateError(err.message || 'Failed to create your map.');
+            setCreateError(err.message || t('failedCreateMap'));
         } finally {
             setCreateSubmitting(false);
         }
@@ -312,14 +321,14 @@ export default function MyDirectoryPage() {
             setRenameTarget(null);
         } catch (err) {
             console.error(err);
-            setRenameError(err.message || 'Failed to rename this map.');
+            setRenameError(err.message || t('failedRenameMap'));
         } finally {
             setRenameSubmitting(false);
         }
     }
 
     async function handleDeleteMap(map) {
-        const confirmed = window.confirm(`Delete "${map.name}"? This removes the map and the resources inside it. Your saved resources will stay in My Directory.`);
+        const confirmed = window.confirm(t('deleteMapConfirm', { name: map.name }));
         if (!confirmed) return;
 
         setDeletingMapId(map.id);
@@ -329,13 +338,13 @@ export default function MyDirectoryPage() {
             setMaps((items) => items.filter((item) => item.id !== map.id));
         } catch (err) {
             console.error(err);
-            setMapsError(err.message || 'Failed to delete this map.');
+            setMapsError(err.message || t('failedDeleteMap'));
         } finally {
             setDeletingMapId(null);
         }
     }
 
-    const sectionLabel = formatSectionLabel(activeSection);
+    const sectionLabel = formatSectionLabel(activeSection, t);
 
     async function handleLogout() {
         const impersonationExit = isImpersonating;
@@ -358,18 +367,18 @@ export default function MyDirectoryPage() {
                     <DashboardMobileNavigation
                         isImpersonating={isImpersonating}
                         onLogout={handleLogout}
-                        sectionContextLabel="My Directory"
+                        sectionContextLabel={t('myDirectory')}
                         sectionLabel={sectionLabel}
                         user={user}
                     />
                     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
                         <header className={`mb-6 border border-slate-200 bg-white shadow-sm ${isCompactDirectory ? 'rounded-[28px] px-4 py-5' : 'rounded-3xl px-5 py-6 sm:px-6'}`}>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
-                            <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>My Directory</h1>
+                            <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>{t('myDirectory')}</h1>
                             <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps
-                                    ? 'Maps you created from resources you saved.'
-                                    : 'Your saved resources in one place.'}
+                                    ? t('directoryMapsIntro')
+                                    : t('directorySavedIntro')}
                             </p>
                             <DirectoryTabs activeSection={activeSection} onSelect={switchSection} />
                         </header>
@@ -378,10 +387,10 @@ export default function MyDirectoryPage() {
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                                 <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">Saved resources</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">{t('savedResources')}</p>
                                         <p className="mt-1 text-sm font-semibold text-slate-600">
-                                            {totalSavedCount} saved {totalSavedCount === 1 ? 'resource' : 'resources'}
-                                            {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
+                                            {t('savedResourcesCount', { count: totalSavedCount, label: totalSavedCount === 1 ? t('resource') : t('resources') })}
+                                            {hasSearch ? ` • ${t('matchingCount', { count: filteredAssets.length })}` : ''}
                                         </p>
                                     </div>
                                     <button
@@ -390,14 +399,14 @@ export default function MyDirectoryPage() {
                                         className="btn-ghost min-h-[44px] justify-center px-4 text-sm"
                                     >
                                         <SlidersHorizontal size={16} />
-                                        Refine
+                                        {t('refine')}
                                     </button>
                                 </div>
 
                                 <div className="hidden border-b border-slate-100 pb-5 lg:flex lg:flex-row lg:items-end lg:justify-between lg:gap-4">
                                     <div className="min-w-0 flex-1">
                                         <label htmlFor="saved-assets-search" className="block text-sm font-semibold text-slate-700">
-                                            Search saved resources
+                                            {t('searchSavedResources')}
                                         </label>
                                         <div className="relative mt-2">
                                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -406,7 +415,7 @@ export default function MyDirectoryPage() {
                                                 type="search"
                                                 value={searchTerm}
                                                 onChange={(event) => setSearchTerm(event.target.value)}
-                                                placeholder="Search by name, category, address, or type"
+                                                placeholder={t('searchSavedResourcesPlaceholder')}
                                                 className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                             />
                                             {searchTerm ? (
@@ -414,7 +423,7 @@ export default function MyDirectoryPage() {
                                                     type="button"
                                                     onClick={() => setSearchTerm('')}
                                                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                                                    aria-label="Clear search"
+                                                    aria-label={t('clearSearch')}
                                                 >
                                                     <X size={16} />
                                                 </button>
@@ -424,7 +433,7 @@ export default function MyDirectoryPage() {
 
                                     <div className="w-full lg:w-56">
                                         <label htmlFor="saved-assets-sort" className="block text-sm font-semibold text-slate-700">
-                                            Sort
+                                            {t('sort')}
                                         </label>
                                         <div className="relative mt-2">
                                             <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -434,7 +443,7 @@ export default function MyDirectoryPage() {
                                                 onChange={(event) => setSortOrder(event.target.value)}
                                                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                             >
-                                                {SORT_OPTIONS.map((option) => (
+                                                {sortOptions.map((option) => (
                                                     <option key={option.value} value={option.value}>
                                                         {option.label}
                                                     </option>
@@ -446,8 +455,8 @@ export default function MyDirectoryPage() {
 
                                 <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-sm font-medium text-slate-600">
-                                        {totalSavedCount} saved {totalSavedCount === 1 ? 'resource' : 'resources'}
-                                        {hasSearch ? ` • ${filteredAssets.length} matching` : ''}
+                                        {t('savedResourcesCount', { count: totalSavedCount, label: totalSavedCount === 1 ? t('resource') : t('resources') })}
+                                        {hasSearch ? ` • ${t('matchingCount', { count: filteredAssets.length })}` : ''}
                                     </p>
                                     {actionError ? (
                                         <p className="text-sm font-medium text-red-600">{actionError}</p>
@@ -481,10 +490,10 @@ export default function MyDirectoryPage() {
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                                 <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
                                     <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">My Maps</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">{t('myMaps')}</p>
                                         <p className="mt-1 text-sm font-semibold text-slate-600">
-                                            {maps.length} {maps.length === 1 ? 'map' : 'maps'}
-                                            {hasMapSearch ? ` • ${filteredMaps.length} matching` : ''}
+                                            {maps.length} {maps.length === 1 ? t('map') : t('maps')}
+                                            {hasMapSearch ? ` • ${t('matchingCount', { count: filteredMaps.length })}` : ''}
                                         </p>
                                     </div>
                                     <button
@@ -493,27 +502,27 @@ export default function MyDirectoryPage() {
                                         className="btn-ghost min-h-[44px] justify-center px-4 text-sm"
                                     >
                                         <SlidersHorizontal size={16} />
-                                        Refine
+                                        {t('refine')}
                                     </button>
                                 </div>
 
                                 <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                         <div>
-                                            <p className="text-sm font-semibold text-slate-700">Maps built from resources you saved</p>
+                                            <p className="text-sm font-semibold text-slate-700">{t('mapsBuiltFromSaved')}</p>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Keep related resources together in maps you can revisit, print, or share.
+                                                {t('mapsBuiltFromSavedHelp')}
                                             </p>
                                         </div>
                                         <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary justify-center">
-                                            Create map
+                                            {t('createMap')}
                                         </button>
                                     </div>
 
                                     <div className="hidden gap-4 lg:flex lg:flex-row lg:items-end">
                                         <div className="min-w-0 flex-1">
                                             <label htmlFor="my-maps-search" className="block text-sm font-semibold text-slate-700">
-                                                Search maps
+                                                {t('searchMaps')}
                                             </label>
                                             <div className="relative mt-2">
                                                 <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -522,7 +531,7 @@ export default function MyDirectoryPage() {
                                                     type="search"
                                                     value={mapSearchTerm}
                                                     onChange={(event) => setMapSearchTerm(event.target.value)}
-                                                    placeholder="Search by map name"
+                                                    placeholder={t('searchMapsPlaceholder')}
                                                     className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                                 />
                                                 {mapSearchTerm ? (
@@ -530,7 +539,7 @@ export default function MyDirectoryPage() {
                                                         type="button"
                                                         onClick={() => setMapSearchTerm('')}
                                                         className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                                                        aria-label="Clear map search"
+                                                        aria-label={t('clearMapSearch')}
                                                     >
                                                         <X size={16} />
                                                     </button>
@@ -540,7 +549,7 @@ export default function MyDirectoryPage() {
 
                                         <div className="w-full lg:w-56">
                                             <label htmlFor="my-maps-sort" className="block text-sm font-semibold text-slate-700">
-                                                Sort
+                                            {t('sort')}
                                             </label>
                                             <div className="relative mt-2">
                                                 <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -550,7 +559,7 @@ export default function MyDirectoryPage() {
                                                     onChange={(event) => setMapSortOrder(event.target.value)}
                                                     className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                                 >
-                                                    {MAP_SORT_OPTIONS.map((option) => (
+                                                    {mapSortOptions.map((option) => (
                                                         <option key={option.value} value={option.value}>
                                                             {option.label}
                                                         </option>
@@ -563,8 +572,8 @@ export default function MyDirectoryPage() {
 
                                 <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-sm font-medium text-slate-600">
-                                        {maps.length} {maps.length === 1 ? 'map' : 'maps'}
-                                        {hasMapSearch ? ` • ${filteredMaps.length} matching` : ''}
+                                        {maps.length} {maps.length === 1 ? t('map') : t('maps')}
+                                        {hasMapSearch ? ` • ${t('matchingCount', { count: filteredMaps.length })}` : ''}
                                     </p>
                                     {mapsError ? (
                                         <p className="text-sm font-medium text-red-600">{mapsError}</p>
@@ -577,10 +586,10 @@ export default function MyDirectoryPage() {
                                     <MyMapsEmptyState hasSavedAssets={hasSavedAssets} onCreate={() => setCreateModalOpen(true)} />
                                 ) : !hasFilteredMaps ? (
                                     <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
-                                        <p className="text-lg font-semibold text-slate-700">No maps match your search.</p>
-                                        <p className="mt-2 text-sm text-slate-500">Try another name or clear the current filter.</p>
+                                        <p className="text-lg font-semibold text-slate-700">{t('noMapsMatchTitle')}</p>
+                                        <p className="mt-2 text-sm text-slate-500">{t('noMapsMatchDescription')}</p>
                                         <button type="button" onClick={() => setMapSearchTerm('')} className="btn-ghost mt-5">
-                                            Clear Search
+                                            {t('clearSearch')}
                                         </button>
                                     </div>
                                 ) : (
@@ -635,18 +644,18 @@ export default function MyDirectoryPage() {
             <MobileBottomSheet
                 open={activeSection === DIRECTORY_SECTIONS.saved && mobileSavedControlsOpen}
                 onOpenChange={setMobileSavedControlsOpen}
-                title="Filter saved resources"
-                description="Search and sort your saved resources."
+                title={t('filterSavedResources')}
+                description={t('filterSavedResourcesDescription')}
                 headerActions={(
                     <button type="button" onClick={() => setMobileSavedControlsOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
-                        Done
+                        {t('done')}
                     </button>
                 )}
             >
                 <div className="space-y-4 pb-2">
                     <div>
                         <label htmlFor="saved-assets-search-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                            Search saved resources
+                            {t('searchSavedResources')}
                         </label>
                         <div className="relative mt-2">
                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -655,7 +664,7 @@ export default function MyDirectoryPage() {
                                 type="search"
                                 value={searchTerm}
                                 onChange={(event) => setSearchTerm(event.target.value)}
-                                placeholder="Search by name, category, address, or type"
+                                placeholder={t('searchSavedResourcesPlaceholder')}
                                 className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                             />
                             {searchTerm ? (
@@ -663,7 +672,7 @@ export default function MyDirectoryPage() {
                                     type="button"
                                     onClick={() => setSearchTerm('')}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                                    aria-label="Clear search"
+                                    aria-label={t('clearSearch')}
                                 >
                                     <X size={16} />
                                 </button>
@@ -673,7 +682,7 @@ export default function MyDirectoryPage() {
 
                     <div>
                         <label htmlFor="saved-assets-sort-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                            Sort
+                            {t('sort')}
                         </label>
                         <div className="relative mt-2">
                             <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -683,7 +692,7 @@ export default function MyDirectoryPage() {
                                 onChange={(event) => setSortOrder(event.target.value)}
                                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                             >
-                                {SORT_OPTIONS.map((option) => (
+                                    {sortOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>
@@ -697,18 +706,18 @@ export default function MyDirectoryPage() {
             <MobileBottomSheet
                 open={activeSection === DIRECTORY_SECTIONS.maps && mobileMapControlsOpen}
                 onOpenChange={setMobileMapControlsOpen}
-                title="Refine maps"
-                description="Search and sort your maps."
+                title={t('refineMaps')}
+                description={t('refineMapsDescription')}
                 headerActions={(
                     <button type="button" onClick={() => setMobileMapControlsOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
-                        Done
+                        {t('done')}
                     </button>
                 )}
             >
                 <div className="space-y-4 pb-2">
                     <div>
                         <label htmlFor="my-maps-search-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                            Search maps
+                            {t('searchMaps')}
                         </label>
                         <div className="relative mt-2">
                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -717,7 +726,7 @@ export default function MyDirectoryPage() {
                                 type="search"
                                 value={mapSearchTerm}
                                 onChange={(event) => setMapSearchTerm(event.target.value)}
-                                placeholder="Search by map name"
+                                placeholder={t('searchMapsPlaceholder')}
                                 className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                             />
                             {mapSearchTerm ? (
@@ -725,7 +734,7 @@ export default function MyDirectoryPage() {
                                     type="button"
                                     onClick={() => setMapSearchTerm('')}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                                    aria-label="Clear map search"
+                                    aria-label={t('clearMapSearch')}
                                 >
                                     <X size={16} />
                                 </button>
@@ -735,7 +744,7 @@ export default function MyDirectoryPage() {
 
                     <div>
                         <label htmlFor="my-maps-sort-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                            Sort
+                            {t('sort')}
                         </label>
                         <div className="relative mt-2">
                             <SlidersHorizontal size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -745,7 +754,7 @@ export default function MyDirectoryPage() {
                                 onChange={(event) => setMapSortOrder(event.target.value)}
                                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                             >
-                                {MAP_SORT_OPTIONS.map((option) => (
+                                    {mapSortOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>

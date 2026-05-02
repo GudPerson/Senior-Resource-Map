@@ -5,6 +5,7 @@ import { saveAs } from 'file-saver';
 import { toPng } from 'html-to-image';
 
 import MapDirectoryExportPanel from './MapDirectoryExportPanel.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
 const TRANSPARENT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -23,6 +24,7 @@ export default function MapImageExportButton({
     shareUrl = '',
     className = '',
 }) {
+    const { t } = useLocale();
     const exportRef = useRef(null);
     const exportReadyRef = useRef(false);
     const mapErrorRef = useRef(null);
@@ -160,7 +162,7 @@ export default function MapImageExportButton({
                 className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
             >
                 <ImageDown size={16} />
-                {exporting ? 'Exporting…' : 'Save as image'}
+                {exporting ? t('exporting') : t('saveAsImage')}
             </button>
             {error ? (
                 <p className="text-sm font-medium text-red-600">{error}</p>

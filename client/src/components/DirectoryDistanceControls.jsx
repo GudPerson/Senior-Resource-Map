@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Home, MapPin, X } from 'lucide-react';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
 export default function DirectoryDistanceControls({
     anchorState,
@@ -7,6 +8,7 @@ export default function DirectoryDistanceControls({
     compactLayout = 'inline',
     className = '',
 }) {
+    const { t } = useLocale();
     const {
         activeAnchor,
         activeMode,
@@ -23,13 +25,13 @@ export default function DirectoryDistanceControls({
     const [postalCodeInput, setPostalCodeInput] = useState('');
     const canSetTemporaryLocation = postalCodeInput.length === 6 && !isSettingTemporary;
     const setLocationHint = postalCodeInput.length === 6
-        ? 'Set postal-code location'
-        : 'Enter a 6-digit postal code first';
+        ? t('setPostalCodeLocation')
+        : t('enterPostalCodeFirst');
     const activeLocationLabel = activeMode === 'home'
-        ? 'Using home'
+        ? t('usingHome')
         : activeMode === 'temporary'
-            ? 'Using set location'
-            : 'Distance from';
+            ? t('usingSetLocation')
+            : t('distanceFrom');
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -44,8 +46,8 @@ export default function DirectoryDistanceControls({
             type="button"
             onClick={activateHome}
             disabled={isResolvingHome}
-            aria-label={activeMode === 'home' ? 'Using Home' : 'Use Home'}
-            title={activeMode === 'home' ? 'Using Home' : 'Use Home'}
+            aria-label={activeMode === 'home' ? t('usingHome') : t('useHome')}
+            title={activeMode === 'home' ? t('usingHome') : t('useHome')}
             className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl border transition ${
                 activeMode === 'home'
                     ? 'border-brand-200 bg-brand-50 text-brand-700'
@@ -63,13 +65,13 @@ export default function DirectoryDistanceControls({
             className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700"
         >
             <X size={16} />
-            Clear
+            {t('clear')}
         </button>
     ) : null;
 
     const locationInput = (
         <label className="min-w-0 flex-1">
-            <span className="sr-only">Set temporary location by postal code</span>
+            <span className="sr-only">{t('setTemporaryLocation')}</span>
             <div className="relative">
                 <MapPin size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -78,7 +80,7 @@ export default function DirectoryDistanceControls({
                     maxLength={6}
                     value={postalCodeInput}
                     onChange={(event) => setPostalCodeInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter postal code"
+                    placeholder={t('enterPostalCode')}
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
             </div>
@@ -112,7 +114,7 @@ export default function DirectoryDistanceControls({
                 {locateButton}
             </div>
             <p className="text-xs leading-5 text-slate-500">
-                Enter a postal code to compare distances from another location.
+                {t('postalDistanceHelp')}
             </p>
         </form>
     ) : (

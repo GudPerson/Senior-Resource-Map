@@ -28,9 +28,11 @@ function hasValidCoordinates(value) {
     return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
 }
 
-function formatDistance(distance) {
+function formatDistance(distance, t) {
     if (!Number.isFinite(distance)) return null;
-    return distance < 1 ? `${Math.round(distance * 1000)}m away` : `${distance.toFixed(1)}km away`;
+    return distance < 1
+        ? t('distanceMetersAway', { distance: Math.round(distance * 1000) })
+        : t('distanceKmAway', { distance: distance.toFixed(1) });
 }
 
 export default function ResourceDetailContent({
@@ -157,9 +159,9 @@ export default function ResourceDetailContent({
                     style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}
                 >
                     {asset.bannerUrl ? (
-                        <img src={asset.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+                        <img src={asset.bannerUrl} alt={t('bannerImageAlt')} className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
-                        <img src={asset.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                        <img src={asset.logoUrl} alt={t('logoImageAlt')} className="max-h-full max-w-full object-contain" />
                     )}
                 </div>
             )}
@@ -172,7 +174,7 @@ export default function ResourceDetailContent({
                     {asset.logoUrl && asset.bannerUrl ? (
                         <img
                             src={asset.logoUrl}
-                            alt="Logo"
+                            alt={t('logoImageAlt')}
                             className="w-20 h-20 rounded-2xl border object-contain bg-white flex-shrink-0"
                             style={{ borderColor: 'var(--color-border)' }}
                         />
@@ -183,7 +185,7 @@ export default function ResourceDetailContent({
                             style={{ color: subCatColors[asset.subCategory] || '#334155', borderColor: 'var(--color-border)' }}
                         >
                             {isHard ? <Building2 size={16} /> : <CalendarDays size={16} />}
-                            {asset.subCategory || (isHard ? 'Place' : 'Offering')}
+                            {asset.subCategory || (isHard ? t('place') : t('offering'))}
                         </div>
                         <h1 className={introTitleClass}>{asset.name}</h1>
                         {!isHard ? (
@@ -263,7 +265,7 @@ export default function ResourceDetailContent({
                                         <p className="font-bold text-slate-900">{t('placeLabel')}: {location.name}</p>
                                         {location._distance !== undefined && location._distance !== null ? (
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
-                                                {formatDistance(location._distance)}
+                                                {formatDistance(location._distance, t)}
                                             </span>
                                         ) : null}
                                     </div>
@@ -400,7 +402,7 @@ export default function ResourceDetailContent({
                             >
                                 {softAsset.logoUrl ? (
                                     <div className={isCompact ? 'flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1' : 'flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1 sm:h-14 sm:w-14'}>
-                                        <img src={softAsset.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                                        <img src={softAsset.logoUrl} alt={t('logoImageAlt')} className="max-w-full max-h-full object-contain" />
                                     </div>
                                 ) : (
                                     <div className={isCompact ? 'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600' : 'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600 sm:h-14 sm:w-14'}>

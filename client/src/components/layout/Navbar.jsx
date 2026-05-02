@@ -21,7 +21,7 @@ export default function Navbar() {
     const isMobile = useMediaQuery('(max-width: 639px)');
     const [mobileA11yOpen, setMobileA11yOpen] = useState(false);
 
-    const accountLabel = user?.name?.split(' ')[0] || 'Account';
+    const accountLabel = user?.name?.split(' ')[0] || t('account');
     const dashboardButtonActive = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/my-directory');
 
     async function handleLogout() {
@@ -77,7 +77,7 @@ export default function Navbar() {
                                         color: highContrast ? 'var(--color-surface)' : 'var(--color-text-secondary)',
                                         borderColor: highContrast ? 'var(--color-brand-strong)' : 'var(--color-border)',
                                     }}
-                                    aria-label="Open accessibility controls"
+                                    aria-label={t('openAccessibilityControls')}
                                     aria-expanded={mobileA11yOpen}
                                 >
                                     {highContrast ? <Moon size={16} /> : <Sun size={16} />}
@@ -88,7 +88,7 @@ export default function Navbar() {
                                     <button
                                         id="toggle-high-contrast"
                                         onClick={toggleHighContrast}
-                                        title="Toggle High Contrast"
+                                        title={t('toggleHighContrast')}
                                         aria-pressed={highContrast}
                                         className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] min-w-[40px] sm:min-h-[44px] sm:min-w-[44px]"
                                         style={{
@@ -105,8 +105,8 @@ export default function Navbar() {
                                         <button
                                             id="decrease-zoom"
                                             onClick={decreaseZoom}
-                                            title="Decrease Zoom"
-                                            aria-label="Decrease Zoom"
+                                            title={t('decreaseZoom')}
+                                            aria-label={t('decreaseZoom')}
                                             className="flex items-center justify-center px-2.5 py-2 transition-all min-h-[40px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] rounded-l-xl font-bold text-xs"
                                             style={{ color: 'var(--color-text-secondary)' }}
                                         >
@@ -117,8 +117,8 @@ export default function Navbar() {
                                             id="increase-zoom"
                                             onClick={increaseZoom}
                                             disabled={!canIncreaseZoom}
-                                            title="Increase Zoom"
-                                            aria-label="Increase Zoom"
+                                            title={t('increaseZoom')}
+                                            aria-label={t('increaseZoom')}
                                             className="flex items-center justify-center px-2.5 py-2 transition-all min-h-[40px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] rounded-r-xl font-bold text-xs disabled:cursor-not-allowed disabled:opacity-45"
                                             style={{ color: 'var(--color-text-secondary)' }}
                                         >
@@ -140,9 +140,9 @@ export default function Navbar() {
                                                 color: 'var(--color-brand-strong)',
                                             }}
                                         >
-                                            <span>Viewing as {user?.name}</span>
+                                            <span>{t('viewingAs', { name: user?.name || t('account') })}</span>
                                             {user?.impersonatedBy?.name ? (
-                                                <span className="opacity-70">via {user.impersonatedBy.name}</span>
+                                                <span className="opacity-70">{t('viewingVia', { name: user.impersonatedBy.name })}</span>
                                             ) : null}
                                         </div>
                                     ) : null}
@@ -166,7 +166,7 @@ export default function Navbar() {
                                         className="navbar-auth-button btn-ghost text-xs sm:text-sm px-2.5 py-2"
                                     >
                                         <LogOut size={16} />
-                                        <span className="hidden sm:inline">{isImpersonating ? 'Exit User View' : t('logout')}</span>
+                                        <span className="hidden sm:inline">{isImpersonating ? t('exitUserView') : t('logout')}</span>
                                     </button>
                                 </div>
                             ) : (
@@ -187,11 +187,11 @@ export default function Navbar() {
             <MobileBottomSheet
                 open={isMobile && mobileA11yOpen}
                 onOpenChange={setMobileA11yOpen}
-                title="Accessibility"
-                description="Adjust display contrast and text scaling without crowding the mobile header."
+                title={t('accessibility')}
+                description={t('accessibilityDescription')}
                 headerActions={(
                     <button type="button" onClick={() => setMobileA11yOpen(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
-                        Done
+                        {t('done')}
                     </button>
                 )}
             >
@@ -210,10 +210,10 @@ export default function Navbar() {
                     >
                         <div>
                             <p className="text-[15px] font-bold leading-tight">
-                                {highContrast ? 'Return to normal contrast' : 'Turn on high contrast'}
+                                {highContrast ? t('returnToNormalContrast') : t('turnOnHighContrast')}
                             </p>
                             <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                Improve readability across maps, cards, and page surfaces.
+                                {t('highContrastHelp')}
                             </p>
                         </div>
                         {highContrast ? <Moon size={18} /> : <Sun size={18} />}
@@ -223,10 +223,10 @@ export default function Navbar() {
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                    Text size
+                                    {t('textSize')}
                                 </p>
                                 <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                    Increase or reduce type size across the app.
+                                    {t('textSizeHelp')}
                                 </p>
                             </div>
                             <div className="inline-flex items-center rounded-2xl" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
@@ -235,7 +235,7 @@ export default function Navbar() {
                                     onClick={decreaseZoom}
                                     className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-l-2xl px-3 text-sm font-bold"
                                     style={{ color: 'var(--color-text-secondary)' }}
-                                    aria-label="Decrease text size"
+                                    aria-label={t('decreaseZoom')}
                                 >
                                     A-
                                 </button>
@@ -246,7 +246,7 @@ export default function Navbar() {
                                     disabled={!canIncreaseZoom}
                                     className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-r-2xl px-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-45"
                                     style={{ color: 'var(--color-text-secondary)' }}
-                                    aria-label="Increase text size"
+                                    aria-label={t('increaseZoom')}
                                 >
                                     A+
                                 </button>

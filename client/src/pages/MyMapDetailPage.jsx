@@ -13,6 +13,7 @@ import MapImageExportButton from '../components/MapImageExportButton.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
@@ -40,6 +41,7 @@ function OwnerHeader({
     onOpenPrintView,
     onOpenShare,
 }) {
+    const { t } = useLocale();
     const compactActionClassName = 'h-12 justify-center px-3.5 text-sm sm:w-auto sm:px-4';
 
     return (
@@ -61,19 +63,19 @@ function OwnerHeader({
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
                             <Plus size={16} />
-                            Manage resources
+                            {t('manageResources')}
                         </button>
                         <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Pencil size={16} />
-                            Edit
+                            {t('edit')}
                         </button>
                         <button type="button" onClick={onOpenPrintView} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Printer size={16} />
-                            Print
+                            {t('print')}
                         </button>
                         <button type="button" onClick={onOpenShare} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Link2 size={16} />
-                            Share
+                            {t('share')}
                         </button>
                     </div>
                 </div>
@@ -85,14 +87,14 @@ function OwnerHeader({
                         className="btn-ghost h-12 flex-shrink-0 justify-center border border-slate-200 px-4 text-sm font-semibold text-brand-700 shadow-sm transition hover:bg-brand-50"
                     >
                         <ArrowLeft size={16} />
-                        My Maps
+                        {t('myMaps')}
                     </Link>
 
                     <DirectorySearchBar
                         value={query}
                         onChange={onQueryChange}
                         inputId="directory-search-desktop"
-                        placeholder="Search this map"
+                        placeholder={t('searchThisMap')}
                         compact
                         className="min-w-0"
                     />
@@ -118,6 +120,7 @@ function MyMapMobileControls({
     onOpenPrintView,
     onOpenShare,
 }) {
+    const { t } = useLocale();
     const [open, setOpen] = useState(false);
 
     const runDrawerAction = useCallback((action) => {
@@ -135,7 +138,7 @@ function MyMapMobileControls({
                         type="button"
                         onClick={() => setOpen(true)}
                         className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95 transition-transform"
-                        aria-label="Open map controls"
+                        aria-label={t('openMapControls')}
                     >
                         <Menu size={20} />
                     </button>
@@ -156,9 +159,9 @@ function MyMapMobileControls({
                             background: 'linear-gradient(180deg, #ffffff 0%, #f6fcfb 100%)',
                         }}
                     >
-                        <Drawer.Title className="sr-only">Map options</Drawer.Title>
+                        <Drawer.Title className="sr-only">{t('mapOptions')}</Drawer.Title>
                         <Drawer.Description className="sr-only">
-                            Manage this map, search the resources, and adjust distance settings.
+                            {t('mapOptionsDescription')}
                         </Drawer.Description>
 
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
@@ -169,7 +172,7 @@ function MyMapMobileControls({
                             <button
                                 type="button"
                                 onClick={() => setOpen(false)}
-                            aria-label="Close map options"
+                            aria-label={t('closeMapOptions')}
                                 className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
                             >
                                 <X size={18} />
@@ -183,25 +186,25 @@ function MyMapMobileControls({
                                 className="inline-flex items-center gap-2 self-start px-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800"
                             >
                                 <ArrowLeft size={16} />
-                                Back to My Maps
+                                {t('backToMyMaps')}
                             </Link>
 
                             <div className="mt-4 space-y-2">
                                 <button type="button" onClick={() => runDrawerAction(onAddAssets)} className="btn-primary h-12 w-full justify-center px-4 text-sm">
                                     <Plus size={16} />
-                                    Manage resources
+                                    {t('manageResources')}
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Pencil size={16} />
-                                    Edit details
+                                    {t('editDetails')}
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Printer size={16} />
-                                    Print-friendly view
+                                    {t('printFriendlyView')}
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Link2 size={16} />
-                                    Share
+                                    {t('share')}
                                 </button>
                             </div>
 
@@ -229,15 +232,16 @@ function MyMapMobileControls({
 }
 
 function EmptyOwnerDirectory({ onAddAssets }) {
+    const { t } = useLocale();
     return (
         <div className="rounded-[32px] border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
-            <h2 className="text-2xl font-bold text-slate-900">This map has no resources yet</h2>
+            <h2 className="text-2xl font-bold text-slate-900">{t('mapNoResourcesTitle')}</h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                Add saved resources to build a map you can view, print, save as an image, or share.
+                {t('mapNoResourcesDescription')}
             </p>
             <button type="button" onClick={onAddAssets} className="btn-primary mt-6 inline-flex justify-center">
                 <Plus size={16} />
-                Add from My Directory
+                {t('addFromMyDirectory')}
             </button>
         </div>
     );
@@ -247,6 +251,7 @@ export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
+    const { t } = useLocale();
     const { savedAssets } = useSavedAssets();
     const [directory, setDirectory] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -287,11 +292,11 @@ export default function MyMapDetailPage() {
             setDirectory(item);
         } catch (err) {
             console.error(err);
-            setError(err.message || 'Failed to load this map.');
+            setError(err.message || t('failedLoadMap'));
         } finally {
             setLoading(false);
         }
-    }, [mapId]);
+    }, [mapId, t]);
 
     useEffect(() => {
         loadMap();
@@ -345,7 +350,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setEditError(err.message || 'Failed to update this map.');
+            setEditError(err.message || t('failedUpdateMap'));
         } finally {
             setEditSubmitting(false);
         }
@@ -372,7 +377,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setAddError(err.message || 'Failed to update map resources.');
+            setAddError(err.message || t('failedUpdateMapResources'));
         } finally {
             setAddSubmitting(false);
         }
@@ -386,7 +391,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setActionError(err.message || 'Failed to remove this resource from the map.');
+            setActionError(err.message || t('failedRemoveMapResource'));
         }
     }
 
@@ -399,7 +404,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setShareError(err.message || 'Failed to publish this share link.');
+            setShareError(err.message || t('failedPublishShare'));
         } finally {
             setShareSubmitting(false);
         }
@@ -414,7 +419,7 @@ export default function MyMapDetailPage() {
             await loadMap();
         } catch (err) {
             console.error(err);
-            setShareError(err.message || 'Failed to unpublish this share link.');
+            setShareError(err.message || t('failedUnpublishShare'));
         } finally {
             setShareSubmitting(false);
         }
@@ -509,13 +514,13 @@ export default function MyMapDetailPage() {
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
                 <div className="mx-auto w-full max-w-3xl px-4 py-12 text-center sm:px-6 lg:px-8">
                     <div className="rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-16 shadow-sm">
-                        <h1 className="text-2xl font-bold text-slate-900">Map not available</h1>
+                        <h1 className="text-2xl font-bold text-slate-900">{t('mapNotAvailable')}</h1>
                         <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
-                            {error || 'This map could not be found or you no longer have access to it.'}
+                            {error || t('mapNotAvailableDescription')}
                         </p>
                         <Link to="/my-directory?section=my-maps" className="btn-primary mt-6 inline-flex justify-center">
                             <ArrowLeft size={16} />
-                            Back to My Maps
+                            {t('backToMyMaps')}
                         </Link>
                     </div>
                 </div>
@@ -534,7 +539,7 @@ export default function MyMapDetailPage() {
                             className="btn-ghost justify-center border border-slate-200 text-slate-700"
                         >
                             <ArrowLeft size={16} />
-                            Back to interactive view
+                            {t('backToInteractiveView')}
                         </button>
                         <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={sharedDirectoryUrl} />
                     </div>
@@ -547,7 +552,7 @@ export default function MyMapDetailPage() {
                         generatedAt={new Date()}
                         activeAnchor={activeAnchor}
                         shareUrl={sharedDirectoryUrl}
-                        footerNote={directory.share?.isShared ? 'Open the shared link for the full interactive map.' : ''}
+                        footerNote={directory.share?.isShared ? t('openSharedLinkForInteractiveMap') : ''}
                         className="w-full"
                     />
                 </div>
@@ -643,7 +648,7 @@ export default function MyMapDetailPage() {
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                        emptyLabel={query ? 'No places on the map match this search.' : 'This map does not have any places to show yet.'}
+                                        emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName="h-[42vh] min-h-[400px] max-h-[620px]"
                                     />
                                 )}
@@ -665,7 +670,7 @@ export default function MyMapDetailPage() {
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
-                                        emptyLabel={query ? 'No places on the map match this search.' : 'This map does not have any places to show yet.'}
+                                        emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}

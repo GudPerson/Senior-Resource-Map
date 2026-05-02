@@ -1,19 +1,20 @@
 import { Link } from 'react-router-dom';
 import { BookOpen, Compass, SearchX } from 'lucide-react';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
-function getStateCopy(mode) {
+function getStateCopy(mode, t) {
     if (mode === 'no-results') {
         return {
             icon: SearchX,
-            title: 'No saved resources match your search',
-            description: 'Try another search term or clear the search to see everything you saved.',
+            title: t('noSavedResultsTitle'),
+            description: t('noSavedResultsDescription'),
         };
     }
 
     return {
         icon: BookOpen,
-        title: 'No saved resources yet',
-        description: 'Save places, programmes, and services from Discover to build your personal directory.',
+        title: t('noSavedResourcesTitle'),
+        description: t('noSavedResourcesDescription'),
     };
 }
 
@@ -22,7 +23,8 @@ export default function SavedAssetsEmptyState({
     searchTerm = '',
     onClearSearch,
 }) {
-    const copy = getStateCopy(mode);
+    const { t } = useLocale();
+    const copy = getStateCopy(mode, t);
     const Icon = copy.icon;
 
     return (
@@ -40,12 +42,12 @@ export default function SavedAssetsEmptyState({
                     onClick={onClearSearch}
                     className="btn-ghost mt-6 inline-flex justify-center"
                 >
-                    Clear search
+                    {t('clearSearch')}
                 </button>
             ) : (
                 <Link to="/discover" className="btn-primary mt-6 inline-flex justify-center">
                     <Compass size={16} />
-                    Browse resources
+                    {t('browseResources')}
                 </Link>
             )}
         </div>

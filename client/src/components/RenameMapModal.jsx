@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pencil, X } from 'lucide-react';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 
 export default function RenameMapModal({
     isOpen,
@@ -9,6 +10,7 @@ export default function RenameMapModal({
     onClose,
     onSubmit,
 }) {
+    const { t } = useLocale();
     const [name, setName] = useState('');
 
     useEffect(() => {
@@ -31,14 +33,14 @@ export default function RenameMapModal({
             <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Rename map</p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">Update this map name</h2>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('renameMap')}</p>
+                        <h2 className="mt-2 text-2xl font-bold text-slate-900">{t('updateMapName')}</h2>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                        aria-label="Close"
+                        aria-label={t('close')}
                     >
                         <X size={20} />
                     </button>
@@ -46,7 +48,7 @@ export default function RenameMapModal({
 
                 <form onSubmit={handleSubmit} className="px-5 py-5 sm:px-6">
                     <label htmlFor="rename-map-name" className="block text-sm font-semibold text-slate-700">
-                        Map name
+                        {t('mapName')}
                     </label>
                     <input
                         id="rename-map-name"
@@ -64,17 +66,17 @@ export default function RenameMapModal({
 
                     <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
                         <button type="button" onClick={onClose} className="btn-ghost justify-center">
-                            Cancel
+                            {t('cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={!canSubmit}
                             className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {submitting ? 'Saving…' : (
+                            {submitting ? t('saving') : (
                                 <>
                                     <Pencil size={16} />
-                                    Save name
+                                    {t('saveName')}
                                 </>
                             )}
                         </button>

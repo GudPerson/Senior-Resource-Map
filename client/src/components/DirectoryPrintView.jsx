@@ -4,10 +4,12 @@ import DirectoryQrCode from './DirectoryQrCode.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 import BrandLockup from './layout/BrandLockup.jsx';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import { useLocale } from '../contexts/LocaleContext.jsx';
+import { getIntlLocale } from '../lib/i18n.js';
 
-function formatGeneratedOn(value = new Date()) {
+function formatGeneratedOn(value = new Date(), locale = 'en') {
     const date = value instanceof Date ? value : new Date(value);
-    return new Intl.DateTimeFormat('en-SG', {
+    return new Intl.DateTimeFormat(getIntlLocale(locale), {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -36,20 +38,21 @@ function PrintDirectoryBoardHeader({
     canShowQr,
     resolvedShareUrl,
 }) {
+    const { locale, t } = useLocale();
     const rightHeaderBlock = (
         <div className="flex w-[292px] max-w-[292px] flex-col">
             <p className="mb-2.5 w-full whitespace-nowrap text-left text-[10px] font-bold uppercase leading-3 tracking-[0.18em] text-brand-600">
-                Scan QR code for interactive map
+                {t('scanQrInteractiveMap')}
             </p>
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                        <SummaryChip label="Resources" value={resourceCount} tone="brand" />
-                        <SummaryChip label="Mapped places" value={mappedPlaceCount} />
-                        {unmappedCount ? <SummaryChip label="Not shown on map" value={unmappedCount} /> : null}
+                        <SummaryChip label={t('resources')} value={resourceCount} tone="brand" />
+                        <SummaryChip label={t('mappedPlaces')} value={mappedPlaceCount} />
+                        {unmappedCount ? <SummaryChip label={t('notShownOnMap')} value={unmappedCount} /> : null}
                     </div>
                     <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                        Prepared on {formatGeneratedOn(generatedAt)}
+                        {t('preparedOn', { date: formatGeneratedOn(generatedAt, locale) })}
                     </p>
                 </div>
                 {canShowQr ? (
@@ -67,7 +70,7 @@ function PrintDirectoryBoardHeader({
                 <div className="min-w-0 flex-1">
                     <BrandLockup compact />
                     {(() => {
-                        const name = directory?.name || 'Untitled map';
+                        const name = directory?.name || t('untitledMap');
                         return (
                             <h1 className="mt-4 break-words text-[1.35rem] font-black leading-[1.08] text-slate-900" title={name}>
                                 {name}
@@ -113,6 +116,7 @@ function PrintDirectoryMap({
     onFocusHandled,
     onResetView,
 }) {
+    const { t } = useLocale();
     return (
         <div className="mx-auto w-full max-w-[680px] rounded-[30px] border border-slate-200 bg-white p-5">
             <PrintDirectoryBoardHeader
@@ -154,7 +158,7 @@ function PrintDirectoryMap({
                 showProviderBadgeLogo={interactive}
                 mapHeightClassName={interactive ? 'h-[360px]' : 'h-[300px]'}
                 className={presentation.activeAnchorNote ? 'mt-3' : (interactive ? 'mt-8' : 'mt-5')}
-                emptyLabel="No mappable places in this map"
+                emptyLabel={t('noMappablePlacesInMap')}
                 onMapReadyForCapture={onMapReadyForCapture}
                 onMapCaptureError={onMapCaptureError}
                 onClusterChange={onClusterChange}
@@ -164,11 +168,11 @@ function PrintDirectoryMap({
             <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[15px] font-bold text-slate-600">
                 <div className="flex items-center gap-2">
                     <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
-                    <span>Single</span>
+                    <span>{t('legendSingle')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="flex h-[1.3em] w-[1.3em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.78em] font-black text-white shadow-sm">1</div>
-                    <span>Resource #</span>
+                    <span>{t('legendResourceNumber')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
@@ -176,7 +180,7 @@ function PrintDirectoryMap({
                         <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-pink-500 shadow-sm" />
                         <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-orange-500 shadow-sm" />
                     </div>
-                    <span>Clusters</span>
+                    <span>{t('legendClusters')}</span>
                 </div>
             </div>
         </div>
