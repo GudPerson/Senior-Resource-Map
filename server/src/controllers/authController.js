@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -9,8 +10,52 @@ import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boun
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../utils/subregionRouting.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
+import {
+    optionalOneLineTextSchema,
+    requiredOneLineTextSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
 
 const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
+
+const passwordSchema = z.string({
+    required_error: 'Password is required.',
+    invalid_type_error: 'Password must be text.',
+}).min(1, 'Password is required.').max(1024, 'Password is too long.');
+
+const profileRegistrationFieldsSchema = {
+    postalCode: optionalOneLineTextSchema(20),
+    dateOfBirth: optionalOneLineTextSchema(20),
+    chasCard: optionalOneLineTextSchema(40),
+    caregiverStatus: optionalOneLineTextSchema(40),
+    gender: optionalOneLineTextSchema(40),
+    propertyType: optionalOneLineTextSchema(80),
+    volunteerInterest: optionalOneLineTextSchema(40),
+};
+
+const registerBodySchema = z.object({
+    username: optionalOneLineTextSchema(120),
+    email: requiredOneLineTextSchema('Email address', 320),
+    password: passwordSchema,
+    name: requiredOneLineTextSchema('Name', 160),
+    role: optionalOneLineTextSchema(40),
+    ...profileRegistrationFieldsSchema,
+});
+
+const loginBodySchema = z.object({
+    username: optionalOneLineTextSchema(120),
+    email: optionalOneLineTextSchema(320),
+    password: passwordSchema,
+    isPartnerLogin: z.boolean().optional(),
+}).refine((body) => Boolean(body.username || body.email), {
+    path: ['email'],
+    message: 'Username/email and password are required.',
+});
+
+const googleAuthBodySchema = z.object({
+    credential: requiredOneLineTextSchema('Google credential', 20000),
+    ...profileRegistrationFieldsSchema,
+});
 
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
@@ -71,7 +116,9 @@ function canImpersonateUser(actor, targetUser) {
 function normalizeRequiredPostalCode(value) {
     const postalCode = normalizePostalCode(value);
     if (!postalCode) {
-        throw new Error('Postal code is required and must be a valid 6-digit code.');
+        const error = new Error('Postal code is required and must be a valid 6-digit code.');
+        error.status = 400;
+        throw error;
     }
     return postalCode;
 }
@@ -83,7 +130,7 @@ function normalizeOptionalPostalCode(value) {
 
 export const register = async (c) => {
     try {
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), registerBodySchema, 'Registration details');
         const { email, password, name } = body;
         let { username } = body;
 
@@ -153,14 +200,14 @@ export const register = async (c) => {
 
         return c.json({ user: buildSessionPayload(user) });
     } catch (err) {
-        console.error('Registration Error:', err);
-        return c.json({ error: err.message || 'Registration failed' }, 500);
+        if (!err.status || err.status >= 500) console.error('Registration Error:', err);
+        return c.json({ error: err.message || 'Registration failed' }, err.status || 500);
     }
 };
 
 export const login = async (c) => {
     try {
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), loginBodySchema, 'Sign-in details');
         const { username, email, password, isPartnerLogin } = body;
 
         const loginId = username || email;
@@ -246,8 +293,8 @@ export const login = async (c) => {
         setAuthCookie(c, token);
         return c.json({ user: buildSessionPayload(user) });
     } catch (err) {
-        console.error('Login Error:', err);
-        return c.json({ error: err.message || 'Login failed' }, 500);
+        if (!err.status || err.status >= 500) console.error('Login Error:', err);
+        return c.json({ error: err.message || 'Login failed' }, err.status || 500);
     }
 };
 
@@ -285,7 +332,7 @@ export const logout = (c) => {
 
 export const googleAuth = async (c) => {
     try {
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), googleAuthBodySchema, 'Google sign-in details');
         const { credential } = body;
         if (!credential) return c.json({ error: 'No credential provided' }, 400);
 
@@ -357,8 +404,8 @@ export const googleAuth = async (c) => {
         return c.json({ user: buildSessionPayload(user) });
 
     } catch (err) {
-        console.error('Google Auth Error:', err);
-        return c.json({ error: 'Google authentication failed' }, 500);
+        if (!err.status || err.status >= 500) console.error('Google Auth Error:', err);
+        return c.json({ error: err.status ? err.message : 'Google authentication failed' }, err.status || 500);
     }
 };
 

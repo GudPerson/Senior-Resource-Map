@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { subregions, users, userSubregions } from '../db/schema.js';
 import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boundarySchema.js';
@@ -10,6 +11,10 @@ import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils
 import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
+import {
+    optionalOneLineTextSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -21,6 +26,21 @@ function normalizeText(value) {
     if (value === undefined || value === null) return '';
     return String(value).trim();
 }
+
+const profileUpdateBodySchema = z.object({
+    name: optionalOneLineTextSchema(160),
+    phone: optionalOneLineTextSchema(80),
+    postalCode: optionalOneLineTextSchema(20),
+    dateOfBirth: optionalOneLineTextSchema(20),
+    chasCard: optionalOneLineTextSchema(40),
+    caregiverStatus: optionalOneLineTextSchema(40),
+    gender: optionalOneLineTextSchema(40),
+    propertyType: optionalOneLineTextSchema(80),
+    volunteerInterest: optionalOneLineTextSchema(40),
+    password: z.string({
+        invalid_type_error: 'Password must be text.',
+    }).min(1, 'Password is required.').max(1024, 'Password is too long.').optional(),
+});
 
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
@@ -578,7 +598,7 @@ export const getUsers = async (c) => {
 
 export const updateProfile = async (c) => {
     try {
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), profileUpdateBodySchema, 'Profile details');
         const user = c.get('user');
         const currentRole = normalizeRole(user.role);
         const db = getDb(c.env);

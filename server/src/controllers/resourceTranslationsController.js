@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import { hardAssets, softAssetParents, softAssets } from '../db/schema.js';
@@ -15,7 +16,22 @@ import {
     saveManualTranslation,
     syncResourceTranslations,
 } from '../utils/resourceTranslations.js';
-import { parsePositiveInt } from '../utils/inputValidation.js';
+import {
+    optionalTextSchema,
+    parsePositiveInt,
+    safeLocaleSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
+
+const translationUpdateBodySchema = z.object({
+    fields: z.record(z.string().max(80), optionalTextSchema(10000)).default({}),
+    reviewedFields: z.array(z.string().max(80)).max(50).default([]),
+});
+
+const translationRegenerateBodySchema = z.object({
+    locales: z.array(safeLocaleSchema).max(3).optional(),
+    force: z.boolean().optional(),
+});
 
 function canManageSoftAssetParent(actor, parent, ownerUser) {
     const actorRole = normalizeRole(actor?.role);
@@ -124,7 +140,7 @@ export async function updateResourceTranslation(c) {
             return c.json({ error: 'Unsupported language.' }, 400);
         }
 
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), translationUpdateBodySchema, 'Translation review');
         const translations = await saveManualTranslation(db, {
             resourceType: type,
             resourceId: id,
@@ -145,7 +161,7 @@ export async function updateResourceTranslation(c) {
 export async function regenerateResourceTranslations(c) {
     try {
         const { db, user, type, id, resource } = await loadRequestContext(c);
-        const body = await c.req.json().catch(() => ({}));
+        const body = validateRequestBody(await c.req.json().catch(() => ({})), translationRegenerateBodySchema, 'Translation request');
         const requestedLocales = Array.isArray(body?.locales)
             ? body.locales.map(normalizeLocale).filter(Boolean)
             : TARGET_LOCALES;

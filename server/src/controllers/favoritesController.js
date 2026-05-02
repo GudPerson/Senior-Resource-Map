@@ -1,6 +1,7 @@
 import { getDb } from '../db/index.js';
 import { userFavorites } from '../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
+import { z } from 'zod';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     buildSavedAssetSnapshot,
@@ -8,6 +9,12 @@ import {
     hydrateSavedAssetRecord,
     resolveSavedAssetSummary,
 } from '../utils/savedAssets.js';
+import { positiveIntValueSchema, validateRequestBody } from '../utils/inputValidation.js';
+
+const favoriteToggleBodySchema = z.object({
+    resourceType: z.enum(['hard', 'soft']),
+    resourceId: positiveIntValueSchema('Resource id'),
+});
 
 function normalizeResourceType(value) {
     const type = String(value || '').trim().toLowerCase();
@@ -121,7 +128,7 @@ export const toggleFavorite = async (c) => {
         const user = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), favoriteToggleBodySchema, 'Saved resource');
         const resourceType = normalizeResourceType(body?.resourceType);
         const resourceId = parseResourceId(body?.resourceId);
 

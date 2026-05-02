@@ -1,4 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import { myMapAssets, myMaps, userFavorites } from '../db/schema.js';
@@ -13,6 +14,28 @@ import {
 } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
+import {
+    optionalTextSchema,
+    positiveIntValueSchema,
+    requiredOneLineTextSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
+
+const mapAssetRefBodySchema = z.object({
+    resourceType: z.enum(['hard', 'soft']),
+    resourceId: positiveIntValueSchema('Resource id'),
+});
+
+const createMyMapBodySchema = z.object({
+    name: requiredOneLineTextSchema('Map name', 160),
+    description: optionalTextSchema(2000),
+    assets: z.array(mapAssetRefBodySchema).max(500).optional(),
+});
+
+const updateMyMapBodySchema = z.object({
+    name: requiredOneLineTextSchema('Map name', 160),
+    description: optionalTextSchema(2000),
+});
 
 function createHttpError(status, message) {
     const error = new Error(message);
@@ -414,7 +437,7 @@ export const postMyMap = async (c) => {
         const user = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), createMyMapBodySchema, 'Map details');
         const map = await createMyMap(db, user, body);
         return c.json(map, 201);
     } catch (err) {
@@ -449,7 +472,7 @@ export const patchMyMap = async (c) => {
         if (!mapId) {
             return c.json({ error: 'Map id is required' }, 400);
         }
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), updateMyMapBodySchema, 'Map details');
         const map = await renameMyMap(db, user, mapId, body);
         return c.json(map);
     } catch (err) {
@@ -518,7 +541,7 @@ export const postMyMapAsset = async (c) => {
         if (!mapId) {
             return c.json({ error: 'Map id is required' }, 400);
         }
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), mapAssetRefBodySchema, 'Map resource');
         const item = await addAssetToMyMap(db, user, mapId, body);
         return c.json(item, 201);
     } catch (err) {

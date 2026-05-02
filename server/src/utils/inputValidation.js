@@ -67,5 +67,85 @@ export function parsePositiveInt(value, label = 'id') {
     return parsed;
 }
 
+function formatValidationIssue(issue) {
+    const field = issue.path?.length ? `${issue.path.join('.')}: ` : '';
+    return `${field}${issue.message}`;
+}
+
+export function createValidationError(message) {
+    const err = new Error(message || 'Request body is invalid.');
+    err.status = 400;
+    return err;
+}
+
+export function validateRequestBody(body, schema, label = 'Request body') {
+    const result = schema.safeParse(body ?? {});
+    if (result.success) return result.data;
+
+    const firstIssue = result.error.issues[0];
+    throw createValidationError(`${label} is invalid. ${formatValidationIssue(firstIssue)}`);
+}
+
+export function requiredOneLineTextSchema(label, maxLength = 500) {
+    return z.string({
+        required_error: `${label} is required.`,
+        invalid_type_error: `${label} must be text.`,
+    })
+        .transform((value) => cleanOneLineText(value, maxLength))
+        .refine((value) => Boolean(value), { message: `${label} is required.` });
+}
+
+export function optionalOneLineTextSchema(maxLength = 500) {
+    return z.union([z.string(), z.number(), z.boolean(), z.null()])
+        .optional()
+        .transform((value) => {
+            if (value === undefined) return undefined;
+            if (value === null) return null;
+            return cleanOneLineText(value, maxLength);
+        });
+}
+
+export function optionalTextSchema(maxLength = 5000) {
+    return z.union([z.string(), z.number(), z.boolean(), z.null()])
+        .optional()
+        .transform((value) => {
+            if (value === undefined) return undefined;
+            if (value === null) return null;
+            return cleanText(value, maxLength);
+        });
+}
+
+export function positiveIntValueSchema(label = 'id') {
+    return z.any().transform((value, ctx) => {
+        if (typeof value !== 'number' && typeof value !== 'string') {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `${label} must be a positive number.`,
+            });
+            return z.NEVER;
+        }
+
+        const text = String(value ?? '').trim();
+        if (!/^\d+$/.test(text)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `${label} must be a positive number.`,
+            });
+            return z.NEVER;
+        }
+
+        const parsed = Number.parseInt(text, 10);
+        if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `${label} must be a positive number.`,
+            });
+            return z.NEVER;
+        }
+
+        return parsed;
+    });
+}
+
 export const safeResourceTypeSchema = z.enum(['hard', 'soft', 'template']);
 export const safeLocaleSchema = z.enum(['zh-CN', 'ms', 'ta']);

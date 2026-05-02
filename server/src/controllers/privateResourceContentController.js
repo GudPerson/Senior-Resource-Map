@@ -1,6 +1,12 @@
 import { getDb } from '../db/index.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizeRole } from '../utils/roles.js';
+import { z } from 'zod';
+import {
+    optionalTextSchema,
+    positiveIntValueSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
 import {
     canManagePrivateResource,
     canViewPrivateResource,
@@ -20,6 +26,11 @@ import {
     syncPrivateAccessGrants,
     updatePrivateNotes,
 } from '../utils/privateResourceContent.js';
+
+const privateContentUpdateBodySchema = z.object({
+    notes: optionalTextSchema(20000),
+    accessUserIds: z.array(positiveIntValueSchema('Partner viewer id')).max(100).nullable().optional(),
+});
 
 function httpError(message, status = 400) {
     const err = new Error(message);
@@ -143,7 +154,7 @@ export const updatePrivateResourceContent = async (c) => {
             return c.json({ error: 'Insufficient permissions to edit partner-only content.' }, 403);
         }
 
-        const body = await c.req.json();
+        const body = validateRequestBody(await c.req.json(), privateContentUpdateBodySchema, 'Partner-only content');
         const content = await ensurePrivateContent(db, resourceType, resourceId, user);
         await updatePrivateNotes(db, content.id, body?.notes ?? content.notes ?? '', user);
 
