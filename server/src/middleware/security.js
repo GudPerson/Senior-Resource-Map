@@ -1,4 +1,7 @@
 const DEFAULT_ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const DEFAULT_JSON_BODY_LIMIT_BYTES = 2 * 1024 * 1024;
+const DEFAULT_FILE_BODY_LIMIT_BYTES = 15 * 1024 * 1024;
 
 function readEnvValue(runtimeEnv = {}, ...keys) {
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
@@ -62,6 +65,55 @@ export async function securityHeaders(c, next) {
     if (isProductionRequest(c) && isHttpsRequest(c)) {
         c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
+}
+
+function parseContentLength(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const parsed = Number.parseInt(String(value), 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function isJsonContentType(contentType) {
+    const type = String(contentType || '').toLowerCase();
+    return type.includes('application/json') || type.includes('+json');
+}
+
+function isLargeBodyRoute(pathname) {
+    return pathname.startsWith('/api/upload')
+        || (pathname.startsWith('/api/private-resource-content/') && pathname.includes('/files'))
+        || pathname === '/api/soft-assets/import/collateral/preview'
+        || pathname.startsWith('/api/admin/imports/');
+}
+
+function getBodyLimitBytes(c) {
+    const pathname = new URL(c.req.url).pathname;
+    return isLargeBodyRoute(pathname) ? DEFAULT_FILE_BODY_LIMIT_BYTES : DEFAULT_JSON_BODY_LIMIT_BYTES;
+}
+
+export async function requestBodyGuard(c, next) {
+    if (!BODY_METHODS.has(c.req.method.toUpperCase())) {
+        await next();
+        return;
+    }
+
+    const limitBytes = getBodyLimitBytes(c);
+    const contentLength = parseContentLength(c.req.header('content-length'));
+    if (contentLength !== null && contentLength > limitBytes) {
+        c.header('Connection', 'close');
+        return c.json({
+            error: `Request body is too large. Maximum allowed size is ${Math.floor(limitBytes / (1024 * 1024))} MB.`,
+        }, 413);
+    }
+
+    if (isJsonContentType(c.req.header('content-type')) && c.req.raw.body !== null) {
+        try {
+            await c.req.raw.clone().json();
+        } catch {
+            return c.json({ error: 'Request body must be valid JSON.' }, 400);
+        }
+    }
+
+    await next();
 }
 
 function normalizeIp(value) {

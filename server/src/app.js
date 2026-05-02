@@ -23,6 +23,7 @@ import resourceTranslationsRoutes from './routes/resourceTranslations.js';
 import {
     aiRateLimit,
     authRateLimit,
+    requestBodyGuard,
     securityHeaders,
     translationRateLimit,
     uploadRateLimit,
@@ -71,6 +72,7 @@ app.use('*', cors({
     credentials: true,
     allowHeaders: ['Content-Type', 'X-Session-Token'],
 }));
+app.use('*', requestBodyGuard);
 
 app.use('/api/auth/login', authRateLimit);
 app.use('/api/auth/register', authRateLimit);
