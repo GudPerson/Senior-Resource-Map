@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    attachTranslations,
     extractTranslatableFields,
     saveManualTranslation,
+    sanitizeTranslationsForPublicPayload,
     syncResourceTranslations,
 } from '../src/utils/resourceTranslations.js';
 
@@ -233,4 +235,56 @@ test('syncResourceTranslations saves English even when translation is not config
 
     assert.equal(result.status, 'not_configured');
     assert.equal(db.rows.length, 0);
+});
+
+test('public translation attachments keep text and stale fallback without review metadata', () => {
+    const publicPayload = sanitizeTranslationsForPublicPayload({
+        'zh-CN': {
+            fields: {
+                name: '关怀中心',
+                description: '旧说明',
+            },
+            fieldMeta: {
+                name: {
+                    status: 'human_edited',
+                    sourceHash: 'staff-only-hash',
+                    updatedByUserId: 7,
+                },
+                description: {
+                    status: 'stale',
+                    sourceHash: 'old-source-hash',
+                },
+            },
+            reviewedAt: new Date('2026-05-01T10:00:00Z'),
+            updatedAt: new Date('2026-05-01T10:00:00Z'),
+        },
+    });
+
+    assert.deepEqual(publicPayload, {
+        'zh-CN': {
+            fields: {
+                name: '关怀中心',
+                description: '旧说明',
+            },
+            fieldMeta: {
+                description: { status: 'stale' },
+            },
+        },
+    });
+
+    const attached = attachTranslations({ id: 12, name: 'Care Hub' }, {
+        ms: {
+            fields: { name: 'Pusat Jagaan' },
+            fieldMeta: { name: { status: 'reviewed', sourceHash: 'reviewed-hash' } },
+            reviewedAt: new Date(),
+        },
+    });
+
+    assert.deepEqual(attached.translations, {
+        ms: {
+            fields: { name: 'Pusat Jagaan' },
+        },
+    });
+    assert.equal(JSON.stringify(attached).includes('reviewed-hash'), false);
+    assert.equal(JSON.stringify(attached).includes('reviewedAt'), false);
 });

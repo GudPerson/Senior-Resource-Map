@@ -347,11 +347,30 @@ export async function loadTranslationsForResource(db, resourceType, resourceId) 
     return buildTranslationMap(rows).get(`${type}:${id}`) || {};
 }
 
+export function sanitizeTranslationsForPublicPayload(translations = {}) {
+    return Object.entries(translations || {}).reduce((result, [locale, entry]) => {
+        const fields = entry?.fields && typeof entry.fields === 'object'
+            ? { ...entry.fields }
+            : {};
+        const staleFieldMeta = Object.entries(entry?.fieldMeta || {})
+            .filter(([, meta]) => meta?.status === 'stale')
+            .reduce((metaResult, [field]) => ({
+                ...metaResult,
+                [field]: { status: 'stale' },
+            }), {});
+
+        result[locale] = Object.keys(staleFieldMeta).length > 0
+            ? { fields, fieldMeta: staleFieldMeta }
+            : { fields };
+        return result;
+    }, {});
+}
+
 export function attachTranslations(resource, translations) {
     if (!resource) return resource;
     return {
         ...resource,
-        translations: translations || {},
+        translations: sanitizeTranslationsForPublicPayload(translations),
     };
 }
 
