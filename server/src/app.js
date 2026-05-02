@@ -28,29 +28,32 @@ import {
     uploadRateLimit,
 } from './middleware/security.js';
 
-function readConfiguredOrigins() {
+function readConfiguredOrigins(runtimeEnv = {}) {
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
-    return String(processEnv.ALLOWED_ORIGINS || '')
+    return String(runtimeEnv.ALLOWED_ORIGINS || processEnv.ALLOWED_ORIGINS || '')
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean);
 }
 
-function resolveCorsOrigin(origin) {
+function isCareAroundPagesPreview(originHost) {
+    return originHost === 'senior-resource-map.pages.dev' || originHost.endsWith('.senior-resource-map.pages.dev');
+}
+
+function resolveCorsOrigin(origin, c) {
     if (!origin) return '*';
 
     try {
         const parsedOrigin = new URL(origin);
         const originHost = parsedOrigin.hostname;
         const isLocalDevOrigin = originHost === 'localhost' || originHost === '127.0.0.1';
-        const isPagesPreviewOrigin = originHost.endsWith('.pages.dev');
         const isCareAroundOrigin = originHost === 'app.carearound.sg';
 
-        if (isLocalDevOrigin || isPagesPreviewOrigin || isCareAroundOrigin) {
+        if (isLocalDevOrigin || isCareAroundPagesPreview(originHost) || isCareAroundOrigin) {
             return origin;
         }
 
-        if (readConfiguredOrigins().includes(origin)) {
+        if (readConfiguredOrigins(c?.env).includes(origin)) {
             return origin;
         }
     } catch {

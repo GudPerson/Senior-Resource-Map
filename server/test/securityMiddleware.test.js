@@ -20,6 +20,43 @@ test('security headers are set on API responses', async () => {
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://app.carearound.sg');
 });
 
+test('CORS allows CareAround Pages previews but rejects unrelated Pages origins', async () => {
+    const previewResponse = await app.fetch(
+        new Request('https://senior-resource-map-api.joshuachua79.workers.dev/api/health', {
+            headers: { Origin: 'https://db93dedb.senior-resource-map.pages.dev' },
+        }),
+        { NODE_ENV: 'production' },
+    );
+
+    assert.equal(previewResponse.status, 200);
+    assert.equal(previewResponse.headers.get('access-control-allow-origin'), 'https://db93dedb.senior-resource-map.pages.dev');
+
+    const unrelatedResponse = await app.fetch(
+        new Request('https://senior-resource-map-api.joshuachua79.workers.dev/api/health', {
+            headers: { Origin: 'https://unrelated-project.pages.dev' },
+        }),
+        { NODE_ENV: 'production' },
+    );
+
+    assert.equal(unrelatedResponse.status, 200);
+    assert.equal(unrelatedResponse.headers.get('access-control-allow-origin'), null);
+});
+
+test('CORS honours explicitly configured runtime origins', async () => {
+    const response = await app.fetch(
+        new Request('https://senior-resource-map-api.joshuachua79.workers.dev/api/health', {
+            headers: { Origin: 'https://staging.carearound.sg' },
+        }),
+        {
+            NODE_ENV: 'production',
+            ALLOWED_ORIGINS: 'https://staging.carearound.sg',
+        },
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'https://staging.carearound.sg');
+});
+
 test('rate limiter blocks repeated requests without relying on a database', async () => {
     const previousStore = globalThis.__carearoundRateLimitBuckets;
     globalThis.__carearoundRateLimitBuckets = new Map();
