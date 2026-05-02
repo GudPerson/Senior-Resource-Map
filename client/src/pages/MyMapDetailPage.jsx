@@ -153,7 +153,7 @@ function MyMapMobileControls({
                         className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
                         style={{
                             borderColor: 'var(--color-border)',
-                            background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,252,251,0.96) 100%)',
+                            background: 'linear-gradient(180deg, #ffffff 0%, #f6fcfb 100%)',
                         }}
                     >
                         <Drawer.Title className="sr-only">Map options</Drawer.Title>
@@ -669,7 +669,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}
-                                mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 pb-5 isolate disable-font-scaling"
+                                mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate disable-font-scaling"
                             />
                         </>
                     )}

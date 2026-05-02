@@ -21,6 +21,15 @@ export default function DirectoryDistanceControls({
         clearActiveAnchor,
     } = anchorState;
     const [postalCodeInput, setPostalCodeInput] = useState('');
+    const canSetTemporaryLocation = postalCodeInput.length === 6 && !isSettingTemporary;
+    const setLocationHint = postalCodeInput.length === 6
+        ? 'Set postal-code location'
+        : 'Enter a 6-digit postal code first';
+    const activeLocationLabel = activeMode === 'home'
+        ? 'Using home'
+        : activeMode === 'temporary'
+            ? 'Using set location'
+            : 'Distance from';
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -69,7 +78,7 @@ export default function DirectoryDistanceControls({
                     maxLength={6}
                     value={postalCodeInput}
                     onChange={(event) => setPostalCodeInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Postal code"
+                    placeholder="Enter postal code"
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 />
             </div>
@@ -79,9 +88,9 @@ export default function DirectoryDistanceControls({
     const locateButton = (
         <button
             type="submit"
-            disabled={isSettingTemporary || postalCodeInput.length !== 6}
-            aria-label="Set location"
-            title="Set location"
+            disabled={!canSetTemporaryLocation}
+            aria-label={setLocationHint}
+            title={setLocationHint}
             className="inline-flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
             <MapPin size={16} />
@@ -92,7 +101,7 @@ export default function DirectoryDistanceControls({
         <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <span>I am here</span>
+                    <span>{activeLocationLabel}</span>
                     {homeButton}
                 </div>
                 {clearButton ? <div className="flex-shrink-0">{clearButton}</div> : null}
@@ -102,11 +111,14 @@ export default function DirectoryDistanceControls({
                 {locationInput}
                 {locateButton}
             </div>
+            <p className="text-xs leading-5 text-slate-500">
+                Enter a postal code to compare distances from another location.
+            </p>
         </form>
     ) : (
         <form onSubmit={handleSubmit} className={`flex gap-3 ${compact ? 'flex-wrap items-center xl:flex-nowrap' : 'flex-col lg:flex-row lg:items-center'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <span>I am here</span>
+                <span>{activeLocationLabel}</span>
                 {homeButton}
             </div>
 
