@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { AssetCard } from '../../components/AssetCard.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { buildSavedAssetKey } from '../../lib/savedAssets.js';
 import DiscoveryMobileBrowseCard from './DiscoveryMobileBrowseCard.jsx';
 
@@ -24,6 +25,7 @@ export function DiscoveryResultsList({
     totalCount = 0,
     onLoadMore,
 }) {
+    const { t } = useLocale();
     const isCompactMobile = !isDesktop && mobileCardDensity === 'compact';
     const canLoadMore = totalCount > filtered.length;
     const autoLoadPendingRef = useRef(false);
@@ -66,8 +68,8 @@ export function DiscoveryResultsList({
             ) : filtered.length === 0 ? (
                 <div className="text-center py-10 px-4 rounded-2xl border-2 border-dashed" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
                     <Search size={40} className="mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-                    <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>No matching resources yet</p>
-                    <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Try a broader search, a different postal code, or fewer filters.</p>
+                    <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>{t('discoveryNoMatchesTitle')}</p>
+                    <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{t('discoveryNoMatchesHelp')}</p>
                 </div>
             ) : (
                 <div
@@ -124,12 +126,12 @@ export function DiscoveryResultsList({
                 <div className="mt-6 border-t border-slate-100 pt-6">
                     <div className="flex flex-col items-center gap-3">
                         <p className="text-sm text-slate-500">
-                            Showing {filtered.length} of {totalCount} results
+                            {t('discoveryShowingOfTotal', { shown: filtered.length, total: totalCount })}
                         </p>
                         {canLoadMore ? (
                             <>
                                 <p className="text-xs text-slate-400">
-                                    Keep scrolling to see more.
+                                    {t('discoveryKeepScrolling')}
                                 </p>
                             </>
                         ) : null}

@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import OfferingAccessNotice from '../../components/OfferingAccessNotice.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { openResourceDetail } from '../../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { OFFERING_ACCESS } from '../../lib/eligibility.js';
+import { localizeResource } from '../../lib/localization.js';
 
 function formatDistance(distance) {
     if (!Number.isFinite(distance)) return null;
@@ -13,20 +15,22 @@ function formatDistance(distance) {
 }
 
 export function DiscoveryMobileBrowseCard({
-    asset,
+    asset: rawAsset,
     isCompact = false,
     onCategoryClick,
     onLocationClick,
     subCatColors = {},
     type,
 }) {
+    const { locale, t } = useLocale();
+    const asset = localizeResource(rawAsset, locale);
     const navigate = useNavigate();
     const isHard = type === 'hard';
     const catColor = subCatColors[asset.subCategory] || '#64748b';
     const displayLocation = isHard ? asset : asset._displayLocation;
     const totalLocationCount = isHard ? 1 : (asset._locationCount || 0);
     const otherLocationCount = !isHard && totalLocationCount > 1 ? totalLocationCount - 1 : 0;
-    const categoryLabel = asset.subCategory || (isHard ? 'Place' : 'Programme/service');
+    const categoryLabel = asset.subCategory || (isHard ? t('place') : t('discoveryCategoryOfferingFallback'));
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
@@ -34,7 +38,7 @@ export function DiscoveryMobileBrowseCard({
     const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
     const summaryAddress = isHard
         ? asset.address
-        : (displayLocation?.address || `Available at ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? 'place' : 'places'}`);
+        : (displayLocation?.address || `${t('availableIn')} ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? t('placesSingular') : t('placesPlural')}`);
     const handleOpenDetails = () => openResourceDetail(type, asset.id, navigate);
     const handleOpenDirections = () => {
         const target = isHard ? asset : displayLocation;
@@ -177,11 +181,14 @@ export function DiscoveryMobileBrowseCard({
                             className={`font-semibold tracking-[0.01em] ${isCompact ? 'mb-1 text-[11px] leading-relaxed' : 'mb-1 text-[12px] leading-relaxed'}`}
                             style={{ color: 'var(--color-brand-strong)' }}
                         >
-                            Available at {otherLocationCount} other {otherLocationCount === 1 ? 'place' : 'places'}
+                            {t('discoveryAvailableAtOtherPlaces', {
+                                count: otherLocationCount,
+                                label: otherLocationCount === 1 ? t('placesSingular') : t('placesPlural'),
+                            })}
                         </p>
                     ) : null}
                     <p className={`pr-10 ${isCompact ? 'line-clamp-2 text-[13px] leading-relaxed' : 'line-clamp-2 text-sm leading-relaxed'}`}>
-                        {summaryAddress || 'Location details are not available yet.'}
+                        {summaryAddress || t('discoveryLocationUnavailable')}
                     </p>
                     {asset._distance !== undefined && asset._distance !== null ? (
                         <div className="absolute bottom-0 right-0">

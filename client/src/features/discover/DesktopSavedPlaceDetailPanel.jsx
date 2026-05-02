@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import ResourceDetailContent from '../../components/ResourceDetailContent.jsx';
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
 import { openResourceDetail } from '../../lib/appNavigation.js';
 
@@ -52,6 +53,7 @@ export function DesktopSavedPlaceDetailPanel({
     userLocation,
 }) {
     const navigate = useNavigate();
+    const { t } = useLocale();
     const detailTarget = useMemo(() => resolveDetailTarget(pin), [pin]);
     const detailTargetType = detailTarget?.type || null;
     const detailTargetId = detailTarget?.id || null;
@@ -100,7 +102,7 @@ export function DesktopSavedPlaceDetailPanel({
 
     const title = asset?.name || detailTarget?.fallbackAsset?.name || pin.title;
     const savedAssetSummary = buildSavedAssetSummary(asset, detailTarget?.type || 'hard');
-    const sortOriginLabel = userLocation ? 'Current location' : null;
+    const sortOriginLabel = userLocation ? t('discoveryCurrentLocation') : null;
 
     return (
         <div className="flex h-full flex-col overflow-hidden">
@@ -113,13 +115,13 @@ export function DesktopSavedPlaceDetailPanel({
                     onClick={onBack}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors hover:bg-slate-50"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                    aria-label="Back to browse results"
+                    aria-label={t('discoveryBackToBrowseResults')}
                 >
                     <ArrowLeft size={18} />
                 </button>
                 <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--color-text-muted)' }}>
-                        Resource detail
+                        {t('discoveryResourceDetail')}
                     </p>
                     <p className="truncate text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                         {title}
@@ -156,7 +158,7 @@ export function DesktopSavedPlaceDetailPanel({
                 ) : (
                     <div className="rounded-[28px] border px-6 py-8 text-center" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>
                         <p className="text-base font-bold" style={{ color: 'var(--color-text)' }}>
-                            Resource details are unavailable for this pin.
+                            {t('discoveryResourceUnavailable')}
                         </p>
                     </div>
                 )}

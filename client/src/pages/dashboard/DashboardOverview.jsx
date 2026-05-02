@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Files, User, Shield, Map, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { canAccessAdmin, getRoleMeta, isStandardUserRole } from '../../lib/roles.js';
 
 export default function DashboardOverview() {
     const { user } = useAuth();
+    const { t } = useLocale();
     const navigate = useNavigate();
     const roleMeta = getRoleMeta(user?.role);
     const canShowAdmin = canAccessAdmin(user?.role);
@@ -15,8 +17,8 @@ export default function DashboardOverview() {
             id: 'dash-map',
             to: '/discover',
             icon: Map,
-            title: 'Discovery Map',
-            description: 'Explore the main resource map, search by postal code, and find new senior services.',
+            title: t('overviewDiscoverTitle'),
+            description: t('overviewDiscoverDescription'),
             color: 'var(--color-brand)',
             bg: 'var(--color-brand-light)',
         },
@@ -24,8 +26,8 @@ export default function DashboardOverview() {
             id: 'dash-directory',
             to: '/my-directory',
             icon: BookOpen,
-            title: 'My Directory',
-            description: 'Manage your saved collection of favorite resources and your custom curated maps.',
+            title: t('myDirectory'),
+            description: t('overviewDirectoryDescription'),
             color: '#7c3aed',
             bg: 'rgba(124, 58, 237, 0.08)',
         },
@@ -33,8 +35,8 @@ export default function DashboardOverview() {
             id: 'dash-resources',
             to: '/dashboard/resources',
             icon: Files,
-            title: 'My Resources',
-            description: 'Update and manage the hard assets, programs, and services your organization provides.',
+            title: t('overviewResourcesTitle'),
+            description: t('overviewResourcesDescription'),
             color: '#0891b2',
             bg: 'rgba(8, 145, 178, 0.08)',
         }] : []),
@@ -42,8 +44,8 @@ export default function DashboardOverview() {
             id: 'dash-profile',
             to: '/dashboard/profile',
             icon: User,
-            title: 'Profile Settings',
-            description: 'Update your display name, contact information, and account preferences.',
+            title: t('overviewProfileTitle'),
+            description: t('overviewProfileDescription'),
             color: '#475569',
             bg: 'rgba(71, 85, 105, 0.08)',
         },
@@ -51,8 +53,8 @@ export default function DashboardOverview() {
             id: 'dash-admin',
             to: '/dashboard/admin',
             icon: Shield,
-            title: 'Admin Console',
-            description: 'System-wide analytics, user impersonation, and master resource database auditing.',
+            title: t('overviewAdminTitle'),
+            description: t('overviewAdminDescription'),
             color: '#b91c1c',
             bg: 'rgba(185, 28, 28, 0.08)',
         }] : [])
@@ -63,7 +65,7 @@ export default function DashboardOverview() {
             <header className="mb-10">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
                     <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                        Welcome, {user?.name?.split(' ')[0]}! 👋
+                        {t('overviewWelcome', { name: user?.name?.split(' ')[0] || t('account') })}
                     </h1>
                     <span 
                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest shadow-sm ${roleMeta.pillClassName}`}
@@ -73,8 +75,7 @@ export default function DashboardOverview() {
                     </span>
                 </div>
                 <p className="text-slate-500 text-lg max-w-2xl leading-relaxed">
-                    Efficiently manage your senior resource directory and tools from this central overview. 
-                    Select an action below to get started.
+                    {t('overviewIntro')}
                 </p>
             </header>
 
@@ -106,7 +107,7 @@ export default function DashboardOverview() {
                         </p>
 
                         <div className="mt-4 hidden lg:flex items-center gap-1 text-xs font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100 uppercase tracking-wider">
-                            Enter Section
+                            {t('overviewOpen')}
                         </div>
                     </button>
                 ))}

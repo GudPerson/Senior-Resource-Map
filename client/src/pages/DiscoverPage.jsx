@@ -11,6 +11,7 @@ import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { useA11y } from '../contexts/A11yContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
@@ -270,6 +271,8 @@ function DiscoverPostalGroupListPanel({
     onClose,
     onSelectPin,
 }) {
+    const { t } = useLocale();
+
     if (!group?.isPostalGroup) return null;
 
     const horizontalMargin = isDesktop ? 20 : 12;
@@ -347,20 +350,23 @@ function DiscoverPostalGroupListPanel({
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">
                             <Layers3 size={14} />
-                            Same postal code
+                            {t('discoverySamePostalCode')}
                         </div>
                         <p className="mt-1 text-base font-bold leading-tight text-slate-900">
-                            {group.hardAssetCount} saved {group.hardAssetCount === 1 ? 'place' : 'places'} at this location
+                            {t('discoverySavedPlacesAtLocation', {
+                                count: group.hardAssetCount,
+                                label: group.hardAssetCount === 1 ? t('placesSingular') : t('placesPlural'),
+                            })}
                         </p>
                         {group.postalCode ? (
-                            <p className="mt-1 text-sm text-slate-500">Postal code {group.postalCode}</p>
+                            <p className="mt-1 text-sm text-slate-500">{t('discoveryPostalCodeValue', { postalCode: group.postalCode })}</p>
                         ) : null}
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
-                        aria-label="Close grouped location list"
+                        aria-label={t('discoveryCloseGroupedList')}
                     >
                         <X size={18} />
                     </button>
@@ -370,7 +376,11 @@ function DiscoverPostalGroupListPanel({
                     <div className="space-y-2">
                         {(group.memberPins || []).map((pin) => {
                             const isHighlighted = highlightedPinKey === pin.pinKey;
-                            const offeringsLabel = `${pin.totalOfferingsCount || 0} ${(pin.totalOfferingsCount || 0) === 1 ? 'programme/service' : 'programmes/services'}`;
+                            const offeringCount = pin.totalOfferingsCount || 0;
+                            const offeringsLabel = t('discoveryProgrammeServiceCount', {
+                                count: offeringCount,
+                                label: offeringCount === 1 ? t('discoveryCategoryOfferingFallback') : t('availableOfferings'),
+                            });
                             const previewImageUrl = pin.placeAsset?.logoUrl || pin.primarySavedAsset?.liveAsset?.logoUrl || pin.categoryIconUrl || null;
 
                             return (
@@ -488,6 +498,7 @@ export default function DiscoverPage() {
         { minWidth: discoveryPaneMinWidth },
     );
     const { user, isAuth } = useAuth();
+    const { t } = useLocale();
     const normalizedUserRole = normalizeRole(user?.role);
     const canUseDiscoverySubregions = isAuth && canAccessAdmin(normalizedUserRole);
     const {
@@ -911,7 +922,7 @@ export default function DiscoverPage() {
             }
         } catch (err) {
             console.error(err);
-            setFavoritesActionNotice(err.message || 'Discovery favorites could not be updated. Please try again.');
+            setFavoritesActionNotice(err.message || t('discoveryFavoritesFailed'));
         } finally {
             setSaveAllPendingAction(null);
         }
@@ -920,6 +931,7 @@ export default function DiscoverPage() {
         bulkSaveSavedAssets,
         isBulkFavoritesPending,
         saveAllTargetItems,
+        t,
         user,
     ]);
 
@@ -2047,7 +2059,7 @@ export default function DiscoverPage() {
             <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
                 <div className="h-10 w-10 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
                 <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                    Loading your map…
+                    {t('discoveryLoadingMap')}
                 </p>
             </div>
         </div>
@@ -2090,7 +2102,7 @@ export default function DiscoverPage() {
             resultCount={filtered.length}
             savedAssetCount={savedAssetCount}
             saveAllCount={saveAllTargetItems.length}
-            saveAllPendingLabel={saveAllPendingAction === 'remove' ? 'Clearing saved…' : 'Saving all…'}
+            saveAllPendingLabel={saveAllPendingAction === 'remove' ? t('discoverySaveAllClearing') : t('discoverySaveAllSaving')}
             search={search}
             searchOrigin={searchOrigin}
             searchRadius={searchRadius}
@@ -2152,8 +2164,11 @@ export default function DiscoverPage() {
         <MobileBottomSheet
             open={mobileBrowseDrawerOpen}
             onOpenChange={setMobileBrowseDrawerOpen}
-            title="Resources on this map"
-            description={`Showing ${filtered.length} matching ${filtered.length === 1 ? 'resource' : 'resources'}`}
+            title={t('discoveryResourcesOnMap')}
+            description={t('discoveryMatchingCount', {
+                count: filtered.length,
+                label: filtered.length === 1 ? t('resource') : t('resources'),
+            })}
             headerActions={(
                 <div className="flex items-center gap-2">
                     <button
@@ -2164,14 +2179,14 @@ export default function DiscoverPage() {
                         }}
                         className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
                     >
-                        Back to browse
+                        {t('discoveryBackToBrowse')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setMobileBrowseDrawerOpen(false)}
                         className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
                     >
-                        Done
+                        {t('done')}
                     </button>
                 </div>
             )}
@@ -2181,9 +2196,9 @@ export default function DiscoverPage() {
                 <div className="mx-4 mt-1 mb-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>
                     <label className="flex items-center justify-between gap-4">
                         <div>
-                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Saved resources only</p>
+                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>{t('discoverySavedResourcesOnly')}</p>
                             <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                Show only resources you have saved.
+                                {t('discoverySavedOnlyHelp')}
                             </p>
                         </div>
                         <input
@@ -2218,10 +2233,10 @@ export default function DiscoverPage() {
                     }}
                 >
                     <Drawer.Title className="sr-only">
-                        {selectedPlacePin?.title || 'Saved place details'}
+                        {selectedPlacePin?.title || t('placeDetails')}
                     </Drawer.Title>
                     <Drawer.Description className="sr-only">
-                        View this saved place and related resources for the selected map pin.
+                        {t('discoveryResourceDetail')}
                     </Drawer.Description>
                     <div className="mx-auto mt-3 h-1.5 w-12 rounded-full" style={{ backgroundColor: 'var(--color-border-strong)' }} />
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -2275,8 +2290,8 @@ export default function DiscoverPage() {
                             borderColor: 'var(--color-border)',
                             color: 'var(--color-brand-strong)',
                         }}
-                        aria-label={canExpandTouchDesktopPane ? 'Expand resource cards to the next column width' : 'Reduce resource cards by one column width'}
-                        title={canExpandTouchDesktopPane ? 'Expand cards' : 'Collapse cards'}
+                        aria-label={canExpandTouchDesktopPane ? t('discoveryEditSearch') : t('close')}
+                        title={canExpandTouchDesktopPane ? t('discoveryEditSearch') : t('close')}
                     >
                         {canExpandTouchDesktopPane ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                     </button>
@@ -2300,7 +2315,7 @@ export default function DiscoverPage() {
                 <div className="absolute inset-0 z-[2000] flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
                     <div className="card flex flex-col items-center gap-4 p-8" style={{ border: '2px solid var(--color-border)' }}>
                         <div className="h-12 w-12 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
-                        <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>Loading resources…</p>
+                        <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>{t('loadingResources')}</p>
                     </div>
                 </div>
             ) : null}

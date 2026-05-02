@@ -3,6 +3,7 @@ import { Heart, MapPinned, MapPin, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
 
 export function SavedMapEmptyState({
@@ -14,6 +15,7 @@ export function SavedMapEmptyState({
 }) {
     const navigate = useNavigate();
     const { login, user } = useAuth();
+    const { t } = useLocale();
     const [postalCode, setPostalCode] = useState(user?.postalCode || '');
     const [postalCodeError, setPostalCodeError] = useState('');
     const [postalCodeSaving, setPostalCodeSaving] = useState(false);
@@ -25,28 +27,31 @@ export function SavedMapEmptyState({
     }, [user?.postalCode]);
 
     const title = shouldShowPostalWizard
-        ? 'Add your home postal code to start your map'
+        ? t('discoveryAddPostalStartMap')
         : !isAuthenticated
-        ? 'Sign in to build your personal map'
+        ? t('discoverySignInBuildMap')
         : hasSavedAssets
-            ? 'No saved places on the map yet'
-            : 'Save resources to see them here';
+            ? t('discoveryNoSavedPlacesMap')
+            : t('discoverySaveResourcesMap');
 
     const description = shouldShowPostalWizard
-        ? 'We can centre the map around your home area even before you save places, and use it to show nearby results across the app.'
+        ? t('discoveryAddPostalDescription')
         : !isAuthenticated
-        ? 'Once you sign in and save useful resources, your personal map will appear here.'
+        ? t('discoverySignInMapDescription')
         : hasSavedAssets
             ? unmappableCount > 0
-                ? `${unmappableCount} saved ${unmappableCount === 1 ? 'resource does' : 'resources do'} not have a usable map location yet. Keep browsing and save places with valid addresses to see them here.`
-                : 'Keep browsing and save places, programmes, or services to see them here.'
-            : 'Your map shows saved resources that have a place or address.';
+                ? t('discoveryUnmappableDescription', {
+                    count: unmappableCount,
+                    label: unmappableCount === 1 ? t('resource') : t('resources'),
+                })
+                : t('discoveryKeepBrowsingSave')
+            : t('discoveryMapShowsSaved');
 
     async function handleSavePostalCode(event) {
         event.preventDefault();
         const normalized = postalCode.replace(/\D/g, '').slice(0, 6);
         if (normalized.length !== 6) {
-            setPostalCodeError('Enter a valid 6-digit postal code.');
+            setPostalCodeError(t('discoveryPostalInvalid'));
             return;
         }
 
@@ -57,7 +62,7 @@ export function SavedMapEmptyState({
             const updatedUser = await api.updateMe({ postalCode: normalized });
             login(updatedUser);
         } catch (error) {
-            setPostalCodeError(error.message || 'Failed to save your postal code.');
+            setPostalCodeError(error.message || t('discoveryPostalSaveFailed'));
         } finally {
             setPostalCodeSaving(false);
         }
@@ -88,7 +93,7 @@ export function SavedMapEmptyState({
                     <form onSubmit={handleSavePostalCode} className="mt-5 space-y-3 text-left">
                         <label className="block">
                             <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--color-text-muted)' }}>
-                                Home postal code
+                                {t('homePostalCode')}
                             </span>
                             <div className="relative">
                                 <MapPin size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -109,12 +114,12 @@ export function SavedMapEmptyState({
                             <p className="text-xs font-medium text-red-600">{postalCodeError}</p>
                         ) : (
                             <p className="text-xs leading-5" style={{ color: 'var(--color-text-muted)' }}>
-                                We’ll save this to your profile and use it as your home location in the app.
+                                {t('discoveryPostalSaveHelp')}
                             </p>
                         )}
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <button type="submit" disabled={postalCodeSaving} className="btn-primary min-w-[170px] justify-center disabled:opacity-60">
-                                {postalCodeSaving ? 'Saving…' : 'Save home postal code'}
+                                {postalCodeSaving ? t('saving') : t('discoverySaveHomePostal')}
                             </button>
                             <button
                                 type="button"
@@ -122,14 +127,14 @@ export function SavedMapEmptyState({
                                 className="btn-ghost min-w-[140px] justify-center"
                             >
                                 <UserRound size={16} />
-                                Open profile
+                                {t('discoveryOpenProfile')}
                             </button>
                         </div>
                     </form>
                 ) : null}
                 {onBrowse ? (
                     <button type="button" onClick={onBrowse} className="btn-primary mt-6 inline-flex justify-center">
-                        Browse resources
+                        {t('browseResources')}
                     </button>
                 ) : null}
             </div>

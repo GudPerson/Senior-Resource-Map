@@ -3,6 +3,7 @@ import { ChevronDown, Columns2, Heart, House, LocateFixed, Map, MapPin, Rows3, S
 import { Link } from 'react-router-dom';
 
 import MobileBottomSheet from '../../components/mobile/MobileBottomSheet.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { getSearchLocationLabel } from '../../lib/searchLocation.js';
 
 const INPUT_RING_STYLE = { '--tw-ring-color': 'var(--color-brand)' };
@@ -94,6 +95,8 @@ function LocationActionButton({
 }
 
 function HomePostalCodeCta({ compact = false }) {
+    const { t } = useLocale();
+
     return (
         <div
             className={`rounded-2xl border ${compact ? 'px-3 py-2.5' : 'px-4 py-3'}`}
@@ -105,10 +108,10 @@ function HomePostalCodeCta({ compact = false }) {
             <div className={`flex ${compact ? 'flex-col gap-2' : 'items-center justify-between gap-3'}`}>
                 <div className="min-w-0">
                     <p className={`${compact ? 'text-[13px]' : 'text-sm'} font-bold leading-tight`} style={{ color: 'var(--color-text)' }}>
-                        Add your home postal code for nearby suggestions.
+                        {t('discoveryAddHomeTitle')}
                     </p>
                     <p className={`mt-1 ${compact ? 'text-[12px]' : 'text-[13px]'} leading-5`} style={{ color: 'var(--color-text-secondary)' }}>
-                        This helps us show programmes, services, and support near your home.
+                        {t('discoveryAddHomeDescription')}
                     </p>
                 </div>
                 <Link
@@ -120,7 +123,7 @@ function HomePostalCodeCta({ compact = false }) {
                         backgroundColor: 'rgba(255,255,255,0.92)',
                     }}
                 >
-                    Update profile
+                    {t('discoveryUpdateProfile')}
                 </Link>
             </div>
         </div>
@@ -135,6 +138,7 @@ function buildSummaryChips({
     searchOrigin,
     searchRadius,
     showFavoritesOnly,
+    t,
     user,
     userLocation,
 }) {
@@ -151,28 +155,30 @@ function buildSummaryChips({
     if (activeTab !== 'all') {
         summaryChips.push({
             key: 'tab',
-            label: activeTab === 'hard' ? 'Places only' : 'Programmes & services only',
+            label: activeTab === 'hard' ? t('discoveryPlacesOnly') : t('discoveryProgrammesServicesOnly'),
         });
     }
 
     if (showFavoritesOnly && user) {
         summaryChips.push({
             key: 'favorites',
-            label: 'Saved only',
+            label: t('discoverySavedOnly'),
         });
     }
 
     if (activeSubregionLabel) {
         summaryChips.push({
             key: 'subregion',
-            label: `Service area: ${activeSubregionLabel}`,
+            label: `${t('discoveryServiceArea')}: ${activeSubregionLabel}`,
         });
     }
 
     if (hasLocationAnchor && searchRadius < 100 && !distanceOverridden) {
         summaryChips.push({
             key: 'radius',
-            label: `Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}`,
+            label: t('discoveryWithinDistance', {
+                distance: searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`,
+            }),
         });
     }
 
@@ -188,6 +194,7 @@ function SaveAllToggleControl({
     pendingLabel = 'Working…',
     onChange,
 }) {
+    const { t } = useLocale();
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -248,10 +255,10 @@ function SaveAllToggleControl({
             </span>
             <span className="min-w-0">
                 <span className={`block ${DISCOVERY_LABEL_TEXT_CLASS} leading-none`}>
-                    {pending ? pendingLabel : 'Save these results'}
+                    {pending ? pendingLabel : t('discoverySaveTheseResults')}
                 </span>
                 <span className="mt-1 block text-[0.76rem] leading-none opacity-75">
-                    {count} {count === 1 ? 'result' : 'results'}
+                    {count} {count === 1 ? t('discoveryResult') : t('discoveryResults')}
                 </span>
             </span>
         </label>
@@ -298,22 +305,24 @@ function MobileFilterSheet({
     userLocation,
     searchOrigin,
 }) {
+    const { t } = useLocale();
+
     return (
         <MobileBottomSheet
             open={isOpen}
             onOpenChange={onOpenChange}
-            title="Choose what to show"
-            description="Adjust location, distance, resource type, and card size."
+            title={t('discoveryChooseWhatToShow')}
+            description={t('discoveryChooseWhatToShowHelp')}
             headerActions={(
                 <button type="button" onClick={() => onOpenChange(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
-                    Done
+                    {t('done')}
                 </button>
             )}
         >
             <div className="space-y-4">
                         <form onSubmit={handlePostalSearch} className="space-y-2">
                             <label htmlFor="mobile-postal-input" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                Search by postal code
+                                {t('discoverySearchByPostal')}
                             </label>
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
@@ -324,7 +333,7 @@ function MobileFilterSheet({
                                         inputMode="numeric"
                                         pattern="\d*"
                                         maxLength={6}
-                                        placeholder="6-digit postal code"
+                                        placeholder={t('discoveryPostalPlaceholder')}
                                         value={postalInput}
                                         onChange={(event) => setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
                                         className="w-full rounded-2xl border py-3 pl-10 pr-3 text-[15px] font-medium leading-none focus:outline-none focus:ring-2"
@@ -342,7 +351,7 @@ function MobileFilterSheet({
                                     ) : null}
                                 </div>
                                 <button type="submit" className="btn-primary justify-center px-4 py-3 text-[15px] leading-none whitespace-nowrap">
-                                    Search
+                                    {t('search')}
                                 </button>
                             </div>
                             <div className={`grid gap-2 ${hasHomePostalCode ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -351,18 +360,18 @@ function MobileFilterSheet({
                                         active={searchOrigin?.source === 'home'}
                                         icon={House}
                                         onClick={() => handleHomeAnchor()}
-                                        title="Use home postal code from your profile"
+                                        title={t('discoveryUseHomeTitle')}
                                     >
-                                        Home
+                                        {t('discoveryHome')}
                                     </LocationActionButton>
                                 ) : null}
                                 <LocationActionButton
                                     active={searchOrigin?.source === 'geolocation'}
                                     icon={LocateFixed}
                                     onClick={handleLocateMe}
-                                    title="Use my current location"
+                                    title={t('discoveryUseCurrentTitle')}
                                 >
-                                    Locate me
+                                    {t('discoveryLocateMe')}
                                 </LocationActionButton>
                             </div>
                         </form>
@@ -374,14 +383,14 @@ function MobileFilterSheet({
                         {canUseSubregionScope ? (
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Service area
+                                    {t('discoveryServiceArea')}
                                 </span>
                                 <div
                                     className="relative flex items-center gap-2 rounded-2xl border px-3"
                                     style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}
                                 >
                                     <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                                        Area
+                                        {t('discoveryArea')}
                                     </span>
                                     <select
                                         value={selectedDiscoverySubregionId}
@@ -399,7 +408,7 @@ function MobileFilterSheet({
                                 </div>
                                 {activeSubregionLabel ? (
                                     <p className="text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                        Results are limited to the selected service area: {activeSubregionLabel}.
+                                        {t('discoveryAreaLimited', { area: activeSubregionLabel })}
                                     </p>
                                 ) : null}
                             </label>
@@ -408,7 +417,7 @@ function MobileFilterSheet({
                         <div className="grid grid-cols-2 gap-3">
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Distance
+                                    {t('discoveryDistance')}
                                 </span>
                                 <select
                                     value={searchRadius}
@@ -425,13 +434,13 @@ function MobileFilterSheet({
                                     <option value={0.5}>500m</option>
                                     <option value={1}>1km</option>
                                     <option value={2}>2km</option>
-                                    <option value={100}>All SG</option>
+                                    <option value={100}>{t('discoveryAllSg')}</option>
                                 </select>
                             </label>
 
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Show
+                                    {t('discoveryShow')}
                                 </span>
                                 <select
                                     value={activeTab}
@@ -439,16 +448,16 @@ function MobileFilterSheet({
                                     className={`w-full rounded-2xl border bg-white px-3 py-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-semibold leading-none outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100`}
                                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                                 >
-                                    <option value="all">All ({tabCounts.all})</option>
-                                    <option value="hard">Places ({tabCounts.hard})</option>
-                                    <option value="soft">Programmes & services ({tabCounts.soft})</option>
+                                    <option value="all">{t('all')} ({tabCounts.all})</option>
+                                    <option value="hard">{t('places')} ({tabCounts.hard})</option>
+                                    <option value="soft">{t('discoveryProgrammesServicesOnly')} ({tabCounts.soft})</option>
                                 </select>
                             </label>
                         </div>
 
                         {distanceOverridden ? (
                             <p className="text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                When a service area is selected, it replaces the distance filter.
+                                {t('discoveryDistanceDisabledMobile')}
                             </p>
                         ) : null}
 
@@ -457,10 +466,10 @@ function MobileFilterSheet({
                                 <label className="flex cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all hover:bg-white" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
                                     <span className="min-w-0">
                                         <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                            Saved only
+                                            {t('discoverySavedOnly')}
                                         </span>
                                         <span className="mt-1 block text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                            Show only resources you have saved.
+                                            {t('discoverySavedOnlyHelp')}
                                         </span>
                                     </span>
                                     <div className="relative inline-block w-8 align-middle transition duration-200 ease-in">
@@ -492,12 +501,12 @@ function MobileFilterSheet({
                         {onChangeMobileCardDensity ? (
                             <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
                                 <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Card layout
+                                    {t('discoveryCardLayout')}
                                 </p>
                                 <div className="mt-3 grid grid-cols-2 gap-2">
                                     {[
-                                        { value: 'comfortable', label: 'One per row', icon: Rows3 },
-                                        { value: 'compact', label: 'Two per row', icon: Columns2 },
+                                        { value: 'comfortable', label: t('discoveryOnePerRow'), icon: Rows3 },
+                                        { value: 'compact', label: t('discoveryTwoPerRow'), icon: Columns2 },
                                     ].map((option) => {
                                         const Icon = option.icon;
                                         const active = mobileCardDensity === option.value;
@@ -544,17 +553,19 @@ function MobileFilterSheet({
                             <div className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-[14px] font-medium" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}>
                                 <div className="min-w-0">
                                     <p className="truncate" style={{ color: 'var(--color-brand-strong)' }}>
-                                        Using {getSearchLocationLabel(searchOrigin)}
+                                        {t('discoveryUsingLocation', { label: getSearchLocationLabel(searchOrigin) })}
                                     </p>
                                     {searchRadius < 100 && !distanceOverridden ? (
                                         <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                            Within {searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}
+                                            {t('discoveryWithinDistance', {
+                                                distance: searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`,
+                                            })}
                                         </p>
                                     ) : null}
                                 </div>
                                 {canClearLocationSearch ? (
                                     <button type="button" onClick={clearLocationSearch} className="shrink-0 text-[12px] font-bold underline leading-none whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
-                                        Clear
+                                        {t('clear')}
                                     </button>
                                 ) : null}
                             </div>
@@ -607,6 +618,7 @@ function DesktopFilterPanel({
     user,
     userLocation,
 }) {
+    const { t } = useLocale();
     const summaryChips = buildSummaryChips({
         activeTab,
         activeSubregionLabel,
@@ -615,14 +627,15 @@ function DesktopFilterPanel({
         searchOrigin,
         searchRadius,
         showFavoritesOnly,
+        t,
         user,
         userLocation,
     });
     const { mode: locationControlMode, rowRef: locationControlsRef } = useAdaptiveLocationControlMode(hasHomePostalCode);
     const postalPlaceholder = locationControlMode === 'full'
-        ? '6-digit Postal Code'
+        ? t('discoveryPostalPlaceholder')
         : locationControlMode === 'compact'
-            ? 'Postal code'
+            ? t('homePostalCode')
             : '';
     const showSearchLabel = locationControlMode === 'full';
 
@@ -647,10 +660,13 @@ function DesktopFilterPanel({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand)' }}>
-                                    Current search
+                                    {t('discoveryCurrentSearch')}
                                 </p>
                                 <p className="mt-1 text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                                    Showing {resultCount} {resultCount === 1 ? 'resource' : 'resources'}
+                                    {t('discoveryShowingCount', {
+                                        count: resultCount,
+                                        label: resultCount === 1 ? t('resource') : t('resources'),
+                                    })}
                                 </p>
                             </div>
                             <button
@@ -664,7 +680,7 @@ function DesktopFilterPanel({
                                 }}
                             >
                                 <SlidersHorizontal size={14} />
-                                Edit search
+                                {t('discoveryEditSearch')}
                             </button>
                         </div>
 
@@ -703,10 +719,10 @@ function DesktopFilterPanel({
                 <div className="flex items-start justify-between">
                     <div className="min-w-0 pr-12">
                         <h1 className="text-[1.6rem] font-black leading-tight tracking-tight" style={{ color: 'var(--color-text)' }}>
-                            Find care and support near you
+                            {t('discoveryHeroTitle')}
                         </h1>
                         <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-                            Search for nearby places, programmes, services, and support.
+                            {t('discoveryHeroDescription')}
                         </p>
                     </div>
                     <button
@@ -718,7 +734,7 @@ function DesktopFilterPanel({
                             border: '1px solid var(--color-border)',
                             backgroundColor: 'rgba(255,255,255,0.6)',
                         }}
-                        title="Collapse panel"
+                        title={t('close')}
                     >
                         <ChevronDown size={18} />
                     </button>
@@ -760,10 +776,10 @@ function DesktopFilterPanel({
                                 icon={House}
                                 labelMode={locationControlMode}
                                 onClick={() => handleHomeAnchor()}
-                                shortLabel="Home"
-                                title="Use home postal code from your profile"
+                                shortLabel={t('discoveryHome')}
+                                title={t('discoveryUseHomeTitle')}
                             >
-                                Home
+                                {t('discoveryHome')}
                             </LocationActionButton>
                         ) : null}
                         <LocationActionButton
@@ -771,10 +787,10 @@ function DesktopFilterPanel({
                             icon={LocateFixed}
                             labelMode={locationControlMode}
                             onClick={handleLocateMe}
-                            shortLabel="Locate"
-                            title="Use my current location"
+                            shortLabel={t('discoveryLocateMe')}
+                            title={t('discoveryUseCurrentTitle')}
                         >
-                            Locate me
+                            {t('discoveryLocateMe')}
                         </LocationActionButton>
                         <div className="relative shrink-0">
                             <select
@@ -793,7 +809,7 @@ function DesktopFilterPanel({
                                 <option value={0.5}>500m</option>
                                 <option value={1}>1km</option>
                                 <option value={2}>2km</option>
-                                <option value={100}>All SG</option>
+                                <option value={100}>{t('discoveryAllSg')}</option>
                             </select>
                             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
                         </div>
@@ -801,11 +817,11 @@ function DesktopFilterPanel({
                             type="submit"
                             className={`flex ${DISCOVERY_CONTROL_HEIGHT_CLASS} flex-shrink-0 items-center justify-center rounded-2xl ${DISCOVERY_CONTROL_TEXT_CLASS} font-bold text-white transition-all hover:shadow-lg active:scale-95 ${showSearchLabel ? 'gap-2 px-5' : 'gap-0 px-3'}`}
                             style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
-                            aria-label="Search using the current location settings"
-                            title="Search using the current location settings"
+                            aria-label={t('search')}
+                            title={t('search')}
                         >
                             <Search size={16} />
-                            {showSearchLabel ? 'Search' : null}
+                            {showSearchLabel ? t('search') : null}
                         </button>
                     </div>
 
@@ -819,7 +835,7 @@ function DesktopFilterPanel({
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                                 <input
                                     type="search"
-                                    placeholder="Search by name, service, tag, or address"
+                                    placeholder={t('discoverySearchPlaceholder')}
                                     value={search}
                                     onChange={(event) => onSearchChange(event.target.value)}
                                     className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
@@ -837,7 +853,7 @@ function DesktopFilterPanel({
                                 style={{ borderColor: 'var(--color-border)' }}
                             >
                                 <span className={`shrink-0 ${DISCOVERY_LABEL_TEXT_CLASS}`} style={{ color: 'var(--color-text-muted)' }}>
-                                    Area
+                                    {t('discoveryArea')}
                                 </span>
                                 <select
                                     value={selectedDiscoverySubregionId}
@@ -859,7 +875,7 @@ function DesktopFilterPanel({
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                             <input
                                 type="search"
-                                placeholder="Search by name, service, tag, or address"
+                                placeholder={t('discoverySearchPlaceholder')}
                                 value={search}
                                 onChange={(event) => onSearchChange(event.target.value)}
                                 className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
@@ -877,9 +893,9 @@ function DesktopFilterPanel({
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-1 items-center gap-1 rounded-2xl p-1" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
                         {[
-                            { value: 'all', label: 'All', count: tabCounts.all },
-                            { value: 'hard', label: 'Places', count: tabCounts.hard },
-                            { value: 'soft', label: 'Programmes & services', count: tabCounts.soft },
+                            { value: 'all', label: t('all'), count: tabCounts.all },
+                            { value: 'hard', label: t('places'), count: tabCounts.hard },
+                            { value: 'soft', label: t('discoveryCategoryOfferingFallback'), count: tabCounts.soft },
                         ].map((tab) => (
                             <button
                                 key={tab.value}
@@ -931,7 +947,7 @@ function DesktopFilterPanel({
                                 <div className="toggle-label block h-4 cursor-pointer overflow-hidden rounded-full" style={{ backgroundColor: showFavoritesOnly ? '#10b981' : 'var(--color-border)' }} />
                             </div>
                             <span className={DISCOVERY_LABEL_TEXT_CLASS} style={{ color: 'var(--color-text-secondary)' }}>
-                                Saved only
+                                {t('discoverySavedOnly')}
                             </span>
                         </label>
                     ) : null}
@@ -951,7 +967,7 @@ function DesktopFilterPanel({
                         className="rounded-xl px-4 py-2.5 text-xs font-bold leading-relaxed border animate-in fade-in slide-in-from-top-1"
                         style={{ backgroundColor: 'rgba(248,250,252,0.92)', color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}
                     >
-                        A service area is selected, so distance is shown for context only and no longer filters results.
+                        {t('discoveryDistanceDisabledDesktop')}
                     </div>
                 ) : null}
 
@@ -969,13 +985,17 @@ function DesktopFilterPanel({
                         <div className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span style={{ color: 'var(--color-brand-strong)' }}>
-                                Using {getSearchLocationLabel(searchOrigin)}
-                                {searchRadius < 100 && !distanceOverridden ? ` • Within ${searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`}` : ''}
+                                {searchRadius < 100 && !distanceOverridden
+                                    ? t('discoveryUsingLocationWithin', {
+                                        label: getSearchLocationLabel(searchOrigin),
+                                        distance: searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`,
+                                    })
+                                    : t('discoveryUsingLocation', { label: getSearchLocationLabel(searchOrigin) })}
                             </span>
                         </div>
                         {canClearLocationSearch ? (
                             <button onClick={clearLocationSearch} className="font-black underline decoration-2 underline-offset-2 transition-colors hover:text-red-500" style={{ color: 'var(--color-text-muted)' }}>
-                                Clear
+                                {t('clear')}
                             </button>
                         ) : null}
                     </div>
@@ -987,6 +1007,7 @@ function DesktopFilterPanel({
 
 export function DiscoveryFilterPanel(props) {
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+    const { t } = useLocale();
     const {
         activeTab,
         activeSubregionLabel,
@@ -1023,7 +1044,7 @@ export function DiscoveryFilterPanel(props) {
         resultCount,
         savedAssetCount = 0,
         saveAllCount = 0,
-        saveAllPendingLabel = 'Working…',
+        saveAllPendingLabel,
         search,
         searchOrigin,
         searchRadius,
@@ -1048,10 +1069,12 @@ export function DiscoveryFilterPanel(props) {
         searchOrigin,
         searchRadius,
         showFavoritesOnly,
+        t,
         user,
         userLocation,
     });
     const mapDisabled = pinCount === 0 && !userLocation;
+    const resolvedSaveAllPendingLabel = saveAllPendingLabel || t('wait');
 
     return (
         <>
@@ -1078,15 +1101,18 @@ export function DiscoveryFilterPanel(props) {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                            Browse
+                                            {t('discoveryBrowse')}
                                         </p>
                                         <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                            Showing {resultCount} {resultCount === 1 ? 'resource' : 'resources'}
+                                            {t('discoveryShowingCount', {
+                                                count: resultCount,
+                                                label: resultCount === 1 ? t('resource') : t('resources'),
+                                            })}
                                         </p>
                                         <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
                                             {userLocation
-                                                ? `Anchored around ${getSearchLocationLabel(searchOrigin)}`
-                                                : 'Browse the list first, then open the map when you want to see where resources are.'}
+                                                ? t('discoveryAnchoredAround', { label: getSearchLocationLabel(searchOrigin) })
+                                                : t('discoveryBrowseHint')}
                                         </p>
                                     </div>
                                     <button
@@ -1096,7 +1122,7 @@ export function DiscoveryFilterPanel(props) {
                                         className="btn-primary min-h-[44px] shrink-0 justify-center px-4 text-[13px] leading-none whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Map size={15} />
-                                        Open map
+                                        {t('discoveryOpenMap')}
                                     </button>
                                 </div>
                             </div>
@@ -1106,7 +1132,7 @@ export function DiscoveryFilterPanel(props) {
                                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
                                     <input
                                         type="search"
-                                        placeholder="Search names, services, tags..."
+                                        placeholder={t('discoverySearchMobilePlaceholder')}
                                         value={search}
                                         onChange={(event) => onSearchChange(event.target.value)}
                                         className="w-full rounded-2xl border py-3 pl-10 pr-3 text-[15px] font-medium leading-none focus:outline-none focus:ring-2"
@@ -1124,7 +1150,7 @@ export function DiscoveryFilterPanel(props) {
                                     className="btn-ghost min-h-[46px] justify-center px-3 text-[15px] leading-none whitespace-nowrap"
                                 >
                                     <SlidersHorizontal size={16} />
-                                    Filter
+                                    {t('discoveryFilter')}
                                 </button>
                             </div>
 
@@ -1148,7 +1174,7 @@ export function DiscoveryFilterPanel(props) {
 
                             {savedAssetCount > 0 && mapDisabled ? (
                                 <div className="rounded-2xl border px-3 py-2 text-[12px] font-medium leading-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)', color: 'var(--color-text-secondary)' }}>
-                                    Your saved resources do not have map locations yet. The map will appear after you save a place, programme, or service with a valid address.
+                                    {t('discoverySavedNoMapNotice')}
                                 </div>
                             ) : null}
 
@@ -1166,17 +1192,20 @@ export function DiscoveryFilterPanel(props) {
                         >
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                    Map view
+                                    {t('discoveryMapView')}
                                 </p>
                                 <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
                                     {pinCount > 0
-                                        ? `Showing ${pinCount} saved ${pinCount === 1 ? 'place' : 'places'}`
-                                        : `Showing ${getSearchLocationLabel(searchOrigin)}`}
+                                        ? t('discoveryMapShowingSavedPlaces', {
+                                            count: pinCount,
+                                            label: pinCount === 1 ? t('placesSingular') : t('placesPlural'),
+                                        })
+                                        : t('discoveryMapShowingLocation', { label: getSearchLocationLabel(searchOrigin) })}
                                 </p>
                                 <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
                                     {pinCount > 0
-                                        ? 'Use the map to compare saved places. Open the list when you want to scan the resource cards.'
-                                        : 'This map is centred around your selected location. Save places to pin them here.'}
+                                        ? t('discoveryMapHintWithPins')
+                                        : t('discoveryMapHintNoPins')}
                                 </p>
                             </div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1187,7 +1216,7 @@ export function DiscoveryFilterPanel(props) {
                                     disabled={!onOpenMobileBrowseDrawer}
                                 >
                                     <Rows3 size={15} />
-                                    List
+                                    {t('discoveryList')}
                                 </button>
                                 <button
                                     type="button"
@@ -1195,7 +1224,7 @@ export function DiscoveryFilterPanel(props) {
                                     className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
                                 >
                                     <SlidersHorizontal size={15} />
-                                    Filter
+                                    {t('discoveryFilter')}
                                 </button>
                                 <button
                                     type="button"
@@ -1203,12 +1232,15 @@ export function DiscoveryFilterPanel(props) {
                                     className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
                                 >
                                     <Search size={15} />
-                                    Browse
+                                    {t('discoveryBrowse')}
                                 </button>
                             </div>
                             {savedAssetCount > 0 && unmappableSavedCount > 0 ? (
                                 <p className="mt-2 text-[12px] font-medium leading-5" style={{ color: 'var(--color-text-muted)' }}>
-                                    {unmappableSavedCount} saved {unmappableSavedCount === 1 ? 'resource is' : 'resources are'} shown in the list only and not shown on the map.
+                                    {t('discoveryUnmappedSavedNotice', {
+                                        count: unmappableSavedCount,
+                                        label: unmappableSavedCount === 1 ? t('resource') : t('resources'),
+                                    })}
                                 </p>
                             ) : null}
                         </div>
@@ -1244,7 +1276,7 @@ export function DiscoveryFilterPanel(props) {
                 onToggleSaveAll={onToggleSaveAll}
                 postalInput={postalInput}
                 saveAllCount={saveAllCount}
-                saveAllPendingLabel={saveAllPendingLabel}
+                saveAllPendingLabel={resolvedSaveAllPendingLabel}
                 searchOrigin={searchOrigin}
                 searchRadius={searchRadius}
                 selectedDiscoverySubregionId={selectedDiscoverySubregionId}

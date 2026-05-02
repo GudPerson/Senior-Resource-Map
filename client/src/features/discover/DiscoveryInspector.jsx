@@ -8,6 +8,8 @@ import {
     X,
 } from 'lucide-react';
 import { getDistance } from '../../lib/geo.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { localizeResource } from '../../lib/localization.js';
 import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../../lib/softAssetBuckets.js';
 import { TagBadge } from '../../components/AssetCard.jsx';
 import MarkdownLiteText from '../../components/MarkdownLiteText.jsx';
@@ -53,13 +55,16 @@ function buildSortedLocations(asset, userLocation) {
 }
 
 export function DiscoveryInspector({
-    asset,
+    asset: rawAsset,
     onClose,
     onOpenResourcePage,
     onTagClick,
     subCatColors,
     userLocation,
 }) {
+    const { locale, t } = useLocale();
+    const asset = localizeResource(rawAsset, locale);
+
     if (!asset) {
         return (
             <div className="pointer-events-none absolute top-5 right-5 z-[450] w-[320px]">
@@ -71,10 +76,10 @@ export function DiscoveryInspector({
                     }}
                 >
                     <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                        Select a saved place
+                        {t('discoverySelectSavedPlace')}
                     </p>
                     <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-                        Saved pins open here so you can inspect the place while keeping your browse list on the left.
+                        {t('discoverySelectSavedPlaceHelp')}
                     </p>
                 </div>
             </div>
@@ -127,7 +132,7 @@ export function DiscoveryInspector({
                             }}
                         >
                             {isHard ? <Building2 size={14} /> : <CalendarDays size={14} />}
-                            {asset.subCategory || (isHard ? 'Place' : 'Offering')}
+                            {asset.subCategory || (isHard ? t('place') : t('discoveryCategoryOfferingFallback'))}
                         </div>
                         <h2 className="mt-3 text-xl font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
                             {asset.name}
@@ -142,7 +147,7 @@ export function DiscoveryInspector({
                                         border: '1px solid var(--color-border)',
                                     }}
                                 >
-                                    Available at {locations.length} {locations.length === 1 ? 'place' : 'places'}
+                                    {t('availableIn')} {locations.length} {locations.length === 1 ? t('placesSingular') : t('placesPlural')}
                                 </span>
                             )}
                             {distance !== null && (
@@ -191,7 +196,7 @@ export function DiscoveryInspector({
 
                     <div className="space-y-3">
                         <p className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                            Summary
+                            {t('discoverySummary')}
                         </p>
                         {asset.description ? (
                             <MarkdownLiteText
@@ -202,7 +207,7 @@ export function DiscoveryInspector({
                             />
                         ) : (
                             <p className="text-sm italic" style={{ color: 'var(--color-text-muted)' }}>
-                                No description provided yet.
+                                {t('discoveryNoDescriptionProvided')}
                             </p>
                         )}
                     </div>
@@ -210,7 +215,7 @@ export function DiscoveryInspector({
                     {isHard && (
                         <div className="space-y-3">
                             <p className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                                Available Here
+                                {t('discoveryAvailableHere')}
                             </p>
                             <div className="grid grid-cols-3 gap-2">
                                 {SOFT_ASSET_BUCKETS.map((bucket) => (
@@ -240,7 +245,7 @@ export function DiscoveryInspector({
                                 <MapPin size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--color-brand)' }} />
                                 <div className="min-w-0">
                                     <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                                        {isHard ? 'Address' : 'Nearest place'}
+                                        {isHard ? t('address') : t('discoveryNearestPlace')}
                                     </p>
                                     <p className="mt-1 text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
                                         {primaryLocation.address}
@@ -257,7 +262,7 @@ export function DiscoveryInspector({
                                 <Clock size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--color-brand)' }} />
                                 <div className="min-w-0">
                                     <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                                        {isHard ? 'Operating hours' : 'Schedule'}
+                                        {isHard ? t('operatingHours') : t('schedule')}
                                     </p>
                                     <p className="mt-1 whitespace-pre-line text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
                                         {asset.schedule || asset.hours}
@@ -271,11 +276,11 @@ export function DiscoveryInspector({
                         <div className="space-y-3">
                             <div className="flex items-center justify-between gap-3">
                                 <p className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    Linked Places
+                                    {t('discoveryLinkedPlaces')}
                                 </p>
                                 {locations.length > topLocations.length && (
                                     <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>
-                                        +{locations.length - topLocations.length} more
+                                        {t('discoveryMoreCount', { count: locations.length - topLocations.length })}
                                     </span>
                                 )}
                             </div>
@@ -290,7 +295,7 @@ export function DiscoveryInspector({
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                                                    {location.name || 'Linked place'}
+                                                    {location.name || t('discoveryLinkedPlace')}
                                                 </p>
                                                 {location.address && (
                                                     <p className="mt-1 text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
@@ -320,7 +325,7 @@ export function DiscoveryInspector({
                     {asset.tags?.length > 0 && (
                         <div className="space-y-3">
                             <p className="text-sm font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                                Tags
+                                {t('tags')}
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {asset.tags.map((tag) => (
@@ -341,7 +346,7 @@ export function DiscoveryInspector({
                         className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-white transition-all hover:shadow-md"
                         style={{ backgroundColor: 'var(--color-brand)' }}
                     >
-                        View full page
+                        {t('discoveryViewFullPage')}
                         <ArrowRight size={16} />
                     </button>
                     {hasDirectionsTarget && (
@@ -356,7 +361,7 @@ export function DiscoveryInspector({
                             }}
                         >
                             <Navigation size={16} style={{ color: 'var(--color-brand)' }} />
-                            {isHard ? 'Get directions' : 'Directions to nearest place'}
+                            {isHard ? t('getDirections') : t('discoveryDirectionsNearest')}
                         </button>
                     )}
                 </div>
