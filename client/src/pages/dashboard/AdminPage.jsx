@@ -140,6 +140,49 @@ function compareListText(left, right) {
     return normalizeListText(left).localeCompare(normalizeListText(right));
 }
 
+function sanitizeCsvCell(value) {
+    if (value === undefined || value === null) return '';
+    const text = String(value).trim();
+    return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
+function formatExportDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return sanitizeCsvCell(value);
+    return date.toISOString();
+}
+
+function formatRoleForExport(role) {
+    return getRoleMeta(role).label;
+}
+
+function buildUserExportRows(userRows) {
+    return userRows.map((userRow) => [
+        userRow.id,
+        userRow.username,
+        userRow.name,
+        userRow.email,
+        formatRoleForExport(userRow.role),
+        userRow.phone,
+        userRow.postalCode,
+        userRow.derivedSubregionCode,
+        userRow.derivedSubregionName,
+        userRow.managerUsername,
+        userRow.managerName,
+        userRow.managerRole ? formatRoleForExport(userRow.managerRole) : '',
+        userRow.ownershipStatus,
+        userRow.boundaryStatus,
+        userRow.dateOfBirth,
+        userRow.chasCard,
+        userRow.caregiverStatus,
+        userRow.gender,
+        userRow.propertyType,
+        userRow.volunteerInterest,
+        formatExportDate(userRow.createdAt),
+    ].map(sanitizeCsvCell));
+}
+
 function normalizePaginatedResponse(response, defaultPageSize = 500) {
     if (Array.isArray(response)) {
         return {
@@ -1021,6 +1064,51 @@ export default function AdminPage() {
             : (currentUser?.subregionIds || []).join(',');
         const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, managerHint, demoSubregionRef];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
+    }
+
+    function handleExportUsers(scope = 'filtered') {
+        const rowsToExport = scope === 'selected'
+            ? users.filter((candidate) => selectedUsers.includes(candidate.id))
+            : filteredUsers;
+
+        if (rowsToExport.length === 0) {
+            alert(scope === 'selected' ? 'Select at least one user to export.' : 'No users match the current filters.');
+            return;
+        }
+
+        const headers = [
+            'ID',
+            'Username',
+            'Name',
+            'Email',
+            'Role',
+            'Phone',
+            'Postal Code',
+            'Derived Region Code',
+            'Derived Region Name',
+            'Manager Username',
+            'Manager Name',
+            'Manager Role',
+            'Ownership Status',
+            'Boundary Status',
+            'Date of Birth',
+            'CHAS Card',
+            'Caregiver Status',
+            'Gender',
+            'Property Type',
+            'Volunteer Interest',
+            'Created At',
+        ];
+        const date = new Date().toISOString().split('T')[0];
+        const fileName = scope === 'selected'
+            ? `selected_users_export_${date}.csv`
+            : `users_export_${date}.csv`;
+
+        downloadFile(
+            '\uFEFF' + Papa.unparse({ fields: headers, data: buildUserExportRows(rowsToExport) }),
+            fileName,
+            'text/csv;charset=utf-8',
+        );
     }
 
     function downloadFile(content, fileName, mimeType = 'text/csv;charset=utf-8') {
@@ -3030,6 +3118,16 @@ export default function AdminPage() {
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
+                            <button
+                                type="button"
+                                onClick={() => handleExportUsers('filtered')}
+                                disabled={filteredUsers.length === 0}
+                                className="btn-ghost flex items-center justify-center gap-2 xl:w-56 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Export the users matching the current search and filters"
+                            >
+                                <Download size={16} />
+                                Export matching users
+                            </button>
                         </div>
                         <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                             {boundaryChecksEnabled ? (
@@ -3046,6 +3144,9 @@ export default function AdminPage() {
                             <div className="flex items-center gap-3 bg-brand-50 p-3 rounded-xl border-b border-brand-100 animate-in fade-in slide-in-from-top-2">
                                 <span className="text-sm font-bold text-brand-700 ml-2">{selectedUsers.length} selected</span>
                                 <div className="flex-1"></div>
+                                <button type="button" onClick={() => handleExportUsers('selected')} className="btn-ghost py-1.5 text-xs flex items-center gap-2">
+                                    <Download size={14} /> Export Selected
+                                </button>
                                 <button type="button" onClick={() => promptBulkDelete('users')} className="btn-primary bg-red-600 hover:bg-red-700 border-red-600 py-1.5 text-xs flex items-center gap-2">
                                     <Trash2 size={14} /> Delete Selected
                                 </button>
