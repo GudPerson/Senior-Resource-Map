@@ -19,6 +19,7 @@ const MyDirectoryPage = lazy(() => import('./pages/MyDirectoryPage.jsx'));
 const MyMapDetailPage = lazy(() => import('./pages/MyMapDetailPage.jsx'));
 const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
+const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 
 function ProtectedRoute({ children, requireAdmin, requireDirectoryAccess }) {
     const { user, isAuth } = useAuth();
@@ -69,6 +70,8 @@ function AppShell() {
                     <Route path="/list" element={<Navigate to="/discover" replace />} />
                     <Route path="/discover" element={<DiscoverPage />} />
                     <Route path="/membership/link" element={<MembershipLinkPage />} />
+                    <Route path="/privacy" element={<LegalPage type="privacy" />} />
+                    <Route path="/terms" element={<LegalPage type="terms" />} />
 
                     <Route path="/resource/:type/:id" element={<ResourcePage />} />
                     <Route path="/shared/maps/:token" element={<SharedMapPage />} />

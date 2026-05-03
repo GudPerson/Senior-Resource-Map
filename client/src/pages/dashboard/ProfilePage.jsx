@@ -396,6 +396,21 @@ export default function ProfilePage() {
                     </div>
                 )}
             </div>
+
+            <div className="card mt-6 shadow-sm">
+                <h2 className="text-lg font-bold text-slate-900">Privacy and terms</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                    Review how CareAround SG handles personal data, cookies, browser preferences, and account responsibilities.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                    <Link to="/privacy" className="btn-ghost px-4 py-2 text-sm">
+                        Privacy & Cookies Notice
+                    </Link>
+                    <Link to="/terms" className="btn-ghost px-4 py-2 text-sm">
+                        Terms of Use
+                    </Link>
+                </div>
+            </div>
         </div>
     );
 }

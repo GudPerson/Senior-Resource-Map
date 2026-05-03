@@ -50,6 +50,14 @@ export default function Navbar() {
                         {/* Right controls */}
                         <div className="navbar-controls flex items-center gap-1.5 sm:gap-2">
 
+                            <div className="hidden xl:flex items-center gap-1 text-xs font-semibold text-slate-500">
+                                <Link to="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-slate-100 hover:text-brand-700">
+                                    Privacy
+                                </Link>
+                                <Link to="/terms" className="rounded-lg px-2 py-1 transition hover:bg-slate-100 hover:text-brand-700">
+                                    Terms
+                                </Link>
+                            </div>
 
                             <label className="sr-only" htmlFor="locale-select">{t('language')}</label>
                             <select

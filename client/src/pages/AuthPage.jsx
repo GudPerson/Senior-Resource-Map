@@ -223,6 +223,20 @@ export default function AuthPage({ isPartner = false }) {
                         <>{t('staffOrAdmin')} <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">{t('logInHere')}</Link></>
                     )}
                 </div>
+
+                <div className="mt-4 border-t border-slate-100 pt-4 text-center text-xs leading-6" style={{ color: 'var(--color-text-secondary)' }}>
+                    <p>
+                        By using CareAround SG, you agree to the{' '}
+                        <Link to="/terms" className="font-semibold text-brand-700 hover:underline">
+                            Terms of Use
+                        </Link>{' '}
+                        and acknowledge the{' '}
+                        <Link to="/privacy" className="font-semibold text-brand-700 hover:underline">
+                            Privacy & Cookies Notice
+                        </Link>
+                        .
+                    </p>
+                </div>
             </div>
         </div>
     );
