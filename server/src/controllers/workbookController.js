@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -50,6 +50,10 @@ const CONTENT_TYPES = {
 const XLSX_FORMAT = 'xlsx';
 const CSV_FORMAT = 'csv';
 const FILTERED_EXPORT_REFRESH_ERROR = 'Some filtered results are no longer available or outside your scope. Refresh My Resources and try again.';
+const WORKBOOK_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+const WORKBOOK_IMPORT_MAX_ROWS = 5000;
+const WORKBOOK_IMPORT_MAX_COLUMNS = 80;
+const WORKBOOK_CELL_MAX_CHARS = 20_000;
 
 const filteredWorkbookExportBodySchema = z.object({
     ids: positiveIntListSchema('Filtered workbook export ids', 1000),
@@ -175,6 +179,58 @@ function chunkArray(values, size = 500) {
 
 function normalizeHeader(value) {
     return normalizeText(value).replace(/\*/g, '').replace(/[^a-z0-9]+/gi, '').toLowerCase();
+}
+
+function getWorkbookFormat(fileName) {
+    const lower = normalizeText(fileName).toLowerCase();
+    if (lower.endsWith('.csv')) return CSV_FORMAT;
+    if (lower.endsWith('.xlsx')) return XLSX_FORMAT;
+    throw new Error('Upload a .xlsx or .csv file using the "file" field.');
+}
+
+function getUploadedFileSize(file) {
+    const size = Number(file?.size);
+    return Number.isFinite(size) && size >= 0 ? size : null;
+}
+
+function assertWorkbookSize(size) {
+    if (size !== null && size > WORKBOOK_IMPORT_MAX_BYTES) {
+        throw new Error('Workbook file is too large. Upload a .xlsx or .csv file under 10 MB.');
+    }
+}
+
+function sanitizeWorkbookCell(value, rowNumber, columnNumber) {
+    if (value === undefined || value === null) return '';
+    if (value instanceof Date) return value;
+
+    const valueType = typeof value;
+    if (!['string', 'number', 'boolean'].includes(valueType)) {
+        throw new Error(`Workbook contains an unsupported cell value at row ${rowNumber}, column ${columnNumber}.`);
+    }
+
+    if (String(value).length > WORKBOOK_CELL_MAX_CHARS) {
+        throw new Error(`Workbook cell at row ${rowNumber}, column ${columnNumber} is too long. Keep each cell under ${WORKBOOK_CELL_MAX_CHARS.toLocaleString()} characters.`);
+    }
+
+    return value;
+}
+
+function sanitizeWorkbookRows(rawRows) {
+    if (rawRows.length > WORKBOOK_IMPORT_MAX_ROWS + 1) {
+        throw new Error(`Workbook imports support up to ${WORKBOOK_IMPORT_MAX_ROWS.toLocaleString()} data rows. Split larger files and try again.`);
+    }
+
+    return rawRows.map((row, rowIndex) => {
+        if (!Array.isArray(row)) {
+            throw new Error(`Workbook row ${rowIndex + 1} has an unsupported format.`);
+        }
+
+        if (row.length > WORKBOOK_IMPORT_MAX_COLUMNS) {
+            throw new Error(`Workbook row ${rowIndex + 1} has too many columns. Use the provided template and keep extra notes out of the import sheet.`);
+        }
+
+        return row.map((value, cellIndex) => sanitizeWorkbookCell(value, rowIndex + 1, cellIndex + 1));
+    });
 }
 
 function createHttpError(status, message) {
@@ -354,18 +410,34 @@ function buildCsvBuffer(resourceType, rows) {
     return new TextEncoder().encode(`\uFEFF${csv}`);
 }
 
-async function parseWorkbookRows(file, resourceType) {
+export async function parseWorkbookRows(file, resourceType) {
     const fileName = String(file?.name || '');
-    const lower = fileName.toLowerCase();
-    const format = lower.endsWith('.csv') ? CSV_FORMAT : XLSX_FORMAT;
+    const format = getWorkbookFormat(fileName);
+    assertWorkbookSize(getUploadedFileSize(file));
     const arrayBuffer = await file.arrayBuffer();
+    assertWorkbookSize(arrayBuffer.byteLength ?? null);
 
     let workbook;
     if (format === CSV_FORMAT) {
         const text = new TextDecoder().decode(arrayBuffer);
-        workbook = XLSX.read(text, { type: 'string' });
+        workbook = XLSX.read(text, {
+            type: 'string',
+            cellFormula: false,
+            cellHTML: false,
+            cellNF: false,
+            cellStyles: false,
+            sheetRows: WORKBOOK_IMPORT_MAX_ROWS + 2,
+        });
     } else {
-        workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+        workbook = XLSX.read(arrayBuffer, {
+            type: 'array',
+            cellDates: true,
+            cellFormula: false,
+            cellHTML: false,
+            cellNF: false,
+            cellStyles: false,
+            sheetRows: WORKBOOK_IMPORT_MAX_ROWS + 2,
+        });
     }
 
     const sheetName = workbook.Sheets.Data ? 'Data' : workbook.SheetNames[0];
@@ -374,7 +446,7 @@ async function parseWorkbookRows(file, resourceType) {
         throw new Error('Workbook is missing a Data sheet.');
     }
 
-    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+    const rawRows = sanitizeWorkbookRows(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false }));
     if (rawRows.length === 0) return [];
 
     const config = RESOURCE_TYPES[resourceType];

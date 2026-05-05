@@ -97,9 +97,10 @@ Do not deploy a stabilization fix unless:
 
 ## Security Dependency Follow-Ups
 
-Last reviewed: 2026-05-02.
+Last reviewed: 2026-05-04.
 
 - `hono`, `@hono/node-server`, and transitive YAML/minimatch-style advisories were updated with non-breaking audit fixes.
+- `xlsx` high-severity advisories were removed from `npm audit` by replacing the vulnerable package with the SheetJS-compatible `@e965/xlsx@0.20.3` package and adding workbook import containment: `.xlsx`/`.csv` extension allowlist, 10 MB file cap, 5,000 data-row cap, 80-column cap, scalar cell validation, and bounded cell length checks. Verification: `npm run test:server` passed 117/117 and `npm run build:client` passed on 2026-05-04.
 - `drizzle-orm` still reports a high-severity advisory. The available npm audit fix is a breaking major upgrade, so handle it as a dedicated database-query migration with full server regression coverage.
-- `xlsx` still reports high-severity advisories and npm audit lists no patched replacement in the current package. Handle this as a dedicated workbook import/export migration or containment pass, because it touches locked workbook flows.
+- `drizzle-kit` still reports moderate dev-tool advisories through `esbuild`/`@esbuild-kit`; the available npm audit fix is also a breaking major upgrade and should be handled with the Drizzle migration.
 - Production session signing now requires a real `JWT_SECRET`; local development keeps the fallback only outside production.
