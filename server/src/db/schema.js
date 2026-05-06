@@ -185,6 +185,27 @@ export const userPhoneIdentities = pgTable('user_phone_identities', {
   phoneIdx: index('user_phone_identities_phone_idx').on(table.phoneE164),
 }));
 
+export const phoneVerificationAttempts = pgTable('phone_verification_attempts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar('provider', { length: 40 }).notNull().default('gudauth'),
+  providerChallengeId: varchar('provider_challenge_id', { length: 255 }),
+  requestedPhoneE164: varchar('requested_phone_e164', { length: 32 }),
+  verifiedPhoneE164: varchar('verified_phone_e164', { length: 32 }),
+  status: varchar('status', { length: 40 }).notNull().default('pending'),
+  providerStatus: varchar('provider_status', { length: 80 }),
+  failureReason: text('failure_reason'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('phone_verification_attempts_user_idx').on(table.userId),
+  providerChallengeUnique: uniqueIndex('phone_verification_attempts_provider_challenge_unique')
+    .on(table.provider, table.providerChallengeId)
+    .where(sql`${table.providerChallengeId} IS NOT NULL`),
+  statusIdx: index('phone_verification_attempts_status_idx').on(table.status),
+}));
+
 export const softAssetAudienceZones = pgTable('soft_asset_audience_zones', {
   softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
   audienceZoneId: integer('audience_zone_id').references(() => audienceZones.id, { onDelete: 'cascade' }).notNull(),
@@ -370,6 +391,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   myMaps: many(myMaps),
   assetMemberships: many(userAssetMemberships),
   phoneIdentities: many(userPhoneIdentities),
+  phoneVerificationAttempts: many(phoneVerificationAttempts),
   subregions: many(userSubregions),
   partnerPostalCodes: many(partnerPostalCodes),
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
@@ -613,5 +635,12 @@ export const userPhoneIdentitiesRelations = relations(userPhoneIdentities, ({ on
     fields: [userPhoneIdentities.createdByUserId],
     references: [users.id],
     relationName: 'user_phone_identity_creator',
+  }),
+}));
+
+export const phoneVerificationAttemptsRelations = relations(phoneVerificationAttempts, ({ one }) => ({
+  user: one(users, {
+    fields: [phoneVerificationAttempts.userId],
+    references: [users.id],
   }),
 }));
