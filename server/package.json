@@ -10,6 +10,7 @@
     "bootstrap:boundary-schema": "node --env-file=.env scripts/bootstrap_boundary_schema.js",
     "backfill:soft-buckets": "node scripts/backfill_soft_asset_buckets.js",
     "backfill:external-keys": "node scripts/backfill_external_keys.js",
+    "audit:phone-identities": "node --env-file=.env scripts/audit_phone_identities.js",
     "audit:clean-slate": "node --env-file=.env scripts/audit_clean_slate.js",
     "reset:clean-slate": "node --env-file=.env scripts/reset_clean_slate.js",
     "start": "node src/index.js",

@@ -205,6 +205,23 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS user_phone_identities (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    phone_e164 VARCHAR(32) NOT NULL,
+                    country_code VARCHAR(8) NOT NULL DEFAULT '+65',
+                    national_number VARCHAR(24) NOT NULL,
+                    status VARCHAR(40) NOT NULL DEFAULT 'legacy_unverified',
+                    source VARCHAR(40) NOT NULL DEFAULT 'legacy_profile',
+                    provider_subject VARCHAR(255),
+                    verified_at TIMESTAMP,
+                    revoked_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS audience_zones_zone_code_unique ON audience_zones (zone_code)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS audience_zone_postal_codes (
@@ -257,6 +274,10 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_asset_memberships_user_hard_asset_unique ON user_asset_memberships (user_id, hard_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_asset_memberships_user_idx ON user_asset_memberships (user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_asset_memberships_hard_asset_idx ON user_asset_memberships (hard_asset_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_phone_identities_active_phone_unique ON user_phone_identities (phone_e164) WHERE revoked_at IS NULL`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_phone_identities_active_user_unique ON user_phone_identities (user_id) WHERE revoked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_phone_identities_user_idx ON user_phone_identities (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_phone_identities_phone_idx ON user_phone_identities (phone_e164)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_parents_partner_idx ON soft_asset_parents (partner_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_parents_creator_idx ON soft_asset_parents (created_by_user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_assets_asset_mode_idx ON soft_assets (asset_mode)`);
@@ -276,6 +297,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
     }
 
     await ensureBoundarySchemaPromise;
+}
+
+export function resetBoundarySchemaBootstrapForTests() {
+    ensureBoundarySchemaPromise = null;
+    ensureUserPreferenceColumnsPromise = null;
 }
 
 export async function ensureUserPreferenceColumns(db) {
