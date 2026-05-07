@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
+import PhoneVerificationPanel from '../../components/PhoneVerificationPanel.jsx';
 import { User, Phone, Lock, CheckCircle, Link2, MapPin } from 'lucide-react';
 import {
     CHAS_CARD_OPTIONS,
@@ -211,6 +212,7 @@ export default function ProfilePage() {
                         <label className="block text-sm font-semibold text-slate-700 mb-1"><Phone size={13} className="inline mr-1" />{t('phoneNumber')}</label>
                         <input id="profile-phone" type="tel" value={form.phone} onChange={set('phone')} placeholder="(312) 555-0000" className=" input-field" />
                     </div>
+                    <PhoneVerificationPanel savedPhone={user?.phone || ''} draftPhone={form.phone} t={t} />
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{user?.role === 'standard' ? t('postalCodeRecommended') : t('postalCode')}</label>
                         <input id="profile-postal-code" type="text" value={form.postalCode} onChange={set('postalCode')} placeholder="680153" className=" input-field" autoComplete="postal-code" />

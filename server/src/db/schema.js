@@ -1,5 +1,5 @@
 import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey, uniqueIndex, index } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
 
@@ -158,6 +158,52 @@ export const userAssetMemberships = pgTable('user_asset_memberships', {
   userHardAssetUnique: uniqueIndex('user_asset_memberships_user_hard_asset_unique').on(table.userId, table.hardAssetId),
   userIdx: index('user_asset_memberships_user_idx').on(table.userId),
   hardAssetIdx: index('user_asset_memberships_hard_asset_idx').on(table.hardAssetId),
+}));
+
+export const userPhoneIdentities = pgTable('user_phone_identities', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  phoneE164: varchar('phone_e164', { length: 32 }).notNull(),
+  countryCode: varchar('country_code', { length: 8 }).notNull().default('+65'),
+  nationalNumber: varchar('national_number', { length: 24 }).notNull(),
+  status: varchar('status', { length: 40 }).notNull().default('legacy_unverified'),
+  source: varchar('source', { length: 40 }).notNull().default('legacy_profile'),
+  providerSubject: varchar('provider_subject', { length: 255 }),
+  verifiedAt: timestamp('verified_at'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activePhoneUnique: uniqueIndex('user_phone_identities_active_phone_unique')
+    .on(table.phoneE164)
+    .where(sql`${table.revokedAt} IS NULL`),
+  activeUserUnique: uniqueIndex('user_phone_identities_active_user_unique')
+    .on(table.userId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  userIdx: index('user_phone_identities_user_idx').on(table.userId),
+  phoneIdx: index('user_phone_identities_phone_idx').on(table.phoneE164),
+}));
+
+export const phoneVerificationAttempts = pgTable('phone_verification_attempts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  provider: varchar('provider', { length: 40 }).notNull().default('gudauth'),
+  providerChallengeId: varchar('provider_challenge_id', { length: 255 }),
+  requestedPhoneE164: varchar('requested_phone_e164', { length: 32 }),
+  verifiedPhoneE164: varchar('verified_phone_e164', { length: 32 }),
+  status: varchar('status', { length: 40 }).notNull().default('pending'),
+  providerStatus: varchar('provider_status', { length: 80 }),
+  failureReason: text('failure_reason'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('phone_verification_attempts_user_idx').on(table.userId),
+  providerChallengeUnique: uniqueIndex('phone_verification_attempts_provider_challenge_unique')
+    .on(table.provider, table.providerChallengeId)
+    .where(sql`${table.providerChallengeId} IS NOT NULL`),
+  statusIdx: index('phone_verification_attempts_status_idx').on(table.status),
 }));
 
 export const softAssetAudienceZones = pgTable('soft_asset_audience_zones', {
@@ -344,6 +390,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   favorites: many(userFavorites),
   myMaps: many(myMaps),
   assetMemberships: many(userAssetMemberships),
+  phoneIdentities: many(userPhoneIdentities),
+  phoneVerificationAttempts: many(phoneVerificationAttempts),
   subregions: many(userSubregions),
   partnerPostalCodes: many(partnerPostalCodes),
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
@@ -575,5 +623,24 @@ export const userAssetMembershipsRelations = relations(userAssetMemberships, ({ 
   hardAsset: one(hardAssets, {
     fields: [userAssetMemberships.hardAssetId],
     references: [hardAssets.id],
+  }),
+}));
+
+export const userPhoneIdentitiesRelations = relations(userPhoneIdentities, ({ one }) => ({
+  user: one(users, {
+    fields: [userPhoneIdentities.userId],
+    references: [users.id],
+  }),
+  createdBy: one(users, {
+    fields: [userPhoneIdentities.createdByUserId],
+    references: [users.id],
+    relationName: 'user_phone_identity_creator',
+  }),
+}));
+
+export const phoneVerificationAttemptsRelations = relations(phoneVerificationAttempts, ({ one }) => ({
+  user: one(users, {
+    fields: [phoneVerificationAttempts.userId],
+    references: [users.id],
   }),
 }));

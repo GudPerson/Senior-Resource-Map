@@ -299,6 +299,11 @@ export const api = {
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),
 
+    // Phone identity verification
+    getMyPhoneIdentity: () => request('GET', '/phone-identities/me'),
+    startPhoneIdentityLink: (body = {}) => request('POST', '/phone-identities/link/start', body),
+    getPhoneIdentityLinkAttempt: (attemptId) => request('GET', `/phone-identities/link/${attemptId}`),
+
     // Memberships
     getMyMemberships: () => request('GET', '/memberships/me'),
 
