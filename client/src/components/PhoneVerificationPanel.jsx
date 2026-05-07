@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, MessageCircle, RefreshCw, ShieldCheck } from 'lucide-react';
 import { api } from '../lib/api.js';
+import {
+    getWhatsAppUrl,
+    isSafeWhatsAppUrl,
+    mergePhoneVerificationChallenge,
+} from '../lib/phoneVerificationState.js';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120000;
@@ -27,17 +32,6 @@ function classifyError(message) {
 function normalizeStatus(status) {
     if (status === 'manualReview') return 'manual_review';
     return String(status || '').trim().toLowerCase();
-}
-
-function getWhatsAppUrl(challenge) {
-    return challenge?.whatsappUrl || challenge?.whatsAppUrl || challenge?.url || '';
-}
-
-function isSafeWhatsAppUrl(value) {
-    const url = String(value || '').trim();
-    return url.startsWith('https://wa.me/')
-        || url.startsWith('https://api.whatsapp.com/')
-        || url.startsWith('whatsapp://');
 }
 
 function translateReason(t, reason) {
@@ -116,7 +110,11 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     const applyAttempt = useCallback((result) => {
         const nextStatus = normalizeStatus(result?.status);
         setDisplayPhone(result?.identity?.phone || result?.phone || displayPhone);
-        setChallenge(result?.challenge || null);
+        setChallenge((previousChallenge) => mergePhoneVerificationChallenge(
+            previousChallenge,
+            result?.challenge || null,
+            nextStatus,
+        ));
         setError(translateReason(t, result?.reason));
 
         if (result?.attemptId) setAttemptId(result.attemptId);
