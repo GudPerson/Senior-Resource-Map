@@ -35,31 +35,55 @@ function serializeIdentity(identity) {
     };
 }
 
+function getProviderChallengePayload(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    if (payload.data?.challenge && typeof payload.data.challenge === 'object') return payload.data.challenge;
+    if (payload.challenge && typeof payload.challenge === 'object') return payload.challenge;
+    if (payload.data && typeof payload.data === 'object') return payload.data;
+    return payload;
+}
+
+function getProviderChallengeUrl(payload, challengePayload) {
+    const candidates = [
+        payload?.data?.deepLink,
+        payload?.deepLink,
+        challengePayload?.whatsappUrl,
+        challengePayload?.whatsAppUrl,
+        challengePayload?.url,
+    ];
+    return candidates.find((value) => typeof value === 'string' && value.trim()) || null;
+}
+
 function sanitizeChallenge(challenge) {
-    if (!challenge || typeof challenge !== 'object') return null;
+    const challengePayload = getProviderChallengePayload(challenge);
+    if (!challengePayload || typeof challengePayload !== 'object') return null;
     return {
-        id: challenge.id || challenge.challengeId || null,
-        status: challenge.status || null,
-        expiresAt: challenge.expiresAt || challenge.expires_at || null,
-        phone: challenge.phoneMasked || challenge.maskedPhone || null,
-        message: challenge.message || null,
+        id: challengePayload.id || challengePayload.challengeId || null,
+        status: challengePayload.status || null,
+        expiresAt: challengePayload.expiresAt || challengePayload.expires_at || null,
+        phone: challengePayload.phoneMasked || challengePayload.maskedPhone || null,
+        message: challengePayload.message || null,
+        whatsappUrl: getProviderChallengeUrl(challenge, challengePayload),
     };
 }
 
 function extractChallengeId(challenge) {
-    return String(challenge?.id || challenge?.challengeId || '').trim();
+    const challengePayload = getProviderChallengePayload(challenge);
+    return String(challengePayload?.id || challengePayload?.challengeId || '').trim();
 }
 
 function extractProviderSubject(challenge) {
-    return String(challenge?.subject || challenge?.providerSubject || challenge?.verifiedSubject || '').trim() || null;
+    const challengePayload = getProviderChallengePayload(challenge);
+    return String(challengePayload?.subject || challengePayload?.providerSubject || challengePayload?.verifiedSubject || '').trim() || null;
 }
 
 function extractProviderPhone(challenge) {
-    return challenge?.phoneE164
-        || challenge?.verifiedPhoneE164
-        || challenge?.phone
-        || challenge?.msisdn
-        || challenge?.whatsappPhone
+    const challengePayload = getProviderChallengePayload(challenge);
+    return challengePayload?.phoneE164
+        || challengePayload?.verifiedPhoneE164
+        || challengePayload?.phone
+        || challengePayload?.msisdn
+        || challengePayload?.whatsappPhone
         || null;
 }
 
@@ -72,9 +96,10 @@ function normalizeProviderStatus(status) {
 }
 
 function normalizeChallengeState(challenge) {
-    if (challenge?.verified === true) return PHONE_LINK_ATTEMPT_STATUS.verified;
-    if (challenge?.expired === true) return PHONE_LINK_ATTEMPT_STATUS.expired;
-    return normalizeProviderStatus(challenge?.status);
+    const challengePayload = getProviderChallengePayload(challenge);
+    if (challengePayload?.verified === true) return PHONE_LINK_ATTEMPT_STATUS.verified;
+    if (challengePayload?.expired === true) return PHONE_LINK_ATTEMPT_STATUS.expired;
+    return normalizeProviderStatus(challengePayload?.status);
 }
 
 function splitSingaporeE164(phoneE164) {
@@ -257,7 +282,7 @@ export async function startPhoneIdentityLinkAttempt({ store, gudAuthClient, user
         status: PHONE_LINK_ATTEMPT_STATUS.pending,
     });
     const challenge = await gudAuthClient.createChallenge({
-        phoneE164,
+        phoneNumber: phoneE164,
         referenceId: `carearound-phone-link:${attempt.id}`,
         externalUserId: String(user.id),
     });

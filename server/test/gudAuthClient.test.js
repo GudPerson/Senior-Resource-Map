@@ -11,7 +11,7 @@ import {
 test('GudAuth HMAC signature uses the confirmed canonical string', async () => {
     const timestamp = '1777777777';
     const rawBody = JSON.stringify({
-        phoneE164: '+6583682962',
+        phoneNumber: '+6583682962',
         referenceId: 'carearound-phone-link:12',
     });
     const canonical = buildGudAuthCanonicalString({
@@ -54,7 +54,7 @@ test('GudAuth client signs POST and GET requests without exposing secrets', asyn
     });
 
     await client.createChallenge({
-        phoneE164: '+6583682962',
+        phoneNumber: '+6583682962',
         referenceId: 'carearound-phone-link:12',
     });
     await client.getChallenge('challenge-123');
@@ -62,6 +62,10 @@ test('GudAuth client signs POST and GET requests without exposing secrets', asyn
     assert.equal(calls.length, 2);
     assert.equal(calls[0].url, 'https://gudauth.app/api/integrations/challenges');
     assert.equal(calls[0].options.method, 'POST');
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+        phoneNumber: '+6583682962',
+        referenceId: 'carearound-phone-link:12',
+    });
     assert.equal(calls[0].options.headers['X-GudOTP-Product'], 'carearound-sg');
     assert.equal(calls[0].options.headers['X-GudOTP-Timestamp'], '1777777777');
     assert.ok(calls[0].options.headers['X-GudOTP-Signature']);
@@ -80,4 +84,3 @@ test('GudAuth client signs POST and GET requests without exposing secrets', asyn
     const expectedGetSignature = createHmac('sha256', 'super-secret-value').update(getCanonical).digest('hex');
     assert.equal(calls[1].options.headers['X-GudOTP-Signature'], expectedGetSignature);
 });
-

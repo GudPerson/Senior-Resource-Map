@@ -155,10 +155,44 @@ test('starting a link creates a CareAround attempt and calls GudAuth server-side
     assert.equal(store.state.attempts[0].providerChallengeId, 'gudauth-challenge-1');
     assert.equal(store.state.attempts[0].requestedPhoneE164, '+6583682962');
     assert.deepEqual(calls, [{
-        phoneE164: '+6583682962',
+        phoneNumber: '+6583682962',
         referenceId: 'carearound-phone-link:1',
         externalUserId: '7',
     }]);
+});
+
+test('starting a link accepts GudAuth challenge response envelopes', async () => {
+    const store = createMemoryStore();
+    const gudAuthClient = {
+        async createChallenge() {
+            return {
+                ok: true,
+                data: {
+                    challenge: {
+                        id: 'gudauth-challenge-1',
+                        status: 'pending',
+                        expiresAt: '2026-05-06T10:15:00.000Z',
+                    },
+                    deepLink: 'https://wa.me/6587651901?text=WAP-123456',
+                    messageText: 'WAP-123456',
+                },
+            };
+        },
+    };
+
+    const result = await startPhoneIdentityLinkAttempt({
+        store,
+        gudAuthClient,
+        user: DEFAULT_USER,
+        input: {},
+    });
+
+    assert.equal(result.status, 'pending');
+    assert.equal(result.challenge.id, 'gudauth-challenge-1');
+    assert.equal(result.challenge.status, 'pending');
+    assert.equal(result.challenge.expiresAt, '2026-05-06T10:15:00.000Z');
+    assert.equal(result.challenge.whatsappUrl, 'https://wa.me/6587651901?text=WAP-123456');
+    assert.equal(store.state.attempts[0].providerChallengeId, 'gudauth-challenge-1');
 });
 
 test('verified GudAuth phone upgrades the current user legacy identity', async () => {
