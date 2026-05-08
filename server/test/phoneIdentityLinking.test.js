@@ -156,6 +156,7 @@ test('starting a link creates a CareAround attempt and calls GudAuth server-side
     assert.equal(store.state.attempts[0].requestedPhoneE164, '+6583682962');
     assert.deepEqual(calls, [{
         phoneNumber: '+6583682962',
+        returnUrl: 'https://app.carearound.sg/dashboard/profile?gudauth=phone_link',
         referenceId: 'carearound-phone-link:1',
         externalUserId: '7',
     }]);

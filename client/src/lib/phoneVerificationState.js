@@ -9,6 +9,13 @@ export function isSafeWhatsAppUrl(value) {
         || url.startsWith('whatsapp://');
 }
 
+export function isGudAuthPhoneLinkReturn(search) {
+    const rawSearch = String(search || '').trim();
+    const normalizedSearch = rawSearch.startsWith('?') ? rawSearch : `?${rawSearch}`;
+    const params = new URLSearchParams(normalizedSearch);
+    return params.get('gudauth') === 'phone_link';
+}
+
 function isTerminalStatus(status) {
     return ['verified', 'failed', 'expired', 'conflict', 'manual_review'].includes(
         String(status || '').trim().toLowerCase(),

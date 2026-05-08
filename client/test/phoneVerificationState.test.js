@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     getWhatsAppUrl,
     isSafeWhatsAppUrl,
+    isGudAuthPhoneLinkReturn,
     mergePhoneVerificationChallenge,
 } from '../src/lib/phoneVerificationState.js';
 
@@ -60,4 +61,11 @@ test('allows only WhatsApp launch URLs', () => {
     assert.equal(isSafeWhatsAppUrl('https://api.whatsapp.com/send?phone=6587651901'), true);
     assert.equal(isSafeWhatsAppUrl('whatsapp://send?phone=6587651901'), true);
     assert.equal(isSafeWhatsAppUrl('https://example.com/redirect'), false);
+});
+
+test('detects GudAuth phone-link returns from the Profile query string', () => {
+    assert.equal(isGudAuthPhoneLinkReturn('?gudauth=phone_link'), true);
+    assert.equal(isGudAuthPhoneLinkReturn('gudauth=phone_link'), true);
+    assert.equal(isGudAuthPhoneLinkReturn('?gudauth=phone_login'), false);
+    assert.equal(isGudAuthPhoneLinkReturn('?other=phone_link'), false);
 });

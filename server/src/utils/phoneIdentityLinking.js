@@ -16,6 +16,7 @@ export const PHONE_LINK_ATTEMPT_STATUS = Object.freeze({
 const PROVIDER_VERIFIED_STATUSES = new Set(['verified', 'approved', 'completed', 'success']);
 const PROVIDER_FAILED_STATUSES = new Set(['failed', 'rejected', 'error']);
 const PROVIDER_EXPIRED_STATUSES = new Set(['expired', 'timeout']);
+export const PHONE_LINK_RETURN_URL = 'https://app.carearound.sg/dashboard/profile?gudauth=phone_link';
 
 function createPhoneLinkError(message, status = 400, code = 'phone_link_error') {
     const err = new Error(message);
@@ -283,6 +284,7 @@ export async function startPhoneIdentityLinkAttempt({ store, gudAuthClient, user
     });
     const challenge = await gudAuthClient.createChallenge({
         phoneNumber: phoneE164,
+        returnUrl: PHONE_LINK_RETURN_URL,
         referenceId: `carearound-phone-link:${attempt.id}`,
         externalUserId: String(user.id),
     });

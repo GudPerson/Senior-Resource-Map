@@ -3,15 +3,113 @@ import { AlertTriangle, CheckCircle2, Clock, MessageCircle, RefreshCw, ShieldChe
 import { api } from '../lib/api.js';
 import {
     getWhatsAppUrl,
+    isGudAuthPhoneLinkReturn,
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
 } from '../lib/phoneVerificationState.js';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120000;
+const STORED_ATTEMPT_TTL_MS = 10 * 60 * 1000;
+const STORED_ATTEMPT_KEY = 'carearound-phone-link-attempt';
 
 function clean(value) {
     return String(value || '').trim();
+}
+
+function readStoredPhoneLinkAttempt(savedPhoneText = '') {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const raw = window.localStorage.getItem(STORED_ATTEMPT_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const attemptId = Number.parseInt(String(parsed?.attemptId || ''), 10);
+        const expiresAt = Number.parseInt(String(parsed?.expiresAt || ''), 10);
+        const phone = clean(parsed?.phone);
+
+        if (!attemptId || !expiresAt || Date.now() > expiresAt) {
+            window.localStorage.removeItem(STORED_ATTEMPT_KEY);
+            return null;
+        }
+
+        if (phone && clean(savedPhoneText) && phone !== clean(savedPhoneText)) {
+            return null;
+        }
+
+        return { attemptId, phone };
+    } catch {
+        try {
+            window.localStorage.removeItem(STORED_ATTEMPT_KEY);
+        } catch {
+            // Ignore storage cleanup failures.
+        }
+        return null;
+    }
+}
+
+function writeStoredPhoneLinkAttempt(attemptId, savedPhoneText = '') {
+    if (typeof window === 'undefined') return;
+
+    const normalizedAttemptId = Number.parseInt(String(attemptId || ''), 10);
+    if (!normalizedAttemptId) return;
+
+    try {
+        window.localStorage.setItem(STORED_ATTEMPT_KEY, JSON.stringify({
+            attemptId: normalizedAttemptId,
+            phone: clean(savedPhoneText),
+            expiresAt: Date.now() + STORED_ATTEMPT_TTL_MS,
+        }));
+    } catch {
+        // Ignore storage failures; the Check again button remains the fallback.
+    }
+}
+
+function clearStoredPhoneLinkAttempt() {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.removeItem(STORED_ATTEMPT_KEY);
+    } catch {
+        // Ignore storage failures.
+    }
+}
+
+function prepareWhatsAppLaunchWindow() {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        return window.open('', '_blank');
+    } catch {
+        return null;
+    }
+}
+
+function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
+    const safeUrl = isSafeWhatsAppUrl(whatsappUrl) ? whatsappUrl : '';
+    if (!safeUrl) {
+        try {
+            preparedWindow?.close?.();
+        } catch {
+            // Ignore window cleanup failures.
+        }
+        return false;
+    }
+
+    try {
+        if (preparedWindow && !preparedWindow.closed) {
+            preparedWindow.opener = null;
+            preparedWindow.location.href = safeUrl;
+            return true;
+        }
+    } catch {
+        // Fall through to a direct open attempt.
+    }
+
+    try {
+        return Boolean(window.open(safeUrl, '_blank', 'noopener,noreferrer'));
+    } catch {
+        return false;
+    }
 }
 
 function classifyError(message) {
@@ -50,6 +148,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     const [error, setError] = useState('');
     const [actionBusy, setActionBusy] = useState(false);
     const pollUntilRef = useRef(0);
+    const pollInFlightRef = useRef(false);
 
     const savedPhoneText = clean(savedPhone);
     const draftPhoneText = clean(draftPhone);
@@ -60,15 +159,23 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         const nextIdentity = summary?.identity || null;
         const nextStatus = normalizeStatus(nextIdentity?.status);
         setDisplayPhone(nextIdentity?.phone || summary?.profilePhone || '');
-        setChallenge(null);
-        setAttemptId(null);
         setError('');
         if (nextStatus === 'verified') {
+            clearStoredPhoneLinkAttempt();
+            setChallenge(null);
+            setAttemptId(null);
             setStatus('verified');
+        } else if (readStoredPhoneLinkAttempt(savedPhoneText)?.attemptId) {
+            const storedAttempt = readStoredPhoneLinkAttempt(savedPhoneText);
+            setAttemptId(storedAttempt.attemptId);
+            pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
+            setStatus('pending');
         } else {
+            setChallenge(null);
+            setAttemptId(null);
             setStatus('not_verified');
         }
-    }, []);
+    }, [savedPhoneText]);
 
     const refreshSummary = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoading(true);
@@ -120,65 +227,100 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         if (result?.attemptId) setAttemptId(result.attemptId);
 
         if (nextStatus === 'verified') {
+            clearStoredPhoneLinkAttempt();
             setStatus('verified');
             setAttemptId(null);
             pollUntilRef.current = 0;
         } else if (nextStatus === 'failed' || nextStatus === 'expired') {
+            clearStoredPhoneLinkAttempt();
             setStatus(nextStatus);
             setAttemptId(null);
             pollUntilRef.current = 0;
         } else if (nextStatus === 'conflict' || nextStatus === 'manual_review') {
+            clearStoredPhoneLinkAttempt();
             setStatus('manual_review');
             setAttemptId(null);
             pollUntilRef.current = 0;
         } else {
+            if (result?.attemptId) writeStoredPhoneLinkAttempt(result.attemptId, savedPhoneText);
             setStatus('pending');
         }
-    }, [displayPhone, t]);
+    }, [displayPhone, savedPhoneText, t]);
 
-    const pollAttempt = useCallback(async ({ manual = false } = {}) => {
-        if (!attemptId) return;
+    const pollAttemptById = useCallback(async (id, { manual = false } = {}) => {
+        const normalizedAttemptId = Number.parseInt(String(id || ''), 10);
+        if (!normalizedAttemptId || pollInFlightRef.current) return;
+
+        pollInFlightRef.current = true;
         if (manual) setActionBusy(true);
         try {
-            const result = await api.getPhoneIdentityLinkAttempt(attemptId);
+            const result = await api.getPhoneIdentityLinkAttempt(normalizedAttemptId);
             applyAttempt(result);
         } catch (err) {
             const classified = classifyError(err.message);
             if (classified === 'manual_review') {
                 setStatus('manual_review');
                 setAttemptId(null);
+                clearStoredPhoneLinkAttempt();
             }
             setError(err.message || t('phoneVerificationPollFailed'));
         } finally {
+            pollInFlightRef.current = false;
             if (manual) setActionBusy(false);
         }
-    }, [applyAttempt, attemptId, t]);
+    }, [applyAttempt, t]);
+
+    const pollAttempt = useCallback(async ({ manual = false } = {}) => {
+        await pollAttemptById(attemptId, { manual });
+    }, [attemptId, pollAttemptById]);
+
+    const restoreStoredAttemptAndPoll = useCallback(() => {
+        const storedAttempt = readStoredPhoneLinkAttempt(savedPhoneText);
+        if (!storedAttempt?.attemptId) return;
+
+        setAttemptId(storedAttempt.attemptId);
+        pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
+        setStatus((currentStatus) => (currentStatus === 'verified' ? currentStatus : 'pending'));
+        pollAttemptById(storedAttempt.attemptId);
+    }, [pollAttemptById, savedPhoneText]);
 
     useEffect(() => {
         if (!attemptId || status !== 'pending') return undefined;
-        if (pollUntilRef.current && Date.now() >= pollUntilRef.current) {
-            setStatus('expired');
-            setAttemptId(null);
-            setError(t('phoneVerificationTimedOut'));
-            return undefined;
-        }
 
-        const timer = window.setTimeout(() => {
+        const runPoll = () => {
+            if (pollUntilRef.current && Date.now() >= pollUntilRef.current) {
+                clearStoredPhoneLinkAttempt();
+                setStatus('expired');
+                setAttemptId(null);
+                setError(t('phoneVerificationTimedOut'));
+                return;
+            }
+
             pollAttempt();
-        }, POLL_INTERVAL_MS);
+        };
 
-        return () => window.clearTimeout(timer);
+        const interval = window.setInterval(runPoll, POLL_INTERVAL_MS);
+
+        return () => window.clearInterval(interval);
     }, [attemptId, pollAttempt, status, t]);
 
     async function startVerification() {
         if (hasUnsavedPhone || !hasSavedPhone || actionBusy) return;
+        const preparedWhatsAppWindow = prepareWhatsAppLaunchWindow();
         setActionBusy(true);
         setError('');
         try {
             const result = await api.startPhoneIdentityLink({ phone: savedPhoneText });
             pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
+            if (result?.attemptId) writeStoredPhoneLinkAttempt(result.attemptId, savedPhoneText);
             applyAttempt(result);
+            launchPreparedWhatsAppWindow(preparedWhatsAppWindow, getWhatsAppUrl(result?.challenge));
         } catch (err) {
+            try {
+                preparedWhatsAppWindow?.close?.();
+            } catch {
+                // Ignore window cleanup failures.
+            }
             const classified = classifyError(err.message);
             if (classified === 'manual_review') setStatus('manual_review');
             setError(err.message || t('phoneVerificationStartFailed'));
@@ -186,6 +328,35 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
             setActionBusy(false);
         }
     }
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        if (!isGudAuthPhoneLinkReturn(window.location.search)) return undefined;
+
+        restoreStoredAttemptAndPoll();
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('gudauth');
+        window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        return undefined;
+    }, [restoreStoredAttemptAndPoll]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+        const handleFocus = () => restoreStoredAttemptAndPoll();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') restoreStoredAttemptAndPoll();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [restoreStoredAttemptAndPoll]);
 
     const view = useMemo(() => {
         if (loading || status === 'loading') {
