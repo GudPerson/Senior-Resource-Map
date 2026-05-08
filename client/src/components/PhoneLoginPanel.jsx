@@ -1,0 +1,445 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock, MessageCircle, Phone, RefreshCw } from 'lucide-react';
+
+import { api } from '../lib/api.js';
+import {
+    getWhatsAppUrl,
+    isGudAuthPhoneLoginReturn,
+    isSafeWhatsAppUrl,
+    mergePhoneVerificationChallenge,
+} from '../lib/phoneVerificationState.js';
+
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 120000;
+const STORED_ATTEMPT_TTL_MS = 10 * 60 * 1000;
+const STORED_ATTEMPT_KEY = 'carearound-phone-login-attempt';
+
+function clean(value) {
+    return String(value || '').trim();
+}
+
+function normalizeStatus(status) {
+    return String(status || '').trim().toLowerCase();
+}
+
+function readStoredPhoneLoginAttempt() {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        const raw = window.localStorage.getItem(STORED_ATTEMPT_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const attemptId = Number.parseInt(String(parsed?.attemptId || ''), 10);
+        const expiresAt = Number.parseInt(String(parsed?.expiresAt || ''), 10);
+        if (!attemptId || !expiresAt || Date.now() > expiresAt) {
+            window.localStorage.removeItem(STORED_ATTEMPT_KEY);
+            return null;
+        }
+        return {
+            attemptId,
+            phone: clean(parsed?.phone),
+            returnTo: clean(parsed?.returnTo),
+        };
+    } catch {
+        try {
+            window.localStorage.removeItem(STORED_ATTEMPT_KEY);
+        } catch {
+            // Ignore storage cleanup failures.
+        }
+        return null;
+    }
+}
+
+function writeStoredPhoneLoginAttempt(attemptId, phone, returnTo) {
+    if (typeof window === 'undefined') return;
+
+    const normalizedAttemptId = Number.parseInt(String(attemptId || ''), 10);
+    if (!normalizedAttemptId) return;
+
+    try {
+        window.localStorage.setItem(STORED_ATTEMPT_KEY, JSON.stringify({
+            attemptId: normalizedAttemptId,
+            phone: clean(phone),
+            returnTo: clean(returnTo),
+            expiresAt: Date.now() + STORED_ATTEMPT_TTL_MS,
+        }));
+    } catch {
+        // Ignore storage failures; active polling still continues in the current tab.
+    }
+}
+
+function clearStoredPhoneLoginAttempt() {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.removeItem(STORED_ATTEMPT_KEY);
+    } catch {
+        // Ignore storage failures.
+    }
+}
+
+function prepareWhatsAppLaunchWindow() {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        return window.open('', '_blank');
+    } catch {
+        return null;
+    }
+}
+
+function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
+    const safeUrl = isSafeWhatsAppUrl(whatsappUrl) ? whatsappUrl : '';
+    if (!safeUrl) {
+        try {
+            preparedWindow?.close?.();
+        } catch {
+            // Ignore window cleanup failures.
+        }
+        return false;
+    }
+
+    try {
+        if (preparedWindow && !preparedWindow.closed) {
+            preparedWindow.opener = null;
+            preparedWindow.location.href = safeUrl;
+            return true;
+        }
+    } catch {
+        // Fall through to a direct open attempt.
+    }
+
+    try {
+        return Boolean(window.open(safeUrl, '_blank', 'noopener,noreferrer'));
+    } catch {
+        return false;
+    }
+}
+
+function statusView(status, t) {
+    if (status === 'starting') {
+        return {
+            icon: RefreshCw,
+            iconClass: 'text-brand-700',
+            title: t('phoneLoginOpeningWhatsApp'),
+            body: t('phoneLoginCheckingAutomatically'),
+        };
+    }
+
+    if (status === 'pending') {
+        return {
+            icon: Clock,
+            iconClass: 'text-blue-700',
+            title: t('phoneLoginPendingTitle'),
+            body: t('phoneLoginPendingBody'),
+        };
+    }
+
+    if (status === 'verified') {
+        return {
+            icon: CheckCircle2,
+            iconClass: 'text-green-700',
+            title: t('phoneLoginVerifiedTitle'),
+            body: t('phoneLoginVerifiedBody'),
+        };
+    }
+
+    if (status === 'no_account') {
+        return {
+            icon: AlertTriangle,
+            iconClass: 'text-amber-700',
+            title: t('phoneLoginNoAccountTitle'),
+            body: t('phoneLoginNoAccountBody'),
+        };
+    }
+
+    if (status === 'conflict') {
+        return {
+            icon: AlertTriangle,
+            iconClass: 'text-red-700',
+            title: t('phoneLoginConflictTitle'),
+            body: t('phoneLoginConflictBody'),
+        };
+    }
+
+    if (status === 'expired') {
+        return {
+            icon: AlertTriangle,
+            iconClass: 'text-amber-700',
+            title: t('phoneLoginExpiredTitle'),
+            body: t('phoneLoginExpiredBody'),
+        };
+    }
+
+    if (status === 'failed') {
+        return {
+            icon: AlertTriangle,
+            iconClass: 'text-amber-700',
+            title: t('phoneLoginFailedTitle'),
+            body: t('phoneLoginFailedBody'),
+        };
+    }
+
+    return {
+        icon: MessageCircle,
+        iconClass: 'text-brand-700',
+        title: t('whatsAppSignInTitle'),
+        body: t('whatsAppSignInBody'),
+    };
+}
+
+export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
+    const [phone, setPhone] = useState('');
+    const [status, setStatus] = useState('idle');
+    const [attemptId, setAttemptId] = useState(null);
+    const [challenge, setChallenge] = useState(null);
+    const [error, setError] = useState('');
+    const [actionBusy, setActionBusy] = useState(false);
+    const pollUntilRef = useRef(0);
+    const pollInFlightRef = useRef(false);
+    const returnToRef = useRef(clean(returnTo));
+
+    useEffect(() => {
+        returnToRef.current = clean(returnTo);
+    }, [returnTo]);
+
+    const finishWithResult = useCallback((result) => {
+        const nextStatus = normalizeStatus(result?.status);
+        const storedAttempt = readStoredPhoneLoginAttempt();
+        setChallenge((previousChallenge) => mergePhoneVerificationChallenge(
+            previousChallenge,
+            result?.challenge || null,
+            nextStatus,
+        ));
+        setError(result?.message || '');
+        if (result?.attemptId) setAttemptId(result.attemptId);
+
+        if (nextStatus === 'verified' && result?.user) {
+            clearStoredPhoneLoginAttempt();
+            setStatus('verified');
+            setAttemptId(null);
+            pollUntilRef.current = 0;
+            onSignedIn(result.user, storedAttempt?.returnTo || returnToRef.current);
+            return;
+        }
+
+        if (['no_account', 'conflict', 'failed', 'expired'].includes(nextStatus)) {
+            clearStoredPhoneLoginAttempt();
+            setStatus(nextStatus);
+            setAttemptId(null);
+            pollUntilRef.current = 0;
+            return;
+        }
+
+        if (result?.attemptId) {
+            writeStoredPhoneLoginAttempt(
+                result.attemptId,
+                phone || storedAttempt?.phone || '',
+                storedAttempt?.returnTo || returnToRef.current,
+            );
+            setStatus('pending');
+        }
+    }, [onSignedIn, phone]);
+
+    const pollAttemptById = useCallback(async (id) => {
+        const normalizedAttemptId = Number.parseInt(String(id || ''), 10);
+        if (!normalizedAttemptId || pollInFlightRef.current) return;
+
+        pollInFlightRef.current = true;
+        try {
+            const result = await api.getPhoneLoginAttempt(normalizedAttemptId);
+            finishWithResult(result);
+        } catch (err) {
+            setError(err.message || t('phoneLoginPollingError'));
+        } finally {
+            pollInFlightRef.current = false;
+        }
+    }, [finishWithResult, t]);
+
+    const restoreStoredAttemptAndPoll = useCallback(() => {
+        const storedAttempt = readStoredPhoneLoginAttempt();
+        if (!storedAttempt?.attemptId) return;
+
+        setAttemptId(storedAttempt.attemptId);
+        if (storedAttempt.phone) setPhone(storedAttempt.phone);
+        pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
+        setStatus((currentStatus) => (currentStatus === 'verified' ? currentStatus : 'pending'));
+        pollAttemptById(storedAttempt.attemptId);
+    }, [pollAttemptById]);
+
+    useEffect(() => {
+        if (!attemptId || status !== 'pending') return undefined;
+
+        const runPoll = () => {
+            if (pollUntilRef.current && Date.now() >= pollUntilRef.current) {
+                clearStoredPhoneLoginAttempt();
+                setStatus('expired');
+                setAttemptId(null);
+                setError(t('phoneLoginExpiredBody'));
+                return;
+            }
+            pollAttemptById(attemptId);
+        };
+
+        const interval = window.setInterval(runPoll, POLL_INTERVAL_MS);
+        return () => window.clearInterval(interval);
+    }, [attemptId, pollAttemptById, status, t]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        if (!isGudAuthPhoneLoginReturn(window.location.search)) return undefined;
+
+        restoreStoredAttemptAndPoll();
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('gudauth');
+        window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        return undefined;
+    }, [restoreStoredAttemptAndPoll]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+        const handleFocus = () => restoreStoredAttemptAndPoll();
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') restoreStoredAttemptAndPoll();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [restoreStoredAttemptAndPoll]);
+
+    async function startPhoneLogin() {
+        const phoneText = clean(phone);
+        if (!phoneText || actionBusy) return;
+
+        const preparedWhatsAppWindow = prepareWhatsAppLaunchWindow();
+        setActionBusy(true);
+        setStatus('starting');
+        setError('');
+        setChallenge(null);
+        try {
+            const result = await api.startPhoneLogin({ phone: phoneText });
+            pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
+            if (result?.attemptId) writeStoredPhoneLoginAttempt(result.attemptId, phoneText, returnToRef.current);
+            finishWithResult(result);
+            launchPreparedWhatsAppWindow(preparedWhatsAppWindow, getWhatsAppUrl(result?.challenge));
+        } catch (err) {
+            try {
+                preparedWhatsAppWindow?.close?.();
+            } catch {
+                // Ignore window cleanup failures.
+            }
+            setStatus('failed');
+            setError(err.message || t('phoneLoginGenericError'));
+        } finally {
+            setActionBusy(false);
+        }
+    }
+
+    function resetPanel() {
+        clearStoredPhoneLoginAttempt();
+        pollUntilRef.current = 0;
+        setAttemptId(null);
+        setChallenge(null);
+        setError('');
+        setStatus('idle');
+    }
+
+    const view = statusView(status, t);
+    const Icon = view.icon;
+    const whatsappUrl = getWhatsAppUrl(challenge);
+    const canStart = Boolean(clean(phone)) && !actionBusy && status !== 'pending' && status !== 'starting';
+    const showTryAgain = ['failed', 'expired', 'no_account', 'conflict'].includes(status);
+
+    return (
+        <section className="mt-4 w-full rounded-2xl border border-brand-100 bg-brand-50/30 px-4 py-4 text-left">
+            <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
+                    <Icon size={20} className={view.iconClass} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h2 className="text-sm font-bold text-slate-900">{view.title}</h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{view.body}</p>
+
+                    {status === 'idle' || showTryAgain ? (
+                        <div className="mt-3">
+                            <label className="block text-xs font-semibold text-slate-700" htmlFor="phone-login-number">
+                                {t('phoneLoginInputLabel')}
+                            </label>
+                            <div className="relative mt-1">
+                                <Phone size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    id="phone-login-number"
+                                    type="tel"
+                                    inputMode="tel"
+                                    autoComplete="tel"
+                                    value={phone}
+                                    onChange={(event) => setPhone(event.target.value)}
+                                    placeholder={t('phoneLoginInputPlaceholder')}
+                                    className="input-field pl-10"
+                                />
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {error ? (
+                        <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                            {error}
+                        </p>
+                    ) : null}
+
+                    {status === 'pending' ? (
+                        <p className="mt-3 text-xs font-semibold text-slate-500">
+                            {t('phoneLoginCheckingAutomatically')}
+                        </p>
+                    ) : null}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {status === 'idle' || showTryAgain ? (
+                            <button
+                                type="button"
+                                disabled={!canStart}
+                                onClick={startPhoneLogin}
+                                className="btn-primary px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {actionBusy ? (
+                                    <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                ) : (
+                                    <MessageCircle size={16} />
+                                )}
+                                {showTryAgain ? t('phoneLoginTryAgainButton') : t('phoneLoginStartButton')}
+                            </button>
+                        ) : null}
+
+                        {status === 'pending' && isSafeWhatsAppUrl(whatsappUrl) ? (
+                            <a
+                                href={whatsappUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-ghost px-4 py-2 text-sm"
+                            >
+                                <MessageCircle size={16} />
+                                {t('phoneLoginOpenWhatsAppFallback')}
+                            </a>
+                        ) : null}
+
+                        {status === 'pending' ? (
+                            <button
+                                type="button"
+                                onClick={resetPanel}
+                                className="btn-ghost px-4 py-2 text-sm"
+                            >
+                                {t('cancel')}
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}

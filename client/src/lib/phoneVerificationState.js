@@ -16,6 +16,13 @@ export function isGudAuthPhoneLinkReturn(search) {
     return params.get('gudauth') === 'phone_link';
 }
 
+export function isGudAuthPhoneLoginReturn(search) {
+    const rawSearch = String(search || '').trim();
+    const normalizedSearch = rawSearch.startsWith('?') ? rawSearch : `?${rawSearch}`;
+    const params = new URLSearchParams(normalizedSearch);
+    return params.get('gudauth') === 'phone_login';
+}
+
 function isTerminalStatus(status) {
     return ['verified', 'failed', 'expired', 'conflict', 'manual_review'].includes(
         String(status || '').trim().toLowerCase(),

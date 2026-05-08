@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
+import PhoneLoginPanel from '../components/PhoneLoginPanel.jsx';
 import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
@@ -25,7 +26,10 @@ export default function AuthPage({ isPartner = false }) {
     const navigate = useNavigate();
     const location = useLocation();
 
-    function resolvePostAuthDestination() {
+    const resolvePostAuthDestination = useCallback((destinationOverride = '') => {
+        const normalizedOverride = normalizeReturnTo(destinationOverride);
+        if (normalizedOverride) return normalizedOverride;
+
         const pendingMembershipToken = getPendingMembershipToken();
         if (pendingMembershipToken) {
             return buildMembershipLinkPath(pendingMembershipToken);
@@ -33,7 +37,12 @@ export default function AuthPage({ isPartner = false }) {
 
         const params = new URLSearchParams(location.search);
         return normalizeReturnTo(params.get('returnTo')) || '/dashboard';
-    }
+    }, [location.search]);
+
+    const completeLogin = useCallback((userData, destinationOverride = '') => {
+        login(userData);
+        navigate(resolvePostAuthDestination(destinationOverride), { replace: true });
+    }, [login, navigate, resolvePostAuthDestination]);
 
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
 
@@ -49,8 +58,7 @@ export default function AuthPage({ isPartner = false }) {
             const res = tab === 'login'
                 ? await api.login(loginPayload)
                 : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user' });
-            login(res.user);
-            navigate(resolvePostAuthDestination(), { replace: true });
+            completeLogin(res.user);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -67,8 +75,7 @@ export default function AuthPage({ isPartner = false }) {
                 payload.postalCode = form.postalCode;
             }
             const res = await api.googleAuth(payload);
-            login(res.user);
-            navigate(resolvePostAuthDestination(), { replace: true });
+            completeLogin(res.user);
         } catch (err) {
             setError(err.message || t('googleSignInFailed'));
         } finally {
@@ -119,6 +126,13 @@ export default function AuthPage({ isPartner = false }) {
                             width="100%"
                             text={tab === 'login' ? 'signin_with' : 'signup_with'}
                         />
+                        {tab === 'login' ? (
+                            <PhoneLoginPanel
+                                t={t}
+                                returnTo={normalizeReturnTo(new URLSearchParams(location.search).get('returnTo'))}
+                                onSignedIn={completeLogin}
+                            />
+                        ) : null}
                         <div className="flex items-center w-full my-6">
                             <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
                             <div className="px-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{t('or')}</div>
