@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, MessageCircle, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, MessageCircle, RefreshCw, ShieldCheck, Unlink } from 'lucide-react';
 import { api } from '../lib/api.js';
 import {
     getWhatsAppUrl,
@@ -144,6 +144,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     const [status, setStatus] = useState('loading');
     const [displayPhone, setDisplayPhone] = useState('');
     const [currentVerifiedPhone, setCurrentVerifiedPhone] = useState('');
+    const [hasLinkedIdentity, setHasLinkedIdentity] = useState(false);
     const [attemptId, setAttemptId] = useState(null);
     const [challenge, setChallenge] = useState(null);
     const [error, setError] = useState('');
@@ -161,11 +162,18 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         const nextStatus = normalizeStatus(nextIdentity?.status);
         const profilePhone = summary?.profilePhone || '';
         const identityPhone = nextIdentity?.phone || '';
+        const identityIsVerified = nextStatus === 'verified';
         const storedAttempt = readStoredPhoneLinkAttempt(savedPhoneText);
-        setCurrentVerifiedPhone(nextStatus === 'verified' ? identityPhone : '');
+        setHasLinkedIdentity(Boolean(nextIdentity));
+        setCurrentVerifiedPhone(identityIsVerified ? identityPhone : '');
         setDisplayPhone(profilePhone || identityPhone);
         setError('');
-        if (nextStatus === 'verified' && summary?.profilePhoneMatchesIdentity !== false) {
+        if (identityIsVerified && !profilePhone && identityPhone) {
+            clearStoredPhoneLinkAttempt();
+            setChallenge(null);
+            setAttemptId(null);
+            setStatus('linked_without_profile_phone');
+        } else if (identityIsVerified && summary?.profilePhoneMatchesIdentity !== false) {
             clearStoredPhoneLinkAttempt();
             setChallenge(null);
             setAttemptId(null);
@@ -325,6 +333,26 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         }
     }
 
+    async function unlinkVerification() {
+        if (!hasLinkedIdentity || actionBusy) return;
+        if (typeof window !== 'undefined' && !window.confirm(t('phoneVerificationRemoveConfirm'))) return;
+
+        setActionBusy(true);
+        setError('');
+        try {
+            const summary = await api.unlinkMyPhoneIdentity();
+            clearStoredPhoneLinkAttempt();
+            pollUntilRef.current = 0;
+            setAttemptId(null);
+            setChallenge(null);
+            applySummary(summary);
+        } catch (err) {
+            setError(err.message || t('phoneVerificationRemoveFailed'));
+        } finally {
+            setActionBusy(false);
+        }
+    }
+
     useEffect(() => {
         if (typeof window === 'undefined') return undefined;
         if (!isGudAuthPhoneLinkReturn(window.location.search)) return undefined;
@@ -374,6 +402,17 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                 badge: t('phoneVerificationSaveFirstBadge'),
                 title: t('phoneVerificationSaveFirstTitle'),
                 body: t('phoneVerificationSaveFirstBody'),
+            };
+        }
+
+        if (status === 'linked_without_profile_phone') {
+            return {
+                icon: AlertTriangle,
+                iconClass: 'text-amber-700',
+                badgeClass: 'bg-amber-100 text-amber-800',
+                badge: t('phoneVerificationLinkedWithoutProfileBadge'),
+                title: t('phoneVerificationLinkedWithoutProfileTitle'),
+                body: t('phoneVerificationLinkedWithoutProfileBody'),
             };
         }
 
@@ -456,8 +495,18 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     const Icon = view.icon;
     const canStart = hasSavedPhone && !hasUnsavedPhone && !actionBusy && !loading && status !== 'pending';
     const canManualPoll = attemptId && status === 'pending' && !actionBusy;
-    const showStartButton = !loading && !['verified', 'pending', 'manual_review', 'conflict'].includes(status);
+    const showStartButton = !loading && !['verified', 'pending', 'manual_review', 'conflict', 'linked_without_profile_phone'].includes(status);
+    const showRemoveButton = !loading
+        && hasLinkedIdentity
+        && Boolean(currentVerifiedPhone)
+        && !actionBusy
+        && ['verified', 'phone_changed', 'linked_without_profile_phone'].includes(status);
     const whatsappUrl = getWhatsAppUrl(challenge);
+    const phoneLabel = status === 'phone_changed'
+        ? t('phoneVerificationNewPhone', { phone: displayPhone })
+        : status === 'linked_without_profile_phone'
+            ? t('phoneVerificationCurrentVerifiedPhone', { phone: displayPhone })
+            : t('phoneVerificationLinkedPhone', { phone: displayPhone });
 
     return (
         <section className="rounded-2xl border border-brand-100 bg-brand-50/40 px-4 py-4">
@@ -475,9 +524,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                     <p className="mt-1 text-sm leading-6 text-slate-600">{view.body}</p>
                     {displayPhone ? (
                         <p className="mt-2 text-xs font-semibold text-slate-500">
-                            {status === 'phone_changed'
-                                ? t('phoneVerificationNewPhone', { phone: displayPhone })
-                                : t('phoneVerificationLinkedPhone', { phone: displayPhone })}
+                            {phoneLabel}
                         </p>
                     ) : null}
                     {status === 'phone_changed' && currentVerifiedPhone ? (
@@ -538,6 +585,17 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                                 <MessageCircle size={16} />
                                 {t('phoneVerificationOpenWhatsAppButton')}
                             </a>
+                        ) : null}
+
+                        {showRemoveButton ? (
+                            <button
+                                type="button"
+                                onClick={unlinkVerification}
+                                className="btn-ghost px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                            >
+                                <Unlink size={16} />
+                                {t('phoneVerificationRemoveButton')}
+                            </button>
                         ) : null}
                     </div>
                 </div>

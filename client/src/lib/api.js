@@ -301,6 +301,7 @@ export const api = {
 
     // Phone identity verification
     getMyPhoneIdentity: () => request('GET', '/phone-identities/me'),
+    unlinkMyPhoneIdentity: () => request('DELETE', '/phone-identities/me'),
     startPhoneIdentityLink: (body = {}) => request('POST', '/phone-identities/link/start', body),
     getPhoneIdentityLinkAttempt: (attemptId) => request('GET', `/phone-identities/link/${attemptId}`),
 

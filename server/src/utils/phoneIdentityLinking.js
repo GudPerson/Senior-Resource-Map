@@ -254,6 +254,16 @@ export function createPhoneIdentityLinkStore(db) {
                 .returning();
             return row;
         },
+        async revokeActiveIdentityByUserId(userId) {
+            const [row] = await db.update(userPhoneIdentities)
+                .set({
+                    revokedAt: new Date(),
+                    updatedAt: new Date(),
+                })
+                .where(and(eq(userPhoneIdentities.userId, userId), isNull(userPhoneIdentities.revokedAt)))
+                .returning();
+            return row || null;
+        },
     };
 }
 
@@ -269,6 +279,11 @@ export async function getPhoneIdentitySummary(store, user) {
         profilePhoneNeedsVerification: Boolean(normalizedProfilePhone && (!identity || !profilePhoneMatchesIdentity || identity.status !== 'verified')),
         canStartLink: Boolean(normalizedProfilePhone),
     };
+}
+
+export async function unlinkPhoneIdentity({ store, user }) {
+    await store.revokeActiveIdentityByUserId(user.id);
+    return getPhoneIdentitySummary(store, user);
 }
 
 export async function startPhoneIdentityLinkAttempt({ store, gudAuthClient, user, input = {} }) {

@@ -8,6 +8,7 @@ import {
     getPhoneIdentitySummary,
     pollPhoneIdentityLinkAttempt,
     startPhoneIdentityLinkAttempt,
+    unlinkPhoneIdentity,
 } from '../utils/phoneIdentityLinking.js';
 import { optionalOneLineTextSchema, parsePositiveInt, validateRequestBody } from '../utils/inputValidation.js';
 
@@ -88,3 +89,17 @@ export async function getPhoneLinkAttempt(c) {
     }
 }
 
+export async function unlinkCurrentPhoneIdentity(c) {
+    try {
+        const { db, store } = createLinkingDependencies(c);
+        await ensureBoundarySchema(db, c.env);
+        const summary = await unlinkPhoneIdentity({
+            store,
+            user: c.get('user'),
+        });
+        return c.json(summary);
+    } catch (err) {
+        if (!err.status || err.status >= 500) console.error('Phone identity unlink error:', err);
+        return c.json(errorPayload(err), statusForError(err));
+    }
+}

@@ -7,6 +7,7 @@ import {
     getPhoneIdentitySummary,
     pollPhoneIdentityLinkAttempt,
     startPhoneIdentityLinkAttempt,
+    unlinkPhoneIdentity,
 } from '../src/utils/phoneIdentityLinking.js';
 
 const DEFAULT_USER = {
@@ -100,6 +101,15 @@ function createMemoryStore({
             });
             return this.createVerifiedIdentity(values);
         },
+        async revokeActiveIdentityByUserId(userId) {
+            const identity = state.identities.find((item) => item.userId === userId && !item.revokedAt);
+            if (!identity) return null;
+            Object.assign(identity, {
+                revokedAt: new Date('2026-05-06T10:05:00.000Z'),
+                updatedAt: new Date('2026-05-06T10:05:00.000Z'),
+            });
+            return identity;
+        },
     };
 }
 
@@ -108,6 +118,16 @@ test('phone identity route blocks logged-out link starts before database or GudA
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: '83682962' }),
+    }), { NODE_ENV: 'test' });
+
+    assert.equal(response.status, 401);
+    const body = await response.json();
+    assert.match(body.error, /No token provided/);
+});
+
+test('phone identity route blocks logged-out unlink before database work', async () => {
+    const response = await app.fetch(new Request('https://app.carearound.sg/api/phone-identities/me', {
+        method: 'DELETE',
     }), { NODE_ENV: 'test' });
 
     assert.equal(response.status, 401);
@@ -403,6 +423,61 @@ test('verified phone already owned by another user returns conflict without chan
     assert.equal(result.reason, 'phone_owned_by_another_account');
     assert.equal(store.state.identities.length, 1);
     assert.equal(store.state.identities[0].userId, 99);
+});
+
+test('unlinking phone identity revokes the current user active identity without changing profile phone', async () => {
+    const store = createMemoryStore({
+        identities: [{
+            id: 10,
+            userId: DEFAULT_USER.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: null,
+        }],
+    });
+    const originalUserPhone = store.state.users[0].phone;
+
+    const result = await unlinkPhoneIdentity({ store, user: DEFAULT_USER });
+
+    assert.equal(result.identity, null);
+    assert.equal(result.profilePhone, '+65****2962');
+    assert.equal(result.profilePhoneNeedsVerification, true);
+    assert.ok(store.state.identities[0].revokedAt);
+    assert.equal(store.state.users[0].phone, originalUserPhone);
+});
+
+test('a released phone can be verified by another account after the old profile phone is cleared', async () => {
+    const oldOwner = { id: 8, username: 'old', role: 'standard', phone: '' };
+    const newOwner = { ...DEFAULT_USER, id: 9, username: 'new', phone: '83682962' };
+    const store = createMemoryStore({
+        users: [oldOwner, newOwner],
+        identities: [{
+            id: 10,
+            userId: oldOwner.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: new Date('2026-05-06T10:05:00.000Z'),
+        }],
+    });
+    const calls = [];
+
+    const result = await startPhoneIdentityLinkAttempt({
+        store,
+        gudAuthClient: {
+            async createChallenge(payload) {
+                calls.push(payload);
+                return { id: 'gudauth-new-owner', status: 'pending' };
+            },
+        },
+        user: newOwner,
+        input: {},
+    });
+
+    assert.equal(result.status, 'pending');
+    assert.equal(result.phone, '+65****2962');
+    assert.equal(calls[0].phoneNumber, '+6583682962');
 });
 
 test('unresolved duplicate raw profile phones require manual review before GudAuth is called', async () => {
