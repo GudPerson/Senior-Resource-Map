@@ -22,6 +22,20 @@ function normalizeStatus(status) {
     return String(status || '').trim().toLowerCase();
 }
 
+function friendlyErrorMessage(message, t) {
+    const text = String(message || '').trim();
+    const lower = text.toLowerCase();
+    if (
+        lower.includes('externaluserid')
+        || lower.includes('invalid input')
+        || lower.includes('provider')
+        || lower.includes('gudauth')
+    ) {
+        return t('phoneLoginProviderSetupError');
+    }
+    return text || t('phoneLoginGenericError');
+}
+
 function readStoredPhoneLoginAttempt() {
     if (typeof window === 'undefined') return null;
 
@@ -182,8 +196,8 @@ function statusView(status, t) {
     return {
         icon: MessageCircle,
         iconClass: 'text-brand-700',
-        title: t('whatsAppSignInTitle'),
-        body: t('whatsAppSignInBody'),
+        title: t('phoneLoginEntryTitle'),
+        body: t('phoneLoginEntryBody'),
     };
 }
 
@@ -335,7 +349,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                 // Ignore window cleanup failures.
             }
             setStatus('failed');
-            setError(err.message || t('phoneLoginGenericError'));
+            setError(friendlyErrorMessage(err.message, t));
         } finally {
             setActionBusy(false);
         }
@@ -356,6 +370,19 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     const canStart = Boolean(clean(phone)) && !actionBusy && status !== 'pending' && status !== 'starting';
     const showTryAgain = ['failed', 'expired', 'no_account', 'conflict'].includes(status);
 
+    if (status === 'idle') {
+        return (
+            <button
+                type="button"
+                onClick={() => setStatus('collecting')}
+                className="mt-4 flex min-h-[44px] w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
+            >
+                <MessageCircle size={18} className="text-brand-600" />
+                {t('whatsAppSignInTitle')}
+            </button>
+        );
+    }
+
     return (
         <section className="mt-4 w-full rounded-2xl border border-brand-100 bg-brand-50/30 px-4 py-4 text-left">
             <div className="flex items-start gap-3">
@@ -366,7 +393,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                     <h2 className="text-sm font-bold text-slate-900">{view.title}</h2>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{view.body}</p>
 
-                    {status === 'idle' || showTryAgain ? (
+                    {status === 'collecting' || showTryAgain ? (
                         <div className="mt-3">
                             <label className="block text-xs font-semibold text-slate-700" htmlFor="phone-login-number">
                                 {t('phoneLoginInputLabel')}
@@ -400,7 +427,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                     ) : null}
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                        {status === 'idle' || showTryAgain ? (
+                        {status === 'collecting' || showTryAgain ? (
                             <button
                                 type="button"
                                 disabled={!canStart}
@@ -428,7 +455,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                             </a>
                         ) : null}
 
-                        {status === 'pending' ? (
+                        {status === 'pending' || status === 'collecting' ? (
                             <button
                                 type="button"
                                 onClick={resetPanel}
