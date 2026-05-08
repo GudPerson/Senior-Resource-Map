@@ -1,4 +1,5 @@
 const rawApiUrl = String(process.env.VITE_API_URL || '').trim();
+const preferredApiUrl = 'https://api.carearound.sg/api';
 
 function fail(message) {
     console.error(message);
@@ -7,7 +8,7 @@ function fail(message) {
 
 if (!rawApiUrl) {
     fail(
-        'Missing VITE_API_URL. Cloudflare Pages deploys must point at the deployed Worker API, for example: https://senior-resource-map-api.<subdomain>.workers.dev/api'
+        `Missing VITE_API_URL. Cloudflare Pages deploys should point at the same-site Worker API: ${preferredApiUrl}`
     );
 }
 
@@ -27,3 +28,8 @@ if (!normalizedPath.endsWith('/api')) {
     fail('VITE_API_URL must include the /api base path exposed by the Worker.');
 }
 
+if (parsed.hostname.endsWith('.workers.dev')) {
+    console.warn(
+        `VITE_API_URL still points at workers.dev. Production app traffic will prefer ${preferredApiUrl}, but update the Pages environment when the custom domain is live.`
+    );
+}

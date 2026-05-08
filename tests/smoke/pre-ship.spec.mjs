@@ -2,6 +2,7 @@ import { expect, test } from 'playwright/test';
 
 const DEFAULT_POSTAL_CODE = '680153';
 const DEFAULT_POSTAL_KEYWORD = 'active ageing';
+const CAREAROUND_API_BASE = 'https://api.carearound.sg/api';
 const CLOUDFLARE_FALLBACK_API_BASE = 'https://senior-resource-map-api.joshuachua79.workers.dev/api';
 
 function normalizeBase(value) {
@@ -17,7 +18,10 @@ function resolveApiBase(baseURL) {
     if (explicit) return explicit;
 
     const url = new URL(baseURL);
-    if (url.hostname.endsWith('.pages.dev') || url.hostname === 'app.carearound.sg') {
+    if (url.hostname === 'app.carearound.sg') {
+        return CAREAROUND_API_BASE;
+    }
+    if (url.hostname.endsWith('.pages.dev')) {
         return CLOUDFLARE_FALLBACK_API_BASE;
     }
     return `${url.origin}/api`;
