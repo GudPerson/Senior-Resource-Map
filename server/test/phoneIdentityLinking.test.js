@@ -92,6 +92,14 @@ function createMemoryStore({
             });
             return identity;
         },
+        async replaceActiveIdentityWithVerified(identityId, values) {
+            const existing = state.identities.find((item) => item.id === identityId);
+            Object.assign(existing, {
+                revokedAt: new Date('2026-05-06T10:05:00.000Z'),
+                updatedAt: new Date('2026-05-06T10:05:00.000Z'),
+            });
+            return this.createVerifiedIdentity(values);
+        },
     };
 }
 
@@ -128,6 +136,32 @@ test('phone identity summary masks the active identity and never exposes full ph
     assert.doesNotMatch(JSON.stringify(summary), /\+6583682962/);
 });
 
+test('phone identity summary flags a saved profile phone that differs from the verified identity', async () => {
+    const store = createMemoryStore({
+        identities: [{
+            id: 4,
+            userId: DEFAULT_USER.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            verifiedAt: new Date('2026-05-05T10:00:00.000Z'),
+            revokedAt: null,
+        }],
+    });
+
+    const summary = await getPhoneIdentitySummary(store, {
+        ...DEFAULT_USER,
+        phone: '+65 9123 4567',
+    });
+
+    assert.equal(summary.identity.status, 'verified');
+    assert.equal(summary.identity.phone, '+65****2962');
+    assert.equal(summary.profilePhone, '+65****4567');
+    assert.equal(summary.profilePhoneMatchesIdentity, false);
+    assert.equal(summary.profilePhoneNeedsVerification, true);
+    assert.doesNotMatch(JSON.stringify(summary), /\+6591234567/);
+});
+
 test('starting a link creates a CareAround attempt and calls GudAuth server-side', async () => {
     const store = createMemoryStore();
     const calls = [];
@@ -160,6 +194,41 @@ test('starting a link creates a CareAround attempt and calls GudAuth server-side
         referenceId: 'carearound-phone-link:1',
         externalUserId: '7',
     }]);
+});
+
+test('starting a link allows a saved profile phone to replace a different active identity', async () => {
+    const userWithNewSavedPhone = { ...DEFAULT_USER, phone: '+65 9123 4567' };
+    const store = createMemoryStore({
+        users: [userWithNewSavedPhone],
+        identities: [{
+            id: 8,
+            userId: DEFAULT_USER.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            verifiedAt: new Date('2026-05-05T10:00:00.000Z'),
+            revokedAt: null,
+        }],
+    });
+    const calls = [];
+
+    const result = await startPhoneIdentityLinkAttempt({
+        store,
+        gudAuthClient: {
+            async createChallenge(payload) {
+                calls.push(payload);
+                return { id: 'gudauth-change-1', status: 'pending' };
+            },
+        },
+        user: userWithNewSavedPhone,
+        input: {},
+    });
+
+    assert.equal(result.status, 'pending');
+    assert.equal(result.phone, '+65****4567');
+    assert.equal(store.state.identities[0].revokedAt, null, 'old phone remains active until new phone is verified');
+    assert.equal(store.state.attempts[0].requestedPhoneE164, '+6591234567');
+    assert.equal(calls[0].phoneNumber, '+6591234567');
 });
 
 test('starting a link accepts GudAuth challenge response envelopes', async () => {
@@ -242,6 +311,59 @@ test('verified GudAuth phone upgrades the current user legacy identity', async (
     assert.equal(store.state.identities[0].status, 'verified');
     assert.equal(store.state.identities[0].source, 'gudauth');
     assert.equal(store.state.identities[0].providerSubject, 'whatsapp:+6583682962');
+    assert.equal(store.state.users[0].phone, originalUserPhone);
+});
+
+test('verified replacement phone revokes the old active identity and creates the new verified identity', async () => {
+    const userWithNewSavedPhone = { ...DEFAULT_USER, phone: '+65 9123 4567' };
+    const store = createMemoryStore({
+        users: [userWithNewSavedPhone],
+        identities: [{
+            id: 8,
+            userId: DEFAULT_USER.id,
+            phoneE164: '+6583682962',
+            countryCode: '+65',
+            nationalNumber: '83682962',
+            status: 'verified',
+            source: 'gudauth',
+            verifiedAt: new Date('2026-05-05T10:00:00.000Z'),
+            revokedAt: null,
+        }],
+        attempts: [{
+            id: 3,
+            userId: DEFAULT_USER.id,
+            provider: 'gudauth',
+            providerChallengeId: 'gudauth-change-3',
+            requestedPhoneE164: '+6591234567',
+            status: 'pending',
+        }],
+    });
+    const originalUserPhone = store.state.users[0].phone;
+
+    const result = await pollPhoneIdentityLinkAttempt({
+        store,
+        gudAuthClient: {
+            async getChallenge(id) {
+                assert.equal(id, 'gudauth-change-3');
+                return {
+                    id,
+                    status: 'verified',
+                    phoneE164: '+65 9123 4567',
+                    subject: 'whatsapp:+6591234567',
+                };
+            },
+        },
+        user: userWithNewSavedPhone,
+        attemptId: 3,
+    });
+
+    assert.equal(result.status, 'verified');
+    assert.equal(store.state.identities.length, 2);
+    assert.ok(store.state.identities[0].revokedAt, 'old phone identity should be revoked only after replacement verifies');
+    assert.equal(store.state.identities[1].phoneE164, '+6591234567');
+    assert.equal(store.state.identities[1].status, 'verified');
+    assert.equal(store.state.identities[1].source, 'gudauth');
+    assert.equal(store.state.identities[1].providerSubject, 'whatsapp:+6591234567');
     assert.equal(store.state.users[0].phone, originalUserPhone);
 });
 

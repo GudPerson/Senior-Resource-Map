@@ -216,6 +216,31 @@ export function createPhoneIdentityLinkStore(db) {
             }).returning();
             return row;
         },
+        async replaceActiveIdentityWithVerified(identityId, values) {
+            const phoneParts = splitSingaporeE164(values.phoneE164);
+            const now = new Date();
+            const [, insertedRows] = await db.batch([
+                db.update(userPhoneIdentities)
+                    .set({
+                        revokedAt: now,
+                        updatedAt: now,
+                    })
+                    .where(eq(userPhoneIdentities.id, identityId))
+                    .returning(),
+                db.insert(userPhoneIdentities).values({
+                    userId: values.userId,
+                    phoneE164: values.phoneE164,
+                    countryCode: phoneParts.countryCode,
+                    nationalNumber: phoneParts.nationalNumber,
+                    status: 'verified',
+                    source: 'gudauth',
+                    providerSubject: values.providerSubject || null,
+                    verifiedAt: now,
+                    createdByUserId: values.userId,
+                }).returning(),
+            ]);
+            return insertedRows?.[0] || null;
+        },
         async upgradeIdentityToVerified(identityId, values) {
             const [row] = await db.update(userPhoneIdentities)
                 .set({
@@ -235,10 +260,13 @@ export function createPhoneIdentityLinkStore(db) {
 export async function getPhoneIdentitySummary(store, user) {
     const identity = await store.getActiveIdentityByUserId(user.id);
     const normalizedProfilePhone = normalizeSingaporePhoneIdentity(user.phone);
+    const profilePhoneMatchesIdentity = Boolean(identity && normalizedProfilePhone && identity.phoneE164 === normalizedProfilePhone);
 
     return {
         identity: serializeIdentity(identity),
         profilePhone: normalizedProfilePhone ? maskPhoneIdentity(normalizedProfilePhone) : null,
+        profilePhoneMatchesIdentity,
+        profilePhoneNeedsVerification: Boolean(normalizedProfilePhone && (!identity || !profilePhoneMatchesIdentity || identity.status !== 'verified')),
         canStartLink: Boolean(normalizedProfilePhone),
     };
 }
@@ -250,13 +278,6 @@ export async function startPhoneIdentityLinkAttempt({ store, gudAuthClient, user
     }
 
     const activeForUser = await store.getActiveIdentityByUserId(user.id);
-    if (activeForUser && activeForUser.phoneE164 !== phoneE164) {
-        throw createPhoneLinkError(
-            'This account already has a different phone identity. Please contact support before changing it.',
-            409,
-            'different_active_phone',
-        );
-    }
 
     const activeForPhone = await store.getActiveIdentityByPhone(phoneE164);
     if (activeForPhone && activeForPhone.userId !== user.id) {
@@ -339,17 +360,16 @@ async function finalizeVerifiedPhone({ store, user, attempt, phoneE164, provider
 
     if (activeForUser) {
         if (activeForUser.phoneE164 !== phoneE164) {
-            const updated = await store.updateAttempt(attempt.id, {
-                status: PHONE_LINK_ATTEMPT_STATUS.conflict,
-                verifiedPhoneE164: phoneE164,
-                failureReason: 'different_active_phone',
+            identity = await store.replaceActiveIdentityWithVerified(activeForUser.id, {
+                userId: user.id,
+                phoneE164,
+                providerSubject,
             });
-            return serializeAttemptStatus(updated, { reason: 'different_active_phone' });
+        } else {
+            identity = activeForUser.status === 'verified'
+                ? activeForUser
+                : await store.upgradeIdentityToVerified(activeForUser.id, { providerSubject });
         }
-
-        identity = activeForUser.status === 'verified'
-            ? activeForUser
-            : await store.upgradeIdentityToVerified(activeForUser.id, { providerSubject });
     } else {
         identity = await store.createVerifiedIdentity({
             userId: user.id,

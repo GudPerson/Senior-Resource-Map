@@ -143,6 +143,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('loading');
     const [displayPhone, setDisplayPhone] = useState('');
+    const [currentVerifiedPhone, setCurrentVerifiedPhone] = useState('');
     const [attemptId, setAttemptId] = useState(null);
     const [challenge, setChallenge] = useState(null);
     const [error, setError] = useState('');
@@ -158,18 +159,25 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     const applySummary = useCallback((summary) => {
         const nextIdentity = summary?.identity || null;
         const nextStatus = normalizeStatus(nextIdentity?.status);
-        setDisplayPhone(nextIdentity?.phone || summary?.profilePhone || '');
+        const profilePhone = summary?.profilePhone || '';
+        const identityPhone = nextIdentity?.phone || '';
+        const storedAttempt = readStoredPhoneLinkAttempt(savedPhoneText);
+        setCurrentVerifiedPhone(nextStatus === 'verified' ? identityPhone : '');
+        setDisplayPhone(profilePhone || identityPhone);
         setError('');
-        if (nextStatus === 'verified') {
+        if (nextStatus === 'verified' && summary?.profilePhoneMatchesIdentity !== false) {
             clearStoredPhoneLinkAttempt();
             setChallenge(null);
             setAttemptId(null);
             setStatus('verified');
-        } else if (readStoredPhoneLinkAttempt(savedPhoneText)?.attemptId) {
-            const storedAttempt = readStoredPhoneLinkAttempt(savedPhoneText);
+        } else if (storedAttempt?.attemptId) {
             setAttemptId(storedAttempt.attemptId);
             pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
             setStatus('pending');
+        } else if (nextStatus === 'verified' && summary?.profilePhoneNeedsVerification) {
+            setChallenge(null);
+            setAttemptId(null);
+            setStatus('phone_changed');
         } else {
             setChallenge(null);
             setAttemptId(null);
@@ -215,6 +223,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
 
         if (nextStatus === 'verified') {
             clearStoredPhoneLinkAttempt();
+            setCurrentVerifiedPhone(result?.identity?.phone || result?.phone || '');
             setStatus('verified');
             setAttemptId(null);
             pollUntilRef.current = 0;
@@ -390,6 +399,17 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
             };
         }
 
+        if (status === 'phone_changed') {
+            return {
+                icon: AlertTriangle,
+                iconClass: 'text-amber-700',
+                badgeClass: 'bg-amber-100 text-amber-800',
+                badge: t('phoneVerificationChangeBadge'),
+                title: t('phoneVerificationChangeTitle'),
+                body: t('phoneVerificationChangeBody'),
+            };
+        }
+
         if (status === 'pending') {
             return {
                 icon: Clock,
@@ -455,7 +475,14 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                     <p className="mt-1 text-sm leading-6 text-slate-600">{view.body}</p>
                     {displayPhone ? (
                         <p className="mt-2 text-xs font-semibold text-slate-500">
-                            {t('phoneVerificationLinkedPhone', { phone: displayPhone })}
+                            {status === 'phone_changed'
+                                ? t('phoneVerificationNewPhone', { phone: displayPhone })
+                                : t('phoneVerificationLinkedPhone', { phone: displayPhone })}
+                        </p>
+                    ) : null}
+                    {status === 'phone_changed' && currentVerifiedPhone ? (
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {t('phoneVerificationCurrentVerifiedPhone', { phone: currentVerifiedPhone })}
                         </p>
                     ) : null}
                     {challenge?.message ? (
@@ -484,7 +511,9 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                                 )}
                                 {status === 'failed' || status === 'expired'
                                     ? t('phoneVerificationTryAgainButton')
-                                    : t('phoneVerificationStartButton')}
+                                    : status === 'phone_changed'
+                                        ? t('phoneVerificationChangeButton')
+                                        : t('phoneVerificationStartButton')}
                             </button>
                         ) : null}
 
