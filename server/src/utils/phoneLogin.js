@@ -14,7 +14,7 @@ export const PHONE_LOGIN_ATTEMPT_STATUS = Object.freeze({
     conflict: 'conflict',
 });
 
-export const PHONE_LOGIN_RETURN_URL = 'https://app.carearound.sg/login?gudauth=phone_login';
+export const PHONE_LOGIN_RETURN_URL = 'https://app.carearound.sg/dashboard?gudauth=phone_login';
 
 const PROVIDER_VERIFIED_STATUSES = new Set(['verified', 'approved', 'completed', 'success']);
 const PROVIDER_FAILED_STATUSES = new Set(['failed', 'rejected', 'error']);

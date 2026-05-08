@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
@@ -21,7 +21,7 @@ export default function AuthPage({ isPartner = false }) {
     const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, isAuth } = useAuth();
     const { t } = useLocale();
     const navigate = useNavigate();
     const location = useLocation();
@@ -43,6 +43,12 @@ export default function AuthPage({ isPartner = false }) {
         login(userData);
         navigate(resolvePostAuthDestination(destinationOverride), { replace: true });
     }, [login, navigate, resolvePostAuthDestination]);
+
+    useEffect(() => {
+        if (isAuth) {
+            navigate(resolvePostAuthDestination(), { replace: true });
+        }
+    }, [isAuth, navigate, resolvePostAuthDestination]);
 
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
 

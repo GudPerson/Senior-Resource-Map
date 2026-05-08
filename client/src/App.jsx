@@ -8,6 +8,7 @@ import AuthPage from './pages/AuthPage.jsx';
 import { canAccessAdmin, normalizeRole } from './lib/roles.js';
 import { SavedAssetsProvider } from './contexts/SavedAssetsContext.jsx';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
+import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -35,7 +36,14 @@ function isRouteChunkLoadError(error) {
 
 function ProtectedRoute({ children, requireAdmin, requireDirectoryAccess }) {
     const { user, isAuth } = useAuth();
-    if (!isAuth) return <Navigate to="/login" replace />;
+    const location = useLocation();
+    if (!isAuth) {
+        if (isGudAuthPhoneLoginReturn(location.search)) {
+            const returnTo = encodeURIComponent(`${location.pathname}${location.hash || ''}`);
+            return <Navigate to={`/login?gudauth=phone_login&returnTo=${returnTo}`} replace />;
+        }
+        return <Navigate to="/login" replace />;
+    }
     if (requireAdmin && !canAccessAdmin(user?.role)) return <Navigate to="/dashboard" replace />;
     if (requireDirectoryAccess && normalizeRole(user?.role) === 'guest') return <Navigate to="/discover" replace />;
     return children;
