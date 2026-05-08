@@ -42,6 +42,10 @@ const profileUpdateBodySchema = z.object({
     }).min(1, 'Password is required.').max(1024, 'Password is too long.').optional(),
 });
 
+export function shouldRefreshProfileSessionCookie(user) {
+    return !user?.isImpersonating;
+}
+
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
         ? rawSubregionIds
@@ -642,8 +646,10 @@ export const updateProfile = async (c) => {
         }
 
         const updated = await loadUserWithSubregions(db, user.id);
-        const token = await createSessionToken(updated, c);
-        setAuthCookie(c, token);
+        if (shouldRefreshProfileSessionCookie(user)) {
+            const token = await createSessionToken(updated, c);
+            setAuthCookie(c, token);
+        }
         return c.json(buildUserResponse(updated, await loadScopedBoundaryContext(db, updated)));
     } catch (err) {
         return c.json({ error: err.message || 'Failed to update profile.' }, err.status || 500);
