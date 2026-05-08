@@ -124,6 +124,27 @@ test('auth routes reject invalid credential payload types before database work',
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://app.carearound.sg');
 });
 
+test('phone login start rejects malformed phone payloads before database work', async () => {
+    const response = await app.fetch(
+        new Request('https://app.carearound.sg/api/auth/phone/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Origin: 'https://app.carearound.sg',
+            },
+            body: JSON.stringify({
+                phone: { nested: 'not text' },
+            }),
+        }),
+        { NODE_ENV: 'production' },
+    );
+
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.match(body.error, /Phone sign-in request is invalid/);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'https://app.carearound.sg');
+});
+
 test('registration rejects non-text profile payloads before database work', async () => {
     const response = await app.fetch(
         new Request('https://app.carearound.sg/api/auth/register', {

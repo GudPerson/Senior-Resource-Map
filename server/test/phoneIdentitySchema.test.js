@@ -49,3 +49,36 @@ test('runtime schema bootstrap includes phone identity table and active-only uni
         'revoked historical user rows must not block a new active phone identity',
     );
 });
+
+test('runtime schema bootstrap includes pre-session phone login attempts table', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists phone_login_attempts')),
+        'expected phone_login_attempts table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create unique index if not exists phone_login_attempts_provider_challenge_unique')
+            && statement.includes('where provider_challenge_id is not null')
+        )),
+        'expected provider challenge uniqueness SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('create index if not exists phone_login_attempts_status_idx')),
+        'expected phone login status index SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('create index if not exists phone_login_attempts_requested_phone_idx')),
+        'expected requested phone index SQL',
+    );
+});
