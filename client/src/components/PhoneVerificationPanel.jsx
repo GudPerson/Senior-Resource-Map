@@ -177,19 +177,6 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         }
     }, [savedPhoneText]);
 
-    const refreshSummary = useCallback(async ({ silent = false } = {}) => {
-        if (!silent) setLoading(true);
-        try {
-            const summary = await api.getMyPhoneIdentity();
-            applySummary(summary);
-        } catch (err) {
-            setError(err.message || t('phoneVerificationLoadFailed'));
-            setStatus('not_verified');
-        } finally {
-            if (!silent) setLoading(false);
-        }
-    }, [applySummary, t]);
-
     useEffect(() => {
         let cancelled = false;
 
@@ -522,18 +509,6 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                                 <MessageCircle size={16} />
                                 {t('phoneVerificationOpenWhatsAppButton')}
                             </a>
-                        ) : null}
-
-                        {status === 'verified' ? (
-                            <button
-                                type="button"
-                                onClick={() => refreshSummary()}
-                                disabled={loading || actionBusy}
-                                className="btn-ghost px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                <RefreshCw size={16} />
-                                {t('phoneVerificationRefreshButton')}
-                            </button>
                         ) : null}
                     </div>
                 </div>
