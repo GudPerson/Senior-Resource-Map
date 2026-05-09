@@ -21,6 +21,7 @@ const MyMapDetailPage = lazy(() => import('./pages/MyMapDetailPage.jsx'));
 const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
+const PhoneLoginReturnPage = lazy(() => import('./pages/PhoneLoginReturnPage.jsx'));
 const ROUTE_RELOAD_MARKER_KEY = 'carearound:route-recovery-reload';
 
 function isRouteChunkLoadError(error) {
@@ -173,6 +174,7 @@ function AppShell() {
                         <Route path="/membership/link" element={<MembershipLinkPage />} />
                         <Route path="/privacy" element={<LegalPage type="privacy" />} />
                         <Route path="/terms" element={<LegalPage type="terms" />} />
+                        <Route path="/phone-login-return" element={<PhoneLoginReturnPage />} />
 
                         <Route path="/resource/:type/:id" element={<ResourcePage />} />
                         <Route path="/shared/maps/:token" element={<SharedMapPage />} />

@@ -19,7 +19,7 @@ export const PHONE_LOGIN_ATTEMPT_STATUS = Object.freeze({
 });
 
 export const PHONE_LOGIN_DEFAULT_RETURN_TO = '/dashboard';
-export const PHONE_LOGIN_RETURN_URL_BASE = 'https://app.carearound.sg/login';
+export const PHONE_LOGIN_RETURN_URL_BASE = 'https://app.carearound.sg/phone-login-return';
 export const PHONE_ONLY_EMAIL_DOMAIN = 'phone.carearound.invalid';
 
 const PROVIDER_VERIFIED_STATUSES = new Set(['verified', 'approved', 'completed', 'success']);
@@ -156,7 +156,6 @@ function buildPhoneOnlyAccountIdentifiers(phoneE164, attemptId) {
 export function buildPhoneLoginReturnUrl(attemptId, returnTo = PHONE_LOGIN_DEFAULT_RETURN_TO) {
     const normalizedAttemptId = Number.parseInt(String(attemptId || ''), 10);
     const url = new URL(PHONE_LOGIN_RETURN_URL_BASE);
-    url.searchParams.set('gudauth', 'phone_login');
     if (normalizedAttemptId > 0) url.searchParams.set('attempt', String(normalizedAttemptId));
     url.searchParams.set('returnTo', String(returnTo || PHONE_LOGIN_DEFAULT_RETURN_TO));
     return url.toString();
