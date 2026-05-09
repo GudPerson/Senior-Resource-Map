@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
     isSafeWhatsAppUrl,
     isGudAuthPhoneLinkReturn,
@@ -61,6 +62,21 @@ test('allows only WhatsApp launch URLs', () => {
     assert.equal(isSafeWhatsAppUrl('https://api.whatsapp.com/send?phone=6587651901'), true);
     assert.equal(isSafeWhatsAppUrl('whatsapp://send?phone=6587651901'), true);
     assert.equal(isSafeWhatsAppUrl('https://example.com/redirect'), false);
+});
+
+test('prefers native WhatsApp app links on mobile while keeping web links as fallback', () => {
+    assert.equal(
+        getPreferredWhatsAppLaunchUrl('https://wa.me/6587651901?text=WAP-123456', { preferNative: true }),
+        'whatsapp://send?phone=6587651901&text=WAP-123456',
+    );
+    assert.equal(
+        getPreferredWhatsAppLaunchUrl('https://api.whatsapp.com/send?phone=6587651901&text=WAP-123456', { preferNative: true }),
+        'whatsapp://send?phone=6587651901&text=WAP-123456',
+    );
+    assert.equal(
+        getPreferredWhatsAppLaunchUrl('https://wa.me/6587651901?text=WAP-123456'),
+        'https://wa.me/6587651901?text=WAP-123456',
+    );
 });
 
 test('detects GudAuth phone-link returns from the Profile query string', () => {

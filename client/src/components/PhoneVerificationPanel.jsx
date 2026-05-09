@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, MessageCircle, RefreshCw, ShieldCheck, Unlink } from 'lucide-react';
 import { api } from '../lib/api.js';
 import {
+    getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
     isGudAuthPhoneLinkReturn,
+    isLikelyMobileDevice,
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
 } from '../lib/phoneVerificationState.js';
@@ -112,6 +114,8 @@ function prepareWhatsAppLaunchWindow(
         justify-content: center;
         margin: 0;
         min-height: 100vh;
+        min-height: 100dvh;
+        -webkit-text-size-adjust: 100%;
       }
       main {
         max-width: 28rem;
@@ -139,6 +143,29 @@ function prepareWhatsAppLaunchWindow(
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
+      @media (pointer: coarse) {
+        body {
+          align-items: flex-start;
+          padding-top: 16vh;
+        }
+        main {
+          box-sizing: border-box;
+          max-width: none;
+          width: 100%;
+        }
+        .spinner {
+          border-width: 6px;
+          height: clamp(4.5rem, 14vw, 8rem);
+          margin-bottom: 1.25rem;
+          width: clamp(4.5rem, 14vw, 8rem);
+        }
+        h1 {
+          font-size: clamp(2rem, 7vw, 4rem);
+        }
+        p {
+          font-size: clamp(1.25rem, 4vw, 2.25rem);
+        }
+      }
     </style>
   </head>
   <body>
@@ -157,8 +184,10 @@ function prepareWhatsAppLaunchWindow(
 }
 
 function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
-    const safeUrl = isSafeWhatsAppUrl(whatsappUrl) ? whatsappUrl : '';
-    if (!safeUrl) {
+    const launchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
+        preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent),
+    });
+    if (!launchUrl) {
         try {
             preparedWindow?.close?.();
         } catch {
@@ -170,7 +199,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
     try {
         if (preparedWindow && !preparedWindow.closed) {
             preparedWindow.opener = null;
-            preparedWindow.location.href = safeUrl;
+            preparedWindow.location.href = launchUrl;
             return true;
         }
     } catch {
@@ -178,7 +207,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
     }
 
     try {
-        return Boolean(window.open(safeUrl, '_blank', 'noopener,noreferrer'));
+        return Boolean(window.open(launchUrl, '_blank', 'noopener,noreferrer'));
     } catch {
         return false;
     }
@@ -577,6 +606,10 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         && !actionBusy
         && ['verified', 'phone_changed', 'linked_without_profile_phone'].includes(status);
     const whatsappUrl = getWhatsAppUrl(challenge);
+    const whatsappLaunchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
+        preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent),
+    });
+    const whatsappLaunchIsNative = whatsappLaunchUrl.startsWith('whatsapp://');
     const phoneLabel = status === 'phone_changed'
         ? t('phoneVerificationNewPhone', { phone: displayPhone })
         : status === 'linked_without_profile_phone'
@@ -650,11 +683,11 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                             </button>
                         ) : null}
 
-                        {status === 'pending' && isSafeWhatsAppUrl(whatsappUrl) ? (
+                        {status === 'pending' && isSafeWhatsAppUrl(whatsappLaunchUrl) ? (
                             <a
-                                href={whatsappUrl}
-                                target="_blank"
-                                rel="noreferrer"
+                                href={whatsappLaunchUrl}
+                                target={whatsappLaunchIsNative ? undefined : '_blank'}
+                                rel={whatsappLaunchIsNative ? undefined : 'noreferrer'}
                                 className="btn-ghost px-4 py-2 text-sm"
                             >
                                 <MessageCircle size={16} />
