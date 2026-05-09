@@ -3,12 +3,13 @@ import { AlertTriangle, CheckCircle2, Clock, MessageCircle, Phone, RefreshCw, Us
 
 import { api } from '../lib/api.js';
 import {
+    getBrowserWhatsAppLaunchDevice,
     getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
     isGudAuthPhoneLoginReturn,
-    isLikelyMobileDevice,
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
+    shouldUseNativeWhatsAppLaunch,
     shouldUsePreparedWhatsAppWindow,
 } from '../lib/phoneVerificationState.js';
 
@@ -202,9 +203,10 @@ function prepareWhatsAppLaunchWindow(
 }
 
 function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
-    const mobileDevice = typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent);
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const nativeLaunchSurface = shouldUseNativeWhatsAppLaunch(userAgent, getBrowserWhatsAppLaunchDevice());
     const launchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
-        preferNative: mobileDevice,
+        preferNative: nativeLaunchSurface,
     });
     if (!launchUrl) {
         try {
@@ -225,7 +227,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
         // Fall through to a direct open attempt.
     }
 
-    if (mobileDevice) {
+    if (nativeLaunchSurface) {
         try {
             window.location.href = launchUrl;
             return true;
@@ -473,6 +475,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
 
         const preparedWhatsAppWindow = shouldUsePreparedWhatsAppWindow(
             typeof navigator !== 'undefined' ? navigator.userAgent : '',
+            getBrowserWhatsAppLaunchDevice(),
         )
             ? prepareWhatsAppLaunchWindow(
                 t('phoneLoginOpeningWhatsApp'),
@@ -534,8 +537,12 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     const view = statusView(status, t);
     const Icon = view.icon;
     const whatsappUrl = getWhatsAppUrl(challenge);
+    const browserLaunchDevice = getBrowserWhatsAppLaunchDevice();
     const whatsappLaunchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
-        preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent),
+        preferNative: shouldUseNativeWhatsAppLaunch(
+            typeof navigator !== 'undefined' ? navigator.userAgent : '',
+            browserLaunchDevice,
+        ),
     });
     const whatsappLaunchIsNative = whatsappLaunchUrl.startsWith('whatsapp://');
     const canStart = Boolean(clean(phone)) && !actionBusy && status !== 'pending' && status !== 'starting';

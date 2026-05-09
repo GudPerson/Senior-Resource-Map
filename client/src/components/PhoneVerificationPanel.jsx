@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, MessageCircle, RefreshCw, ShieldCheck, Unlink } from 'lucide-react';
 import { api } from '../lib/api.js';
 import {
+    getBrowserWhatsAppLaunchDevice,
     getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
     isGudAuthPhoneLinkReturn,
-    isLikelyMobileDevice,
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
+    shouldUseNativeWhatsAppLaunch,
     shouldUsePreparedWhatsAppWindow,
 } from '../lib/phoneVerificationState.js';
 
@@ -185,9 +186,10 @@ function prepareWhatsAppLaunchWindow(
 }
 
 function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
-    const mobileDevice = typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent);
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const nativeLaunchSurface = shouldUseNativeWhatsAppLaunch(userAgent, getBrowserWhatsAppLaunchDevice());
     const launchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
-        preferNative: mobileDevice,
+        preferNative: nativeLaunchSurface,
     });
     if (!launchUrl) {
         try {
@@ -208,7 +210,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
         // Fall through to a direct open attempt.
     }
 
-    if (mobileDevice) {
+    if (nativeLaunchSurface) {
         try {
             window.location.href = launchUrl;
             return true;
@@ -424,6 +426,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         if (hasUnsavedPhone || !hasSavedPhone || actionBusy) return;
         const preparedWhatsAppWindow = shouldUsePreparedWhatsAppWindow(
             typeof navigator !== 'undefined' ? navigator.userAgent : '',
+            getBrowserWhatsAppLaunchDevice(),
         )
             ? prepareWhatsAppLaunchWindow(
                 t('phoneLoginOpeningWhatsApp'),
@@ -621,8 +624,12 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         && !actionBusy
         && ['verified', 'phone_changed', 'linked_without_profile_phone'].includes(status);
     const whatsappUrl = getWhatsAppUrl(challenge);
+    const browserLaunchDevice = getBrowserWhatsAppLaunchDevice();
     const whatsappLaunchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
-        preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent),
+        preferNative: shouldUseNativeWhatsAppLaunch(
+            typeof navigator !== 'undefined' ? navigator.userAgent : '',
+            browserLaunchDevice,
+        ),
     });
     const whatsappLaunchIsNative = whatsappLaunchUrl.startsWith('whatsapp://');
     const phoneLabel = status === 'phone_changed'

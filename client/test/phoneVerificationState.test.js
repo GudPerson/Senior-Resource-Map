@@ -95,6 +95,23 @@ test('uses the prepared blank window only for desktop WhatsApp launching', () =>
     );
 });
 
+test('treats touch tablets with desktop-style user agents as mobile launch surfaces', () => {
+    const ipadDesktopUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
+
+    assert.equal(
+        shouldUsePreparedWhatsAppWindow(ipadDesktopUserAgent, { maxTouchPoints: 5 }),
+        false,
+    );
+    assert.equal(
+        shouldUsePreparedWhatsAppWindow(ipadDesktopUserAgent, { coarsePointer: true }),
+        false,
+    );
+    assert.equal(
+        shouldUsePreparedWhatsAppWindow(ipadDesktopUserAgent, { maxTouchPoints: 0, coarsePointer: false }),
+        true,
+    );
+});
+
 test('detects GudAuth phone-link returns from the Profile query string', () => {
     assert.equal(isGudAuthPhoneLinkReturn('?gudauth=phone_link'), true);
     assert.equal(isGudAuthPhoneLinkReturn('gudauth=phone_link'), true);

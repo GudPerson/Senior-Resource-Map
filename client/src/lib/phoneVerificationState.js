@@ -54,8 +54,25 @@ export function isLikelyMobileDevice(userAgent = '') {
     return /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(String(userAgent || ''));
 }
 
-export function shouldUsePreparedWhatsAppWindow(userAgent = '') {
-    return !isLikelyMobileDevice(userAgent);
+export function isTouchFirstDevice({ maxTouchPoints = 0, coarsePointer = false } = {}) {
+    return Number(maxTouchPoints || 0) > 0 || coarsePointer === true;
+}
+
+export function getBrowserWhatsAppLaunchDevice() {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return {};
+
+    return {
+        maxTouchPoints: Number(navigator.maxTouchPoints || 0),
+        coarsePointer: Boolean(window.matchMedia?.('(pointer: coarse)')?.matches),
+    };
+}
+
+export function shouldUseNativeWhatsAppLaunch(userAgent = '', device = {}) {
+    return isLikelyMobileDevice(userAgent) || isTouchFirstDevice(device);
+}
+
+export function shouldUsePreparedWhatsAppWindow(userAgent = '', device = {}) {
+    return !shouldUseNativeWhatsAppLaunch(userAgent, device);
 }
 
 export function isGudAuthPhoneLinkReturn(search) {
