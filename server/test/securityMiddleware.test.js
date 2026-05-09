@@ -153,3 +153,66 @@ test('rate limiter blocks repeated requests without relying on a database', asyn
         globalThis.__carearoundRateLimitBuckets = previousStore;
     }
 });
+
+test('phone login polling does not exhaust the strict auth attempt limiter', async () => {
+    const previousStore = globalThis.__carearoundRateLimitBuckets;
+    globalThis.__carearoundRateLimitBuckets = new Map();
+
+    try {
+        for (let index = 0; index < 25; index += 1) {
+            const response = await app.fetch(
+                new Request('https://app.carearound.sg/api/auth/phone/not-a-valid-attempt', {
+                    method: 'GET',
+                    headers: {
+                        Origin: 'https://app.carearound.sg',
+                        'X-Forwarded-For': '203.0.113.24',
+                    },
+                }),
+                { NODE_ENV: 'production' },
+            );
+            assert.equal(response.status, 400);
+        }
+    } finally {
+        globalThis.__carearoundRateLimitBuckets = previousStore;
+    }
+});
+
+test('phone login start remains protected by the strict auth attempt limiter', async () => {
+    const previousStore = globalThis.__carearoundRateLimitBuckets;
+    globalThis.__carearoundRateLimitBuckets = new Map();
+
+    try {
+        for (let index = 0; index < 20; index += 1) {
+            const response = await app.fetch(
+                new Request('https://app.carearound.sg/api/auth/phone/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Origin: 'https://app.carearound.sg',
+                        'X-Forwarded-For': '203.0.113.25',
+                    },
+                    body: JSON.stringify({ phone: { invalid: true } }),
+                }),
+                { NODE_ENV: 'production' },
+            );
+            assert.equal(response.status, 400);
+        }
+
+        const blocked = await app.fetch(
+            new Request('https://app.carearound.sg/api/auth/phone/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Origin: 'https://app.carearound.sg',
+                    'X-Forwarded-For': '203.0.113.25',
+                },
+                body: JSON.stringify({ phone: { invalid: true } }),
+            }),
+            { NODE_ENV: 'production' },
+        );
+        assert.equal(blocked.status, 429);
+        assert.equal((await blocked.json()).error, 'Too many requests. Please wait a moment and try again.');
+    } finally {
+        globalThis.__carearoundRateLimitBuckets = previousStore;
+    }
+});

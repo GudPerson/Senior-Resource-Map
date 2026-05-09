@@ -24,6 +24,7 @@ import phoneIdentitiesRoutes from './routes/phoneIdentities.js';
 import {
     aiRateLimit,
     authRateLimit,
+    phonePollRateLimit,
     requestBodyGuard,
     securityHeaders,
     translationRateLimit,
@@ -66,6 +67,9 @@ function resolveCorsOrigin(origin, c) {
 }
 
 const app = new Hono();
+const phoneAuthRateLimit = (c, next) => (
+    c.req.method.toUpperCase() === 'GET' ? phonePollRateLimit(c, next) : authRateLimit(c, next)
+);
 
 app.use('*', securityHeaders);
 app.use('*', cors({
@@ -78,7 +82,7 @@ app.use('*', requestBodyGuard);
 app.use('/api/auth/login', authRateLimit);
 app.use('/api/auth/register', authRateLimit);
 app.use('/api/auth/google', authRateLimit);
-app.use('/api/auth/phone/*', authRateLimit);
+app.use('/api/auth/phone/*', phoneAuthRateLimit);
 app.use('/api/phone-identities/link/start', authRateLimit);
 app.use('/api/upload', uploadRateLimit);
 app.use('/api/upload/*', uploadRateLimit);

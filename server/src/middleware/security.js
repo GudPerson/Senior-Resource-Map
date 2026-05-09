@@ -200,6 +200,13 @@ export const authRateLimit = createRateLimiter({
     windowMs: 10 * 60 * 1000,
 });
 
+export const phonePollRateLimit = createRateLimiter({
+    name: 'phone-poll',
+    limit: 80,
+    windowMs: 10 * 60 * 1000,
+    methods: ['GET'],
+});
+
 export const uploadRateLimit = createRateLimiter({
     name: 'upload',
     limit: 40,
