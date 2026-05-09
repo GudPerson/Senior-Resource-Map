@@ -183,6 +183,7 @@ export const api = {
     googleAuth: (body) => request('POST', '/auth/google', body),
     startPhoneLogin: (body) => request('POST', '/auth/phone/start', body),
     getPhoneLoginAttempt: (attemptId) => request('GET', `/auth/phone/${attemptId}`),
+    completePhoneLoginSignup: (attemptId, body) => request('POST', `/auth/phone/${attemptId}/signup`, body),
     createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
     // Hard Assets

@@ -8,6 +8,7 @@ const router = new Hono();
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/phone/start', phoneLoginController.startPhoneLogin);
+router.post('/phone/:attemptId/signup', phoneLoginController.completePhoneSignup);
 router.get('/phone/:attemptId', phoneLoginController.getPhoneLoginAttempt);
 router.get('/me', authController.me);
 router.post('/logout', authController.logout);

@@ -46,6 +46,10 @@ const PROFILE_OPTION_I18N_KEYS = {
     other: 'propertyOther',
 };
 
+function isPhoneOnlyPlaceholderEmail(value) {
+    return String(value || '').trim().toLowerCase().endsWith('@phone.carearound.invalid');
+}
+
 function profileFieldLabel(field, t) {
     const key = PROFILE_FIELD_I18N_KEYS[field];
     return key ? t(key) : getProfileFieldLabel(field);
@@ -82,6 +86,7 @@ export default function ProfilePage() {
     const searchParams = new URLSearchParams(location.search);
     const isEligibilityPrompt = searchParams.get('eligibility') === '1';
     const returnTo = normalizeReturnTo(searchParams.get('returnTo'));
+    const hasPhoneOnlyEmail = isPhoneOnlyPlaceholderEmail(user?.email);
     const missingEligibilityFields = [
         !form.dateOfBirth ? 'dateOfBirth' : null,
         !form.chasCard ? 'chasCard' : null,
@@ -205,8 +210,15 @@ export default function ProfilePage() {
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{t('emailAddress')}</label>
-                        <input type="email" value={user?.email} disabled className="input-field bg-slate-50 text-slate-400 cursor-not-allowed" />
-                        <p className="text-xs text-slate-400 mt-1">{t('emailCannotChange')}</p>
+                        <input
+                            type={hasPhoneOnlyEmail ? 'text' : 'email'}
+                            value={hasPhoneOnlyEmail ? t('noEmailAdded') : (user?.email || '')}
+                            disabled
+                            className="input-field bg-slate-50 text-slate-400 cursor-not-allowed"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                            {hasPhoneOnlyEmail ? t('phoneFirstEmailHelp') : t('emailCannotChange')}
+                        </p>
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1"><Phone size={13} className="inline mr-1" />{t('phoneNumber')}</label>

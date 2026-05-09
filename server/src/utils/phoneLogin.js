@@ -1,9 +1,12 @@
 import { and, eq, isNull } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
 import { phoneLoginAttempts, userPhoneIdentities, users, userSubregions } from '../db/schema.js';
 import { normalizeRole } from './roles.js';
 import { maskPhoneIdentity } from './phoneIdentityAudit.js';
 import { normalizeSingaporePhoneIdentity } from './phoneIdentity.js';
+import { normalizePostalCode } from './postalBoundaries.js';
+import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from './subregionRouting.js';
 
 export const PHONE_LOGIN_ATTEMPT_STATUS = Object.freeze({
     pending: 'pending',
@@ -11,10 +14,12 @@ export const PHONE_LOGIN_ATTEMPT_STATUS = Object.freeze({
     failed: 'failed',
     expired: 'expired',
     noAccount: 'no_account',
+    signupRequired: 'signup_required',
     conflict: 'conflict',
 });
 
 export const PHONE_LOGIN_RETURN_URL = 'https://app.carearound.sg/dashboard?gudauth=phone_login';
+export const PHONE_ONLY_EMAIL_DOMAIN = 'phone.carearound.invalid';
 
 const PROVIDER_VERIFIED_STATUSES = new Set(['verified', 'approved', 'completed', 'success']);
 const PROVIDER_FAILED_STATUSES = new Set(['failed', 'rejected', 'error']);
@@ -99,6 +104,7 @@ function isTerminalAttemptStatus(status) {
         PHONE_LOGIN_ATTEMPT_STATUS.failed,
         PHONE_LOGIN_ATTEMPT_STATUS.expired,
         PHONE_LOGIN_ATTEMPT_STATUS.noAccount,
+        PHONE_LOGIN_ATTEMPT_STATUS.signupRequired,
         PHONE_LOGIN_ATTEMPT_STATUS.conflict,
     ].includes(status);
 }
@@ -113,17 +119,73 @@ function serializeAttemptStatus(attempt, extra = {}) {
     };
 }
 
+function normalizeSignupName(value) {
+    const name = String(value || '').trim().replace(/\s+/g, ' ');
+    if (!name) {
+        throw createPhoneLoginError('Name is required to create your CareAround account.', 400, 'name_required');
+    }
+    if (name.length > 255) {
+        throw createPhoneLoginError('Name is too long.', 400, 'name_too_long');
+    }
+    return name;
+}
+
+function normalizeOptionalSignupPostalCode(value) {
+    if (value === undefined || value === null || String(value).trim() === '') return '';
+    const postalCode = normalizePostalCode(value);
+    if (!postalCode) {
+        throw createPhoneLoginError('Postal code must be a valid 6-digit Singapore postal code.', 400, 'invalid_postal_code');
+    }
+    return postalCode;
+}
+
+function nationalNumberFromPhoneE164(phoneE164) {
+    return String(phoneE164 || '').replace(/^\+65/, '').replace(/\D/g, '');
+}
+
+function buildPhoneOnlyAccountIdentifiers(phoneE164, attemptId) {
+    const digits = String(phoneE164 || '').replace(/\D/g, '');
+    const suffix = Number.parseInt(String(attemptId || ''), 10) || Date.now();
+    return {
+        username: `phone_${digits}_${suffix}`,
+        email: `phone+${digits}.${suffix}@${PHONE_ONLY_EMAIL_DOMAIN}`,
+    };
+}
+
+export function isPhoneOnlyPlaceholderEmail(value) {
+    return String(value || '').trim().toLowerCase().endsWith(`@${PHONE_ONLY_EMAIL_DOMAIN}`);
+}
+
+function createRandomPasswordSeed() {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map((value) => value.toString(16).padStart(2, '0')).join('');
+}
+
 async function resolveVerifiedLoginIdentity({ store, attempt, phoneE164 }) {
     const identities = await store.findVerifiedIdentitiesByPhone(phoneE164);
 
     if (!identities.length) {
+        const activeIdentities = typeof store.findActiveIdentitiesByPhone === 'function'
+            ? await store.findActiveIdentitiesByPhone(phoneE164)
+            : [];
+        if (activeIdentities.length > 0) {
+            const updated = await store.updateAttempt(attempt.id, {
+                status: PHONE_LOGIN_ATTEMPT_STATUS.conflict,
+                verifiedPhoneE164: phoneE164,
+                providerStatus: PHONE_LOGIN_ATTEMPT_STATUS.verified,
+                failureReason: 'phone_identity_not_verified',
+            });
+            return serializeAttemptStatus(updated, { reason: 'phone_identity_not_verified' });
+        }
+
         const updated = await store.updateAttempt(attempt.id, {
-            status: PHONE_LOGIN_ATTEMPT_STATUS.noAccount,
+            status: PHONE_LOGIN_ATTEMPT_STATUS.signupRequired,
             verifiedPhoneE164: phoneE164,
             providerStatus: PHONE_LOGIN_ATTEMPT_STATUS.verified,
-            failureReason: 'no_verified_account',
+            failureReason: 'signup_required',
         });
-        return serializeAttemptStatus(updated, { reason: 'no_verified_account' });
+        return serializeAttemptStatus(updated, { reason: 'signup_required' });
     }
 
     if (identities.length > 1) {
@@ -186,6 +248,58 @@ export function createPhoneLoginStore(db) {
                     eq(userPhoneIdentities.status, 'verified'),
                     isNull(userPhoneIdentities.revokedAt),
                 ));
+        },
+        async findActiveIdentitiesByPhone(phoneE164) {
+            return db.select()
+                .from(userPhoneIdentities)
+                .where(and(
+                    eq(userPhoneIdentities.phoneE164, phoneE164),
+                    isNull(userPhoneIdentities.revokedAt),
+                ));
+        },
+        async resolveDerivedSubregion(postalCode) {
+            if (!postalCode) return null;
+            return resolveSingleSubregionByPostal(db, postalCode, 'Postal code');
+        },
+        async createVerifiedPhoneSignupUser(values) {
+            const createRows = async (tx) => {
+                const [user] = await tx.insert(users).values({
+                    username: values.username,
+                    email: values.email,
+                    passwordHash: values.passwordHash,
+                    name: values.name,
+                    role: 'standard',
+                    phone: values.phone,
+                    postalCode: values.postalCode || '',
+                    managerUserId: null,
+                }).returning();
+
+                await tx.insert(userPhoneIdentities).values({
+                    userId: user.id,
+                    phoneE164: values.phoneE164,
+                    countryCode: values.countryCode,
+                    nationalNumber: values.nationalNumber,
+                    status: 'verified',
+                    source: 'gudauth',
+                    providerSubject: values.providerSubject,
+                    verifiedAt: values.verifiedAt,
+                });
+
+                if (values.derivedSubregionId) {
+                    await syncUserDerivedSubregion(tx, user.id, values.derivedSubregionId);
+                }
+
+                return {
+                    ...user,
+                    subregionIds: values.derivedSubregionId ? [values.derivedSubregionId] : [],
+                };
+            };
+
+            if (typeof db.transaction === 'function') {
+                return db.transaction(createRows);
+            }
+
+            return createRows(db);
         },
         async getUserWithSubregions(userId) {
             const [user] = await db.select({
@@ -314,4 +428,65 @@ export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId })
         attempt,
         phoneE164: verifiedPhoneE164,
     });
+}
+
+export async function completePhoneLoginSignup({ store, attemptId, input = {} }) {
+    const attempt = await store.getAttemptById(attemptId);
+    if (!attempt) {
+        throw createPhoneLoginError('Phone sign-up attempt was not found.', 404, 'attempt_not_found');
+    }
+
+    if (
+        attempt.status !== PHONE_LOGIN_ATTEMPT_STATUS.signupRequired
+        || !attempt.verifiedPhoneE164
+    ) {
+        throw createPhoneLoginError('This WhatsApp sign-up is not ready yet.', 409, 'phone_signup_not_ready');
+    }
+
+    const phoneE164 = normalizeSingaporePhoneIdentity(attempt.verifiedPhoneE164);
+    if (!phoneE164) {
+        throw createPhoneLoginError('This WhatsApp sign-up is missing a verified phone number.', 409, 'phone_signup_missing_verified_phone');
+    }
+
+    const activeIdentities = await store.findActiveIdentitiesByPhone(phoneE164);
+    if (activeIdentities.length > 0) {
+        const updated = await store.updateAttempt(attempt.id, {
+            status: PHONE_LOGIN_ATTEMPT_STATUS.conflict,
+            failureReason: 'phone_identity_already_linked',
+        });
+        return serializeAttemptStatus(updated, { reason: 'phone_identity_already_linked' });
+    }
+
+    const name = normalizeSignupName(input.name);
+    const postalCode = normalizeOptionalSignupPostalCode(input.postalCode);
+    const derivedSubregion = postalCode
+        ? await store.resolveDerivedSubregion(postalCode)
+        : null;
+    const nationalNumber = nationalNumberFromPhoneE164(phoneE164);
+    const identifiers = buildPhoneOnlyAccountIdentifiers(phoneE164, attempt.id);
+    const passwordHash = await bcrypt.hash(createRandomPasswordSeed(), 12);
+
+    const user = await store.createVerifiedPhoneSignupUser({
+        ...identifiers,
+        passwordHash,
+        name,
+        phone: nationalNumber,
+        postalCode,
+        phoneE164,
+        countryCode: '+65',
+        nationalNumber,
+        providerSubject: `whatsapp:${phoneE164}`,
+        verifiedAt: new Date(),
+        derivedSubregionId: derivedSubregion?.id || null,
+    });
+
+    const updated = await store.updateAttempt(attempt.id, {
+        status: PHONE_LOGIN_ATTEMPT_STATUS.verified,
+        resolvedUserId: user.id,
+        verifiedPhoneE164: phoneE164,
+        providerStatus: PHONE_LOGIN_ATTEMPT_STATUS.verified,
+        failureReason: null,
+    });
+
+    return serializeAttemptStatus(updated, { user });
 }

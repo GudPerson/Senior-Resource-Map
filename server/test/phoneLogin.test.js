@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     PHONE_LOGIN_ATTEMPT_STATUS,
+    completePhoneLoginSignup,
     pollPhoneLoginAttempt,
     startPhoneLoginAttempt,
 } from '../src/utils/phoneLogin.js';
@@ -28,6 +29,8 @@ function createMemoryStore({
         identities: identities.map((identity) => ({ ...identity })),
         attempts: attempts.map((attempt) => ({ ...attempt })),
         nextAttemptId: attempts.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextUserId: users.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextIdentityId: identities.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
     };
 
     return {
@@ -60,6 +63,45 @@ function createMemoryStore({
                     && !identity.revokedAt
                 ))
                 .map((identity) => ({ ...identity }));
+        },
+        async findActiveIdentitiesByPhone(phoneE164) {
+            return state.identities
+                .filter((identity) => (
+                    identity.phoneE164 === phoneE164
+                    && !identity.revokedAt
+                ))
+                .map((identity) => ({ ...identity }));
+        },
+        async resolveDerivedSubregion(postalCode) {
+            return postalCode ? { id: 12 } : null;
+        },
+        async createVerifiedPhoneSignupUser(values) {
+            const user = {
+                id: state.nextUserId++,
+                username: values.username,
+                email: values.email,
+                passwordHash: values.passwordHash || 'test-password-hash',
+                name: values.name,
+                role: 'standard',
+                phone: values.phone,
+                postalCode: values.postalCode || '',
+                managerUserId: null,
+                subregionIds: values.derivedSubregionId ? [values.derivedSubregionId] : [],
+            };
+            state.users.push(user);
+            state.identities.push({
+                id: state.nextIdentityId++,
+                userId: user.id,
+                phoneE164: values.phoneE164,
+                countryCode: values.countryCode,
+                nationalNumber: values.nationalNumber,
+                status: 'verified',
+                source: 'gudauth',
+                providerSubject: values.providerSubject,
+                verifiedAt: values.verifiedAt,
+                revokedAt: null,
+            });
+            return { ...user };
         },
         async getUserWithSubregions(userId) {
             const user = state.users.find((item) => item.id === userId);
@@ -168,9 +210,9 @@ test('phone login never trusts raw users.phone without a verified identity', asy
         attemptId: 3,
     });
 
-    assert.equal(result.status, 'no_account');
+    assert.equal(result.status, 'signup_required');
     assert.equal(result.user, undefined);
-    assert.equal(result.reason, 'no_verified_account');
+    assert.equal(result.reason, 'signup_required');
     assert.doesNotMatch(JSON.stringify(result), /\+6583682962/);
 });
 
@@ -203,8 +245,8 @@ test('legacy unverified phone identities cannot be used for phone login', async 
         attemptId: 4,
     });
 
-    assert.equal(result.status, 'no_account');
-    assert.equal(result.reason, 'no_verified_account');
+    assert.equal(result.status, 'conflict');
+    assert.equal(result.reason, 'phone_identity_not_verified');
 });
 
 test('revoked phone identities cannot be used for phone login', async () => {
@@ -236,8 +278,8 @@ test('revoked phone identities cannot be used for phone login', async () => {
         attemptId: 5,
     });
 
-    assert.equal(result.status, 'no_account');
-    assert.equal(result.reason, 'no_verified_account');
+    assert.equal(result.status, 'signup_required');
+    assert.equal(result.reason, 'signup_required');
 });
 
 test('defensive phone login conflict blocks multiple verified identities for one phone', async () => {
@@ -282,4 +324,109 @@ test('defensive phone login conflict blocks multiple verified identities for one
     assert.equal(result.status, 'conflict');
     assert.equal(result.reason, 'multiple_verified_accounts');
     assert.equal(result.user, undefined);
+});
+
+test('phone-first signup creates a standard user and verified phone identity after provider verification', async () => {
+    const store = createMemoryStore({
+        users: [],
+        identities: [],
+        attempts: [{
+            id: 7,
+            provider: 'gudauth',
+            providerChallengeId: 'login-challenge-7',
+            requestedPhoneE164: '+6590011859',
+            verifiedPhoneE164: '+6590011859',
+            status: 'signup_required',
+            providerStatus: 'verified',
+            failureReason: 'signup_required',
+        }],
+    });
+
+    const result = await completePhoneLoginSignup({
+        store,
+        attemptId: 7,
+        input: {
+            name: 'Cynthia Peace',
+            postalCode: '160024',
+        },
+    });
+
+    assert.equal(result.status, 'verified');
+    assert.equal(result.user.name, 'Cynthia Peace');
+    assert.equal(result.user.role, 'standard');
+    assert.equal(result.user.phone, '90011859');
+    assert.equal(result.user.postalCode, '160024');
+    assert.equal(result.user.email, 'phone+6590011859.7@phone.carearound.invalid');
+    assert.equal(result.user.username, 'phone_6590011859_7');
+    assert.deepEqual(result.user.subregionIds, [12]);
+
+    const identity = store.state.identities.find((item) => item.userId === result.user.id);
+    assert.equal(identity.phoneE164, '+6590011859');
+    assert.equal(identity.nationalNumber, '90011859');
+    assert.equal(identity.status, 'verified');
+    assert.equal(identity.source, 'gudauth');
+});
+
+test('phone-first signup rejects attempts that are not ready for signup', async () => {
+    for (const status of [
+        PHONE_LOGIN_ATTEMPT_STATUS.pending,
+        PHONE_LOGIN_ATTEMPT_STATUS.failed,
+        PHONE_LOGIN_ATTEMPT_STATUS.expired,
+        PHONE_LOGIN_ATTEMPT_STATUS.verified,
+        PHONE_LOGIN_ATTEMPT_STATUS.conflict,
+    ]) {
+        const store = createMemoryStore({
+            attempts: [{
+                id: 8,
+                provider: 'gudauth',
+                verifiedPhoneE164: '+6590011859',
+                status,
+            }],
+        });
+
+        await assert.rejects(
+            () => completePhoneLoginSignup({
+                store,
+                attemptId: 8,
+                input: { name: 'Test User' },
+            }),
+            /not ready/i,
+        );
+    }
+});
+
+test('phone-first signup refuses if the verified phone becomes linked before completion', async () => {
+    const store = createMemoryStore({
+        users: [{ ...BASE_USER, id: 99 }],
+        identities: [{
+            id: 10,
+            userId: 99,
+            phoneE164: '+6590011859',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: null,
+        }],
+        attempts: [{
+            id: 9,
+            provider: 'gudauth',
+            providerChallengeId: 'login-challenge-9',
+            requestedPhoneE164: '+6590011859',
+            verifiedPhoneE164: '+6590011859',
+            status: 'signup_required',
+            providerStatus: 'verified',
+            failureReason: 'signup_required',
+        }],
+    });
+
+    const result = await completePhoneLoginSignup({
+        store,
+        attemptId: 9,
+        input: { name: 'New User' },
+    });
+
+    assert.equal(result.status, 'conflict');
+    assert.equal(result.user, undefined);
+    assert.equal(result.reason, 'phone_identity_already_linked');
+    assert.equal(store.state.users.length, 1);
+    assert.equal(store.state.identities.length, 1);
 });

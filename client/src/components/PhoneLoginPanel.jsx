@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, MessageCircle, Phone, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, MessageCircle, Phone, RefreshCw, UserPlus } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import {
@@ -166,6 +166,15 @@ function statusView(status, t) {
         };
     }
 
+    if (status === 'signup_required') {
+        return {
+            icon: UserPlus,
+            iconClass: 'text-brand-700',
+            title: t('phoneLoginSignupTitle'),
+            body: t('phoneLoginSignupBody'),
+        };
+    }
+
     if (status === 'conflict') {
         return {
             icon: AlertTriangle,
@@ -208,6 +217,8 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     const [challenge, setChallenge] = useState(null);
     const [error, setError] = useState('');
     const [actionBusy, setActionBusy] = useState(false);
+    const [signupForm, setSignupForm] = useState({ name: '', postalCode: '' });
+    const [signupBusy, setSignupBusy] = useState(false);
     const pollUntilRef = useRef(0);
     const pollInFlightRef = useRef(false);
     const returnToRef = useRef(clean(returnTo));
@@ -224,7 +235,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
             result?.challenge || null,
             nextStatus,
         ));
-        setError(result?.message || '');
+        setError(nextStatus === 'signup_required' ? '' : (result?.message || ''));
         if (result?.attemptId) setAttemptId(result.attemptId);
 
         if (nextStatus === 'verified' && result?.user) {
@@ -233,6 +244,19 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
             setAttemptId(null);
             pollUntilRef.current = 0;
             onSignedIn(result.user, storedAttempt?.returnTo || returnToRef.current);
+            return;
+        }
+
+        if (nextStatus === 'signup_required') {
+            if (result?.attemptId) {
+                writeStoredPhoneLoginAttempt(
+                    result.attemptId,
+                    phone || storedAttempt?.phone || '',
+                    storedAttempt?.returnTo || returnToRef.current,
+                );
+            }
+            setStatus('signup_required');
+            pollUntilRef.current = 0;
             return;
         }
 
@@ -300,13 +324,17 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
 
     useEffect(() => {
         if (typeof window === 'undefined') return undefined;
-        if (!isGudAuthPhoneLoginReturn(window.location.search)) return undefined;
+        const isPhoneLoginReturn = isGudAuthPhoneLoginReturn(window.location.search);
+        const storedAttempt = readStoredPhoneLoginAttempt();
+        if (!isPhoneLoginReturn && !storedAttempt?.attemptId) return undefined;
 
         restoreStoredAttemptAndPoll();
 
-        const url = new URL(window.location.href);
-        url.searchParams.delete('gudauth');
-        window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        if (isPhoneLoginReturn) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('gudauth');
+            window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        }
         return undefined;
     }, [restoreStoredAttemptAndPoll]);
 
@@ -355,6 +383,25 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         }
     }
 
+    async function completeSignup(event) {
+        event.preventDefault();
+        if (!attemptId || signupBusy) return;
+
+        setSignupBusy(true);
+        setError('');
+        try {
+            const result = await api.completePhoneLoginSignup(attemptId, {
+                name: signupForm.name,
+                postalCode: signupForm.postalCode,
+            });
+            finishWithResult(result);
+        } catch (err) {
+            setError(friendlyErrorMessage(err.message, t));
+        } finally {
+            setSignupBusy(false);
+        }
+    }
+
     function resetPanel() {
         clearStoredPhoneLoginAttempt();
         pollUntilRef.current = 0;
@@ -362,6 +409,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         setChallenge(null);
         setError('');
         setStatus('idle');
+        setSignupForm({ name: '', postalCode: '' });
     }
 
     const view = statusView(status, t);
@@ -369,6 +417,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     const whatsappUrl = getWhatsAppUrl(challenge);
     const canStart = Boolean(clean(phone)) && !actionBusy && status !== 'pending' && status !== 'starting';
     const showTryAgain = ['failed', 'expired', 'no_account', 'conflict'].includes(status);
+    const canCompleteSignup = Boolean(clean(signupForm.name)) && !signupBusy;
 
     if (status === 'idle') {
         return (
@@ -424,6 +473,65 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                         <p className="mt-3 text-xs font-semibold text-slate-500">
                             {t('phoneLoginCheckingAutomatically')}
                         </p>
+                    ) : null}
+
+                    {status === 'signup_required' ? (
+                        <form onSubmit={completeSignup} className="mt-4 space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700" htmlFor="phone-login-signup-name">
+                                    {t('phoneLoginSignupNameLabel')}
+                                </label>
+                                <input
+                                    id="phone-login-signup-name"
+                                    type="text"
+                                    autoComplete="name"
+                                    required
+                                    value={signupForm.name}
+                                    onChange={(event) => setSignupForm((current) => ({ ...current, name: event.target.value }))}
+                                    placeholder={t('phoneLoginSignupNamePlaceholder')}
+                                    className="input-field mt-1"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-700" htmlFor="phone-login-signup-postal">
+                                    {t('phoneLoginSignupPostalLabel')}
+                                </label>
+                                <input
+                                    id="phone-login-signup-postal"
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="postal-code"
+                                    value={signupForm.postalCode}
+                                    onChange={(event) => setSignupForm((current) => ({ ...current, postalCode: event.target.value }))}
+                                    placeholder={t('phoneLoginSignupPostalPlaceholder')}
+                                    className="input-field mt-1"
+                                />
+                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                    {t('phoneLoginSignupPostalHelp')}
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="submit"
+                                    disabled={!canCompleteSignup}
+                                    className="btn-primary px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {signupBusy ? (
+                                        <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                    ) : (
+                                        <UserPlus size={16} />
+                                    )}
+                                    {signupBusy ? t('phoneLoginSignupSaving') : t('phoneLoginSignupButton')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={resetPanel}
+                                    className="btn-ghost px-4 py-2 text-sm"
+                                >
+                                    {t('cancel')}
+                                </button>
+                            </div>
+                        </form>
                     ) : null}
 
                     <div className="mt-4 flex flex-wrap gap-2">

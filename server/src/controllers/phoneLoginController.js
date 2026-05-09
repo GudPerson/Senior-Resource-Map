@@ -3,8 +3,14 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boundarySchema.js';
 import { createGudAuthClient } from '../utils/gudAuthClient.js';
-import { optionalOneLineTextSchema, parsePositiveInt, validateRequestBody } from '../utils/inputValidation.js';
 import {
+    optionalOneLineTextSchema,
+    parsePositiveInt,
+    requiredOneLineTextSchema,
+    validateRequestBody,
+} from '../utils/inputValidation.js';
+import {
+    completePhoneLoginSignup,
     createPhoneLoginStore,
     PHONE_LOGIN_ATTEMPT_STATUS,
     pollPhoneLoginAttempt,
@@ -14,6 +20,11 @@ import { buildSessionPayload, createSessionToken, setAuthCookie } from '../utils
 
 const startPhoneLoginBodySchema = z.object({
     phone: optionalOneLineTextSchema(80),
+});
+
+const phoneLoginSignupBodySchema = z.object({
+    name: requiredOneLineTextSchema('Name', 255),
+    postalCode: optionalOneLineTextSchema(20),
 });
 
 function statusForError(err) {
@@ -40,6 +51,9 @@ function createPhoneLoginDependencies(c) {
 function safePhoneLoginMessage(result) {
     if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.noAccount) {
         return 'No verified CareAround account is linked to this WhatsApp number.';
+    }
+    if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.signupRequired) {
+        return 'Your WhatsApp number is verified. Add your name to create your CareAround account.';
     }
     if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.conflict) {
         return 'This WhatsApp number needs support review before sign-in can continue.';
@@ -107,6 +121,36 @@ export async function getPhoneLoginAttempt(c) {
         return c.json(publicAttemptPayload(result));
     } catch (err) {
         if (!err.status || err.status >= 500) console.error('Phone login poll error:', err);
+        return c.json(errorPayload(err), statusForError(err));
+    }
+}
+
+export async function completePhoneSignup(c) {
+    try {
+        const attemptId = parsePositiveInt(c.req.param('attemptId'), 'Phone sign-up attempt id');
+        const rawBody = await c.req.json().catch(() => ({}));
+        const input = validateRequestBody(rawBody, phoneLoginSignupBodySchema, 'Phone sign-up details');
+        const { db, store } = createPhoneLoginDependencies(c);
+        await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
+        const result = await completePhoneLoginSignup({
+            store,
+            attemptId,
+            input,
+        });
+
+        if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.verified && result.user) {
+            const token = await createSessionToken(result.user, c);
+            setAuthCookie(c, token);
+            return c.json({
+                ...publicAttemptPayload(result),
+                user: buildSessionPayload(result.user),
+            });
+        }
+
+        return c.json(publicAttemptPayload(result));
+    } catch (err) {
+        if (!err.status || err.status >= 500) console.error('Phone login signup error:', err);
         return c.json(errorPayload(err), statusForError(err));
     }
 }
