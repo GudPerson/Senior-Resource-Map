@@ -89,6 +89,15 @@ export function isGudAuthPhoneLoginReturn(search) {
     return params.get('gudauth') === 'phone_login';
 }
 
+export function getGudAuthPhoneLoginAttemptId(search) {
+    if (!isGudAuthPhoneLoginReturn(search)) return null;
+    const rawSearch = String(search || '').trim();
+    const normalizedSearch = rawSearch.startsWith('?') ? rawSearch : `?${rawSearch}`;
+    const params = new URLSearchParams(normalizedSearch);
+    const attemptId = Number.parseInt(String(params.get('attempt') || ''), 10);
+    return attemptId > 0 ? attemptId : null;
+}
+
 function isTerminalStatus(status) {
     return ['verified', 'failed', 'expired', 'conflict', 'manual_review'].includes(
         String(status || '').trim().toLowerCase(),

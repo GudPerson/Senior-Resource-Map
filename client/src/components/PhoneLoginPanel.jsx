@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Clock, MessageCircle, Phone, RefreshCw, Us
 import { api } from '../lib/api.js';
 import {
     getBrowserWhatsAppLaunchDevice,
+    getGudAuthPhoneLoginAttemptId,
     getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
     isGudAuthPhoneLoginReturn,
@@ -407,16 +408,21 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         }
     }, [finishWithResult, t]);
 
-    const restoreStoredAttemptAndPoll = useCallback(() => {
-        const storedAttempt = readStoredPhoneLoginAttempt();
-        if (!storedAttempt?.attemptId) return;
+    const restoreAttemptAndPoll = useCallback((loginAttempt) => {
+        const normalizedAttemptId = Number.parseInt(String(loginAttempt?.attemptId || ''), 10);
+        if (!normalizedAttemptId) return false;
 
-        setAttemptId(storedAttempt.attemptId);
-        if (storedAttempt.phone) setPhone(storedAttempt.phone);
+        setAttemptId(normalizedAttemptId);
+        if (loginAttempt.phone) setPhone(loginAttempt.phone);
         pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
         setStatus((currentStatus) => (currentStatus === 'verified' ? currentStatus : 'pending'));
-        pollAttemptById(storedAttempt.attemptId);
+        pollAttemptById(normalizedAttemptId);
+        return true;
     }, [pollAttemptById]);
+
+    const restoreStoredAttemptAndPoll = useCallback(() => {
+        return restoreAttemptAndPoll(readStoredPhoneLoginAttempt());
+    }, [restoreAttemptAndPoll]);
 
     useEffect(() => {
         if (!attemptId || status !== 'pending') return undefined;
@@ -439,18 +445,34 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     useEffect(() => {
         if (typeof window === 'undefined') return undefined;
         const isPhoneLoginReturn = isGudAuthPhoneLoginReturn(window.location.search);
+        const returnedAttemptId = getGudAuthPhoneLoginAttemptId(window.location.search);
         const storedAttempt = readStoredPhoneLoginAttempt();
         if (!isPhoneLoginReturn && !storedAttempt?.attemptId) return undefined;
 
-        restoreStoredAttemptAndPoll();
+        if (isPhoneLoginReturn && returnedAttemptId) {
+            const returnedAttempt = {
+                attemptId: returnedAttemptId,
+                phone: storedAttempt?.phone || '',
+                returnTo: storedAttempt?.returnTo || returnToRef.current,
+            };
+            writeStoredPhoneLoginAttempt(
+                returnedAttempt.attemptId,
+                returnedAttempt.phone,
+                returnedAttempt.returnTo,
+            );
+            restoreAttemptAndPoll(returnedAttempt);
+        } else {
+            restoreStoredAttemptAndPoll();
+        }
 
         if (isPhoneLoginReturn) {
             const url = new URL(window.location.href);
             url.searchParams.delete('gudauth');
+            url.searchParams.delete('attempt');
             window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
         }
         return undefined;
-    }, [restoreStoredAttemptAndPoll]);
+    }, [restoreAttemptAndPoll, restoreStoredAttemptAndPoll]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;

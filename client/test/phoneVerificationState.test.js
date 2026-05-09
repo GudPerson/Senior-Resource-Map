@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    getGudAuthPhoneLoginAttemptId,
     getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
     isSafeWhatsAppUrl,
@@ -117,4 +118,12 @@ test('detects GudAuth phone-link returns from the Profile query string', () => {
     assert.equal(isGudAuthPhoneLinkReturn('gudauth=phone_link'), true);
     assert.equal(isGudAuthPhoneLinkReturn('?gudauth=phone_login'), false);
     assert.equal(isGudAuthPhoneLinkReturn('?other=phone_link'), false);
+});
+
+test('reads the phone-login attempt id from GudAuth return links', () => {
+    assert.equal(getGudAuthPhoneLoginAttemptId('?gudauth=phone_login&attempt=123'), 123);
+    assert.equal(getGudAuthPhoneLoginAttemptId('gudauth=phone_login&attempt=45'), 45);
+    assert.equal(getGudAuthPhoneLoginAttemptId('?gudauth=phone_link&attempt=123'), null);
+    assert.equal(getGudAuthPhoneLoginAttemptId('?gudauth=phone_login&attempt=abc'), null);
+    assert.equal(getGudAuthPhoneLoginAttemptId('?gudauth=phone_login&attempt=0'), null);
 });

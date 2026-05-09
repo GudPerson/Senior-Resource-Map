@@ -142,7 +142,7 @@ test('phone login start creates a GudAuth challenge without a browser-side GudAu
     assert.equal(result.challenge.whatsappUrl, 'https://wa.me/6587651901?text=WAP-111222');
     assert.deepEqual(calls, [{
         phoneNumber: '+6583682962',
-        returnUrl: 'https://app.carearound.sg/dashboard?gudauth=phone_login',
+        returnUrl: 'https://app.carearound.sg/login?gudauth=phone_login&attempt=1&returnTo=%2Fdashboard',
         referenceId: 'carearound-phone-login:1',
     }]);
 });
