@@ -295,10 +295,10 @@ export function createPhoneLoginStore(db) {
                 };
             };
 
-            if (typeof db.transaction === 'function') {
-                return db.transaction(createRows);
-            }
-
+            // The production Worker uses drizzle's neon-http driver, which exposes
+            // no usable transaction support. Keep this path compatible with the
+            // plain query executor and rely on the active-phone unique indexes plus
+            // the pre-insert ownership check above to prevent duplicate ownership.
             return createRows(db);
         },
         async getUserWithSubregions(userId) {

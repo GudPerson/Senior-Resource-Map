@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     PHONE_LOGIN_ATTEMPT_STATUS,
     completePhoneLoginSignup,
+    createPhoneLoginStore,
     pollPhoneLoginAttempt,
     startPhoneLoginAttempt,
 } from '../src/utils/phoneLogin.js';
@@ -365,6 +366,61 @@ test('phone-first signup creates a standard user and verified phone identity aft
     assert.equal(identity.nationalNumber, '90011859');
     assert.equal(identity.status, 'verified');
     assert.equal(identity.source, 'gudauth');
+});
+
+test('phone-first signup store avoids unsupported Neon HTTP transactions', async () => {
+    const inserted = [];
+    const db = {
+        transaction() {
+            throw new Error('No transactions support in neon-http driver');
+        },
+        insert(table) {
+            return {
+                values(values) {
+                    inserted.push({ table, values });
+                    return {
+                        async returning() {
+                            return [{
+                                id: 101,
+                                username: values.username,
+                                email: values.email,
+                                passwordHash: values.passwordHash,
+                                name: values.name,
+                                role: values.role,
+                                phone: values.phone,
+                                postalCode: values.postalCode,
+                                managerUserId: values.managerUserId,
+                            }];
+                        },
+                    };
+                },
+            };
+        },
+    };
+    const store = createPhoneLoginStore(db);
+
+    const user = await store.createVerifiedPhoneSignupUser({
+        username: 'phone_6590011859_7',
+        email: 'phone+6590011859.7@phone.carearound.invalid',
+        passwordHash: 'hash',
+        name: 'Cynthia Peace',
+        phone: '90011859',
+        postalCode: '160024',
+        phoneE164: '+6590011859',
+        countryCode: '+65',
+        nationalNumber: '90011859',
+        providerSubject: 'whatsapp:+6590011859',
+        verifiedAt: new Date('2026-05-09T10:00:00.000Z'),
+        derivedSubregionId: null,
+    });
+
+    assert.equal(user.id, 101);
+    assert.equal(user.email, 'phone+6590011859.7@phone.carearound.invalid');
+    assert.equal(inserted.length, 2);
+    assert.equal(inserted[0].values.username, 'phone_6590011859_7');
+    assert.equal(inserted[1].values.phoneE164, '+6590011859');
+    assert.equal(inserted[1].values.status, 'verified');
+    assert.equal(inserted[1].values.source, 'gudauth');
 });
 
 test('phone-first signup rejects attempts that are not ready for signup', async () => {
