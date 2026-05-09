@@ -28,6 +28,7 @@ export default function PhoneLoginReturnPage() {
     const { t } = useLocale();
     const [status, setStatus] = useState('checking');
     const [message, setMessage] = useState('');
+    const [continueTo, setContinueTo] = useState('/dashboard');
     const inFlightRef = useRef(false);
 
     const { attemptId, returnTo } = useMemo(() => {
@@ -70,8 +71,9 @@ export default function PhoneLoginReturnPage() {
                 const nextStatus = String(result?.status || '').trim().toLowerCase();
                 if (nextStatus === 'verified' && result?.user) {
                     setStatus('verified');
+                    setMessage(t('phoneLoginReturnSuccessBody'));
+                    setContinueTo(returnTo);
                     login(result.user);
-                    navigate(returnTo, { replace: true });
                     return;
                 }
 
@@ -109,6 +111,11 @@ export default function PhoneLoginReturnPage() {
 
     const isFailed = status === 'failed';
     const Icon = isFailed ? AlertTriangle : status === 'verified' ? CheckCircle2 : Loader2;
+    const title = status === 'verified'
+        ? t('phoneLoginReturnSuccessTitle')
+        : isFailed
+            ? t('phoneLoginFailedTitle')
+            : t('phoneLoginReturnTitle');
 
     return (
         <main className="flex min-h-[calc(100vh-88px)] items-center justify-center bg-slate-50 px-5 py-12">
@@ -120,11 +127,21 @@ export default function PhoneLoginReturnPage() {
                     <Icon className={status === 'checking' ? 'animate-spin' : ''} size={32} />
                 </div>
                 <h1 className="mt-5 text-2xl font-bold text-slate-950">
-                    {isFailed ? t('phoneLoginFailedTitle') : t('phoneLoginReturnTitle')}
+                    {title}
                 </h1>
                 <p className="mt-3 text-base leading-7 text-slate-600">
                     {message || t('phoneLoginReturnBody')}
                 </p>
+                {status === 'verified' ? (
+                    <>
+                        <Link to={continueTo} className="btn-primary mt-6 w-full justify-center">
+                            {t('phoneLoginReturnContinue')}
+                        </Link>
+                        <p className="mt-4 text-sm leading-6 text-slate-500">
+                            {t('phoneLoginReturnFallbackHint')}
+                        </p>
+                    </>
+                ) : null}
                 {isFailed ? (
                     <Link to="/login" className="btn-primary mt-6 w-full justify-center">
                         {t('phoneLoginReturnBackToLogin')}
