@@ -54,6 +54,10 @@ export function isLikelyMobileDevice(userAgent = '') {
     return /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(String(userAgent || ''));
 }
 
+export function shouldUsePreparedWhatsAppWindow(userAgent = '') {
+    return !isLikelyMobileDevice(userAgent);
+}
+
 export function isGudAuthPhoneLinkReturn(search) {
     const rawSearch = String(search || '').trim();
     const normalizedSearch = rawSearch.startsWith('?') ? rawSearch : `?${rawSearch}`;

@@ -9,6 +9,7 @@ import {
     isLikelyMobileDevice,
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
+    shouldUsePreparedWhatsAppWindow,
 } from '../lib/phoneVerificationState.js';
 
 const POLL_INTERVAL_MS = 3000;
@@ -201,8 +202,9 @@ function prepareWhatsAppLaunchWindow(
 }
 
 function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
+    const mobileDevice = typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent);
     const launchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
-        preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator.userAgent),
+        preferNative: mobileDevice,
     });
     if (!launchUrl) {
         try {
@@ -221,6 +223,15 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
         }
     } catch {
         // Fall through to a direct open attempt.
+    }
+
+    if (mobileDevice) {
+        try {
+            window.location.href = launchUrl;
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     try {
@@ -460,10 +471,14 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         const phoneText = clean(phone);
         if (!phoneText || actionBusy) return;
 
-        const preparedWhatsAppWindow = prepareWhatsAppLaunchWindow(
-            t('phoneLoginOpeningWhatsApp'),
-            t('phoneLoginPreparingWhatsAppCode'),
-        );
+        const preparedWhatsAppWindow = shouldUsePreparedWhatsAppWindow(
+            typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        )
+            ? prepareWhatsAppLaunchWindow(
+                t('phoneLoginOpeningWhatsApp'),
+                t('phoneLoginPreparingWhatsAppCode'),
+            )
+            : null;
         setActionBusy(true);
         setStatus('starting');
         setError('');

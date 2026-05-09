@@ -6,6 +6,7 @@ import {
     getWhatsAppUrl,
     isSafeWhatsAppUrl,
     isGudAuthPhoneLinkReturn,
+    shouldUsePreparedWhatsAppWindow,
     mergePhoneVerificationChallenge,
 } from '../src/lib/phoneVerificationState.js';
 
@@ -76,6 +77,21 @@ test('prefers native WhatsApp app links on mobile while keeping web links as fal
     assert.equal(
         getPreferredWhatsAppLaunchUrl('https://wa.me/6587651901?text=WAP-123456'),
         'https://wa.me/6587651901?text=WAP-123456',
+    );
+});
+
+test('uses the prepared blank window only for desktop WhatsApp launching', () => {
+    assert.equal(
+        shouldUsePreparedWhatsAppWindow('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/142.0.0.0 Safari/537.36'),
+        true,
+    );
+    assert.equal(
+        shouldUsePreparedWhatsAppWindow('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 Chrome/142.0.0.0 Mobile Safari/537.36'),
+        false,
+    );
+    assert.equal(
+        shouldUsePreparedWhatsAppWindow('Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'),
+        false,
     );
 });
 
