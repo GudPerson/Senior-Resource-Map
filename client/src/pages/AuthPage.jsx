@@ -15,16 +15,44 @@ function normalizeReturnTo(value) {
     return text;
 }
 
+const PHONE_LOGIN_ATTEMPT_KEY = 'carearound-phone-login-attempt';
+const ACTIVE_PHONE_LOGIN_STATUSES = new Set(['starting', 'pending', 'verified', 'signup_required']);
+
+function hasStoredPhoneLoginAttempt() {
+    if (typeof window === 'undefined') return false;
+    try {
+        const raw = window.localStorage.getItem(PHONE_LOGIN_ATTEMPT_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        const attemptId = Number.parseInt(String(parsed?.attemptId || ''), 10);
+        const expiresAt = Number.parseInt(String(parsed?.expiresAt || ''), 10);
+        return Boolean(attemptId && expiresAt && Date.now() <= expiresAt);
+    } catch {
+        return false;
+    }
+}
+
+function hasPhoneLoginReturn(search) {
+    const params = new URLSearchParams(search || '');
+    return params.get('gudauth') === 'phone_login' && Boolean(params.get('attempt'));
+}
+
 export default function AuthPage({ isPartner = false }) {
     const [tab, setTab] = useState('login');
     const [form, setForm] = useState({ username: '', email: '', password: '', name: '', postalCode: '', role: 'user' });
     const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [phoneLoginStatus, setPhoneLoginStatus] = useState(() => (
+        hasStoredPhoneLoginAttempt() || hasPhoneLoginReturn(typeof window !== 'undefined' ? window.location.search : '')
+            ? 'pending'
+            : 'idle'
+    ));
     const { login, isAuth } = useAuth();
     const { t } = useLocale();
     const navigate = useNavigate();
     const location = useLocation();
+    const phoneLoginActive = !isPartner && tab === 'login' && ACTIVE_PHONE_LOGIN_STATUSES.has(phoneLoginStatus);
 
     const resolvePostAuthDestination = useCallback((destinationOverride = '') => {
         const normalizedOverride = normalizeReturnTo(destinationOverride);
@@ -107,7 +135,7 @@ export default function AuthPage({ isPartner = false }) {
                 </div>
 
                 {/* Tabs - Only show Register if NOT partner */}
-                {!isPartner && (
+                {!isPartner && !phoneLoginActive && (
                     <div className="flex rounded-2xl p-1 mb-6" style={{ backgroundColor: 'var(--color-badge-bg)' }}>
                         {[{ key: 'login', label: t('signIn'), Icon: LogIn }, { key: 'register', label: t('register'), Icon: UserPlus }].map(({ key, label, Icon }) => (
                             <button
@@ -124,31 +152,37 @@ export default function AuthPage({ isPartner = false }) {
                 )}
                 {!isPartner && (
                     <div className="mb-6 flex flex-col items-center">
-                        <GoogleLogin
-                            onSuccess={handleGoogleSuccess}
-                            onError={handleGoogleError}
-                            theme="outline"
-                            size="large"
-                            width="100%"
-                            text={tab === 'login' ? 'signin_with' : 'signup_with'}
-                        />
+                        {!phoneLoginActive ? (
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={handleGoogleError}
+                                theme="outline"
+                                size="large"
+                                width="100%"
+                                text={tab === 'login' ? 'signin_with' : 'signup_with'}
+                            />
+                        ) : null}
                         {tab === 'login' ? (
                             <PhoneLoginPanel
                                 t={t}
                                 returnTo={normalizeReturnTo(new URLSearchParams(location.search).get('returnTo'))}
                                 onSignedIn={completeLogin}
+                                onStatusChange={setPhoneLoginStatus}
                             />
                         ) : null}
-                        <div className="flex items-center w-full my-6">
-                            <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
-                            <div className="px-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{t('or')}</div>
-                            <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
-                        </div>
+                        {!phoneLoginActive ? (
+                            <div className="flex items-center w-full my-6">
+                                <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
+                                <div className="px-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{t('or')}</div>
+                                <div className="flex-1 border-b" style={{ borderColor: 'var(--color-border)' }}></div>
+                            </div>
+                        ) : null}
                     </div>
                 )}
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                {!phoneLoginActive ? (
+                    <form onSubmit={handleSubmit} className="space-y-4">
                     {tab === 'register' && !isPartner && (
                         <>
                             <div>
@@ -234,29 +268,34 @@ export default function AuthPage({ isPartner = false }) {
                             <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : tab === 'login' ? <><LogIn size={18} /> {t('signIn')}</> : <><UserPlus size={18} /> {t('createAccount')}</>}
                     </button>
-                </form>
+                    </form>
+                ) : null}
 
-                <div className="mt-4 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                    {isPartner ? (
-                        <>{t('lookingForUserLogin')} <Link to="/login" className="text-brand-600 font-semibold hover:underline">{t('clickHere')}</Link></>
-                    ) : (
-                        <>{t('staffOrAdmin')} <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">{t('logInHere')}</Link></>
-                    )}
-                </div>
+                {!phoneLoginActive ? (
+                    <div className="mt-4 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                        {isPartner ? (
+                            <>{t('lookingForUserLogin')} <Link to="/login" className="text-brand-600 font-semibold hover:underline">{t('clickHere')}</Link></>
+                        ) : (
+                            <>{t('staffOrAdmin')} <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">{t('logInHere')}</Link></>
+                        )}
+                    </div>
+                ) : null}
 
-                <div className="mt-4 border-t border-slate-100 pt-4 text-center text-xs leading-6" style={{ color: 'var(--color-text-secondary)' }}>
-                    <p>
-                        By using CareAround SG, you agree to the{' '}
-                        <Link to="/terms" className="font-semibold text-brand-700 hover:underline">
-                            Terms of Use
-                        </Link>{' '}
-                        and acknowledge the{' '}
-                        <Link to="/privacy" className="font-semibold text-brand-700 hover:underline">
-                            Privacy & Cookies Notice
-                        </Link>
-                        .
-                    </p>
-                </div>
+                {!phoneLoginActive ? (
+                    <div className="mt-4 border-t border-slate-100 pt-4 text-center text-xs leading-6" style={{ color: 'var(--color-text-secondary)' }}>
+                        <p>
+                            By using CareAround SG, you agree to the{' '}
+                            <Link to="/terms" className="font-semibold text-brand-700 hover:underline">
+                                Terms of Use
+                            </Link>{' '}
+                            and acknowledge the{' '}
+                            <Link to="/privacy" className="font-semibold text-brand-700 hover:underline">
+                                Privacy & Cookies Notice
+                            </Link>
+                            .
+                        </p>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

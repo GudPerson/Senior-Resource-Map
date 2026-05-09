@@ -96,6 +96,18 @@ function clearStoredPhoneLoginAttempt() {
     }
 }
 
+function getInitialPhoneLoginState() {
+    const storedAttempt = readStoredPhoneLoginAttempt();
+    const isReturn = typeof window !== 'undefined' && isGudAuthPhoneLoginReturn(window.location.search);
+    const returnedAttemptId = isReturn ? getGudAuthPhoneLoginAttemptId(window.location.search) : null;
+    const attemptId = returnedAttemptId || storedAttempt?.attemptId || null;
+    return {
+        attemptId,
+        phone: storedAttempt?.phone || '',
+        status: attemptId ? 'pending' : 'idle',
+    };
+}
+
 function escapePreparedWindowText(value) {
     return String(value || '')
         .replace(/&/g, '&amp;')
@@ -244,7 +256,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
     }
 }
 
-function statusView(status, t) {
+function statusView(status, t, options = {}) {
     if (status === 'starting') {
         return {
             icon: RefreshCw,
@@ -255,6 +267,15 @@ function statusView(status, t) {
     }
 
     if (status === 'pending') {
+        if (options.isRestoringPending) {
+            return {
+                icon: RefreshCw,
+                iconClass: 'text-brand-700 animate-spin',
+                title: t('phoneLoginReturnTitle'),
+                body: t('phoneLoginReturnBody'),
+            };
+        }
+
         return {
             icon: Clock,
             iconClass: 'text-blue-700',
@@ -325,10 +346,12 @@ function statusView(status, t) {
     };
 }
 
-export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
-    const [phone, setPhone] = useState('');
-    const [status, setStatus] = useState('idle');
-    const [attemptId, setAttemptId] = useState(null);
+export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onStatusChange }) {
+    const initialStateRef = useRef(null);
+    if (!initialStateRef.current) initialStateRef.current = getInitialPhoneLoginState();
+    const [phone, setPhone] = useState(initialStateRef.current.phone);
+    const [status, setStatus] = useState(initialStateRef.current.status);
+    const [attemptId, setAttemptId] = useState(initialStateRef.current.attemptId);
     const [challenge, setChallenge] = useState(null);
     const [error, setError] = useState('');
     const [actionBusy, setActionBusy] = useState(false);
@@ -341,6 +364,10 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     useEffect(() => {
         returnToRef.current = clean(returnTo);
     }, [returnTo]);
+
+    useEffect(() => {
+        onStatusChange?.(status);
+    }, [onStatusChange, status]);
 
     const finishWithResult = useCallback((result) => {
         const nextStatus = normalizeStatus(result?.status);
@@ -556,9 +583,11 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         setSignupForm({ name: '', postalCode: '' });
     }
 
-    const view = statusView(status, t);
-    const Icon = view.icon;
     const whatsappUrl = getWhatsAppUrl(challenge);
+    const view = statusView(status, t, {
+        isRestoringPending: status === 'pending' && !whatsappUrl,
+    });
+    const Icon = view.icon;
     const browserLaunchDevice = getBrowserWhatsAppLaunchDevice();
     const whatsappLaunchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
         preferNative: shouldUseNativeWhatsAppLaunch(
