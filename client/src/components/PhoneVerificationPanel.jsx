@@ -74,11 +74,83 @@ function clearStoredPhoneLinkAttempt() {
     }
 }
 
-function prepareWhatsAppLaunchWindow() {
+function escapePreparedWindowText(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function prepareWhatsAppLaunchWindow(
+    message = 'Opening WhatsApp...',
+    body = 'Please wait while CareAround prepares your WhatsApp code.',
+) {
     if (typeof window === 'undefined') return null;
 
     try {
-        return window.open('', '_blank');
+        const preparedWindow = window.open('', '_blank');
+        if (!preparedWindow) return null;
+
+        const safeMessage = escapePreparedWindowText(message);
+        const safeBody = escapePreparedWindowText(body);
+        preparedWindow.document.open();
+        preparedWindow.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeMessage}</title>
+    <style>
+      body {
+        align-items: center;
+        background: #f8fafc;
+        color: #0f172a;
+        display: flex;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        justify-content: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+      main {
+        max-width: 28rem;
+        padding: 2rem;
+        text-align: center;
+      }
+      .spinner {
+        animation: spin 0.9s linear infinite;
+        border: 4px solid #ccfbf1;
+        border-top-color: #0f9f96;
+        border-radius: 999px;
+        height: 3rem;
+        margin: 0 auto 1rem;
+        width: 3rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0;
+      }
+      p {
+        color: #64748b;
+        line-height: 1.6;
+        margin: 0.75rem 0 0;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="spinner" aria-hidden="true"></div>
+      <h1>${safeMessage}</h1>
+      <p>${safeBody}</p>
+    </main>
+  </body>
+</html>`);
+        preparedWindow.document.close();
+        return preparedWindow;
     } catch {
         return null;
     }
@@ -310,7 +382,10 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
 
     async function startVerification() {
         if (hasUnsavedPhone || !hasSavedPhone || actionBusy) return;
-        const preparedWhatsAppWindow = prepareWhatsAppLaunchWindow();
+        const preparedWhatsAppWindow = prepareWhatsAppLaunchWindow(
+            t('phoneLoginOpeningWhatsApp'),
+            t('phoneLoginPreparingWhatsAppCode'),
+        );
         setActionBusy(true);
         setError('');
         try {
