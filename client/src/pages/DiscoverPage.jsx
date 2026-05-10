@@ -389,7 +389,7 @@ function DiscoverPostalGroupListPanel({
                                     type="button"
                                     onMouseEnter={() => onHoverPin?.(pin, group)}
                                     onClick={() => onSelectPin?.(pin, group)}
-                                    className={`flex w-full items-center gap-3 rounded-[22px] border px-3 py-3 text-left transition ${
+                                    className={`flex w-full items-start gap-3 rounded-[22px] border px-3 py-3 text-left transition ${
                                         isHighlighted
                                             ? 'border-brand-300 bg-brand-50/70 shadow-sm'
                                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -416,9 +416,9 @@ function DiscoverPostalGroupListPanel({
                                                 {pin.address}
                                             </span>
                                         ) : null}
-                                    </span>
-                                    <span className="inline-flex flex-shrink-0 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">
-                                        {offeringsLabel}
+                                        <span className="mt-2 inline-flex max-w-full rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-bold leading-tight text-brand-700">
+                                            {offeringsLabel}
+                                        </span>
                                     </span>
                                 </button>
                             );
