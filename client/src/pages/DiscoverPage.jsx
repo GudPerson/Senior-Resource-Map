@@ -259,6 +259,10 @@ function buildDiscoverySearchHaystack(resource) {
         .toLowerCase();
 }
 
+function clampNumber(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
 function DiscoverPostalGroupListPanel({
     anchorLayout = null,
     group,
@@ -275,13 +279,27 @@ function DiscoverPostalGroupListPanel({
 
     if (!group?.isPostalGroup) return null;
 
-    const horizontalMargin = isDesktop ? 20 : 12;
-    const fallbackWidth = isDesktop ? 420 : null;
-    const trackedWidth = anchorLayout?.width ?? null;
-    const panelWidth = trackedWidth
-        ? Math.min(isDesktop ? 420 : Math.max(280, trackedWidth - (horizontalMargin * 2)), trackedWidth - (horizontalMargin * 2))
-        : fallbackWidth;
     const memberCount = Math.max(1, Number(group?.memberPins?.length || 0));
+    const horizontalMargin = isDesktop ? 20 : 12;
+    const preferredPanelWidth = isDesktop
+        ? (
+            memberCount <= 1
+                ? 420
+                : memberCount === 2
+                    ? 640
+                    : 700
+        )
+        : null;
+    const fallbackWidth = preferredPanelWidth;
+    const trackedWidth = anchorLayout?.width ?? null;
+    const availablePanelWidth = trackedWidth
+        ? Math.max(0, trackedWidth - (horizontalMargin * 2))
+        : null;
+    const panelWidth = availablePanelWidth !== null
+        ? (isDesktop ? Math.min(preferredPanelWidth, availablePanelWidth) : availablePanelWidth)
+        : fallbackWidth;
+    const cardColumnCount = isDesktop && memberCount > 1 && panelWidth >= 620 ? 2 : 1;
+    const cardRowCount = Math.ceil(memberCount / cardColumnCount);
     const minVisibleHeight = isDesktop ? 190 : 170;
     const preferredMaxHeight = isDesktop ? 520 : 420;
     const bottomPadding = isDesktop ? 24 : 16;
@@ -289,10 +307,17 @@ function DiscoverPostalGroupListPanel({
     const hoverPreviewPinClearance = hoverPreview && isDesktop ? 88 : 0;
     const verticalGap = hoverPreview && isDesktop ? 16 : 8;
     const belowGap = hoverPreview && isDesktop ? 20 : verticalGap;
-    const estimatedPanelHeight = Math.min(preferredMaxHeight, Math.max(minVisibleHeight, 112 + (memberCount * 76)));
+    const estimatedCardHeight = cardColumnCount > 1 ? 148 : 128;
+    const estimatedPanelHeight = Math.min(
+        preferredMaxHeight,
+        Math.max(
+            minVisibleHeight,
+            112 + (cardRowCount * estimatedCardHeight) + (Math.max(0, cardRowCount - 1) * 8),
+        ),
+    );
     const desiredTop = anchorLayout ? anchorLayout.y + belowGap : null;
     const clampedLeft = (anchorLayout && panelWidth)
-        ? Math.max(horizontalMargin, Math.min(anchorLayout.x - (panelWidth / 2), anchorLayout.width - horizontalMargin - panelWidth))
+        ? clampNumber(anchorLayout.x - (panelWidth / 2), horizontalMargin, anchorLayout.width - horizontalMargin - panelWidth)
         : null;
     const availableAbove = anchorLayout
         ? Math.max(140, anchorLayout.y - topPadding - hoverPreviewPinClearance - verticalGap)
@@ -326,7 +351,7 @@ function DiscoverPostalGroupListPanel({
                 )
         )
         : null;
-    const panelStyle = anchorLayout && panelWidth && clampedLeft !== null && clampedTop !== null
+    const anchoredPanelStyle = anchorLayout && panelWidth && clampedLeft !== null && clampedTop !== null
         ? {
             left: `${clampedLeft}px`,
             top: `${clampedTop}px`,
@@ -334,13 +359,23 @@ function DiscoverPostalGroupListPanel({
             maxHeight: `${panelMaxHeight}px`,
         }
         : undefined;
+    const fallbackPanelStyle = !anchorLayout && fallbackWidth
+        ? {
+            width: `${fallbackWidth}px`,
+            maxHeight: `${panelMaxHeight}px`,
+        }
+        : undefined;
+    const panelStyle = anchoredPanelStyle || fallbackPanelStyle;
     const scrollAreaStyle = {
         maxHeight: `${Math.max(92, panelMaxHeight - 88)}px`,
     };
+    const panelPositionClass = anchoredPanelStyle
+        ? ''
+        : (isDesktop ? 'left-1/2 top-1/2 max-w-[calc(100%-3rem)] -translate-x-1/2' : 'inset-x-3 bottom-5');
 
     return (
         <div
-            className={`pointer-events-auto absolute z-[600] ${panelStyle ? '' : (isDesktop ? 'left-1/2 top-1/2 w-[420px] max-w-[calc(100%-3rem)] -translate-x-1/2' : 'inset-x-3 bottom-5')}`}
+            className={`pointer-events-auto absolute z-[600] ${panelPositionClass}`}
             style={panelStyle}
             onMouseEnter={() => onHoverPanelEnter?.(group)}
             onMouseLeave={() => onHoverPanelLeave?.(group)}
@@ -373,7 +408,7 @@ function DiscoverPostalGroupListPanel({
                 </div>
 
                 <div className="overflow-y-auto overscroll-contain px-3 py-3" style={scrollAreaStyle}>
-                    <div className="space-y-2">
+                    <div className={cardColumnCount > 1 ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
                         {(group.memberPins || []).map((pin) => {
                             const isHighlighted = highlightedPinKey === pin.pinKey;
                             const offeringCount = pin.totalOfferingsCount || 0;
