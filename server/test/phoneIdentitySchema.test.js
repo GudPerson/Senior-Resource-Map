@@ -82,3 +82,60 @@ test('runtime schema bootstrap includes pre-session phone login attempts table',
         'expected requested phone index SQL',
     );
 });
+
+test('runtime schema bootstrap includes partner organisation and staff bridge tables', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists partner_organizations')),
+        'expected partner_organizations table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists partner_staff_memberships')),
+        'expected partner_staff_memberships table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists partner_staff_events')),
+        'expected partner_staff_events table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create unique index if not exists partner_organizations_legacy_partner_unique')
+            && statement.includes('legacy_partner_user_id')
+            && statement.includes('where legacy_partner_user_id is not null')
+        )),
+        'expected one bridge organisation per legacy partner user',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create unique index if not exists partner_staff_memberships_active_user_unique')
+            && statement.includes('organization_id, user_id')
+            && statement.includes('where revoked_at is null')
+        )),
+        'expected one active membership per user per organisation',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('insert into partner_organizations')
+            && statement.includes("where u.role = 'partner'")
+        )),
+        'expected bootstrap backfill from existing partner users',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('insert into partner_staff_memberships')
+            && statement.includes("'owner'")
+            && statement.includes('legacy_partner_user_id')
+        )),
+        'expected bootstrap owner membership backfill for each legacy partner user',
+    );
+});

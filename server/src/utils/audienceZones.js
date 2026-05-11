@@ -6,8 +6,8 @@ import {
     softAssetAudienceZones,
     softAssetParentAudienceZones,
 } from '../db/schema.js';
+import { actorCanManagePartnerOwnedEntity } from './ownership.js';
 import { normalizePostalCode, parsePostalCodeListInput } from './postalBoundaries.js';
-import { normalizeRole } from './roles.js';
 
 function normalizeText(value) {
     if (value === undefined || value === null) return '';
@@ -39,19 +39,7 @@ export function normalizeAudienceZoneIds(rawValue) {
 }
 
 export function canManageAudienceZone(actor, zone) {
-    const actorRole = normalizeRole(actor?.role);
-
-    if (!actor || !zone) return false;
-    if (actorRole === 'super_admin') return true;
-    if (actorRole === 'partner') return Number(zone.partnerUserId) === Number(actor.id);
-    if (actorRole === 'regional_admin') {
-        if (zone.partnerUserId) {
-            return Number(zone.ownerPartner?.managerUserId) === Number(actor.id);
-        }
-        return Number(zone.createdByUserId) === Number(actor.id);
-    }
-
-    return false;
+    return actorCanManagePartnerOwnedEntity(actor, zone, zone?.ownerPartner || null);
 }
 
 export async function loadAudienceZonesByIds(db, zoneIds) {

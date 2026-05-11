@@ -5,6 +5,7 @@ import { users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { normalizeRole } from '../utils/roles.js';
 import { canDirectlyManageUser } from '../utils/ownership.js';
+import { hasAnyPartnerStaffAccess, loadPartnerStaffAccessForUser } from '../utils/partnerStaff.js';
 import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
 import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
@@ -279,15 +280,16 @@ export const login = async (c) => {
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return c.json({ error: 'Invalid credentials' }, 401);
 
+        const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
+        user.subregionIds = userSubs.map(s => s.subregionId);
+        user.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, user.id);
+
         if (isPartnerLogin === true) {
             const adminRoles = ['super_admin', 'regional_admin', 'partner'];
-            if (!adminRoles.includes(user.role)) {
+            if (!adminRoles.includes(user.role) && !hasAnyPartnerStaffAccess(user)) {
                 return c.json({ error: 'This login page is for Partners and Admins only.' }, 403);
             }
         }
-
-        const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
-        user.subregionIds = userSubs.map(s => s.subregionId);
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
@@ -312,6 +314,8 @@ export const me = async (c) => {
         if (!liveUser) {
             return c.json({ user: null });
         }
+
+        liveUser.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, liveUser.id);
 
         const extraClaims = {};
         if (sessionUser?.isImpersonating) {
@@ -398,6 +402,7 @@ export const googleAuth = async (c) => {
 
         const userSubs = await db.select().from(userSubregions).where(eq(userSubregions.userId, user.id));
         user.subregionIds = userSubs.map((row) => row.subregionId);
+        user.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, user.id);
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
@@ -442,6 +447,8 @@ export const impersonate = async (c) => {
         if (!canImpersonateUser(actor, targetUser)) {
             return c.json({ error: 'You can only enter accounts directly below your role within your scope.' }, 403);
         }
+
+        targetUser.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, targetUser.id);
 
         const token = await createSessionToken(targetUser, c, {
             expiresInSeconds: IMPERSONATION_SESSION_TTL_SECONDS,

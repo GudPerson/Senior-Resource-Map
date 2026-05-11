@@ -39,7 +39,7 @@ import { AssetCard } from '../../components/AssetCard.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
-import { isStandardUserRole, normalizeRole } from '../../lib/roles.js';
+import { canAccessManagedResources, getPartnerStaffLegacyPartnerIds, normalizeRole } from '../../lib/roles.js';
 import Pagination from '../../components/Pagination.jsx';
 
 const TagBadge = ({ tag, onClick }) => (
@@ -555,20 +555,27 @@ export default function ResourcesPage() {
     const loadRequestIdRef = useRef(0);
 
     const normalizedRole = normalizeRole(user?.role);
-    const isStandardUser = isStandardUserRole(user?.role);
-    const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner';
+    const canManageResourceTools = canAccessManagedResources(user);
+    const partnerStaffLegacyPartnerIds = getPartnerStaffLegacyPartnerIds(user);
+    const partnerScopedOwnerIds = normalizedRole === 'partner'
+        ? [Number(user?.id)].filter((id) => Number.isInteger(id) && id > 0)
+        : partnerStaffLegacyPartnerIds;
+    const partnerScopedOwnerKey = partnerScopedOwnerIds.join(',');
+    const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner' || partnerStaffLegacyPartnerIds.length > 0;
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const normalizedQuery = deferredSearchTerm.trim().toLowerCase();
-    const needsFullAssetDataset = !isStandardUser || Boolean(normalizedQuery) || (boundaryChecksEnabled && boundaryFilter !== 'all');
+    const needsFullAssetDataset = canManageResourceTools || Boolean(normalizedQuery) || (boundaryChecksEnabled && boundaryFilter !== 'all');
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
-            ? ['full', normalizedRole, user?.id || 'anon'].join(':')
-            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon'].join(':')
+            ? ['full', normalizedRole, user?.id || 'anon', partnerScopedOwnerKey].join(':')
+            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey].join(':')
     ), [
         hardAssetsPage,
+        canManageResourceTools,
         needsFullAssetDataset,
         normalizedQuery,
         normalizedRole,
+        partnerScopedOwnerKey,
         softAssetsPage,
         user?.id,
     ]);
@@ -593,7 +600,7 @@ export default function ResourcesPage() {
                     : api.getSoftAssets({ page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
             ];
 
-            if (!isStandardUser) {
+            if (canManageResourceTools) {
                 requests.push(api.getSubregions().catch(() => []));
                 requests.push(api.getSoftAssetParents().catch(() => []));
                 requests.push(api.getAudienceZones().catch(() => []));
@@ -610,9 +617,9 @@ export default function ResourcesPage() {
             let cursor = 0;
             const hard = responses[cursor++] || [];
             const soft = responses[cursor++] || [];
-            const fetchedSubregions = !isStandardUser ? (responses[cursor++] || []) : [];
-            const fetchedTemplates = !isStandardUser ? (responses[cursor++] || []) : [];
-            const fetchedAudienceZones = !isStandardUser ? (responses[cursor++] || []) : [];
+            const fetchedSubregions = canManageResourceTools ? (responses[cursor++] || []) : [];
+            const fetchedTemplates = canManageResourceTools ? (responses[cursor++] || []) : [];
+            const fetchedAudienceZones = canManageResourceTools ? (responses[cursor++] || []) : [];
             const fetchedUsers = (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin')
                 ? (responses[cursor++] || [])
                 : [];
@@ -624,7 +631,7 @@ export default function ResourcesPage() {
             const hardData = hardResponse.data || [];
             const softData = softResponse.data || [];
 
-            if (isStandardUser) {
+            if (!canManageResourceTools) {
                 const favorites = await api.getFavorites();
                 const favoriteHardIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'hard').map((favorite) => favorite.resourceId));
                 const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
@@ -645,8 +652,9 @@ export default function ResourcesPage() {
                     setHardAssetsTotal(needsFullAssetDataset ? hardData.length : (hardResponse.pagination?.totalCount || 0));
                     setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
                 } else {
-                    const partnerHardAssets = hardData.filter((asset) => asset.partnerId === user.id);
-                    const partnerSoftAssets = softData.filter((asset) => asset.partnerId === user.id);
+                    const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+                    const partnerHardAssets = hardData.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
+                    const partnerSoftAssets = softData.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
                     setHardAssets(partnerHardAssets);
                     setSoftAssets(partnerSoftAssets);
                     setHardAssetsTotal(needsFullAssetDataset ? partnerHardAssets.length : (hardResponse.pagination?.totalCount || 0));
@@ -655,7 +663,7 @@ export default function ResourcesPage() {
                 setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             }
 
-            if (!isStandardUser) {
+            if (canManageResourceTools) {
                 setSubregions(Array.isArray(fetchedSubregions) ? fetchedSubregions : []);
                 setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
             }
@@ -684,10 +692,10 @@ export default function ResourcesPage() {
     }
 
     useEffect(() => {
-        if (isStandardUser) return undefined;
+        if (!canManageResourceTools) return undefined;
         load();
         return undefined;
-    }, [assetLoadKey, isStandardUser]);
+    }, [assetLoadKey, canManageResourceTools]);
 
     useEffect(() => {
         setHardAssetsPage(1);
@@ -695,10 +703,10 @@ export default function ResourcesPage() {
     }, [boundaryFilter, normalizedQuery]);
 
     useEffect(() => {
-        if (isStandardUser && activeTab === 'templates') {
+        if (!canManageResourceTools && activeTab === 'templates') {
             setActiveTab('hard');
         }
-    }, [activeTab, isStandardUser]);
+    }, [activeTab, canManageResourceTools]);
 
     useEffect(() => {
         if (activeTab !== 'hard' && inlineAction?.id) {
@@ -751,7 +759,7 @@ export default function ResourcesPage() {
     const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
     const hardPageRange = getVisiblePageRange(hardAssetsPage, hardAssetsPageSize, hardTabCount, visibleHardAssets.length);
     const softPageRange = getVisiblePageRange(softAssetsPage, softAssetsPageSize, softTabCount, visibleSoftAssets.length);
-    const canExportFilteredWorkbook = !isStandardUser && ['super_admin', 'regional_admin', 'partner'].includes(normalizedRole);
+    const canExportFilteredWorkbook = canManageResourceTools && ['super_admin', 'regional_admin', 'partner', 'standard'].includes(normalizedRole);
     const activeFilteredExportCount = activeTab === 'hard'
         ? hardTabCount
         : activeTab === 'soft'
@@ -759,13 +767,15 @@ export default function ResourcesPage() {
             : filteredTemplates.length;
 
     function scopeHardAssetsForCurrentUser(items) {
-        if (normalizedRole !== 'partner') return items;
-        return items.filter((asset) => asset.partnerId === user?.id);
+        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0) return items;
+        const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+        return items.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
     }
 
     function scopeSoftAssetsForCurrentUser(items) {
-        if (normalizedRole !== 'partner') return items;
-        return items.filter((asset) => asset.partnerId === user?.id);
+        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0) return items;
+        const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+        return items.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
     }
 
     async function resolveHardAssetsForFilteredExport() {
@@ -1369,7 +1379,7 @@ export default function ResourcesPage() {
         : [];
     const existingHostIds = new Set(existingGenerateChildren.map((child) => child.hostHardAssetId));
 
-    if (isStandardUser) {
+    if (!canManageResourceTools) {
         return <Navigate to="/my-directory" replace />;
     }
 
@@ -1378,15 +1388,15 @@ export default function ResourcesPage() {
             <div className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-slate-200 pb-8">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
-                        {isStandardUser ? 'Saved' : 'My'} <span className="text-brand-600">Assets</span>
+                        {!canManageResourceTools ? 'Saved' : 'My'} <span className="text-brand-600">Assets</span>
                     </h1>
                     <p className="mt-3 max-w-2xl text-lg font-medium text-slate-500">
-                        {isStandardUser
+                        {!canManageResourceTools
                             ? 'Your curated collection of medical resources and care facilities.'
                             : "Comprehensive management of your organization's care infrastructure."}
                     </p>
                 </div>
-                {!isStandardUser && (
+                {canManageResourceTools && (
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             onClick={() => openCreate('hard')}
@@ -1545,7 +1555,7 @@ export default function ResourcesPage() {
                         <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
                         Offerings ({softTabCount})
                     </button>
-                    {!isStandardUser ? (
+                    {canManageResourceTools ? (
                         <button
                             onClick={() => setActiveTab('templates')}
                             className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
@@ -1571,13 +1581,13 @@ export default function ResourcesPage() {
                         icon={Building2}
                         title="No places found"
                         description="Try adjusting your search criteria."
-                        action={!isStandardUser && !searchTerm ? (
+                        action={canManageResourceTools && !searchTerm ? (
                             <button onClick={() => openCreate('hard')} className="btn-primary mx-auto border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
                                 <Plus size={16} /> Add Place
                             </button>
                         ) : null}
                     />
-                ) : isStandardUser ? (
+                ) : !canManageResourceTools ? (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {visibleHardAssets.map((asset) => (
                             <AssetCard
@@ -1895,13 +1905,13 @@ export default function ResourcesPage() {
                         icon={CalendarDays}
                         title="No offerings found"
                         description="Try adjusting your search criteria."
-                        action={!isStandardUser && !searchTerm ? (
+                        action={canManageResourceTools && !searchTerm ? (
                             <button onClick={() => openCreate('soft')} className="btn-primary mx-auto">
                                 <Plus size={16} /> Add Offering
                             </button>
                         ) : null}
                     />
-                ) : isStandardUser ? (
+                ) : !canManageResourceTools ? (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {visibleSoftAssets.map((asset) => (
                             <AssetCard

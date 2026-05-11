@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Files, User, Shield, Map, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { canAccessAdmin, getRoleMeta, isStandardUserRole } from '../../lib/roles.js';
+import { canAccessAdmin, canAccessManagedResources, getRoleMeta } from '../../lib/roles.js';
 
 export default function DashboardOverview() {
     const { user } = useAuth();
@@ -10,7 +10,7 @@ export default function DashboardOverview() {
     const navigate = useNavigate();
     const roleMeta = getRoleMeta(user?.role);
     const canShowAdmin = canAccessAdmin(user?.role);
-    const isStandardUser = isStandardUserRole(user?.role);
+    const canShowResources = canAccessManagedResources(user);
     
     const launchpadItems = [
         {
@@ -31,7 +31,7 @@ export default function DashboardOverview() {
             color: '#7c3aed',
             bg: 'rgba(124, 58, 237, 0.08)',
         },
-        ...(!isStandardUser ? [{
+        ...(canShowResources ? [{
             id: 'dash-resources',
             to: '/dashboard/resources',
             icon: Files,

@@ -7,6 +7,7 @@ import { maskPhoneIdentity } from './phoneIdentityAudit.js';
 import { normalizeSingaporePhoneIdentity } from './phoneIdentity.js';
 import { normalizePostalCode } from './postalBoundaries.js';
 import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from './subregionRouting.js';
+import { loadPartnerStaffAccessForUser } from './partnerStaff.js';
 
 export const PHONE_LOGIN_ATTEMPT_STATUS = Object.freeze({
     pending: 'pending',
@@ -329,6 +330,7 @@ export function createPhoneLoginStore(db) {
                 ...user,
                 role: normalizeRole(user.role),
                 subregionIds: subregionRows.map((row) => row.subregionId),
+                partnerStaffAccess: await loadPartnerStaffAccessForUser(db, user.id),
             };
         },
     };

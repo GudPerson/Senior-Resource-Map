@@ -1,4 +1,5 @@
 import { normalizeRole } from '../utils/roles.js';
+import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { getRequestToken, SESSION_HEADER_NAME, verifySessionToken } from '../utils/sessionAuth.js';
 
 export async function authenticateToken(c, next) {
@@ -52,13 +53,26 @@ export function authorize(...allowedRoles) {
         if (!user) return c.json({ error: 'Unauthorized' }, 401);
 
         const role = normalizeRole(user.role);
+        const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
         const { subregionId, subregionIds } = user;
+        const hasEffectivePartnerAccess = normalizedAllowedRoles.includes('partner') && hasAnyPartnerStaffAccess(user);
 
-        if (!allowedRoles.map(normalizeRole).includes(role)) {
+        if (!normalizedAllowedRoles.includes(role) && !hasEffectivePartnerAccess) {
             return c.json({ error: 'Insufficient permissions' }, 403);
         }
 
         if (role === 'super_admin') {
+            await next();
+            return;
+        }
+
+        if (hasEffectivePartnerAccess && role !== 'regional_admin' && role !== 'partner') {
+            const primaryStaffAccess = getPrimaryPartnerStaffAccess(user);
+            const scopedSubregionId = primaryStaffAccess?.subregionIds?.[0];
+            if (!scopedSubregionId) {
+                return c.json({ error: 'Account missing required scope (subregion_id)' }, 403);
+            }
+            c.set('subregionScope', scopedSubregionId);
             await next();
             return;
         }
@@ -77,7 +91,7 @@ export function authorize(...allowedRoles) {
 
 export async function isAdmin(c, next) {
     const user = c.get('user');
-    if (!user || !['super_admin', 'regional_admin', 'partner'].includes(normalizeRole(user.role))) {
+    if (!user || (!['super_admin', 'regional_admin', 'partner'].includes(normalizeRole(user.role)) && !hasAnyPartnerStaffAccess(user))) {
         return c.json({ error: 'Requires admin privileges' }, 403);
     }
     await next();

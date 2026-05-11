@@ -11,6 +11,7 @@ import {
     syncSoftAssetAudienceZones,
 } from '../utils/audienceZones.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
+import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
@@ -439,7 +440,7 @@ export const createSoftAsset = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (role === 'standard' || role === 'guest') {
+        if ((role === 'standard' || role === 'guest') && !hasAnyPartnerStaffAccess(user)) {
             return c.json({ error: 'Only partners and admins can create resources' }, 403);
         }
 
@@ -672,6 +673,11 @@ export const updateSoftAsset = async (c) => {
         let owner = existing.partner || null;
         if (role === 'partner') {
             owner = user;
+        } else if (hasAnyPartnerStaffAccess(user) && (body.partnerId !== undefined || body.ownershipMode !== undefined)) {
+            return c.json({ error: 'Partners cannot transfer offering ownership.' }, 403);
+        } else if (hasAnyPartnerStaffAccess(user)) {
+            const resolvedOwner = await resolveAssetOwner(db, user, body, finalSubregionId);
+            owner = resolvedOwner.owner;
         } else if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
             const resolvedOwner = await resolveAssetOwner(db, user, body, finalSubregionId);
             owner = resolvedOwner.owner;

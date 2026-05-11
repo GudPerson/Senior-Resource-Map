@@ -1,4 +1,5 @@
 import { normalizeRole } from './roles.js';
+import { getActivePartnerStaffAccess, hasPartnerStaffAccess } from './partnerStaff.js';
 
 export function getDirectManagerRole(childRole) {
     switch (normalizeRole(childRole)) {
@@ -54,11 +55,42 @@ export function actorCanManageAsset(actor, asset, ownerUser) {
         return asset.partnerId === actor.id;
     }
 
+    if (hasPartnerStaffAccess(actor, asset.partnerId)) {
+        return true;
+    }
+
     if (actorRole === 'regional_admin') {
         const inScope = Array.isArray(actor.subregionIds) && actor.subregionIds.includes(asset.subregionId);
         if (!inScope) return false;
         if (!asset.partnerId) return true;
         return ownerUser?.id === asset.partnerId && ownerUser?.managerUserId === actor.id;
+    }
+
+    return false;
+}
+
+export function actorCanManagePartnerOwnedEntity(actor, entity, ownerUser) {
+    const actorRole = normalizeRole(actor?.role);
+    const partnerId = entity?.partnerId ?? entity?.partnerUserId ?? null;
+
+    if (!actor || !entity) return false;
+    if (actorRole === 'super_admin') return true;
+
+    if (actorRole === 'partner') {
+        return Number(partnerId) === Number(actor.id);
+    }
+
+    if (hasPartnerStaffAccess(actor, partnerId)) {
+        return true;
+    }
+
+    if (actorRole === 'regional_admin') {
+        if (partnerId) {
+            return Number(ownerUser?.id) === Number(partnerId)
+                && Number(ownerUser?.managerUserId) === Number(actor.id);
+        }
+
+        return Number(entity.createdByUserId) === Number(actor.id);
     }
 
     return false;
@@ -82,6 +114,12 @@ export function canAssignPartnerOwner(actor, partnerUser, subregionId = null) {
 
     if (actorRole === 'partner') {
         return partnerUser.id === actor.id && (!subregionId || actor.subregionIds?.includes(subregionId));
+    }
+
+    const matchingStaffAccess = getActivePartnerStaffAccess(actor)
+        .find((entry) => Number(entry.legacyPartnerUserId) === Number(partnerUser.id));
+    if (matchingStaffAccess) {
+        return !subregionId || matchingStaffAccess.subregionIds?.includes(subregionId);
     }
 
     return false;

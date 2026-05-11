@@ -11,6 +11,7 @@ import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils
 import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
+import { ensurePartnerOrganizationForLegacyPartner } from '../utils/partnerOrganizations.js';
 import {
     optionalOneLineTextSchema,
     validateRequestBody,
@@ -429,6 +430,9 @@ export const createUser = async (c) => {
         if (derivedSubregion) {
             await syncUserDerivedSubregion(db, newUser.id, derivedSubregion.id);
         }
+        if (normalizeRole(finalRole) === 'partner') {
+            await ensurePartnerOrganizationForLegacyPartner(db, newUser.id, creator.id);
+        }
 
         const created = await loadUserWithSubregions(db, newUser.id);
         return c.json(buildUserResponse(created, await loadScopedBoundaryContext(db, creator)), 201);
@@ -502,6 +506,9 @@ export const bulkCreateUsers = async (c) => {
 
                 if (derivedSubregion) {
                     await syncUserDerivedSubregion(db, newUser.id, derivedSubregion.id);
+                }
+                if (normalizeRole(finalRole) === 'partner') {
+                    await ensurePartnerOrganizationForLegacyPartner(db, newUser.id, creator.id);
                 }
 
                 results.successful += 1;

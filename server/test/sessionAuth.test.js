@@ -86,6 +86,34 @@ test('session payload flags standard users without postal codes for completion',
     assert.equal(partnerWithoutPostal.needsPostalCode, false);
 });
 
+test('session payload can carry partner staff access without changing the user role', () => {
+    const staffUser = buildSessionPayload({
+        id: 80,
+        username: 'staff',
+        email: 'staff@example.com',
+        role: 'standard',
+        name: 'Staff Member',
+        postalCode: '160024',
+        subregionIds: [4],
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            organizationName: 'Care Partner',
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    });
+
+    assert.equal(staffUser.role, 'standard');
+    assert.deepEqual(staffUser.partnerStaffAccess, [{
+        organizationId: 3,
+        legacyPartnerUserId: 20,
+        organizationName: 'Care Partner',
+        staffRole: 'editor',
+        subregionIds: [4],
+    }]);
+});
+
 test('production sessions require an explicit JWT secret', () => {
     assert.throws(
         () => getSessionSecret({ env: { NODE_ENV: 'production' } }),

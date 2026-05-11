@@ -4,8 +4,7 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { hardAssets, softAssetParents, softAssets } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
-import { actorCanManageAsset } from '../utils/ownership.js';
-import { normalizeRole } from '../utils/roles.js';
+import { actorCanManageAsset, actorCanManagePartnerOwnedEntity } from '../utils/ownership.js';
 import {
     TARGET_LOCALES,
     extractTranslatableFields,
@@ -34,21 +33,7 @@ const translationRegenerateBodySchema = z.object({
 });
 
 function canManageSoftAssetParent(actor, parent, ownerUser) {
-    const actorRole = normalizeRole(actor?.role);
-
-    if (!actor || !parent) return false;
-    if (actorRole === 'super_admin') return true;
-    if (actorRole === 'partner') return parent.partnerId === actor.id;
-
-    if (actorRole === 'regional_admin') {
-        if (parent.partnerId) {
-            return ownerUser?.id === parent.partnerId && ownerUser?.managerUserId === actor.id;
-        }
-
-        return parent.createdByUserId === actor.id;
-    }
-
-    return false;
+    return actorCanManagePartnerOwnedEntity(actor, parent, ownerUser);
 }
 
 async function loadEditableResource(db, user, type, id) {

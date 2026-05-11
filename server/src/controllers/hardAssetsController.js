@@ -4,6 +4,7 @@ import { hardAssets, subCategories, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
 import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
+import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
@@ -655,8 +656,15 @@ async function loadPartnerUser(db, partnerId) {
     };
 }
 
-function normalizeOwnershipMode(actorRole, body) {
+function canUsePartnerResourceTools(user) {
+    const role = normalizeRole(user?.role);
+    return role !== 'standard' && role !== 'guest' || hasAnyPartnerStaffAccess(user);
+}
+
+function normalizeOwnershipMode(actor, body) {
+    const actorRole = normalizeRole(actor?.role);
     if (actorRole === 'partner') return 'partner';
+    if (hasAnyPartnerStaffAccess(actor)) return 'partner';
     if (body.ownershipMode === 'partner' || body.partnerId) return 'partner';
     return 'system';
 }
@@ -665,16 +673,30 @@ function ensureActorCanCreateInSubregion(actor, subregionId) {
     const role = normalizeRole(actor.role);
     if (role === 'super_admin') return;
     if (!Array.isArray(actor.subregionIds) || !actor.subregionIds.includes(subregionId)) {
+        const primaryStaffAccess = getPrimaryPartnerStaffAccess(actor);
+        if (primaryStaffAccess?.subregionIds?.includes(subregionId)) return;
         throw clientError('Derived subregion is outside your allowed scope.', 403);
     }
 }
 
 async function resolveAssetOwner(db, actor, body, subregionId) {
     const actorRole = normalizeRole(actor.role);
-    const ownershipMode = normalizeOwnershipMode(actorRole, body);
+    const ownershipMode = normalizeOwnershipMode(actor, body);
 
     if (actorRole === 'partner') {
         return { ownershipMode: 'partner', owner: actor };
+    }
+
+    const primaryStaffAccess = getPrimaryPartnerStaffAccess(actor);
+    if (primaryStaffAccess && body?.partnerId === undefined) {
+        const owner = await loadPartnerUser(db, primaryStaffAccess.legacyPartnerUserId);
+        if (!owner || normalizeRole(owner.role) !== 'partner') {
+            throw clientError('Your partner organisation owner could not be found.', 404);
+        }
+        if (!canAssignPartnerOwner(actor, owner, subregionId)) {
+            throw clientError('Your partner organisation is outside your allowed scope.', 403);
+        }
+        return { ownershipMode: 'partner', owner };
     }
 
     if (ownershipMode === 'system') {
@@ -1145,7 +1167,7 @@ export const previewGoogleHardAssetImport = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (role === 'standard' || role === 'guest') {
+        if (!canUsePartnerResourceTools(user)) {
             return c.json({ error: 'Insufficient permissions to import places' }, 403);
         }
 
@@ -1186,7 +1208,7 @@ export const searchGoogleHardAssetImportCandidates = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (role === 'standard' || role === 'guest') {
+        if (!canUsePartnerResourceTools(user)) {
             return c.json({ error: 'Insufficient permissions to import places' }, 403);
         }
 
@@ -1235,7 +1257,7 @@ export const createHardAsset = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (role === 'standard' || role === 'guest') {
+        if (!canUsePartnerResourceTools(user)) {
             return c.json({ error: 'Insufficient permissions to create resources' }, 403);
         }
 
@@ -1393,7 +1415,7 @@ export const updateHardAsset = async (c) => {
 
         let owner = existing.partner || null;
         if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
-            if (role === 'partner') {
+            if (role === 'partner' || hasAnyPartnerStaffAccess(user)) {
                 return c.json({ error: 'Partners cannot transfer asset ownership.' }, 403);
             }
             const resolved = await resolveAssetOwner(db, user, body, derivedSubregion.id);
@@ -1488,7 +1510,7 @@ export const enrichHardAssetDraft = async (c) => {
         const user = c.get('user');
         const role = normalizeRole(user?.role);
         
-        if (role === 'standard' || role === 'guest') {
+        if (!canUsePartnerResourceTools(user)) {
             return c.json({ error: 'Insufficient permissions' }, 403);
         }
 

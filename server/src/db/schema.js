@@ -39,6 +39,56 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const partnerOrganizations = pgTable('partner_organizations', {
+  id: serial('id').primaryKey(),
+  legacyPartnerUserId: integer('legacy_partner_user_id').references(() => users.id, { onDelete: 'set null' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  legacyPartnerUnique: uniqueIndex('partner_organizations_legacy_partner_unique')
+    .on(table.legacyPartnerUserId)
+    .where(sql`${table.legacyPartnerUserId} IS NOT NULL`),
+  legacyPartnerIdx: index('partner_organizations_legacy_partner_idx').on(table.legacyPartnerUserId),
+}));
+
+export const partnerStaffMemberships = pgTable('partner_staff_memberships', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  staffRole: varchar('staff_role', { length: 40 }).notNull().default('editor'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeUserUnique: uniqueIndex('partner_staff_memberships_active_user_unique')
+    .on(table.organizationId, table.userId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  activeOwnerUnique: uniqueIndex('partner_staff_memberships_active_owner_unique')
+    .on(table.organizationId)
+    .where(sql`${table.revokedAt} IS NULL AND ${table.staffRole} = 'owner'`),
+  organizationIdx: index('partner_staff_memberships_organization_idx').on(table.organizationId),
+  userIdx: index('partner_staff_memberships_user_idx').on(table.userId),
+}));
+
+export const partnerStaffEvents = pgTable('partner_staff_events', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }),
+  actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'set null' }),
+  eventType: varchar('event_type', { length: 80 }).notNull(),
+  metadata: jsonb('metadata').default('{}'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  organizationIdx: index('partner_staff_events_organization_idx').on(table.organizationId),
+  actorIdx: index('partner_staff_events_actor_idx').on(table.actorUserId),
+  targetIdx: index('partner_staff_events_target_idx').on(table.targetUserId),
+}));
+
 export const audienceZones = pgTable('audience_zones', {
   id: serial('id').primaryKey(),
   zoneCode: varchar('zone_code', { length: 80 }).unique(),

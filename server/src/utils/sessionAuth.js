@@ -62,6 +62,7 @@ export function buildSessionPayload(user, extraClaims = {}) {
         needsPostalCode: needsPostalCodeCompletion(user),
         managerUserId: user.managerUserId ?? null,
         subregionIds: Array.isArray(user.subregionIds) ? user.subregionIds : [],
+        ...(Array.isArray(user.partnerStaffAccess) ? { partnerStaffAccess: user.partnerStaffAccess } : {}),
         ...extraClaims,
     };
 }

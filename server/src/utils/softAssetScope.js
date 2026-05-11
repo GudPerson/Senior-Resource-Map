@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { hardAssets, users } from '../db/schema.js';
 import { actorCanManageAsset, canAssignPartnerOwner } from './ownership.js';
+import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from './partnerStaff.js';
 import { normalizeRole } from './roles.js';
 
 export function getCacheRegionId(...ids) {
@@ -114,18 +115,33 @@ export function normalizeAudienceMode(bodyOrMode, owner) {
     return requestedMode;
 }
 
-export function normalizeOwnershipMode(actorRole, body) {
+export function normalizeOwnershipMode(actorOrRole, body) {
+    const actor = typeof actorOrRole === 'object' ? actorOrRole : body?.actor;
+    const actorRole = typeof actorOrRole === 'object' ? normalizeRole(actorOrRole?.role) : normalizeRole(actorOrRole);
     if (normalizeRole(actorRole) === 'partner') return 'partner';
+    if (hasAnyPartnerStaffAccess(actor || {})) return 'partner';
     if (body?.ownershipMode === 'partner' || body?.partnerId) return 'partner';
     return 'system';
 }
 
 export async function resolveAssetOwner(db, actor, body, subregionId = null) {
     const actorRole = normalizeRole(actor?.role);
-    const ownershipMode = normalizeOwnershipMode(actorRole, body);
+    const ownershipMode = normalizeOwnershipMode(actor, body);
 
     if (actorRole === 'partner') {
         return { ownershipMode: 'partner', owner: actor };
+    }
+
+    const primaryStaffAccess = getPrimaryPartnerStaffAccess(actor);
+    if (primaryStaffAccess && body?.partnerId === undefined) {
+        const owner = await loadPartnerUser(db, primaryStaffAccess.legacyPartnerUserId);
+        if (!owner || normalizeRole(owner.role) !== 'partner') {
+            throw clientError('Your partner organisation owner could not be found.', 404);
+        }
+        if (!canAssignPartnerOwner(actor, owner, subregionId)) {
+            throw clientError('Your partner organisation is outside your allowed scope.', 403);
+        }
+        return { ownershipMode: 'partner', owner };
     }
 
     if (ownershipMode === 'system') {
@@ -174,6 +190,15 @@ export function determineSoftSubregion(actor, body, linkedHardAssets) {
             throw clientError('Partner account is missing its assigned subregion.', 400);
         }
         return partnerSubregionId;
+    }
+
+    const primaryStaffAccess = getPrimaryPartnerStaffAccess(actor);
+    if (primaryStaffAccess) {
+        const staffSubregionId = primaryStaffAccess.subregionIds?.[0];
+        if (!Number.isInteger(staffSubregionId)) {
+            throw clientError('Partner staff account is missing its assigned subregion.', 400);
+        }
+        return staffSubregionId;
     }
 
     const explicitSubregionId = resolveExplicitSubregionId(body);

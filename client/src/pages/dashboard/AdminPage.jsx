@@ -7,6 +7,7 @@ import Papa from 'papaparse';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
+import PartnerStaffPanel from '../../components/PartnerStaffPanel.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import Pagination from '../../components/Pagination.jsx';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
@@ -1991,6 +1992,7 @@ export default function AdminPage() {
                 {[
                     { key: 'resources', label: 'Resources', Icon: BookOpen },
                     { key: 'users', label: 'Users', Icon: Users },
+                    { key: 'partnerstaff', label: 'Partner Staff', Icon: Users },
                     { key: 'subregions', label: 'Subregions', Icon: MapPin },
                     { key: 'audiencezones', label: 'Audience Zones', Icon: MapPin },
                     { key: 'subcats', label: 'Categories', Icon: BookOpen },
@@ -2181,6 +2183,8 @@ export default function AdminPage() {
                     )}
                     </div>
                 </div>
+            ) : tab === 'partnerstaff' ? (
+                <PartnerStaffPanel />
             ) : tab === 'subregions' ? (
                 /* ======== Subregions Table ======== */
                 <div className="space-y-6">

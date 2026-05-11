@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { partnerPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
-import { canDirectlyManageUser } from '../utils/ownership.js';
+import { actorCanManagePartnerOwnedEntity } from '../utils/ownership.js';
 import { normalizePostalCode, parsePostalCodeListInput } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import {
@@ -46,12 +46,8 @@ async function loadPartner(db, partnerId) {
 }
 
 function canManagePartnerBoundaries(actor, partner) {
-    const actorRole = normalizeRole(actor?.role);
     if (!actor || !partner || normalizeRole(partner.role) !== 'partner') return false;
-    if (actorRole === 'super_admin') return true;
-    if (actorRole === 'partner') return actor.id === partner.id;
-    if (actorRole === 'regional_admin') return canDirectlyManageUser(actor, partner);
-    return false;
+    return actorCanManagePartnerOwnedEntity(actor, { partnerId: partner.id }, partner);
 }
 
 async function loadBoundaryPayload(db, partnerId) {

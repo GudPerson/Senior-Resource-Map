@@ -9,7 +9,8 @@ import {
     normalizeAudienceZoneIds,
     syncSoftAssetParentAudienceZones,
 } from '../utils/audienceZones.js';
-import { actorCanManageAsset } from '../utils/ownership.js';
+import { actorCanManageAsset, actorCanManagePartnerOwnedEntity } from '../utils/ownership.js';
+import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { normalizeEligibilityRules } from '../utils/eligibility.js';
 import { normalizeRole } from '../utils/roles.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
@@ -70,21 +71,7 @@ const baseParentColumns = {
 };
 
 function canManageSoftAssetParent(actor, parent, ownerUser) {
-    const actorRole = normalizeRole(actor?.role);
-
-    if (!actor || !parent) return false;
-    if (actorRole === 'super_admin') return true;
-    if (actorRole === 'partner') return parent.partnerId === actor.id;
-
-    if (actorRole === 'regional_admin') {
-        if (parent.partnerId) {
-            return ownerUser?.id === parent.partnerId && ownerUser?.managerUserId === actor.id;
-        }
-
-        return parent.createdByUserId === actor.id;
-    }
-
-    return false;
+    return actorCanManagePartnerOwnedEntity(actor, parent, ownerUser);
 }
 
 function formatSoftAssetParent(parent, options = {}) {
@@ -288,7 +275,7 @@ export const getSoftAssetParents = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (role === 'standard' || role === 'guest') {
+        if ((role === 'standard' || role === 'guest') && !hasAnyPartnerStaffAccess(user)) {
             return c.json({ error: 'Only partners and admins can view templates' }, 403);
         }
 
@@ -362,7 +349,7 @@ export const createSoftAssetParent = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (role === 'standard' || role === 'guest') {
+        if ((role === 'standard' || role === 'guest') && !hasAnyPartnerStaffAccess(user)) {
             return c.json({ error: 'Only partners and admins can create templates' }, 403);
         }
 
@@ -371,7 +358,7 @@ export const createSoftAssetParent = async (c) => {
             return c.json({ error: 'Name is required' }, 400);
         }
 
-        const ownershipMode = normalizeOwnershipMode(role, body);
+        const ownershipMode = normalizeOwnershipMode(user, body);
         const { owner } = await resolveAssetOwner(db, user, { ...body, ownershipMode }, null);
         const audienceMode = normalizeAudienceMode(body, owner);
         const audienceZoneIds = audienceMode === 'audience_zones'
@@ -426,6 +413,11 @@ export const updateSoftAssetParent = async (c) => {
         let owner = existing.partner || null;
         if (role === 'partner') {
             owner = user;
+        } else if (hasAnyPartnerStaffAccess(user) && (body.partnerId !== undefined || body.ownershipMode !== undefined)) {
+            return c.json({ error: 'Partners cannot transfer template ownership.' }, 403);
+        } else if (hasAnyPartnerStaffAccess(user)) {
+            const resolvedOwner = await resolveAssetOwner(db, user, body, null);
+            owner = resolvedOwner.owner;
         } else if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
             const resolvedOwner = await resolveAssetOwner(db, user, body, null);
             owner = resolvedOwner.owner;

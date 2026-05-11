@@ -33,7 +33,7 @@ import {
     normalizeTagList,
 } from '../utils/softAssetHierarchy.js';
 import { normalizeRole } from '../utils/roles.js';
-import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
+import { actorCanManageAsset, actorCanManagePartnerOwnedEntity, canAssignPartnerOwner } from '../utils/ownership.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
 import { syncAssetTags } from '../utils/tags.js';
@@ -646,18 +646,7 @@ async function geocodePostalCode(postalCode, country = 'SG') {
 }
 
 function canManageSoftAssetParent(actor, parent, ownerUser) {
-    const actorRole = normalizeRole(actor?.role);
-    if (!actor || !parent) return false;
-    if (actorRole === 'super_admin') return true;
-    if (actorRole === 'partner') return parent.partnerId === actor.id;
-    if (actorRole === 'regional_admin') {
-        if (!Array.isArray(actor.subregionIds) || actor.subregionIds.length === 0) return false;
-        if (parent.partnerId) {
-            return ownerUser?.id === parent.partnerId && ownerUser?.managerUserId === actor.id;
-        }
-        return parent.createdByUserId === actor.id;
-    }
-    return false;
+    return actorCanManagePartnerOwnedEntity(actor, parent, ownerUser);
 }
 
 function resolvePartnerOwner(actor, ownershipMode, partnerUsername, partnerLookup, subregionId = null) {

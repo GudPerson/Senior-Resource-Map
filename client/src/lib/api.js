@@ -302,6 +302,15 @@ export const api = {
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),
 
+    // Partner organisations and staff access
+    getPartnerOrganizations: () => request('GET', '/partner-organizations'),
+    getPartnerOrganizationStaff: (organizationId) => request('GET', `/partner-organizations/${organizationId}/staff`),
+    getPartnerOrganizationStaffCandidates: (organizationId, query = '') => request('GET', `/partner-organizations/${organizationId}/staff-candidates?q=${encodeURIComponent(query)}`),
+    addPartnerOrganizationStaff: (organizationId, body) => request('POST', `/partner-organizations/${organizationId}/staff`, body),
+    updatePartnerOrganizationStaffRole: (organizationId, membershipId, body) => request('PUT', `/partner-organizations/${organizationId}/staff/${membershipId}`, body),
+    revokePartnerOrganizationStaff: (organizationId, membershipId) => request('DELETE', `/partner-organizations/${organizationId}/staff/${membershipId}`),
+    handoverPartnerOrganizationOwner: (organizationId, body) => request('POST', `/partner-organizations/${organizationId}/handover`, body),
+
     // Phone identity verification
     getMyPhoneIdentity: () => request('GET', '/phone-identities/me'),
     unlinkMyPhoneIdentity: () => request('DELETE', '/phone-identities/me'),

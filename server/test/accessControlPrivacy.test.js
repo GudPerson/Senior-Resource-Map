@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { Hono } from 'hono';
+
 import app from '../src/app.js';
+import { authenticateToken, authorize } from '../src/middleware/auth.js';
 import { canManageAudienceZone } from '../src/utils/audienceZones.js';
 import { buildMyMapAssetSnapshot, normalizeMyMapAssetSnapshot } from '../src/utils/myMapDirectory.js';
-import { actorCanManageAsset, canAssignPartnerOwner } from '../src/utils/ownership.js';
+import { actorCanManageAsset, actorCanManagePartnerOwnedEntity, canAssignPartnerOwner } from '../src/utils/ownership.js';
 import { buildSavedAssetSnapshot } from '../src/utils/savedAssets.js';
 import { createSessionToken, SESSION_HEADER_NAME } from '../src/utils/sessionAuth.js';
 
@@ -82,6 +85,104 @@ test('asset ownership rules block unrelated partners and out-of-scope regional a
     assert.equal(actorCanManageAsset(createActor({ id: 30, role: 'standard', subregionIds: [4] }), asset, ownerPartner), false);
 });
 
+test('partner staff access can manage legacy partner-owned assets without changing resource ownership', () => {
+    const ownerPartner = { id: 20, role: 'partner', managerUserId: 9, subregionIds: [4] };
+    const asset = {
+        id: 12,
+        partnerId: 20,
+        subregionId: 4,
+        partner: ownerPartner,
+    };
+
+    const staffEditor = createActor({
+        id: 80,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    });
+    const staffOwner = createActor({
+        id: 81,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            staffRole: 'owner',
+            subregionIds: [4],
+        }],
+    });
+    const revokedStaff = createActor({
+        id: 82,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            staffRole: 'editor',
+            revokedAt: '2026-05-09T00:00:00.000Z',
+            subregionIds: [4],
+        }],
+    });
+    const unrelatedStaff = createActor({
+        id: 83,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 4,
+            legacyPartnerUserId: 21,
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    });
+
+    assert.equal(actorCanManageAsset(staffEditor, asset, ownerPartner), true);
+    assert.equal(actorCanManageAsset(staffOwner, asset, ownerPartner), true);
+    assert.equal(actorCanManageAsset(revokedStaff, asset, ownerPartner), false);
+    assert.equal(actorCanManageAsset(unrelatedStaff, asset, ownerPartner), false);
+    assert.equal(asset.partnerId, 20, 'staff access must not rewrite the legacy resource owner id');
+});
+
+test('partner staff access can manage legacy partner-owned admin surfaces', () => {
+    const ownerPartner = { id: 20, role: 'partner', managerUserId: 9 };
+    const staffEditor = createActor({
+        id: 80,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    });
+    const staffOwner = createActor({
+        id: 81,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            staffRole: 'owner',
+            subregionIds: [4],
+        }],
+    });
+    const unrelatedStaff = createActor({
+        id: 82,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 4,
+            legacyPartnerUserId: 21,
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    });
+
+    const partnerOwnedRecord = { id: 44, partnerId: 20, createdByUserId: 9 };
+    assert.equal(actorCanManagePartnerOwnedEntity(staffEditor, partnerOwnedRecord, ownerPartner), true);
+    assert.equal(actorCanManagePartnerOwnedEntity(staffOwner, partnerOwnedRecord, ownerPartner), true);
+    assert.equal(actorCanManagePartnerOwnedEntity(unrelatedStaff, partnerOwnedRecord, ownerPartner), false);
+    assert.equal(partnerOwnedRecord.partnerId, 20, 'staff access must not rewrite the legacy partner owner id');
+});
+
 test('partner owner assignment stays inside manager chain and subregion scope', () => {
     const partner = { id: 20, role: 'partner', managerUserId: 9, subregionIds: [4] };
 
@@ -108,6 +209,16 @@ test('audience-zone management follows owner and manager boundaries', () => {
 
     assert.equal(canManageAudienceZone(createActor({ id: 1, role: 'super_admin' }), zone), true);
     assert.equal(canManageAudienceZone(createActor({ id: 20, role: 'partner' }), zone), true);
+    assert.equal(canManageAudienceZone(createActor({
+        id: 80,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    }), zone), true);
     assert.equal(canManageAudienceZone(createActor({ id: 21, role: 'partner' }), zone), false);
     assert.equal(canManageAudienceZone(createActor({ id: 9, role: 'regional_admin' }), zone), true);
     assert.equal(canManageAudienceZone(createActor({ id: 10, role: 'regional_admin' }), zone), false);
@@ -134,6 +245,45 @@ test('standard users cannot access partner-only or translation review APIs', asy
     });
     assert.equal(adminResponse.status, 403);
     assert.match((await adminResponse.json()).error, /Requires admin privileges/);
+});
+
+test('route authorization accepts active partner staff as effective partner access', async () => {
+    const route = new Hono();
+    route.get('/partner-only', authenticateToken, authorize('partner'), (c) => c.json({
+        ok: true,
+        subregionScope: c.get('subregionScope'),
+        actualRole: c.get('user')?.role,
+    }));
+
+    const staffUser = createActor({
+        id: 80,
+        role: 'standard',
+        partnerStaffAccess: [{
+            organizationId: 3,
+            legacyPartnerUserId: 20,
+            organizationName: 'Care Partner',
+            staffRole: 'editor',
+            subregionIds: [4],
+        }],
+    });
+    const token = await createSessionToken(staffUser, { env: TEST_ENV }, {
+        extraClaims: {
+            partnerStaffAccess: staffUser.partnerStaffAccess,
+        },
+    });
+
+    const response = await route.fetch(
+        new Request('https://app.carearound.sg/partner-only', {
+            headers: { [SESSION_HEADER_NAME]: token },
+        }),
+        TEST_ENV,
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.subregionScope, 4);
+    assert.equal(body.actualRole, 'standard');
 });
 
 test('public saved/map snapshots strip private fields and translation review metadata', () => {
