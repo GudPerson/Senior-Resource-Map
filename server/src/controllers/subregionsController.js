@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizePostalCode, parsePostalCodeListInput, serializePostalCodeList } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
+import { normalizeSubregionBoundaryUploadMode } from '../utils/subregionBoundaryUpload.js';
 import {
     flexibleImportRowsSchema,
     identifierListSchema,
@@ -522,7 +523,8 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         }
 
         const body = validateRequestBody(await c.req.json(), subregionBoundaryUploadBodySchema, 'Subregion boundary upload');
-        const { rows, mode = 'replace', finalize = true } = body;
+        const { rows, finalize = true } = body;
+        const mode = normalizeSubregionBoundaryUploadMode(body.mode);
 
         const db = getDb(c.env);
         await ensureSubregionSchema(db, c.env);

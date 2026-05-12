@@ -4,6 +4,7 @@ import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
 import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil } from 'lucide-react';
 import Papa from 'papaparse';
+import * as XLSX from '@e965/xlsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
@@ -97,6 +98,115 @@ const SUBREGION_SORT_OPTIONS = [
     { value: 'code-asc', label: 'Subregion ID A-Z' },
     { value: 'postal-desc', label: 'Most boundary codes' },
 ];
+
+const SUBREGION_BOUNDARY_SOURCE_ROW_LIMIT = 5000;
+const SUBREGION_BOUNDARY_EXPANDED_CODE_LIMIT = 25000;
+const SPREADSHEET_UPLOAD_ACCEPT = '.csv,.xlsx,.xls';
+const SUBREGION_BOUNDARY_POSTAL_KEYS = [
+    'postalCode',
+    'Postal Code',
+    'postcode',
+    'Postcode',
+    'postalcode',
+    'Running_Range',
+    'running_range',
+    'Running Range',
+];
+
+function getSubregionBoundaryPostalInput(row) {
+    for (const key of SUBREGION_BOUNDARY_POSTAL_KEYS) {
+        const value = row?.[key];
+        if (value !== undefined && value !== null && String(value).trim()) {
+            return value;
+        }
+    }
+    return '';
+}
+
+function estimateSubregionBoundaryExpansion(value) {
+    const tokens = String(value || '')
+        .split(/[\n,;]+/)
+        .map((token) => token.trim())
+        .filter(Boolean);
+    if (tokens.length === 0) return 1;
+
+    return tokens.reduce((total, token) => {
+        if (!token.includes('-')) return total + 1;
+        const [startRaw, endRaw] = token.split('-').map((part) => part.replace(/\D/g, ''));
+        if (startRaw.length !== 6 || endRaw.length !== 6) return total + 1;
+        const start = Number.parseInt(startRaw, 10);
+        const end = Number.parseInt(endRaw, 10);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return total + 1;
+        return total + Math.max(1, end - start + 1);
+    }, 0);
+}
+
+function buildSubregionBoundaryUploadBatches(rows) {
+    const batches = [];
+    let currentBatch = [];
+    let currentExpandedCount = 0;
+
+    for (const row of rows) {
+        const estimatedExpansion = estimateSubregionBoundaryExpansion(getSubregionBoundaryPostalInput(row));
+        const shouldStartNewBatch = currentBatch.length > 0 && (
+            currentBatch.length >= SUBREGION_BOUNDARY_SOURCE_ROW_LIMIT
+            || currentExpandedCount + estimatedExpansion > SUBREGION_BOUNDARY_EXPANDED_CODE_LIMIT
+        );
+
+        if (shouldStartNewBatch) {
+            batches.push(currentBatch);
+            currentBatch = [];
+            currentExpandedCount = 0;
+        }
+
+        currentBatch.push(row);
+        currentExpandedCount += estimatedExpansion;
+    }
+
+    if (currentBatch.length > 0) {
+        batches.push(currentBatch);
+    }
+
+    return batches;
+}
+
+function parseCsvUploadRows(file) {
+    return new Promise((resolve, reject) => {
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => resolve(Array.isArray(results.data) ? results.data : []),
+            error: (err) => reject(err),
+        });
+    });
+}
+
+function isExcelUploadFile(file) {
+    const name = String(file?.name || '').toLowerCase();
+    return name.endsWith('.xlsx') || name.endsWith('.xls');
+}
+
+async function parseTabularUploadRows(file) {
+    if (!isExcelUploadFile(file)) {
+        return parseCsvUploadRows(file);
+    }
+
+    const workbook = XLSX.read(await file.arrayBuffer(), {
+        type: 'array',
+        cellDates: false,
+    });
+    const sheetName = workbook.Sheets.Data ? 'Data' : workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {
+        throw new Error('Excel workbook has no readable sheet.');
+    }
+
+    return XLSX.utils.sheet_to_json(sheet, {
+        defval: '',
+        raw: false,
+        blankrows: false,
+    });
+}
 
 const AUDIENCE_ZONE_OWNERSHIP_FILTER_OPTIONS = [
     { value: 'all', label: 'All ownership modes' },
@@ -331,6 +441,7 @@ export default function AdminPage() {
     const [userSort, setUserSort] = useState(DEFAULT_SORT_VALUE);
     const [subregionSearch, setSubregionSearch] = useState('');
     const [subregionSort, setSubregionSort] = useState(DEFAULT_SORT_VALUE);
+    const [subregionBoundaryUploadMode, setSubregionBoundaryUploadMode] = useState('append');
     const [audienceZoneSearch, setAudienceZoneSearch] = useState('');
     const [audienceZoneOwnershipFilter, setAudienceZoneOwnershipFilter] = useState('all');
     const [audienceZoneSort, setAudienceZoneSort] = useState(DEFAULT_SORT_VALUE);
@@ -1467,12 +1578,10 @@ export default function AdminPage() {
         if (!file) return;
 
         setLoading(true);
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
+        parseTabularUploadRows(file)
+            .then(async (data) => {
                 try {
-                    const rows = results.data.map(row => ({
+                    const rows = data.map(row => ({
                         id: row.ID || row.id,
                         name: row.Name || row.name,
                         subregionCode: row.SubregionID || row.subregionId || row.subregionCode,
@@ -1483,16 +1592,15 @@ export default function AdminPage() {
                     await loadAll();
                 } catch (err) {
                     alert('Bulk upload failed: ' + err.message);
-                } finally {
-                    setLoading(false);
-                    e.target.value = null;
                 }
-            },
-            error: (err) => {
+            })
+            .catch((err) => {
                 alert('File parsing error: ' + err.message);
+            })
+            .finally(() => {
                 setLoading(false);
-            }
-        });
+                e.target.value = null;
+            });
     }
 
     function handleBulkSubregionBoundaryUpload(e) {
@@ -1500,24 +1608,32 @@ export default function AdminPage() {
         if (!file) return;
 
         setLoading(true);
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
+        parseTabularUploadRows(file)
+            .then(async (data) => {
                 try {
-                    const data = results.data;
-                    // Detect range-heavy CSVs (postal codes containing hyphens like 180000-189999)
-                    // and use a smaller batch size to avoid worker timeouts during expansion
-                    const sampleValues = data.slice(0, 5).map(r => r?.postalCode ?? r?.postalcode ?? r?.postcode ?? '');
-                    const hasRanges = sampleValues.some(v => String(v).includes('-'));
-                    const BATCH_SIZE = hasRanges ? 3 : 10000;
-                    const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+                    const batches = buildSubregionBoundaryUploadBatches(data);
+                    const totalBatches = batches.length;
+                    const uploadMode = subregionBoundaryUploadMode === 'replace' ? 'replace' : 'append';
+                    if (uploadMode === 'replace') {
+                        const warning = [
+                            'Replace existing boundaries?',
+                            '',
+                            'This will delete existing boundary postal codes for the subregions in this upload before importing the file.',
+                            'Use this only for a planned full rebuild. To add one or more postal codes safely, choose "Add to existing boundaries".',
+                        ].join('\n');
+                        if (!window.confirm(warning)) {
+                            return;
+                        }
+                        if (totalBatches > 1) {
+                            throw new Error('For safety, replace mode only supports files that fit into one upload batch. Use Add to existing boundaries, or split the rebuild file into smaller subregion-specific files.');
+                        }
+                    }
                     let totalSuccessful = 0;
                     let totalFailed = 0;
                     let lastRes = null;
 
                     for (let i = 0; i < totalBatches; i++) {
-                        const batch = data.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+                        const batch = batches[i];
                         const isFirst = i === 0;
                         const isLast = i === totalBatches - 1;
 
@@ -1528,7 +1644,7 @@ export default function AdminPage() {
 
                         const res = await api.bulkUploadSubregionBoundaries({
                             rows: batch,
-                            mode: isFirst ? 'replace' : 'append',
+                            mode: uploadMode === 'replace' && isFirst ? 'replace' : 'append',
                             finalize: isLast
                         });
 
@@ -1541,21 +1657,20 @@ export default function AdminPage() {
                     const extra = [];
                     if (lastRes?.updatedSubregions) extra.push(`${lastRes.updatedSubregions} subregion(s) updated`);
                     extra.push(`${totalSuccessful} postal code(s) assigned`);
-                    
-                    alert(`Boundary import complete!\n\nProcessed: ${totalSuccessful + totalFailed} rows\nSuccessful: ${totalSuccessful}\nFailed: ${totalFailed}\n\n${extra.join('\n')}${errors.length > 0 ? '\n\nLast Errors:\n' + errors.join('\n') : ''}`);
+
+                    alert(`Boundary import complete!\n\nMode: ${uploadMode === 'replace' ? 'Replace existing boundaries' : 'Add to existing boundaries'}\nBatches: ${totalBatches}\nProcessed: ${totalSuccessful + totalFailed} rows\nSuccessful: ${totalSuccessful}\nFailed: ${totalFailed}\n\n${extra.join('\n')}${errors.length > 0 ? '\n\nLast Errors:\n' + errors.join('\n') : ''}`);
                     await loadAll();
                 } catch (err) {
                     alert('Boundary upload failed: ' + err.message);
-                } finally {
-                    setLoading(false);
-                    e.target.value = null;
                 }
-            },
-            error: (err) => {
+            })
+            .catch((err) => {
                 alert('File parsing error: ' + err.message);
+            })
+            .finally(() => {
                 setLoading(false);
-            }
-        });
+                e.target.value = null;
+            });
     }
 
     function promptBulkDeleteSubregions() {
@@ -2280,7 +2395,7 @@ export default function AdminPage() {
                                 {canManageSubregionMetadata ? (
                                     <>
                                         <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
-                                            <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionUpload} />
+                                            <input type="file" accept={SPREADSHEET_UPLOAD_ACCEPT} className="hidden" onChange={handleBulkSubregionUpload} />
                                             <Upload size={16} />
                                             Upload Subregions
                                         </label>
@@ -2291,7 +2406,7 @@ export default function AdminPage() {
                                     </>
                                 ) : null}
                                 <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
-                                    <input type="file" accept=".csv" className="hidden" onChange={handleBulkSubregionBoundaryUpload} />
+                                    <input type="file" accept={SPREADSHEET_UPLOAD_ACCEPT} className="hidden" onChange={handleBulkSubregionBoundaryUpload} />
                                     <Upload size={16} />
                                     Upload Boundaries
                                 </label>
@@ -2301,8 +2416,38 @@ export default function AdminPage() {
                                 </button>
                             </div>
                             <p className="mt-3 text-xs text-slate-500">
-                                Boundary CSV format: <code className="bg-slate-100 px-1 rounded">subregionId</code>, <code className="bg-slate-100 px-1 rounded">postalCode</code>. Uploading replaces the boundary postcode set for each referenced subregion.
+                                Boundary upload accepts CSV or Excel. Use <code className="bg-slate-100 px-1 rounded">subregionId</code> or <code className="bg-slate-100 px-1 rounded">subregion!D</code>, plus <code className="bg-slate-100 px-1 rounded">postalCode</code> or <code className="bg-slate-100 px-1 rounded">Running_Range</code>.
                             </p>
+                            <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <label className="flex items-start gap-2 text-xs font-semibold text-slate-700">
+                                    <input
+                                        type="radio"
+                                        name="subregion-boundary-upload-mode"
+                                        value="append"
+                                        checked={subregionBoundaryUploadMode === 'append'}
+                                        onChange={() => setSubregionBoundaryUploadMode('append')}
+                                        className="mt-0.5 h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500"
+                                    />
+                                    <span>
+                                        Add to existing boundaries
+                                        <span className="mt-0.5 block font-normal text-slate-500">Safe default for adding one postal code or importing more ranges.</span>
+                                    </span>
+                                </label>
+                                <label className="flex items-start gap-2 text-xs font-semibold text-slate-700">
+                                    <input
+                                        type="radio"
+                                        name="subregion-boundary-upload-mode"
+                                        value="replace"
+                                        checked={subregionBoundaryUploadMode === 'replace'}
+                                        onChange={() => setSubregionBoundaryUploadMode('replace')}
+                                        className="mt-0.5 h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500"
+                                    />
+                                    <span>
+                                        Replace listed subregions
+                                        <span className="mt-0.5 block font-normal text-amber-700">Use only for a planned rebuild. Existing codes for affected subregions will be removed first.</span>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
