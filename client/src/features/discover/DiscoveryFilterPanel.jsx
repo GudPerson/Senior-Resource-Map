@@ -306,6 +306,18 @@ function MobileFilterSheet({
     searchOrigin,
 }) {
     const { t } = useLocale();
+    const handleMobileSearchSubmit = async (event) => {
+        if (postalInput.trim()) {
+            const applied = await handlePostalSearch(event);
+            if (applied) {
+                onOpenChange(false);
+            }
+            return;
+        }
+
+        event.preventDefault();
+        onOpenChange(false);
+    };
 
     return (
         <MobileBottomSheet
@@ -313,19 +325,13 @@ function MobileFilterSheet({
             onOpenChange={onOpenChange}
             title={t('discoveryChooseWhatToShow')}
             description={t('discoveryChooseWhatToShowHelp')}
-            headerActions={(
-                <button type="button" onClick={() => onOpenChange(false)} className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap">
-                    {t('done')}
-                </button>
-            )}
         >
-            <div className="space-y-4">
-                        <form onSubmit={handlePostalSearch} className="space-y-2">
+            <form onSubmit={handleMobileSearchSubmit} className="space-y-4">
+                        <div className="space-y-2">
                             <label htmlFor="mobile-postal-input" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
                                 {t('discoverySearchByPostal')}
                             </label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
+                            <div className="relative">
                                     <MapPin size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
                                     <input
                                         id="mobile-postal-input"
@@ -349,10 +355,6 @@ function MobileFilterSheet({
                                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
                                         </div>
                                     ) : null}
-                                </div>
-                                <button type="submit" className="btn-primary justify-center px-4 py-3 text-[15px] leading-none whitespace-nowrap">
-                                    {t('search')}
-                                </button>
                             </div>
                             <div className={`grid gap-2 ${hasHomePostalCode ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                 {hasHomePostalCode ? (
@@ -374,7 +376,7 @@ function MobileFilterSheet({
                                     {t('discoveryLocateMe')}
                                 </LocationActionButton>
                             </div>
-                        </form>
+                        </div>
 
                         {user && !hasHomePostalCode ? (
                             <HomePostalCodeCta compact />
@@ -570,7 +572,23 @@ function MobileFilterSheet({
                                 ) : null}
                             </div>
                         ) : null}
-            </div>
+                        <div
+                            className="sticky bottom-0 z-10 -mx-1 border-t px-1 pb-1 pt-3"
+                            style={{
+                                borderColor: 'var(--color-border)',
+                                background: 'linear-gradient(180deg, rgba(246,252,251,0) 0%, var(--color-drawer-bg) 34%, var(--color-drawer-bg) 100%)',
+                            }}
+                        >
+                            <button
+                                type="submit"
+                                disabled={isGeocoding}
+                                className="btn-primary min-h-[48px] w-full justify-center text-[15px] leading-none whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                                <Search size={17} />
+                                {isGeocoding ? t('wait') : t('search')}
+                            </button>
+                        </div>
+            </form>
         </MobileBottomSheet>
     );
 }
@@ -1260,9 +1278,7 @@ export function DiscoveryFilterPanel(props) {
                 favoritesActionNotice={favoritesActionNotice}
                 handleHomeAnchor={handleHomeAnchor}
                 handleLocateMe={handleLocateMe}
-                handlePostalSearch={(event) => {
-                    handlePostalSearch(event);
-                }}
+                handlePostalSearch={handlePostalSearch}
                 hasHomePostalCode={hasHomePostalCode}
                 isGeocoding={isGeocoding}
                 isSaveAllChecked={isSaveAllChecked}

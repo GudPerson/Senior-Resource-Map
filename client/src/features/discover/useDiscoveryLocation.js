@@ -254,7 +254,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         const val = postalInput.trim();
         if (!/^\d{6}$/.test(val)) {
             setLocationNotice({ type: 'error', message: 'Enter a valid 6-digit Singapore postal code.' });
-            return;
+            return false;
         }
 
         setIsGeocoding(true);
@@ -263,7 +263,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
             const result = await resolvePostalLocation(val);
             if (!result) {
                 setLocationNotice({ type: 'error', message: `Postal code ${val} could not be located.` });
-                return;
+                return false;
             }
 
             const nextOrigin = buildSearchOrigin({
@@ -283,6 +283,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
 
             const zoom = getAnchorZoom(searchRadius, 15);
             setFlyTarget({ lat: nextOrigin.lat, lng: nextOrigin.lng, zoom, source: 'postal' });
+            return true;
         } finally {
             setIsGeocoding(false);
         }
