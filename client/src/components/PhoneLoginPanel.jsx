@@ -433,6 +433,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     const [error, setError] = useState('');
     const [actionBusy, setActionBusy] = useState(false);
     const [signupForm, setSignupForm] = useState({ name: '', postalCode: '' });
+    const [signupAcknowledged, setSignupAcknowledged] = useState(false);
     const [signupBusy, setSignupBusy] = useState(false);
     const pollUntilRef = useRef(0);
     const pollInFlightRef = useRef(false);
@@ -470,6 +471,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                     storedAttempt?.returnTo || returnToRef.current,
                 );
             }
+            setSignupAcknowledged(false);
             setStatus('signup_required');
             pollUntilRef.current = 0;
             return;
@@ -582,6 +584,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         setStatus('starting');
         setError('');
         setChallenge(null);
+        setSignupAcknowledged(false);
         try {
             const result = await api.startPhoneLogin({ phone: phoneText });
             pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
@@ -603,7 +606,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
 
     async function completeSignup(event) {
         event.preventDefault();
-        if (!attemptId || signupBusy) return;
+        if (!attemptId || signupBusy || !signupAcknowledged) return;
 
         setSignupBusy(true);
         setError('');
@@ -628,6 +631,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         setError('');
         setStatus('idle');
         setSignupForm({ name: '', postalCode: '' });
+        setSignupAcknowledged(false);
     }
 
     const view = statusView(status, t);
@@ -639,7 +643,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
     const whatsappLaunchIsNative = whatsappLaunchUrl.startsWith('whatsapp://');
     const canStart = Boolean(clean(phone)) && !actionBusy && status !== 'pending' && status !== 'starting';
     const showTryAgain = ['failed', 'expired', 'no_account', 'conflict'].includes(status);
-    const canCompleteSignup = Boolean(clean(signupForm.name)) && !signupBusy;
+    const canCompleteSignup = Boolean(clean(signupForm.name)) && signupAcknowledged && !signupBusy;
 
     if (status === 'idle') {
         return (
@@ -731,6 +735,21 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                                 <p className="mt-1 text-xs leading-5 text-slate-500">
                                     {t('phoneLoginSignupPostalHelp')}
                                 </p>
+                            </div>
+                            <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
+                                <p className="text-xs leading-5 text-amber-900">
+                                    {t('phoneLoginSignupAccountWarning')}
+                                </p>
+                                <label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5 text-amber-950" htmlFor="phone-login-signup-acknowledgement">
+                                    <input
+                                        id="phone-login-signup-acknowledgement"
+                                        type="checkbox"
+                                        checked={signupAcknowledged}
+                                        onChange={(event) => setSignupAcknowledged(event.target.checked)}
+                                        className="mt-1 h-4 w-4 flex-shrink-0 rounded border-amber-300 text-brand-700 focus:ring-brand-300"
+                                    />
+                                    <span>{t('phoneLoginSignupAcknowledgement')}</span>
+                                </label>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 <button
