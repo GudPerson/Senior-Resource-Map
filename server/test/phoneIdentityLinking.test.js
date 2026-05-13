@@ -46,6 +46,9 @@ function createMemoryStore({
                 .filter((user) => normalizeSingaporePhoneIdentity(user.phone) === phoneE164)
                 .map(({ id, username, role }) => ({ id, username, role }));
         },
+        async getUserById(userId) {
+            return state.users.find((user) => user.id === userId) || null;
+        },
         async createAttempt(values) {
             const row = {
                 id: state.nextAttemptId++,
@@ -445,6 +448,31 @@ test('unlinking phone identity revokes the current user active identity without 
     assert.equal(result.profilePhoneNeedsVerification, true);
     assert.ok(store.state.identities[0].revokedAt);
     assert.equal(store.state.users[0].phone, originalUserPhone);
+});
+
+test('phone-first accounts must add recovery email before unlinking WhatsApp identity', async () => {
+    const phoneOnlyUser = {
+        ...DEFAULT_USER,
+        email: 'phone+6583682962.12@phone.carearound.invalid',
+    };
+    const store = createMemoryStore({
+        users: [phoneOnlyUser],
+        identities: [{
+            id: 10,
+            userId: phoneOnlyUser.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: null,
+        }],
+    });
+
+    await assert.rejects(
+        () => unlinkPhoneIdentity({ store, user: phoneOnlyUser }),
+        (err) => err.status === 409 && err.code === 'phone_recovery_required',
+    );
+
+    assert.equal(store.state.identities[0].revokedAt, null);
 });
 
 test('a released phone can be verified by another account after the old profile phone is cleared', async () => {

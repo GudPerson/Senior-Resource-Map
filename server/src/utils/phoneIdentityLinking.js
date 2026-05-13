@@ -3,6 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { phoneVerificationAttempts, userPhoneIdentities, users } from '../db/schema.js';
 import { maskPhoneIdentity } from './phoneIdentityAudit.js';
 import { normalizeSingaporePhoneIdentity } from './phoneIdentity.js';
+import { isPhoneOnlyPlaceholderEmail } from './phoneLogin.js';
 
 export const PHONE_LINK_ATTEMPT_STATUS = Object.freeze({
     pending: 'pending',
@@ -180,6 +181,17 @@ export function createPhoneIdentityLinkStore(db) {
                 .filter((row) => normalizeSingaporePhoneIdentity(row.phone) === phoneE164)
                 .map(({ id, username, role }) => ({ id, username, role }));
         },
+        async getUserById(userId) {
+            const [row] = await db.select({
+                id: users.id,
+                username: users.username,
+                email: users.email,
+                role: users.role,
+                name: users.name,
+                phone: users.phone,
+            }).from(users).where(eq(users.id, userId)).limit(1);
+            return row || null;
+        },
         async createAttempt(values) {
             const [row] = await db.insert(phoneVerificationAttempts).values(values).returning();
             return row;
@@ -282,8 +294,18 @@ export async function getPhoneIdentitySummary(store, user) {
 }
 
 export async function unlinkPhoneIdentity({ store, user }) {
+    const currentUser = typeof store.getUserById === 'function'
+        ? await store.getUserById(user.id) || user
+        : user;
+    if (isPhoneOnlyPlaceholderEmail(currentUser?.email)) {
+        throw createPhoneLinkError(
+            'Add a recovery email and password before unlinking WhatsApp, so you can still sign in.',
+            409,
+            'phone_recovery_required',
+        );
+    }
     await store.revokeActiveIdentityByUserId(user.id);
-    return getPhoneIdentitySummary(store, user);
+    return getPhoneIdentitySummary(store, currentUser);
 }
 
 export async function startPhoneIdentityLinkAttempt({ store, gudAuthClient, user, input = {} }) {

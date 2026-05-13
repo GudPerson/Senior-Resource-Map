@@ -7,6 +7,10 @@ test('phone-first signup acknowledgement copy exists for every supported locale'
     const keys = [
         'phoneLoginSignupAccountWarning',
         'phoneLoginSignupAcknowledgement',
+        'recoveryEmailTitle',
+        'recoveryEmailHelp',
+        'recoveryEmailPasswordRequired',
+        'phoneVerificationReason_phone_recovery_required',
     ];
 
     for (const { code } of LOCALES) {

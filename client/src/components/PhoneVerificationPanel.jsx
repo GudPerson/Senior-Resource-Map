@@ -565,7 +565,9 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
             setChallenge(null);
             applySummary(summary);
         } catch (err) {
-            setError(err.message || t('phoneVerificationRemoveFailed'));
+            setError(err.code === 'phone_recovery_required'
+                ? t('phoneVerificationReason_phone_recovery_required')
+                : err.message || t('phoneVerificationRemoveFailed'));
         } finally {
             setActionBusy(false);
         }

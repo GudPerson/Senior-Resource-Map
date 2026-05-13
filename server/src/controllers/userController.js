@@ -12,6 +12,7 @@ import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/rol
 import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
 import { ensurePartnerOrganizationForLegacyPartner } from '../utils/partnerOrganizations.js';
+import { isPhoneOnlyPlaceholderEmail } from '../utils/phoneLogin.js';
 import {
     optionalOneLineTextSchema,
     validateRequestBody,
@@ -30,6 +31,7 @@ function normalizeText(value) {
 
 const profileUpdateBodySchema = z.object({
     name: optionalOneLineTextSchema(160),
+    email: optionalOneLineTextSchema(255),
     phone: optionalOneLineTextSchema(80),
     postalCode: optionalOneLineTextSchema(20),
     dateOfBirth: optionalOneLineTextSchema(20),
@@ -43,8 +45,49 @@ const profileUpdateBodySchema = z.object({
     }).min(1, 'Password is required.').max(1024, 'Password is too long.').optional(),
 });
 
+const recoveryEmailSchema = z.string().email();
+
 export function shouldRefreshProfileSessionCookie(user) {
     return !user?.isImpersonating;
+}
+
+function normalizeRecoveryEmail(value) {
+    const email = normalizeText(value).toLowerCase();
+    if (!email || email.length > 255 || !recoveryEmailSchema.safeParse(email).success) {
+        throw accessError('Enter a valid recovery email address.', 400);
+    }
+    if (isPhoneOnlyPlaceholderEmail(email)) {
+        throw accessError('Enter a real email address before unlinking WhatsApp.', 400);
+    }
+    return email;
+}
+
+export async function buildPhoneFirstRecoveryProfileUpdates({
+    currentUser,
+    body,
+    findUserByEmail,
+    hashPassword,
+}) {
+    if (body.email === undefined) return {};
+
+    if (!isPhoneOnlyPlaceholderEmail(currentUser?.email)) {
+        throw accessError('Email cannot be changed after registration.', 400);
+    }
+
+    const email = normalizeRecoveryEmail(body.email);
+    if (!body.password) {
+        throw accessError('Set a password when adding a recovery email.', 400);
+    }
+
+    const existingUser = await findUserByEmail(email);
+    if (existingUser && existingUser.id !== currentUser.id) {
+        throw accessError('Email already registered.', 409);
+    }
+
+    return {
+        email,
+        passwordHash: await hashPassword(body.password),
+    };
 }
 
 function parseSubregionIds(rawSubregionIds) {
@@ -358,6 +401,20 @@ async function ensureUniqueUserIdentifiers(db, username, email) {
     if (existingUser) throw accessError('Username already taken.', 409);
 }
 
+async function findUserByEmail(db, email) {
+    const [exactMatch] = await db.select({
+        id: users.id,
+        email: users.email,
+    }).from(users).where(eq(users.email, email));
+    if (exactMatch) return exactMatch;
+
+    const allUsers = await db.select({
+        id: users.id,
+        email: users.email,
+    }).from(users);
+    return allUsers.find((candidate) => String(candidate.email || '').toLowerCase() === email) || null;
+}
+
 function buildUserResponse(userRow, boundaryContext) {
     return {
         id: userRow.id,
@@ -616,6 +673,7 @@ export const updateProfile = async (c) => {
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db);
         const updates = {};
+        const currentUser = body.email !== undefined ? await loadUserWithSubregions(db, user.id) : user;
 
         if (body.name) updates.name = body.name;
         if (body.phone !== undefined) updates.phone = body.phone;
@@ -630,7 +688,13 @@ export const updateProfile = async (c) => {
                 ? normalizeOptionalPostalCode(body.postalCode)
                 : normalizeRequiredPostalCode(body.postalCode);
         }
-        if (body.password) {
+        Object.assign(updates, await buildPhoneFirstRecoveryProfileUpdates({
+            currentUser,
+            body,
+            findUserByEmail: (email) => findUserByEmail(db, email),
+            hashPassword: (password) => bcrypt.hash(password, 12),
+        }));
+        if (body.password && !updates.passwordHash) {
             updates.passwordHash = await bcrypt.hash(body.password, 12);
         }
 

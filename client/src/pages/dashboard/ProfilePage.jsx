@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
 import PhoneVerificationPanel from '../../components/PhoneVerificationPanel.jsx';
-import { User, Phone, Lock, CheckCircle, Link2, MapPin } from 'lucide-react';
+import { User, Phone, Lock, CheckCircle, Link2, MapPin, Mail } from 'lucide-react';
 import {
     CHAS_CARD_OPTIONS,
     GENDER_OPTIONS,
@@ -77,6 +77,7 @@ export default function ProfilePage() {
         gender: user?.gender || '',
         propertyType: user?.propertyType || '',
         volunteerInterest: user?.volunteerInterest || '',
+        email: isPhoneOnlyPlaceholderEmail(user?.email) ? '' : (user?.email || ''),
         password: '',
         confirmPassword: '',
     });
@@ -110,8 +111,9 @@ export default function ProfilePage() {
             gender: user?.gender || '',
             propertyType: user?.propertyType || '',
             volunteerInterest: user?.volunteerInterest || '',
+            email: isPhoneOnlyPlaceholderEmail(user?.email) ? current.email : (user?.email || ''),
         }));
-    }, [user?.caregiverStatus, user?.chasCard, user?.dateOfBirth, user?.gender, user?.name, user?.phone, user?.postalCode, user?.propertyType, user?.volunteerInterest]);
+    }, [user?.caregiverStatus, user?.chasCard, user?.dateOfBirth, user?.email, user?.gender, user?.name, user?.phone, user?.postalCode, user?.propertyType, user?.volunteerInterest]);
 
     useEffect(() => {
         let cancelled = false;
@@ -150,6 +152,14 @@ export default function ProfilePage() {
 
     async function handleSubmit(e) {
         e.preventDefault();
+        const recoveryEmail = form.email.trim();
+        const isSettingRecoveryEmail = hasPhoneOnlyEmail && Boolean(recoveryEmail);
+        if (hasPhoneOnlyEmail && !recoveryEmail && (form.password || form.confirmPassword)) {
+            return setError(t('recoveryEmailRequired'));
+        }
+        if (isSettingRecoveryEmail && !form.password) {
+            return setError(t('recoveryEmailPasswordRequired'));
+        }
         if (form.password && form.password !== form.confirmPassword) {
             return setError(t('passwordMismatch'));
         }
@@ -166,6 +176,7 @@ export default function ProfilePage() {
                 propertyType: form.propertyType || null,
                 volunteerInterest: form.volunteerInterest || null,
             };
+            if (isSettingRecoveryEmail) updates.email = recoveryEmail;
             if (form.password) updates.password = form.password;
             const updated = await api.updateMe(updates);
             login({ ...user, ...updated });
@@ -209,15 +220,27 @@ export default function ProfilePage() {
                         <input id="profile-name" required value={form.name} onChange={set('name')} className=" input-field" />
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">{t('emailAddress')}</label>
-                        <input
-                            type={hasPhoneOnlyEmail ? 'text' : 'email'}
-                            value={hasPhoneOnlyEmail ? t('noEmailAdded') : (user?.email || '')}
-                            disabled
-                            className="input-field bg-slate-50 text-slate-400 cursor-not-allowed"
-                        />
+                        <label className="block text-sm font-semibold text-slate-700 mb-1"><Mail size={13} className="inline mr-1" />{t('emailAddress')}</label>
+                        {hasPhoneOnlyEmail ? (
+                            <input
+                                id="profile-recovery-email"
+                                type="email"
+                                value={form.email}
+                                onChange={set('email')}
+                                placeholder={t('recoveryEmailPlaceholder')}
+                                autoComplete="email"
+                                className="input-field"
+                            />
+                        ) : (
+                            <input
+                                type="email"
+                                value={user?.email || ''}
+                                disabled
+                                className="input-field bg-slate-50 text-slate-400 cursor-not-allowed"
+                            />
+                        )}
                         <p className="text-xs text-slate-400 mt-1">
-                            {hasPhoneOnlyEmail ? t('phoneFirstEmailHelp') : t('emailCannotChange')}
+                            {hasPhoneOnlyEmail ? t('recoveryEmailHelp') : t('emailCannotChange')}
                         </p>
                     </div>
                     <div>
@@ -316,10 +339,10 @@ export default function ProfilePage() {
                     </div>
 
                     <hr className="border-slate-100" />
-                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide"><Lock size={13} className="inline mr-1" />{t('changePasswordOptional')}</p>
+                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide"><Lock size={13} className="inline mr-1" />{hasPhoneOnlyEmail ? t('recoveryEmailTitle') : t('changePasswordOptional')}</p>
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{t('newPassword')}</label>
-                        <input id="profile-password" type="password" value={form.password} onChange={set('password')} placeholder={t('leaveBlankPassword')} className=" input-field" />
+                        <input id="profile-password" type="password" value={form.password} onChange={set('password')} placeholder={hasPhoneOnlyEmail ? t('recoveryPasswordPlaceholder') : t('leaveBlankPassword')} className=" input-field" />
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{t('confirmNewPassword')}</label>

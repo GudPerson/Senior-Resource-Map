@@ -62,7 +62,9 @@ async function request(method, path, body) {
         if (!res.ok) {
             if (isJson && data?.error) {
                 handleAuthJsonError(data);
-                throw new Error(data.error);
+                const error = new Error(data.error);
+                if (data.code) error.code = data.code;
+                throw error;
             }
             // Retry on non-JSON responses to survive rewrite/base URL mismatches.
             if (!isJson && canRetryAcrossBases && i < BASE_CANDIDATES.length - 1) continue;
