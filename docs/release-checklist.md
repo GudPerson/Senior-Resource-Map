@@ -1,32 +1,53 @@
 # CareAround SG Release Checklist
 
-This is the pre-ship stabilization checklist for launch-safe changes.
+This checklist is the pre-ship gate for launch-safe changes. Use it together with `docs/regression-ledger.md`; the ledger is the source of truth for locked surfaces and behavior-specific acceptance criteria.
 
-## Current stabilization scope
+Last refreshed: 2026-05-13 (Asia/Singapore)
 
-Locked and approved on the stabilization branch:
+## Current Stabilization Scope
 
+The regression ledger currently treats these areas as locked or stabilized:
+
+- Discover
 - My Directory saved assets
 - Private Maps interactive
 - Private Maps print/export
 - Shared maps
-- Dashboard resources
-- Dashboard admin resources
-- Discover
-
-Active next recovery family:
-
+- Dashboard resources/admin
 - Workbook import/export
+- Asset create/edit forms
+- AI enrichment
+- Partner-only detail content
+- Secure multilingual foundation
+- Client route recovery
+- Phone identity uniqueness
+- WhatsApp phone login and signup
+- Subregion boundary upload
 
-## 1. Green baseline
+Active next recovery family in the ledger:
 
-- Run `npm run test:server`
-- Expected result: `59/59` passing
-- Run `npm run build:client`
-- Expected result: production build succeeds
-- Known note: the bundle-size warning should shrink once route-level code splitting is active, but the build itself must stay green
+- Release smoke and final deployment check
 
-## 2. Browser smoke gate
+Before release work, review the relevant row in `docs/regression-ledger.md` for reproduction steps, known-good references, acceptance criteria, and any deploy gates.
+
+## 1. Green Baseline
+
+Run:
+
+```bash
+npm run test:server
+npm run build:client
+```
+
+Expected result:
+
+- server tests complete successfully
+- client production build completes successfully
+- non-fatal bundle-size warnings may be reviewed, but they do not block unless they indicate a new functional regression
+
+Do not rely on an old hard-coded test count. The suite has grown over time, so use pass/fail status from the current run.
+
+## 2. Browser Smoke Gate
 
 Install the browser once on the machine that runs the smoke suite:
 
@@ -34,7 +55,7 @@ Install the browser once on the machine that runs the smoke suite:
 npm run test:smoke:install-browser
 ```
 
-Set the required environment variables:
+Set the required environment variables without printing real credentials:
 
 ```bash
 export SMOKE_BASE_URL="http://127.0.0.1:5173"
@@ -65,22 +86,39 @@ The smoke suite covers:
 - create-map asset selection and submit path
 - saved resource detail open path
 
-## 3. Full local verification
+## 3. Full Local Verification
 
-For local verification, run both app surfaces before the smoke suite:
+For local browser verification, run both app surfaces:
 
 ```bash
 npm run dev:server
 npm run dev:client
 ```
 
-Then run:
+Then run the release aggregate:
 
 ```bash
 npm run verify:release
 ```
 
-## 4. Deployed health check
+`verify:release` currently runs:
+
+- `npm run test:server`
+- `npm run build:client`
+- `npm run test:smoke`
+
+## 4. Behavior-Specific Checks
+
+For any touched locked surface:
+
+1. Open the matching row in `docs/regression-ledger.md`.
+2. Reproduce or inspect the behavior described there.
+3. Compare against the known-good reference when practical.
+4. Record new evidence in the ledger if the behavior was recovered, stabilized, or changed.
+
+Do not deploy a stabilization fix until the relevant ledger row has been reviewed and the required validation has passed.
+
+## 5. Deployed Health Check
 
 Verify the API health endpoint returns OK:
 
@@ -94,17 +132,19 @@ Expected response shape:
 { "status": "ok", "timestamp": "..." }
 ```
 
-## 5. Manual post-deploy checks
+## 6. Manual Post-Deploy Checks
 
-- Open the deployed app and confirm `/discover` renders
-- Log in with a partner/admin account
-- Open `/dashboard/resources`
-- Open the postal import wizard and confirm search still returns results
-- Confirm saved assets still appear on Discover and in My Directory
-- Confirm a saved resource detail page opens correctly
-- Confirm create-map still allows asset selection and map creation
+After a deploy, manually verify the affected flow plus these core routes:
 
-## 6. Guardrail for post-launch cleanup
+- open the deployed app and confirm `/discover` renders
+- log in with a partner/admin account
+- open `/dashboard/resources`
+- open the postal import wizard and confirm search still returns results
+- confirm saved assets still appear on Discover and in My Directory
+- confirm a saved resource detail page opens correctly
+- confirm create-map still allows asset selection and map creation
+
+## 7. Guardrail For Cleanup
 
 Do not do broad refactors before ship just because files are large. After launch, clean up in small slices behind this same checklist, starting with:
 
@@ -113,3 +153,11 @@ Do not do broad refactors before ship just because files are large. After launch
 - `client/src/components/HardAssetImportWizard.jsx`
 - `client/src/pages/dashboard/AdminPage.jsx`
 - `client/src/pages/DiscoverPage.jsx`
+
+For documentation-only cleanup, runtime tests are not required, but run:
+
+```bash
+git diff --check
+```
+
+Also scan the changed docs for accidental secrets or raw credential material before committing.
