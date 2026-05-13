@@ -2,11 +2,62 @@ export function getWhatsAppUrl(challenge) {
     return challenge?.whatsappUrl || challenge?.whatsAppUrl || challenge?.url || '';
 }
 
+function cleanUrl(value) {
+    return String(value || '').trim();
+}
+
 export function isSafeWhatsAppUrl(value) {
-    const url = String(value || '').trim();
+    const url = cleanUrl(value);
     return url.startsWith('https://wa.me/')
         || url.startsWith('https://api.whatsapp.com/')
         || url.startsWith('whatsapp://');
+}
+
+function buildNativeWhatsAppUrl(phone, text) {
+    const params = new URLSearchParams();
+    const safePhone = String(phone || '').replace(/[^\d]/g, '');
+    const safeText = String(text || '').trim();
+    if (safePhone) params.set('phone', safePhone);
+    if (safeText) params.set('text', safeText);
+    const query = params.toString();
+    return query ? `whatsapp://send?${query}` : '';
+}
+
+function getNativeWhatsAppUrl(value) {
+    const rawUrl = cleanUrl(value);
+    if (!isSafeWhatsAppUrl(rawUrl)) return '';
+    if (rawUrl.startsWith('whatsapp://')) return rawUrl;
+
+    try {
+        const parsed = new URL(rawUrl);
+        const host = parsed.hostname.toLowerCase();
+        if (host === 'wa.me') {
+            return buildNativeWhatsAppUrl(parsed.pathname.replace(/^\/+/, ''), parsed.searchParams.get('text'));
+        }
+        if (host === 'api.whatsapp.com') {
+            return buildNativeWhatsAppUrl(parsed.searchParams.get('phone'), parsed.searchParams.get('text'));
+        }
+    } catch {
+        return '';
+    }
+
+    return '';
+}
+
+export function getPreferredWhatsAppLaunchUrl(value, { preferNative = false } = {}) {
+    const rawUrl = cleanUrl(value);
+    if (!isSafeWhatsAppUrl(rawUrl)) return '';
+    return preferNative ? getNativeWhatsAppUrl(rawUrl) || rawUrl : rawUrl;
+}
+
+export function isLikelyMobileDevice(device = '') {
+    const userAgent = typeof device === 'string' ? device : device?.userAgent;
+    const platform = typeof device === 'string' ? '' : device?.platform;
+    const maxTouchPoints = typeof device === 'string' ? 0 : Number(device?.maxTouchPoints || 0);
+    const text = `${userAgent || ''} ${platform || ''}`;
+
+    if (/Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(text)) return true;
+    return /Macintosh|MacIntel/i.test(text) && maxTouchPoints > 1;
 }
 
 export function isGudAuthPhoneLinkReturn(search) {

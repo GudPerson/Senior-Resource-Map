@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    getPreferredWhatsAppLaunchUrl,
     getWhatsAppUrl,
+    isLikelyMobileDevice,
     isSafeWhatsAppUrl,
     isGudAuthPhoneLinkReturn,
     mergePhoneVerificationChallenge,
@@ -61,6 +63,37 @@ test('allows only WhatsApp launch URLs', () => {
     assert.equal(isSafeWhatsAppUrl('https://api.whatsapp.com/send?phone=6587651901'), true);
     assert.equal(isSafeWhatsAppUrl('whatsapp://send?phone=6587651901'), true);
     assert.equal(isSafeWhatsAppUrl('https://example.com/redirect'), false);
+});
+
+test('prefers native WhatsApp app links on mobile while keeping web links as desktop fallback', () => {
+    assert.equal(
+        getPreferredWhatsAppLaunchUrl('https://wa.me/6587651901?text=WAP-123456', { preferNative: true }),
+        'whatsapp://send?phone=6587651901&text=WAP-123456',
+    );
+    assert.equal(
+        getPreferredWhatsAppLaunchUrl('https://api.whatsapp.com/send?phone=6587651901&text=WAP-123456', { preferNative: true }),
+        'whatsapp://send?phone=6587651901&text=WAP-123456',
+    );
+    assert.equal(
+        getPreferredWhatsAppLaunchUrl('https://wa.me/6587651901?text=WAP-123456'),
+        'https://wa.me/6587651901?text=WAP-123456',
+    );
+});
+
+test('detects Android, iPhone, and iPad-style touch devices for native WhatsApp launch', () => {
+    assert.equal(isLikelyMobileDevice('Mozilla/5.0 (Linux; Android 14; SM-S918B)'), true);
+    assert.equal(isLikelyMobileDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X)'), true);
+    assert.equal(isLikelyMobileDevice('Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X)'), true);
+    assert.equal(isLikelyMobileDevice({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/17.5 Safari/605.1.15',
+        platform: 'MacIntel',
+        maxTouchPoints: 5,
+    }), true);
+    assert.equal(isLikelyMobileDevice({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/17.5 Safari/605.1.15',
+        platform: 'MacIntel',
+        maxTouchPoints: 0,
+    }), false);
 });
 
 test('detects GudAuth phone-link returns from the Profile query string', () => {
