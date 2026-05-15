@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
 import { getApiBaseCandidates } from '../lib/apiBase.js';
+import { fetchSessionJsonWithTimeout } from '../lib/authSession.js';
 
 const AuthContext = createContext(null);
 const BASE_CANDIDATES = getApiBaseCandidates();
@@ -27,23 +28,26 @@ export function AuthProvider({ children }) {
 
         try {
             for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
-                const res = await fetch(`${BASE_CANDIDATES[i]}/auth/me`, {
-                    headers: getSessionAuthHeaders(),
-                    credentials: 'include'
-                });
-                const contentType = res.headers.get('content-type') || '';
-                if (!contentType.includes('application/json')) {
+                try {
+                    const { data, isJson } = await fetchSessionJsonWithTimeout(`${BASE_CANDIDATES[i]}/auth/me`, {
+                        headers: getSessionAuthHeaders(),
+                        credentials: 'include'
+                    });
+                    if (!isJson) {
+                        if (i < BASE_CANDIDATES.length - 1) continue;
+                        console.error('Auth session endpoint returned non-JSON response.');
+                        setUser(null);
+                        return null;
+                    }
+                    if (data.user) {
+                        setUser(data.user);
+                        return data.user;
+                    }
+                    break;
+                } catch (err) {
                     if (i < BASE_CANDIDATES.length - 1) continue;
-                    console.error('Auth session endpoint returned non-JSON response.');
-                    setUser(null);
-                    return null;
+                    throw err;
                 }
-                const data = await res.json();
-                if (data.user) {
-                    setUser(data.user);
-                    return data.user;
-                }
-                break;
             }
 
             if (hasImpersonationToken && allowImpersonationFallback) {
