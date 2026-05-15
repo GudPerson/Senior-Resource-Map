@@ -41,6 +41,21 @@ function withTimeout(promise, fallback, timeoutMs = 8000) {
     ]);
 }
 
+function withTimeoutOrThrow(promise, timeoutMs = 15000) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            window.setTimeout(() => reject(new Error('Discovery resource page timed out.')), timeoutMs);
+        }),
+    ]);
+}
+
+function wait(ms) {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
+}
+
 function normalizePaginatedResponse(response, defaultPageSize = 500) {
     if (Array.isArray(response)) {
         return {
@@ -65,21 +80,26 @@ function normalizePaginatedResponse(response, defaultPageSize = 500) {
     };
 }
 
-async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
-    const fallback = {
-        data: [],
-        pagination: {
-            page: 1,
-            pageSize,
-            totalCount: 0,
-            totalPages: 1,
-        },
-    };
+async function fetchPaginatedResultPage(fetchPage, params, pageSize, page, maxAttempts = 3) {
+    let lastError = null;
 
-    const firstResponse = normalizePaginatedResponse(
-        await withTimeout(fetchPage({ ...params, page: 1, pageSize }).catch(() => fallback), fallback),
-        pageSize,
-    );
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            const response = await withTimeoutOrThrow(fetchPage({ ...params, page, pageSize }));
+            return normalizePaginatedResponse(response, pageSize);
+        } catch (err) {
+            lastError = err;
+            if (attempt < maxAttempts) {
+                await wait(350 * attempt);
+            }
+        }
+    }
+
+    throw lastError || new Error('Discovery resource page failed to load.');
+}
+
+async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
+    const firstResponse = await fetchPaginatedResultPage(fetchPage, params, pageSize, 1);
 
     const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
     if (totalPages === 1) {
@@ -88,16 +108,13 @@ async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) 
 
     const remainingResponses = await Promise.all(
         Array.from({ length: totalPages - 1 }, (_, index) => (
-            withTimeout(
-                fetchPage({ ...params, page: index + 2, pageSize }).catch(() => fallback),
-                fallback,
-            )
+            fetchPaginatedResultPage(fetchPage, params, pageSize, index + 2)
         ))
     );
 
     return [
         ...firstResponse.data,
-        ...remainingResponses.flatMap((response) => normalizePaginatedResponse(response, pageSize).data),
+        ...remainingResponses.flatMap((response) => response.data),
     ];
 }
 
@@ -471,6 +488,7 @@ export default function DiscoverPage() {
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [directoryError, setDirectoryError] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState(() => searchParams.get('q') || '');
     const [activeTab, setActiveTab] = useState('all');
@@ -595,6 +613,7 @@ export default function DiscoverPage() {
 
         async function loadDirectory() {
             setLoading(true);
+            setDirectoryError('');
 
             try {
                 const [hardData, softData, subcategories] = await Promise.all([
@@ -624,6 +643,11 @@ export default function DiscoverPage() {
                 setSubCategoryMetaByKey(metaByKey);
                 setHardAssets(hardData);
                 setSoftAssets(softData);
+            } catch (err) {
+                console.error('Discovery directory load failed', err);
+                if (isActive) {
+                    setDirectoryError('Unable to load the complete resource list. Refresh the page or try again.');
+                }
             } finally {
                 if (isActive) {
                     setLoading(false);
@@ -2291,7 +2315,7 @@ export default function DiscoverPage() {
     return (
         <div
             className="relative flex h-[calc(100vh-4rem)] flex-col overflow-hidden"
-            style={{ background: 'var(--page-gradient)' }}
+            style={{ '--discover-rail-width': `${desktopRailWidth}px`, background: 'var(--page-gradient)' }}
         >
             <div className="hidden lg:flex flex-1 w-full h-full relative">
                 <div
@@ -2352,6 +2376,11 @@ export default function DiscoverPage() {
                         <div className="h-12 w-12 animate-spin rounded-full border-4" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
                         <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>{t('loadingResources')}</p>
                     </div>
+                </div>
+            ) : null}
+            {directoryError && !loading ? (
+                <div className="absolute inset-x-4 top-4 z-[1900] rounded-2xl border px-4 py-3 text-sm font-semibold shadow-lg lg:left-[calc(var(--discover-rail-width,430px)+1rem)]" style={{ borderColor: '#fed7aa', backgroundColor: '#fff7ed', color: '#9a3412' }}>
+                    {directoryError}
                 </div>
             ) : null}
         </div>
