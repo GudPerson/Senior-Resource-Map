@@ -2,7 +2,7 @@
 
 This checklist is the pre-ship gate for launch-safe changes. Use it together with `docs/regression-ledger.md`; the ledger is the source of truth for locked surfaces and behavior-specific acceptance criteria.
 
-Last refreshed: 2026-05-13 (Asia/Singapore)
+Last refreshed: 2026-05-15 (Asia/Singapore)
 
 ## Current Stabilization Scope
 
@@ -18,6 +18,7 @@ The regression ledger currently treats these areas as locked or stabilized:
 - Asset create/edit forms
 - AI enrichment
 - Partner-only detail content
+- Direct hard-asset access and local audience zones
 - Secure multilingual foundation
 - Client route recovery
 - Phone identity uniqueness
@@ -118,7 +119,17 @@ For any touched locked surface:
 
 Do not deploy a stabilization fix until the relevant ledger row has been reviewed and the required validation has passed.
 
-## 5. Deployed Health Check
+## 5. Schema Deployment Gate
+
+For changes that touch `server/src/db/schema.js` or `server/src/utils/boundarySchema.js`, apply the explicit schema bootstrap to the intended Neon database before deploying the Worker:
+
+```bash
+npm run bootstrap:boundary-schema --workspace=server
+```
+
+Production runtime schema bootstrap remains disabled by default. Do not rely on normal API traffic to create new tables, columns, or indexes.
+
+## 6. Deployed Health Check
 
 Verify the API health endpoint returns OK:
 
@@ -132,7 +143,7 @@ Expected response shape:
 { "status": "ok", "timestamp": "..." }
 ```
 
-## 6. Manual Post-Deploy Checks
+## 7. Manual Post-Deploy Checks
 
 After a deploy, manually verify the affected flow plus these core routes:
 
@@ -144,7 +155,7 @@ After a deploy, manually verify the affected flow plus these core routes:
 - confirm a saved resource detail page opens correctly
 - confirm create-map still allows asset selection and map creation
 
-## 7. Guardrail For Cleanup
+## 8. Guardrail For Cleanup
 
 Do not do broad refactors before ship just because files are large. After launch, clean up in small slices behind this same checklist, starting with:
 
