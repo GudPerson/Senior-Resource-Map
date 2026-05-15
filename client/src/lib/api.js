@@ -8,9 +8,38 @@ function notifyAuthExpired() {
     window.dispatchEvent(new CustomEvent('carearound:auth-expired'));
 }
 
-function headers(extra = {}) {
+const COOKIE_SCOPED_AUTH_PATH_PREFIXES = [
+    '/admin',
+    '/audience-zones',
+    '/favorites',
+    '/memberships',
+    '/my-maps',
+    '/phone-identities',
+    '/private-resource-content',
+    '/soft-asset-parents',
+    '/subregions',
+    '/users',
+];
+
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
+function canRetryAcrossBasesForPath(path) {
+    const normalizedPath = String(path || '');
+    if (normalizedPath.includes('scope=managed')) return false;
+    return !COOKIE_SCOPED_AUTH_PATH_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix));
+}
+
+function isJsonBodyMethod(method) {
+    return !['GET', 'HEAD'].includes(String(method || '').toUpperCase());
+}
+
+export function buildRequestHeaders(method = 'GET', extra = {}, hasJsonBody = false) {
     return {
-        'Content-Type': 'application/json',
+        ...(hasJsonBody && isJsonBodyMethod(method) ? { 'Content-Type': 'application/json' } : {}),
         ...getSessionAuthHeaders(),
         ...extra,
     };
@@ -45,16 +74,48 @@ function handleAuthJsonError(data) {
     }
 }
 
-async function request(method, path, body) {
+export async function requestWithBaseCandidates(method, path, body, options = {}) {
+    const {
+        baseCandidates = BASE_CANDIDATES,
+        fetchImpl = globalThis.fetch,
+        retryDelayMs = 250,
+        networkAttemptsPerBase = 2,
+    } = options;
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
-    for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
-        const base = BASE_CANDIDATES[i];
-        const res = await fetch(`${base}${path}`, {
-            method,
-            headers: headers(),
-            credentials: 'include',
-            ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-        });
+    const canUseFallbackBase = canRetryAcrossBases && canRetryAcrossBasesForPath(path);
+    let lastNetworkError = null;
+
+    for (let i = 0; i < baseCandidates.length; i += 1) {
+        if (!canUseFallbackBase && i > 0) break;
+
+        const base = baseCandidates[i];
+        let res;
+        const attemptsForBase = canRetryAcrossBases ? Math.max(1, networkAttemptsPerBase) : 1;
+
+        for (let attempt = 1; attempt <= attemptsForBase; attempt += 1) {
+            try {
+                res = await fetchImpl(`${base}${path}`, {
+                    method,
+                    headers: buildRequestHeaders(method, {}, body !== undefined),
+                    credentials: 'include',
+                    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+                });
+                break;
+            } catch (err) {
+                lastNetworkError = err;
+                if (attempt < attemptsForBase) {
+                    await sleep(retryDelayMs * attempt);
+                    continue;
+                }
+                if (canUseFallbackBase && i < baseCandidates.length - 1) {
+                    break;
+                }
+                throw err;
+            }
+        }
+
+        if (!res) continue;
+
         const contentType = res.headers.get('content-type') || '';
         const isJson = contentType.includes('application/json');
         const data = isJson ? await res.json() : await res.text();
@@ -82,7 +143,12 @@ async function request(method, path, body) {
         return data;
     }
 
+    if (lastNetworkError) throw lastNetworkError;
     throw new Error('API request failed.');
+}
+
+async function request(method, path, body) {
+    return requestWithBaseCandidates(method, path, body);
 }
 
 async function requestFormData(path, formData) {
@@ -125,7 +191,7 @@ async function requestBlob(path, options = {}) {
     const method = options.method || 'GET';
     const hasBody = options.body !== undefined;
     const requestHeaders = hasBody
-        ? headers(options.headers || {})
+        ? buildRequestHeaders(method, options.headers || {}, true)
         : {
             ...getSessionAuthHeaders(),
             ...(options.headers || {}),

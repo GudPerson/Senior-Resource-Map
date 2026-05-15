@@ -42,6 +42,7 @@ import { AssetCard } from '../../components/AssetCard.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
+import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
@@ -463,29 +464,6 @@ function normalizePaginatedResponse(response, defaultPageSize = 500) {
             totalPages: Number(response?.pagination?.totalPages || 1),
         },
     };
-}
-
-async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
-    const firstResponse = normalizePaginatedResponse(await fetchPage({ ...params, page: 1, pageSize }), pageSize);
-    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
-    const combined = [firstResponse.data];
-
-    if (totalPages > 1) {
-        const remainingResponses = await Promise.all(
-            Array.from({ length: totalPages - 1 }, (_, index) => fetchPage({ ...params, page: index + 2, pageSize }))
-        );
-        combined.push(...remainingResponses.map((response) => normalizePaginatedResponse(response, pageSize).data));
-    }
-
-    const flattened = combined.flatMap((page) => page);
-    const seenIds = new Set();
-    return flattened.filter((item) => {
-        const id = item?.id;
-        if (!Number.isInteger(id)) return true;
-        if (seenIds.has(id)) return false;
-        seenIds.add(id);
-        return true;
-    });
 }
 
 function getResourceUpdatedTime(asset) {

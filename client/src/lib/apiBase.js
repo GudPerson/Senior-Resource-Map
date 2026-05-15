@@ -38,6 +38,6 @@ export function getApiBaseCandidatesForEnvironment({ hostname = '', envApiUrl = 
 export function getApiBaseCandidates() {
     return getApiBaseCandidatesForEnvironment({
         hostname: typeof window === 'undefined' ? '' : window.location.hostname,
-        envApiUrl: import.meta.env.VITE_API_URL,
+        envApiUrl: import.meta.env?.VITE_API_URL || '',
     });
 }

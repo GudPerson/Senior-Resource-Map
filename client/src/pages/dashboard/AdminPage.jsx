@@ -10,6 +10,7 @@ import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import Pagination from '../../components/Pagination.jsx';
+import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 const ASSET_WORKBOOKS = [
@@ -288,63 +289,6 @@ function buildUserExportRows(userRows) {
         userRow.volunteerInterest,
         formatExportDate(userRow.createdAt),
     ].map(sanitizeCsvCell));
-}
-
-function normalizePaginatedResponse(response, defaultPageSize = 500) {
-    if (Array.isArray(response)) {
-        return {
-            data: response,
-            pagination: {
-                page: 1,
-                pageSize: response.length || defaultPageSize,
-                totalCount: response.length,
-                totalPages: 1,
-            },
-        };
-    }
-
-    return {
-        data: Array.isArray(response?.data) ? response.data : [],
-        pagination: {
-            page: Number(response?.pagination?.page || 1),
-            pageSize: Number(response?.pagination?.pageSize || defaultPageSize),
-            totalCount: Number(response?.pagination?.totalCount || 0),
-            totalPages: Number(response?.pagination?.totalPages || 1),
-        },
-    };
-}
-
-async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
-    const fallback = {
-        data: [],
-        pagination: {
-            page: 1,
-            pageSize,
-            totalCount: 0,
-            totalPages: 1,
-        },
-    };
-
-    const firstResponse = normalizePaginatedResponse(
-        await fetchPage({ ...params, page: 1, pageSize }).catch(() => fallback),
-        pageSize,
-    );
-
-    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
-    if (totalPages === 1) {
-        return firstResponse.data;
-    }
-
-    const remainingResponses = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, index) => (
-            fetchPage({ ...params, page: index + 2, pageSize }).catch(() => fallback)
-        ))
-    );
-
-    return [
-        ...firstResponse.data,
-        ...remainingResponses.flatMap((response) => normalizePaginatedResponse(response, pageSize).data),
-    ];
 }
 
 function getAdminResourceAddress(resource) {

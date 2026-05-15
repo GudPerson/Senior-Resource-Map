@@ -38,3 +38,35 @@ test('fetchAllPaginatedResults collects a slow later page before timing out', as
     assert.deepEqual(calls, [1, 2]);
     assert.deepEqual(result.map((item) => item.id), [1, 2]);
 });
+
+test('fetchAllPaginatedResults limits concurrent page fetches', async () => {
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+
+    const fetchPage = async ({ page, pageSize }) => {
+        activeRequests += 1;
+        maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        activeRequests -= 1;
+
+        return {
+            data: [{ id: page }],
+            pagination: {
+                page,
+                pageSize,
+                totalCount: 5,
+                totalPages: 5,
+            },
+        };
+    };
+
+    const result = await fetchAllPaginatedResults(fetchPage, {}, {
+        pageSize: 1,
+        pageTimeoutMs: 100,
+        maxConcurrentPages: 2,
+        waitMs: async () => {},
+    });
+
+    assert.equal(maxActiveRequests, 2);
+    assert.deepEqual(result.map((item) => item.id), [1, 2, 3, 4, 5]);
+});

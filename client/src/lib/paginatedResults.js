@@ -71,6 +71,7 @@ export async function fetchPaginatedResultPage(fetchPage, params = {}, options =
 export async function fetchAllPaginatedResults(fetchPage, params = {}, options = {}) {
     const settings = typeof options === 'number' ? { pageSize: options } : options;
     const pageSize = settings.pageSize || 500;
+    const maxConcurrentPages = Math.max(1, Number(settings.maxConcurrentPages || 2));
     const firstResponse = await fetchPaginatedResultPage(fetchPage, params, {
         ...settings,
         page: 1,
@@ -82,18 +83,39 @@ export async function fetchAllPaginatedResults(fetchPage, params = {}, options =
         return firstResponse.data;
     }
 
-    const remainingResponses = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, index) => (
-            fetchPaginatedResultPage(fetchPage, params, {
+    const remainingResponses = new Array(totalPages - 1);
+    let nextIndex = 0;
+
+    async function runPageWorker() {
+        while (nextIndex < remainingResponses.length) {
+            const index = nextIndex;
+            nextIndex += 1;
+            remainingResponses[index] = await fetchPaginatedResultPage(fetchPage, params, {
                 ...settings,
                 page: index + 2,
                 pageSize,
-            })
-        ))
+            });
+        }
+    }
+
+    await Promise.all(
+        Array.from(
+            { length: Math.min(maxConcurrentPages, remainingResponses.length) },
+            () => runPageWorker(),
+        ),
     );
 
-    return [
+    const flattened = [
         ...firstResponse.data,
         ...remainingResponses.flatMap((response) => response.data),
     ];
+
+    const seenIds = new Set();
+    return flattened.filter((item) => {
+        const id = item?.id;
+        if (!Number.isInteger(id)) return true;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+    });
 }
