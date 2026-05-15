@@ -308,8 +308,14 @@ export const me = async (c) => {
     const token = getRequestToken(c);
     if (!token) return c.json({ user: null });
 
+    let sessionUser;
     try {
-        const sessionUser = await verifySessionToken(token, c);
+        sessionUser = await verifySessionToken(token, c);
+    } catch {
+        return c.json({ user: null });
+    }
+
+    try {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db);
@@ -330,8 +336,9 @@ export const me = async (c) => {
         }
 
         return c.json({ user: buildSessionPayload(liveUser, extraClaims) });
-    } catch {
-        return c.json({ user: null });
+    } catch (err) {
+        console.error('Session check failed:', err);
+        return c.json({ error: 'Session check failed' }, 500);
     }
 };
 

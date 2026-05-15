@@ -7,6 +7,10 @@ export class SessionRequestTimeoutError extends Error {
     }
 }
 
+export function resolveUserAfterSessionCheckFailure(currentUser) {
+    return currentUser || null;
+}
+
 export async function fetchSessionJsonWithTimeout(url, options = {}) {
     const {
         timeoutMs = SESSION_FETCH_TIMEOUT_MS,

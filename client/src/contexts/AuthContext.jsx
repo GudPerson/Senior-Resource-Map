@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
 import { getApiBaseCandidates } from '../lib/apiBase.js';
-import { fetchSessionJsonWithTimeout } from '../lib/authSession.js';
+import { fetchSessionJsonWithTimeout, resolveUserAfterSessionCheckFailure } from '../lib/authSession.js';
 
 const AuthContext = createContext(null);
 const BASE_CANDIDATES = getApiBaseCandidates();
@@ -22,6 +22,12 @@ function AuthLoadingFallback() {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const userRef = useRef(null);
+
+    const setCurrentUser = useCallback((nextUser) => {
+        userRef.current = nextUser;
+        setUser(nextUser);
+    }, []);
 
     const checkSession = useCallback(async (allowImpersonationFallback = true) => {
         const hasImpersonationToken = Boolean(getImpersonationToken());
@@ -29,18 +35,23 @@ export function AuthProvider({ children }) {
         try {
             for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
                 try {
-                    const { data, isJson } = await fetchSessionJsonWithTimeout(`${BASE_CANDIDATES[i]}/auth/me`, {
+                    const { response, data, isJson } = await fetchSessionJsonWithTimeout(`${BASE_CANDIDATES[i]}/auth/me`, {
                         headers: getSessionAuthHeaders(),
                         credentials: 'include'
                     });
                     if (!isJson) {
                         if (i < BASE_CANDIDATES.length - 1) continue;
                         console.error('Auth session endpoint returned non-JSON response.');
-                        setUser(null);
-                        return null;
+                        const preservedUser = resolveUserAfterSessionCheckFailure(userRef.current);
+                        setCurrentUser(preservedUser);
+                        return preservedUser;
+                    }
+                    if (!response.ok) {
+                        if (i < BASE_CANDIDATES.length - 1) continue;
+                        throw new Error(data?.error || 'Session check failed');
                     }
                     if (data.user) {
-                        setUser(data.user);
+                        setCurrentUser(data.user);
                         return data.user;
                     }
                     break;
@@ -55,7 +66,7 @@ export function AuthProvider({ children }) {
                 return await checkSession(false);
             }
 
-            setUser(null);
+            setCurrentUser(null);
             return null;
         } catch (err) {
             console.error('Session check failed', err);
@@ -63,10 +74,11 @@ export function AuthProvider({ children }) {
                 clearImpersonationToken();
                 return await checkSession(false);
             }
-            setUser(null);
-            return null;
+            const preservedUser = resolveUserAfterSessionCheckFailure(userRef.current);
+            setCurrentUser(preservedUser);
+            return preservedUser;
         }
-    }, []);
+    }, [setCurrentUser]);
 
     useEffect(() => {
         const runSessionCheck = async () => {
@@ -83,7 +95,7 @@ export function AuthProvider({ children }) {
         if (typeof window === 'undefined') return undefined;
 
         const handleAuthExpired = () => {
-            setUser(null);
+            setCurrentUser(null);
         };
 
         const handleFocus = () => {
@@ -105,11 +117,11 @@ export function AuthProvider({ children }) {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [checkSession]);
+    }, [checkSession, setCurrentUser]);
 
 
     function login(userData) {
-        setUser(userData);
+        setCurrentUser(userData);
     }
 
     async function logout() {
@@ -141,7 +153,7 @@ export function AuthProvider({ children }) {
         } catch (err) {
             console.error('Logout request failed', err);
         }
-        setUser(null);
+        setCurrentUser(null);
         return { exitedImpersonation: false };
     }
 
