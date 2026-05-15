@@ -6,6 +6,7 @@ import { Drawer } from 'vaul';
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
 import { stripMarkdownLite } from '../lib/markdownLite.js';
+import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { normalizePostalCode } from '../lib/postalBoundaries.js';
 import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
@@ -39,83 +40,6 @@ function withTimeout(promise, fallback, timeoutMs = 8000) {
             window.setTimeout(() => resolve(fallback), timeoutMs);
         }),
     ]);
-}
-
-function withTimeoutOrThrow(promise, timeoutMs = 15000) {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => {
-            window.setTimeout(() => reject(new Error('Discovery resource page timed out.')), timeoutMs);
-        }),
-    ]);
-}
-
-function wait(ms) {
-    return new Promise((resolve) => {
-        window.setTimeout(resolve, ms);
-    });
-}
-
-function normalizePaginatedResponse(response, defaultPageSize = 500) {
-    if (Array.isArray(response)) {
-        return {
-            data: response,
-            pagination: {
-                page: 1,
-                pageSize: response.length || defaultPageSize,
-                totalCount: response.length,
-                totalPages: 1,
-            },
-        };
-    }
-
-    return {
-        data: Array.isArray(response?.data) ? response.data : [],
-        pagination: {
-            page: Number(response?.pagination?.page || 1),
-            pageSize: Number(response?.pagination?.pageSize || defaultPageSize),
-            totalCount: Number(response?.pagination?.totalCount || 0),
-            totalPages: Number(response?.pagination?.totalPages || 1),
-        },
-    };
-}
-
-async function fetchPaginatedResultPage(fetchPage, params, pageSize, page, maxAttempts = 3) {
-    let lastError = null;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        try {
-            const response = await withTimeoutOrThrow(fetchPage({ ...params, page, pageSize }));
-            return normalizePaginatedResponse(response, pageSize);
-        } catch (err) {
-            lastError = err;
-            if (attempt < maxAttempts) {
-                await wait(350 * attempt);
-            }
-        }
-    }
-
-    throw lastError || new Error('Discovery resource page failed to load.');
-}
-
-async function fetchAllPaginatedResults(fetchPage, params = {}, pageSize = 500) {
-    const firstResponse = await fetchPaginatedResultPage(fetchPage, params, pageSize, 1);
-
-    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
-    if (totalPages === 1) {
-        return firstResponse.data;
-    }
-
-    const remainingResponses = await Promise.all(
-        Array.from({ length: totalPages - 1 }, (_, index) => (
-            fetchPaginatedResultPage(fetchPage, params, pageSize, index + 2)
-        ))
-    );
-
-    return [
-        ...firstResponse.data,
-        ...remainingResponses.flatMap((response) => response.data),
-    ];
 }
 
 function createFocusRequestIdGenerator() {

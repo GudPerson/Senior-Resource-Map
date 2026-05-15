@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authenticateToken, optionalAuth, authorizeResourceOperator } from '../middleware/auth.js';
+import { requireManagedResourceListAuth } from '../middleware/resourceListAuth.js';
 import {
     getHardAssets, getHardAssetById,
     createHardAsset, updateHardAsset, deleteHardAsset, createHardAssetMembershipQr,
@@ -16,7 +17,7 @@ import {
 
 const router = new Hono();
 
-router.get('/', optionalAuth, getHardAssets);
+router.get('/', optionalAuth, requireManagedResourceListAuth(), getHardAssets);
 router.post('/import/google-candidates', authenticateToken, authorizeResourceOperator(), searchGoogleHardAssetImportCandidates);
 router.post('/import/google-preview', authenticateToken, authorizeResourceOperator(), previewGoogleHardAssetImport);
 router.post('/import/enrich-draft', authenticateToken, authorizeResourceOperator(), enrichHardAssetDraft);

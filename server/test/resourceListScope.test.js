@@ -5,6 +5,7 @@ import {
     filterHardAssetsForResourceList,
     filterSoftAssetsForResourceList,
     paginateResourceList,
+    shouldRejectManagedResourceListRequest,
 } from '../src/utils/resourceListScope.js';
 
 function actor(overrides = {}) {
@@ -108,4 +109,10 @@ test('managed standalone soft asset lists follow service coverage', () => {
     });
 
     assert.deepEqual(scoped.map((asset) => asset.id), [21]);
+});
+
+test('managed resource list scope rejects guest access instead of returning silent zeroes', () => {
+    assert.equal(shouldRejectManagedResourceListRequest('managed', { role: 'guest' }), true);
+    assert.equal(shouldRejectManagedResourceListRequest('visible', { role: 'guest' }), false);
+    assert.equal(shouldRejectManagedResourceListRequest('managed', { role: 'super_admin' }), false);
 });

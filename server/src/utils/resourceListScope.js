@@ -2,9 +2,15 @@ import {
     filterHardAssetsByRegionRelevance,
     filterSoftAssetsByRegionRelevance,
 } from './regionScope.js';
+import { normalizeRole } from './roles.js';
 
 export function normalizeResourceListScope(value) {
     return String(value || '').trim().toLowerCase() === 'managed' ? 'managed' : 'visible';
+}
+
+export function shouldRejectManagedResourceListRequest(scopeValue, actor) {
+    return normalizeResourceListScope(scopeValue) === 'managed'
+        && normalizeRole(actor?.role) === 'guest';
 }
 
 export function normalizeResourceListPagination(input = {}) {

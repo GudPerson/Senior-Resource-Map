@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { authenticateToken, optionalAuth, authorizeResourceOperator } from '../middleware/auth.js';
+import { requireManagedResourceListAuth } from '../middleware/resourceListAuth.js';
 import {
     getSoftAssets, getSoftAssetById,
     createSoftAsset, updateSoftAsset, deleteSoftAsset, resetSoftAssetOverrides, patchSoftAssetAvailability
@@ -17,7 +18,7 @@ import {
 
 const router = new Hono();
 
-router.get('/', optionalAuth, getSoftAssets);
+router.get('/', optionalAuth, requireManagedResourceListAuth(), getSoftAssets);
 
 // Protected routes — resource operators only
 router.post('/import/collateral/preview', authenticateToken, authorizeResourceOperator(), previewSoftAssetCollateralImport);
