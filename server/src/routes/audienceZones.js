@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 
-import { authenticateToken, authorize } from '../middleware/auth.js';
+import { authenticateToken, authorizeResourceOperator } from '../middleware/auth.js';
 import {
     bulkDeleteAudienceZones,
     bulkUploadAudienceZoneBoundaries,
@@ -12,7 +12,7 @@ import {
 
 const router = new Hono();
 
-router.use('*', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'));
+router.use('*', authenticateToken, authorizeResourceOperator());
 
 router.get('/', getAudienceZones);
 router.post('/', createAudienceZone);

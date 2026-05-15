@@ -63,6 +63,8 @@ export function buildSessionPayload(user, extraClaims = {}) {
         managerUserId: user.managerUserId ?? null,
         subregionIds: Array.isArray(user.subregionIds) ? user.subregionIds : [],
         ...(Array.isArray(user.partnerStaffAccess) ? { partnerStaffAccess: user.partnerStaffAccess } : {}),
+        ...(Array.isArray(user.hardAssetStaffAccess) ? { hardAssetStaffAccess: user.hardAssetStaffAccess } : {}),
+        ...(Array.isArray(user.softAssetStaffAccess) ? { softAssetStaffAccess: user.softAssetStaffAccess } : {}),
         ...extraClaims,
     };
 }

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { authenticateToken, authorize } from '../middleware/auth.js';
+import { authenticateToken, authorizeResourceOperator } from '../middleware/auth.js';
 
 const router = new Hono();
 
@@ -70,7 +70,7 @@ const generateSignature = async (params, apiSecret) => {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-router.post('/', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), async (c) => {
+router.post('/', authenticateToken, authorizeResourceOperator(), async (c) => {
     try {
         const body = await c.req.parseBody();
         const file = body['file'];

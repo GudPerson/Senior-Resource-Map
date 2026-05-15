@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { hardAssets, users } from '../db/schema.js';
 import { actorCanManageAsset, canAssignPartnerOwner } from './ownership.js';
+import { getActiveHardAssetStaffAccess } from './hardAssetStaff.js';
 import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from './partnerStaff.js';
 import { normalizeRole } from './roles.js';
 
@@ -96,6 +97,11 @@ export function ensureActorCanTargetSubregion(actor, subregionId) {
     if (actorRole === 'super_admin') return;
 
     if (!Array.isArray(actor?.subregionIds) || !actor.subregionIds.includes(subregionId)) {
+        const directAssetSubregions = getActiveHardAssetStaffAccess(actor)
+            .map((entry) => entry.subregionId)
+            .filter(Number.isInteger);
+        if (directAssetSubregions.includes(subregionId)) return;
+
         throw clientError('Target subregion is outside your allowed scope.', 403);
     }
 }

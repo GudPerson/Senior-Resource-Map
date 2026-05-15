@@ -1,7 +1,7 @@
-import { and, desc, eq, inArray, sql, or, ilike } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, ilike } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { softAssets, softAssetLocations } from '../db/schema.js';
+import { softAssetRegionCoverages, softAssets, softAssetLocations, subregionPostalCodes } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
@@ -11,11 +11,23 @@ import {
     syncSoftAssetAudienceZones,
 } from '../utils/audienceZones.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
+import { hasAnyHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
+import { hasSoftAssetStaffAccess } from '../utils/softAssetAccess.js';
 import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { isAssetVisible } from '../utils/visibility.js';
+import {
+    filterSoftAssetsForResourceList,
+    normalizeResourceListPagination,
+    normalizeResourceListScope,
+    paginateResourceList,
+} from '../utils/resourceListScope.js';
+import {
+    attachHardAssetRegionMatches,
+    attachStandaloneSoftAssetCoverage,
+} from '../utils/regionScope.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolveSoftAssetBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
@@ -32,6 +44,7 @@ import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import {
     determineSoftSubregion,
+    ensureActorCanTargetSubregion,
     ensureActorCanManageLinkedHardAssets,
     getCacheRegionId,
     loadHardAssetsByIds,
@@ -133,6 +146,75 @@ function normalizeAvailabilityUnit(value) {
     return text ? text : null;
 }
 
+function normalizeCoverageRegionIds(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(
+        value
+            .map((entry) => Number.parseInt(String(entry), 10))
+            .filter((entry) => Number.isInteger(entry) && entry > 0)
+    )];
+}
+
+function getRequestedCoverageRegionIds(body = {}) {
+    return normalizeCoverageRegionIds(
+        body.coverageRegionIds ?? body.regionIds ?? body.serviceRegionIds ?? []
+    );
+}
+
+function hasCoverageRegionPatch(body = {}) {
+    return Object.prototype.hasOwnProperty.call(body, 'coverageRegionIds')
+        || Object.prototype.hasOwnProperty.call(body, 'regionIds')
+        || Object.prototype.hasOwnProperty.call(body, 'serviceRegionIds');
+}
+
+function getExplicitSubregionId(body = {}) {
+    const parsed = Number.parseInt(String(body?.subregionId ?? ''), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function hasExplicitSubregionId(body = {}) {
+    return Number.isInteger(getExplicitSubregionId(body));
+}
+
+function withCoverageSubregionFallback(body = {}, linkedIds = [], coverageRegionIds = []) {
+    if (linkedIds.length > 0 || hasExplicitSubregionId(body) || coverageRegionIds.length === 0) {
+        return body;
+    }
+    return {
+        ...body,
+        subregionId: coverageRegionIds[0],
+    };
+}
+
+function uniqueSortedIntegerList(values = []) {
+    return [...new Set(
+        values
+            .map((value) => Number.parseInt(String(value), 10))
+            .filter((value) => Number.isInteger(value) && value > 0)
+    )].sort((left, right) => left - right);
+}
+
+async function syncSoftAssetRegionCoverages(db, softAssetId, regionIds = [], actor) {
+    const ids = normalizeCoverageRegionIds(regionIds);
+    await db.delete(softAssetRegionCoverages).where(eq(softAssetRegionCoverages.softAssetId, softAssetId));
+
+    if (ids.length === 0) return;
+
+    await db.insert(softAssetRegionCoverages).values(
+        ids.map((subregionId) => ({
+            softAssetId,
+            subregionId,
+            createdByUserId: actor?.id || null,
+        }))
+    ).onConflictDoNothing();
+}
+
+function assertManageableCoverageRegions(actor, regionIds = []) {
+    for (const regionId of normalizeCoverageRegionIds(regionIds)) {
+        ensureActorCanTargetSubregion(actor, regionId);
+    }
+}
+
 function sanitizeSoftAssetPayload(body = {}) {
     return {
         ...body,
@@ -232,6 +314,109 @@ function formatSoftAssetWithAccess(
     };
 }
 
+function isStandaloneOffering(asset) {
+    const hasLinkedLocations = Array.isArray(asset?.locations) && asset.locations.length > 0;
+    return !asset?.hostHardAssetId
+        && !hasLinkedLocations
+        && (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.STANDALONE;
+}
+
+function buildSoftAssetPermissionSummary(viewer, asset) {
+    const role = normalizeRole(viewer?.role);
+    const isSuperAdmin = role === 'super_admin';
+
+    if (isStandaloneOffering(asset)) {
+        const isOwner = hasSoftAssetStaffAccess(viewer, asset?.id, ['owner']);
+        const isStaff = hasSoftAssetStaffAccess(viewer, asset?.id, ['staff']);
+        return {
+            canEdit: isSuperAdmin || isOwner || isStaff,
+            canManageAccess: isSuperAdmin || isOwner,
+            canDelete: isSuperAdmin || isOwner,
+            canHide: isSuperAdmin || isOwner,
+        };
+    }
+
+    const canEdit = actorCanManageAsset(viewer, asset, asset?.partner);
+    return {
+        canEdit: isSuperAdmin || canEdit,
+        canManageAccess: false,
+        canDelete: isSuperAdmin || canEdit,
+        canHide: isSuperAdmin || canEdit,
+    };
+}
+
+async function attachSoftAssetRegionMetadata(db, assets = []) {
+    const hardLocationEntries = assets.flatMap((asset) => {
+        const entries = [];
+        if (asset?.hostHardAsset) entries.push(asset.hostHardAsset);
+        if (Array.isArray(asset?.locations)) {
+            entries.push(...asset.locations.map((location) => location?.hardAsset).filter(Boolean));
+        }
+        return entries;
+    });
+    const hardPostalCodes = [...new Set(hardLocationEntries.map((asset) => asset?.postalCode).filter(Boolean))];
+    const hardRegionRows = hardPostalCodes.length > 0
+        ? await db.select({
+            postalCode: subregionPostalCodes.postalCode,
+            subregionId: subregionPostalCodes.subregionId,
+        })
+            .from(subregionPostalCodes)
+            .where(inArray(subregionPostalCodes.postalCode, hardPostalCodes))
+        : [];
+    const hardAssetsWithRegions = attachHardAssetRegionMatches(hardLocationEntries, hardRegionRows);
+    const matchingRegionsByHardAssetId = new Map(
+        hardAssetsWithRegions.map((asset) => [Number(asset.id), asset.matchingRegionIds || []])
+    );
+
+    const standaloneIds = assets
+        .filter(isStandaloneOffering)
+        .map((asset) => Number(asset.id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+    const coverageRows = standaloneIds.length > 0
+        ? await db.select({
+            softAssetId: softAssetRegionCoverages.softAssetId,
+            subregionId: softAssetRegionCoverages.subregionId,
+        })
+            .from(softAssetRegionCoverages)
+            .where(inArray(softAssetRegionCoverages.softAssetId, standaloneIds))
+        : [];
+    const standaloneWithCoverage = attachStandaloneSoftAssetCoverage(assets, coverageRows);
+    const coverageBySoftAssetId = new Map(
+        standaloneWithCoverage.map((asset) => [Number(asset.id), asset.coverageRegionIds || []])
+    );
+
+    return assets.map((asset) => {
+        const hostMatches = matchingRegionsByHardAssetId.get(Number(asset?.hostHardAssetId)) || [];
+        const locationMatches = Array.isArray(asset.locations)
+            ? asset.locations.flatMap((location) => matchingRegionsByHardAssetId.get(Number(location?.hardAssetId ?? location?.hardAsset?.id)) || [])
+            : [];
+        const coverageRegionIds = coverageBySoftAssetId.get(Number(asset.id)) || [];
+        return {
+            ...asset,
+            coverageRegionIds,
+            matchingRegionIds: uniqueSortedIntegerList([...hostMatches, ...locationMatches, ...coverageRegionIds]),
+            hostHardAsset: asset.hostHardAsset
+                ? {
+                    ...asset.hostHardAsset,
+                    matchingRegionIds: matchingRegionsByHardAssetId.get(Number(asset.hostHardAsset.id)) || [],
+                }
+                : asset.hostHardAsset,
+            locations: Array.isArray(asset.locations)
+                ? asset.locations.map((location) => ({
+                    ...location,
+                    matchingRegionIds: matchingRegionsByHardAssetId.get(Number(location?.hardAssetId ?? location?.hardAsset?.id)) || [],
+                    hardAsset: location?.hardAsset
+                        ? {
+                            ...location.hardAsset,
+                            matchingRegionIds: matchingRegionsByHardAssetId.get(Number(location.hardAsset.id)) || [],
+                        }
+                        : location?.hardAsset,
+                }))
+                : asset.locations,
+        };
+    });
+}
+
 async function attachSoftAssetTranslations(db, formattedAssets) {
     const assets = Array.isArray(formattedAssets) ? formattedAssets : [formattedAssets].filter(Boolean);
     if (assets.length === 0) return formattedAssets;
@@ -308,21 +493,18 @@ export const getSoftAssets = async (c) => {
         const user = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        const role = normalizeRole(user?.role);
         const boundaryContext = await loadScopedBoundaryContext(db, user);
         const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
-        const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10));
-        const pageSize = Math.min(500, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10)));
-        const offset = (page - 1) * pageSize;
+        const { page, pageSize } = normalizeResourceListPagination({
+            page: c.req.query('page'),
+            pageSize: c.req.query('pageSize'),
+        });
+        const listScope = normalizeResourceListScope(c.req.query('scope'));
         const query = c.req.query('q');
 
         const whereClauses = [eq(softAssets.isDeleted, false)];
-
-        if ((role === 'regional_admin' || role === 'partner') && Array.isArray(user?.subregionIds) && user.subregionIds.length > 0) {
-            whereClauses.push(inArray(softAssets.subregionId, user.subregionIds));
-        }
 
         if (query) {
             whereClauses.push(or(
@@ -334,31 +516,28 @@ export const getSoftAssets = async (c) => {
 
         const finalWhere = and(...whereClauses);
 
-        // Get total count for pagination
-        const countResult = await db.select({ count: sql`count(*)` })
-            .from(softAssets)
-            .where(finalWhere);
-        const totalCount = Number(countResult[0]?.count || 0);
-
         const options = {
             where: finalWhere,
             with: softAssetWithRelations,
             orderBy: [desc(softAssets.updatedAt), desc(softAssets.id)],
-            limit: pageSize,
-            offset: offset,
         };
 
         const assets = await db.query.softAssets.findMany(options);
-
-        const eligibilityContext = await buildEligibilityContext(db, user);
-        const membershipHostIdMap = await buildMembershipHostIdMap(db, assets);
-        const formatted = assets
-            .filter((asset) => isAssetVisible(asset, user, {
+        const assetsWithRegionMetadata = await attachSoftAssetRegionMetadata(db, assets);
+        const scopedAssets = filterSoftAssetsForResourceList(assetsWithRegionMetadata, user, {
+            scope: listScope,
+            isVisible: (asset) => isAssetVisible(asset, user, {
                 ownerPartner: asset.partner,
                 allowedPartnerAudienceIds,
                 allowedAudienceZoneIds,
                 treatMemberOnlyAsVisible: true,
-            }))
+            }),
+            canExpose: () => true,
+        });
+
+        const eligibilityContext = await buildEligibilityContext(db, user);
+        const membershipHostIdMap = await buildMembershipHostIdMap(db, scopedAssets);
+        const formatted = scopedAssets
             .map((asset) => ({
                 raw: asset,
                 formatted: formatSoftAssetWithAccess(
@@ -371,19 +550,21 @@ export const getSoftAssets = async (c) => {
                     membershipHostIdMap,
                 ),
             }))
-            .filter(({ raw, formatted }) => canExposeFormattedSoftAsset(raw, formatted))
-            .map(({ formatted }) => formatted);
+            .filter(({ raw, formatted }) => listScope === 'managed' || canExposeFormattedSoftAsset(raw, formatted))
+            .map(({ raw, formatted }) => ({
+                ...formatted,
+                coverageRegionIds: raw.coverageRegionIds || [],
+                matchingRegionIds: raw.matchingRegionIds || raw.coverageRegionIds || [],
+                primaryRegionId: raw.subregionId || null,
+                permissions: buildSoftAssetPermissionSummary(user, raw),
+            }));
+        const { data: pagedFormatted, pagination } = paginateResourceList(formatted, { page, pageSize });
 
-        const formattedWithTranslations = await attachSoftAssetTranslations(db, formatted);
+        const formattedWithTranslations = await attachSoftAssetTranslations(db, pagedFormatted);
 
         return c.json({
             data: formattedWithTranslations,
-            pagination: {
-                totalCount,
-                page,
-                pageSize,
-                totalPages: Math.ceil(totalCount / pageSize),
-            }
+            pagination,
         });
     } catch (err) {
         console.error('getSoftAssets Error:', err);
@@ -401,7 +582,8 @@ export const getSoftAssetById = async (c) => {
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
         const boundaryContext = await loadScopedBoundaryContext(db, user);
 
-        const asset = await loadSoftAssetById(db, id);
+        const loadedAsset = await loadSoftAssetById(db, id);
+        const [asset] = loadedAsset ? await attachSoftAssetRegionMetadata(db, [loadedAsset]) : [];
         if (!asset || !isAssetVisible(asset, user, {
             ownerPartner: asset.partner,
             allowedPartnerAudienceIds,
@@ -426,7 +608,13 @@ export const getSoftAssetById = async (c) => {
             return c.json({ error: 'Not found' }, 404);
         }
 
-        return c.json(await attachSoftAssetTranslations(db, formatted));
+        return c.json(await attachSoftAssetTranslations(db, {
+            ...formatted,
+            coverageRegionIds: asset.coverageRegionIds || [],
+            matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
+            primaryRegionId: asset.subregionId || null,
+            permissions: buildSoftAssetPermissionSummary(user, asset),
+        }));
     } catch (err) {
         console.error('getSoftAssetById Error:', err);
         return c.json({ error: err.message || 'Failed to fetch soft asset' }, err.status || 500);
@@ -440,11 +628,21 @@ export const createSoftAsset = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if ((role === 'standard' || role === 'guest') && !hasAnyPartnerStaffAccess(user)) {
-            return c.json({ error: 'Only partners and admins can create resources' }, 403);
-        }
-
         const body = sanitizeSoftAssetPayload(await c.req.json());
+        const linkedIds = parseLinkedHardAssetIds(body);
+        const explicitSubregionId = getExplicitSubregionId(body);
+        const requestedCoverageRegionIds = getRequestedCoverageRegionIds(body);
+        const coverageRegionIds = linkedIds.length === 0
+            ? (requestedCoverageRegionIds.length > 0 ? requestedCoverageRegionIds : (explicitSubregionId ? [explicitSubregionId] : []))
+            : [];
+        const bodyForRouting = withCoverageSubregionFallback(body, linkedIds, coverageRegionIds);
+        if (
+            (role === 'standard' || role === 'guest')
+            && !hasAnyPartnerStaffAccess(user)
+            && !(hasAnyHardAssetStaffAccess(user) && linkedIds.length > 0)
+        ) {
+            return c.json({ error: 'Only admins and assigned asset staff can create linked offerings' }, 403);
+        }
         if ((body?.assetMode && body.assetMode !== SOFT_ASSET_MODES.STANDALONE) || body?.parentSoftAssetId || body?.hostHardAssetId) {
             return c.json({ error: 'Generated child offerings must be created from a parent template.' }, 400);
         }
@@ -478,25 +676,37 @@ export const createSoftAsset = async (c) => {
             return c.json({ error: 'Name is required' }, 400);
         }
 
-        const linkedIds = parseLinkedHardAssetIds(body);
         const linkedHardAssets = await loadHardAssetsByIds(db, linkedIds);
         if (linkedHardAssets.length !== linkedIds.length) {
             return c.json({ error: 'One or more linked places were not found.' }, 404);
         }
         ensureActorCanManageLinkedHardAssets(user, linkedHardAssets);
 
-        const finalSubregionId = determineSoftSubregion(user, body, linkedHardAssets);
-        const { owner } = await resolveAssetOwner(db, user, body, finalSubregionId);
+        assertManageableCoverageRegions(user, coverageRegionIds);
+
+        const requestedAudienceZoneIds = normalizeAudienceZoneIds(body?.audienceZoneIds);
+        const canRouteWithoutSubregion = linkedIds.length === 0
+            && coverageRegionIds.length === 0
+            && (body.audienceMode || 'public') === 'audience_zones'
+            && requestedAudienceZoneIds.length > 0;
+        const finalSubregionId = canRouteWithoutSubregion
+            ? null
+            : determineSoftSubregion(user, bodyForRouting, linkedHardAssets);
+        const { owner } = await resolveAssetOwner(db, user, bodyForRouting, finalSubregionId);
         const audienceMode = normalizeAudienceMode(body, owner);
         const audienceZoneIds = audienceMode === 'audience_zones'
-            ? normalizeAudienceZoneIds(body?.audienceZoneIds)
+            ? requestedAudienceZoneIds
             : [];
+
+        if (linkedIds.length === 0 && coverageRegionIds.length === 0 && audienceZoneIds.length === 0) {
+            return c.json({ error: 'Standalone offerings need at least one service Region or Audience Zone.' }, 400);
+        }
 
         if (audienceMode === 'audience_zones') {
             if (audienceZoneIds.length === 0) {
                 return c.json({ error: 'Select at least one audience zone for audience-zone offerings.' }, 400);
             }
-            await assertManageableAudienceZones(db, user, audienceZoneIds);
+            await assertManageableAudienceZones(db, user, audienceZoneIds, { hardAssetIds: linkedIds });
         }
 
         const [asset] = await db.insert(softAssets).values({
@@ -540,6 +750,7 @@ export const createSoftAsset = async (c) => {
                     hardAssetId: hardAsset.id,
                 });
             }
+            await syncSoftAssetRegionCoverages(db, asset.id, coverageRegionIds, user);
             await syncAssetTags(db, asset.id, 'soft', newTags);
             await syncSoftAssetAudienceZones(db, asset.id, audienceZoneIds);
         } catch (syncError) {
@@ -548,7 +759,7 @@ export const createSoftAsset = async (c) => {
         }
 
         const translationStatus = await triggerSoftAssetTranslation(db, c.env, asset, user);
-        await rebuildSoftAssetCaches([finalSubregionId], c.env, user);
+        await rebuildSoftAssetCaches([finalSubregionId, ...coverageRegionIds], c.env, user);
 
         return c.json({ ...asset, translationStatus }, 201);
     } catch (err) {
@@ -569,6 +780,7 @@ export const patchSoftAssetAvailability = async (c) => {
         if (!actorCanManageAsset(user, existing, existing.partner)) {
             return c.json({ error: 'Insufficient permissions to edit this asset' }, 403);
         }
+        const [existingWithCoverage] = await attachSoftAssetRegionMetadata(db, [existing]);
 
         const body = sanitizeSoftAssetPatch(await c.req.json());
         const nextAvailabilityEnabled = body?.availabilityEnabled !== undefined
@@ -597,12 +809,13 @@ export const patchSoftAssetAvailability = async (c) => {
             updatedAt: new Date(),
         }).where(eq(softAssets.id, id));
 
-        await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
+        await rebuildSoftAssetCaches([existing.subregionId, ...(existingWithCoverage?.coverageRegionIds || [])], c.env, user);
 
         const boundaryContext = await loadScopedBoundaryContext(db, user);
         const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
-        const refreshed = await loadSoftAssetById(db, id);
+        const loadedRefreshed = await loadSoftAssetById(db, id);
+        const [refreshed] = loadedRefreshed ? await attachSoftAssetRegionMetadata(db, [loadedRefreshed]) : [];
         if (!refreshed) {
             return c.json({ error: 'Not found' }, 404);
         }
@@ -621,6 +834,10 @@ export const patchSoftAssetAvailability = async (c) => {
         );
         return c.json({
             ...(await attachSoftAssetTranslations(db, formatted)),
+            coverageRegionIds: refreshed.coverageRegionIds || [],
+            matchingRegionIds: refreshed.matchingRegionIds || refreshed.coverageRegionIds || [],
+            primaryRegionId: refreshed.subregionId || null,
+            permissions: buildSoftAssetPermissionSummary(user, refreshed),
             translationStatus,
         });
     } catch (err) {
@@ -644,6 +861,11 @@ export const updateSoftAsset = async (c) => {
         }
 
         const body = sanitizeSoftAssetPatch(await c.req.json());
+        const visibilityPatchRequested = ['isHidden', 'hideFrom', 'hideUntil']
+            .some((field) => Object.prototype.hasOwnProperty.call(body, field));
+        if (visibilityPatchRequested && !buildSoftAssetPermissionSummary(user, existing).canHide) {
+            return c.json({ error: 'Insufficient permissions to hide this asset' }, 403);
+        }
 
         if (isChildSoftAsset(existing)) {
             const patch = buildChildEditablePatch(body, existing);
@@ -656,6 +878,9 @@ export const updateSoftAsset = async (c) => {
             return c.json({ success: true, id, assetMode: existing.assetMode, translationStatus });
         }
 
+        const [existingWithCoverage] = await attachSoftAssetRegionMetadata(db, [existing]);
+        const existingCoverageRegionIds = existingWithCoverage?.coverageRegionIds || [];
+        const explicitSubregionId = getExplicitSubregionId(body);
         const nextLinkedIds = body.locationIds !== undefined || body.locationId !== undefined
             ? parseLinkedHardAssetIds(body)
             : existing.locations.map((entry) => entry.hardAssetId);
@@ -668,7 +893,33 @@ export const updateSoftAsset = async (c) => {
         }
         ensureActorCanManageLinkedHardAssets(user, linkedHardAssets);
 
-        const finalSubregionId = determineSoftSubregion(user, body, linkedHardAssets);
+        const coveragePatchRequested = hasCoverageRegionPatch(body);
+        const nextCoverageRegionIds = nextLinkedIds.length === 0
+            ? (
+                coveragePatchRequested
+                    ? getRequestedCoverageRegionIds(body)
+                    : (explicitSubregionId ? [explicitSubregionId] : (existingCoverageRegionIds.length > 0 ? existingCoverageRegionIds : (existing.subregionId ? [existing.subregionId] : [])))
+            )
+            : [];
+        assertManageableCoverageRegions(user, nextCoverageRegionIds);
+
+        const existingAudienceZoneIds = existing.audienceZones.map((entry) => entry.audienceZone.id);
+        const requestedAudienceMode = body.audienceMode ?? existing.audienceMode;
+        const requestedAudienceZoneIds = body.audienceZoneIds !== undefined
+            ? normalizeAudienceZoneIds(body.audienceZoneIds)
+            : existingAudienceZoneIds;
+        let bodyForRouting = withCoverageSubregionFallback(body, nextLinkedIds, nextCoverageRegionIds);
+        if (nextLinkedIds.length === 0 && !hasExplicitSubregionId(bodyForRouting) && existing.subregionId) {
+            bodyForRouting = { ...bodyForRouting, subregionId: existing.subregionId };
+        }
+        const canRouteWithoutSubregion = nextLinkedIds.length === 0
+            && nextCoverageRegionIds.length === 0
+            && requestedAudienceMode === 'audience_zones'
+            && requestedAudienceZoneIds.length > 0
+            && !hasExplicitSubregionId(bodyForRouting);
+        const finalSubregionId = canRouteWithoutSubregion
+            ? null
+            : determineSoftSubregion(user, bodyForRouting, linkedHardAssets);
 
         let owner = existing.partner || null;
         if (role === 'partner') {
@@ -676,24 +927,27 @@ export const updateSoftAsset = async (c) => {
         } else if (hasAnyPartnerStaffAccess(user) && (body.partnerId !== undefined || body.ownershipMode !== undefined)) {
             return c.json({ error: 'Partners cannot transfer offering ownership.' }, 403);
         } else if (hasAnyPartnerStaffAccess(user)) {
-            const resolvedOwner = await resolveAssetOwner(db, user, body, finalSubregionId);
+            const resolvedOwner = await resolveAssetOwner(db, user, bodyForRouting, finalSubregionId);
             owner = resolvedOwner.owner;
         } else if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
-            const resolvedOwner = await resolveAssetOwner(db, user, body, finalSubregionId);
+            const resolvedOwner = await resolveAssetOwner(db, user, bodyForRouting, finalSubregionId);
             owner = resolvedOwner.owner;
         }
 
         const audienceMode = normalizeAudienceMode(body.audienceMode ?? existing.audienceMode, owner);
-        const existingAudienceZoneIds = existing.audienceZones.map((entry) => entry.audienceZone.id);
         const nextAudienceZoneIds = audienceMode === 'audience_zones'
-            ? (body.audienceZoneIds !== undefined ? normalizeAudienceZoneIds(body.audienceZoneIds) : existingAudienceZoneIds)
+            ? requestedAudienceZoneIds
             : [];
+
+        if (nextLinkedIds.length === 0 && nextCoverageRegionIds.length === 0 && nextAudienceZoneIds.length === 0) {
+            return c.json({ error: 'Standalone offerings need at least one service Region or Audience Zone.' }, 400);
+        }
 
         if (audienceMode === 'audience_zones') {
             if (nextAudienceZoneIds.length === 0) {
                 return c.json({ error: 'Select at least one audience zone for audience-zone offerings.' }, 400);
             }
-            await assertManageableAudienceZones(db, user, nextAudienceZoneIds);
+            await assertManageableAudienceZones(db, user, nextAudienceZoneIds, { hardAssetIds: nextLinkedIds });
         }
 
         await db.update(softAssets).set({
@@ -741,13 +995,19 @@ export const updateSoftAsset = async (c) => {
         }
 
         await syncSoftAssetAudienceZones(db, id, nextAudienceZoneIds);
+        await syncSoftAssetRegionCoverages(db, id, nextCoverageRegionIds, user);
 
         const refreshed = await loadSoftAssetById(db, id);
         const translationStatus = refreshed
             ? await triggerSoftAssetTranslation(db, c.env, refreshed, user)
             : { status: 'skipped', message: 'Offering was saved but could not be reloaded for translation.' };
 
-        await rebuildSoftAssetCaches([finalSubregionId, existing.subregionId], c.env, user);
+        await rebuildSoftAssetCaches([
+            finalSubregionId,
+            existing.subregionId,
+            ...nextCoverageRegionIds,
+            ...existingCoverageRegionIds,
+        ], c.env, user);
 
         return c.json({ success: true, id, assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE, translationStatus });
     } catch (err) {
@@ -795,9 +1055,10 @@ export const deleteSoftAsset = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        const existing = await loadSoftAssetById(db, id);
+        const loadedExisting = await loadSoftAssetById(db, id);
+        const [existing] = loadedExisting ? await attachSoftAssetRegionMetadata(db, [loadedExisting]) : [];
         if (!existing) return c.json({ error: 'Not found' }, 404);
-        if (!actorCanManageAsset(user, existing, existing.partner)) {
+        if (!buildSoftAssetPermissionSummary(user, existing).canDelete) {
             return c.json({ error: 'Insufficient permissions to delete this asset' }, 403);
         }
 
@@ -805,7 +1066,7 @@ export const deleteSoftAsset = async (c) => {
             isDeleted: true,
             updatedAt: new Date(),
         }).where(eq(softAssets.id, id));
-        await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
+        await rebuildSoftAssetCaches([existing.subregionId, ...(existing.coverageRegionIds || [])], c.env, user);
 
         return c.json({ success: true });
     } catch (err) {

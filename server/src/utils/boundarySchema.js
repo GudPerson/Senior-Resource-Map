@@ -289,6 +289,46 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS hard_asset_staff_memberships (
+                    id SERIAL PRIMARY KEY,
+                    hard_asset_id INTEGER NOT NULL REFERENCES hard_assets(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    staff_role VARCHAR(40) NOT NULL DEFAULT 'staff',
+                    revoked_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS soft_asset_region_coverages (
+                    soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    subregion_id INTEGER NOT NULL REFERENCES subregions(id) ON DELETE CASCADE,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    PRIMARY KEY (soft_asset_id, subregion_id)
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS soft_asset_staff_memberships (
+                    id SERIAL PRIMARY KEY,
+                    soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    staff_role VARCHAR(40) NOT NULL DEFAULT 'staff',
+                    revoked_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS hard_asset_id INTEGER REFERENCES hard_assets(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS sharing_status VARCHAR(40) NOT NULL DEFAULT 'approved'`);
+            await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP`);
+            await db.execute(sql`UPDATE audience_zones SET sharing_status = 'approved' WHERE sharing_status IS NULL OR BTRIM(sharing_status) = ''`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS audience_zones_zone_code_unique ON audience_zones (zone_code)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS audience_zone_postal_codes (
@@ -361,6 +401,18 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_staff_events_organization_idx ON partner_staff_events (organization_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_staff_events_actor_idx ON partner_staff_events (actor_user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_staff_events_target_idx ON partner_staff_events (target_user_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS hard_asset_staff_memberships_active_user_unique ON hard_asset_staff_memberships (hard_asset_id, user_id) WHERE revoked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS hard_asset_staff_memberships_hard_asset_idx ON hard_asset_staff_memberships (hard_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS hard_asset_staff_memberships_user_idx ON hard_asset_staff_memberships (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS hard_asset_staff_memberships_role_idx ON hard_asset_staff_memberships (staff_role)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_region_coverages_soft_asset_idx ON soft_asset_region_coverages (soft_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_region_coverages_subregion_idx ON soft_asset_region_coverages (subregion_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_staff_memberships_active_user_unique ON soft_asset_staff_memberships (soft_asset_id, user_id) WHERE revoked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_soft_asset_idx ON soft_asset_staff_memberships (soft_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_user_idx ON soft_asset_staff_memberships (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_role_idx ON soft_asset_staff_memberships (staff_role)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_hard_asset_idx ON audience_zones (hard_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_sharing_status_idx ON audience_zones (sharing_status)`);
             await db.execute(sql`
                 INSERT INTO partner_organizations (legacy_partner_user_id, name, created_by_user_id, updated_by_user_id)
                 SELECT

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 
-import { authenticateToken, authorize } from '../middleware/auth.js';
+import { authenticateToken, authorizeResourceOperator } from '../middleware/auth.js';
 import {
     getResourceTranslations,
     regenerateResourceTranslations,
@@ -9,7 +9,7 @@ import {
 
 const router = new Hono();
 
-router.use('*', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'));
+router.use('*', authenticateToken, authorizeResourceOperator());
 
 router.get('/:type/:id', getResourceTranslations);
 router.put('/:type/:id/:locale', updateResourceTranslation);

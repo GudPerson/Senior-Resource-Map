@@ -13,7 +13,7 @@ const LEGACY_ROLE_MAP = {
     asset_owner: 'partner',
 };
 
-export const ASSIGNABLE_ROLES = ['standard', 'partner', 'regional_admin', 'super_admin'];
+export const ASSIGNABLE_ROLES = ['standard', 'regional_admin', 'super_admin'];
 
 export function normalizeRole(role) {
     if (!role) return 'guest';
@@ -33,8 +33,6 @@ export function getCreatableRoles(role) {
         case 'super_admin':
             return [...ASSIGNABLE_ROLES];
         case 'regional_admin':
-            return ['partner'];
-        case 'partner':
             return ['standard'];
         default:
             return [];
@@ -46,8 +44,6 @@ export function getManageableRoles(role) {
         case 'super_admin':
             return [...ASSIGNABLE_ROLES];
         case 'regional_admin':
-            return ['partner'];
-        case 'partner':
             return ['standard'];
         default:
             return [];

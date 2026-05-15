@@ -4,10 +4,16 @@ import test from 'node:test';
 import { Hono } from 'hono';
 
 import app from '../src/app.js';
-import { authenticateToken, authorize } from '../src/middleware/auth.js';
-import { canManageAudienceZone } from '../src/utils/audienceZones.js';
+import { authenticateToken, authorize, authorizeResourceOperator } from '../src/middleware/auth.js';
+import { canManageAudienceZone, canUseAudienceZoneForHardAssetIds, canViewAudienceZone } from '../src/utils/audienceZones.js';
 import { buildMyMapAssetSnapshot, normalizeMyMapAssetSnapshot } from '../src/utils/myMapDirectory.js';
-import { actorCanManageAsset, actorCanManagePartnerOwnedEntity, canAssignPartnerOwner } from '../src/utils/ownership.js';
+import {
+    actorCanDeleteHardAsset,
+    actorCanHideHardAsset,
+    actorCanManageAsset,
+    actorCanManagePartnerOwnedEntity,
+    canAssignPartnerOwner,
+} from '../src/utils/ownership.js';
 import { buildSavedAssetSnapshot } from '../src/utils/savedAssets.js';
 import { createSessionToken, SESSION_HEADER_NAME } from '../src/utils/sessionAuth.js';
 
@@ -67,7 +73,7 @@ function assertNoSensitivePayload(value) {
     });
 }
 
-test('asset ownership rules block unrelated partners and out-of-scope regional admins', () => {
+test('asset ownership rules require explicit asset access beyond Super Admin', () => {
     const ownerPartner = { id: 20, role: 'partner', managerUserId: 9, subregionIds: [4] };
     const asset = {
         id: 12,
@@ -77,15 +83,21 @@ test('asset ownership rules block unrelated partners and out-of-scope regional a
     };
 
     assert.equal(actorCanManageAsset(createActor({ id: 1, role: 'super_admin' }), asset, ownerPartner), true);
-    assert.equal(actorCanManageAsset(createActor({ id: 20, role: 'partner', subregionIds: [4] }), asset, ownerPartner), true);
+    assert.equal(actorCanManageAsset(createActor({ id: 20, role: 'partner', subregionIds: [4] }), asset, ownerPartner), false);
     assert.equal(actorCanManageAsset(createActor({ id: 21, role: 'partner', subregionIds: [4] }), asset, ownerPartner), false);
-    assert.equal(actorCanManageAsset(createActor({ id: 9, role: 'regional_admin', subregionIds: [4] }), asset, ownerPartner), true);
+    assert.equal(actorCanManageAsset(createActor({ id: 9, role: 'regional_admin', subregionIds: [4] }), asset, ownerPartner), false);
     assert.equal(actorCanManageAsset(createActor({ id: 10, role: 'regional_admin', subregionIds: [4] }), asset, ownerPartner), false);
     assert.equal(actorCanManageAsset(createActor({ id: 9, role: 'regional_admin', subregionIds: [5] }), asset, ownerPartner), false);
+    assert.equal(actorCanManageAsset(createActor({
+        id: 9,
+        role: 'regional_admin',
+        subregionIds: [4],
+        hardAssetStaffAccess: [{ hardAssetId: 12, staffRole: 'owner' }],
+    }), asset, ownerPartner), true);
     assert.equal(actorCanManageAsset(createActor({ id: 30, role: 'standard', subregionIds: [4] }), asset, ownerPartner), false);
 });
 
-test('partner staff access can manage legacy partner-owned assets without changing resource ownership', () => {
+test('partner staff access no longer grants hard asset edit authority', () => {
     const ownerPartner = { id: 20, role: 'partner', managerUserId: 9, subregionIds: [4] };
     const asset = {
         id: 12,
@@ -136,11 +148,66 @@ test('partner staff access can manage legacy partner-owned assets without changi
         }],
     });
 
-    assert.equal(actorCanManageAsset(staffEditor, asset, ownerPartner), true);
-    assert.equal(actorCanManageAsset(staffOwner, asset, ownerPartner), true);
+    assert.equal(actorCanManageAsset(staffEditor, asset, ownerPartner), false);
+    assert.equal(actorCanManageAsset(staffOwner, asset, ownerPartner), false);
     assert.equal(actorCanManageAsset(revokedStaff, asset, ownerPartner), false);
     assert.equal(actorCanManageAsset(unrelatedStaff, asset, ownerPartner), false);
     assert.equal(asset.partnerId, 20, 'staff access must not rewrite the legacy resource owner id');
+});
+
+test('direct hard-asset owner and staff access can edit without changing legacy ownership', () => {
+    const asset = {
+        id: 12,
+        partnerId: null,
+        subregionId: 4,
+    };
+    const assetOwner = createActor({
+        id: 80,
+        role: 'standard',
+        hardAssetStaffAccess: [{
+            hardAssetId: 12,
+            staffRole: 'owner',
+            subregionId: 4,
+        }],
+    });
+    const assetStaff = createActor({
+        id: 81,
+        role: 'standard',
+        hardAssetStaffAccess: [{
+            hardAssetId: 12,
+            staffRole: 'staff',
+            subregionId: 4,
+        }],
+    });
+    const revokedStaff = createActor({
+        id: 82,
+        role: 'standard',
+        hardAssetStaffAccess: [{
+            hardAssetId: 12,
+            staffRole: 'staff',
+            revokedAt: '2026-05-14T00:00:00.000Z',
+            subregionId: 4,
+        }],
+    });
+    const otherAssetStaff = createActor({
+        id: 83,
+        role: 'standard',
+        hardAssetStaffAccess: [{
+            hardAssetId: 13,
+            staffRole: 'staff',
+            subregionId: 4,
+        }],
+    });
+
+    assert.equal(actorCanManageAsset(assetOwner, asset), true);
+    assert.equal(actorCanManageAsset(assetStaff, asset), true);
+    assert.equal(actorCanManageAsset(revokedStaff, asset), false);
+    assert.equal(actorCanManageAsset(otherAssetStaff, asset), false);
+    assert.equal(actorCanHideHardAsset(assetOwner, asset), true);
+    assert.equal(actorCanDeleteHardAsset(assetOwner, asset), true);
+    assert.equal(actorCanHideHardAsset(assetStaff, asset), false);
+    assert.equal(actorCanDeleteHardAsset(assetStaff, asset), false);
+    assert.equal(asset.partnerId, null, 'direct staff access must not reintroduce legacy partner ownership');
 });
 
 test('partner staff access can manage legacy partner-owned admin surfaces', () => {
@@ -228,12 +295,49 @@ test('audience-zone management follows owner and manager boundaries', () => {
     assert.equal(canManageAudienceZone(createActor({ id: 10, role: 'regional_admin' }), systemZone), false);
 });
 
-test('standard users cannot access partner-only or translation review APIs', async () => {
+test('asset audience zones are local to assigned hard assets until approved', () => {
+    const zone = {
+        id: 8,
+        hardAssetId: 12,
+        sharingStatus: 'local',
+        hardAsset: {
+            id: 12,
+            subregionId: 4,
+        },
+    };
+    const approvedZone = { ...zone, sharingStatus: 'approved' };
+    const assetOwner = createActor({
+        id: 80,
+        role: 'standard',
+        hardAssetStaffAccess: [{ hardAssetId: 12, staffRole: 'owner', subregionId: 4 }],
+    });
+    const assetStaff = createActor({
+        id: 81,
+        role: 'standard',
+        hardAssetStaffAccess: [{ hardAssetId: 12, staffRole: 'staff', subregionId: 4 }],
+    });
+    const otherAssetStaff = createActor({
+        id: 82,
+        role: 'standard',
+        hardAssetStaffAccess: [{ hardAssetId: 13, staffRole: 'staff', subregionId: 4 }],
+    });
+
+    assert.equal(canManageAudienceZone(assetOwner, zone), true);
+    assert.equal(canManageAudienceZone(assetStaff, zone), false);
+    assert.equal(canViewAudienceZone(assetStaff, zone), true);
+    assert.equal(canUseAudienceZoneForHardAssetIds(assetStaff, zone, [12]), true);
+    assert.equal(canUseAudienceZoneForHardAssetIds(otherAssetStaff, zone, [13]), false);
+    assert.equal(canUseAudienceZoneForHardAssetIds(otherAssetStaff, approvedZone, [13]), true);
+    assert.equal(canManageAudienceZone(createActor({ id: 9, role: 'regional_admin', subregionIds: [4] }), zone), true);
+    assert.equal(canManageAudienceZone(createActor({ id: 10, role: 'regional_admin', subregionIds: [5] }), zone), false);
+});
+
+test('standard users cannot access restricted content or translation review APIs', async () => {
     const standardUser = createActor({ id: 30, role: 'standard' });
 
     const privateResponse = await authedFetch('/api/private-resource-content/hard/12', standardUser);
     assert.equal(privateResponse.status, 403);
-    assert.match((await privateResponse.json()).error, /Partner-only content is not available/);
+    assert.match((await privateResponse.json()).error, /Restricted content is not available/);
 
     const translationResponse = await authedFetch('/api/resource-translations/hard/12', standardUser);
     assert.equal(translationResponse.status, 403);
@@ -247,9 +351,9 @@ test('standard users cannot access partner-only or translation review APIs', asy
     assert.match((await adminResponse.json()).error, /Requires admin privileges/);
 });
 
-test('route authorization accepts active partner staff as effective partner access', async () => {
+test('route authorization no longer accepts legacy partner staff as resource operators', async () => {
     const route = new Hono();
-    route.get('/partner-only', authenticateToken, authorize('partner'), (c) => c.json({
+    route.get('/restricted', authenticateToken, authorizeResourceOperator(), (c) => c.json({
         ok: true,
         subregionScope: c.get('subregionScope'),
         actualRole: c.get('user')?.role,
@@ -273,7 +377,42 @@ test('route authorization accepts active partner staff as effective partner acce
     });
 
     const response = await route.fetch(
-        new Request('https://app.carearound.sg/partner-only', {
+        new Request('https://app.carearound.sg/restricted', {
+            headers: { [SESSION_HEADER_NAME]: token },
+        }),
+        TEST_ENV,
+    );
+    assert.equal(response.status, 403);
+    assert.match((await response.json()).error, /Insufficient permissions/);
+});
+
+test('resource operator authorization accepts direct hard-asset staff but not broad admin exports', async () => {
+    const route = new Hono();
+    route.get('/restricted', authenticateToken, authorizeResourceOperator(), (c) => c.json({
+        ok: true,
+        subregionScope: c.get('subregionScope'),
+        actualRole: c.get('user')?.role,
+    }));
+
+    const assetStaffUser = createActor({
+        id: 81,
+        role: 'standard',
+        hardAssetStaffAccess: [{
+            hardAssetMembershipId: 7,
+            hardAssetId: 12,
+            hardAssetName: 'Care Hub',
+            staffRole: 'staff',
+            subregionId: 4,
+        }],
+    });
+    const token = await createSessionToken(assetStaffUser, { env: TEST_ENV }, {
+        extraClaims: {
+            hardAssetStaffAccess: assetStaffUser.hardAssetStaffAccess,
+        },
+    });
+
+    const response = await route.fetch(
+        new Request('https://app.carearound.sg/restricted', {
             headers: { [SESSION_HEADER_NAME]: token },
         }),
         TEST_ENV,
@@ -282,8 +421,15 @@ test('route authorization accepts active partner staff as effective partner acce
 
     assert.equal(response.status, 200);
     assert.equal(body.ok, true);
-    assert.equal(body.subregionScope, 4);
+    assert.equal(body.subregionScope, undefined);
     assert.equal(body.actualRole, 'standard');
+
+    const adminResponse = await authedFetch('/api/admin/workbooks/places/export-filtered', assetStaffUser, {
+        method: 'POST',
+        body: JSON.stringify({ ids: [1], format: 'xlsx' }),
+    });
+    assert.equal(adminResponse.status, 403);
+    assert.match((await adminResponse.json()).error, /Requires admin privileges/);
 });
 
 test('public saved/map snapshots strip private fields and translation review metadata', () => {

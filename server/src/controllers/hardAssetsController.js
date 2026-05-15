@@ -1,14 +1,22 @@
 import { and, desc, eq, inArray, sql, or, ilike } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
-import { hardAssets, subCategories, users } from '../db/schema.js';
+import { hardAssets, subCategories, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
-import { actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
+import { actorCanDeleteHardAsset, actorCanHideHardAsset, actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
+import { getActiveHardAssetStaffAccess, hasHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
 import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
 import { isAssetVisible } from '../utils/visibility.js';
+import {
+    filterHardAssetsForResourceList,
+    normalizeResourceListPagination,
+    normalizeResourceListScope,
+    paginateResourceList,
+} from '../utils/resourceListScope.js';
+import { attachHardAssetRegionMatches } from '../utils/regionScope.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
@@ -675,6 +683,10 @@ function ensureActorCanCreateInSubregion(actor, subregionId) {
     if (!Array.isArray(actor.subregionIds) || !actor.subregionIds.includes(subregionId)) {
         const primaryStaffAccess = getPrimaryPartnerStaffAccess(actor);
         if (primaryStaffAccess?.subregionIds?.includes(subregionId)) return;
+        const directAssetSubregions = getActiveHardAssetStaffAccess(actor)
+            .map((entry) => entry.subregionId)
+            .filter(Number.isInteger);
+        if (directAssetSubregions.includes(subregionId)) return;
         throw clientError('Derived subregion is outside your allowed scope.', 403);
     }
 }
@@ -765,6 +777,20 @@ function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         softAssets: collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap),
         boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
         ...(membershipSummary || {}),
+    };
+}
+
+function buildHardAssetPermissionSummary(viewer, asset) {
+    const role = normalizeRole(viewer?.role);
+    const isSuperAdmin = role === 'super_admin';
+    const isOwner = hasHardAssetStaffAccess(viewer, asset?.id, ['owner']);
+    const isStaff = hasHardAssetStaffAccess(viewer, asset?.id, ['staff']);
+
+    return {
+        canEdit: isSuperAdmin || isOwner || isStaff,
+        canManageAccess: isSuperAdmin || isOwner,
+        canDelete: isSuperAdmin || isOwner,
+        canHide: isSuperAdmin || isOwner,
     };
 }
 
@@ -864,21 +890,17 @@ export const getHardAssets = async (c) => {
         const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
-        const page = Math.max(1, Number.parseInt(c.req.query('page') || '1', 10));
-        const pageSize = Math.min(500, Math.max(1, Number.parseInt(c.req.query('pageSize') || '50', 10)));
-        const offset = (page - 1) * pageSize;
+        const { page, pageSize } = normalizeResourceListPagination({
+            page: c.req.query('page'),
+            pageSize: c.req.query('pageSize'),
+        });
+        const listScope = normalizeResourceListScope(c.req.query('scope'));
         const query = c.req.query('q');
         const lat = parseFloat(c.req.query('lat'));
         const lng = parseFloat(c.req.query('lng'));
         const radius = parseFloat(c.req.query('radius')); // in km
 
         const whereClauses = [eq(hardAssets.isDeleted, false)];
-
-        if (user?.role === 'regional_admin' || user?.role === 'partner') {
-            if (user.subregionIds && user.subregionIds.length > 0) {
-                whereClauses.push(inArray(hardAssets.subregionId, user.subregionIds));
-            }
-        }
 
         if (query) {
             whereClauses.push(or(
@@ -903,14 +925,33 @@ export const getHardAssets = async (c) => {
 
         const finalWhere = and(...whereClauses);
 
-        // Get total count for pagination
-        const countResult = await db.select({ count: sql`count(*)` })
-            .from(hardAssets)
-            .where(finalWhere);
-        const totalCount = Number(countResult[0]?.count || 0);
-
-        const options = {
+        const listOrder = [desc(hardAssets.updatedAt), desc(hardAssets.id)];
+        const candidateAssets = await db.query.hardAssets.findMany({
             where: finalWhere,
+            with: {
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+            },
+            orderBy: listOrder,
+        });
+        const candidatePostalCodes = [...new Set(candidateAssets.map((asset) => asset.postalCode).filter(Boolean))];
+        const regionRows = candidatePostalCodes.length > 0
+            ? await db.select({
+                postalCode: subregionPostalCodes.postalCode,
+                subregionId: subregionPostalCodes.subregionId,
+            })
+                .from(subregionPostalCodes)
+                .where(inArray(subregionPostalCodes.postalCode, candidatePostalCodes))
+            : [];
+        const candidateAssetsWithRegions = attachHardAssetRegionMatches(candidateAssets, regionRows);
+        const scopedAssets = filterHardAssetsForResourceList(candidateAssetsWithRegions, user, {
+            scope: listScope,
+            isVisible: (asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }),
+        });
+        const { data: pagedAssetSummaries, pagination } = paginateResourceList(scopedAssets, { page, pageSize });
+        const pagedAssetIds = pagedAssetSummaries.map((asset) => asset.id);
+
+        const assets = pagedAssetIds.length > 0 ? await db.query.hardAssets.findMany({
+            where: inArray(hardAssets.id, pagedAssetIds),
             with: {
                 partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
                 creator: { columns: { id: true, name: true } },
@@ -990,46 +1031,49 @@ export const getHardAssets = async (c) => {
                     },
                 },
             },
-            orderBy: [desc(hardAssets.updatedAt), desc(hardAssets.id)],
-            limit: pageSize,
-            offset: offset,
-        };
+            orderBy: listOrder,
+        }) : [];
+        const assetOrder = new Map(pagedAssetIds.map((id, index) => [id, index]));
+        const matchIdsByAssetId = new Map(pagedAssetSummaries.map((asset) => [asset.id, asset.matchingRegionIds || []]));
+        const pagedAssets = assets
+            .sort((left, right) => (assetOrder.get(left.id) ?? 0) - (assetOrder.get(right.id) ?? 0))
+            .map((asset) => ({
+                ...asset,
+                matchingRegionIds: matchIdsByAssetId.get(asset.id) || [],
+            }));
 
-        const assets = await db.query.hardAssets.findMany(options);
-
-        const nestedSoftAssets = assets.flatMap((asset) => [
+        const nestedSoftAssets = pagedAssets.flatMap((asset) => [
             ...(asset.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
             ...(asset.hostedSoftAssets || []).filter(Boolean),
         ]);
-        const manageableAssetIds = assets
+        const manageableAssetIds = pagedAssets
             .filter((asset) => actorCanManageAsset(user, asset, asset.partner))
             .map((asset) => asset.id);
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
         const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, manageableAssetIds);
-        const formatted = assets
-            .filter((asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }))
-            .map((asset) => formatHardAsset(
-                asset,
-                boundaryContext,
-                user,
-                allowedPartnerAudienceIds,
-                allowedAudienceZoneIds,
-                eligibilityContext,
-                membershipHostIdMap,
-                membershipSummariesByAssetId.get(asset.id) || null,
-            ));
+        const formatted = pagedAssets
+            .map((asset) => ({
+                ...formatHardAsset(
+                    asset,
+                    boundaryContext,
+                    user,
+                    allowedPartnerAudienceIds,
+                    allowedAudienceZoneIds,
+                    eligibilityContext,
+                    membershipHostIdMap,
+                    membershipSummariesByAssetId.get(asset.id) || null,
+                ),
+                matchingRegionIds: asset.matchingRegionIds || [],
+                primaryRegionId: asset.subregionId || null,
+                permissions: buildHardAssetPermissionSummary(user, asset),
+            }));
 
         const formattedWithTranslations = await attachHardAssetTranslations(db, formatted);
 
         return c.json({
             data: formattedWithTranslations,
-            pagination: {
-                totalCount,
-                page,
-                pageSize,
-                totalPages: Math.ceil(totalCount / pageSize),
-            }
+            pagination,
         });
     } catch (err) {
         console.error(err);
@@ -1133,25 +1177,39 @@ export const getHardAssetById = async (c) => {
             return c.json({ error: 'Not found' }, 404);
         }
 
+        const regionRows = asset.postalCode
+            ? await db.select({
+                postalCode: subregionPostalCodes.postalCode,
+                subregionId: subregionPostalCodes.subregionId,
+            })
+                .from(subregionPostalCodes)
+                .where(eq(subregionPostalCodes.postalCode, asset.postalCode))
+            : [];
+        const [assetWithRegions] = attachHardAssetRegionMatches([asset], regionRows);
         const nestedSoftAssets = [
-            ...(asset.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
-            ...(asset.hostedSoftAssets || []).filter(Boolean),
+            ...(assetWithRegions.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
+            ...(assetWithRegions.hostedSoftAssets || []).filter(Boolean),
         ];
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
-        const membershipSummary = actorCanManageAsset(user, asset, asset.partner)
-            ? (await loadMembershipSummariesForAssets(db, [asset.id])).get(asset.id) || null
+        const membershipSummary = actorCanManageAsset(user, assetWithRegions, assetWithRegions.partner)
+            ? (await loadMembershipSummariesForAssets(db, [assetWithRegions.id])).get(assetWithRegions.id) || null
             : null;
-        const formatted = await attachHardAssetTranslations(db, formatHardAsset(
-            asset,
-            await loadScopedBoundaryContext(db, user),
-            user,
-            allowedPartnerAudienceIds,
-            allowedAudienceZoneIds,
-            eligibilityContext,
-            membershipHostIdMap,
-            membershipSummary,
-        ));
+        const formatted = await attachHardAssetTranslations(db, {
+            ...formatHardAsset(
+                assetWithRegions,
+                await loadScopedBoundaryContext(db, user),
+                user,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+                eligibilityContext,
+                membershipHostIdMap,
+                membershipSummary,
+            ),
+            matchingRegionIds: assetWithRegions.matchingRegionIds || [],
+            primaryRegionId: assetWithRegions.subregionId || null,
+            permissions: buildHardAssetPermissionSummary(user, assetWithRegions),
+        });
 
         return c.json(formatted);
     } catch (err) {
@@ -1407,6 +1465,10 @@ export const updateHardAsset = async (c) => {
         }
 
         const body = sanitizeHardAssetPatch(await c.req.json());
+        const changesVisibility = body.isHidden !== undefined || body.hideFrom !== undefined || body.hideUntil !== undefined;
+        if (changesVisibility && !actorCanHideHardAsset(user, existing, existing.partner)) {
+            return c.json({ error: 'Only asset Owners and Region Admins can hide or show this place.' }, 403);
+        }
         const nextPostalCode = body.postalCode ?? existing.postalCode;
         const nextCountry = body.country ?? existing.country;
         const derivedRouting = await resolveWritableSubregionByPostal(db, nextPostalCode, user, 'Postal code');
@@ -1492,7 +1554,7 @@ export const deleteHardAsset = async (c) => {
         });
 
         if (!existing) return c.json({ error: 'Not found' }, 404);
-        if (!actorCanManageAsset(user, existing, existing.partner)) {
+        if (!actorCanDeleteHardAsset(user, existing, existing.partner)) {
             return c.json({ error: 'Insufficient permissions to delete this asset' }, 403);
         }
 

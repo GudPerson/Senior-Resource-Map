@@ -165,6 +165,12 @@ export async function loadPrivateResource(db, resourceType, resourceId) {
             where: eq(softAssets.id, resourceId),
             with: {
                 partner: { columns: { id: true, name: true, username: true, role: true, managerUserId: true } },
+                hostHardAsset: { columns: { id: true, subregionId: true } },
+                locations: {
+                    with: {
+                        hardAsset: { columns: { id: true, subregionId: true } },
+                    },
+                },
             },
         });
         return asset && !asset.isDeleted ? asset : null;

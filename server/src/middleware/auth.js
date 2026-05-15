@@ -1,6 +1,58 @@
 import { normalizeRole } from '../utils/roles.js';
-import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
+import { getDb } from '../db/index.js';
+import {
+    getActiveHardAssetStaffAccess,
+    hasAnyHardAssetStaffAccess,
+    loadHardAssetStaffAccessForUser,
+} from '../utils/hardAssetStaff.js';
+import {
+    getPrimaryPartnerStaffAccess,
+    hasAnyPartnerStaffAccess,
+    loadPartnerStaffAccessForUser,
+} from '../utils/partnerStaff.js';
+import {
+    hasAnySoftAssetStaffAccess,
+    loadSoftAssetStaffAccessForUser,
+} from '../utils/softAssetAccess.js';
 import { getRequestToken, SESSION_HEADER_NAME, verifySessionToken } from '../utils/sessionAuth.js';
+
+export async function hydrateLiveAccessForUser(user, options = {}) {
+    if (!user?.id) return user;
+
+    const {
+        db,
+        loadPartnerStaffAccess = loadPartnerStaffAccessForUser,
+        loadHardAssetStaffAccess = loadHardAssetStaffAccessForUser,
+        loadSoftAssetStaffAccess = loadSoftAssetStaffAccessForUser,
+    } = options;
+
+    if (!db) return user;
+
+    const [
+        partnerStaffAccess,
+        hardAssetStaffAccess,
+        softAssetStaffAccess,
+    ] = await Promise.all([
+        loadPartnerStaffAccess(db, user.id),
+        loadHardAssetStaffAccess(db, user.id),
+        loadSoftAssetStaffAccess(db, user.id),
+    ]);
+
+    return {
+        ...user,
+        partnerStaffAccess,
+        hardAssetStaffAccess,
+        softAssetStaffAccess,
+    };
+}
+
+async function hydrateRequestUser(c, user) {
+    try {
+        return await hydrateLiveAccessForUser(user, { db: getDb(c.env) });
+    } catch {
+        return user;
+    }
+}
 
 export async function authenticateToken(c, next) {
     const token = getRequestToken(c);
@@ -9,7 +61,7 @@ export async function authenticateToken(c, next) {
     if (!token) return c.json({ error: 'No token provided' }, 401);
 
     try {
-        const user = await verifySessionToken(token, c);
+        const user = await hydrateRequestUser(c, await verifySessionToken(token, c));
         c.set('user', user);
         await next();
     } catch (err) {
@@ -33,7 +85,7 @@ export async function optionalAuth(c, next) {
 
     if (token) {
         try {
-            const user = await verifySessionToken(token, c);
+            const user = await hydrateRequestUser(c, await verifySessionToken(token, c));
             c.set('user', user);
         } catch {
             // Ignore error
@@ -55,7 +107,8 @@ export function authorize(...allowedRoles) {
         const role = normalizeRole(user.role);
         const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
         const { subregionId, subregionIds } = user;
-        const hasEffectivePartnerAccess = normalizedAllowedRoles.includes('partner') && hasAnyPartnerStaffAccess(user);
+        const hasEffectivePartnerAccess = normalizedAllowedRoles.includes('partner')
+            && (hasAnyPartnerStaffAccess(user) || hasAnyHardAssetStaffAccess(user));
 
         if (!normalizedAllowedRoles.includes(role) && !hasEffectivePartnerAccess) {
             return c.json({ error: 'Insufficient permissions' }, 403);
@@ -68,7 +121,8 @@ export function authorize(...allowedRoles) {
 
         if (hasEffectivePartnerAccess && role !== 'regional_admin' && role !== 'partner') {
             const primaryStaffAccess = getPrimaryPartnerStaffAccess(user);
-            const scopedSubregionId = primaryStaffAccess?.subregionIds?.[0];
+            const primaryAssetAccess = getActiveHardAssetStaffAccess(user)[0] || null;
+            const scopedSubregionId = primaryStaffAccess?.subregionIds?.[0] || primaryAssetAccess?.subregionId;
             if (!scopedSubregionId) {
                 return c.json({ error: 'Account missing required scope (subregion_id)' }, 403);
             }
@@ -79,6 +133,33 @@ export function authorize(...allowedRoles) {
 
         if (role === 'regional_admin' || role === 'partner') {
             const scopedSubregionId = subregionId || subregionIds?.[0];
+            if (!scopedSubregionId) {
+                return c.json({ error: 'Account missing required scope (subregion_id)' }, 403);
+            }
+            c.set('subregionScope', scopedSubregionId);
+        }
+
+        await next();
+    };
+}
+
+export function hasDirectResourceOperatorAccess(user) {
+    const role = normalizeRole(user?.role);
+    if (['super_admin', 'admin', 'regional_admin'].includes(role)) return true;
+    return hasAnyHardAssetStaffAccess(user) || hasAnySoftAssetStaffAccess(user);
+}
+
+export function authorizeResourceOperator() {
+    return async (c, next) => {
+        const user = c.get('user');
+        if (!user) return c.json({ error: 'Unauthorized' }, 401);
+        if (!hasDirectResourceOperatorAccess(user)) {
+            return c.json({ error: 'Insufficient permissions' }, 403);
+        }
+
+        const role = normalizeRole(user.role);
+        if (role === 'regional_admin') {
+            const scopedSubregionId = user.subregionId || user.subregionIds?.[0];
             if (!scopedSubregionId) {
                 return c.json({ error: 'Account missing required scope (subregion_id)' }, 403);
             }

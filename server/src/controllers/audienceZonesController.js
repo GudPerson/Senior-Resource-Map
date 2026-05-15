@@ -1,13 +1,17 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
-import { audienceZones } from '../db/schema.js';
+import { audienceZones, hardAssets } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     canManageAudienceZone,
+    canViewAudienceZone,
+    getActorHardAssetAccessIds,
+    normalizeAudienceZoneSharingStatus,
     syncAudienceZonePostalCodes,
 } from '../utils/audienceZones.js';
+import { canAssignHardAssetStaffRole } from '../utils/hardAssetStaff.js';
 import { normalizePostalCode, parsePostalCodeListInput } from '../utils/postalBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { normalizeOwnershipMode, resolveAssetOwner } from '../utils/softAssetScope.js';
@@ -28,6 +32,8 @@ const audienceZoneCreateBodySchema = z.object({
     description: optionalTextSchema(2000),
     ownershipMode: z.enum(['system', 'partner']).optional(),
     partnerId: optionalPositiveIntValueSchema('Partner owner'),
+    hardAssetId: optionalPositiveIntValueSchema('Asset owner'),
+    sharingStatus: z.enum(['local', 'pending_approval', 'approved']).optional(),
     postalCodes: postalCodeListInputSchema,
 });
 
@@ -37,6 +43,8 @@ const audienceZoneUpdateBodySchema = z.object({
     description: optionalTextSchema(2000),
     ownershipMode: z.enum(['system', 'partner']).optional(),
     partnerId: optionalPositiveIntValueSchema('Partner owner'),
+    hardAssetId: optionalPositiveIntValueSchema('Asset owner'),
+    sharingStatus: z.enum(['local', 'pending_approval', 'approved']).optional(),
     postalCodes: postalCodeListInputSchema,
 });
 
@@ -58,6 +66,60 @@ function createClientError(message, status = 400) {
     const err = new Error(message);
     err.status = status;
     return err;
+}
+
+function isRegionOrSuperAdmin(actor) {
+    const role = normalizeRole(actor?.role);
+    return role === 'super_admin' || role === 'regional_admin';
+}
+
+async function loadHardAssetForAudienceZone(db, hardAssetId) {
+    if (!Number.isInteger(hardAssetId)) return null;
+    return db.query.hardAssets.findFirst({
+        where: eq(hardAssets.id, hardAssetId),
+        with: {
+            partner: {
+                columns: {
+                    id: true,
+                    name: true,
+                    role: true,
+                    managerUserId: true,
+                },
+            },
+        },
+    });
+}
+
+function resolveAssetZoneSharingStatus(actor, requestedStatus, currentStatus = null) {
+    const normalized = normalizeAudienceZoneSharingStatus(requestedStatus || currentStatus || 'local');
+    if (isRegionOrSuperAdmin(actor)) return normalized;
+    if (normalized === 'approved') {
+        throw createClientError('Global audience-zone sharing requires Region Admin approval.', 403);
+    }
+    return normalized;
+}
+
+async function countApprovedZoneHardAssetUsage(db, audienceZoneId) {
+    const result = await db.execute(sql`
+        SELECT COUNT(DISTINCT usage.hard_asset_id)::int AS count
+        FROM (
+            SELECT sal.hard_asset_id
+            FROM soft_asset_audience_zones saz
+            INNER JOIN soft_asset_locations sal ON sal.soft_asset_id = saz.soft_asset_id
+            WHERE saz.audience_zone_id = ${audienceZoneId}
+
+            UNION
+
+            SELECT sa.host_hard_asset_id AS hard_asset_id
+            FROM soft_asset_audience_zones saz
+            INNER JOIN soft_assets sa ON sa.id = saz.soft_asset_id
+            WHERE saz.audience_zone_id = ${audienceZoneId}
+              AND sa.host_hard_asset_id IS NOT NULL
+        ) usage
+        WHERE usage.hard_asset_id IS NOT NULL
+    `);
+    const rows = Array.isArray(result) ? result : result?.rows || [];
+    return Number(rows[0]?.count || 0);
 }
 
 async function assertUniqueZoneCode(db, zoneCode, ignoreId = null) {
@@ -87,6 +149,11 @@ function formatAudienceZone(zone) {
         partnerUserId: zone.partnerUserId || null,
         partnerName: zone.ownerPartner?.name || null,
         partnerUsername: zone.ownerPartner?.username || null,
+        hardAssetId: zone.hardAssetId || null,
+        hardAssetName: zone.hardAsset?.name || null,
+        sharingStatus: normalizeAudienceZoneSharingStatus(zone.sharingStatus || (zone.hardAssetId ? 'local' : 'approved')),
+        approvedByName: zone.approvedBy?.name || null,
+        approvedAt: zone.approvedAt || null,
         ownershipMode: zone.partnerUserId ? 'partner' : 'system',
         creatorName: zone.creator?.name || null,
         postalCodes,
@@ -113,6 +180,31 @@ async function loadAudienceZoneList(db) {
                 columns: {
                     id: true,
                     name: true,
+                },
+            },
+            approvedBy: {
+                columns: {
+                    id: true,
+                    name: true,
+                },
+            },
+            hardAsset: {
+                columns: {
+                    id: true,
+                    name: true,
+                    subregionId: true,
+                    partnerId: true,
+                    isDeleted: true,
+                },
+                with: {
+                    partner: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            role: true,
+                            managerUserId: true,
+                        },
+                    },
                 },
             },
             postalCodes: {
@@ -142,6 +234,31 @@ async function loadAudienceZoneDetail(db, id) {
                 columns: {
                     id: true,
                     name: true,
+                },
+            },
+            approvedBy: {
+                columns: {
+                    id: true,
+                    name: true,
+                },
+            },
+            hardAsset: {
+                columns: {
+                    id: true,
+                    name: true,
+                    subregionId: true,
+                    partnerId: true,
+                    isDeleted: true,
+                },
+                with: {
+                    partner: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            role: true,
+                            managerUserId: true,
+                        },
+                    },
                 },
             },
             postalCodes: {
@@ -178,13 +295,14 @@ export const getAudienceZones = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (!['super_admin', 'regional_admin', 'partner'].includes(role)) {
+        const hasAssetAccess = getActorHardAssetAccessIds(actor).length > 0;
+        if (!['super_admin', 'regional_admin', 'partner'].includes(role) && !hasAssetAccess) {
             return c.json({ error: 'Only partners and admins can manage audience zones.' }, 403);
         }
 
         const zones = await loadAudienceZoneList(db);
         const visible = zones
-            .filter((zone) => canManageAudienceZone(actor, zone))
+            .filter((zone) => canViewAudienceZone(actor, zone))
             .map(formatAudienceZone);
 
         return c.json(visible);
@@ -201,7 +319,8 @@ export const createAudienceZone = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        if (!['super_admin', 'regional_admin', 'partner'].includes(role)) {
+        const hasAssetOwnerAccess = getActorHardAssetAccessIds(actor, ['owner']).length > 0;
+        if (!['super_admin', 'regional_admin', 'partner'].includes(role) && !hasAssetOwnerAccess) {
             return c.json({ error: 'Only partners and admins can create audience zones.' }, 403);
         }
 
@@ -214,13 +333,40 @@ export const createAudienceZone = async (c) => {
             return c.json({ error: 'Name is required.' }, 400);
         }
 
-        const ownershipMode = normalizeOwnershipMode(role, body);
-        const { owner } = await resolveAssetOwner(db, actor, { ...body, ownershipMode }, null);
+        let owner = null;
+        let hardAssetId = body.hardAssetId || null;
+        let sharingStatus = 'approved';
+
+        if (hardAssetId) {
+            const hardAsset = await loadHardAssetForAudienceZone(db, hardAssetId);
+            if (!hardAsset || hardAsset.isDeleted) {
+                return c.json({ error: 'Selected asset owner was not found.' }, 404);
+            }
+            if (!canManageAudienceZone(actor, { hardAssetId, hardAsset })) {
+                return c.json({ error: 'Only asset Owners and Region Admins can create zones for this asset.' }, 403);
+            }
+            sharingStatus = resolveAssetZoneSharingStatus(actor, body.sharingStatus || 'local');
+        } else {
+            if (!['super_admin', 'regional_admin', 'partner'].includes(role)) {
+                return c.json({ error: 'Select one of your assigned assets before creating an asset audience zone.' }, 400);
+            }
+            const ownershipMode = normalizeOwnershipMode(role, body);
+            const resolved = await resolveAssetOwner(db, actor, { ...body, ownershipMode }, null);
+            owner = resolved.owner;
+            sharingStatus = isRegionOrSuperAdmin(actor)
+                ? normalizeAudienceZoneSharingStatus(body.sharingStatus || 'approved')
+                : 'approved';
+        }
         await assertUniqueZoneCode(db, zoneCode);
+        const approved = sharingStatus === 'approved';
 
         const [created] = await db.insert(audienceZones).values({
             zoneCode,
             partnerUserId: owner?.id || null,
+            hardAssetId,
+            sharingStatus,
+            approvedByUserId: approved ? actor.id : null,
+            approvedAt: approved ? new Date() : null,
             createdByUserId: actor.id,
             name,
             description,
@@ -260,14 +406,44 @@ export const updateAudienceZone = async (c) => {
 
         const body = validateRequestBody(await c.req.json(), audienceZoneUpdateBodySchema, 'Audience zone details');
         const role = normalizeRole(actor?.role);
+        const existingSharingStatus = normalizeAudienceZoneSharingStatus(existing.sharingStatus || (existing.hardAssetId ? 'local' : 'approved'));
+        if (existing.hardAssetId && existingSharingStatus === 'approved' && !isRegionOrSuperAdmin(actor)) {
+            return c.json({ error: 'Approved shared zones can only be edited by Region Admins.' }, 403);
+        }
+
+        let nextHardAssetId = body.hardAssetId !== undefined ? (body.hardAssetId || null) : (existing.hardAssetId || null);
+        let nextHardAsset = existing.hardAsset || null;
+        if (nextHardAssetId && Number(nextHardAssetId) !== Number(existing.hardAssetId || 0)) {
+            nextHardAsset = await loadHardAssetForAudienceZone(db, nextHardAssetId);
+            if (!nextHardAsset || nextHardAsset.isDeleted) {
+                return c.json({ error: 'Selected asset owner was not found.' }, 404);
+            }
+            if (!isRegionOrSuperAdmin(actor)) {
+                return c.json({ error: 'Only Region Admins can move an audience zone between assets.' }, 403);
+            }
+            if (!canManageAudienceZone(actor, { hardAssetId: nextHardAssetId, hardAsset: nextHardAsset })) {
+                return c.json({ error: 'Selected asset owner is outside your allowed scope.' }, 403);
+            }
+        }
+
         let owner = existing.ownerPartner || null;
-        if (role === 'partner') {
+        if (nextHardAssetId) {
+            owner = null;
+        } else if (role === 'partner') {
             owner = actor;
         } else if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
             const ownershipMode = normalizeOwnershipMode(role, body);
             const resolved = await resolveAssetOwner(db, actor, { ...body, ownershipMode }, null);
             owner = resolved.owner;
         }
+
+        const sharingStatus = nextHardAssetId
+            ? resolveAssetZoneSharingStatus(actor, body.sharingStatus || existingSharingStatus)
+            : (isRegionOrSuperAdmin(actor)
+                ? normalizeAudienceZoneSharingStatus(body.sharingStatus || existingSharingStatus || 'approved')
+                : existingSharingStatus);
+        const approved = sharingStatus === 'approved';
+        const wasApproved = existingSharingStatus === 'approved';
 
         const name = body?.name !== undefined ? normalizeText(body.name) : existing.name;
         const zoneCode = body?.zoneCode !== undefined ? normalizeText(body.zoneCode) : existing.zoneCode;
@@ -281,6 +457,10 @@ export const updateAudienceZone = async (c) => {
         await db.update(audienceZones).set({
             zoneCode,
             partnerUserId: owner?.id || null,
+            hardAssetId: nextHardAssetId,
+            sharingStatus,
+            approvedByUserId: approved ? (wasApproved ? existing.approvedByUserId : actor.id) : null,
+            approvedAt: approved ? (wasApproved ? existing.approvedAt : new Date()) : null,
             name,
             description,
             updatedAt: new Date(),
@@ -399,6 +579,13 @@ export const deleteAudienceZone = async (c) => {
         }
         if (!canManageAudienceZone(actor, existing)) {
             return c.json({ error: 'Insufficient permissions to delete this audience zone.' }, 403);
+        }
+        const sharingStatus = normalizeAudienceZoneSharingStatus(existing.sharingStatus || (existing.hardAssetId ? 'local' : 'approved'));
+        if (existing.hardAssetId && sharingStatus === 'approved' && !isRegionOrSuperAdmin(actor)) {
+            return c.json({ error: 'Approved shared zones can only be deleted by Region Admins.' }, 403);
+        }
+        if (sharingStatus === 'approved' && await countApprovedZoneHardAssetUsage(db, id) > 1) {
+            return c.json({ error: 'This shared audience zone is reused across multiple assets and cannot be deleted safely.' }, 409);
         }
 
         await db.delete(audienceZones).where(eq(audienceZones.id, id));

@@ -355,11 +355,6 @@ async function rebuildSoftAssetCaches(subregionIds, env, user) {
 export const previewSoftAssetCollateralImport = async (c) => {
     try {
         const user = c.get('user');
-        const role = normalizeRole(user?.role);
-        if (role === 'standard' || role === 'guest') {
-            return c.json({ error: 'Only partners and admins can import collateral into offerings.' }, 403);
-        }
-
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
@@ -406,11 +401,6 @@ export const previewSoftAssetCollateralImport = async (c) => {
 export const commitSoftAssetCollateralImport = async (c) => {
     try {
         const user = c.get('user');
-        const role = normalizeRole(user?.role);
-        if (role === 'standard' || role === 'guest') {
-            return c.json({ error: 'Only partners and admins can import collateral into offerings.' }, 403);
-        }
-
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 

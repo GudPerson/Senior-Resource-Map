@@ -10,6 +10,8 @@ import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from '../uti
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { ASSIGNABLE_ROLES, getCreatableRoles, normalizeRole } from '../utils/roles.js';
 import { createSessionToken, needsPostalCodeCompletion, setAuthCookie } from '../utils/sessionAuth.js';
+import { loadHardAssetStaffAccessForUser } from '../utils/hardAssetStaff.js';
+import { loadSoftAssetStaffAccessForUser } from '../utils/softAssetAccess.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
 import { ensurePartnerOrganizationForLegacyPartner } from '../utils/partnerOrganizations.js';
 import { isPhoneOnlyPlaceholderEmail } from '../utils/phoneLogin.js';
@@ -192,8 +194,8 @@ function resolveRequestedRole(requestedRole, creatorRole) {
     }
 
     if (!allowedRoles.includes(normalizedRole)) {
-        const managerLabel = normalizeRole(creatorRole) === 'regional_admin' ? 'Regional admins' : 'Partners';
-        throw accessError(`${managerLabel} can only create ${allowedRoles[0] === 'partner' ? 'Partner' : 'User'} accounts.`);
+        const managerLabel = normalizeRole(creatorRole) === 'regional_admin' ? 'Region Admins' : 'This account';
+        throw accessError(`${managerLabel} can only create ${allowedRoles[0] === 'regional_admin' ? 'Region Admin' : 'User'} accounts.`);
     }
 
     return normalizedRole;
@@ -368,7 +370,7 @@ function validateManagerForTarget(managerUser, targetRole, derivedSubregionId) {
 
     if (normalizedTargetRole === 'partner') {
         if (!managerUser || normalizeRole(managerUser.role) !== 'regional_admin') {
-            throw accessError('Partner accounts must be assigned to a Regional Admin.', 400);
+            throw accessError('Legacy accounts must be assigned to a Region Admin.', 400);
         }
         ensureSubregionWithinManagerScope(managerUser, derivedSubregionId);
         return;
@@ -376,8 +378,8 @@ function validateManagerForTarget(managerUser, targetRole, derivedSubregionId) {
 
     if (normalizedTargetRole === 'standard') {
         if (!managerUser) return;
-        if (normalizeRole(managerUser.role) !== 'partner') {
-            throw accessError('User accounts may only be assigned to a Partner.', 400);
+        if (normalizeRole(managerUser.role) !== 'regional_admin') {
+            throw accessError('User accounts may only be assigned to a Region Admin.', 400);
         }
         ensureSubregionWithinManagerScope(managerUser, derivedSubregionId);
     }
@@ -717,6 +719,8 @@ export const updateProfile = async (c) => {
         }
 
         const updated = await loadUserWithSubregions(db, user.id);
+        updated.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, user.id);
+        updated.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, user.id);
         if (shouldRefreshProfileSessionCookie(user)) {
             const token = await createSessionToken(updated, c);
             setAuthCookie(c, token);

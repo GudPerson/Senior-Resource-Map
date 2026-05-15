@@ -50,7 +50,15 @@ async function loadEditableResource(db, user, type, id) {
     if (type === 'soft') {
         const asset = await db.query.softAssets.findFirst({
             where: eq(softAssets.id, id),
-            with: { partner: { columns: { id: true, name: true, role: true, managerUserId: true } } },
+            with: {
+                partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                hostHardAsset: { columns: { id: true, subregionId: true } },
+                locations: {
+                    with: {
+                        hardAsset: { columns: { id: true, subregionId: true } },
+                    },
+                },
+            },
         });
         if (!asset || asset.isDeleted) return null;
         if (!actorCanManageAsset(user, asset, asset.partner)) return null;

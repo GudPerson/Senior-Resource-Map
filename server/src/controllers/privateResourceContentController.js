@@ -1,5 +1,7 @@
 import { getDb } from '../db/index.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { hasAnyHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
+import { hasAnySoftAssetStaffAccess } from '../utils/softAssetAccess.js';
 import { normalizeRole } from '../utils/roles.js';
 import { z } from 'zod';
 import {
@@ -29,7 +31,7 @@ import {
 
 const privateContentUpdateBodySchema = z.object({
     notes: optionalTextSchema(20000),
-    accessUserIds: z.array(positiveIntValueSchema('Partner viewer id')).max(100).nullable().optional(),
+    accessUserIds: z.array(positiveIntValueSchema('Additional viewer id')).max(100).nullable().optional(),
 });
 
 function httpError(message, status = 400) {
@@ -59,8 +61,12 @@ function parseFileId(c) {
 
 function requirePartnerOrAdmin(user) {
     const role = normalizeRole(user?.role);
-    if (!['partner', 'regional_admin', 'super_admin'].includes(role)) {
-        throw httpError('Partner-only content is not available for this account.', 403);
+    if (
+        !['partner', 'regional_admin', 'super_admin'].includes(role)
+        && !hasAnyHardAssetStaffAccess(user)
+        && !hasAnySoftAssetStaffAccess(user)
+    ) {
+        throw httpError('Restricted content is not available for this account.', 403);
     }
 }
 
@@ -125,19 +131,19 @@ export const getPrivateResourceContent = async (c) => {
         const content = await loadPrivateContent(db, resourceType, resourceId);
         if (!content) {
             if (!canManagePrivateResource(user, resource)) {
-                return c.json({ error: 'Partner-only content is not available for this resource.' }, 403);
+                return c.json({ error: 'Restricted content is not available for this resource.' }, 403);
             }
             return c.json(createEmptyPrivateContent(resourceType, resourceId, resource, user));
         }
 
         if (!canViewPrivateResource(user, resource, content.accessGrants || [])) {
-            return c.json({ error: 'Partner-only content is not available for this resource.' }, 403);
+            return c.json({ error: 'Restricted content is not available for this resource.' }, 403);
         }
 
         return c.json(formatPrivateContent(content, resource, user));
     } catch (err) {
         console.error('getPrivateResourceContent Error:', err);
-        return c.json({ error: err.message || 'Failed to load partner-only content.' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to load restricted content.' }, err.status || 500);
     }
 };
 
@@ -151,10 +157,10 @@ export const updatePrivateResourceContent = async (c) => {
 
         const resource = await loadResourceOr404(db, resourceType, resourceId);
         if (!canManagePrivateResource(user, resource)) {
-            return c.json({ error: 'Insufficient permissions to edit partner-only content.' }, 403);
+            return c.json({ error: 'Insufficient permissions to edit restricted content.' }, 403);
         }
 
-        const body = validateRequestBody(await c.req.json(), privateContentUpdateBodySchema, 'Partner-only content');
+        const body = validateRequestBody(await c.req.json(), privateContentUpdateBodySchema, 'Restricted content');
         const content = await ensurePrivateContent(db, resourceType, resourceId, user);
         await updatePrivateNotes(db, content.id, body?.notes ?? content.notes ?? '', user);
 
@@ -166,7 +172,7 @@ export const updatePrivateResourceContent = async (c) => {
         return c.json(formatPrivateContent(updated, resource, user));
     } catch (err) {
         console.error('updatePrivateResourceContent Error:', err);
-        return c.json({ error: err.message || 'Failed to save partner-only content.' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to save restricted content.' }, err.status || 500);
     }
 };
 
@@ -180,7 +186,7 @@ export const getPrivateResourceAccessCandidates = async (c) => {
 
         const resource = await loadResourceOr404(db, resourceType, resourceId);
         if (!canManagePrivateResource(user, resource)) {
-            return c.json({ error: 'Insufficient permissions to manage partner-only access.' }, 403);
+            return c.json({ error: 'Insufficient permissions to manage restricted access.' }, 403);
         }
 
         const candidates = await loadPrivateAccessCandidates(db, resource.subregionId, resource.partnerId);
@@ -201,7 +207,7 @@ export const uploadPrivateResourceFile = async (c) => {
 
         const resource = await loadResourceOr404(db, resourceType, resourceId);
         if (!canManagePrivateResource(user, resource)) {
-            return c.json({ error: 'Insufficient permissions to upload partner-only files.' }, 403);
+            return c.json({ error: 'Insufficient permissions to upload restricted files.' }, 403);
         }
 
         const body = await c.req.parseBody();
@@ -213,7 +219,7 @@ export const uploadPrivateResourceFile = async (c) => {
         return c.json(formatPrivateContent(updated, resource, user), 201);
     } catch (err) {
         console.error('uploadPrivateResourceFile Error:', err);
-        return c.json({ error: err.message || 'Failed to upload partner-only file.' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to upload restricted file.' }, err.status || 500);
     }
 };
 
@@ -229,7 +235,7 @@ export const downloadPrivateResourceFile = async (c) => {
         const resource = await loadResourceOr404(db, resourceType, resourceId);
         const content = await loadPrivateContent(db, resourceType, resourceId);
         if (!content || !canViewPrivateResource(user, resource, content.accessGrants || [])) {
-            return c.json({ error: 'Partner-only file is not available for this resource.' }, 403);
+            return c.json({ error: 'Restricted file is not available for this resource.' }, 403);
         }
 
         const file = await loadPrivateFileForContent(db, content.id, fileId);
@@ -249,7 +255,7 @@ export const downloadPrivateResourceFile = async (c) => {
         });
     } catch (err) {
         console.error('downloadPrivateResourceFile Error:', err);
-        return c.json({ error: err.message || 'Failed to download partner-only file.' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to download restricted file.' }, err.status || 500);
     }
 };
 
@@ -264,7 +270,7 @@ export const deletePrivateResourceFile = async (c) => {
 
         const resource = await loadResourceOr404(db, resourceType, resourceId);
         if (!canManagePrivateResource(user, resource)) {
-            return c.json({ error: 'Insufficient permissions to delete partner-only files.' }, 403);
+            return c.json({ error: 'Insufficient permissions to delete restricted files.' }, 403);
         }
 
         const content = await loadPrivateContent(db, resourceType, resourceId);
@@ -282,6 +288,6 @@ export const deletePrivateResourceFile = async (c) => {
         return c.json(formatPrivateContent(updated, resource, user));
     } catch (err) {
         console.error('deletePrivateResourceFile Error:', err);
-        return c.json({ error: err.message || 'Failed to delete partner-only file.' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to delete restricted file.' }, err.status || 500);
     }
 };

@@ -6,7 +6,9 @@ import {
     softAssetAudienceZones,
     softAssetParentAudienceZones,
 } from '../db/schema.js';
+import { getActiveHardAssetStaffAccess, hasHardAssetStaffAccess } from './hardAssetStaff.js';
 import { actorCanManagePartnerOwnedEntity } from './ownership.js';
+import { normalizeRole } from './roles.js';
 import { normalizePostalCode, parsePostalCodeListInput } from './postalBoundaries.js';
 
 function normalizeText(value) {
@@ -38,8 +40,61 @@ export function normalizeAudienceZoneIds(rawValue) {
     )];
 }
 
+export function normalizeAudienceZoneSharingStatus(value) {
+    const status = String(value || '').trim().toLowerCase();
+    if (status === 'local' || status === 'pending_approval' || status === 'approved') return status;
+    return 'local';
+}
+
+function getAudienceZoneHardAssetId(zone) {
+    const parsed = Number.parseInt(String(zone?.hardAssetId ?? zone?.hardAsset?.id ?? ''), 10);
+    return Number.isInteger(parsed) ? parsed : null;
+}
+
+function actorHasRegionScopeForZoneAsset(actor, zone) {
+    const subregionId = Number.parseInt(String(zone?.hardAsset?.subregionId ?? ''), 10);
+    if (!Number.isInteger(subregionId)) return false;
+    const actorSubregions = Array.isArray(actor?.subregionIds) ? actor.subregionIds.map(Number) : [];
+    return actorSubregions.includes(subregionId);
+}
+
+export function getActorHardAssetAccessIds(actor, allowedRoles = ['owner', 'staff']) {
+    return getActiveHardAssetStaffAccess(actor, allowedRoles)
+        .map((entry) => entry.hardAssetId)
+        .filter(Number.isInteger);
+}
+
 export function canManageAudienceZone(actor, zone) {
+    const hardAssetId = getAudienceZoneHardAssetId(zone);
+    if (hardAssetId) {
+        const role = normalizeRole(actor?.role);
+        if (role === 'super_admin') return true;
+        if (role === 'regional_admin') return actorHasRegionScopeForZoneAsset(actor, zone);
+        return hasHardAssetStaffAccess(actor, hardAssetId, ['owner']);
+    }
     return actorCanManagePartnerOwnedEntity(actor, zone, zone?.ownerPartner || null);
+}
+
+export function canViewAudienceZone(actor, zone) {
+    if (canManageAudienceZone(actor, zone)) return true;
+    if (normalizeAudienceZoneSharingStatus(zone?.sharingStatus) === 'approved') return true;
+
+    const hardAssetId = getAudienceZoneHardAssetId(zone);
+    return Boolean(hardAssetId && hasHardAssetStaffAccess(actor, hardAssetId, ['owner', 'staff']));
+}
+
+export function canUseAudienceZoneForHardAssetIds(actor, zone, hardAssetIds = []) {
+    if (canManageAudienceZone(actor, zone)) return true;
+    if (normalizeAudienceZoneSharingStatus(zone?.sharingStatus) === 'approved') return true;
+
+    const hardAssetId = getAudienceZoneHardAssetId(zone);
+    if (!hardAssetId) return false;
+
+    const linkedIds = new Set((hardAssetIds || [])
+        .map((value) => Number.parseInt(String(value), 10))
+        .filter(Number.isInteger));
+    return linkedIds.has(hardAssetId)
+        && hasHardAssetStaffAccess(actor, hardAssetId, ['owner', 'staff']);
 }
 
 export async function loadAudienceZonesByIds(db, zoneIds) {
@@ -64,11 +119,36 @@ export async function loadAudienceZonesByIds(db, zoneIds) {
                     name: true,
                 },
             },
+            approvedBy: {
+                columns: {
+                    id: true,
+                    name: true,
+                },
+            },
+            hardAsset: {
+                columns: {
+                    id: true,
+                    name: true,
+                    subregionId: true,
+                    partnerId: true,
+                    isDeleted: true,
+                },
+                with: {
+                    partner: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            role: true,
+                            managerUserId: true,
+                        },
+                    },
+                },
+            },
         },
     });
 }
 
-export async function assertManageableAudienceZones(db, actor, zoneIds) {
+export async function assertManageableAudienceZones(db, actor, zoneIds, options = {}) {
     const normalizedIds = normalizeAudienceZoneIds(zoneIds);
     if (normalizedIds.length === 0) return [];
 
@@ -79,7 +159,7 @@ export async function assertManageableAudienceZones(db, actor, zoneIds) {
 
     for (const zoneId of normalizedIds) {
         const zone = rows.find((row) => row.id === zoneId);
-        if (!canManageAudienceZone(actor, zone)) {
+        if (!canUseAudienceZoneForHardAssetIds(actor, zone, options.hardAssetIds || [])) {
             throw createClientError(`Audience zone "${zone?.name || zoneId}" is outside your allowed scope.`, 403);
         }
     }

@@ -139,3 +139,36 @@ test('runtime schema bootstrap includes partner organisation and staff bridge ta
         'expected bootstrap owner membership backfill for each legacy partner user',
     );
 });
+
+test('runtime schema bootstrap includes direct hard-asset staff memberships', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists hard_asset_staff_memberships')),
+        'expected hard_asset_staff_memberships table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create unique index if not exists hard_asset_staff_memberships_active_user_unique')
+            && statement.includes('hard_asset_id, user_id')
+            && statement.includes('where revoked_at is null')
+        )),
+        'expected one active hard-asset staff membership per user per hard asset',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create index if not exists hard_asset_staff_memberships_hard_asset_idx')
+            && statement.includes('hard_asset_id')
+        )),
+        'expected hard asset staff lookup index',
+    );
+});

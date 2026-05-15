@@ -1,9 +1,15 @@
 import { Hono } from 'hono';
-import { authenticateToken, optionalAuth, authorize } from '../middleware/auth.js';
+import { authenticateToken, optionalAuth, authorizeResourceOperator } from '../middleware/auth.js';
 import {
     getSoftAssets, getSoftAssetById,
     createSoftAsset, updateSoftAsset, deleteSoftAsset, resetSoftAssetOverrides, patchSoftAssetAvailability
 } from '../controllers/softAssetsController.js';
+import {
+    addSoftAssetStaff,
+    getSoftAssetStaff,
+    getSoftAssetStaffCandidates,
+    revokeSoftAssetStaff,
+} from '../controllers/softAssetAccessController.js';
 import {
     previewSoftAssetCollateralImport,
     commitSoftAssetCollateralImport,
@@ -13,14 +19,18 @@ const router = new Hono();
 
 router.get('/', optionalAuth, getSoftAssets);
 
-// Protected routes — partner/admin only
-router.post('/import/collateral/preview', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), previewSoftAssetCollateralImport);
-router.post('/import/collateral/commit', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), commitSoftAssetCollateralImport);
-router.post('/', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), createSoftAsset);
+// Protected routes — resource operators only
+router.post('/import/collateral/preview', authenticateToken, authorizeResourceOperator(), previewSoftAssetCollateralImport);
+router.post('/import/collateral/commit', authenticateToken, authorizeResourceOperator(), commitSoftAssetCollateralImport);
+router.post('/', authenticateToken, authorizeResourceOperator(), createSoftAsset);
+router.get('/:id/staff', authenticateToken, authorizeResourceOperator(), getSoftAssetStaff);
+router.get('/:id/staff-candidates', authenticateToken, authorizeResourceOperator(), getSoftAssetStaffCandidates);
+router.post('/:id/staff', authenticateToken, authorizeResourceOperator(), addSoftAssetStaff);
+router.delete('/:id/staff/:membershipId', authenticateToken, authorizeResourceOperator(), revokeSoftAssetStaff);
 router.get('/:id', optionalAuth, getSoftAssetById);
-router.put('/:id', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), updateSoftAsset);
-router.patch('/:id/availability', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), patchSoftAssetAvailability);
-router.post('/:id/reset-overrides', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), resetSoftAssetOverrides);
-router.delete('/:id', authenticateToken, authorize('partner', 'regional_admin', 'admin', 'super_admin'), deleteSoftAsset);
+router.put('/:id', authenticateToken, authorizeResourceOperator(), updateSoftAsset);
+router.patch('/:id/availability', authenticateToken, authorizeResourceOperator(), patchSoftAssetAvailability);
+router.post('/:id/reset-overrides', authenticateToken, authorizeResourceOperator(), resetSoftAssetOverrides);
+router.delete('/:id', authenticateToken, authorizeResourceOperator(), deleteSoftAsset);
 
 export default router;

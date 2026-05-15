@@ -93,6 +93,10 @@ export const audienceZones = pgTable('audience_zones', {
   id: serial('id').primaryKey(),
   zoneCode: varchar('zone_code', { length: 80 }).unique(),
   partnerUserId: integer('partner_user_id').references(() => users.id, { onDelete: 'set null' }),
+  hardAssetId: integer('hard_asset_id'),
+  sharingStatus: varchar('sharing_status', { length: 40 }).notNull().default('approved'),
+  approvedByUserId: integer('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at'),
   createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
@@ -208,6 +212,55 @@ export const userAssetMemberships = pgTable('user_asset_memberships', {
   userHardAssetUnique: uniqueIndex('user_asset_memberships_user_hard_asset_unique').on(table.userId, table.hardAssetId),
   userIdx: index('user_asset_memberships_user_idx').on(table.userId),
   hardAssetIdx: index('user_asset_memberships_hard_asset_idx').on(table.hardAssetId),
+}));
+
+export const hardAssetStaffMemberships = pgTable('hard_asset_staff_memberships', {
+  id: serial('id').primaryKey(),
+  hardAssetId: integer('hard_asset_id').references(() => hardAssets.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  staffRole: varchar('staff_role', { length: 40 }).notNull().default('staff'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeUserUnique: uniqueIndex('hard_asset_staff_memberships_active_user_unique')
+    .on(table.hardAssetId, table.userId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  hardAssetIdx: index('hard_asset_staff_memberships_hard_asset_idx').on(table.hardAssetId),
+  userIdx: index('hard_asset_staff_memberships_user_idx').on(table.userId),
+  roleIdx: index('hard_asset_staff_memberships_role_idx').on(table.staffRole),
+}));
+
+export const softAssetRegionCoverages = pgTable('soft_asset_region_coverages', {
+  softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.softAssetId, table.subregionId] }),
+  softAssetIdx: index('soft_asset_region_coverages_soft_asset_idx').on(table.softAssetId),
+  subregionIdx: index('soft_asset_region_coverages_subregion_idx').on(table.subregionId),
+}));
+
+export const softAssetStaffMemberships = pgTable('soft_asset_staff_memberships', {
+  id: serial('id').primaryKey(),
+  softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  staffRole: varchar('staff_role', { length: 40 }).notNull().default('staff'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeUserUnique: uniqueIndex('soft_asset_staff_memberships_active_user_unique')
+    .on(table.softAssetId, table.userId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  softAssetIdx: index('soft_asset_staff_memberships_soft_asset_idx').on(table.softAssetId),
+  userIdx: index('soft_asset_staff_memberships_user_idx').on(table.userId),
+  roleIdx: index('soft_asset_staff_memberships_role_idx').on(table.staffRole),
 }));
 
 export const userPhoneIdentities = pgTable('user_phone_identities', {
@@ -467,6 +520,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   phoneLoginAttempts: many(phoneLoginAttempts),
   subregions: many(userSubregions),
   partnerPostalCodes: many(partnerPostalCodes),
+  hardAssetStaffMemberships: many(hardAssetStaffMemberships),
+  softAssetStaffMemberships: many(softAssetStaffMemberships),
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
   createdAudienceZones: many(audienceZones, { relationName: 'audience_zone_creator' }),
   privateContentGrants: many(privateResourceContentAccess),
@@ -536,7 +591,66 @@ export const hardAssetsRelations = relations(hardAssets, ({ one, many }) => ({
   softAssets: many(softAssetLocations), // Many-to-Many through softAssetLocations
   hostedSoftAssets: many(softAssets, { relationName: 'soft_asset_host' }),
   memberships: many(userAssetMemberships),
+  staffMemberships: many(hardAssetStaffMemberships),
   tags: many(hardAssetTags),    // M:N through hard_asset_tags
+}));
+
+export const hardAssetStaffMembershipsRelations = relations(hardAssetStaffMemberships, ({ one }) => ({
+  hardAsset: one(hardAssets, {
+    fields: [hardAssetStaffMemberships.hardAssetId],
+    references: [hardAssets.id],
+  }),
+  user: one(users, {
+    fields: [hardAssetStaffMemberships.userId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [hardAssetStaffMemberships.createdByUserId],
+    references: [users.id],
+    relationName: 'hard_asset_staff_creator',
+  }),
+  updater: one(users, {
+    fields: [hardAssetStaffMemberships.updatedByUserId],
+    references: [users.id],
+    relationName: 'hard_asset_staff_updater',
+  }),
+}));
+
+export const softAssetRegionCoveragesRelations = relations(softAssetRegionCoverages, ({ one }) => ({
+  softAsset: one(softAssets, {
+    fields: [softAssetRegionCoverages.softAssetId],
+    references: [softAssets.id],
+  }),
+  subregion: one(subregions, {
+    fields: [softAssetRegionCoverages.subregionId],
+    references: [subregions.id],
+  }),
+  creator: one(users, {
+    fields: [softAssetRegionCoverages.createdByUserId],
+    references: [users.id],
+    relationName: 'soft_asset_region_coverage_creator',
+  }),
+}));
+
+export const softAssetStaffMembershipsRelations = relations(softAssetStaffMemberships, ({ one }) => ({
+  softAsset: one(softAssets, {
+    fields: [softAssetStaffMemberships.softAssetId],
+    references: [softAssets.id],
+  }),
+  user: one(users, {
+    fields: [softAssetStaffMemberships.userId],
+    references: [users.id],
+  }),
+  creator: one(users, {
+    fields: [softAssetStaffMemberships.createdByUserId],
+    references: [users.id],
+    relationName: 'soft_asset_staff_creator',
+  }),
+  updater: one(users, {
+    fields: [softAssetStaffMemberships.updatedByUserId],
+    references: [users.id],
+    relationName: 'soft_asset_staff_updater',
+  }),
 }));
 
 export const softAssetParentsRelations = relations(softAssetParents, ({ one, many }) => ({
@@ -574,6 +688,8 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
   locations: many(softAssetLocations), // Many-to-Many through softAssetLocations
   tags: many(softAssetTags),    // M:N through soft_asset_tags
   audienceZones: many(softAssetAudienceZones),
+  regionCoverages: many(softAssetRegionCoverages),
+  staffMemberships: many(softAssetStaffMemberships),
 }));
 
 export const partnerPostalCodesRelations = relations(partnerPostalCodes, ({ one }) => ({
@@ -593,6 +709,15 @@ export const audienceZonesRelations = relations(audienceZones, ({ one, many }) =
     fields: [audienceZones.createdByUserId],
     references: [users.id],
     relationName: 'audience_zone_creator',
+  }),
+  approvedBy: one(users, {
+    fields: [audienceZones.approvedByUserId],
+    references: [users.id],
+    relationName: 'audience_zone_approver',
+  }),
+  hardAsset: one(hardAssets, {
+    fields: [audienceZones.hardAssetId],
+    references: [hardAssets.id],
   }),
   postalCodes: many(audienceZonePostalCodes),
   softAssets: many(softAssetAudienceZones),
