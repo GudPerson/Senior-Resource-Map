@@ -24,7 +24,7 @@ function buildInitialForm(initialData, currentUser) {
             logoUrl: initialData.logoUrl || '',
             bannerUrl: initialData.bannerUrl || '',
             newTags: initialData.tags || [],
-            ownershipMode: initialData.ownershipMode || (initialData.partnerId ? 'partner' : 'system'),
+            ownershipMode: 'system',
             partnerId: initialData.partnerId || '',
             audienceMode: initialData.audienceMode || 'public',
             audienceZoneIds: initialData.audienceZoneIds || initialData.audienceZones?.map((zone) => zone.id) || [],
@@ -43,8 +43,8 @@ function buildInitialForm(initialData, currentUser) {
         logoUrl: '',
         bannerUrl: '',
         newTags: [],
-        ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
-        partnerId: normalizeRole(currentUser?.role) === 'partner' ? (currentUser?.id || '') : '',
+        ownershipMode: 'system',
+        partnerId: '',
         audienceMode: 'public',
         audienceZoneIds: [],
         isMemberOnly: false,
@@ -54,13 +54,11 @@ function buildInitialForm(initialData, currentUser) {
 
 const OWNERSHIP_OPTIONS = [
     { value: 'system', label: 'System-owned' },
-    { value: 'partner', label: 'Partner-owned' },
 ];
 
 export default function SoftAssetTemplateForm({
     initialData,
     currentUser,
-    partnerOptions = [],
     audienceZones = [],
     onSave,
     onCancel,
@@ -89,12 +87,6 @@ export default function SoftAssetTemplateForm({
     }, []);
 
     useEffect(() => {
-        if (currentRole === 'partner' && form.ownershipMode !== 'partner') {
-            setForm((prev) => ({ ...prev, ownershipMode: 'partner', partnerId: currentUser?.id || '' }));
-        }
-    }, [currentRole, currentUser?.id, form.ownershipMode]);
-
-    useEffect(() => {
         if (form.ownershipMode !== 'partner' && form.audienceMode === 'partner_boundary') {
             setForm((prev) => ({ ...prev, audienceMode: 'public' }));
         }
@@ -104,16 +96,11 @@ export default function SoftAssetTemplateForm({
     const tagOptions = availableTags;
     const currentTags = form.newTags.map((tag) => ({ value: tag, label: tag }));
 
-    const partnerSelectOptions = useMemo(() => partnerOptions.map((partner) => ({
-        value: partner.id,
-        label: `${partner.name} (@${partner.username})`,
-    })), [partnerOptions]);
     const audienceZoneOptions = useMemo(() => audienceZones.map((zone) => ({
         value: zone.id,
         label: zone.zoneCode ? `${zone.name} (${zone.zoneCode})` : zone.name,
     })), [audienceZones]);
 
-    const selectedPartnerOption = partnerSelectOptions.find((option) => Number(option.value) === Number(form.partnerId)) || null;
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
 
     async function handleSubmit(e) {
@@ -132,8 +119,8 @@ export default function SoftAssetTemplateForm({
                 logoUrl: form.logoUrl || null,
                 bannerUrl: form.bannerUrl || null,
                 newTags: form.newTags || [],
-                ownershipMode: form.ownershipMode,
-                partnerId: form.ownershipMode === 'partner' ? form.partnerId || null : null,
+                ownershipMode: 'system',
+                partnerId: null,
                 audienceMode: form.ownershipMode !== 'partner' && form.audienceMode === 'partner_boundary'
                     ? 'public'
                     : (form.audienceMode || 'public'),
@@ -146,13 +133,8 @@ export default function SoftAssetTemplateForm({
                 throw new Error('Template name is required.');
             }
 
-            if (currentRole === 'partner') {
-                payload.ownershipMode = 'partner';
-                payload.partnerId = currentUser?.id;
-            }
-
             if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
-                throw new Error('Select a partner owner for partner-owned templates.');
+                throw new Error('Legacy scoped ownership is no longer assignable. Use Asset Access on host places instead.');
             }
             if (payload.audienceMode === 'audience_zones' && payload.audienceZoneIds.length === 0) {
                 throw new Error('Select at least one audience zone for audience-zone templates.');
@@ -221,7 +203,6 @@ export default function SoftAssetTemplateForm({
                     <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><Users size={13} /> Ownership</label>
                     <select
                         value={form.ownershipMode}
-                        disabled={currentRole === 'partner'}
                         onChange={(e) => setField('ownershipMode', e.target.value)}
                         className="input-field"
                     >
@@ -232,23 +213,8 @@ export default function SoftAssetTemplateForm({
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Partner Owner</label>
-                    {form.ownershipMode === 'partner' ? (
-                        currentRole === 'partner' ? (
-                            <input value={currentUser?.name || ''} readOnly className="input-field bg-slate-50" />
-                        ) : (
-                            <Select
-                                options={partnerSelectOptions}
-                                value={selectedPartnerOption}
-                                onChange={(selected) => setField('partnerId', selected?.value || '')}
-                                className="react-select-container"
-                                classNamePrefix="react-select"
-                                placeholder="Select partner owner..."
-                            />
-                        )
-                    ) : (
-                        <input value="System-owned" readOnly className="input-field bg-slate-50" />
-                    )}
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Access source</label>
+                    <input value="Inherited from generated place access" readOnly className="input-field bg-slate-50" />
                 </div>
 
                 <div>
@@ -333,9 +299,8 @@ export default function SoftAssetTemplateForm({
                         <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
                             <option value="public">Public</option>
                             <option value="audience_zones">Target areas</option>
-                            {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner area</option> : null}
                         </select>
-                        <p className="mt-1 text-xs text-slate-500">Target-area templates can show in selected postal-code areas. Partner-area templates can only generate partner-owned place versions.</p>
+                        <p className="mt-1 text-xs text-slate-500">Target-area templates can show in selected postal-code areas.</p>
                     </div>
 
                     <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">

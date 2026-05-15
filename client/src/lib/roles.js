@@ -21,14 +21,14 @@ const ROLE_META = {
         controlClassName: 'bg-red-50 text-red-700 border-red-200',
     },
     regional_admin: {
-        label: 'Regional Admin',
-        shortLabel: '🛡️ Reg. Admin',
+        label: 'Region Admin',
+        shortLabel: '🛡️ Region',
         pillClassName: 'bg-orange-100 text-orange-700',
         controlClassName: 'bg-orange-50 text-orange-700 border-orange-200',
     },
     partner: {
-        label: 'Partner',
-        shortLabel: '🤝 Partner',
+        label: 'Legacy Account',
+        shortLabel: 'Legacy Account',
         pillClassName: 'bg-brand-100 text-brand-700',
         controlClassName: 'bg-brand-50 text-brand-700 border-brand-200',
     },
@@ -68,7 +68,7 @@ export function isStandardUserRole(role) {
 }
 
 export function canAccessAdmin(role) {
-    return ['super_admin', 'regional_admin', 'partner'].includes(normalizeRole(role));
+    return ['super_admin', 'regional_admin'].includes(normalizeRole(role));
 }
 
 export function getPartnerStaffAccess(user) {
@@ -81,6 +81,52 @@ export function hasPartnerStaffAccess(user) {
     return getPartnerStaffAccess(user).length > 0;
 }
 
+export function getHardAssetStaffAccess(user) {
+    return Array.isArray(user?.hardAssetStaffAccess)
+        ? user.hardAssetStaffAccess.filter((entry) => !entry?.revokedAt)
+        : [];
+}
+
+export function hasHardAssetStaffAccess(user) {
+    return getHardAssetStaffAccess(user).length > 0;
+}
+
+export function getSoftAssetStaffAccess(user) {
+    return Array.isArray(user?.softAssetStaffAccess)
+        ? user.softAssetStaffAccess.filter((entry) => !entry?.revokedAt)
+        : [];
+}
+
+export function hasSoftAssetStaffAccess(user) {
+    return getSoftAssetStaffAccess(user).length > 0;
+}
+
+export function getHardAssetStaffAccessIds(user) {
+    return getHardAssetStaffAccess(user)
+        .map((entry) => Number(entry.hardAssetId))
+        .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+export function getSoftAssetStaffAccessIds(user) {
+    return getSoftAssetStaffAccess(user)
+        .map((entry) => Number(entry.softAssetId))
+        .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+export function getHardAssetStaffRole(user, hardAssetId) {
+    const id = Number(hardAssetId);
+    if (!Number.isInteger(id)) return null;
+    return getHardAssetStaffAccess(user)
+        .find((entry) => Number(entry.hardAssetId) === id)?.staffRole || null;
+}
+
+export function getSoftAssetStaffRole(user, softAssetId) {
+    const id = Number(softAssetId);
+    if (!Number.isInteger(id)) return null;
+    return getSoftAssetStaffAccess(user)
+        .find((entry) => Number(entry.softAssetId) === id)?.staffRole || null;
+}
+
 export function getPartnerStaffLegacyPartnerIds(user) {
     return getPartnerStaffAccess(user)
         .map((entry) => Number(entry.legacyPartnerUserId))
@@ -88,7 +134,10 @@ export function getPartnerStaffLegacyPartnerIds(user) {
 }
 
 export function canAccessManagedResources(user) {
-    return !isStandardUserRole(user?.role) || hasPartnerStaffAccess(user);
+    return !isStandardUserRole(user?.role)
+        || hasPartnerStaffAccess(user)
+        || hasHardAssetStaffAccess(user)
+        || hasSoftAssetStaffAccess(user);
 }
 
 export function canChangeUserRoles(role) {
@@ -98,10 +147,8 @@ export function canChangeUserRoles(role) {
 export function getCreatableUserRoles(role) {
     switch (normalizeRole(role)) {
         case 'super_admin':
-            return ['standard', 'partner', 'regional_admin', 'super_admin'];
+            return ['standard', 'regional_admin', 'super_admin'];
         case 'regional_admin':
-            return ['partner'];
-        case 'partner':
             return ['standard'];
         default:
             return [];
@@ -113,8 +160,7 @@ export function canManageUser(currentRole, targetRole) {
     const normalizedTargetRole = normalizeRole(targetRole);
 
     if (normalizedCurrentRole === 'super_admin') return true;
-    if (normalizedCurrentRole === 'regional_admin') return normalizedTargetRole === 'partner';
-    if (normalizedCurrentRole === 'partner') return normalizedTargetRole === 'standard';
+    if (normalizedCurrentRole === 'regional_admin') return normalizedTargetRole === 'standard';
     return false;
 }
 
@@ -130,10 +176,8 @@ export function getRequiredManagerRole(targetRole) {
     switch (normalizeRole(targetRole)) {
         case 'regional_admin':
             return 'super_admin';
-        case 'partner':
-            return 'regional_admin';
         case 'standard':
-            return 'partner';
+            return 'regional_admin';
         default:
             return null;
     }
@@ -142,11 +186,9 @@ export function getRequiredManagerRole(targetRole) {
 export function getAdminTabs(role) {
     switch (normalizeRole(role)) {
         case 'super_admin':
-            return ['resources', 'users', 'partnerstaff', 'subregions', 'audiencezones', 'subcats', 'datatools'];
+            return ['resources', 'users', 'subregions', 'audiencezones', 'subcats', 'datatools'];
         case 'regional_admin':
-            return ['resources', 'users', 'partnerstaff', 'subregions', 'audiencezones'];
-        case 'partner':
-            return ['users', 'audiencezones'];
+            return ['resources', 'users', 'subregions', 'audiencezones'];
         default:
             return [];
     }

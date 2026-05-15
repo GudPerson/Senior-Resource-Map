@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, BookOpen, Files, LayoutDashboard, LogOut, Map, Menu, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { canAccessAdmin, canAccessManagedResources, getRoleMeta, hasPartnerStaffAccess } from '../../lib/roles.js';
+import { canAccessAdmin, canAccessManagedResources, getRoleMeta, hasHardAssetStaffAccess } from '../../lib/roles.js';
 
 function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
     return (
@@ -48,7 +48,7 @@ export function DashboardSidebar({
     const roleMeta = getRoleMeta(user?.role);
     const canShowResources = canAccessManagedResources(user);
     const canShowAdmin = canAccessAdmin(user?.role);
-    const isPartnerStaff = hasPartnerStaffAccess(user);
+    const isAssetStaff = hasHardAssetStaffAccess(user);
 
     return (
         <>
@@ -62,9 +62,9 @@ export function DashboardSidebar({
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${roleMeta.pillClassName}`}>
                             {roleMeta.shortLabel}
                         </span>
-                        {isPartnerStaff ? (
+                        {isAssetStaff ? (
                             <p className="mt-1 text-[11px] font-semibold text-brand-700">
-                                Partner staff access
+                                Asset access
                             </p>
                         ) : null}
                         {isImpersonating ? (

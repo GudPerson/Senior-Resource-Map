@@ -82,7 +82,7 @@ export default function PrivateFileViewer({
                 <div className="flex min-w-0 items-center gap-3">
                     {icon}
                     <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-800">{file?.fileName || 'Partner-only file'}</p>
+                        <p className="truncate text-sm font-semibold text-slate-800">{file?.fileName || 'Restricted file'}</p>
                         <p className="text-xs text-slate-500">
                             {kindLabel}
                             {file?.fileSize ? ` · ${formatFileSize(file.fileSize)}` : ''}
@@ -108,14 +108,14 @@ export default function PrivateFileViewer({
                     ) : previewKind === 'image' && objectUrl ? (
                         <img
                             src={objectUrl}
-                            alt={file?.fileName || 'Partner-only reference'}
+                            alt={file?.fileName || 'Restricted reference'}
                             onError={() => setImageFailed(true)}
                             className={`${compact ? 'max-h-64' : 'max-h-[34rem]'} w-full bg-white object-contain`}
                         />
                     ) : previewKind === 'pdf' && objectUrl ? (
                         <iframe
                             src={`${objectUrl}#toolbar=0&navpanes=0`}
-                            title={file?.fileName || 'Partner-only PDF preview'}
+                            title={file?.fileName || 'Restricted PDF preview'}
                             className={`${compact ? 'h-72' : 'h-[34rem]'} w-full bg-white`}
                         />
                     ) : null}

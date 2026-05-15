@@ -9,7 +9,7 @@ const PRIVACY_SECTIONS = [
         title: '1. Purpose of this notice',
         body: [
             'This Privacy & Cookies Notice explains how CareAround SG collects, uses, discloses, stores, and protects personal data when you use this beta service.',
-            'CareAround SG is intended to help users discover senior-related places, programmes, services, promotions, saved resources, and private or shared directories. It is also used by authorised partners and administrators to manage resource information.',
+            'CareAround SG is intended to help users discover senior-related places, programmes, services, promotions, saved resources, and private or shared directories. It is also used by authorised staff and administrators to manage resource information.',
         ],
     },
     {
@@ -18,7 +18,7 @@ const PRIVACY_SECTIONS = [
             'Depending on how you use the service, we may collect account details such as your name, username, email address, phone number, login method, role, and account status.',
             'We may collect location-related details such as postal code, saved places, saved offerings, My Maps, Shared Maps, membership links, and resource interactions needed to provide the directory and map features.',
             'If you choose to provide them, we may collect optional profile details such as date of birth, CHAS card type, gender, property type, caregiver status, and volunteer interest. These details are used to personalise recommendations or check restricted offerings.',
-            'For partners and administrators, we may collect operational records such as resource edits, partner-only notes and files, private file uploads, import/export activity, service-area boundaries, and user-management actions.',
+            'For authorised staff and administrators, we may collect operational records such as resource edits, restricted notes and files, private file uploads, import/export activity, service-area boundaries, and user-management actions.',
             'We may also collect technical information such as device/browser details, request logs, security events, error logs, IP-related metadata, and usage information needed to operate, protect, and troubleshoot the service.',
         ],
     },
@@ -26,17 +26,17 @@ const PRIVACY_SECTIONS = [
         title: '3. How we use personal data',
         body: [
             'We use personal data to create and secure accounts, keep users signed in, provide maps and directories, save resources, support My Maps and Shared Maps, link memberships, and show information that may be relevant to a user.',
-            'We use partner and administrator data to manage resources, approve or restrict access, support imports and exports, maintain service areas, troubleshoot issues, and protect the integrity of CareAround SG.',
-            'We may use data to support translation, AI-assisted import or enrichment, media upload, private partner-only files, and other operational features, but only where those features are part of the service workflow.',
+            'We use authorised staff and administrator data to manage resources, approve or restrict access, support imports and exports, maintain service areas, troubleshoot issues, and protect the integrity of CareAround SG.',
+            'We may use data to support translation, AI-assisted import or enrichment, media upload, restricted private files, and other operational features, but only where those features are part of the service workflow.',
             'We may use data for security, abuse prevention, audit, compliance, legal obligations, business continuity, and service improvement.',
         ],
     },
     {
         title: '4. Who may access or receive personal data',
         body: [
-            'Your data may be accessed by you, authorised CareAround SG administrators, and authorised partners where access is needed for the relevant resource, membership, service area, or user-support workflow.',
+            'Your data may be accessed by you, authorised CareAround SG administrators, and authorised staff where access is needed for the relevant resource, membership, service area, or user-support workflow.',
             'We may use service providers for hosting, database storage, authentication, maps, translation, media upload, email or communication support, security, and diagnostics. These providers may process data for CareAround SG according to their service roles.',
-            'We may disclose data where required by law, regulation, court order, public authority request, legal claim, safety need, or to protect CareAround SG, users, partners, or the public.',
+            'We may disclose data where required by law, regulation, court order, public authority request, legal claim, safety need, or to protect CareAround SG, users, authorised organisations, or the public.',
         ],
     },
     {
@@ -66,7 +66,7 @@ const PRIVACY_SECTIONS = [
         title: '8. Access, correction, and withdrawal',
         body: [
             'You may request access to or correction of personal data held about you, subject to identity verification and exceptions allowed by law.',
-            'You may withdraw consent for certain uses of personal data. Withdrawal may affect your ability to use account, map, membership, eligibility, partner, or administrative features.',
+            'You may withdraw consent for certain uses of personal data. Withdrawal may affect your ability to use account, map, membership, eligibility, staff, or administrative features.',
         ],
     },
     {
@@ -78,8 +78,8 @@ const PRIVACY_SECTIONS = [
     {
         title: '10. Security',
         body: [
-            'CareAround SG uses technical and organisational measures intended to protect personal data, including access controls, authenticated routes, protected partner-only file access, security headers, request validation, and safer session handling.',
-            'No online service can guarantee perfect security. Users and partners are responsible for protecting their account credentials and reporting suspected unauthorised access promptly.',
+            'CareAround SG uses technical and organisational measures intended to protect personal data, including access controls, authenticated routes, protected restricted-file access, security headers, request validation, and safer session handling.',
+            'No online service can guarantee perfect security. Users and authorised staff are responsible for protecting their account credentials and reporting suspected unauthorised access promptly.',
         ],
     },
     {
@@ -97,7 +97,7 @@ const TERMS_SECTIONS = [
         title: '1. Acceptance of these terms',
         body: [
             'By accessing or using CareAround SG, you agree to these Terms of Use. If you do not agree, you should not use the service.',
-            'If you use CareAround SG on behalf of an organisation, partner, care provider, or administrator, you represent that you are authorised to do so and that your organisation is responsible for your use.',
+            'If you use CareAround SG on behalf of an organisation, care provider, or administrator, you represent that you are authorised to do so and that your organisation is responsible for your use.',
         ],
     },
     {
@@ -111,7 +111,7 @@ const TERMS_SECTIONS = [
     {
         title: '3. Verify information before relying on it',
         body: [
-            'Resource information may be incomplete, outdated, imported, partner-submitted, AI-assisted, or subject to change by the relevant provider.',
+            'Resource information may be incomplete, outdated, imported, provider-submitted, AI-assisted, or subject to change by the relevant provider.',
             'You should verify details such as availability, pricing, eligibility, opening hours, location, programme dates, service scope, and registration requirements with the relevant provider before relying on them.',
         ],
     },
@@ -123,11 +123,11 @@ const TERMS_SECTIONS = [
         ],
     },
     {
-        title: '5. Partner and administrator responsibilities',
+        title: '5. Staff and administrator responsibilities',
         body: [
-            'Partners and administrators are responsible for ensuring that resource listings, descriptions, schedules, pricing, private notes, files, eligibility rules, and service-area settings they manage are accurate, lawful, and kept reasonably up to date.',
-            'Partners and administrators must upload only content they are authorised to use, protect personal data and confidential information, and avoid placing sensitive information in public fields.',
-            'Partner-only notes and files are intended for authorised reference use only and must not be used to bypass legal, privacy, consent, confidentiality, or organisational obligations.',
+            'Authorised staff and administrators are responsible for ensuring that resource listings, descriptions, schedules, pricing, private notes, files, eligibility rules, and service-area settings they manage are accurate, lawful, and kept reasonably up to date.',
+            'Authorised staff and administrators must upload only content they are authorised to use, protect personal data and confidential information, and avoid placing sensitive information in public fields.',
+            'Restricted notes and files are intended for authorised reference use only and must not be used to bypass legal, privacy, consent, confidentiality, or organisational obligations.',
         ],
     },
     {
@@ -148,8 +148,8 @@ const TERMS_SECTIONS = [
     {
         title: '8. Intellectual property',
         body: [
-            'CareAround SG, its design, software, branding, and original content are owned by or licensed to the relevant CareAround SG operator, except for third-party content and partner-submitted materials.',
-            'You may use CareAround SG for its intended personal, caregiving, partner, or administrative purposes. You may not copy, resell, redistribute, or exploit the service beyond those purposes without permission.',
+            'CareAround SG, its design, software, branding, and original content are owned by or licensed to the relevant CareAround SG operator, except for third-party content and provider-submitted materials.',
+            'You may use CareAround SG for its intended personal, caregiving, staff, or administrative purposes. You may not copy, resell, redistribute, or exploit the service beyond those purposes without permission.',
         ],
     },
     {
@@ -163,7 +163,7 @@ const TERMS_SECTIONS = [
         title: '10. Disclaimers and limitation of liability',
         body: [
             'CareAround SG is provided on an as-is and as-available basis to the extent permitted by law.',
-            'To the extent permitted by Singapore law, CareAround SG and its operators are not liable for indirect, incidental, special, consequential, or punitive loss, or for loss arising from reliance on unverified resource information, third-party services, partner-submitted content, downtime, or user misuse.',
+            'To the extent permitted by Singapore law, CareAround SG and its operators are not liable for indirect, incidental, special, consequential, or punitive loss, or for loss arising from reliance on unverified resource information, third-party services, provider-submitted content, downtime, or user misuse.',
             'Nothing in these terms excludes liability that cannot be excluded under applicable law.',
         ],
     },

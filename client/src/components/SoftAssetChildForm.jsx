@@ -172,7 +172,7 @@ export default function SoftAssetChildForm({
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Audience</p>
                         <p className="mt-1 text-sm font-semibold text-slate-800">
                             {form.audienceMode === 'partner_boundary'
-                                ? 'Partner area'
+                                ? 'Managed area'
                                 : form.audienceMode === 'audience_zones'
                                     ? 'Target areas'
                                     : 'Public'}

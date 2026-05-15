@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, Phone, Clock, Package2, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, Phone, Clock, Package2, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -93,7 +93,7 @@ function buildInitialForm(type, initialData, currentUser) {
             ...initialData,
             externalKey: initialData.externalKey || '',
             bucket: type === 'soft' ? (initialData.bucket || 'Programmes') : '',
-            ownershipMode: initialData.ownershipMode || (initialData.partnerId ? 'partner' : 'system'),
+            ownershipMode: 'system',
             audienceMode: initialData.audienceMode || 'public',
             audienceZoneIds: initialData.audienceZoneIds || initialData.audienceZones?.map((zone) => zone.id) || [],
             newTags: initialData.newTags || initialData.tags || [],
@@ -106,6 +106,7 @@ function buildInitialForm(type, initialData, currentUser) {
             eligibilityRules: normalizeEligibilityRules(initialData.eligibilityRules),
             partnerId: initialData.partnerId || '',
             subregionId: initialData.subregionId || '',
+            coverageRegionIds: initialData.coverageRegionIds || (initialData.subregionId ? [initialData.subregionId] : []),
             postalCode: initialData.postalCode || '',
             website: initialData.website || '',
             sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
@@ -135,7 +136,7 @@ function buildInitialForm(type, initialData, currentUser) {
             isHidden: false,
             hideFrom: '',
             hideUntil: '',
-            ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
+            ownershipMode: 'system',
             partnerId: '',
         };
     }
@@ -160,9 +161,10 @@ function buildInitialForm(type, initialData, currentUser) {
         availabilityCount: 0,
         availabilityUnit: '',
         eligibilityRules: null,
-        ownershipMode: normalizeRole(currentUser?.role) === 'partner' ? 'partner' : 'system',
+        ownershipMode: 'system',
         partnerId: '',
-        subregionId: normalizeRole(currentUser?.role) === 'partner' ? (currentUser?.subregionIds?.[0] || '') : '',
+        subregionId: '',
+        coverageRegionIds: [],
         audienceMode: 'public',
         audienceZoneIds: [],
     };
@@ -170,7 +172,6 @@ function buildInitialForm(type, initialData, currentUser) {
 
 const OWNERSHIP_OPTIONS = [
     { value: 'system', label: 'System-owned' },
-    { value: 'partner', label: 'Partner-owned' },
 ];
 
 function TooltipMultiValueLabel(props) {
@@ -223,12 +224,6 @@ export default function AssetForm({
     }, []);
 
     useEffect(() => {
-        if (currentRole === 'partner' && form.ownershipMode !== 'partner') {
-            setForm((prev) => ({ ...prev, ownershipMode: 'partner', partnerId: currentUser?.id || '' }));
-        }
-    }, [currentRole, currentUser?.id, form.ownershipMode]);
-
-    useEffect(() => {
         if (form.ownershipMode !== 'partner' && form.audienceMode === 'partner_boundary') {
             setForm((prev) => ({ ...prev, audienceMode: 'public' }));
         }
@@ -239,14 +234,17 @@ export default function AssetForm({
     const tagOptions = availableTags;
     const currentTags = form.newTags.map((tag) => ({ value: tag, label: tag }));
 
-    const partnerSelectOptions = partnerOptions.map((partner) => ({
-        value: partner.id,
-        label: `${partner.name} (@${partner.username})`,
-    }));
-    const audienceZoneOptions = audienceZones.map((zone) => ({
-        value: zone.id,
-        label: zone.zoneCode ? `${zone.name} (${zone.zoneCode})` : zone.name,
-    }));
+    const audienceZoneOptions = audienceZones.map((zone) => {
+        const suffix = [
+            zone.zoneCode ? zone.zoneCode : null,
+            zone.hardAssetName ? `Asset: ${zone.hardAssetName}` : null,
+            zone.sharingStatus && zone.sharingStatus !== 'approved' ? zone.sharingStatus.replace(/_/g, ' ') : null,
+        ].filter(Boolean).join(' | ');
+        return {
+            value: zone.id,
+            label: suffix ? `${zone.name} (${suffix})` : zone.name,
+        };
+    });
 
     const hardSubregionResult = useMemo(() => {
         if (!isHard) return { status: 'not-applicable', subregion: null, matches: [] };
@@ -280,7 +278,6 @@ export default function AssetForm({
         return subregions.filter((subregion) => scope.has(Number(subregion.id)));
     }, [currentRole, currentUser?.subregionIds, subregions]);
 
-    const explicitTargetSubregion = availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(form.subregionId)) || null;
     const selectedHardSubCategoryOption = useMemo(() => {
         const currentValue = String(form.subCategory || 'Places').trim();
         return hardSubCategoryOptions.find((option) => option.value === currentValue) || { value: currentValue, label: currentValue };
@@ -387,11 +384,6 @@ export default function AssetForm({
             if (payload.hideFrom) payload.hideFrom = new Date(payload.hideFrom).toISOString();
             if (payload.hideUntil) payload.hideUntil = new Date(payload.hideUntil).toISOString();
 
-            if (currentRole === 'partner') {
-                payload.ownershipMode = 'partner';
-                payload.partnerId = currentUser?.id;
-            }
-
             if (payload.ownershipMode !== 'partner') {
                 payload.partnerId = null;
                 if (!isHard && payload.audienceMode === 'partner_boundary') {
@@ -401,6 +393,8 @@ export default function AssetForm({
 
             if (isHard) {
                 delete payload.bucket;
+                delete payload.ownershipMode;
+                delete payload.partnerId;
                 if (hardSubregionResult.status !== 'ok') {
                     if (hardSubregionResult.status === 'missing') {
                         throw new Error('Postal code does not match any configured service area.');
@@ -422,22 +416,23 @@ export default function AssetForm({
                 payload.eligibilityRules = normalizeEligibilityRules(form.eligibilityRules);
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
                 payload.audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
+                payload.coverageRegionIds = Array.isArray(form.coverageRegionIds)
+                    ? form.coverageRegionIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+                    : [];
                 if (payload.locationIds.length === 0) {
-                    if (currentRole === 'partner') {
-                        payload.subregionId = currentUser?.subregionIds?.[0] || null;
-                    } else {
-                        if (!payload.subregionId) {
-                            throw new Error('Select a service area when no linked place is chosen.');
-                        }
+                    if (payload.coverageRegionIds.length === 0 && !(payload.audienceMode === 'audience_zones' && payload.audienceZoneIds.length > 0)) {
+                        throw new Error('Select at least one service region or target area when no linked place is chosen.');
                     }
+                    payload.subregionId = payload.coverageRegionIds[0] || payload.subregionId || null;
                 } else {
+                    payload.coverageRegionIds = [];
                     if (linkedLocationSubregions.length > 1) {
                         throw new Error('Linked places must all belong to the same service area.');
                     }
                 }
 
                 if (payload.audienceMode === 'partner_boundary' && payload.ownershipMode !== 'partner') {
-                    throw new Error('Partner-area audience is only allowed for partner-owned offerings.');
+                    throw new Error('Managed-area audience is no longer available for new offerings. Use target areas instead.');
                 }
                 if (payload.audienceMode === 'audience_zones' && payload.audienceZoneIds.length === 0) {
                     throw new Error('Select at least one audience zone for audience-zone offerings.');
@@ -447,8 +442,8 @@ export default function AssetForm({
                 }
             }
 
-            if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
-                throw new Error('Select a partner owner for partner-owned assets.');
+            if (!isHard && (currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
+                throw new Error('Legacy scoped ownership is no longer assignable. Use Asset Access on the host place instead.');
             }
 
             let savedAsset = null;
@@ -475,10 +470,13 @@ export default function AssetForm({
         setSaving(false);
     }
 
-    const ownershipDisabled = currentRole === 'partner';
-    const selectedPartnerOption = partnerSelectOptions.find((option) => Number(option.value) === Number(form.partnerId)) || null;
     const selectedLocationOptions = linkedLocationOptions.filter((option) => (form.locationIds || []).includes(option.value));
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
+    const coverageRegionOptions = availableTargetSubregions.map((subregion) => ({
+        value: subregion.id,
+        label: `${subregion.subregionCode || subregion.name} · ${subregion.name}`,
+    }));
+    const selectedCoverageRegionOptions = coverageRegionOptions.filter((option) => (form.coverageRegionIds || []).map(Number).includes(Number(option.value)));
     const websiteHref = useMemo(() => (isHard ? normalizeExternalHref(form.website) : ''), [form.website, isHard]);
     const hasLogoImage = Boolean(form.logoUrl);
     const hasBannerImage = Boolean(form.bannerUrl);
@@ -695,40 +693,39 @@ export default function AssetForm({
                     <input required value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder={isHard ? 'Place name' : 'Offering name'} className="input-field" />
                 </div>
 
-                <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1"><Users size={13} /> Ownership</label>
-                        <select
-                            value={form.ownershipMode}
-                            disabled={ownershipDisabled}
-                            onChange={(e) => setField('ownershipMode', e.target.value)}
-                            className="input-field"
-                        >
-                            {OWNERSHIP_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </select>
+                {isHard ? (
+                    <div className="col-span-2 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3">
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700">
+                                <ShieldCheck size={18} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">Asset access is managed outside this edit form.</p>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                    Close this editor, then use the <span className="font-bold text-brand-700">Access</span> button on this place row to add or remove Owners and Staff.
+                                </p>
+                                <p className="mt-1 text-xs font-semibold text-slate-500">
+                                    Current ownership: {initialData?.partnerId ? 'legacy scoped, kept readable during transition' : 'system-owned until direct Owners or Staff are assigned'}.
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Partner Owner</label>
-                        {form.ownershipMode === 'partner' ? (
-                            currentRole === 'partner' ? (
-                                <input value={currentUser?.name || ''} readOnly className="input-field bg-slate-50" />
-                            ) : (
-                                <Select
-                                    options={partnerSelectOptions}
-                                    value={selectedPartnerOption}
-                                    onChange={(selected) => setField('partnerId', selected?.value || '')}
-                                    className="react-select-container"
-                                    classNamePrefix="react-select"
-                                    placeholder="Select partner owner..."
-                                />
-                            )
-                        ) : (
-                            <input value="System-owned" readOnly className="input-field bg-slate-50" />
-                        )}
+                ) : (
+                    <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1"><Users size={13} /> Ownership</label>
+                            <select value={form.ownershipMode} onChange={(e) => setField('ownershipMode', e.target.value)} className="input-field">
+                                {OWNERSHIP_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1">Access source</label>
+                            <input value="Direct offering access or linked place access" readOnly className="input-field bg-slate-50" />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {!isHard && (
                     <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -883,32 +880,32 @@ export default function AssetForm({
                                 ) : (
                                     <span className="text-amber-700">Linked places span multiple service areas. Keep linked places within one service area.</span>
                                 )
-                            ) : currentRole === 'partner' ? (
-                                <span className="text-green-700 font-medium">Service area fixed to your partner account.</span>
                             ) : (
                                 <span>Select a service area below when the offering is not linked to a place.</span>
                             )}
                         </div>
                         {selectedLinkedLocations.length === 0 ? (
                             <div className="col-span-2">
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Service area</label>
-                                {currentRole === 'partner' ? (
-                                    <input
-                                        readOnly
-                                        value={availableTargetSubregions.find((subregion) => Number(subregion.id) === Number(currentUser?.subregionIds?.[0]))?.name || 'Assigned service area'}
-                                        className="input-field bg-slate-50"
-                                    />
-                                ) : (
-                                    <select className="input-field" value={form.subregionId || ''} onChange={(e) => setField('subregionId', e.target.value)}>
-                                        <option value="">Select service area</option>
-                                        {availableTargetSubregions.map((subregion) => (
-                                            <option key={subregion.id} value={subregion.id}>{subregion.subregionCode || subregion.name} · {subregion.name}</option>
-                                        ))}
-                                    </select>
-                                )}
-                                {explicitTargetSubregion ? (
-                                    <p className="mt-1 text-xs text-green-700 font-medium">Selected service area: {explicitTargetSubregion.subregionCode || 'No code'} · {explicitTargetSubregion.name}</p>
-                                ) : null}
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Service regions</label>
+                                <Select
+                                    isMulti
+                                    options={coverageRegionOptions}
+                                    value={selectedCoverageRegionOptions}
+                                    onChange={(selected) => {
+                                        const ids = Array.isArray(selected) ? selected.map((item) => item.value) : [];
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            coverageRegionIds: ids,
+                                            subregionId: ids[0] || '',
+                                        }));
+                                    }}
+                                    className="react-select-container"
+                                    classNamePrefix="react-select"
+                                    placeholder="Select one or more service regions..."
+                                />
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Standalone services can cover multiple overlapping Regions, or use target areas below for audience-zone-only visibility.
+                                </p>
                             </div>
                         ) : null}
 
@@ -999,7 +996,7 @@ export default function AssetForm({
                     </div>
                 ) : (
                     <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                        Save this resource first, then edit it again to add partner-only notes and files.
+                        Save this resource first, then edit it again to add restricted notes and files.
                     </div>
                 )}
 
@@ -1038,10 +1035,9 @@ export default function AssetForm({
                                 <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
                                     <option value="public">Public</option>
                                     <option value="audience_zones">Target areas</option>
-                                    {form.ownershipMode === 'partner' ? <option value="partner_boundary">Partner area</option> : null}
                                 </select>
                                 <p className="mt-1 text-xs text-slate-500">
-                                    Public offerings are open to everyone. Target-area offerings show only in selected postal-code areas. Partner-area offerings stay tied to the partner&apos;s own member area.
+                                    Public offerings are open to everyone. Target-area offerings show only in selected postal-code areas.
                                 </p>
                             </div>
                             <div className="flex items-center justify-between border border-slate-200 rounded-xl px-4 py-3 bg-white">

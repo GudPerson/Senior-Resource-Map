@@ -205,6 +205,11 @@ export const api = {
     updateHardAsset: (id, body) => request('PUT', `/hard-assets/${id}`, body),
     generateHardAssetMembershipQr: (id) => request('POST', `/hard-assets/${id}/membership-qr`),
     deleteHardAsset: (id) => request('DELETE', `/hard-assets/${id}`),
+    getHardAssetStaff: (id) => request('GET', `/hard-assets/${id}/staff`),
+    getHardAssetStaffCandidates: (id, query = '') => request('GET', `/hard-assets/${id}/staff-candidates?q=${encodeURIComponent(query)}`),
+    addHardAssetStaff: (id, body) => request('POST', `/hard-assets/${id}/staff`, body),
+    updateHardAssetStaffRole: (id, membershipId, body) => request('PUT', `/hard-assets/${id}/staff/${membershipId}`, body),
+    revokeHardAssetStaff: (id, membershipId) => request('DELETE', `/hard-assets/${id}/staff/${membershipId}`),
 
     // Soft Assets
     getSoftAssets: (params = {}) => {
@@ -223,6 +228,10 @@ export const api = {
     updateSoftAssetAvailability: (id, body) => request('PATCH', `/soft-assets/${id}/availability`, body),
     resetSoftAssetOverrides: (id, body) => request('POST', `/soft-assets/${id}/reset-overrides`, body),
     deleteSoftAsset: (id) => request('DELETE', `/soft-assets/${id}`),
+    getSoftAssetStaff: (id) => request('GET', `/soft-assets/${id}/staff`),
+    getSoftAssetStaffCandidates: (id, query = '') => request('GET', `/soft-assets/${id}/staff-candidates?q=${encodeURIComponent(query)}`),
+    addSoftAssetStaff: (id, body) => request('POST', `/soft-assets/${id}/staff`, body),
+    revokeSoftAssetStaff: (id, membershipId) => request('DELETE', `/soft-assets/${id}/staff/${membershipId}`),
 
     // Soft Asset Parents
     getSoftAssetParents: () => request('GET', '/soft-asset-parents'),
@@ -277,7 +286,7 @@ export const api = {
         return data.secure_url;
     },
 
-    // Partner-only resource content
+    // Restricted resource content
     getPrivateResourceContent: (resourceType, resourceId) => request('GET', `/private-resource-content/${resourceType}/${resourceId}`),
     updatePrivateResourceContent: (resourceType, resourceId, body) => request('PUT', `/private-resource-content/${resourceType}/${resourceId}`, body),
     getPrivateResourceAccessCandidates: (resourceType, resourceId) => request('GET', `/private-resource-content/${resourceType}/${resourceId}/access-candidates`),
@@ -304,7 +313,7 @@ export const api = {
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),
 
-    // Partner organisations and staff access
+    // Legacy organisations and staff access
     getPartnerOrganizations: () => request('GET', '/partner-organizations'),
     getPartnerOrganizationStaff: (organizationId) => request('GET', `/partner-organizations/${organizationId}/staff`),
     getPartnerOrganizationStaffCandidates: (organizationId, query = '') => request('GET', `/partner-organizations/${organizationId}/staff-candidates?q=${encodeURIComponent(query)}`),
@@ -322,7 +331,7 @@ export const api = {
     // Memberships
     getMyMemberships: () => request('GET', '/memberships/me'),
 
-    // Partner boundaries
+    // Legacy boundaries
     getPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries`),
     bulkUploadPartnerBoundaries: (partnerId, body) => request('POST', `/partners/${partnerId}/boundaries/bulk`, body),
     exportPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries/export`),
@@ -351,7 +360,7 @@ export const api = {
     // Memberships
     redeemMembershipLink: (body) => request('POST', '/memberships/link', body),
 
-    // Combined Helpers (for Admin/Partner generic tables)
+    // Combined Helpers (for Admin generic tables)
     getResources: async (params = {}) => {
         const [hardRes, softRes] = await Promise.all([
             api.getHardAssets(params),

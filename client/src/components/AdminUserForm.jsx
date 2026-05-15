@@ -6,8 +6,7 @@ import { Shield, MapPin, Database } from 'lucide-react';
 
 const ROLE_LABELS = {
     super_admin: 'Super Admin',
-    regional_admin: 'Regional Admin',
-    partner: 'Partner (Asset Owner)',
+    regional_admin: 'Region Admin',
     standard: 'User',
 };
 
@@ -36,7 +35,6 @@ export default function AdminUserForm({ currentUser, onCreated }) {
 
     const isSuperAdmin = currentRole === 'super_admin';
     const isRegionalAdmin = currentRole === 'regional_admin';
-    const isPartner = currentRole === 'partner';
     const requiredManagerRole = getRequiredManagerRole(formData.role);
 
     useEffect(() => {
@@ -106,10 +104,10 @@ export default function AdminUserForm({ currentUser, onCreated }) {
 
             if (normalizeRole(formData.role) !== 'super_admin' && derivedSubregionResult.status !== 'ok') {
                 if (derivedSubregionResult.status === 'missing') {
-                    throw new Error('Postal code does not match any configured subregion boundary.');
+                    throw new Error('Postal code does not match any configured region boundary.');
                 }
                 if (derivedSubregionResult.status === 'ambiguous') {
-                    throw new Error('Postal code matches multiple subregions. Fix the boundary data before creating this user.');
+                    throw new Error('Postal code matches multiple regions. Fix the boundary data before creating this user.');
                 }
                 throw new Error('Postal code must be a valid 6-digit code.');
             }
@@ -220,19 +218,19 @@ export default function AdminUserForm({ currentUser, onCreated }) {
                         {normalizeRole(formData.role) === 'super_admin' ? (
                             <span className="text-slate-500 font-medium flex items-center gap-2">
                                 <Database size={14} className="text-slate-400" />
-                                Global account – no subregion assignment required.
+                                Global account - no region assignment required.
                             </span>
                         ) : derivedSubregionResult.status === 'ok' ? (
                             <span className="text-green-700 font-bold flex items-center gap-2">
                                 <MapPin size={14} />
-                                Derived subregion: {derivedSubregionLabel}
+                                Derived region: {derivedSubregionLabel}
                             </span>
                         ) : derivedSubregionResult.status === 'ambiguous' ? (
-                            <span className="text-amber-700 font-medium">Postal code matches multiple subregions. Boundary data needs cleanup.</span>
+                            <span className="text-amber-700 font-medium">Postal code matches multiple regions. Boundary data needs cleanup.</span>
                         ) : derivedSubregionResult.status === 'missing' ? (
-                            <span className="text-red-700 font-medium">Postal code does not match any configured subregion boundary.</span>
+                            <span className="text-red-700 font-medium">Postal code does not match any configured region boundary.</span>
                         ) : (
-                            <span className="text-slate-500 font-medium italic">Enter a valid 6-digit postal code to resolve subregion automatically.</span>
+                            <span className="text-slate-500 font-medium italic">Enter a valid 6-digit postal code to resolve region automatically.</span>
                         )}
                     </div>
                 </div>
@@ -291,8 +289,7 @@ export default function AdminUserForm({ currentUser, onCreated }) {
                     <div className="bg-brand-50/50 p-4 rounded-2xl text-sm border border-brand-100/50">
                         <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">Ownership Context</span>
                         <div className="mt-2 font-medium text-slate-700 leading-relaxed">
-                            {isRegionalAdmin ? 'This Partner account will be managed directly by your regional authority.' : null}
-                            {isPartner ? 'This User account will be managed directly by your partner organization.' : null}
+                            {isRegionalAdmin ? 'This User account will be managed directly by your Region Admin account.' : null}
                         </div>
                     </div>
                 ) : null}

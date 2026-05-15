@@ -8,7 +8,6 @@ import * as XLSX from '@e965/xlsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
-import PartnerStaffPanel from '../../components/PartnerStaffPanel.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import Pagination from '../../components/Pagination.jsx';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
@@ -17,7 +16,7 @@ const ASSET_WORKBOOKS = [
     {
         resourceType: 'places',
         label: 'Places',
-        helper: 'Physical locations. Subregion is always derived from postcode server-side.',
+        helper: 'Physical locations. Region is always derived from postcode server-side.',
     },
     {
         resourceType: 'standalone-offerings',
@@ -72,14 +71,13 @@ const RESOURCE_SORT_OPTIONS = [
     { value: 'name-asc', label: 'Name A-Z' },
     { value: 'name-desc', label: 'Name Z-A' },
     { value: 'category-asc', label: 'Type A-Z' },
-    { value: 'partner-asc', label: 'Partner A-Z' },
+    { value: 'partner-asc', label: 'Owner A-Z' },
 ];
 
 const USER_ROLE_FILTER_OPTIONS = [
     { value: 'all', label: 'All roles' },
     { value: 'super_admin', label: 'Super Admin' },
-    { value: 'regional_admin', label: 'Regional Admin' },
-    { value: 'partner', label: 'Partner' },
+    { value: 'regional_admin', label: 'Region Admin' },
     { value: 'standard', label: 'User' },
 ];
 
@@ -95,7 +93,7 @@ const SUBREGION_SORT_OPTIONS = [
     { value: DEFAULT_SORT_VALUE, label: 'Default order' },
     { value: 'name-asc', label: 'Name A-Z' },
     { value: 'name-desc', label: 'Name Z-A' },
-    { value: 'code-asc', label: 'Subregion ID A-Z' },
+    { value: 'code-asc', label: 'Region ID A-Z' },
     { value: 'postal-desc', label: 'Most boundary codes' },
 ];
 
@@ -211,7 +209,6 @@ async function parseTabularUploadRows(file) {
 const AUDIENCE_ZONE_OWNERSHIP_FILTER_OPTIONS = [
     { value: 'all', label: 'All ownership modes' },
     { value: 'system', label: 'System-owned' },
-    { value: 'partner', label: 'Partner-owned' },
 ];
 
 const AUDIENCE_ZONE_SORT_OPTIONS = [
@@ -239,8 +236,7 @@ const SUBCATEGORY_SORT_OPTIONS = [
 const ROLE_SORT_RANK = {
     super_admin: 0,
     regional_admin: 1,
-    partner: 2,
-    standard: 3,
+    standard: 2,
 };
 
 function normalizeListText(value) {
@@ -378,8 +374,8 @@ function normalizeTagList(tags = []) {
 
 async function fetchAllAdminResources() {
     const [hard, soft] = await Promise.all([
-        fetchAllPaginatedResults(api.getHardAssets),
-        fetchAllPaginatedResults(api.getSoftAssets),
+        fetchAllPaginatedResults(api.getHardAssets, { scope: 'managed' }),
+        fetchAllPaginatedResults(api.getSoftAssets, { scope: 'managed' }),
     ]);
 
     return [
@@ -424,8 +420,8 @@ export default function AdminPage() {
         zoneCode: '',
         name: '',
         description: '',
-        ownershipMode: currentRole === 'partner' ? 'partner' : 'system',
-        partnerId: currentRole === 'partner' ? (currentUser?.id || '') : '',
+        ownershipMode: 'system',
+        partnerId: '',
         postalCodes: '',
     });
     const [selectedSubregions, setSelectedSubregions] = useState([]);
@@ -463,10 +459,20 @@ export default function AdminPage() {
     const [resourcePageSize] = useState(50);
     const canEditUserRoles = canChangeUserRoles(currentRole);
     const creatableRoles = getCreatableUserRoles(currentRole);
-    const superAdminRoleOptions = getCreatableUserRoles('super_admin');
+    const newRoleChangeOptions = getCreatableUserRoles('super_admin').filter((role) => role !== 'partner');
     const canManageSubregionMetadata = currentRole === 'super_admin';
     const canManageSubregionBoundaries = currentRole === 'super_admin' || currentRole === 'regional_admin';
-    const canManageAudienceZones = ['super_admin', 'regional_admin', 'partner'].includes(currentRole);
+    const canManageAudienceZones = ['super_admin', 'regional_admin'].includes(currentRole);
+
+    function getRoleChangeOptionsForUser(userRow) {
+        return normalizeRole(userRow?.role) === 'partner'
+            ? ['standard', ...newRoleChangeOptions.filter((role) => role !== 'standard')]
+            : newRoleChangeOptions;
+    }
+
+    function getRoleChangeLabel(role) {
+        return getRoleMeta(role).label;
+    }
 
     useEffect(() => {
         if (!availableTabs.includes(tab)) {
@@ -583,8 +589,8 @@ export default function AdminPage() {
             zoneCode: '',
             name: '',
             description: '',
-            ownershipMode: currentRole === 'partner' ? 'partner' : 'system',
-            partnerId: currentRole === 'partner' ? (currentUser?.id || '') : '',
+            ownershipMode: 'system',
+            partnerId: '',
             postalCodes: '',
         });
     }
@@ -596,8 +602,8 @@ export default function AdminPage() {
             zoneCode: zone.zoneCode || '',
             name: zone.name || '',
             description: zone.description || '',
-            ownershipMode: zone.ownershipMode || (zone.partnerUserId ? 'partner' : 'system'),
-            partnerId: zone.partnerUserId || '',
+            ownershipMode: zone.partnerUserId ? 'legacy' : (zone.ownershipMode || 'system'),
+            partnerId: '',
             postalCodes: (zone.postalCodes || []).join(', '),
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -709,7 +715,7 @@ export default function AdminPage() {
             setPartnerBoundaryData(data);
         } catch (err) {
             setPartnerBoundaryData(null);
-            setPartnerBoundaryFeedback(err.message || 'Failed to load partner boundary.');
+            setPartnerBoundaryFeedback(err.message || 'Failed to load legacy boundary.');
         }
     }
 
@@ -747,7 +753,7 @@ export default function AdminPage() {
                     const refreshed = await api.getPartnerBoundaries(partnerBoundaryModalUser.id);
                     setPartnerBoundaryData(refreshed);
                 } catch (err) {
-                    setPartnerBoundaryFeedback(err.message || 'Failed to update partner boundary.');
+                    setPartnerBoundaryFeedback(err.message || 'Failed to update legacy boundary.');
                 } finally {
                     setLoading(false);
                     e.target.value = null;
@@ -984,19 +990,13 @@ export default function AdminPage() {
                 zoneCode: newAudienceZone.zoneCode,
                 name: newAudienceZone.name,
                 description: newAudienceZone.description,
-                ownershipMode: currentRole === 'partner' ? 'partner' : newAudienceZone.ownershipMode,
-                partnerId: (currentRole === 'partner' || newAudienceZone.ownershipMode === 'partner')
-                    ? (currentRole === 'partner' ? currentUser?.id : newAudienceZone.partnerId || null)
-                    : null,
+                ownershipMode: 'system',
+                partnerId: null,
             };
 
             if (!payload.name?.trim()) {
                 throw new Error('Audience zone name is required.');
             }
-            if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
-                throw new Error('Select a partner owner for partner-owned audience zones.');
-            }
-
             if (newAudienceZone.id) {
                 await api.updateAudienceZone(newAudienceZone.id, payload);
             } else {
@@ -2037,31 +2037,20 @@ export default function AdminPage() {
     const allVisibleAudienceZonesSelected = visibleAudienceZoneIds.length > 0 && visibleAudienceZoneIds.every((id) => selectedAudienceZones.includes(id));
     const visibleSubCategoryIds = filteredSubCategories.map((category) => category.id);
     const allVisibleSubCategoriesSelected = visibleSubCategoryIds.length > 0 && visibleSubCategoryIds.every((id) => selectedSubCategories.includes(id));
-    const partnerOwnerOptions = useMemo(
-        () => users.filter((candidate) => normalizeRole(candidate.role) === 'partner'),
-        [users]
-    );
     const adminStatCards = useMemo(() => {
-        if (currentRole === 'partner') {
-            return [
-                { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
-                { label: 'Managed Users', val: users.filter((candidate) => normalizeRole(candidate.role) === 'standard').length, color: 'bg-green-50 text-green-700', icon: Users },
-            ];
-        }
-
         if (currentRole === 'regional_admin') {
             return [
                 { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
-                { label: 'Managed Partners', val: users.filter((candidate) => normalizeRole(candidate.role) === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
-                { label: 'Scoped Subregions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
+                { label: 'Managed Users', val: users.filter((candidate) => normalizeRole(candidate.role) === 'standard').length, color: 'bg-green-50 text-green-700', icon: Users },
+                { label: 'Scoped Regions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
             ];
         }
 
         return [
             { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
             { label: 'Total Users', val: users.length, color: 'bg-green-50 text-green-700', icon: Users },
-            { label: 'Partners', val: users.filter((candidate) => normalizeRole(candidate.role) === 'partner').length, color: 'bg-amber-50 text-amber-700', icon: Users },
             { label: 'Admins', val: users.filter((candidate) => ['super_admin', 'regional_admin'].includes(normalizeRole(candidate.role))).length, color: 'bg-red-50 text-red-700', icon: Shield },
+            { label: 'Regions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
         ];
     }, [currentRole, resourceHeadlineCount, resourceHeadlineLabel, resources.length, subregions.length, users]);
 
@@ -2107,8 +2096,7 @@ export default function AdminPage() {
                 {[
                     { key: 'resources', label: 'Resources', Icon: BookOpen },
                     { key: 'users', label: 'Users', Icon: Users },
-                    { key: 'partnerstaff', label: 'Partner Staff', Icon: Users },
-                    { key: 'subregions', label: 'Subregions', Icon: MapPin },
+                    { key: 'subregions', label: 'Regions', Icon: MapPin },
                     { key: 'audiencezones', label: 'Audience Zones', Icon: MapPin },
                     { key: 'subcats', label: 'Categories', Icon: BookOpen },
                     { key: 'datatools', label: 'Data Tools', Icon: Database },
@@ -2163,7 +2151,7 @@ export default function AdminPage() {
                                 <input
                                     value={resourceSearchInput}
                                     onChange={(e) => setResourceSearchInput(e.target.value)}
-                                    placeholder="Search resources, addresses, tags, partner, or postal code"
+                                    placeholder="Search resources, addresses, tags, owner, or postal code"
                                     className="input-field w-full pl-10"
                                 />
                             </div>
@@ -2240,7 +2228,7 @@ export default function AdminPage() {
                                     {boundaryChecksEnabled ? (
                                         <th className="px-4 py-3 font-semibold hidden lg:table-cell">Boundary</th>
                                     ) : null}
-                                    <th className="px-4 py-3 font-semibold hidden lg:table-cell">Partner</th>
+                                    <th className="px-4 py-3 font-semibold hidden lg:table-cell">Owner</th>
                                     <th className="px-4 py-3 font-semibold w-24">Actions</th>
                                 </tr>
                             </thead>
@@ -2298,10 +2286,8 @@ export default function AdminPage() {
                     )}
                     </div>
                 </div>
-            ) : tab === 'partnerstaff' ? (
-                <PartnerStaffPanel />
             ) : tab === 'subregions' ? (
-                /* ======== Subregions Table ======== */
+                /* ======== Regions Table ======== */
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
                         {canManageSubregionMetadata ? (
@@ -2311,14 +2297,14 @@ export default function AdminPage() {
                                         <MapPin size={22} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-slate-900">Subregion Management</h2>
+                                        <h2 className="text-xl font-bold text-slate-900">Region Management</h2>
                                         <p className="text-sm text-slate-500">Define boundaries and regional clusters</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion Name</label>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Region Name</label>
                                         <input
                                             required
                                             placeholder="e.g. Jurong West"
@@ -2328,14 +2314,14 @@ export default function AdminPage() {
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion ID</label>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Region ID</label>
                                         <input
                                             required
                                             placeholder="e.g. SR-JW"
                                             value={newSubregion.subregionCode}
                                             onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
                                             className="input-field"
-                                            title="Unique subregion identifier"
+                                            title="Unique region identifier"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -2380,12 +2366,12 @@ export default function AdminPage() {
                             </form>
                         ) : (
                             <div className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                                <h2 className="text-lg font-bold text-slate-900">Subregion Boundaries</h2>
+                                <h2 className="text-lg font-bold text-slate-900">Region Boundaries</h2>
                                 <p className="mt-2 text-sm text-slate-600">
-                                    You can upload and export boundary postal codes for subregions inside your assigned scope.
+                                    You can upload and export boundary postal codes for regions inside your assigned scope.
                                 </p>
                                 <p className="mt-2 text-xs text-slate-500">
-                                    Subregion names, codes, and deletion remain restricted to Super Admin.
+                                    Region names, codes, and deletion remain restricted to Super Admin.
                                 </p>
                             </div>
                         )}
@@ -2397,7 +2383,7 @@ export default function AdminPage() {
                                         <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
                                             <input type="file" accept={SPREADSHEET_UPLOAD_ACCEPT} className="hidden" onChange={handleBulkSubregionUpload} />
                                             <Upload size={16} />
-                                            Upload Subregions
+                                            Upload Regions
                                         </label>
                                         <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
                                             <Download size={16} />
@@ -2489,7 +2475,7 @@ export default function AdminPage() {
                                 <input
                                     value={subregionSearch}
                                     onChange={(e) => setSubregionSearch(e.target.value)}
-                                    placeholder="Search subregions by name, ID, description, or postal code"
+                                    placeholder="Search regions by name, ID, description, or postal code"
                                     className="input-field w-full pl-10"
                                 />
                             </div>
@@ -2504,7 +2490,7 @@ export default function AdminPage() {
                             </select>
                         </div>
                         <div className="mt-2 flex justify-end text-xs text-slate-500">
-                            <p>{filteredSubregions.length} matching subregion{filteredSubregions.length === 1 ? '' : 's'}</p>
+                            <p>{filteredSubregions.length} matching region{filteredSubregions.length === 1 ? '' : 's'}</p>
                         </div>
                     </div>
 
@@ -2523,7 +2509,7 @@ export default function AdminPage() {
                                     </th>
                                     <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
-                                    <th className="px-4 py-3 font-semibold w-24">Subregion ID</th>
+                                    <th className="px-4 py-3 font-semibold w-24">Region ID</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
                                     <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
                                     <th className="px-4 py-3 font-semibold w-28 text-center">{canManageSubregionMetadata ? 'Actions' : 'Scope'}</th>
@@ -2574,7 +2560,7 @@ export default function AdminPage() {
                                                         type="button"
                                                         onClick={() => handleEditSubregion(reg)}
                                                         className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors flex items-center justify-center"
-                                                        title="Edit subregion"
+                                                        title="Edit region"
                                                     >
                                                         <Pencil size={16} />
                                                     </button>
@@ -2585,7 +2571,7 @@ export default function AdminPage() {
                                                             promptSingleSubregionDelete(reg);
                                                         }}
                                                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center relative z-10"
-                                                        title="Delete subregion"
+                                                        title="Delete region"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -2601,7 +2587,7 @@ export default function AdminPage() {
                             </tbody>
                         </table>
                         {filteredSubregions.length === 0 && (
-                            <div className="text-center py-12 text-slate-400">No subregions match the current sort and filter settings.</div>
+                            <div className="text-center py-12 text-slate-400">No regions match the current sort and filter settings.</div>
                         )}
                     </div>
 
@@ -2611,8 +2597,8 @@ export default function AdminPage() {
                                 <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
                                 <p className="mt-2 text-sm text-slate-600">
                                     {pendingSubregionDelete.mode === 'single'
-                                        ? `Delete subregion "${pendingSubregionDelete.label}"? Users and assets in this region will be set to Global.`
-                                        : `Delete ${pendingSubregionDelete.count} selected subregion(s)? Users and assets in these regions will be set to Global.`}
+                                        ? `Delete region "${pendingSubregionDelete.label}"? Users and assets in this region will be set to Global.`
+                                        : `Delete ${pendingSubregionDelete.count} selected region(s)? Users and assets in these regions will be set to Global.`}
                                 </p>
                                 <div className="mt-5 flex justify-end gap-2">
                                     <button
@@ -2684,37 +2670,11 @@ export default function AdminPage() {
                             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Ownership</label>
-                                    {currentRole === 'partner' ? (
-                                        <div className="input-field bg-slate-50 flex items-center text-slate-500 italic">Partner-owned</div>
-                                    ) : (
-                                        <select
-                                            value={newAudienceZone.ownershipMode}
-                                            onChange={(e) => setNewAudienceZone({ ...newAudienceZone, ownershipMode: e.target.value, partnerId: e.target.value === 'partner' ? newAudienceZone.partnerId : '' })}
-                                            className="input-field"
-                                        >
-                                            <option value="system">System-owned (Global)</option>
-                                            <option value="partner">Partner-owned (Scoped)</option>
-                                        </select>
-                                    )}
+                                    <div className="input-field bg-slate-50 flex items-center text-slate-500 italic">System-owned (global)</div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Partner Owner</label>
-                                    {currentRole === 'partner' ? (
-                                        <div className="input-field bg-slate-50 flex items-center font-medium">{currentUser?.name || ''}</div>
-                                    ) : newAudienceZone.ownershipMode === 'partner' ? (
-                                        <select
-                                            value={newAudienceZone.partnerId || ''}
-                                            onChange={(e) => setNewAudienceZone({ ...newAudienceZone, partnerId: e.target.value })}
-                                            className="input-field"
-                                        >
-                                            <option value="">Select a partner</option>
-                                            {users.filter(u => normalizeRole(u.role) === 'partner').map(p => (
-                                                <option key={p.id} value={p.id}>{p.name} (@{p.username})</option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <div className="input-field bg-slate-50 flex items-center text-slate-400 italic">N/A — System-owned</div>
-                                    )}
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Sharing</label>
+                                    <div className="input-field bg-slate-50 flex items-center text-slate-500 italic">Global zones are managed by Region/Super Admins</div>
                                 </div>
                             </div>
 
@@ -2871,14 +2831,14 @@ export default function AdminPage() {
                                         <td className="px-4 py-3">
                                             <div className="font-semibold text-slate-900">{zone.name}</div>
                                             <div className="mt-1 flex flex-wrap gap-1">
-                                                <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${zone.ownershipMode === 'partner' ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-                                                    {zone.ownershipMode === 'partner' ? 'Partner-owned' : 'System-owned'}
+                                                <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${zone.ownershipMode === 'partner' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                                                    {zone.ownershipMode === 'partner' ? 'Legacy scoped' : 'System-owned'}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-xs font-mono text-slate-500">{zone.zoneCode || '—'}</td>
                                         <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px] truncate">{zone.description || '—'}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-500">{zone.partnerName || 'System'}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-500">{zone.partnerName ? 'Legacy scoped' : 'System'}</td>
                                         <td className="px-4 py-3 text-sm text-slate-500 max-w-[320px]">
                                             {zone.postalCodeCount > 0 ? (
                                                 <div className="space-y-2">
@@ -3194,9 +3154,9 @@ export default function AdminPage() {
                                     <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code> for all non-super-admin rows</li>
                                     <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
                                     <li>• Role: <code className="bg-slate-200 px-1 rounded">role</code></li>
-                                    <li>• Manager: <code className="bg-slate-200 px-1 rounded">managerUsername</code> is required for super-admin creation of Partners and Users</li>
+                                    <li>• Manager: <code className="bg-slate-200 px-1 rounded">managerUsername</code> is required for super-admin creation of Region Admins and Users</li>
                                     <li>• Legacy <code className="bg-slate-200 px-1 rounded">subregionIds</code> is optional and must match the postal-code-derived region if supplied</li>
-                                    <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Regional Admin</code>, <code className="bg-slate-200 px-1 rounded">Partner</code>, <code className="bg-slate-200 px-1 rounded">User</code></li>
+                                    <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Region Admin</code>, <code className="bg-slate-200 px-1 rounded">User</code>, or <code className="bg-slate-200 px-1 rounded">Super Admin</code></li>
                                     <li>• Subregion refs can be DB IDs, codes, or names, for example <code className="bg-slate-200 px-1 rounded">SR-CLW1</code></li>
                                 </ul>
                             </div>
@@ -3219,8 +3179,8 @@ export default function AdminPage() {
                                 {currentRole === 'super_admin'
                                     ? 'Super admins can bulk-upload any account tier.'
                                     : currentRole === 'regional_admin'
-                                        ? 'Regional admins can bulk-upload partners in their region.'
-                                        : 'Partners can bulk-upload users in their scope.'}
+                                        ? 'Region admins can bulk-upload users in their region.'
+                                        : 'This account cannot bulk-upload users.'}
                             </p>
                         </div>
                     </div>
@@ -3415,9 +3375,9 @@ export default function AdminPage() {
                                                             onChange={(e) => handleRoleChange(u.id, e.target.value)}
                                                             className={`appearance-none pl-3 pr-8 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition-colors min-h-[36px] ${getRoleMeta(u.role).controlClassName}`}
                                                         >
-                                                            {superAdminRoleOptions.map((role) => (
+                                                            {getRoleChangeOptionsForUser(u).map((role) => (
                                                                 <option key={role} value={role}>
-                                                                    {getRoleMeta(role).label}
+                                                                    {getRoleChangeLabel(role)}
                                                                 </option>
                                                             ))}
                                                         </select>
@@ -3447,7 +3407,7 @@ export default function AdminPage() {
                                                                 type="button"
                                                                 onClick={() => openPartnerBoundaryManager(u)}
                                                                 className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                                title="Manage partner boundary"
+                                                                title="Manage legacy boundary"
                                                             >
                                                                 <MapPin size={16} />
                                                             </button>
@@ -3627,7 +3587,7 @@ export default function AdminPage() {
                     <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">Partner Boundary</h3>
+                                <h3 className="text-lg font-bold text-slate-900">Legacy Boundary</h3>
                                 <p className="mt-1 text-sm text-slate-500">
                                     {partnerBoundaryModalUser.name} (@{partnerBoundaryModalUser.username})
                                 </p>
@@ -3647,7 +3607,7 @@ export default function AdminPage() {
 
                         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-sm text-slate-600">
-                                Upload the exact postcode set used to target partner-boundary offerings for this partner&apos;s managed members.
+                                Upload the exact postcode set used to target managed-area offerings for this legacy account.
                             </p>
                             <p className="mt-2 text-xs text-slate-500">
                                 Current boundary: <span className="font-semibold text-slate-700">{partnerBoundaryData?.postalCodeCount || 0}</span> postcode(s)
@@ -3678,7 +3638,7 @@ export default function AdminPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="mt-4 text-sm text-slate-500">No partner boundary uploaded yet.</p>
+                                <p className="mt-4 text-sm text-slate-500">No legacy boundary uploaded yet.</p>
                             )}
                         </div>
                     </div>

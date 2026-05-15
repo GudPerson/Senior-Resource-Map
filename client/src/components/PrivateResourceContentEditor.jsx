@@ -48,7 +48,7 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
                 setAccessUserIds(contentData.accessUserIds || []);
                 setCandidates(Array.isArray(candidateData) ? candidateData : []);
             } catch (err) {
-                if (!cancelled) setError(err.message || 'Failed to load partner-only content.');
+                if (!cancelled) setError(err.message || 'Failed to load restricted content.');
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -79,9 +79,9 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
             setContent(updated);
             setNotes(updated.notes || '');
             setAccessUserIds(updated.accessUserIds || []);
-            setNotice('Partner-only content saved.');
+            setNotice('Restricted content saved.');
         } catch (err) {
-            setError(err.message || 'Failed to save partner-only content.');
+            setError(err.message || 'Failed to save restricted content.');
         } finally {
             setSaving(false);
         }
@@ -132,7 +132,7 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
     if (!resourceType || !resourceId) {
         return (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                Save this resource first, then add partner-only notes and files.
+                Save this resource first, then add restricted notes and files.
             </div>
         );
     }
@@ -140,7 +140,7 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
     if (loading) {
         return (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-500">
-                Loading partner-only content...
+                Loading restricted content...
             </div>
         );
     }
@@ -150,9 +150,9 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
             <div className="mb-4 flex items-start gap-2">
                 <LockKeyhole size={17} className="mt-0.5 text-amber-700" />
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-800">Partner-only notes and files</h3>
+                    <h3 className="text-sm font-semibold text-slate-800">Restricted notes and files</h3>
                     <p className="text-xs leading-5 text-slate-600">
-                        Hidden from guests, basic users, and unauthorised partners. File previews are loaded only after a server permission check.
+                        Hidden from guests, basic users, and unauthorised accounts. File previews are loaded only after a server permission check.
                     </p>
                 </div>
             </div>
@@ -160,17 +160,17 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
             <div className="space-y-4">
                 <MarkdownDescriptionField
                     id={`${resourceType}-${resourceId}-private-notes`}
-                    label="Partner-only notes"
+                    label="Restricted notes"
                     value={notes}
                     onChange={setNotes}
-                    placeholder="Reference notes, pricing details, service checklist, partner instructions..."
+                    placeholder="Reference notes, pricing details, service checklist, staff instructions..."
                     rows={5}
                 />
 
                 <div>
                     <div className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700">
                         <Users size={13} />
-                        Extra partner viewers
+                        Additional viewers
                     </div>
                     <Select
                         isMulti
@@ -179,10 +179,10 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
                         onChange={(selected) => setAccessUserIds(Array.isArray(selected) ? selected.map((item) => item.value) : [])}
                         className="react-select-container"
                         classNamePrefix="react-select"
-                        placeholder={accessOptions.length ? 'Select partner accounts...' : 'No other partner accounts in this subregion'}
+                        placeholder={accessOptions.length ? 'Select additional accounts...' : 'No additional viewer accounts available'}
                     />
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Resource editors already have access. Add partner accounts here only when they need read-only reference access.
+                        Resource editors already have access. Add accounts here only when they need read-only reference access.
                     </p>
                 </div>
 
@@ -193,7 +193,7 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
                                 <FileText size={13} />
                                 Private files
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">PDF, JPG, PNG, WEBP, or HEIC. Maximum 10 MB each. Images and PDFs appear directly in the partner-only card.</p>
+                            <p className="mt-1 text-xs text-slate-500">PDF, JPG, PNG, WEBP, or HEIC. Maximum 10 MB each. Images and PDFs appear directly in the restricted content panel.</p>
                         </div>
                         <label
                             htmlFor={inputId}
@@ -252,7 +252,7 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
                     className="btn-primary w-full justify-center"
                 >
                     {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    Save Partner-only Content
+                    Save Restricted Content
                 </button>
             </div>
         </section>

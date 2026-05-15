@@ -22,12 +22,15 @@ import {
     Plus,
     RefreshCw,
     Search,
+    ShieldCheck,
     Trash2,
     Upload,
     Users,
     X,
 } from 'lucide-react';
 
+import AssetAccessPanel from '../../components/AssetAccessPanel.jsx';
+import AssetAudienceZonesPanel from '../../components/AssetAudienceZonesPanel.jsx';
 import AssetForm from '../../components/AssetForm.jsx';
 import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
 import HardAssetImportWizard from '../../components/HardAssetImportWizard.jsx';
@@ -39,7 +42,16 @@ import { AssetCard } from '../../components/AssetCard.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
-import { canAccessManagedResources, getPartnerStaffLegacyPartnerIds, normalizeRole } from '../../lib/roles.js';
+import {
+    canAccessManagedResources,
+    getHardAssetStaffAccessIds,
+    getHardAssetStaffRole,
+    getPartnerStaffLegacyPartnerIds,
+    getSoftAssetStaffAccessIds,
+    getSoftAssetStaffRole,
+    hasPartnerStaffAccess,
+    normalizeRole,
+} from '../../lib/roles.js';
 import Pagination from '../../components/Pagination.jsx';
 
 const TagBadge = ({ tag, onClick }) => (
@@ -219,15 +231,15 @@ const EmptyState = ({ icon: Icon, title, description, action }) => (
 function getBoundaryBadgeMeta(status) {
     switch (status) {
         case 'inside':
-            return { label: 'Inside partner area', className: 'bg-green-50 text-green-700 border-green-200' };
+            return { label: 'Inside managed area', className: 'bg-green-50 text-green-700 border-green-200' };
         case 'outside':
-            return { label: 'Outside partner area', className: 'bg-red-50 text-red-700 border-red-200' };
+            return { label: 'Outside managed area', className: 'bg-red-50 text-red-700 border-red-200' };
         case 'missing-postal':
             return { label: 'No postal code', className: 'bg-amber-50 text-amber-700 border-amber-200' };
         case 'no-location':
             return { label: 'No linked location', className: 'bg-amber-50 text-amber-700 border-amber-200' };
         default:
-            return { label: 'No partner area set', className: 'bg-slate-100 text-slate-600 border-slate-200' };
+            return { label: 'No managed area set', className: 'bg-slate-100 text-slate-600 border-slate-200' };
     }
 }
 
@@ -286,7 +298,7 @@ function getMemberLocationBadge(membership, asset, subregions, audienceZones) {
 }
 
 function formatAudienceMode(mode) {
-    if (mode === 'partner_boundary') return 'Partner area';
+    if (mode === 'partner_boundary') return 'Managed area';
     if (mode === 'audience_zones') return 'Target areas';
     return 'Public';
 }
@@ -387,6 +399,19 @@ function filterTemplateWithQuery(template, query) {
         template.audienceZones?.flatMap((zone) => [zone.name, zone.zoneCode]),
         template.tags,
     ], groups);
+}
+
+function getLinkedHardAssetIdsForOffering(asset) {
+    const ids = new Set();
+    const add = (value) => {
+        const parsed = Number(value);
+        if (Number.isInteger(parsed) && parsed > 0) ids.add(parsed);
+    };
+    add(asset?.hostHardAssetId);
+    add(asset?.hostLocation?.id);
+    add(asset?.location?.id);
+    (asset?.locations || []).forEach((location) => add(location?.id || location?.hardAssetId));
+    return ids;
 }
 
 function formatMembershipStatusLabel(status) {
@@ -557,6 +582,14 @@ export default function ResourcesPage() {
     const normalizedRole = normalizeRole(user?.role);
     const canManageResourceTools = canAccessManagedResources(user);
     const partnerStaffLegacyPartnerIds = getPartnerStaffLegacyPartnerIds(user);
+    const hardAssetStaffAccessIds = getHardAssetStaffAccessIds(user);
+    const softAssetStaffAccessIds = getSoftAssetStaffAccessIds(user);
+    const hardAssetStaffAccessIdSet = useMemo(() => new Set(hardAssetStaffAccessIds), [hardAssetStaffAccessIds.join(',')]);
+    const softAssetStaffAccessIdSet = useMemo(() => new Set(softAssetStaffAccessIds), [softAssetStaffAccessIds.join(',')]);
+    const directAssetAccessKey = [...hardAssetStaffAccessIds, ...softAssetStaffAccessIds].join(',');
+    const hasDirectAssetAccess = hardAssetStaffAccessIds.length > 0 || softAssetStaffAccessIds.length > 0;
+    const hasLegacyPartnerStaffAccess = hasPartnerStaffAccess(user);
+    const canCreateStandaloneResources = normalizedRole !== 'standard' || hasLegacyPartnerStaffAccess;
     const partnerScopedOwnerIds = normalizedRole === 'partner'
         ? [Number(user?.id)].filter((id) => Number.isInteger(id) && id > 0)
         : partnerStaffLegacyPartnerIds;
@@ -565,11 +598,13 @@ export default function ResourcesPage() {
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const normalizedQuery = deferredSearchTerm.trim().toLowerCase();
     const needsFullAssetDataset = canManageResourceTools || Boolean(normalizedQuery) || (boundaryChecksEnabled && boundaryFilter !== 'all');
+    const resourceListParams = canManageResourceTools ? { scope: 'managed' } : {};
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
-            ? ['full', normalizedRole, user?.id || 'anon', partnerScopedOwnerKey].join(':')
-            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey].join(':')
+            ? ['full', normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
+            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
     ), [
+        directAssetAccessKey,
         hardAssetsPage,
         canManageResourceTools,
         needsFullAssetDataset,
@@ -593,11 +628,11 @@ export default function ResourcesPage() {
         try {
             const requests = [
                 needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getHardAssets)
-                    : api.getHardAssets({ page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
+                    ? fetchAllPaginatedResults(api.getHardAssets, resourceListParams)
+                    : api.getHardAssets({ ...resourceListParams, page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
                 needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getSoftAssets)
-                    : api.getSoftAssets({ page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
+                    ? fetchAllPaginatedResults(api.getSoftAssets, resourceListParams)
+                    : api.getSoftAssets({ ...resourceListParams, page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
             ];
 
             if (canManageResourceTools) {
@@ -653,12 +688,20 @@ export default function ResourcesPage() {
                     setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
                 } else {
                     const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-                    const partnerHardAssets = hardData.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
-                    const partnerSoftAssets = softData.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
-                    setHardAssets(partnerHardAssets);
-                    setSoftAssets(partnerSoftAssets);
-                    setHardAssetsTotal(needsFullAssetDataset ? partnerHardAssets.length : (hardResponse.pagination?.totalCount || 0));
-                    setSoftAssetsTotal(needsFullAssetDataset ? partnerSoftAssets.length : (softResponse.pagination?.totalCount || 0));
+                    const scopedHardAssets = hardData.filter((asset) => (
+                        partnerOwnerIds.has(Number(asset.partnerId))
+                        || hardAssetStaffAccessIdSet.has(Number(asset.id))
+                    ));
+                    const scopedSoftAssets = softData.filter((asset) => {
+                        if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
+                        if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
+                        const linkedIds = getLinkedHardAssetIdsForOffering(asset);
+                        return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
+                    });
+                    setHardAssets(scopedHardAssets);
+                    setSoftAssets(scopedSoftAssets);
+                    setHardAssetsTotal(needsFullAssetDataset ? scopedHardAssets.length : (hardResponse.pagination?.totalCount || 0));
+                    setSoftAssetsTotal(needsFullAssetDataset ? scopedSoftAssets.length : (softResponse.pagination?.totalCount || 0));
                 }
                 setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             }
@@ -703,16 +746,20 @@ export default function ResourcesPage() {
     }, [boundaryFilter, normalizedQuery]);
 
     useEffect(() => {
-        if (!canManageResourceTools && activeTab === 'templates') {
+        if ((!canManageResourceTools || !canCreateStandaloneResources) && activeTab === 'templates') {
             setActiveTab('hard');
         }
-    }, [activeTab, canManageResourceTools]);
+    }, [activeTab, canCreateStandaloneResources, canManageResourceTools]);
 
     useEffect(() => {
-        if (activeTab !== 'hard' && inlineAction?.id) {
+        if (!inlineAction?.id) return;
+        if (activeTab === 'hard' && inlineAction.assetType === 'soft') {
             setInlineAction(null);
         }
-    }, [activeTab, inlineAction?.id]);
+        if (activeTab !== 'hard' && inlineAction.assetType !== 'soft') {
+            setInlineAction(null);
+        }
+    }, [activeTab, inlineAction?.assetType, inlineAction?.id]);
 
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
@@ -759,7 +806,11 @@ export default function ResourcesPage() {
     const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
     const hardPageRange = getVisiblePageRange(hardAssetsPage, hardAssetsPageSize, hardTabCount, visibleHardAssets.length);
     const softPageRange = getVisiblePageRange(softAssetsPage, softAssetsPageSize, softTabCount, visibleSoftAssets.length);
-    const canExportFilteredWorkbook = canManageResourceTools && ['super_admin', 'regional_admin', 'partner', 'standard'].includes(normalizedRole);
+    const canExportFilteredWorkbook = canManageResourceTools
+        && (
+            ['super_admin', 'regional_admin', 'partner'].includes(normalizedRole)
+            || (normalizedRole === 'standard' && hasLegacyPartnerStaffAccess)
+        );
     const activeFilteredExportCount = activeTab === 'hard'
         ? hardTabCount
         : activeTab === 'soft'
@@ -767,20 +818,28 @@ export default function ResourcesPage() {
             : filteredTemplates.length;
 
     function scopeHardAssetsForCurrentUser(items) {
-        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0) return items;
+        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0 && !hasDirectAssetAccess) return items;
         const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-        return items.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
+        return items.filter((asset) => (
+            partnerOwnerIds.has(Number(asset.partnerId))
+            || hardAssetStaffAccessIdSet.has(Number(asset.id))
+        ));
     }
 
     function scopeSoftAssetsForCurrentUser(items) {
-        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0) return items;
+        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0 && !hasDirectAssetAccess) return items;
         const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-        return items.filter((asset) => partnerOwnerIds.has(Number(asset.partnerId)));
+        return items.filter((asset) => {
+            if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
+            if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
+            const linkedIds = getLinkedHardAssetIdsForOffering(asset);
+            return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
+        });
     }
 
     async function resolveHardAssetsForFilteredExport() {
         if (hardUsesClientOnlyFilter) return filteredHardAssets;
-        const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets);
+        const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets, resourceListParams);
         return sortResourceItems(
             scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
             sortOrder,
@@ -789,7 +848,7 @@ export default function ResourcesPage() {
 
     async function resolveSoftAssetsForFilteredExport() {
         if (softUsesClientOnlyFilter) return filteredSoftAssets;
-        const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets);
+        const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets, resourceListParams);
         return sortResourceItems(
             scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
             sortOrder,
@@ -869,6 +928,79 @@ export default function ResourcesPage() {
             setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false } : prev));
             setActionNotice({ type: 'warning', message: 'Failed to generate membership QR.' });
         }
+    }
+
+    function openAssetAccess(asset, assetType = 'hard') {
+        setInlineAction({ id: asset.id, type: 'access', asset, assetType });
+    }
+
+    function openAssetZones(asset) {
+        setInlineAction({ id: asset.id, type: 'zones', asset });
+    }
+
+    function getPermissionFlag(asset, key, fallback = false) {
+        if (typeof asset?.permissions?.[key] === 'boolean') return asset.permissions[key];
+        return fallback;
+    }
+
+    function hasLinkedHardAssetAccess(asset) {
+        const linkedIds = getLinkedHardAssetIdsForOffering(asset);
+        return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
+    }
+
+    function canEditHardAsset(asset) {
+        const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(asset, 'canEdit', normalizedRole === 'super_admin' || directRole === 'owner' || directRole === 'staff');
+    }
+
+    function canManageHardAssetAccess(asset) {
+        const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(asset, 'canManageAccess', normalizedRole === 'super_admin' || directRole === 'owner');
+    }
+
+    function canHideHardAsset(asset) {
+        const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(asset, 'canHide', normalizedRole === 'super_admin' || directRole === 'owner');
+    }
+
+    function canDeleteHardAsset(asset) {
+        const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(asset, 'canDelete', normalizedRole === 'super_admin' || directRole === 'owner');
+    }
+
+    function isStandaloneSoftAsset(asset) {
+        return asset?.assetMode !== 'child' && getLinkedHardAssetIdsForOffering(asset).size === 0;
+    }
+
+    function canEditSoftAsset(asset) {
+        const directRole = normalizeRole(getSoftAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(
+            asset,
+            'canEdit',
+            normalizedRole === 'super_admin'
+                || directRole === 'owner'
+                || directRole === 'staff'
+                || hasLinkedHardAssetAccess(asset),
+        );
+    }
+
+    function canManageSoftAssetAccess(asset) {
+        const directRole = normalizeRole(getSoftAssetStaffRole(user, asset?.id));
+        return isStandaloneSoftAsset(asset) && getPermissionFlag(
+            asset,
+            'canManageAccess',
+            normalizedRole === 'super_admin' || directRole === 'owner',
+        );
+    }
+
+    function canHideSoftAsset(asset) {
+        const directRole = normalizeRole(getSoftAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(asset, 'canHide', normalizedRole === 'super_admin' || directRole === 'owner' || hasLinkedHardAssetAccess(asset));
+    }
+
+    function canDeleteSoftAsset(asset) {
+        const directRole = normalizeRole(getSoftAssetStaffRole(user, asset?.id));
+        return getPermissionFlag(asset, 'canDelete', normalizedRole === 'super_admin' || directRole === 'owner' || hasLinkedHardAssetAccess(asset));
     }
 
     function openCreate(assetType) {
@@ -988,10 +1120,11 @@ export default function ResourcesPage() {
 
     useEffect(() => {
         if (!inlineAction?.id) return;
-        if (!hardAssets.some((asset) => Number(asset.id) === Number(inlineAction.id))) {
+        const sourceAssets = inlineAction.assetType === 'soft' ? softAssets : hardAssets;
+        if (!sourceAssets.some((asset) => Number(asset.id) === Number(inlineAction.id))) {
             setInlineAction(null);
         }
-    }, [hardAssets, inlineAction?.id]);
+    }, [hardAssets, inlineAction?.assetType, inlineAction?.id, softAssets]);
 
     function getVisibilityActionKey(assetType, assetId) {
         return `${assetType}-${assetId}`;
@@ -1006,7 +1139,8 @@ export default function ResourcesPage() {
     }
 
     function buildInlineSoftAssetInitialData(hostAsset) {
-        const inferredOwnershipMode = hostAsset?.partnerId || normalizedRole === 'partner' ? 'partner' : 'system';
+        const usePartnerOwnership = normalizedRole === 'partner' || (hasLegacyPartnerStaffAccess && hostAsset?.partnerId);
+        const inferredOwnershipMode = usePartnerOwnership ? 'partner' : 'system';
 
         return {
             name: '',
@@ -1028,7 +1162,7 @@ export default function ResourcesPage() {
             availabilityUnit: '',
             eligibilityRules: null,
             ownershipMode: inferredOwnershipMode,
-            partnerId: hostAsset?.partnerId || (normalizedRole === 'partner' ? user?.id || '' : ''),
+            partnerId: usePartnerOwnership ? (hostAsset?.partnerId || user?.id || '') : '',
             subregionId: hostAsset?.subregionId || (normalizedRole === 'partner' ? user?.subregionIds?.[0] || '' : ''),
             audienceMode: 'public',
             audienceZoneIds: [],
@@ -1262,7 +1396,7 @@ export default function ResourcesPage() {
                     setPartnerBoundaryFeedback(`Boundary updated: ${response.assignedPostalCodes || 0} postal code(s) assigned.`);
                     await load();
                 } catch (err) {
-                    setPartnerBoundaryFeedback(err.message || 'Failed to update partner boundary.');
+                    setPartnerBoundaryFeedback(err.message || 'Failed to update managed area.');
                 } finally {
                     setLoading(false);
                     e.target.value = null;
@@ -1398,27 +1532,31 @@ export default function ResourcesPage() {
                 </div>
                 {canManageResourceTools && (
                     <div className="flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => openCreate('hard')}
-                            className="flex h-12 items-center gap-2 rounded-2xl bg-brand-600 px-6 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
-                        >
-                            <Plus size={18} strokeWidth={2.5} />
-                            New Place
-                        </button>
-                        <button
-                            onClick={() => openCreate('soft')}
-                            className="flex h-12 items-center gap-2 rounded-2xl bg-brand-600 px-6 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
-                        >
-                            <Plus size={18} strokeWidth={2.5} />
-                            New Offering
-                        </button>
-                        <button
-                            onClick={openTemplateCreate}
-                            className="flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-black hover:shadow-xl hover:shadow-slate-300 active:scale-[0.98]"
-                        >
-                            <Plus size={18} strokeWidth={2.5} />
-                            New Template
-                        </button>
+                        {canCreateStandaloneResources ? (
+                            <>
+                                <button
+                                    onClick={() => openCreate('hard')}
+                                    className="flex h-12 items-center gap-2 rounded-2xl bg-brand-600 px-6 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
+                                >
+                                    <Plus size={18} strokeWidth={2.5} />
+                                    New Place
+                                </button>
+                                <button
+                                    onClick={() => openCreate('soft')}
+                                    className="flex h-12 items-center gap-2 rounded-2xl bg-brand-600 px-6 text-sm font-bold text-white shadow-lg shadow-brand-200 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-300 active:scale-[0.98]"
+                                >
+                                    <Plus size={18} strokeWidth={2.5} />
+                                    New Offering
+                                </button>
+                                <button
+                                    onClick={openTemplateCreate}
+                                    className="flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-black hover:shadow-xl hover:shadow-slate-300 active:scale-[0.98]"
+                                >
+                                    <Plus size={18} strokeWidth={2.5} />
+                                    New Template
+                                </button>
+                            </>
+                        ) : null}
                     </div>
                 )}
             </div>
@@ -1429,12 +1567,12 @@ export default function ResourcesPage() {
                 <div className="card mb-6 border border-slate-200">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">Partner area</h2>
+                            <h2 className="text-lg font-bold text-slate-900">Managed area</h2>
                             <p className="mt-1 text-sm text-slate-500">
-                                Upload the exact postcode set used to show partner-area offerings to your managed members.
+                                Upload the exact postcode set used to show managed-area offerings to your managed members.
                             </p>
                             <p className="mt-2 text-xs text-slate-500">
-                                Current partner area: <span className="font-semibold text-slate-700">{partnerBoundary?.postalCodeCount || 0}</span> postcode(s)
+                                Current managed area: <span className="font-semibold text-slate-700">{partnerBoundary?.postalCodeCount || 0}</span> postcode(s)
                             </p>
                         </div>
                         <div className="flex flex-col gap-2 sm:flex-row">
@@ -1490,12 +1628,12 @@ export default function ResourcesPage() {
                             onChange={(e) => setBoundaryFilter(e.target.value)}
                             className="input-field xl:w-48"
                         >
-                            <option value="all">All partner-area status</option>
-                            <option value="inside">Inside partner area</option>
-                            <option value="outside">Outside partner area</option>
+                            <option value="all">All managed-area status</option>
+                            <option value="inside">Inside managed area</option>
+                            <option value="outside">Outside managed area</option>
                             <option value="missing-postal">Missing postal code</option>
                             <option value="no-location">No linked location</option>
-                            <option value="no-boundary">No partner area set</option>
+                            <option value="no-boundary">No managed area set</option>
                         </select>
                     ) : null}
                     <select
@@ -1527,7 +1665,7 @@ export default function ResourcesPage() {
 
             {boundaryChecksEnabled && activeTab !== 'templates' ? (
                 <p className="mb-6 text-xs text-slate-500">
-                    Partner-area checks use the exact postal code set assigned to your service area.
+                    Managed-area checks use the exact postal code set assigned to your service area.
                 </p>
             ) : null}
 
@@ -1555,7 +1693,7 @@ export default function ResourcesPage() {
                         <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
                         Offerings ({softTabCount})
                     </button>
-                    {canManageResourceTools ? (
+                    {canManageResourceTools && canCreateStandaloneResources ? (
                         <button
                             onClick={() => setActiveTab('templates')}
                             className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
@@ -1581,7 +1719,7 @@ export default function ResourcesPage() {
                         icon={Building2}
                         title="No places found"
                         description="Try adjusting your search criteria."
-                        action={canManageResourceTools && !searchTerm ? (
+                        action={canManageResourceTools && canCreateStandaloneResources && !searchTerm ? (
                             <button onClick={() => openCreate('hard')} className="btn-primary mx-auto border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
                                 <Plus size={16} /> Add Place
                             </button>
@@ -1610,6 +1748,10 @@ export default function ResourcesPage() {
                         {visibleHardAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canShowMembers = typeof asset.membershipCount === 'number';
+                            const canEditPlace = canEditHardAsset(asset);
+                            const canManageAccess = canManageHardAssetAccess(asset);
+                            const canChangeHardAssetVisibility = canHideHardAsset(asset);
+                            const canRemoveHardAsset = canDeleteHardAsset(asset);
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
@@ -1657,7 +1799,7 @@ export default function ResourcesPage() {
                                         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-1">
                                             <button
                                                 onClick={() => handleToggleVisibility(asset, 'hard')}
-                                                disabled={visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
+                                                disabled={!canChangeHardAssetVisibility || visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
                                                 className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                             >
                                                 <span className="flex items-center gap-2">
@@ -1671,33 +1813,55 @@ export default function ResourcesPage() {
                                                     {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
                                                 </span>
                                             </button>
-                                            <button 
-                                                onClick={() => openEdit(asset, 'hard')} 
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                            >
-                                                <Pencil size={15} /> Edit
-                                            </button>
-                                            <button
-                                                onClick={() => toggleInlineSoftCreate(asset)}
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                            >
-                                                <Plus size={15} /> Add Offering
-                                            </button>
-                                            <button
-                                                onClick={() => openCollateralImport(asset)}
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                            >
-                                                <Files size={15} /> Import Material
-                                            </button>
-                                            <button 
-                                                onClick={() => openMembershipQr(asset)} 
-                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                            >
-                                                <Users size={15} /> Memberships
-                                            </button>
-                                            <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
-                                                <Trash2 size={15} /> Delete
-                                            </button>
+                                            {canEditPlace ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => openEdit(asset, 'hard')}
+                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'edit' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                                    >
+                                                        <Pencil size={15} /> Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => toggleInlineSoftCreate(asset)}
+                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'soft-create' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                                    >
+                                                        <Plus size={15} /> Add Offering
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openCollateralImport(asset)}
+                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'import' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                                    >
+                                                        <Files size={15} /> Import Material
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openMembershipQr(asset)}
+                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'qr' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                                    >
+                                                        <Users size={15} /> Memberships
+                                                    </button>
+                                                </>
+                                            ) : null}
+                                            {canManageAccess ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => openAssetAccess(asset)}
+                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'access' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                                    >
+                                                        <ShieldCheck size={15} /> Access
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openAssetZones(asset)}
+                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'zones' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                                    >
+                                                        <MapPin size={15} /> Zones
+                                                    </button>
+                                                </>
+                                            ) : null}
+                                            {canRemoveHardAsset ? (
+                                                <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
+                                                    <Trash2 size={15} /> Delete
+                                                </button>
+                                            ) : null}
                                         </div>
                                     </div>
 
@@ -1709,18 +1873,24 @@ export default function ResourcesPage() {
                                                         {inlineAction.type === 'soft-create' ? 'Inline offering composer' :
                                                          inlineAction.type === 'edit' ? 'Inline place editor' :
                                                          inlineAction.type === 'import' ? 'Inline material import' :
+                                                         inlineAction.type === 'access' ? 'Asset access' :
+                                                         inlineAction.type === 'zones' ? 'Audience zones' :
                                                          'Memberships & QR'}
                                                     </p>
                                                     <h3 className="mt-1 text-xl font-black text-slate-900">
                                                         {inlineAction.type === 'soft-create' ? `Add an offering for ${asset.name}` :
                                                          inlineAction.type === 'edit' ? `Edit ${asset.name}` :
                                                          inlineAction.type === 'import' ? `Import materials to ${asset.name}` :
+                                                         inlineAction.type === 'access' ? `Manage access for ${asset.name}` :
+                                                         inlineAction.type === 'zones' ? `Manage zones for ${asset.name}` :
                                                          `Memberships for ${asset.name}`}
                                                     </h3>
                                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                                         {inlineAction.type === 'soft-create' ? `Start with the essentials and keep ${asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.` :
-                                                         inlineAction.type === 'edit' ? 'Update physical address, partner-area status, hidden status, and contact info directly without leaving the list.' :
+                                                         inlineAction.type === 'edit' ? 'Update physical address, managed-area status, hidden status, and contact info directly without leaving the list.' :
                                                          inlineAction.type === 'import' ? 'Upload printed flyer or programme material for this place, review extracted offering drafts, then create or update offerings in bulk.' :
+                                                         inlineAction.type === 'access' ? 'Assign real user accounts as Owner or Staff for this place.' :
+                                                         inlineAction.type === 'zones' ? 'Create local postal-code zones for this asset and request sharing when needed.' :
                                                          'Manage linked members joining this place. Share the QR code or link below to allow new members to onboard instantly.'}
                                                     </p>
                                                 </div>
@@ -1825,6 +1995,19 @@ export default function ResourcesPage() {
                                                         onCancel={() => setInlineAction(null)}
                                                     />
                                                 )}
+                                                {inlineAction.type === 'access' && (
+                                                    <AssetAccessPanel
+                                                        asset={asset}
+                                                        assetType="hard"
+                                                        onChanged={load}
+                                                    />
+                                                )}
+                                                {inlineAction.type === 'zones' && (
+                                                    <AssetAudienceZonesPanel
+                                                        asset={asset}
+                                                        currentUser={user}
+                                                    />
+                                                )}
                                                 {inlineAction.type === 'qr' && (
                                                     inlineAction.loading ? (
                                                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
@@ -1905,7 +2088,7 @@ export default function ResourcesPage() {
                         icon={CalendarDays}
                         title="No offerings found"
                         description="Try adjusting your search criteria."
-                        action={canManageResourceTools && !searchTerm ? (
+                        action={canManageResourceTools && canCreateStandaloneResources && !searchTerm ? (
                             <button onClick={() => openCreate('soft')} className="btn-primary mx-auto">
                                 <Plus size={16} /> Add Offering
                             </button>
@@ -1927,8 +2110,8 @@ export default function ResourcesPage() {
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <p className="md:col-span-2 text-sm text-slate-500">
+                    <div className="grid grid-cols-1 gap-4">
+                        <p className="text-sm text-slate-500">
                             Showing {softPageRange.start}-{softPageRange.end} of {softTabCount} offerings
                         </p>
                         {visibleSoftAssets.map((asset) => {
@@ -1936,6 +2119,10 @@ export default function ResourcesPage() {
                             const isChild = asset.assetMode === 'child';
                             const isVisibilitySaving = visibilityActionKey === getVisibilityActionKey('soft', asset.id);
                             const isAvailabilitySaving = availabilityActionKey === getAvailabilityActionKey(asset.id);
+                            const canEditOffering = canEditSoftAsset(asset);
+                            const canManageOfferingAccess = canManageSoftAssetAccess(asset);
+                            const canChangeSoftVisibility = canHideSoftAsset(asset);
+                            const canRemoveSoftAsset = canDeleteSoftAsset(asset);
                             return (
                                 <div key={asset.id} className="card flex flex-col items-start gap-4 p-5">
                                     <div className="flex w-full items-start justify-between gap-3">
@@ -1972,7 +2159,7 @@ export default function ResourcesPage() {
                                                 </span>
                                             ) : null}
                                             {isChild ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Place version</span> : null}
-                                            {asset.audienceMode === 'partner_boundary' ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Partner area</span> : null}
+                                            {asset.audienceMode === 'partner_boundary' ? <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-700">Managed area</span> : null}
                                             {asset.audienceMode === 'audience_zones' ? <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700">Target areas</span> : null}
                                             {asset.isMemberOnly ? <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">Member-only</span> : null}
                                             {asset.subCategory ? <CategoryBadge category={asset.subCategory} onClick={() => setSearchTerm(asset.subCategory)} /> : null}
@@ -2000,16 +2187,16 @@ export default function ResourcesPage() {
 
                                     <AvailabilityCounterControl
                                         asset={asset}
-                                        disabled={isAvailabilitySaving}
+                                        disabled={!canEditOffering || isAvailabilitySaving}
                                         onToggle={(availabilityEnabled) => handleAvailabilityUpdate(asset, { availabilityEnabled })}
                                         onAdjust={(availabilityCount) => handleAvailabilityUpdate(asset, { availabilityCount })}
                                     />
 
-                                    <div className="mt-auto flex w-full items-center gap-2 border-t border-slate-100 pt-4">
+                                    <div className="resource-action-grid mt-auto w-full gap-2 border-t border-slate-100 pt-4">
                                         <button
                                             onClick={() => handleToggleVisibility(asset, 'soft')}
-                                            disabled={isVisibilitySaving}
-                                            className="btn-ghost flex-1 justify-center py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                            disabled={!canChangeSoftVisibility || isVisibilitySaving}
+                                            className="btn-ghost resource-action-button text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {isVisibilitySaving ? (
                                                 <RefreshCw size={15} className="animate-spin" />
@@ -2018,18 +2205,58 @@ export default function ResourcesPage() {
                                             ) : (
                                                 <EyeOff size={15} />
                                             )}
-                                            {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
+                                            <span>{hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}</span>
                                         </button>
-                                        <button onClick={() => openEdit(asset, 'soft')} className="btn-ghost flex-1 justify-center py-2 text-sm">
-                                            <Pencil size={15} /> {isChild ? 'Edit place version' : 'Edit'}
-                                        </button>
-                                        <button
-                                            onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Place version' : 'Offering', parentId: asset.parentSummary?.id || null })}
-                                            className="btn-ghost flex-1 justify-center py-2 text-sm text-red-600 hover:border-red-100 hover:bg-red-50"
-                                        >
-                                            <Trash2 size={15} /> Delete
-                                        </button>
+                                        {canEditOffering ? (
+                                            <button onClick={() => openEdit(asset, 'soft')} className="btn-ghost resource-action-button text-sm">
+                                                <Pencil size={15} /> <span>{isChild ? 'Edit place version' : 'Edit'}</span>
+                                            </button>
+                                        ) : null}
+                                        {canManageOfferingAccess ? (
+                                            <button
+                                                onClick={() => openAssetAccess(asset, 'soft')}
+                                                className={`btn-ghost resource-action-button text-sm ${inlineAction?.assetType === 'soft' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                            >
+                                                <ShieldCheck size={15} /> <span>Access</span>
+                                            </button>
+                                        ) : null}
+                                        {canRemoveSoftAsset ? (
+                                            <button
+                                                onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Place version' : 'Offering', parentId: asset.parentSummary?.id || null })}
+                                                className="btn-ghost resource-action-button text-sm text-red-600 hover:border-red-100 hover:bg-red-50"
+                                            >
+                                                <Trash2 size={15} /> <span>Delete</span>
+                                            </button>
+                                        ) : null}
                                     </div>
+                                    {inlineAction?.assetType === 'soft' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? (
+                                        <div className="mt-2 w-full rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
+                                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">Offering access</p>
+                                                    <h3 className="mt-1 text-xl font-black text-slate-900">Manage access for {asset.name}</h3>
+                                                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                                                        Assign real user accounts as Owner or Staff for this standalone offering.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setInlineAction(null)}
+                                                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                >
+                                                    <X size={15} />
+                                                    Close
+                                                </button>
+                                            </div>
+                                            <div className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-sm shadow-slate-100">
+                                                <AssetAccessPanel
+                                                    asset={asset}
+                                                    assetType="soft"
+                                                    onChanged={load}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </div>
                             );
                         })}
@@ -2047,7 +2274,7 @@ export default function ResourcesPage() {
                         icon={Files}
                         title="No templates found"
                         description="Create a parent template to generate place-specific versions."
-                        action={!searchTerm ? (
+                        action={canCreateStandaloneResources && !searchTerm ? (
                             <button onClick={openTemplateCreate} className="btn-primary mx-auto">
                                 <Plus size={16} /> Create Template
                             </button>

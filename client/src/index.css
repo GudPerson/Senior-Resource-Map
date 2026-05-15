@@ -437,6 +437,24 @@
     transform: translateY(-1px);
   }
 
+  .resource-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  }
+
+  .resource-action-button {
+    width: 100%;
+    min-height: 3rem;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .resource-action-button svg {
+    flex-shrink: 0;
+  }
+
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all min-h-[44px] focus:outline-none focus:ring-2 focus:ring-offset-1 cursor-pointer;
     background-color: var(--color-accent-soft);

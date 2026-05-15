@@ -240,7 +240,7 @@ export default function AuthPage({ isPartner = false }) {
                     {isPartner ? (
                         <>{t('lookingForUserLogin')} <Link to="/login" className="text-brand-600 font-semibold hover:underline">{t('clickHere')}</Link></>
                     ) : (
-                        <>{t('staffOrAdmin')} <Link to="/partner-login" className="text-brand-600 font-semibold hover:underline">{t('logInHere')}</Link></>
+                        <>{t('staffOrAdmin')}</>
                     )}
                 </div>
 
