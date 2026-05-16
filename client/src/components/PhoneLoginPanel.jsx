@@ -636,6 +636,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
     });
     const whatsappLaunchIsNative = whatsappLaunchUrl.startsWith('whatsapp://');
     const cleanedPhone = clean(phone);
+    const canConfirmPhoneDevice = Boolean(cleanedPhone);
     const canStart = Boolean(cleanedPhone) && phoneDeviceConfirmed && !actionBusy && status !== 'pending' && status !== 'starting';
     const showTryAgain = ['failed', 'expired', 'no_account', 'conflict'].includes(status);
     const canCompleteSignup = Boolean(clean(signupForm.name)) && signupAcknowledged && !signupBusy;
@@ -681,13 +682,24 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
                                     className="input-field pl-10"
                                 />
                             </div>
-                            <label className="mt-3 flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-3 text-xs font-semibold leading-5 text-slate-700" htmlFor="phone-login-device-confirm">
+                            <label
+                                className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-3 text-xs font-semibold leading-5 transition ${
+                                    !canConfirmPhoneDevice
+                                        ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+                                        : phoneDeviceConfirmed
+                                            ? 'border-brand-200 bg-brand-50/70 text-slate-800'
+                                            : 'border-brand-100 bg-white text-slate-700'
+                                }`}
+                                htmlFor="phone-login-device-confirm"
+                            >
                                 <input
                                     id="phone-login-device-confirm"
                                     type="checkbox"
+                                    disabled={!canConfirmPhoneDevice}
                                     checked={phoneDeviceConfirmed}
                                     onChange={(event) => setPhoneDeviceConfirmed(event.target.checked)}
-                                    className="mt-1 h-4 w-4 flex-shrink-0 rounded border-brand-200 text-brand-700 focus:ring-brand-300"
+                                    className="mt-1 h-4 w-4 flex-shrink-0 rounded border-brand-200 text-brand-700 focus:ring-brand-300 disabled:cursor-not-allowed disabled:border-slate-300"
+                                    style={{ accentColor: 'var(--color-brand)' }}
                                 />
                                 <span>{t('phoneLoginDeviceConfirmAcknowledgement')}</span>
                             </label>
