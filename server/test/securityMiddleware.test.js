@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Hono } from 'hono';
 
 import app from '../src/app.js';
-import { createRateLimiter } from '../src/middleware/security.js';
+import { authRateLimit, createRateLimiter } from '../src/middleware/security.js';
 
 test('security headers are set on API responses', async () => {
     const response = await app.fetch(
@@ -149,6 +149,33 @@ test('rate limiter blocks repeated requests without relying on a database', asyn
         const blocked = await limited.request('/ok');
         assert.equal(blocked.status, 429);
         assert.equal((await blocked.json()).error, 'Too many requests. Please wait a moment and try again.');
+    } finally {
+        globalThis.__carearoundRateLimitBuckets = previousStore;
+    }
+});
+
+test('auth rate limiter does not spend login budget on phone status polling', async () => {
+    const previousStore = globalThis.__carearoundRateLimitBuckets;
+    globalThis.__carearoundRateLimitBuckets = new Map();
+
+    try {
+        const limited = new Hono();
+        limited.use('*', authRateLimit);
+        limited.get('/api/auth/phone/attempt-1', (c) => c.json({ status: 'pending' }));
+        limited.post('/api/auth/login', (c) => c.json({ ok: true }));
+
+        for (let index = 0; index < 25; index += 1) {
+            const pollResponse = await limited.request('/api/auth/phone/attempt-1', {
+                headers: { 'CF-Connecting-IP': '203.0.113.10' },
+            });
+            assert.equal(pollResponse.status, 200);
+        }
+
+        const loginResponse = await limited.request('/api/auth/login', {
+            method: 'POST',
+            headers: { 'CF-Connecting-IP': '203.0.113.10' },
+        });
+        assert.equal(loginResponse.status, 200);
     } finally {
         globalThis.__carearoundRateLimitBuckets = previousStore;
     }

@@ -198,6 +198,14 @@ export const authRateLimit = createRateLimiter({
     name: 'auth',
     limit: 20,
     windowMs: 10 * 60 * 1000,
+    methods: ['POST'],
+});
+
+export const authPollingRateLimit = createRateLimiter({
+    name: 'auth-poll',
+    limit: 180,
+    windowMs: 10 * 60 * 1000,
+    methods: ['GET'],
 });
 
 export const uploadRateLimit = createRateLimiter({

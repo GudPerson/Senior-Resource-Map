@@ -24,6 +24,7 @@ import resourceTranslationsRoutes from './routes/resourceTranslations.js';
 import phoneIdentitiesRoutes from './routes/phoneIdentities.js';
 import {
     aiRateLimit,
+    authPollingRateLimit,
     authRateLimit,
     requestBodyGuard,
     securityHeaders,
@@ -79,6 +80,7 @@ app.use('*', requestBodyGuard);
 app.use('/api/auth/login', authRateLimit);
 app.use('/api/auth/register', authRateLimit);
 app.use('/api/auth/google', authRateLimit);
+app.use('/api/auth/phone/*', authPollingRateLimit);
 app.use('/api/auth/phone/*', authRateLimit);
 app.use('/api/phone-identities/link/start', authRateLimit);
 app.use('/api/upload', uploadRateLimit);
