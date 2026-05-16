@@ -11,6 +11,7 @@
     "backfill:soft-buckets": "node scripts/backfill_soft_asset_buckets.js",
     "backfill:external-keys": "node scripts/backfill_external_keys.js",
     "backfill:phone-identities": "node --env-file=.env scripts/backfill_phone_identities.js",
+    "audit:db-fingerprint": "node --env-file=.env scripts/audit_db_fingerprint.js",
     "audit:phone-identities": "node --env-file=.env scripts/audit_phone_identities.js",
     "audit:clean-slate": "node --env-file=.env scripts/audit_clean_slate.js",
     "reset:clean-slate": "node --env-file=.env scripts/reset_clean_slate.js",

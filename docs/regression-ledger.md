@@ -75,6 +75,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Acceptance criteria: signed-in users remain signed in unless the primary session endpoint definitively returns an invalid or missing token; successful email, Google, or phone sign-in clears stale stored WhatsApp login attempts so the login page does not re-open an old signup-required state.
 - Verification result: `node --test client/test/*.test.js` passed 26/26, `npm run build:client` passed, `npm run test:server` passed 223/223, and production public smoke for `/` -> `/discover` passed on 2026-05-16. Full credentialed smoke was blocked because smoke credentials were not set in the shell.
 
+### 2026-05-16 Production database source reconciliation
+
+- Current behavior: repo-local database checks must use the same Neon database that serves `api.carearound.sg`; otherwise phone/login cleanup can appear correct locally while production still contains different users, attempts, and resource rows.
+- Known-good reference: production `/api/hard-assets` and the confirmed live database both list `Fei Yue Active Ageing Centre (Sunshine Court)` as the newest hard asset, and the live database contains the recent WhatsApp login attempt sequence.
+- Reproduction steps: run `npm run audit:db-fingerprint` and compare the non-secret counts/top hard assets against a fresh production `/api/hard-assets` response before any production data cleanup.
+- Acceptance criteria: `server/.env` points at the confirmed live database; tracked scripts/config files do not contain database connection strings; future cleanup scripts print only non-secret database fingerprints/counts before mutating data.
+- Verification result: local `server/.env` was reconciled to the confirmed live database on 2026-05-16, `server/migrate_regions.js` was changed to read `DATABASE_URL` from env, and Drizzle config was moved to env-backed `server/drizzle.config.js`.
+
 ## Current recovery order
 
 1. Discover

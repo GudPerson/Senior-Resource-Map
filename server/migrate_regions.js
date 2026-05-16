@@ -1,6 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon("postgresql://neondb_owner:npg_I4FfmdV3sxwY@ep-patient-grass-aixppnyq-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require");
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+    throw new Error('DATABASE_URL is required. Run this helper with node --env-file=server/.env server/migrate_regions.js');
+}
+
+const sql = neon(databaseUrl);
 
 async function run() {
     console.log("Creating user_subregions table...");
