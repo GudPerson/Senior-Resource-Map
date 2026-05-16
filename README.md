@@ -6,6 +6,8 @@ This README is written as a plain-English map of the product. It is meant to hel
 
 It is not mainly a technical setup guide.
 
+Last refreshed: 2026-05-16, after the Region, Asset Access, phone auth, and CareAround Orchestrator updates.
+
 ## The Big Picture
 
 CareAround SG has three simple jobs:
@@ -24,8 +26,9 @@ The product is built around a few everyday ideas:
 | My Directory | The user's personal collection of saved resources. |
 | My Map | A curated directory made from saved resources. It can be kept private, shared by link, printed, or exported as an image. |
 | Shared Map | A read-only public version of a My Map that other people can view through a link. |
-| Subregion | A management area based on postal codes. It helps decide which admins or partners can manage which users and resources. |
-| Audience Zone | A more targeted postal-code group used to decide who can see certain restricted offerings. |
+| Region | A postal-code service area used for governance, review, and resource relevance. Regions may overlap. The database may still use older `subregion` wording internally. |
+| Asset Access | A direct Owner/Staff assignment that decides who can edit a place or standalone service. Region overlap does not automatically grant edit rights. |
+| Audience Zone | A targeted postal-code group used to decide who can see or use certain restricted offerings. Zones may overlap Regions and other zones. |
 | Membership Link | A QR or link flow that connects a user to a place, so member-only offerings can recognise that user's access. |
 
 ## Who Uses CareAround SG
@@ -34,11 +37,11 @@ The product is built around a few everyday ideas:
 | --- | --- |
 | Guest | Browse public resources and shared maps without signing in. Guests cannot save resources or create maps. |
 | Standard User | Save resources, manage My Directory, create My Maps, view shared maps, copy shared maps, maintain a profile, and link memberships. |
-| Partner | Manage their assigned users, audience zones, and partner-owned resources within their allowed area. |
-| Regional Admin | Manage resources, partners, subregions, and audience zones for their assigned region. |
-| Super Admin | Manage the full system, including users, resources, categories, subregions, audience zones, and data tools. |
+| Asset Owner / Staff | Manage assigned places or standalone services, including linked offerings and protected staff-only resource content. Owners can manage staff access where allowed. |
+| Region Admin | Govern resources and users within assigned Regions, review coverage and shared zones, and manage assets only when explicitly assigned as Owner or Staff. |
+| Super Admin | Manage the full system, including users, resources, categories, Regions, audience zones, asset access, and data tools. |
 
-The product is intentionally role-based. A user should only see and manage what they are allowed to see and manage.
+The product is intentionally access-based. A user should only see and manage what they are allowed to see and manage. In the current direction, direct asset access is the main edit boundary, while Regions and Audience Zones decide governance, relevance, and targeting.
 
 ## Main Feature Areas
 
@@ -167,7 +170,7 @@ Important relationship:
 
 Shared Maps make private curation reusable. They turn one person's map-building effort into something another person can view, print, copy, or build on.
 
-### 6. Partner and Admin Dashboard
+### 6. Resource and Admin Dashboard
 
 The dashboard is where trusted users manage the system.
 
@@ -180,17 +183,20 @@ Resource management includes:
 - Tracking offering availability.
 - Linking offerings to places.
 - Managing templates and rollouts for repeated offerings.
+- Managing direct Asset Access for Owners and Staff.
+- Managing staff-only notes and files attached to resources.
 
 User management includes:
 
 - Creating users.
 - Assigning roles.
 - Assigning managers.
-- Connecting users to the right subregion through postal-code rules.
+- Assigning users to Regions for governance and review.
+- Supporting account recovery and verified phone identity workflows.
 
 System management includes:
 
-- Managing subregions.
+- Managing Regions.
 - Managing audience zones.
 - Managing categories and category icons.
 - Importing and exporting data through workbooks.
@@ -206,7 +212,7 @@ The most important content relationship is the difference between places and off
 | Concept | Meaning | Example |
 | --- | --- | --- |
 | Place | A physical location. | An active ageing centre at a specific address. |
-| Standalone Offering | A service or programme managed directly as one resource. | A weekly exercise class available at one or more places. |
+| Standalone Offering | A service or programme managed directly as one resource. Some standalone services may not have a fixed public place. | Home nursing, home medical, or a weekly exercise class available at one or more places. |
 | Template Offering | A reusable parent offering. | A standard programme that can be rolled out to many places. |
 | Child Offering | A local version of a template at a specific host place. | The same programme running at one particular centre, with local timing or contact details. |
 
@@ -216,6 +222,7 @@ This structure is powerful because it supports both simple and complex content:
 - Simple programme: one offering linked to one place.
 - Multi-location programme: one offering linked to several places.
 - Reusable programme: one template with child offerings at different host places.
+- Locationless service: one standalone offering with service coverage through Regions or Audience Zones.
 
 Important relationship:
 
@@ -233,7 +240,8 @@ CareAround SG has several visibility and access ideas:
 | Hidden | The resource is intentionally not shown publicly. |
 | Scheduled hiding | The resource is hidden during a chosen date/time window. |
 | Member-only | The user may need a linked membership at a place to access the offering. |
-| Partner-boundary | The offering is meant for users connected to a partner and inside that partner's postal-code boundary. |
+| Region relevance | A resource is relevant to a Region when its place postal code or standalone-service coverage matches that Region. Region relevance is not edit permission. |
+| Asset Access | Owners and Staff can edit assigned resources. Owners can manage Staff where allowed. |
 | Audience-zone | The offering is meant for users whose postal code matches a selected audience zone. |
 | Eligibility-based | The offering may depend on profile details such as age, gender, or property type. |
 
@@ -241,7 +249,7 @@ These rules are meant to support real-world programme access, but they are also 
 
 Important relationship:
 
-Access logic depends on user profile data, postal-code boundaries, memberships, resource ownership, and visibility settings all lining up.
+Access logic depends on user profile data, Region coverage, Audience Zones, memberships, direct asset ownership/staff access, and visibility settings all lining up.
 
 ### 9. Membership Linking
 
@@ -249,7 +257,7 @@ Membership linking connects a standard user to a place.
 
 The intended flow is:
 
-1. A partner or admin generates a membership QR or link for a place.
+1. An authorised staff member or admin generates a membership QR or link for a place.
 2. A user opens the link.
 3. If the user is not signed in, they are asked to sign in first.
 4. The system links that user to the place.
@@ -273,7 +281,7 @@ These tools include:
 
 Important relationship:
 
-Import tools speed up operations, but they also introduce risk. Imported data still needs human review, especially for category choice, ownership, visibility, audience targeting, and whether an offering should be standalone or template-based.
+Import tools speed up operations, but they also introduce risk. Imported data still needs human review, especially for category choice, Asset Access, Region coverage, visibility, audience targeting, and whether an offering should be standalone or template-based.
 
 ### 11. Language and Translation
 
@@ -291,7 +299,7 @@ There are two kinds of translation in the product:
 | App interface language | Common buttons, navigation, Discover, My Directory, My Maps, profile, and other user-facing screens can change language through the language selector. |
 | Resource content translation | Places and offerings can have translated names, descriptions, schedules, contact notes, and other public text. |
 
-English remains the main version of resource content. When English content is saved, the system can prepare Mandarin, Malay, and Tamil translations. Partners or admins can then review those translations in the dashboard.
+English remains the main version of resource content. When English content is saved, the system can prepare Mandarin, Malay, and Tamil translations. Authorised staff or admins can then review those translations in the dashboard.
 
 The translation review flow uses plain statuses:
 
@@ -313,11 +321,11 @@ Current language boundary:
 - Deep admin and operational tooling may stay in English in V1, with clear notices where appropriate.
 - Legal pages are English-authoritative in V1. Translated legal summaries should not be treated as official until reviewed.
 
-### 12. Partner-Only Notes and Files
+### 12. Staff-Only Notes and Files
 
-Some resource information is useful for partners but should not be visible to guests or standard users.
+Some resource information is useful for authorised staff but should not be visible to guests or standard users.
 
-CareAround SG supports a protected partner-only area on place and offering details. It can hold:
+CareAround SG supports a protected staff-only area on place and offering details. It can hold:
 
 - Reference notes.
 - Pricing notes.
@@ -325,15 +333,15 @@ CareAround SG supports a protected partner-only area on place and offering detai
 - Checklists.
 - Private images.
 - Private PDFs.
-- Extra partner viewer access.
+- Extra viewer access for authorised accounts.
 
-Only authorised partners and admins should see this section. Standard users, guests, and unrelated partners should not see that it exists.
+Only authorised Owners, Staff, admins, and explicitly granted viewers should see this section. Standard users, guests, and unrelated staff should not see that it exists.
 
 Private files are viewed through permission-checked links. They are not normal public image or file URLs.
 
 Important relationship:
 
-Partner-only content must stay separate from public resource content. It should not appear in Discover, public resource payloads, saved map snapshots, shared maps, workbook exports, or public map cache data.
+Staff-only content must stay separate from public resource content. It should not appear in Discover, public resource payloads, saved map snapshots, shared maps, workbook exports, or public map cache data.
 
 ### 13. Privacy, Cookies, and Terms
 
@@ -351,7 +359,7 @@ The current approach is:
 
 Important relationship:
 
-Legal pages should match what the app actually does. When CareAround SG adds new data collection, messaging, analytics, exports, AI workflows, or partner workflows, the privacy and terms pages should be reviewed.
+Legal pages should match what the app actually does. When CareAround SG adds new data collection, messaging, analytics, exports, AI workflows, or partner/staff workflows, the privacy and terms pages should be reviewed.
 
 ### 14. Security and Data Protection Posture
 
@@ -364,7 +372,7 @@ Current protections include:
 - Server-side request validation for sensitive JSON payloads.
 - Request size and malformed JSON guards.
 - Rate limits for higher-risk areas such as auth, uploads, AI import, and translation.
-- Protected partner-only file access.
+- Protected staff-only file access.
 - Production session signing that requires a real secret.
 - Tests that check access control and private-data exclusion from public/shared payloads.
 
@@ -372,7 +380,7 @@ This is not a formal security certification. It is a practical baseline that sho
 
 Important relationship:
 
-Security and privacy are not one feature. They affect every workflow that touches user data, partner data, private files, imports, exports, maps, memberships, and admin tools.
+Security and privacy are not one feature. They affect every workflow that touches user data, partner/staff data, private files, imports, exports, maps, memberships, and admin tools.
 
 ### 15. User Data Export
 
@@ -386,7 +394,7 @@ The export is meant to support operations such as:
 
 Important relationship:
 
-User export is powerful because it can move personal data outside the app. It should remain role-protected, scoped, and used only for legitimate operational purposes. Any future user guide or partner/admin training should explain safe handling of exported files.
+User export is powerful because it can move personal data outside the app. It should remain role-protected, scoped, and used only for legitimate operational purposes. Any future staff/admin training should explain safe handling of exported files.
 
 ## How The Pieces Connect
 
@@ -405,7 +413,7 @@ Discover resources
 
 ```text
 Create or import places and offerings
-  -> assign category, ownership, location, visibility, and audience rules
+  -> assign category, Asset Access, Region coverage, location, visibility, and audience rules
   -> resources appear in Discover when allowed
   -> users save resources
   -> saved resources become directories and shared maps
@@ -415,7 +423,7 @@ Create or import places and offerings
 
 ```text
 Admin creates a restricted offering
-  -> restriction depends on membership, postal boundary, audience zone, or profile details
+  -> restriction depends on membership, Region relevance, audience zone, or profile details
   -> user signs in and completes profile or links membership
   -> system decides whether the offering is visible, locked, unavailable, or accessible
 ```
@@ -433,7 +441,7 @@ User creates a private map
 ### Translation journey
 
 ```text
-Partner or admin saves English resource content
+Authorised staff or admin saves English resource content
   -> system prepares Mandarin, Malay, and Tamil where configured
   -> dashboard shows which languages are ready or need review
   -> staff can accept, edit, or refill missing text
@@ -441,13 +449,13 @@ Partner or admin saves English resource content
   -> missing or outdated translated text falls back to English
 ```
 
-### Partner-only reference journey
+### Staff-only reference journey
 
 ```text
 Resource editor adds private notes or files
-  -> access is limited to resource editors and extra partner viewers
-  -> authorised partners see the protected section on detail pages
-  -> guests, standard users, and unrelated partners see nothing
+  -> access is limited to resource editors and extra authorised viewers
+  -> authorised staff see the protected section on detail pages
+  -> guests, standard users, and unrelated accounts see nothing
   -> private content stays out of public maps, snapshots, and exports
 ```
 
@@ -457,7 +465,7 @@ Resource editor adds private notes or files
 User signs in or saves data
   -> session and preferences are stored for essential app use
   -> protected APIs check identity, role, and request shape
-  -> sensitive partner/admin data stays behind permission checks
+  -> sensitive staff/admin data stays behind permission checks
   -> privacy and terms pages explain current use and responsibilities
 ```
 
@@ -472,12 +480,14 @@ User signs in or saves data
 | My Maps | Saved Assets, map grouping, distance anchor, snapshots | Maps need stable resources, useful location grouping, and resilience when data changes. |
 | Shared Maps | My Maps, share links, viewer permissions | Sharing should be simple for guests but richer for signed-in users. |
 | Membership Access | User accounts, membership links, linked places, member-only offerings | A broken membership flow can make restricted offerings impossible to understand. |
-| Dashboard | Roles, ownership, subregions, audience zones, import tools | Admin decisions shape the entire public experience. |
+| Dashboard | Roles, direct Asset Access, Regions, audience zones, import tools | Admin decisions shape the entire public experience. |
 | Translation | English source fields, Google Translation setup, review metadata, public fallback utilities | Multilingual display should help users without overwriting reviewed staff wording. |
-| Partner-Only Content | Resource ownership, partner/admin roles, extra viewer grants, protected file routes | Private notes and files must be useful to partners without leaking to public users. |
+| Staff-Only Content | Asset access, admin roles, extra viewer grants, protected file routes | Private notes and files must be useful to authorised staff without leaking to public users. |
 | Legal Pages | Current data practices, cookies/storage behavior, security posture, public contact details | Privacy and terms text should stay aligned with real product behavior. |
 | User Export | Admin role, user filtering, CSV generation, safe handling process | Exported user data needs tight scope and careful operational use. |
 | Security Baseline | Headers, CORS, validation, rate limits, session secrets, access-control tests | Security controls protect the trust model behind every feature. |
+| GudAuth WhatsApp Phone Auth | Verified phone identities, login attempts, recovery-email guardrails, auth handoff UI | Phone login is useful only if it avoids duplicate accounts, stale attempts, and phone-first lockout. |
+| CareAround Orchestrator | Project guardrails, regression ledger, release checklist, specialist lenses | The user should not need to remember which AI role to call for each task. |
 
 ## Reflection Checklist and Possible Gaps
 
@@ -501,9 +511,9 @@ This section is intentionally written as questions, not as confirmed bugs. It is
 ### Visibility and access questions
 
 - Can admins predict who will see a resource before they publish it?
-- Is the difference between hidden, scheduled hidden, member-only, partner-boundary, audience-zone, and eligibility-based access clear enough?
+- Is the difference between hidden, scheduled hidden, member-only, Region relevance, Asset Access, audience-zone, and eligibility-based access clear enough?
 - When a user cannot access an offering, does the app explain whether they need to sign in, complete profile fields, link membership, or simply do not qualify?
-- Are partner-boundary and audience-zone rules too similar from a layman's point of view?
+- Are Region relevance and Audience Zone targeting distinct enough from a layman's point of view?
 - Should there be a preview mode for admins to see what a standard user would see?
 
 ### Saved maps and sharing questions
@@ -525,7 +535,7 @@ This section is intentionally written as questions, not as confirmed bugs. It is
 
 - Which screens should be fully translated before public launch, and which admin screens can remain English-only with a clear notice?
 - Should legal text stay English-only until reviewed, or should the app offer non-authoritative summaries later?
-- Are translation statuses understandable to non-technical partner staff?
+- Are translation statuses understandable to non-technical staff?
 - Should users be told when a resource is being shown in English because translated text is missing?
 - Who is responsible for reviewing Mandarin, Malay, and Tamil wording before larger rollout?
 
@@ -535,18 +545,19 @@ This section is intentionally written as questions, not as confirmed bugs. It is
 - Do import reports explain row errors in a way operators can fix without engineering help?
 - Should imported resources default to hidden until reviewed?
 - Are category names, icons, and tags governed tightly enough to avoid duplicate or confusing labels?
-- Are subregion and audience-zone boundary conflicts easy to detect before they affect real users?
+- Are Region and Audience Zone boundary conflicts easy to detect before they affect real users?
 - Are user exports clearly scoped and safely handled after download?
-- Do partner-only notes and files need clearer rules about what should never be uploaded?
+- Do staff-only notes and files need clearer rules about what should never be uploaded?
 - Should the privacy contact placeholder be treated as a launch blocker in every release checklist?
 
 ### Future enhancement questions
 
 - Should CareAround SG support guided recommendations, not just search and saving?
-- Should My Maps support notes, priority labels, or caregiver comments?
+- Should My Maps support private personal notes, priority labels, or caregiver comments?
 - Should shared maps have expiry dates or version history?
-- Should partners get analytics about saved resources, copied maps, or QR membership usage?
-- Should there be a dedicated user guide for each audience: public user, partner, regional admin, and super admin?
+- Should partners or asset owners get analytics about saved resources, copied maps, or QR membership usage?
+- Should in-app notifications start with only low-risk account and resource-change alerts before external messaging is considered?
+- Should there be a dedicated user guide for each audience: public user, Asset Owner/Staff, Region Admin, and Super Admin?
 
 ## Possible User Guide Outline
 
@@ -561,9 +572,9 @@ This README can become the base for a future guide. A practical guide could be s
 7. Sharing, printing, and exporting maps.
 8. Completing your profile and linking memberships.
 9. Understanding privacy, cookies, and terms.
-10. Managing resources as a partner or admin.
+10. Managing resources as an Asset Owner, Staff member, Region Admin, or Super Admin.
 11. Reviewing translations.
-12. Using partner-only notes and files safely.
+12. Using staff-only notes and files safely.
 13. Importing data safely.
 14. Exporting user data safely.
 15. Troubleshooting common access and visibility questions.
@@ -582,7 +593,7 @@ This section is intentionally short. The main product should be understandable w
 - Google is used for sign-in and place/map-related workflows.
 - Google Translation can be used to prepare Mandarin, Malay, and Tamil resource translations.
 - Media upload support is available for logos, banners, and gallery images.
-- Protected partner-only file viewing is handled through authenticated server routes.
+- Protected staff-only file viewing is handled through authenticated server routes.
 - Workbook import/export supports operational data management.
 - Local environment files exist for client and server configuration, but they are intentionally ignored by git and should never be printed or committed.
 
