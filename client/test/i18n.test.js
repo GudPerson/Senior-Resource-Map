@@ -7,6 +7,13 @@ test('phone-first signup acknowledgement copy exists for every supported locale'
     const keys = [
         'phoneLoginSignupAccountWarning',
         'phoneLoginSignupAcknowledgement',
+        'phoneLoginDeviceConfirmAcknowledgement',
+        'phoneLoginDeviceConfirmRequired',
+        'phoneLoginPendingRecoveryTitle',
+        'phoneLoginPendingRecoveryBody',
+        'phoneLoginOpenWhatsAppAgain',
+        'phoneLoginTryAnotherNumber',
+        'phoneLoginUseGoogleOrEmail',
         'recoveryEmailTitle',
         'recoveryEmailHelp',
         'recoveryEmailPasswordRequired',

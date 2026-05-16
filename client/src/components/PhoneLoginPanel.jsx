@@ -18,6 +18,7 @@ import {
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120000;
+const PENDING_RECOVERY_DELAY_MS = 25000;
 
 function clean(value) {
     return String(value || '').trim();
@@ -383,9 +384,16 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
     const [signupForm, setSignupForm] = useState({ name: '', postalCode: '' });
     const [signupAcknowledged, setSignupAcknowledged] = useState(false);
     const [signupBusy, setSignupBusy] = useState(false);
+    const [phoneDeviceConfirmed, setPhoneDeviceConfirmed] = useState(false);
+    const [pendingRecoveryVisible, setPendingRecoveryVisible] = useState(false);
     const pollUntilRef = useRef(0);
     const pollInFlightRef = useRef(false);
+    const statusRef = useRef(status);
     const returnToRef = useRef(clean(returnTo));
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
     useEffect(() => {
         returnToRef.current = clean(returnTo);
@@ -407,6 +415,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             setStatus('verified');
             setAttemptId(null);
             pollUntilRef.current = 0;
+            setPendingRecoveryVisible(false);
             onSignedIn(result.user, storedAttempt?.returnTo || returnToRef.current);
             return;
         }
@@ -422,6 +431,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             setSignupAcknowledged(false);
             setStatus('signup_required');
             pollUntilRef.current = 0;
+            setPendingRecoveryVisible(false);
             return;
         }
 
@@ -430,6 +440,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             setStatus(nextStatus);
             setAttemptId(null);
             pollUntilRef.current = 0;
+            setPendingRecoveryVisible(false);
             return;
         }
 
@@ -439,6 +450,9 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
                 phone || storedAttempt?.phone || '',
                 storedAttempt?.returnTo || returnToRef.current,
             );
+            if (statusRef.current !== 'pending') {
+                setPendingRecoveryVisible(false);
+            }
             setStatus('pending');
         }
     }, [onSignedIn, phone]);
@@ -465,6 +479,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
         setAttemptId(storedAttempt.attemptId);
         if (storedAttempt.phone) setPhone(storedAttempt.phone);
         pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
+        setPendingRecoveryVisible(false);
         setStatus((currentStatus) => (currentStatus === 'verified' ? currentStatus : 'pending'));
         pollAttemptById(storedAttempt.attemptId);
     }, [pollAttemptById]);
@@ -486,6 +501,16 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
         const interval = window.setInterval(runPoll, POLL_INTERVAL_MS);
         return () => window.clearInterval(interval);
     }, [attemptId, pollAttemptById, status, t]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || status !== 'pending') {
+            setPendingRecoveryVisible(false);
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => setPendingRecoveryVisible(true), PENDING_RECOVERY_DELAY_MS);
+        return () => window.clearTimeout(timer);
+    }, [status, attemptId]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return undefined;
@@ -522,7 +547,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
 
     async function startPhoneLogin() {
         const phoneText = clean(phone);
-        if (!phoneText || actionBusy) return;
+        if (!phoneText || !phoneDeviceConfirmed || actionBusy) return;
 
         const preparedWhatsAppWindow = prepareWhatsAppLaunchWindow(
             t('phoneLoginOpeningWhatsApp'),
@@ -533,6 +558,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
         setError('');
         setChallenge(null);
         setSignupAcknowledged(false);
+        setPendingRecoveryVisible(false);
         try {
             const result = await api.startPhoneLogin({ phone: phoneText });
             pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
@@ -547,6 +573,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             }
             setStatus('failed');
             setError(friendlyErrorMessage(err.message, t));
+            setPendingRecoveryVisible(false);
         } finally {
             setActionBusy(false);
         }
@@ -580,6 +607,25 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
         setStatus('idle');
         setSignupForm({ name: '', postalCode: '' });
         setSignupAcknowledged(false);
+        setPhoneDeviceConfirmed(false);
+        setPendingRecoveryVisible(false);
+    }
+
+    function chooseAnotherNumber() {
+        clearStoredPhoneLoginAttempt();
+        pollUntilRef.current = 0;
+        setAttemptId(null);
+        setChallenge(null);
+        setError('');
+        setPhone('');
+        setPhoneDeviceConfirmed(false);
+        setPendingRecoveryVisible(false);
+        setStatus('collecting');
+    }
+
+    function handlePhoneChange(event) {
+        setPhone(event.target.value);
+        setPhoneDeviceConfirmed(false);
     }
 
     const view = statusView(status, t, mode);
@@ -589,7 +635,8 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
         preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator),
     });
     const whatsappLaunchIsNative = whatsappLaunchUrl.startsWith('whatsapp://');
-    const canStart = Boolean(clean(phone)) && !actionBusy && status !== 'pending' && status !== 'starting';
+    const cleanedPhone = clean(phone);
+    const canStart = Boolean(cleanedPhone) && phoneDeviceConfirmed && !actionBusy && status !== 'pending' && status !== 'starting';
     const showTryAgain = ['failed', 'expired', 'no_account', 'conflict'].includes(status);
     const canCompleteSignup = Boolean(clean(signupForm.name)) && signupAcknowledged && !signupBusy;
 
@@ -629,11 +676,26 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
                                     inputMode="tel"
                                     autoComplete="tel"
                                     value={phone}
-                                    onChange={(event) => setPhone(event.target.value)}
+                                    onChange={handlePhoneChange}
                                     placeholder={t('phoneLoginInputPlaceholder')}
                                     className="input-field pl-10"
                                 />
                             </div>
+                            <label className="mt-3 flex items-start gap-2 rounded-xl border border-brand-100 bg-white px-3 py-3 text-xs font-semibold leading-5 text-slate-700" htmlFor="phone-login-device-confirm">
+                                <input
+                                    id="phone-login-device-confirm"
+                                    type="checkbox"
+                                    checked={phoneDeviceConfirmed}
+                                    onChange={(event) => setPhoneDeviceConfirmed(event.target.checked)}
+                                    className="mt-1 h-4 w-4 flex-shrink-0 rounded border-brand-200 text-brand-700 focus:ring-brand-300"
+                                />
+                                <span>{t('phoneLoginDeviceConfirmAcknowledgement')}</span>
+                            </label>
+                            {cleanedPhone && !phoneDeviceConfirmed ? (
+                                <p className="mt-2 text-xs leading-5 text-slate-500">
+                                    {t('phoneLoginDeviceConfirmRequired')}
+                                </p>
+                            ) : null}
                         </div>
                     ) : null}
 
@@ -647,6 +709,33 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
                         <p className="mt-3 text-xs font-semibold text-slate-500">
                             {t('phoneLoginCheckingAutomatically')}
                         </p>
+                    ) : null}
+
+                    {status === 'pending' && pendingRecoveryVisible ? (
+                        <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-3">
+                            <p className="text-xs font-bold text-amber-950">
+                                {t('phoneLoginPendingRecoveryTitle')}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-amber-900">
+                                {t('phoneLoginPendingRecoveryBody')}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={chooseAnotherNumber}
+                                    className="btn-ghost px-3 py-2 text-xs"
+                                >
+                                    {t('phoneLoginTryAnotherNumber')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={resetPanel}
+                                    className="btn-ghost px-3 py-2 text-xs"
+                                >
+                                    {t('phoneLoginUseGoogleOrEmail')}
+                                </button>
+                            </div>
+                        </div>
                     ) : null}
 
                     {status === 'signup_required' ? (
@@ -751,7 +840,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
                                 className="btn-ghost px-4 py-2 text-sm"
                             >
                                 <MessageCircle size={16} />
-                                {t('phoneLoginOpenWhatsAppFallback')}
+                                {pendingRecoveryVisible ? t('phoneLoginOpenWhatsAppAgain') : t('phoneLoginOpenWhatsAppFallback')}
                             </a>
                         ) : null}
 
