@@ -16,6 +16,7 @@ const ResourcesPage = lazy(() => import('./pages/dashboard/ResourcesPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/dashboard/ProfilePage.jsx'));
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage.jsx'));
 const ResourcePage = lazy(() => import('./pages/ResourcePage.jsx'));
+const AuthTransitionPage = lazy(() => import('./pages/AuthTransitionPage.jsx'));
 const MyDirectoryPage = lazy(() => import('./pages/MyDirectoryPage.jsx'));
 const MyMapDetailPage = lazy(() => import('./pages/MyMapDetailPage.jsx'));
 const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
@@ -159,7 +160,9 @@ function AppShell() {
     const location = useLocation();
     const ownerPrintView = location.pathname.startsWith('/my-directory/maps/')
         && new URLSearchParams(location.search).get('view') === 'print';
-    const hideNavbar = location.pathname.startsWith('/shared/maps/') || ownerPrintView;
+    const hideNavbar = location.pathname.startsWith('/shared/maps/')
+        || location.pathname.startsWith('/auth/transition')
+        || ownerPrintView;
 
     return (
         <>
@@ -173,6 +176,7 @@ function AppShell() {
                         <Route path="/membership/link" element={<MembershipLinkPage />} />
                         <Route path="/privacy" element={<LegalPage type="privacy" />} />
                         <Route path="/terms" element={<LegalPage type="terms" />} />
+                        <Route path="/auth/transition" element={<AuthTransitionPage />} />
 
                         <Route path="/resource/:type/:id" element={<ResourcePage />} />
                         <Route path="/shared/maps/:token" element={<SharedMapPage />} />

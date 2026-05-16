@@ -43,7 +43,8 @@ export default function AuthPage({ isPartner = false }) {
     const completeLogin = useCallback((userData, destinationOverride = '') => {
         clearStoredPhoneLoginAttempt();
         login(userData);
-        navigate(resolvePostAuthDestination(destinationOverride), { replace: true });
+        const destination = resolvePostAuthDestination(destinationOverride);
+        navigate(`/auth/transition?returnTo=${encodeURIComponent(destination)}`, { replace: true });
     }, [login, navigate, resolvePostAuthDestination]);
 
     useEffect(() => {
