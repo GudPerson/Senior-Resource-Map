@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
@@ -100,6 +100,11 @@ export default function AuthPage({ isPartner = false }) {
     const handleGoogleError = () => {
         setError(t('googleSignInFailed'));
     };
+
+    if (isAuth && !skipPostLoginRedirectRef.current) {
+        const destination = resolvePostAuthDestination();
+        return <Navigate to={`/auth/transition?returnTo=${encodeURIComponent(destination)}`} replace />;
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'var(--page-gradient)' }}>
