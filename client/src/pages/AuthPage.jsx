@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
+import AuthHandoffScreen from '../components/AuthHandoffScreen.jsx';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import PhoneLoginPanel from '../components/PhoneLoginPanel.jsx';
 import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
@@ -22,11 +23,13 @@ export default function AuthPage({ isPartner = false }) {
     const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [handoffVisible, setHandoffVisible] = useState(false);
     const { login, isAuth } = useAuth();
     const { t } = useLocale();
     const navigate = useNavigate();
     const location = useLocation();
     const skipPostLoginRedirectRef = useRef(false);
+    const googleIntentTimerRef = useRef(null);
 
     const resolvePostAuthDestination = useCallback((destinationOverride = '') => {
         const normalizedOverride = normalizeReturnTo(destinationOverride);
@@ -41,13 +44,37 @@ export default function AuthPage({ isPartner = false }) {
         return normalizeReturnTo(params.get('returnTo')) || '/dashboard';
     }, [location.search]);
 
+    const clearGoogleIntentTimer = useCallback(() => {
+        if (googleIntentTimerRef.current) {
+            window.clearTimeout(googleIntentTimerRef.current);
+            googleIntentTimerRef.current = null;
+        }
+    }, []);
+
     const completeLogin = useCallback((userData, destinationOverride = '') => {
         skipPostLoginRedirectRef.current = true;
+        clearGoogleIntentTimer();
+        setHandoffVisible(true);
         clearStoredPhoneLoginAttempt();
         login(userData);
         const destination = resolvePostAuthDestination(destinationOverride);
         navigate(`/auth/transition?returnTo=${encodeURIComponent(destination)}`, { replace: true });
-    }, [login, navigate, resolvePostAuthDestination]);
+    }, [clearGoogleIntentTimer, login, navigate, resolvePostAuthDestination]);
+
+    const beginGoogleIntent = useCallback(() => {
+        setError('');
+        setHandoffVisible(true);
+        clearGoogleIntentTimer();
+        googleIntentTimerRef.current = window.setTimeout(() => {
+            googleIntentTimerRef.current = null;
+            setHandoffVisible(false);
+        }, 45000);
+    }, [clearGoogleIntentTimer]);
+
+    const handlePhoneSignedIn = useCallback((userData, destinationOverride = '') => {
+        setHandoffVisible(true);
+        window.setTimeout(() => completeLogin(userData, destinationOverride), 0);
+    }, [completeLogin]);
 
     useEffect(() => {
         if (isAuth && !skipPostLoginRedirectRef.current) {
@@ -58,12 +85,15 @@ export default function AuthPage({ isPartner = false }) {
         }
     }, [isAuth, navigate, resolvePostAuthDestination]);
 
+    useEffect(() => () => clearGoogleIntentTimer(), [clearGoogleIntentTimer]);
+
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
 
     async function handleSubmit(e) {
         e.preventDefault();
         setError('');
         setLoading(true);
+        setHandoffVisible(true);
         try {
             const loginPayload = isPartner
                 ? { username: form.username, password: form.password, isPartnerLogin: true }
@@ -74,6 +104,7 @@ export default function AuthPage({ isPartner = false }) {
                 : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user' });
             completeLogin(res.user);
         } catch (err) {
+            setHandoffVisible(false);
             setError(err.message);
         } finally {
             setLoading(false);
@@ -81,8 +112,10 @@ export default function AuthPage({ isPartner = false }) {
     }
 
     const handleGoogleSuccess = async (credentialResponse) => {
+        clearGoogleIntentTimer();
         setError('');
         setLoading(true);
+        setHandoffVisible(true);
         try {
             const payload = { credential: credentialResponse.credential };
             if (tab === 'register') {
@@ -91,6 +124,7 @@ export default function AuthPage({ isPartner = false }) {
             const res = await api.googleAuth(payload);
             completeLogin(res.user);
         } catch (err) {
+            setHandoffVisible(false);
             setError(err.message || t('googleSignInFailed'));
         } finally {
             setLoading(false);
@@ -98,6 +132,8 @@ export default function AuthPage({ isPartner = false }) {
     };
 
     const handleGoogleError = () => {
+        clearGoogleIntentTimer();
+        setHandoffVisible(false);
         setError(t('googleSignInFailed'));
     };
 
@@ -144,6 +180,7 @@ export default function AuthPage({ isPartner = false }) {
                 {!isPartner && (
                     <div className="mb-6 flex flex-col items-center">
                         <GoogleLogin
+                            click_listener={beginGoogleIntent}
                             onSuccess={handleGoogleSuccess}
                             onError={handleGoogleError}
                             theme="outline"
@@ -155,7 +192,7 @@ export default function AuthPage({ isPartner = false }) {
                             <PhoneLoginPanel
                                 t={t}
                                 returnTo={normalizeReturnTo(new URLSearchParams(location.search).get('returnTo'))}
-                                onSignedIn={completeLogin}
+                                onSignedIn={handlePhoneSignedIn}
                                 mode={tab}
                             />
                         ) : null}
@@ -288,6 +325,11 @@ export default function AuthPage({ isPartner = false }) {
                     </p>
                 </div>
             </div>
+            {handoffVisible ? (
+                <div className="fixed inset-0 z-[100] overflow-y-auto">
+                    <AuthHandoffScreen returnTo={resolvePostAuthDestination()} />
+                </div>
+            ) : null}
         </div>
     );
 }
