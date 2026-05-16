@@ -292,7 +292,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
     }
 }
 
-function statusView(status, t) {
+function statusView(status, t, mode = 'login') {
     if (status === 'starting') {
         return {
             icon: RefreshCw,
@@ -368,12 +368,12 @@ function statusView(status, t) {
     return {
         icon: MessageCircle,
         iconClass: 'text-brand-700',
-        title: t('phoneLoginEntryTitle'),
-        body: t('phoneLoginEntryBody'),
+        title: mode === 'register' ? t('phoneLoginEntryTitleRegister') : t('phoneLoginEntryTitle'),
+        body: mode === 'register' ? t('phoneLoginEntryBodyRegister') : t('phoneLoginEntryBody'),
     };
 }
 
-export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
+export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = 'login' }) {
     const [phone, setPhone] = useState('');
     const [status, setStatus] = useState('idle');
     const [attemptId, setAttemptId] = useState(null);
@@ -582,7 +582,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
         setSignupAcknowledged(false);
     }
 
-    const view = statusView(status, t);
+    const view = statusView(status, t, mode);
     const Icon = view.icon;
     const whatsappUrl = getWhatsAppUrl(challenge);
     const whatsappLaunchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
@@ -601,7 +601,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                 className="mt-4 flex min-h-[44px] w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
             >
                 <MessageCircle size={18} className="text-brand-600" />
-                {t('whatsAppSignInTitle')}
+                {mode === 'register' ? t('whatsAppRegisterTitle') : t('whatsAppSignInTitle')}
             </button>
         );
     }
@@ -736,7 +736,10 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn }) {
                                 ) : (
                                     <MessageCircle size={16} />
                                 )}
-                                {showTryAgain ? t('phoneLoginTryAgainButton') : t('phoneLoginStartButton')}
+                                {showTryAgain
+                                    ? t('phoneLoginTryAgainButton')
+                                    : (mode === 'register' ? t('phoneLoginRegisterButton') : t('phoneLoginStartButton'))
+                                }
                             </button>
                         ) : null}
 

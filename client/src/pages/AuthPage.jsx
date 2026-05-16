@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
@@ -26,6 +26,7 @@ export default function AuthPage({ isPartner = false }) {
     const { t } = useLocale();
     const navigate = useNavigate();
     const location = useLocation();
+    const skipPostLoginRedirectRef = useRef(false);
 
     const resolvePostAuthDestination = useCallback((destinationOverride = '') => {
         const normalizedOverride = normalizeReturnTo(destinationOverride);
@@ -41,6 +42,7 @@ export default function AuthPage({ isPartner = false }) {
     }, [location.search]);
 
     const completeLogin = useCallback((userData, destinationOverride = '') => {
+        skipPostLoginRedirectRef.current = true;
         clearStoredPhoneLoginAttempt();
         login(userData);
         const destination = resolvePostAuthDestination(destinationOverride);
@@ -48,8 +50,11 @@ export default function AuthPage({ isPartner = false }) {
     }, [login, navigate, resolvePostAuthDestination]);
 
     useEffect(() => {
-        if (isAuth) {
+        if (isAuth && !skipPostLoginRedirectRef.current) {
             navigate(resolvePostAuthDestination(), { replace: true });
+        }
+        if (!isAuth) {
+            skipPostLoginRedirectRef.current = false;
         }
     }, [isAuth, navigate, resolvePostAuthDestination]);
 
@@ -103,9 +108,15 @@ export default function AuthPage({ isPartner = false }) {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <BrandLockup showTagline className="justify-center" textClassName="text-center" />
-                    <h1 className="mt-6 text-3xl font-bold" style={{ color: 'var(--color-text)' }}>{isPartner ? t('partnerSignIn') : t('signInTitle')}</h1>
+                    <h1 className="mt-6 text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
+                        {isPartner
+                            ? t('partnerSignIn')
+                            : tab === 'register' ? t('register') : t('signInTitle')}
+                    </h1>
                     <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                        {isPartner ? t('partnerSignInSubtitle') : t('userSignInSubtitle')}
+                        {isPartner
+                            ? t('partnerSignInSubtitle')
+                            : tab === 'register' ? t('userRegisterSubtitle') : t('userSignInSubtitle')}
                     </p>
                 </div>
 
@@ -135,11 +146,12 @@ export default function AuthPage({ isPartner = false }) {
                             width="100%"
                             text={tab === 'login' ? 'signin_with' : 'signup_with'}
                         />
-                        {tab === 'login' ? (
+                        {tab === 'register' || tab === 'login' ? (
                             <PhoneLoginPanel
                                 t={t}
                                 returnTo={normalizeReturnTo(new URLSearchParams(location.search).get('returnTo'))}
                                 onSignedIn={completeLogin}
+                                mode={tab}
                             />
                         ) : null}
                         <div className="flex items-center w-full my-6">
