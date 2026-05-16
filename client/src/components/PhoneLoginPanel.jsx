@@ -10,11 +10,14 @@ import {
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
 } from '../lib/phoneVerificationState.js';
+import {
+    clearStoredPhoneLoginAttempt,
+    readStoredPhoneLoginAttempt,
+    writeStoredPhoneLoginAttempt,
+} from '../lib/phoneLoginAttemptStorage.js';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120000;
-const STORED_ATTEMPT_TTL_MS = 10 * 60 * 1000;
-const STORED_ATTEMPT_KEY = 'carearound-phone-login-attempt';
 
 function clean(value) {
     return String(value || '').trim();
@@ -36,61 +39,6 @@ function friendlyErrorMessage(message, t) {
         return t('phoneLoginProviderSetupError');
     }
     return text || t('phoneLoginGenericError');
-}
-
-function readStoredPhoneLoginAttempt() {
-    if (typeof window === 'undefined') return null;
-
-    try {
-        const raw = window.localStorage.getItem(STORED_ATTEMPT_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        const attemptId = Number.parseInt(String(parsed?.attemptId || ''), 10);
-        const expiresAt = Number.parseInt(String(parsed?.expiresAt || ''), 10);
-        if (!attemptId || !expiresAt || Date.now() > expiresAt) {
-            window.localStorage.removeItem(STORED_ATTEMPT_KEY);
-            return null;
-        }
-        return {
-            attemptId,
-            phone: clean(parsed?.phone),
-            returnTo: clean(parsed?.returnTo),
-        };
-    } catch {
-        try {
-            window.localStorage.removeItem(STORED_ATTEMPT_KEY);
-        } catch {
-            // Ignore storage cleanup failures.
-        }
-        return null;
-    }
-}
-
-function writeStoredPhoneLoginAttempt(attemptId, phone, returnTo) {
-    if (typeof window === 'undefined') return;
-
-    const normalizedAttemptId = Number.parseInt(String(attemptId || ''), 10);
-    if (!normalizedAttemptId) return;
-
-    try {
-        window.localStorage.setItem(STORED_ATTEMPT_KEY, JSON.stringify({
-            attemptId: normalizedAttemptId,
-            phone: clean(phone),
-            returnTo: clean(returnTo),
-            expiresAt: Date.now() + STORED_ATTEMPT_TTL_MS,
-        }));
-    } catch {
-        // Ignore storage failures; active polling still continues in the current tab.
-    }
-}
-
-function clearStoredPhoneLoginAttempt() {
-    if (typeof window === 'undefined') return;
-    try {
-        window.localStorage.removeItem(STORED_ATTEMPT_KEY);
-    } catch {
-        // Ignore storage failures.
-    }
 }
 
 function escapePreparedWindowText(value) {

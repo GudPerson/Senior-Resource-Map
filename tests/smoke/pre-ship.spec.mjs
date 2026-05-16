@@ -80,7 +80,7 @@ async function openPostalImportWizard(page) {
 test('public app loads and redirects to discover', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForURL(/\/discover$/, { timeout: 30_000 });
-    await expect(page.getByText('Find care around you')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'Find care and support near you' }).first()).toBeVisible({ timeout: 30_000 });
 });
 
 test('partner login succeeds and dashboard resources loads', async ({ page }) => {

@@ -35,8 +35,19 @@ export function getApiBaseCandidatesForEnvironment({ hostname = '', envApiUrl = 
     ].filter(Boolean)));
 }
 
+export function getSessionApiBaseCandidatesForEnvironment({ hostname = '', envApiUrl = '' } = {}) {
+    return getApiBaseCandidatesForEnvironment({ hostname, envApiUrl }).slice(0, 1);
+}
+
 export function getApiBaseCandidates() {
     return getApiBaseCandidatesForEnvironment({
+        hostname: typeof window === 'undefined' ? '' : window.location.hostname,
+        envApiUrl: import.meta.env?.VITE_API_URL || '',
+    });
+}
+
+export function getSessionApiBaseCandidates() {
+    return getSessionApiBaseCandidatesForEnvironment({
         hostname: typeof window === 'undefined' ? '' : window.location.hostname,
         envApiUrl: import.meta.env?.VITE_API_URL || '',
     });

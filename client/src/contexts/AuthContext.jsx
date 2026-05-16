@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
-import { getApiBaseCandidates } from '../lib/apiBase.js';
+import { getSessionApiBaseCandidates } from '../lib/apiBase.js';
 import {
     fetchSessionJsonWithTimeout,
     isDefinitiveSignedOutSessionResponse,
@@ -8,7 +8,7 @@ import {
 } from '../lib/authSession.js';
 
 const AuthContext = createContext(null);
-const BASE_CANDIDATES = getApiBaseCandidates();
+const BASE_CANDIDATES = getSessionApiBaseCandidates();
 
 function AuthLoadingFallback() {
     return (

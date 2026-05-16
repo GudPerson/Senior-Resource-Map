@@ -7,6 +7,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import PhoneLoginPanel from '../components/PhoneLoginPanel.jsx';
 import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
+import { clearStoredPhoneLoginAttempt } from '../lib/phoneLoginAttemptStorage.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
 function normalizeReturnTo(value) {
@@ -40,6 +41,7 @@ export default function AuthPage({ isPartner = false }) {
     }, [location.search]);
 
     const completeLogin = useCallback((userData, destinationOverride = '') => {
+        clearStoredPhoneLoginAttempt();
         login(userData);
         navigate(resolvePostAuthDestination(destinationOverride), { replace: true });
     }, [login, navigate, resolvePostAuthDestination]);
