@@ -255,7 +255,17 @@ export default function AuthPage({ isPartner = false }) {
                     {isPartner ? (
                         <>{t('lookingForUserLogin')} <Link to="/login" className="text-brand-600 font-semibold hover:underline">{t('clickHere')}</Link></>
                     ) : (
-                        <>{t('staffOrAdmin')}</>
+                        tab === 'register' ? (
+                            <button
+                                type="button"
+                                onClick={() => setTab('login')}
+                                className="text-brand-600 font-semibold hover:underline"
+                            >
+                                {t('alreadyHaveAccount')} {t('logInHere')}
+                            </button>
+                        ) : (
+                            <>{t('staffOrAdmin')}</>
+                        )
                     )}
                 </div>
 

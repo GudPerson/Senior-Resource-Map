@@ -95,6 +95,7 @@ const dictionaries = {
         createAccount: 'Create account',
         lookingForUserLogin: 'Looking for user login?',
         clickHere: 'Click here',
+        alreadyHaveAccount: 'Already have an account?',
         staffOrAdmin: 'Staff and admins use this same sign-in form.',
         logInHere: 'Log in here',
         whatsAppSignInTitle: 'Sign in with WhatsApp',
