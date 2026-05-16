@@ -33,3 +33,34 @@ test('background session check failures preserve the current signed-in user', ()
     assert.equal(resolveUserAfterSessionCheckFailure(currentUser), currentUser);
     assert.equal(resolveUserAfterSessionCheckFailure(null), null);
 });
+
+test('definitive signed-out session responses clear the current user', () => {
+    const currentUser = { id: 42, name: 'GudPerson', role: 'super_admin' };
+
+    assert.equal(
+        resolveUserAfterSessionCheckFailure(currentUser, {
+            response: new Response(JSON.stringify({ error: 'No token provided' }), { status: 401 }),
+            data: { error: 'No token provided' },
+        }),
+        null
+    );
+    assert.equal(
+        resolveUserAfterSessionCheckFailure(currentUser, {
+            response: new Response(JSON.stringify({ error: 'Invalid token' }), { status: 403 }),
+            data: { error: 'Invalid token' },
+        }),
+        null
+    );
+});
+
+test('server session check failures still preserve the current user', () => {
+    const currentUser = { id: 42, name: 'GudPerson', role: 'super_admin' };
+
+    assert.equal(
+        resolveUserAfterSessionCheckFailure(currentUser, {
+            response: new Response(JSON.stringify({ error: 'Database temporarily unavailable' }), { status: 500 }),
+            data: { error: 'Database temporarily unavailable' },
+        }),
+        currentUser
+    );
+});

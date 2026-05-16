@@ -7,7 +7,23 @@ export class SessionRequestTimeoutError extends Error {
     }
 }
 
-export function resolveUserAfterSessionCheckFailure(currentUser) {
+export function isDefinitiveSignedOutSessionResponse(response, data = null) {
+    const status = Number(response?.status);
+    if (status !== 401 && status !== 403) return false;
+
+    const error = String(data?.error || '').trim().toLowerCase();
+    if (!error) return true;
+
+    return error === 'no token provided'
+        || error === 'invalid token'
+        || error.includes('session expired')
+        || error.includes('token is invalid');
+}
+
+export function resolveUserAfterSessionCheckFailure(currentUser, failure = {}) {
+    if (isDefinitiveSignedOutSessionResponse(failure.response, failure.data)) {
+        return null;
+    }
     return currentUser || null;
 }
 

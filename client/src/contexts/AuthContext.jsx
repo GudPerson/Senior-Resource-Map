@@ -1,7 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
 import { getApiBaseCandidates } from '../lib/apiBase.js';
-import { fetchSessionJsonWithTimeout, resolveUserAfterSessionCheckFailure } from '../lib/authSession.js';
+import {
+    fetchSessionJsonWithTimeout,
+    isDefinitiveSignedOutSessionResponse,
+    resolveUserAfterSessionCheckFailure,
+} from '../lib/authSession.js';
 
 const AuthContext = createContext(null);
 const BASE_CANDIDATES = getApiBaseCandidates();
@@ -47,6 +51,10 @@ export function AuthProvider({ children }) {
                         return preservedUser;
                     }
                     if (!response.ok) {
+                        if (isDefinitiveSignedOutSessionResponse(response, data)) {
+                            setCurrentUser(null);
+                            return null;
+                        }
                         if (i < BASE_CANDIDATES.length - 1) continue;
                         throw new Error(data?.error || 'Session check failed');
                     }
