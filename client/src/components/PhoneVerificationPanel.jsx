@@ -9,6 +9,7 @@ import {
     isSafeWhatsAppUrl,
     mergePhoneVerificationChallenge,
 } from '../lib/phoneVerificationState.js';
+import { getPhoneVerificationActions } from '../lib/phoneVerificationPanelState.js';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120000;
@@ -408,6 +409,20 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
         }
     }, [savedPhoneText]);
 
+    const refreshSummary = useCallback(async ({ manual = false } = {}) => {
+        if (manual) setActionBusy(true);
+        setError('');
+        try {
+            const summary = await api.getMyPhoneIdentity();
+            applySummary(summary);
+        } catch (err) {
+            setError(err.message || t('phoneVerificationLoadFailed'));
+            setStatus('not_verified');
+        } finally {
+            if (manual) setActionBusy(false);
+        }
+    }, [applySummary, t]);
+
     useEffect(() => {
         let cancelled = false;
 
@@ -713,14 +728,23 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
     }, [hasSavedPhone, hasUnsavedPhone, loading, status, t]);
 
     const Icon = view.icon;
-    const canStart = hasSavedPhone && !hasUnsavedPhone && !actionBusy && !loading && status !== 'pending';
-    const canManualPoll = attemptId && status === 'pending' && !actionBusy;
-    const showStartButton = !loading && !['verified', 'pending', 'manual_review', 'conflict', 'linked_without_profile_phone'].includes(status);
-    const showRemoveButton = !loading
-        && hasLinkedIdentity
-        && Boolean(currentVerifiedPhone)
-        && !actionBusy
-        && ['verified', 'phone_changed', 'linked_without_profile_phone'].includes(status);
+    const {
+        canManualPoll,
+        canRefreshStatus,
+        canStart,
+        showRefreshButton,
+        showRemoveButton,
+        showStartButton,
+    } = getPhoneVerificationActions({
+        loading,
+        status,
+        hasSavedPhone,
+        hasUnsavedPhone,
+        actionBusy,
+        hasLinkedIdentity,
+        currentVerifiedPhone,
+        attemptId,
+    });
     const whatsappUrl = getWhatsAppUrl(challenge);
     const whatsappLaunchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
         preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator),
@@ -809,6 +833,18 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                                 <MessageCircle size={16} />
                                 {t('phoneVerificationOpenWhatsAppButton')}
                             </a>
+                        ) : null}
+
+                        {showRefreshButton ? (
+                            <button
+                                type="button"
+                                disabled={!canRefreshStatus}
+                                onClick={() => refreshSummary({ manual: true })}
+                                className="btn-ghost px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <RefreshCw size={16} className={actionBusy ? 'animate-spin' : ''} />
+                                {t('phoneVerificationRefreshButton')}
+                            </button>
                         ) : null}
 
                         {showRemoveButton ? (
