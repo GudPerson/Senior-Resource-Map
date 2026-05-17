@@ -387,6 +387,31 @@ export const myMapAssets = pgTable('my_map_assets', {
   mapResourceUnique: uniqueIndex('my_map_assets_map_resource_unique').on(table.mapId, table.resourceType, table.resourceId),
 }));
 
+export const myMapAssetNotes = pgTable('my_map_asset_notes', {
+  id: serial('id').primaryKey(),
+  mapAssetId: integer('map_asset_id').references(() => myMapAssets.id, { onDelete: 'cascade' }).notNull(),
+  noteText: text('note_text').notNull(),
+  isShared: boolean('is_shared').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  mapAssetIdx: index('my_map_asset_notes_map_asset_idx').on(table.mapAssetId),
+  mapAssetSortIdx: index('my_map_asset_notes_map_asset_sort_idx').on(table.mapAssetId, table.sortOrder),
+}));
+
+export const myMapShareSnapshots = pgTable('my_map_share_snapshots', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
+  shareToken: varchar('share_token', { length: 64 }).notNull(),
+  snapshot: jsonb('snapshot').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  mapUnique: uniqueIndex('my_map_share_snapshots_map_unique').on(table.mapId),
+  shareTokenIdx: index('my_map_share_snapshots_share_token_idx').on(table.shareToken),
+}));
+
 export const privateResourceContents = pgTable('private_resource_contents', {
   id: serial('id').primaryKey(),
   resourceType: varchar('resource_type', { length: 20 }).notNull(),
@@ -808,11 +833,30 @@ export const myMapsRelations = relations(myMaps, ({ one, many }) => ({
     references: [users.id],
   }),
   assets: many(myMapAssets),
+  shareSnapshot: one(myMapShareSnapshots, {
+    fields: [myMaps.id],
+    references: [myMapShareSnapshots.mapId],
+  }),
 }));
 
-export const myMapAssetsRelations = relations(myMapAssets, ({ one }) => ({
+export const myMapAssetsRelations = relations(myMapAssets, ({ one, many }) => ({
   map: one(myMaps, {
     fields: [myMapAssets.mapId],
+    references: [myMaps.id],
+  }),
+  notes: many(myMapAssetNotes),
+}));
+
+export const myMapAssetNotesRelations = relations(myMapAssetNotes, ({ one }) => ({
+  mapAsset: one(myMapAssets, {
+    fields: [myMapAssetNotes.mapAssetId],
+    references: [myMapAssets.id],
+  }),
+}));
+
+export const myMapShareSnapshotsRelations = relations(myMapShareSnapshots, ({ one }) => ({
+  map: one(myMaps, {
+    fields: [myMapShareSnapshots.mapId],
     references: [myMaps.id],
   }),
 }));

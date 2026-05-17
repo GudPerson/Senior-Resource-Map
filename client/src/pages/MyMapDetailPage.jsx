@@ -415,9 +415,8 @@ export default function MyMapDetailPage() {
         setShareSubmitting(true);
         setShareError('');
         try {
-            await api.publishMyMapShare(directory.id, {
-                includeHandoffNotes: Boolean(options.includeHandoffNotes),
-            });
+            void options;
+            await api.publishMyMapShare(directory.id);
             await loadMap();
         } catch (err) {
             console.error(err);
@@ -432,8 +431,7 @@ export default function MyMapDetailPage() {
         setActionError('');
         const updated = await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes);
         const nextNotes = updated?.notes || {
-            privateNote: notes.privateNote || '',
-            handoffNote: notes.handoffNote || '',
+            items: notes.notes || [],
             notesUpdatedAt: new Date().toISOString(),
         };
         setDirectory((current) => applyResourceNotesToDirectory(current, row.resourceType, row.resourceId, nextNotes));

@@ -114,6 +114,21 @@ test('runtime schema bootstrap includes My Map note columns', async () => {
         statements.some((statement) => statement.includes('alter table my_map_assets add column if not exists notes_updated_at')),
         'expected note timestamp column bootstrap SQL',
     );
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists my_map_asset_notes')),
+        'expected multi-note table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists my_map_share_snapshots')),
+        'expected shared map snapshot table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create unique index if not exists my_map_share_snapshots_map_unique')
+            && statement.includes('map_id')
+        )),
+        'expected one active share snapshot per map',
+    );
 });
 
 test('runtime schema bootstrap includes partner organisation and staff bridge tables', async () => {

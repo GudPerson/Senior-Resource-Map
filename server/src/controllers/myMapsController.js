@@ -1,8 +1,8 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
-import { myMapAssets, myMaps, userFavorites } from '../db/schema.js';
+import { myMapAssetNotes, myMapAssets, myMapShareSnapshots, myMaps, userFavorites } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     createSavedAssetResolutionContext,
@@ -37,9 +37,16 @@ const updateMyMapBodySchema = z.object({
     description: optionalTextSchema(2000),
 });
 
+const mapAssetNoteInputSchema = z.object({
+    id: z.number().int().positive().optional(),
+    text: optionalTextSchema(1000),
+    isShared: z.boolean().optional(),
+});
+
 const updateMyMapAssetNotesBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
+    notes: z.array(mapAssetNoteInputSchema).max(20).optional(),
     privateNote: optionalTextSchema(1000),
     handoffNote: optionalTextSchema(1000),
 });
@@ -80,6 +87,30 @@ function normalizeNote(value) {
     if (value === undefined) return undefined;
     const text = String(value ?? '').trim();
     return text ? text : null;
+}
+
+function normalizeNoteItems(body = {}) {
+    if (Array.isArray(body.notes)) {
+        return body.notes
+            .map((note, index) => ({
+                text: normalizeNote(note?.text),
+                isShared: Boolean(note?.isShared),
+                sortOrder: index,
+            }))
+            .filter((note) => Boolean(note.text));
+    }
+
+    const legacyNotes = [];
+    const privateNote = normalizeNote(body?.privateNote);
+    const handoffNote = normalizeNote(body?.handoffNote);
+
+    if (privateNote) {
+        legacyNotes.push({ text: privateNote, isShared: false, sortOrder: 0 });
+    }
+    if (handoffNote) {
+        legacyNotes.push({ text: handoffNote, isShared: true, sortOrder: 1 });
+    }
+    return legacyNotes;
 }
 
 function normalizeResourceType(value) {
@@ -138,12 +169,51 @@ function serializeMyMapAssetRecord(mapAsset) {
         assetKey: `${mapAsset.resourceType}-${mapAsset.resourceId}`,
         addedAt: mapAsset.addedAt ?? null,
         notes: {
-            privateNote: String(mapAsset.privateNote || '').trim(),
-            handoffNote: String(mapAsset.handoffNote || '').trim(),
+            items: serializeMapAssetNoteItems(mapAsset),
             notesUpdatedAt: mapAsset.notesUpdatedAt ?? null,
         },
         snapshot: normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot),
     };
+}
+
+function serializeMapAssetNoteItems(mapAsset) {
+    const explicitNotes = Array.isArray(mapAsset?.notes)
+        ? mapAsset.notes.map((note, index) => ({
+            id: Number.isInteger(note?.id) ? note.id : null,
+            text: String(note?.noteText ?? note?.text ?? '').trim(),
+            isShared: Boolean(note?.isShared),
+            sortOrder: Number.isInteger(note?.sortOrder) ? note.sortOrder : index,
+            createdAt: note?.createdAt ?? null,
+            updatedAt: note?.updatedAt ?? null,
+        })).filter((note) => note.text)
+        : [];
+
+    if (explicitNotes.length > 0) return explicitNotes;
+
+    const legacyNotes = [];
+    const privateNote = String(mapAsset?.privateNote || '').trim();
+    const handoffNote = String(mapAsset?.handoffNote || '').trim();
+    if (privateNote) {
+        legacyNotes.push({
+            id: null,
+            text: privateNote,
+            isShared: false,
+            sortOrder: 0,
+            createdAt: mapAsset?.notesUpdatedAt ?? null,
+            updatedAt: mapAsset?.notesUpdatedAt ?? null,
+        });
+    }
+    if (handoffNote) {
+        legacyNotes.push({
+            id: null,
+            text: handoffNote,
+            isShared: true,
+            sortOrder: 1,
+            createdAt: mapAsset?.notesUpdatedAt ?? null,
+            updatedAt: mapAsset?.notesUpdatedAt ?? null,
+        });
+    }
+    return legacyNotes;
 }
 
 async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
@@ -164,6 +234,11 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                         handoffNote: true,
                         notesUpdatedAt: true,
                         addedAt: true,
+                    },
+                    with: {
+                        notes: {
+                            orderBy: [asc(myMapAssetNotes.sortOrder), asc(myMapAssetNotes.id)],
+                        },
                     },
                 },
             }
@@ -216,6 +291,35 @@ async function touchMap(db, mapId) {
     await db.update(myMaps)
         .set({ updatedAt: new Date() })
         .where(eq(myMaps.id, mapId));
+}
+
+async function persistShareSnapshot(db, mapId, shareToken, snapshot, timestamp = new Date()) {
+    const existing = await db.query?.myMapShareSnapshots?.findFirst?.({
+        where: eq(myMapShareSnapshots.mapId, mapId),
+    });
+
+    if (existing) {
+        await db.update(myMapShareSnapshots)
+            .set({
+                shareToken,
+                snapshot,
+                updatedAt: timestamp,
+            })
+            .where(eq(myMapShareSnapshots.mapId, mapId));
+        return;
+    }
+
+    await db.insert(myMapShareSnapshots).values({
+        mapId,
+        shareToken,
+        snapshot,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+    });
+}
+
+async function deleteShareSnapshot(db, mapId) {
+    await db.delete(myMapShareSnapshots).where(eq(myMapShareSnapshots.mapId, mapId));
 }
 
 export async function listMyMaps(db, user) {
@@ -323,6 +427,7 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true);
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    const sharedAt = new Date();
     const { snapshotUpdates } = await buildMyMapDirectory(db, {
         map,
         viewerUser: user,
@@ -336,13 +441,31 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
     }
 
     const shareToken = map.isShared && map.shareToken ? map.shareToken : createShareToken();
+    const sharedMap = {
+        ...map,
+        isShared: true,
+        shareToken,
+        shareIncludesHandoffNotes: false,
+        shareUpdatedAt: sharedAt,
+    };
+    const { directory: sharedSnapshot } = await buildMyMapDirectory(db, {
+        map: sharedMap,
+        viewerUser: { role: 'guest' },
+        visibilityUser: { role: 'guest' },
+        resolutionContext: {
+            allowedPartnerAudienceIds: new Set(),
+            allowedAudienceZoneIds: new Set(),
+        },
+        mode: 'shared',
+    });
+
     await db.update(myMaps)
         .set({
             isShared: true,
             shareToken,
-            shareIncludesHandoffNotes: Boolean(options?.includeHandoffNotes),
-            shareUpdatedAt: new Date(),
-            updatedAt: new Date(),
+            shareIncludesHandoffNotes: false,
+            shareUpdatedAt: sharedAt,
+            updatedAt: sharedAt,
         })
         .where(
             and(
@@ -350,6 +473,7 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
                 eq(myMaps.userId, user.id)
             )
         );
+    await persistShareSnapshot(db, mapId, shareToken, sharedSnapshot, sharedAt);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);
     return formatMyMapSummary(updated);
@@ -372,6 +496,7 @@ export async function unpublishMyMap(db, user, mapId) {
                 eq(myMaps.userId, user.id)
             )
         );
+    await deleteShareSnapshot(db, mapId);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);
     return formatMyMapSummary(updated);
@@ -445,18 +570,13 @@ export async function updateMyMapAssetNotes(db, user, mapId, body) {
         throw createHttpError(404, 'Map resource not found');
     }
 
-    const nextPrivateNote = normalizeNote(body?.privateNote);
-    const nextHandoffNote = normalizeNote(body?.handoffNote);
+    const nextNotes = normalizeNoteItems(body);
+    const timestamp = new Date();
     const updateValues = {
-        notesUpdatedAt: new Date(),
+        privateNote: null,
+        handoffNote: null,
+        notesUpdatedAt: timestamp,
     };
-
-    if (nextPrivateNote !== undefined) {
-        updateValues.privateNote = nextPrivateNote;
-    }
-    if (nextHandoffNote !== undefined) {
-        updateValues.handoffNote = nextHandoffNote;
-    }
 
     await db.update(myMapAssets)
         .set(updateValues)
@@ -468,6 +588,22 @@ export async function updateMyMapAssetNotes(db, user, mapId, body) {
             )
         );
 
+    await db.delete(myMapAssetNotes)
+        .where(eq(myMapAssetNotes.mapAssetId, existing.id));
+
+    if (nextNotes.length > 0) {
+        await db.insert(myMapAssetNotes).values(
+            nextNotes.map((note) => ({
+                mapAssetId: existing.id,
+                noteText: note.text,
+                isShared: note.isShared,
+                sortOrder: note.sortOrder,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            }))
+        );
+    }
+
     await touchMap(db, mapId);
 
     const updated = await db.query.myMapAssets.findFirst({
@@ -476,6 +612,11 @@ export async function updateMyMapAssetNotes(db, user, mapId, body) {
             eq(myMapAssets.resourceType, assetRef.resourceType),
             eq(myMapAssets.resourceId, assetRef.resourceId)
         ),
+        with: {
+            notes: {
+                orderBy: [asc(myMapAssetNotes.sortOrder), asc(myMapAssetNotes.id)],
+            },
+        },
     });
 
     return serializeMyMapAssetRecord(updated || {

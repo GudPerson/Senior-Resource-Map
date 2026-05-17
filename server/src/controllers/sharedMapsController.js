@@ -1,7 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { myMapAssets, myMaps } from '../db/schema.js';
+import { myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
@@ -41,7 +41,13 @@ async function loadSharedMapByToken(db, token, includeAssets = false) {
                         notesUpdatedAt: true,
                         addedAt: true,
                     },
+                    with: {
+                        notes: {
+                            orderBy: [asc(myMapAssetNotes.sortOrder), asc(myMapAssetNotes.id)],
+                        },
+                    },
                 },
+                shareSnapshot: true,
             }
             : undefined,
     });
@@ -81,8 +87,96 @@ async function resolveUniqueCopyName(db, userId, originalName) {
     return `${baseName} (${counter})`;
 }
 
+function createSnapshotViewerSummary(viewerUser, ownerUserId, mapName) {
+    const isAuthenticated = Boolean(viewerUser?.id);
+    const isOwner = isAuthenticated && viewerUser.id === ownerUserId;
+    return {
+        isAuthenticated,
+        isOwner,
+        canSaveCopy: isAuthenticated && !isOwner,
+        canSaveResources: isAuthenticated && !isOwner,
+        copyDefaultName: isAuthenticated && !isOwner ? `Copy of ${mapName}` : null,
+    };
+}
+
+function normalizeSnapshotDirectory(map, viewerUser) {
+    const snapshot = map?.shareSnapshot?.snapshot;
+    if (!snapshot || typeof snapshot !== 'object') return null;
+    return {
+        ...snapshot,
+        share: {
+            ...(snapshot.share || {}),
+            isShared: true,
+            shareToken: map.shareToken || snapshot.share?.shareToken || null,
+            sharePath: map.shareToken ? `/shared/maps/${map.shareToken}` : snapshot.share?.sharePath || null,
+            shareIncludesHandoffNotes: false,
+            shareUpdatedAt: map.shareUpdatedAt || snapshot.share?.shareUpdatedAt || null,
+        },
+        viewer: createSnapshotViewerSummary(viewerUser, map.userId, map.name),
+    };
+}
+
+function getSnapshotRows(directory) {
+    return (directory?.places || []).flatMap((place) => (
+        (place.rows || []).map((row) => ({ place, row }))
+    ));
+}
+
+function buildCopiedSnapshotFromSharedDirectory(directory, asset) {
+    const matchingRows = getSnapshotRows(directory)
+        .filter(({ row }) => row.resourceType === asset.resourceType && row.resourceId === asset.resourceId);
+    const first = matchingRows[0];
+    if (!first) return null;
+
+    return normalizeMyMapAssetSnapshot(asset.resourceType, asset.resourceId, {
+        name: first.row.name,
+        subCategory: first.row.subCategory,
+        bucket: first.row.bucket,
+        descriptor: first.row.descriptor,
+        logoUrl: first.row.logoUrl,
+        availabilityEnabled: first.row.availabilityEnabled,
+        availabilityCount: first.row.availabilityCount,
+        availabilityUnit: first.row.availabilityUnit,
+        detailPath: first.row.detailPath,
+        address: first.place.address,
+        lat: first.place.lat,
+        lng: first.place.lng,
+        places: matchingRows.map(({ place }) => ({
+            placeId: place.placeId,
+            placeKey: place.placeKey,
+            name: place.name,
+            address: place.address,
+            lat: place.lat,
+            lng: place.lng,
+        })),
+    });
+}
+
+function getSharedSnapshotAssets(directory) {
+    return (directory?.assets || [])
+        .map((asset) => ({
+            resourceType: asset.resourceType,
+            resourceId: asset.resourceId,
+            snapshot: buildCopiedSnapshotFromSharedDirectory(directory, asset),
+            notes: Array.isArray(asset?.notes?.items)
+                ? asset.notes.items
+                    .map((note, index) => ({
+                        text: String(note?.text || '').trim(),
+                        sortOrder: index,
+                    }))
+                    .filter((note) => note.text)
+                : [],
+        }))
+        .filter((asset) => asset.resourceType && Number.isInteger(asset.resourceId));
+}
+
 export async function getSharedMapDirectory(db, token, viewerUser) {
     const map = await requireSharedMap(db, token, true);
+    const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser);
+    if (snapshotDirectory) {
+        return snapshotDirectory;
+    }
+
     const { directory, snapshotUpdates } = await buildMyMapDirectory(db, {
         map,
         viewerUser,
@@ -110,6 +204,8 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
     }
 
     const name = await resolveUniqueCopyName(db, viewerUser.id, map.name);
+    const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser);
+    const snapshotAssets = snapshotDirectory ? getSharedSnapshotAssets(snapshotDirectory) : null;
     const [createdMap] = await db.insert(myMaps).values({
         userId: viewerUser.id,
         name,
@@ -120,25 +216,87 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
         shareUpdatedAt: null,
     }).returning();
 
-    if ((map.assets || []).length > 0) {
-        await db.insert(myMapAssets).values(
+    if (snapshotAssets?.length > 0) {
+        const timestamp = new Date();
+        const insertedAssets = await db.insert(myMapAssets).values(
+            snapshotAssets.map((asset) => ({
+                mapId: createdMap.id,
+                resourceType: asset.resourceType,
+                resourceId: asset.resourceId,
+                privateNote: null,
+                handoffNote: null,
+                notesUpdatedAt: asset.notes.length > 0 ? timestamp : null,
+                snapshot: asset.snapshot,
+            }))
+        ).returning();
+
+        const noteRows = insertedAssets.flatMap((mapAsset, assetIndex) => (
+            (snapshotAssets[assetIndex]?.notes || []).map((note, noteIndex) => ({
+                mapAssetId: mapAsset.id,
+                noteText: note.text,
+                isShared: false,
+                sortOrder: noteIndex,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            }))
+        ));
+
+        if (noteRows.length > 0) {
+            await db.insert(myMapAssetNotes).values(noteRows);
+        }
+    } else if ((map.assets || []).length > 0) {
+        const timestamp = new Date();
+        const insertedAssets = await db.insert(myMapAssets).values(
             map.assets.map((asset) => ({
                 mapId: createdMap.id,
                 resourceType: asset.resourceType,
                 resourceId: asset.resourceId,
                 privateNote: null,
-                handoffNote: map.shareIncludesHandoffNotes ? (asset.handoffNote || null) : null,
-                notesUpdatedAt: map.shareIncludesHandoffNotes && asset.handoffNote ? (asset.notesUpdatedAt || new Date()) : null,
+                handoffNote: null,
+                notesUpdatedAt: null,
                 snapshot: normalizeMyMapAssetSnapshot(asset.resourceType, asset.resourceId, asset.snapshot),
             }))
-        );
+        ).returning();
+
+        const noteRows = insertedAssets.flatMap((mapAsset, assetIndex) => {
+            const sourceAsset = map.assets[assetIndex];
+            const explicitNotes = Array.isArray(sourceAsset?.notes) ? sourceAsset.notes : [];
+            if (explicitNotes.length > 0) {
+                return explicitNotes
+                    .filter((note) => note?.isShared && String(note?.noteText || note?.text || '').trim())
+                    .map((note, noteIndex) => ({
+                        mapAssetId: mapAsset.id,
+                        noteText: String(note.noteText || note.text).trim(),
+                        isShared: false,
+                        sortOrder: noteIndex,
+                        createdAt: timestamp,
+                        updatedAt: timestamp,
+                    }));
+            }
+
+            const legacyNote = map.shareIncludesHandoffNotes ? String(sourceAsset?.handoffNote || '').trim() : '';
+            return legacyNote
+                ? [{
+                    mapAssetId: mapAsset.id,
+                    noteText: legacyNote,
+                    isShared: false,
+                    sortOrder: 0,
+                    createdAt: timestamp,
+                    updatedAt: timestamp,
+                }]
+                : [];
+        });
+
+        if (noteRows.length > 0) {
+            await db.insert(myMapAssetNotes).values(noteRows);
+        }
     }
 
     return {
         id: createdMap.id,
         name: createdMap.name,
         description: createdMap.description || null,
-        assetCount: (map.assets || []).length,
+        assetCount: snapshotAssets?.length ?? (map.assets || []).length,
         isShared: false,
         shareToken: null,
         sharePath: null,

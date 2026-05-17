@@ -7,7 +7,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
-import { ChevronDown, Save, StickyNote, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, Save, StickyNote, Trash2 } from 'lucide-react';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
@@ -114,39 +114,90 @@ function getNoteRowsForGroup(group) {
     return getUniqueNoteRows(group?.rows || []);
 }
 
+function normalizeNoteItems(notes) {
+    if (Array.isArray(notes?.items)) {
+        return notes.items
+            .map((note, index) => ({
+                clientId: note?.id ? `note-${note.id}` : `note-${index}`,
+                id: note?.id || null,
+                text: String(note?.text || '').slice(0, 1000),
+                isShared: Boolean(note?.isShared),
+            }))
+            .filter((note) => note.text.trim());
+    }
+
+    const legacyItems = [];
+    const privateNote = String(notes?.privateNote || '').trim();
+    const handoffNote = String(notes?.handoffNote || '').trim();
+    if (privateNote) {
+        legacyItems.push({
+            clientId: 'legacy-private',
+            id: null,
+            text: privateNote,
+            isShared: false,
+        });
+    }
+    if (handoffNote) {
+        legacyItems.push({
+            clientId: 'legacy-shared',
+            id: null,
+            text: handoffNote,
+            isShared: true,
+        });
+    }
+    return legacyItems;
+}
+
 function hasAnyOwnerNote(row) {
-    return Boolean(row?.notes?.privateNote?.trim() || row?.notes?.handoffNote?.trim());
+    return normalizeNoteItems(row?.notes).length > 0;
 }
 
 function buildNoteDrafts(rows) {
     return rows.reduce((drafts, row) => {
+        const items = normalizeNoteItems(row?.notes);
         drafts[getRowAssetKey(row)] = {
-            privateNote: row?.notes?.privateNote || '',
-            handoffNote: row?.notes?.handoffNote || '',
+            notes: items.length ? items : [createEmptyDraftNote()],
         };
         return drafts;
     }, {});
 }
 
-function ClientHandoffNote({ note, compact = false, print = false }) {
+function SharedResourceNotes({ notes, compact = false, print = false }) {
     const { t } = useLocale();
-    const text = String(note || '').trim();
-    if (!text) return null;
+    const items = (notes || []).filter((note) => String(note?.text || '').trim());
+    if (!items.length) return null;
 
     if (print) {
         return (
-            <p className="mt-1 rounded-lg border border-brand-100 bg-brand-50 px-2 py-1 text-[10px] font-medium leading-4 text-brand-800">
-                <span className="font-bold">{t('clientHandoffNote')}:</span> {text}
-            </p>
+            <div className="mt-1 space-y-1">
+                {items.map((note, index) => (
+                    <p key={`${note.id || index}-${note.text}`} className="rounded-lg border border-brand-100 bg-brand-50 px-2 py-1 text-[10px] font-medium leading-4 text-brand-800">
+                        <span className="font-bold">{t('sharedNote')}:</span> {note.text}
+                    </p>
+                ))}
+            </div>
         );
     }
 
     return (
         <div className={`mt-2 rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 ${compact ? 'px-2.5 py-2 text-[11px] leading-5' : 'px-3 py-2 text-xs leading-5'}`}>
-            <p className="font-bold">{t('clientHandoffNote')}</p>
-            <p className="mt-1 whitespace-pre-wrap">{text}</p>
+            <p className="font-bold">{t('sharedNotes')}</p>
+            <div className="mt-1 space-y-1.5">
+                {items.map((note, index) => (
+                    <p key={`${note.id || index}-${note.text}`} className="whitespace-pre-wrap">{note.text}</p>
+                ))}
+            </div>
         </div>
     );
+}
+
+function createEmptyDraftNote() {
+    return {
+        clientId: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        id: null,
+        text: '',
+        isShared: false,
+    };
 }
 
 function MapResourceNotesDrawer({
@@ -158,10 +209,9 @@ function MapResourceNotesDrawer({
     const noteRows = getUniqueNoteRows(rows);
     const noteSignature = noteRows.map((row) => [
         getRowAssetKey(row),
-        row?.notes?.privateNote || '',
-        row?.notes?.handoffNote || '',
+        normalizeNoteItems(row?.notes).map((note) => `${note.text}:${note.isShared}`).join(','),
     ].join(':')).join('|');
-    const noteCount = noteRows.filter(hasAnyOwnerNote).length;
+    const noteCount = noteRows.reduce((count, row) => count + normalizeNoteItems(row?.notes).length, 0);
     const [open, setOpen] = useState(false);
     const [drafts, setDrafts] = useState(() => buildNoteDrafts(noteRows));
     const [savingKey, setSavingKey] = useState('');
@@ -175,25 +225,60 @@ function MapResourceNotesDrawer({
 
     if (!noteRows.length || !onUpdateResourceNotes) return null;
 
-    function updateDraft(row, field, value) {
+    function updateDraftNote(row, clientId, values) {
         const key = getRowAssetKey(row);
         setDrafts((current) => ({
             ...current,
             [key]: {
                 ...(current[key] || {}),
-                [field]: value.slice(0, 1000),
+                notes: (current[key]?.notes || []).map((note) => (
+                    note.clientId === clientId
+                        ? { ...note, ...values, text: values.text !== undefined ? values.text.slice(0, 1000) : note.text }
+                        : note
+                )),
+            },
+        }));
+    }
+
+    function addDraftNote(row) {
+        const key = getRowAssetKey(row);
+        setDrafts((current) => ({
+            ...current,
+            [key]: {
+                ...(current[key] || {}),
+                notes: [...(current[key]?.notes || []), createEmptyDraftNote()],
+            },
+        }));
+    }
+
+    function removeDraftNote(row, clientId) {
+        const key = getRowAssetKey(row);
+        setDrafts((current) => ({
+            ...current,
+            [key]: {
+                ...(current[key] || {}),
+                notes: (() => {
+                    const nextNotes = (current[key]?.notes || []).filter((note) => note.clientId !== clientId);
+                    return nextNotes.length ? nextNotes : [createEmptyDraftNote()];
+                })(),
             },
         }));
     }
 
     async function saveRow(row) {
         const key = getRowAssetKey(row);
-        const draft = drafts[key] || { privateNote: '', handoffNote: '' };
+        const draft = drafts[key] || { notes: [] };
         setSavingKey(key);
         setSavedKey('');
         setError('');
         try {
-            await onUpdateResourceNotes(row, draft);
+            await onUpdateResourceNotes(row, {
+                notes: (draft.notes || []).map((note) => ({
+                    id: note.id || undefined,
+                    text: note.text,
+                    isShared: Boolean(note.isShared),
+                })),
+            });
             setSavedKey(key);
         } catch (err) {
             console.error(err);
@@ -209,22 +294,22 @@ function MapResourceNotesDrawer({
 
     return (
         <div
-            className={`${compactInteractive ? 'mt-2.5' : 'mt-3'} border-t border-slate-100 pt-3`}
+            className={`${compactInteractive ? 'mt-2' : 'mt-2.5'} border-t border-slate-100 pt-2.5`}
             onClick={(event) => event.stopPropagation()}
         >
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-2xl border px-3 font-bold transition ${
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold transition ${
                     noteCount
-                        ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-700'
-                } ${compactInteractive ? 'text-[12px]' : 'text-sm'}`}
+                        ? 'border-brand-200 bg-brand-50/80 text-brand-700 hover:bg-brand-100'
+                        : 'border-slate-200 bg-white/80 text-slate-600 hover:border-brand-200 hover:text-brand-700'
+                }`}
                 aria-expanded={open}
             >
-                <StickyNote size={15} />
+                <StickyNote size={14} />
                 {triggerLabel}
-                <ChevronDown size={15} className={`transition ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`transition ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open ? (
@@ -236,9 +321,9 @@ function MapResourceNotesDrawer({
                     {noteRows.map((row) => {
                         const key = getRowAssetKey(row);
                         const draft = drafts[key] || {
-                            privateNote: row?.notes?.privateNote || '',
-                            handoffNote: row?.notes?.handoffNote || '',
+                            notes: [createEmptyDraftNote()],
                         };
+                        const draftNotes = draft.notes?.length ? draft.notes : [createEmptyDraftNote()];
                         const saving = savingKey === key;
                         const saved = savedKey === key;
 
@@ -258,29 +343,47 @@ function MapResourceNotesDrawer({
                                     ) : null}
                                 </div>
 
-                                <div className="mt-3 grid gap-3">
-                                    <label className="block">
-                                        <span className="text-xs font-bold text-slate-700">{t('privatePlanningNote')}</span>
-                                        <textarea
-                                            value={draft.privateNote}
-                                            onChange={(event) => updateDraft(row, 'privateNote', event.target.value)}
-                                            maxLength={1000}
-                                            rows={2}
-                                            className="mt-1 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
-                                            placeholder={t('privatePlanningNotePlaceholder')}
-                                        />
-                                    </label>
-                                    <label className="block">
-                                        <span className="text-xs font-bold text-slate-700">{t('clientHandoffNote')}</span>
-                                        <textarea
-                                            value={draft.handoffNote}
-                                            onChange={(event) => updateDraft(row, 'handoffNote', event.target.value)}
-                                            maxLength={1000}
-                                            rows={2}
-                                            className="mt-1 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
-                                            placeholder={t('clientHandoffNotePlaceholder')}
-                                        />
-                                    </label>
+                                <div className="mt-3 grid gap-2.5">
+                                    {draftNotes.map((note, index) => (
+                                        <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+                                            <div className="flex items-start gap-2">
+                                                <textarea
+                                                    value={note.text}
+                                                    onChange={(event) => updateDraftNote(row, note.clientId, { text: event.target.value })}
+                                                    maxLength={1000}
+                                                    rows={2}
+                                                    className="min-h-[72px] flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+                                                    placeholder={t('mapNotePlaceholder')}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeDraftNote(row, note.clientId)}
+                                                    className="mt-1 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                                                    aria-label={t('removeNote')}
+                                                    disabled={draftNotes.length === 1 && !note.text.trim() && index === 0}
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-full px-1 text-xs font-bold text-slate-600">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={note.isShared}
+                                                    onChange={(event) => updateDraftNote(row, note.clientId, { isShared: event.target.checked })}
+                                                    className="h-4 w-4 rounded border-slate-300 accent-brand-600"
+                                                />
+                                                {t('shareThisNote')}
+                                            </label>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => addDraftNote(row)}
+                                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-dashed border-brand-200 bg-white px-3 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+                                    >
+                                        <Plus size={14} />
+                                        {t('addAnotherNote')}
+                                    </button>
                                 </div>
 
                                 <div className="mt-3 flex justify-end">
@@ -495,7 +598,7 @@ function DirectoryResourceRow({
     const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const access = row?.resourceType === 'soft' ? (row.access || OFFERING_ACCESS.GRANTED) : null;
     const isAccessRestricted = row?.resourceType === 'soft' && access !== OFFERING_ACCESS.GRANTED;
-    const handoffNote = row?.notes?.handoffNote || '';
+    const sharedNotes = normalizeNoteItems(row?.notes);
     const rowTitleClassName = interactive
         ? (compactInteractive ? 'text-[12px]' : 'text-[14px]')
         : (compactPrint ? 'text-[11px]' : 'text-[12px]');
@@ -519,7 +622,7 @@ function DirectoryResourceRow({
                         {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
                     </div>
                 </div>
-                {mode === 'shared' ? <ClientHandoffNote note={handoffNote} print /> : null}
+                {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}
             </div>
         );
     }
@@ -552,7 +655,7 @@ function DirectoryResourceRow({
                                 />
                             ) : null}
                             {mode === 'shared' ? (
-                                <ClientHandoffNote note={handoffNote} compact={compactInteractive} />
+                                <SharedResourceNotes notes={sharedNotes} compact={compactInteractive} />
                             ) : null}
                         </div>
                     </div>
@@ -1001,7 +1104,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
         lng: null,
     }), [row.contextLabel, row.locationLabel, row.placeName]);
     const detailPath = useDirectoryDetailPath(row.detailPath);
-    const handoffNote = row?.notes?.handoffNote || '';
+    const sharedNotes = normalizeNoteItems(row?.notes);
 
     if (!interactive) {
         const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
@@ -1019,7 +1122,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             <p className="text-[12px] font-semibold leading-snug text-slate-800">{row.name}</p>
                         )}
                         {row.contextLabel ? <p className="mt-0.5 text-[10px] text-slate-500">{row.contextLabel}</p> : null}
-                        {mode === 'shared' ? <ClientHandoffNote note={handoffNote} print /> : null}
+                        {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}
                     </div>
                 </div>
             </div>
@@ -1076,7 +1179,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>
                         ) : null}
                         {mode === 'shared' ? (
-                            <ClientHandoffNote note={handoffNote} />
+                            <SharedResourceNotes notes={sharedNotes} />
                         ) : null}
                     </div>
 

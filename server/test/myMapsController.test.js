@@ -12,7 +12,7 @@ import {
     updateMyMapAssetNotes,
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
-import { myMapAssets, myMaps } from '../src/db/schema.js';
+import { myMapAssetNotes, myMapAssets, myMapShareSnapshots, myMaps } from '../src/db/schema.js';
 
 const DEFAULT_USER = { id: 7, role: 'standard', postalCode: '680153' };
 const PARTNER_USER = { ...DEFAULT_USER, role: 'partner' };
@@ -92,7 +92,14 @@ function attachAssets(state, map) {
     if (!map) return null;
     return {
         ...map,
-        assets: state.mapAssets.filter((asset) => asset.mapId === map.id),
+        assets: state.mapAssets
+            .filter((asset) => asset.mapId === map.id)
+            .map((asset) => ({
+                ...asset,
+                notes: state.mapAssetNotes
+                    .filter((note) => note.mapAssetId === asset.id)
+                    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
+            })),
     };
 }
 
@@ -100,15 +107,21 @@ function createFakeDb({
     favorites = [],
     maps = [],
     mapAssets = [],
+    mapAssetNotes = [],
+    shareSnapshots = [],
     hardAsset = null,
 } = {}) {
     const state = {
         favorites: favorites.map((item) => ({ ...item })),
         maps: maps.map((item) => ({ ...item })),
         mapAssets: mapAssets.map((item) => ({ ...item })),
+        mapAssetNotes: mapAssetNotes.map((item) => ({ ...item })),
+        shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
         nextMapId: maps.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetId: mapAssets.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextMapAssetNoteId: mapAssetNotes.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextShareSnapshotId: shareSnapshots.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
     };
 
     return {
@@ -119,7 +132,19 @@ function createFakeDb({
                 findFirst: async () => attachAssets(state, state.maps[0] || null),
             },
             myMapAssets: {
-                findFirst: async () => state.mapAssets[0] || null,
+                findFirst: async () => {
+                    const asset = state.mapAssets[0] || null;
+                    if (!asset) return null;
+                    return {
+                        ...asset,
+                        notes: state.mapAssetNotes
+                            .filter((note) => note.mapAssetId === asset.id)
+                            .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
+                    };
+                },
+            },
+            myMapShareSnapshots: {
+                findFirst: async () => state.shareSnapshots[0] || null,
             },
             userFavorites: {
                 findFirst: async () => state.favorites[0] || null,
@@ -167,6 +192,40 @@ function createFakeDb({
                 };
             }
 
+            if (table === myMapAssetNotes) {
+                return {
+                    values(value) {
+                        const rows = (Array.isArray(value) ? value : [value]).map((item) => ({
+                            id: state.nextMapAssetNoteId++,
+                            createdAt: new Date('2026-03-14T11:06:00.000Z'),
+                            updatedAt: new Date('2026-03-14T11:06:00.000Z'),
+                            ...item,
+                        }));
+                        state.mapAssetNotes.push(...rows);
+                        return {
+                            returning: async () => rows,
+                        };
+                    },
+                };
+            }
+
+            if (table === myMapShareSnapshots) {
+                return {
+                    values(value) {
+                        const row = {
+                            id: state.nextShareSnapshotId++,
+                            createdAt: new Date('2026-03-14T11:08:00.000Z'),
+                            updatedAt: new Date('2026-03-14T11:08:00.000Z'),
+                            ...value,
+                        };
+                        state.shareSnapshots.push(row);
+                        return {
+                            returning: async () => [row],
+                        };
+                    },
+                };
+            }
+
             throw new Error('Unexpected table insert');
         },
         update(table) {
@@ -204,6 +263,23 @@ function createFakeDb({
                 };
             }
 
+            if (table === myMapShareSnapshots) {
+                return {
+                    set(values) {
+                        return {
+                            where: async () => {
+                                if (!state.shareSnapshots[0]) return [];
+                                state.shareSnapshots[0] = {
+                                    ...state.shareSnapshots[0],
+                                    ...values,
+                                };
+                                return [state.shareSnapshots[0]];
+                            },
+                        };
+                    },
+                };
+            }
+
             throw new Error('Unexpected table update');
         },
         delete(table) {
@@ -220,6 +296,23 @@ function createFakeDb({
                 return {
                     where: async () => {
                         state.mapAssets = [];
+                        state.mapAssetNotes = [];
+                    },
+                };
+            }
+
+            if (table === myMapAssetNotes) {
+                return {
+                    where: async () => {
+                        state.mapAssetNotes = [];
+                    },
+                };
+            }
+
+            if (table === myMapShareSnapshots) {
+                return {
+                    where: async () => {
+                        state.shareSnapshots = [];
                     },
                 };
             }
@@ -286,7 +379,7 @@ test('getMyMapDetail falls back to snapshot data for unavailable assets', async 
     assert.equal(detail.places[0].rows[0].name, 'Saved centre snapshot');
 });
 
-test('updateMyMapAssetNotes stores owner private and client handoff notes', async () => {
+test('updateMyMapAssetNotes stores multiple simple notes with per-note sharing', async () => {
     const db = createFakeDb({
         maps: [createMap()],
         mapAssets: [createMapAsset()],
@@ -296,17 +389,34 @@ test('updateMyMapAssetNotes stores owner private and client handoff notes', asyn
     const updated = await updateMyMapAssetNotes(db, DEFAULT_USER, 3, {
         resourceType: 'hard',
         resourceId: 29,
-        privateNote: 'Internal planning reminder.',
-        handoffNote: 'Please call before visiting.',
+        notes: [
+            { text: 'Call before visiting.', isShared: true },
+            { text: 'Internal planning reminder.', isShared: false },
+        ],
     });
     const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
 
-    assert.equal(updated.notes.privateNote, 'Internal planning reminder.');
-    assert.equal(updated.notes.handoffNote, 'Please call before visiting.');
-    assert.equal(detail.places[0].rows[0].notes.privateNote, 'Internal planning reminder.');
-    assert.equal(detail.places[0].rows[0].notes.handoffNote, 'Please call before visiting.');
-    assert.equal(detail.assets[0].notes.privateNote, 'Internal planning reminder.');
-    assert.equal(detail.assets[0].notes.handoffNote, 'Please call before visiting.');
+    assert.deepEqual(
+        updated.notes.items.map((note) => ({ text: note.text, isShared: note.isShared })),
+        [
+            { text: 'Call before visiting.', isShared: true },
+            { text: 'Internal planning reminder.', isShared: false },
+        ],
+    );
+    assert.deepEqual(
+        detail.places[0].rows[0].notes.items.map((note) => ({ text: note.text, isShared: note.isShared })),
+        [
+            { text: 'Call before visiting.', isShared: true },
+            { text: 'Internal planning reminder.', isShared: false },
+        ],
+    );
+    assert.deepEqual(
+        detail.assets[0].notes.items.map((note) => ({ text: note.text, isShared: note.isShared })),
+        [
+            { text: 'Call before visiting.', isShared: true },
+            { text: 'Internal planning reminder.', isShared: false },
+        ],
+    );
 });
 
 test('renameMyMap updates description when provided', async () => {
@@ -336,18 +446,30 @@ test('publishMyMap enables a reusable share link', async () => {
     assert.match(published.sharePath, /^\/shared\/maps\//);
 });
 
-test('publishMyMap can intentionally include client handoff notes', async () => {
+test('publishMyMap snapshots only notes marked for sharing', async () => {
     const db = createFakeDb({
         maps: [createMap()],
-        mapAssets: [createMapAsset({ handoffNote: 'Bring referral letter.' })],
+        mapAssets: [createMapAsset()],
+        hardAsset: createHardAsset(),
+    });
+    await updateMyMapAssetNotes(db, DEFAULT_USER, 3, {
+        resourceType: 'hard',
+        resourceId: 29,
+        notes: [
+            { text: 'Bring referral letter.', isShared: true },
+            { text: 'Internal planning reminder.', isShared: false },
+        ],
     });
 
-    const published = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, {
-        includeHandoffNotes: true,
-    });
+    const published = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
 
     assert.equal(published.isShared, true);
-    assert.equal(published.shareIncludesHandoffNotes, true);
+    assert.equal(published.shareIncludesHandoffNotes, false);
+    assert.equal(db.state.shareSnapshots.length, 1);
+    assert.deepEqual(
+        db.state.shareSnapshots[0].snapshot.assets[0].notes.items.map((note) => note.text),
+        ['Bring referral letter.'],
+    );
 });
 
 test('unpublishMyMap clears the active share token', async () => {

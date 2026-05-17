@@ -370,27 +370,69 @@ function cleanMapAssetNote(value) {
     return text || '';
 }
 
+function normalizeMapAssetNoteRecord(note, fallbackIndex = 0) {
+    const text = cleanMapAssetNote(note?.noteText ?? note?.text);
+    if (!text) return null;
+    return {
+        id: Number.isInteger(note?.id) ? note.id : null,
+        text,
+        isShared: Boolean(note?.isShared),
+        sortOrder: Number.isInteger(note?.sortOrder) ? note.sortOrder : fallbackIndex,
+        createdAt: note?.createdAt ?? null,
+        updatedAt: note?.updatedAt ?? null,
+    };
+}
+
+function getMapAssetNoteItems(mapAsset, map, mode) {
+    const explicitNotes = Array.isArray(mapAsset?.notes)
+        ? mapAsset.notes
+            .map((note, index) => normalizeMapAssetNoteRecord(note, index))
+            .filter(Boolean)
+        : [];
+
+    const sourceNotes = explicitNotes.length > 0
+        ? explicitNotes
+        : [
+            cleanMapAssetNote(mapAsset?.privateNote)
+                ? {
+                    id: null,
+                    text: cleanMapAssetNote(mapAsset.privateNote),
+                    isShared: false,
+                    sortOrder: 0,
+                    createdAt: mapAsset?.notesUpdatedAt ?? null,
+                    updatedAt: mapAsset?.notesUpdatedAt ?? null,
+                }
+                : null,
+            cleanMapAssetNote(mapAsset?.handoffNote)
+                ? {
+                    id: null,
+                    text: cleanMapAssetNote(mapAsset.handoffNote),
+                    isShared: true,
+                    sortOrder: 1,
+                    createdAt: mapAsset?.notesUpdatedAt ?? null,
+                    updatedAt: mapAsset?.notesUpdatedAt ?? null,
+                }
+                : null,
+        ].filter(Boolean);
+
+    if (mode === 'shared') {
+        return sourceNotes.filter((note) => {
+            if (explicitNotes.length > 0) return note.isShared;
+            return note.isShared && Boolean(map?.shareIncludesHandoffNotes);
+        });
+    }
+
+    return sourceNotes;
+}
+
 function buildMapAssetNotes(mapAsset, map, mode) {
-    const privateNote = cleanMapAssetNote(mapAsset.privateNote);
-    const handoffNote = cleanMapAssetNote(mapAsset.handoffNote);
+    const items = getMapAssetNoteItems(mapAsset, map, mode);
     const notesUpdatedAt = mapAsset.notesUpdatedAt ?? null;
-
-    if (mode === 'owner') {
-        return {
-            privateNote,
-            handoffNote,
-            notesUpdatedAt,
-        };
-    }
-
-    if (mode === 'shared' && map?.shareIncludesHandoffNotes && handoffNote) {
-        return {
-            handoffNote,
-            notesUpdatedAt,
-        };
-    }
-
-    return null;
+    if (!items.length && mode !== 'owner') return null;
+    return {
+        items,
+        notesUpdatedAt,
+    };
 }
 
 function buildRow({

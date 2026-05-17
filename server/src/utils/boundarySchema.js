@@ -76,6 +76,57 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS handoff_note TEXT`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS notes_updated_at TIMESTAMP`);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS my_map_asset_notes (
+                    id SERIAL PRIMARY KEY,
+                    map_asset_id INTEGER NOT NULL REFERENCES my_map_assets(id) ON DELETE CASCADE,
+                    note_text TEXT NOT NULL,
+                    is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS my_map_share_snapshots (
+                    id SERIAL PRIMARY KEY,
+                    map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
+                    share_token VARCHAR(64) NOT NULL,
+                    snapshot JSONB NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                INSERT INTO my_map_asset_notes (map_asset_id, note_text, is_shared, sort_order, created_at, updated_at)
+                SELECT legacy.map_asset_id, legacy.note_text, legacy.is_shared, legacy.sort_order, legacy.created_at, legacy.updated_at
+                FROM (
+                    SELECT
+                        id AS map_asset_id,
+                        private_note AS note_text,
+                        FALSE AS is_shared,
+                        0 AS sort_order,
+                        COALESCE(notes_updated_at, NOW()) AS created_at,
+                        COALESCE(notes_updated_at, NOW()) AS updated_at
+                    FROM my_map_assets
+                    WHERE private_note IS NOT NULL AND BTRIM(private_note) <> ''
+                    UNION ALL
+                    SELECT
+                        id AS map_asset_id,
+                        handoff_note AS note_text,
+                        TRUE AS is_shared,
+                        1 AS sort_order,
+                        COALESCE(notes_updated_at, NOW()) AS created_at,
+                        COALESCE(notes_updated_at, NOW()) AS updated_at
+                    FROM my_map_assets
+                    WHERE handoff_note IS NOT NULL AND BTRIM(handoff_note) <> ''
+                ) AS legacy
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM my_map_asset_notes existing
+                    WHERE existing.map_asset_id = legacy.map_asset_id
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS private_resource_contents (
                     id SERIAL PRIMARY KEY,
                     resource_type VARCHAR(20) NOT NULL,
@@ -375,6 +426,10 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_maps_share_token_unique ON my_maps (share_token) WHERE share_token IS NOT NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_assets_map_idx ON my_map_assets (map_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_assets_map_resource_unique ON my_map_assets (map_id, resource_type, resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_idx ON my_map_asset_notes (map_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_sort_idx ON my_map_asset_notes (map_asset_id, sort_order)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_share_snapshots_map_unique ON my_map_share_snapshots (map_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_share_snapshots_share_token_idx ON my_map_share_snapshots (share_token)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_contents_resource_unique ON private_resource_contents (resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_contents_resource_idx ON private_resource_contents (resource_type, resource_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_content_access_content_user_unique ON private_resource_content_access (content_id, user_id)`);
