@@ -365,6 +365,34 @@ export async function buildLiveMyMapAssetSnapshotFromDb(db, resourceType, resour
     return liveAsset ? buildMyMapAssetSnapshot(resourceType, liveAsset) : null;
 }
 
+function cleanMapAssetNote(value) {
+    const text = String(value || '').trim();
+    return text || '';
+}
+
+function buildMapAssetNotes(mapAsset, map, mode) {
+    const privateNote = cleanMapAssetNote(mapAsset.privateNote);
+    const handoffNote = cleanMapAssetNote(mapAsset.handoffNote);
+    const notesUpdatedAt = mapAsset.notesUpdatedAt ?? null;
+
+    if (mode === 'owner') {
+        return {
+            privateNote,
+            handoffNote,
+            notesUpdatedAt,
+        };
+    }
+
+    if (mode === 'shared' && map?.shareIncludesHandoffNotes && handoffNote) {
+        return {
+            handoffNote,
+            notesUpdatedAt,
+        };
+    }
+
+    return null;
+}
+
 function buildRow({
     mapAsset,
     place,
@@ -373,6 +401,7 @@ function buildRow({
     detailPath,
     saveEligible,
     categoryLookup,
+    notes = null,
 }) {
     const categoryKey = normalizeCategoryKey(snapshot.subCategory);
     const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
@@ -398,6 +427,7 @@ function buildRow({
         missingProfileFields: Array.isArray(snapshot.missingProfileFields) ? snapshot.missingProfileFields : [],
         assetKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId),
         addedAt: mapAsset.addedAt ?? null,
+        ...(notes ? { notes } : {}),
     };
 }
 
@@ -606,11 +636,14 @@ export async function buildMyMapDirectory(db, {
             ? sourceSnapshot.places.map((place, index) => normalizePlaceSnapshot(place, index))
             : [createFallbackPlace(mapAsset.resourceType, mapAsset.resourceId, sourceSnapshot)];
 
+        const notes = buildMapAssetNotes(mapAsset, map, mode);
+
         assetSummaries.push({
             assetKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId),
             resourceType: mapAsset.resourceType,
             resourceId: mapAsset.resourceId,
             status: rowBaseStatus,
+            ...(notes ? { notes } : {}),
         });
 
         for (const place of normalizedPlaces) {
@@ -632,6 +665,7 @@ export async function buildMyMapDirectory(db, {
                 detailPath: rowStatus === 'unavailable' ? null : detailPath,
                 saveEligible: mode === 'shared' && rowStatus !== 'unavailable',
                 categoryLookup,
+                notes,
             });
             addRowToPlace(placeMap, place, row);
         }
@@ -656,6 +690,7 @@ export async function buildMyMapDirectory(db, {
                 isShared: Boolean(map.isShared),
                 shareToken: map.shareToken || null,
                 sharePath: map.shareToken ? `/shared/maps/${map.shareToken}` : null,
+                shareIncludesHandoffNotes: Boolean(map.shareIncludesHandoffNotes),
                 shareUpdatedAt: map.shareUpdatedAt || null,
             },
             assets: assetSummaries,

@@ -37,6 +37,17 @@ const updateMyMapBodySchema = z.object({
     description: optionalTextSchema(2000),
 });
 
+const updateMyMapAssetNotesBodySchema = z.object({
+    resourceType: z.enum(['hard', 'soft']),
+    resourceId: positiveIntValueSchema('Resource id'),
+    privateNote: optionalTextSchema(1000),
+    handoffNote: optionalTextSchema(1000),
+});
+
+const shareMyMapBodySchema = z.object({
+    includeHandoffNotes: z.boolean().optional(),
+});
+
 function createHttpError(status, message) {
     const error = new Error(message);
     error.status = status;
@@ -60,6 +71,12 @@ function normalizeMapName(value) {
 }
 
 function normalizeMapDescription(value) {
+    if (value === undefined) return undefined;
+    const text = String(value ?? '').trim();
+    return text ? text : null;
+}
+
+function normalizeNote(value) {
     if (value === undefined) return undefined;
     const text = String(value ?? '').trim();
     return text ? text : null;
@@ -105,6 +122,7 @@ function formatMyMapSummary(map) {
         isShared: Boolean(map.isShared),
         shareToken: map.isShared ? (map.shareToken || null) : null,
         sharePath: map.isShared && map.shareToken ? `/shared/maps/${map.shareToken}` : null,
+        shareIncludesHandoffNotes: Boolean(map.shareIncludesHandoffNotes),
         shareUpdatedAt: map.shareUpdatedAt || null,
         createdAt: map.createdAt,
         updatedAt: map.updatedAt,
@@ -119,6 +137,11 @@ function serializeMyMapAssetRecord(mapAsset) {
         resourceId: mapAsset.resourceId,
         assetKey: `${mapAsset.resourceType}-${mapAsset.resourceId}`,
         addedAt: mapAsset.addedAt ?? null,
+        notes: {
+            privateNote: String(mapAsset.privateNote || '').trim(),
+            handoffNote: String(mapAsset.handoffNote || '').trim(),
+            notesUpdatedAt: mapAsset.notesUpdatedAt ?? null,
+        },
         snapshot: normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot),
     };
 }
@@ -137,6 +160,9 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                         resourceType: true,
                         resourceId: true,
                         snapshot: true,
+                        privateNote: true,
+                        handoffNote: true,
+                        notesUpdatedAt: true,
                         addedAt: true,
                     },
                 },
@@ -293,7 +319,7 @@ export async function renameMyMap(db, user, mapId, body) {
     return formatMyMapSummary(updated);
 }
 
-export async function publishMyMap(db, user, mapId, resolutionContext = null) {
+export async function publishMyMap(db, user, mapId, resolutionContext = null, options = {}) {
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true);
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
@@ -314,6 +340,7 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null) {
         .set({
             isShared: true,
             shareToken,
+            shareIncludesHandoffNotes: Boolean(options?.includeHandoffNotes),
             shareUpdatedAt: new Date(),
             updatedAt: new Date(),
         })
@@ -335,6 +362,7 @@ export async function unpublishMyMap(db, user, mapId) {
         .set({
             isShared: false,
             shareToken: null,
+            shareIncludesHandoffNotes: false,
             shareUpdatedAt: new Date(),
             updatedAt: new Date(),
         })
@@ -394,6 +422,66 @@ export async function addAssetToMyMap(db, user, mapId, body, resolutionContext =
 
     await touchMap(db, map.id);
     return serializeMyMapAssetRecord(createdAsset);
+}
+
+export async function updateMyMapAssetNotes(db, user, mapId, body) {
+    assertDirectoryUser(user);
+    const assetRef = parseAssetRef(body);
+    if (!assetRef) {
+        throw createHttpError(400, 'resourceType and resourceId are required');
+    }
+
+    await requireOwnedMap(db, user.id, mapId);
+
+    const existing = await db.query.myMapAssets.findFirst({
+        where: and(
+            eq(myMapAssets.mapId, mapId),
+            eq(myMapAssets.resourceType, assetRef.resourceType),
+            eq(myMapAssets.resourceId, assetRef.resourceId)
+        ),
+    });
+
+    if (!existing) {
+        throw createHttpError(404, 'Map resource not found');
+    }
+
+    const nextPrivateNote = normalizeNote(body?.privateNote);
+    const nextHandoffNote = normalizeNote(body?.handoffNote);
+    const updateValues = {
+        notesUpdatedAt: new Date(),
+    };
+
+    if (nextPrivateNote !== undefined) {
+        updateValues.privateNote = nextPrivateNote;
+    }
+    if (nextHandoffNote !== undefined) {
+        updateValues.handoffNote = nextHandoffNote;
+    }
+
+    await db.update(myMapAssets)
+        .set(updateValues)
+        .where(
+            and(
+                eq(myMapAssets.mapId, mapId),
+                eq(myMapAssets.resourceType, assetRef.resourceType),
+                eq(myMapAssets.resourceId, assetRef.resourceId)
+            )
+        );
+
+    await touchMap(db, mapId);
+
+    const updated = await db.query.myMapAssets.findFirst({
+        where: and(
+            eq(myMapAssets.mapId, mapId),
+            eq(myMapAssets.resourceType, assetRef.resourceType),
+            eq(myMapAssets.resourceId, assetRef.resourceId)
+        ),
+    });
+
+    return serializeMyMapAssetRecord(updated || {
+        ...existing,
+        ...updateValues,
+    });
 }
 
 export async function removeAssetFromMyMap(db, user, mapId, resourceType, resourceId) {
@@ -481,6 +569,19 @@ export const patchMyMap = async (c) => {
     }
 };
 
+async function readOptionalJsonBody(c) {
+    const contentType = String(c.req.header('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/json')) {
+        return {};
+    }
+
+    try {
+        return await c.req.json();
+    } catch {
+        return {};
+    }
+}
+
 export const postMyMapShare = async (c) => {
     try {
         const user = c.get('user');
@@ -490,7 +591,11 @@ export const postMyMapShare = async (c) => {
         if (!mapId) {
             return c.json({ error: 'Map id is required' }, 400);
         }
-        const map = await publishMyMap(db, user, mapId);
+        const rawBody = await readOptionalJsonBody(c);
+        const body = validateRequestBody(rawBody, shareMyMapBodySchema, 'Share settings');
+        const map = await publishMyMap(db, user, mapId, null, {
+            includeHandoffNotes: Boolean(body.includeHandoffNotes),
+        });
         return c.json(map);
     } catch (err) {
         console.error('postMyMapShare Error:', err);
@@ -547,6 +652,30 @@ export const postMyMapAsset = async (c) => {
     } catch (err) {
         console.error('postMyMapAsset Error:', err);
         return c.json({ error: err.message || 'Failed to add asset to map' }, err.status || 500);
+    }
+};
+
+export const patchMyMapAssetNotes = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        const resourceType = normalizeResourceType(c.req.param('resourceType'));
+        const resourceId = parseResourceId(c.req.param('resourceId'));
+        if (!mapId || !resourceType || !resourceId) {
+            return c.json({ error: 'Map id, resourceType, and resourceId are required' }, 400);
+        }
+        const body = validateRequestBody({
+            ...(await c.req.json()),
+            resourceType,
+            resourceId,
+        }, updateMyMapAssetNotesBodySchema, 'Map resource notes');
+        const item = await updateMyMapAssetNotes(db, user, mapId, body);
+        return c.json(item);
+    } catch (err) {
+        console.error('patchMyMapAssetNotes Error:', err);
+        return c.json({ error: err.message || 'Failed to update map resource notes' }, err.status || 500);
     }
 };
 

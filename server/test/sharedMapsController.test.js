@@ -16,6 +16,7 @@ function createSharedMap(overrides = {}) {
         description: 'Helpful services around Teck Whye.',
         isShared: true,
         shareToken: 'shared-token',
+        shareIncludesHandoffNotes: false,
         shareUpdatedAt: new Date('2026-03-20T09:00:00.000Z'),
         createdAt: new Date('2026-03-19T09:00:00.000Z'),
         updatedAt: new Date('2026-03-20T09:00:00.000Z'),
@@ -29,6 +30,9 @@ function createMapAsset(overrides = {}) {
         mapId: 3,
         resourceType: 'hard',
         resourceId: 29,
+        privateNote: null,
+        handoffNote: null,
+        notesUpdatedAt: null,
         snapshot: {
             name: 'Saved centre snapshot',
             subCategory: 'Active Ageing Centre',
@@ -174,6 +178,26 @@ test('getSharedMapDirectory returns a public grouped directory payload', async (
     assert.equal(directory.share.isShared, true);
     assert.equal(directory.pins.length, 1);
     assert.equal(directory.places[0].rows[0].name, 'Fei Yue Active Ageing Centre');
+    assert.equal(directory.places[0].rows[0].notes, undefined);
+    assert.equal(directory.assets[0].notes, undefined);
+});
+
+test('getSharedMapDirectory includes only handoff notes when sharing opts in', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap({ shareIncludesHandoffNotes: true })],
+        mapAssets: [createMapAsset({
+            privateNote: 'Do not show this internal reminder.',
+            handoffNote: 'Please call before visiting.',
+        })],
+        hardAsset: createHardAsset(),
+    });
+
+    const directory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+
+    assert.equal(directory.places[0].rows[0].notes.privateNote, undefined);
+    assert.equal(directory.places[0].rows[0].notes.handoffNote, 'Please call before visiting.');
+    assert.equal(directory.assets[0].notes.privateNote, undefined);
+    assert.equal(directory.assets[0].notes.handoffNote, 'Please call before visiting.');
 });
 
 test('getSharedMapDirectory returns a clean unavailable error when a token is invalid', async () => {
@@ -191,8 +215,11 @@ test('getSharedMapDirectory returns a clean unavailable error when a token is in
 
 test('copySharedMapToMyMaps creates a new private copy for logged-in recipients', async () => {
     const db = createFakeDb({
-        maps: [createSharedMap()],
-        mapAssets: [createMapAsset()],
+        maps: [createSharedMap({ shareIncludesHandoffNotes: true })],
+        mapAssets: [createMapAsset({
+            privateNote: 'Owner-only note.',
+            handoffNote: 'Bring referral letter.',
+        })],
     });
 
     const copied = await copySharedMapToMyMaps(db, RECIPIENT_USER, 'shared-token');
@@ -201,7 +228,10 @@ test('copySharedMapToMyMaps creates a new private copy for logged-in recipients'
     assert.equal(copied.assetCount, 1);
     assert.equal(db.state.maps[0].userId, RECIPIENT_USER.id);
     assert.equal(db.state.maps[0].isShared, false);
+    assert.equal(db.state.maps[0].shareIncludesHandoffNotes, false);
     assert.equal(db.state.mapAssets.length, 2);
+    assert.equal(db.state.mapAssets[1].privateNote, null);
+    assert.equal(db.state.mapAssets[1].handoffNote, 'Bring referral letter.');
 });
 
 test('copySharedMapToMyMaps rejects the original owner', async () => {

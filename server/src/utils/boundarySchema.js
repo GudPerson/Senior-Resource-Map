@@ -48,6 +48,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     description TEXT,
                     is_shared BOOLEAN NOT NULL DEFAULT FALSE,
                     share_token VARCHAR(64),
+                    share_includes_handoff_notes BOOLEAN NOT NULL DEFAULT FALSE,
                     share_updated_at TIMESTAMP,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
@@ -56,6 +57,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS description TEXT`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_token VARCHAR(64)`);
+            await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_includes_handoff_notes BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_updated_at TIMESTAMP`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_assets (
@@ -64,9 +66,15 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     resource_type VARCHAR(20) NOT NULL,
                     resource_id INTEGER NOT NULL,
                     snapshot JSONB,
+                    private_note TEXT,
+                    handoff_note TEXT,
+                    notes_updated_at TIMESTAMP,
                     added_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS private_note TEXT`);
+            await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS handoff_note TEXT`);
+            await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS notes_updated_at TIMESTAMP`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS private_resource_contents (
                     id SERIAL PRIMARY KEY,

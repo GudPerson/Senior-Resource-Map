@@ -83,6 +83,39 @@ test('runtime schema bootstrap includes pre-session phone login attempts table',
     );
 });
 
+test('runtime schema bootstrap includes My Map note columns', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('alter table my_maps add column if not exists share_includes_handoff_notes')
+            && statement.includes('default false')
+        )),
+        'expected My Map share handoff-note toggle column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table my_map_assets add column if not exists private_note')),
+        'expected private note column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table my_map_assets add column if not exists handoff_note')),
+        'expected handoff note column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table my_map_assets add column if not exists notes_updated_at')),
+        'expected note timestamp column bootstrap SQL',
+    );
+});
+
 test('runtime schema bootstrap includes partner organisation and staff bridge tables', async () => {
     resetBoundarySchemaBootstrapForTests();
     const statements = [];

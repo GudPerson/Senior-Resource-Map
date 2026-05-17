@@ -8,6 +8,7 @@ import {
     getMyMap,
     getMyMaps,
     patchMyMap,
+    patchMyMapAssetNotes,
     postMyMap,
     postMyMapAsset,
     postMyMapShare,
@@ -23,6 +24,7 @@ router.delete('/:id', authenticateToken, deleteMyMap);
 router.post('/:id/share', authenticateToken, postMyMapShare);
 router.delete('/:id/share', authenticateToken, deleteMyMapShare);
 router.post('/:id/assets', authenticateToken, postMyMapAsset);
+router.patch('/:id/assets/:resourceType/:resourceId/notes', authenticateToken, patchMyMapAssetNotes);
 router.delete('/:id/assets/:resourceType/:resourceId', authenticateToken, deleteMyMapAsset);
 
 export default router;

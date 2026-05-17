@@ -364,6 +364,7 @@ export const myMaps = pgTable('my_maps', {
   description: text('description'),
   isShared: boolean('is_shared').notNull().default(false),
   shareToken: varchar('share_token', { length: 64 }),
+  shareIncludesHandoffNotes: boolean('share_includes_handoff_notes').notNull().default(false),
   shareUpdatedAt: timestamp('share_updated_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -378,6 +379,9 @@ export const myMapAssets = pgTable('my_map_assets', {
   resourceType: varchar('resource_type', { length: 20 }).notNull(),
   resourceId: integer('resource_id').notNull(),
   snapshot: jsonb('snapshot'),
+  privateNote: text('private_note'),
+  handoffNote: text('handoff_note'),
+  notesUpdatedAt: timestamp('notes_updated_at'),
   addedAt: timestamp('added_at').defaultNow(),
 }, (table) => ({
   mapResourceUnique: uniqueIndex('my_map_assets_map_resource_unique').on(table.mapId, table.resourceType, table.resourceId),

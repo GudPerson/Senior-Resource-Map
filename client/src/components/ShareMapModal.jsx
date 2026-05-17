@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Copy, Globe2, LockKeyhole, Link2, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
@@ -19,11 +19,19 @@ export default function ShareMapModal({
 }) {
     const { t } = useLocale();
     const [copyFeedback, setCopyFeedback] = useState('');
+    const [includeHandoffNotes, setIncludeHandoffNotes] = useState(false);
     const shareUrl = useMemo(() => buildShareUrl(map?.share?.sharePath || map?.sharePath), [map?.share?.sharePath, map?.sharePath]);
+    const savedIncludesHandoffNotes = Boolean(map?.share?.shareIncludesHandoffNotes ?? map?.shareIncludesHandoffNotes);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setIncludeHandoffNotes(savedIncludesHandoffNotes);
+    }, [isOpen, savedIncludesHandoffNotes]);
 
     if (!isOpen || !map) return null;
 
     const isShared = Boolean(map?.share?.isShared ?? map?.isShared);
+    const shareSettingsChanged = includeHandoffNotes !== savedIncludesHandoffNotes;
 
     async function handleCopyLink() {
         if (!shareUrl) return;
@@ -102,6 +110,19 @@ export default function ShareMapModal({
                         </div>
                     ) : null}
 
+                    <label className="flex cursor-pointer items-start gap-3 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:bg-brand-50/40">
+                        <input
+                            type="checkbox"
+                            checked={includeHandoffNotes}
+                            onChange={(event) => setIncludeHandoffNotes(event.target.checked)}
+                            className="mt-1 h-5 w-5 flex-shrink-0 rounded border-slate-300 accent-brand-600"
+                        />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-bold text-slate-900">{t('includeHandoffNotesInShare')}</span>
+                            <span className="mt-1 block text-sm leading-6 text-slate-500">{t('includeHandoffNotesInShareHelp')}</span>
+                        </span>
+                    </label>
+
                     {error ? (
                         <p className="text-sm font-medium text-red-600">{error}</p>
                     ) : null}
@@ -111,18 +132,28 @@ export default function ShareMapModal({
                             {t('close')}
                         </button>
                         {isShared ? (
-                            <button
-                                type="button"
-                                onClick={onUnpublish}
-                                disabled={submitting}
-                                className="btn-ghost justify-center border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {submitting ? t('unpublishing') : t('unpublish')}
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => onPublish?.({ includeHandoffNotes })}
+                                    disabled={submitting || !shareSettingsChanged}
+                                    className="btn-ghost justify-center border border-brand-200 text-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {submitting ? t('saving') : t('saveShareSettings')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onUnpublish}
+                                    disabled={submitting}
+                                    className="btn-ghost justify-center border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {submitting ? t('unpublishing') : t('unpublish')}
+                                </button>
+                            </>
                         ) : (
                             <button
                                 type="button"
-                                onClick={onPublish}
+                                onClick={() => onPublish?.({ includeHandoffNotes })}
                                 disabled={submitting}
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                             >

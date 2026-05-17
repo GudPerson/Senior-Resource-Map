@@ -337,6 +337,18 @@ const dictionaries = {
         unpublishing: 'Unpublishing...',
         publishShareLink: 'Publish share link',
         publishing: 'Publishing...',
+        includeHandoffNotesInShare: 'Include client handoff notes',
+        includeHandoffNotesInShareHelp: 'Anyone with the shared link can see client handoff notes. Private planning notes are never shared.',
+        saveShareSettings: 'Save share settings',
+        addResourceNotes: 'Add notes',
+        resourceNotesCount: '{{count}} notes',
+        mapNotesPrivacyHelp: 'Private planning notes stay with you. Client handoff notes are shared only when the share setting is enabled. Avoid NRIC, medical records, or sensitive case details.',
+        privatePlanningNote: 'Private planning note',
+        privatePlanningNotePlaceholder: 'Internal reminder for your own planning.',
+        clientHandoffNote: 'Client handoff note',
+        clientHandoffNotePlaceholder: 'Practical guidance the client or caregiver can see if shared.',
+        saveNotes: 'Save notes',
+        failedSaveMapNotes: 'Failed to save notes.',
 
         // Shared maps
         sharedMap: 'Shared Map',

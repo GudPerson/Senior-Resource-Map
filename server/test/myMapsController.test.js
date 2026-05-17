@@ -9,6 +9,7 @@ import {
     listMyMaps,
     publishMyMap,
     renameMyMap,
+    updateMyMapAssetNotes,
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
 import { myMapAssets, myMaps } from '../src/db/schema.js';
@@ -47,6 +48,7 @@ function createMap(overrides = {}) {
         description: null,
         isShared: false,
         shareToken: null,
+        shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
         createdAt: new Date('2026-03-14T10:00:00.000Z'),
         updatedAt: new Date('2026-03-14T10:00:00.000Z'),
@@ -60,6 +62,9 @@ function createMapAsset(overrides = {}) {
         mapId: 3,
         resourceType: 'hard',
         resourceId: 29,
+        privateNote: null,
+        handoffNote: null,
+        notesUpdatedAt: null,
         snapshot: createFavorite().snapshot,
         addedAt: new Date('2026-03-14T10:05:00.000Z'),
         ...overrides,
@@ -281,6 +286,29 @@ test('getMyMapDetail falls back to snapshot data for unavailable assets', async 
     assert.equal(detail.places[0].rows[0].name, 'Saved centre snapshot');
 });
 
+test('updateMyMapAssetNotes stores owner private and client handoff notes', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: null,
+    });
+
+    const updated = await updateMyMapAssetNotes(db, DEFAULT_USER, 3, {
+        resourceType: 'hard',
+        resourceId: 29,
+        privateNote: 'Internal planning reminder.',
+        handoffNote: 'Please call before visiting.',
+    });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    assert.equal(updated.notes.privateNote, 'Internal planning reminder.');
+    assert.equal(updated.notes.handoffNote, 'Please call before visiting.');
+    assert.equal(detail.places[0].rows[0].notes.privateNote, 'Internal planning reminder.');
+    assert.equal(detail.places[0].rows[0].notes.handoffNote, 'Please call before visiting.');
+    assert.equal(detail.assets[0].notes.privateNote, 'Internal planning reminder.');
+    assert.equal(detail.assets[0].notes.handoffNote, 'Please call before visiting.');
+});
+
 test('renameMyMap updates description when provided', async () => {
     const db = createFakeDb({
         maps: [createMap()],
@@ -303,8 +331,23 @@ test('publishMyMap enables a reusable share link', async () => {
     const published = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
 
     assert.equal(published.isShared, true);
+    assert.equal(published.shareIncludesHandoffNotes, false);
     assert.equal(typeof published.shareToken, 'string');
     assert.match(published.sharePath, /^\/shared\/maps\//);
+});
+
+test('publishMyMap can intentionally include client handoff notes', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset({ handoffNote: 'Bring referral letter.' })],
+    });
+
+    const published = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, {
+        includeHandoffNotes: true,
+    });
+
+    assert.equal(published.isShared, true);
+    assert.equal(published.shareIncludesHandoffNotes, true);
 });
 
 test('unpublishMyMap clears the active share token', async () => {

@@ -7,7 +7,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Save, StickyNote, Trash2 } from 'lucide-react';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
@@ -84,6 +84,221 @@ function MapLegend({ mobile = false }) {
                 </div>
                 <span>{t('legendClusters')}</span>
             </div>
+        </div>
+    );
+}
+
+function getRowAssetKey(row) {
+    return row?.assetKey || `${row?.resourceType}-${row?.resourceId}`;
+}
+
+function getUniqueNoteRows(rows = []) {
+    const seen = new Set();
+    const uniqueRows = [];
+
+    for (const row of rows || []) {
+        const key = getRowAssetKey(row);
+        if (!row || seen.has(key)) continue;
+        seen.add(key);
+        uniqueRows.push(row);
+    }
+
+    return uniqueRows;
+}
+
+function getNoteRowsForGroup(group) {
+    if (group?.isPostalGroup) {
+        return getUniqueNoteRows((group.nestedPlaces || []).flatMap((place) => place.rows || []));
+    }
+
+    return getUniqueNoteRows(group?.rows || []);
+}
+
+function hasAnyOwnerNote(row) {
+    return Boolean(row?.notes?.privateNote?.trim() || row?.notes?.handoffNote?.trim());
+}
+
+function buildNoteDrafts(rows) {
+    return rows.reduce((drafts, row) => {
+        drafts[getRowAssetKey(row)] = {
+            privateNote: row?.notes?.privateNote || '',
+            handoffNote: row?.notes?.handoffNote || '',
+        };
+        return drafts;
+    }, {});
+}
+
+function ClientHandoffNote({ note, compact = false, print = false }) {
+    const { t } = useLocale();
+    const text = String(note || '').trim();
+    if (!text) return null;
+
+    if (print) {
+        return (
+            <p className="mt-1 rounded-lg border border-brand-100 bg-brand-50 px-2 py-1 text-[10px] font-medium leading-4 text-brand-800">
+                <span className="font-bold">{t('clientHandoffNote')}:</span> {text}
+            </p>
+        );
+    }
+
+    return (
+        <div className={`mt-2 rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 ${compact ? 'px-2.5 py-2 text-[11px] leading-5' : 'px-3 py-2 text-xs leading-5'}`}>
+            <p className="font-bold">{t('clientHandoffNote')}</p>
+            <p className="mt-1 whitespace-pre-wrap">{text}</p>
+        </div>
+    );
+}
+
+function MapResourceNotesDrawer({
+    rows,
+    compactInteractive = false,
+    onUpdateResourceNotes,
+}) {
+    const { t } = useLocale();
+    const noteRows = getUniqueNoteRows(rows);
+    const noteSignature = noteRows.map((row) => [
+        getRowAssetKey(row),
+        row?.notes?.privateNote || '',
+        row?.notes?.handoffNote || '',
+    ].join(':')).join('|');
+    const noteCount = noteRows.filter(hasAnyOwnerNote).length;
+    const [open, setOpen] = useState(false);
+    const [drafts, setDrafts] = useState(() => buildNoteDrafts(noteRows));
+    const [savingKey, setSavingKey] = useState('');
+    const [savedKey, setSavedKey] = useState('');
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (!open) return;
+        setDrafts(buildNoteDrafts(noteRows));
+    }, [open, noteSignature]);
+
+    if (!noteRows.length || !onUpdateResourceNotes) return null;
+
+    function updateDraft(row, field, value) {
+        const key = getRowAssetKey(row);
+        setDrafts((current) => ({
+            ...current,
+            [key]: {
+                ...(current[key] || {}),
+                [field]: value.slice(0, 1000),
+            },
+        }));
+    }
+
+    async function saveRow(row) {
+        const key = getRowAssetKey(row);
+        const draft = drafts[key] || { privateNote: '', handoffNote: '' };
+        setSavingKey(key);
+        setSavedKey('');
+        setError('');
+        try {
+            await onUpdateResourceNotes(row, draft);
+            setSavedKey(key);
+        } catch (err) {
+            console.error(err);
+            setError(err.message || t('failedSaveMapNotes'));
+        } finally {
+            setSavingKey('');
+        }
+    }
+
+    const triggerLabel = noteCount
+        ? t('resourceNotesCount', { count: noteCount })
+        : t('addResourceNotes');
+
+    return (
+        <div
+            className={`${compactInteractive ? 'mt-2.5' : 'mt-3'} border-t border-slate-100 pt-3`}
+            onClick={(event) => event.stopPropagation()}
+        >
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                className={`inline-flex min-h-11 items-center gap-2 rounded-2xl border px-3 font-bold transition ${
+                    noteCount
+                        ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-700'
+                } ${compactInteractive ? 'text-[12px]' : 'text-sm'}`}
+                aria-expanded={open}
+            >
+                <StickyNote size={15} />
+                {triggerLabel}
+                <ChevronDown size={15} className={`transition ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open ? (
+                <div className="mt-3 space-y-3 rounded-[20px] border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold leading-5 text-slate-500">
+                        {t('mapNotesPrivacyHelp')}
+                    </p>
+                    {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
+                    {noteRows.map((row) => {
+                        const key = getRowAssetKey(row);
+                        const draft = drafts[key] || {
+                            privateNote: row?.notes?.privateNote || '',
+                            handoffNote: row?.notes?.handoffNote || '',
+                        };
+                        const saving = savingKey === key;
+                        const saved = savedKey === key;
+
+                        return (
+                            <div key={key} className="rounded-[18px] border border-slate-200 bg-white p-3 shadow-sm">
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold leading-snug text-slate-900">{row.name}</p>
+                                        <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                                            {row.resourceType === 'hard' ? t('placeType') : t('offeringType')}
+                                        </p>
+                                    </div>
+                                    {saved ? (
+                                        <span className="rounded-full bg-brand-50 px-2 py-1 text-[11px] font-bold text-brand-700">
+                                            {t('saved')}
+                                        </span>
+                                    ) : null}
+                                </div>
+
+                                <div className="mt-3 grid gap-3">
+                                    <label className="block">
+                                        <span className="text-xs font-bold text-slate-700">{t('privatePlanningNote')}</span>
+                                        <textarea
+                                            value={draft.privateNote}
+                                            onChange={(event) => updateDraft(row, 'privateNote', event.target.value)}
+                                            maxLength={1000}
+                                            rows={2}
+                                            className="mt-1 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+                                            placeholder={t('privatePlanningNotePlaceholder')}
+                                        />
+                                    </label>
+                                    <label className="block">
+                                        <span className="text-xs font-bold text-slate-700">{t('clientHandoffNote')}</span>
+                                        <textarea
+                                            value={draft.handoffNote}
+                                            onChange={(event) => updateDraft(row, 'handoffNote', event.target.value)}
+                                            maxLength={1000}
+                                            rows={2}
+                                            className="mt-1 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+                                            placeholder={t('clientHandoffNotePlaceholder')}
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-3 flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => saveRow(row)}
+                                        disabled={saving}
+                                        className="btn-primary min-h-11 justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <Save size={15} />
+                                        {saving ? t('saving') : t('saveNotes')}
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -280,6 +495,7 @@ function DirectoryResourceRow({
     const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const access = row?.resourceType === 'soft' ? (row.access || OFFERING_ACCESS.GRANTED) : null;
     const isAccessRestricted = row?.resourceType === 'soft' && access !== OFFERING_ACCESS.GRANTED;
+    const handoffNote = row?.notes?.handoffNote || '';
     const rowTitleClassName = interactive
         ? (compactInteractive ? 'text-[12px]' : 'text-[14px]')
         : (compactPrint ? 'text-[11px]' : 'text-[12px]');
@@ -303,6 +519,7 @@ function DirectoryResourceRow({
                         {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
                     </div>
                 </div>
+                {mode === 'shared' ? <ClientHandoffNote note={handoffNote} print /> : null}
             </div>
         );
     }
@@ -333,6 +550,9 @@ function DirectoryResourceRow({
                                     compact
                                     className="mt-2"
                                 />
+                            ) : null}
+                            {mode === 'shared' ? (
+                                <ClientHandoffNote note={handoffNote} compact={compactInteractive} />
                             ) : null}
                         </div>
                     </div>
@@ -475,6 +695,7 @@ function DirectoryPlaceGroupCard({
     fullCardLink = false,
     onViewOnMap,
     onRemoveResource,
+    onUpdateResourceNotes,
     canSaveResources,
     highlighted,
     sectionRef,
@@ -680,6 +901,11 @@ function DirectoryPlaceGroupCard({
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
             >
                 {groupedCardContent}
+                <MapResourceNotesDrawer
+                    rows={getNoteRowsForGroup(group)}
+                    compactInteractive={compactInteractive}
+                    onUpdateResourceNotes={onUpdateResourceNotes}
+                />
             </section>
         );
     }
@@ -732,6 +958,11 @@ function DirectoryPlaceGroupCard({
                     ) : null}
                 </div>
             </div>
+            <MapResourceNotesDrawer
+                rows={getNoteRowsForGroup(group)}
+                compactInteractive={compactInteractive}
+                onUpdateResourceNotes={onUpdateResourceNotes}
+            />
         </>
     );
 
@@ -762,7 +993,7 @@ function DirectoryPlaceGroupCard({
     );
 }
 
-function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource }) {
+function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource, onUpdateResourceNotes }) {
     const { t } = useLocale();
     const place = useMemo(() => ({
         address: row.locationLabel || row.contextLabel || row.placeName || '',
@@ -770,6 +1001,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
         lng: null,
     }), [row.contextLabel, row.locationLabel, row.placeName]);
     const detailPath = useDirectoryDetailPath(row.detailPath);
+    const handoffNote = row?.notes?.handoffNote || '';
 
     if (!interactive) {
         const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
@@ -787,6 +1019,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             <p className="text-[12px] font-semibold leading-snug text-slate-800">{row.name}</p>
                         )}
                         {row.contextLabel ? <p className="mt-0.5 text-[10px] text-slate-500">{row.contextLabel}</p> : null}
+                        {mode === 'shared' ? <ClientHandoffNote note={handoffNote} print /> : null}
                     </div>
                 </div>
             </div>
@@ -842,6 +1075,9 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         {row.descriptor ? (
                             <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>
                         ) : null}
+                        {mode === 'shared' ? (
+                            <ClientHandoffNote note={handoffNote} />
+                        ) : null}
                     </div>
 
                     {interactive ? (
@@ -872,6 +1108,11 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         )}
                     </div>
                 ) : null}
+                <MapResourceNotesDrawer
+                    rows={[row]}
+                    compactInteractive
+                    onUpdateResourceNotes={onUpdateResourceNotes}
+                />
             </div>
         </div>
     );
@@ -885,6 +1126,7 @@ function DirectoryGroupColumn({
     fullCardLink = false,
     onViewOnMap,
     onRemoveResource,
+    onUpdateResourceNotes,
     canSaveResources,
     highlightPlaceKey,
     highlightPlaceKeys = [],
@@ -912,6 +1154,7 @@ function DirectoryGroupColumn({
                     fullCardLink={fullCardLink}
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
+                    onUpdateResourceNotes={onUpdateResourceNotes}
                     canSaveResources={canSaveResources}
                     highlighted={isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys)}
                     allowPrintLinks={allowPrintLinks}
@@ -936,6 +1179,7 @@ function DirectoryUnmappedSection({
     mode,
     canSaveResources,
     onRemoveResource,
+    onUpdateResourceNotes,
 }) {
     const { t } = useLocale();
     if (!rows.length) {
@@ -961,6 +1205,7 @@ function DirectoryUnmappedSection({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
                     />
                 ))}
             </div>
@@ -976,6 +1221,7 @@ export default function SharedMapDirectoryList({
     renderMobileMap = null,
     onViewOnMap,
     onRemoveResource,
+    onUpdateResourceNotes,
     highlightPlaceKey = null,
     highlightPlaceKeys = [],
     canSaveResources = true,
@@ -1093,6 +1339,7 @@ export default function SharedMapDirectoryList({
                         fullCardLink={false}
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
                         canSaveResources={canSaveResources}
                         highlightPlaceKey={flashPlaceKey}
                         highlightPlaceKeys={highlightPlaceKeys}
@@ -1108,6 +1355,7 @@ export default function SharedMapDirectoryList({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
                     />
                 </div>
             </DirectoryReturnPathContext.Provider>
@@ -1123,9 +1371,10 @@ export default function SharedMapDirectoryList({
                         mode={mode}
                         interactive={interactive}
                         compactInteractive={compactInteractiveDesktop}
-                        fullCardLink={interactive}
+                        fullCardLink={interactive && mode !== 'owner'}
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
                         canSaveResources={canSaveResources}
                         highlightPlaceKey={flashPlaceKey}
                         highlightPlaceKeys={highlightPlaceKeys}
@@ -1151,9 +1400,10 @@ export default function SharedMapDirectoryList({
                         mode={mode}
                         interactive={interactive}
                         compactInteractive={compactInteractiveDesktop}
-                        fullCardLink={interactive}
+                        fullCardLink={interactive && mode !== 'owner'}
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
                         canSaveResources={canSaveResources}
                         highlightPlaceKey={flashPlaceKey}
                         highlightPlaceKeys={highlightPlaceKeys}
@@ -1173,6 +1423,7 @@ export default function SharedMapDirectoryList({
                     mode={mode}
                     canSaveResources={canSaveResources}
                     onRemoveResource={onRemoveResource}
+                    onUpdateResourceNotes={onUpdateResourceNotes}
                 />
             </div>
         </DirectoryReturnPathContext.Provider>

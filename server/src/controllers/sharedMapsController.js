@@ -36,6 +36,9 @@ async function loadSharedMapByToken(db, token, includeAssets = false) {
                         resourceType: true,
                         resourceId: true,
                         snapshot: true,
+                        privateNote: true,
+                        handoffNote: true,
+                        notesUpdatedAt: true,
                         addedAt: true,
                     },
                 },
@@ -113,6 +116,7 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
         description: map.description || null,
         isShared: false,
         shareToken: null,
+        shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
     }).returning();
 
@@ -122,6 +126,9 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
                 mapId: createdMap.id,
                 resourceType: asset.resourceType,
                 resourceId: asset.resourceId,
+                privateNote: null,
+                handoffNote: map.shareIncludesHandoffNotes ? (asset.handoffNote || null) : null,
+                notesUpdatedAt: map.shareIncludesHandoffNotes && asset.handoffNote ? (asset.notesUpdatedAt || new Date()) : null,
                 snapshot: normalizeMyMapAssetSnapshot(asset.resourceType, asset.resourceId, asset.snapshot),
             }))
         );
@@ -135,6 +142,7 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
         isShared: false,
         shareToken: null,
         sharePath: null,
+        shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
         createdAt: createdMap.createdAt,
         updatedAt: createdMap.updatedAt,

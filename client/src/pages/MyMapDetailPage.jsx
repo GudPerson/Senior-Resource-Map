@@ -247,6 +247,21 @@ function EmptyOwnerDirectory({ onAddAssets }) {
     );
 }
 
+function applyResourceNotesToDirectory(directory, resourceType, resourceId, notes) {
+    if (!directory) return directory;
+    const matchesResource = (item) => item?.resourceType === resourceType && Number(item?.resourceId) === Number(resourceId);
+    const patchItem = (item) => (matchesResource(item) ? { ...item, notes } : item);
+
+    return {
+        ...directory,
+        assets: (directory.assets || []).map(patchItem),
+        places: (directory.places || []).map((place) => ({
+            ...place,
+            rows: (place.rows || []).map(patchItem),
+        })),
+    };
+}
+
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -395,12 +410,14 @@ export default function MyMapDetailPage() {
         }
     }
 
-    async function handlePublishShare() {
+    async function handlePublishShare(options = {}) {
         if (!directory) return;
         setShareSubmitting(true);
         setShareError('');
         try {
-            await api.publishMyMapShare(directory.id);
+            await api.publishMyMapShare(directory.id, {
+                includeHandoffNotes: Boolean(options.includeHandoffNotes),
+            });
             await loadMap();
         } catch (err) {
             console.error(err);
@@ -408,6 +425,19 @@ export default function MyMapDetailPage() {
         } finally {
             setShareSubmitting(false);
         }
+    }
+
+    async function handleUpdateResourceNotes(row, notes) {
+        if (!directory || !row?.resourceType || !row?.resourceId) return null;
+        setActionError('');
+        const updated = await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes);
+        const nextNotes = updated?.notes || {
+            privateNote: notes.privateNote || '',
+            handoffNote: notes.handoffNote || '',
+            notesUpdatedAt: new Date().toISOString(),
+        };
+        setDirectory((current) => applyResourceNotesToDirectory(current, row.resourceType, row.resourceId, nextNotes));
+        return updated;
     }
 
     async function handleUnpublishShare() {
@@ -623,6 +653,7 @@ export default function MyMapDetailPage() {
                                 layout={useDesktopOwnerLayout ? 'desktop' : 'responsive'}
                                 onViewOnMap={handleViewOnMap}
                                 onRemoveResource={handleRemoveResource}
+                                onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
                                 selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
