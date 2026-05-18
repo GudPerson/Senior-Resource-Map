@@ -20,7 +20,7 @@ import {
 import {
     buildClusterToken,
     getClusterActivationAction,
-    getNextClusterZoom,
+    getClusterExpansionZoom,
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../lib/mapClusterInteraction.js';
@@ -325,14 +325,6 @@ function DirectoryClusterHoverSync({
     onClusterSelect,
 }) {
     const lastActivationRef = useRef({ token: null, at: 0 });
-    const selectedClusterTokenRef = useRef('');
-    const activeClusterToken = buildClusterToken(activePlaceKeys);
-
-    useEffect(() => {
-        if (!activeClusterToken) {
-            selectedClusterTokenRef.current = '';
-        }
-    }, [activeClusterToken]);
 
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
@@ -384,32 +376,24 @@ function DirectoryClusterHoverSync({
 
             lastActivationRef.current = { token, eventType, at: now };
             const mapInstance = clusterGroup._map || cluster._map;
-            const activationAction = getClusterActivationAction(placeKeys, activePlaceKeys, selectedClusterTokenRef.current);
+            const activationAction = getClusterActivationAction(placeKeys, activePlaceKeys);
+            if (activationAction === 'ignore') return;
             onClusterSelect?.(placeKeys);
-            selectedClusterTokenRef.current = token;
-
-            if (activationAction === 'select') {
-                const center = cluster.getLatLng?.();
-                if (mapInstance && center) {
-                    if (typeof mapInstance.panTo === 'function') {
-                        mapInstance.panTo(center, { animate: true, duration: 0.35 });
-                    } else if (typeof mapInstance.setView === 'function' && typeof mapInstance.getZoom === 'function') {
-                        mapInstance.setView(center, mapInstance.getZoom(), { animate: true });
-                    }
-                }
-                return;
-            }
 
             const currentZoom = typeof mapInstance?.getZoom === 'function' ? mapInstance.getZoom() : 0;
             if (currentZoom >= 16 && typeof cluster.spiderfy === 'function') {
                 cluster.spiderfy();
                 return;
             }
-            const center = cluster.getLatLng?.();
             const mapMaxZoom = typeof mapInstance?.getMaxZoom === 'function' ? mapInstance.getMaxZoom() : 16;
-            const nextZoom = getNextClusterZoom(currentZoom, Math.min(16, mapMaxZoom));
-            if (mapInstance && center && nextZoom > currentZoom && typeof mapInstance.setView === 'function') {
-                mapInstance.setView(center, nextZoom, { animate: true });
+            const targetZoom = getClusterExpansionZoom({
+                currentZoom,
+                childCount: placeKeys.length,
+                maxZoom: Math.min(mapMaxZoom, 16),
+            });
+            const center = cluster.getLatLng?.();
+            if (mapInstance && center && targetZoom > currentZoom && typeof mapInstance.setView === 'function') {
+                mapInstance.setView(center, targetZoom, { animate: true });
                 return;
             }
             if (mapInstance && typeof mapInstance.fitBounds === 'function' && typeof cluster.getAllChildMarkers === 'function') {

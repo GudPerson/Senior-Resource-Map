@@ -4,18 +4,19 @@ import assert from 'node:assert/strict';
 import {
     buildClusterToken,
     getClusterActivationAction,
-    getNextClusterZoom,
+    getClusterExpansionZoom,
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../src/lib/mapClusterInteraction.js';
 
-test('getClusterActivationAction selects a new cluster before zooming it', () => {
+test('getClusterActivationAction zooms every tapped cluster immediately', () => {
     const clusterKeys = ['place-8-a', 'place-8-b', 'place-8-c'];
 
-    assert.equal(getClusterActivationAction(clusterKeys, []), 'select');
+    assert.equal(getClusterActivationAction(clusterKeys, []), 'zoom');
     assert.equal(getClusterActivationAction(clusterKeys, ['place-8-c', 'place-8-a', 'place-8-b']), 'zoom');
     assert.equal(getClusterActivationAction(clusterKeys, [], buildClusterToken(clusterKeys)), 'zoom');
-    assert.equal(getClusterActivationAction(clusterKeys, ['place-9']), 'select');
+    assert.equal(getClusterActivationAction(clusterKeys, ['place-9']), 'zoom');
+    assert.equal(getClusterActivationAction([], ['place-9']), 'ignore');
 });
 
 test('isDuplicateClusterClick ignores only the click that follows the same tap mousedown', () => {
@@ -50,9 +51,12 @@ test('shouldIgnoreClusterHover treats touch-first devices as tap driven', () => 
     assert.equal(shouldIgnoreClusterHover({ pointerType: 'mouse', coarsePointer: false }), false);
 });
 
-test('getNextClusterZoom moves to the next zoom level without exceeding max', () => {
-    assert.equal(getNextClusterZoom(10.7, 16), 12);
-    assert.equal(getNextClusterZoom(11, 16), 12);
-    assert.equal(getNextClusterZoom(15.4, 16), 16);
-    assert.equal(getNextClusterZoom(16, 16), 16);
+test('getClusterExpansionZoom jumps far enough to reveal the next visible cluster layer', () => {
+    assert.equal(getClusterExpansionZoom({ currentZoom: 10.7, childCount: 8, maxZoom: 16 }), 12);
+    assert.equal(getClusterExpansionZoom({ currentZoom: 12, childCount: 8, maxZoom: 16 }), 14);
+    assert.equal(getClusterExpansionZoom({ currentZoom: 12, childCount: 3, maxZoom: 16 }), 16);
+    assert.equal(getClusterExpansionZoom({ currentZoom: 12, childCount: 2, maxZoom: 16 }), 16);
+    assert.equal(getClusterExpansionZoom({ currentZoom: 13, maxZoom: 16 }), 15);
+    assert.equal(getClusterExpansionZoom({ currentZoom: 15.4, maxZoom: 16 }), 16);
+    assert.equal(getClusterExpansionZoom({ currentZoom: 16, maxZoom: 16 }), 16);
 });

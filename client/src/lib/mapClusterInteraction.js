@@ -8,10 +8,7 @@ export function buildClusterToken(placeKeys = []) {
 
 export function getClusterActivationAction(clusterPlaceKeys = [], activePlaceKeys = [], selectedClusterToken = '') {
     const clusterToken = buildClusterToken(clusterPlaceKeys);
-    if (!clusterToken) return 'select';
-    return clusterToken === buildClusterToken(activePlaceKeys) || clusterToken === String(selectedClusterToken || '')
-        ? 'zoom'
-        : 'select';
+    return clusterToken ? 'zoom' : 'ignore';
 }
 
 export function isDuplicateClusterClick({
@@ -36,11 +33,19 @@ export function shouldIgnoreClusterHover({
     return Boolean(coarsePointer) || pointerType === 'touch' || pointerType === 'pen';
 }
 
-export function getNextClusterZoom(currentZoom = 0, maxZoom = 16) {
+export function getClusterExpansionZoom({
+    currentZoom = 0,
+    childCount = 0,
+    maxZoom = 16,
+} = {}) {
     const normalizedCurrent = Number.isFinite(currentZoom) ? currentZoom : 0;
     const normalizedMax = Number.isFinite(maxZoom) ? maxZoom : 16;
-    const nextWholeZoom = Number.isInteger(normalizedCurrent)
-        ? normalizedCurrent + 1
+    const normalizedChildCount = Number.isFinite(childCount) ? childCount : 0;
+    if (normalizedChildCount > 1 && normalizedChildCount <= 3) {
+        return normalizedMax;
+    }
+    const desiredNextSplit = Number.isInteger(normalizedCurrent)
+        ? normalizedCurrent + 2
         : Math.ceil(normalizedCurrent) + 1;
-    return Math.min(nextWholeZoom, normalizedMax);
+    return Math.min(desiredNextSplit, normalizedMax);
 }
