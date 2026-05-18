@@ -316,7 +316,14 @@ export const api = {
     deleteSubCategory: (id) => request('DELETE', `/sub-categories/${id}`),
 
     // Subregions
-    getSubregions: () => request('GET', '/subregions'),
+    getSubregions: (params = {}) => {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) searchParams.append(key, value);
+        });
+        const qs = searchParams.toString();
+        return request('GET', `/subregions${qs ? `?${qs}` : ''}`);
+    },
     createSubregion: (body) => request('POST', '/subregions', body),
     bulkCreateSubregions: (body) => request('POST', '/subregions/bulk', body),
     bulkUploadSubregionBoundaries: (body) => request('POST', '/subregions/boundaries/bulk', body),

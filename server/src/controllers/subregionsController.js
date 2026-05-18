@@ -317,27 +317,82 @@ async function syncSubregionPostalCodes(db, subregionId, postalCodes) {
         .where(eq(subregions.id, subregionId));
 }
 
-async function loadSubregionsWithPostalCodes(db) {
+export function buildSubregionPostalPayload(postalCodes = [], options = {}) {
+    const includePostalCodes = options.includePostalCodes !== false;
+    const countOnly = Number.isInteger(postalCodes) ? postalCodes : null;
+    const normalizedPostalCodes = Array.isArray(postalCodes) ? postalCodes : [];
+
+    if (!includePostalCodes) {
+        return {
+            postalCodesList: [],
+            postalCodesPreview: [],
+            postalCodeCount: countOnly ?? normalizedPostalCodes.length,
+        };
+    }
+
+    return {
+        postalCodesList: normalizedPostalCodes,
+        postalCodesPreview: normalizedPostalCodes.slice(0, 6),
+        postalCodeCount: normalizedPostalCodes.length,
+    };
+}
+
+export function buildSubregionResponseRow(subregion, postalCodes = [], options = {}) {
+    const includePostalCodes = options.includePostalCodes !== false;
+
+    return {
+        ...subregion,
+        ...(includePostalCodes ? {} : { postalPatterns: '' }),
+        ...buildSubregionPostalPayload(postalCodes, { includePostalCodes }),
+    };
+}
+
+function shouldIncludePostalCodes(value) {
+    return String(value || '').trim().toLowerCase() !== 'false';
+}
+
+async function loadSubregionsWithPostalCodes(db, options = {}) {
+    const includePostalCodes = options.includePostalCodes !== false;
     const list = await db.query.subregions.findMany({
         orderBy: [subregions.name]
     });
 
-    const postalRows = await db
-        .select({
-            subregionId: subregionPostalCodes.subregionId,
-            postalCode: subregionPostalCodes.postalCode,
-        })
-        .from(subregionPostalCodes)
-        .orderBy(subregionPostalCodes.subregionId, subregionPostalCodes.postalCode);
+    const postalRows = includePostalCodes
+        ? await db
+            .select({
+                subregionId: subregionPostalCodes.subregionId,
+                postalCode: subregionPostalCodes.postalCode,
+            })
+            .from(subregionPostalCodes)
+            .orderBy(subregionPostalCodes.subregionId, subregionPostalCodes.postalCode)
+        : await db
+            .select({
+                subregionId: subregionPostalCodes.subregionId,
+                postalCodeCount: sql`count(*)`.mapWith(Number),
+            })
+            .from(subregionPostalCodes)
+            .groupBy(subregionPostalCodes.subregionId);
 
     const grouped = new Map();
     for (const row of postalRows) {
-        if (!grouped.has(row.subregionId)) grouped.set(row.subregionId, []);
-        grouped.get(row.subregionId).push(row.postalCode);
+        if (includePostalCodes) {
+            if (!grouped.has(row.subregionId)) grouped.set(row.subregionId, []);
+            grouped.get(row.subregionId).push(row.postalCode);
+        } else {
+            grouped.set(row.subregionId, {
+                count: Number(row.postalCodeCount || 0),
+            });
+        }
     }
 
     return list.map((subregion) => {
-        let postalCodes = grouped.get(subregion.id) || [];
+        const groupedValue = grouped.get(subregion.id);
+        if (!includePostalCodes && groupedValue?.count) {
+            return buildSubregionResponseRow(subregion, groupedValue.count, { includePostalCodes });
+        }
+
+        let postalCodes = includePostalCodes ? (groupedValue || []) : [];
+
         if (postalCodes.length === 0 && subregion.postalPatterns) {
             try {
                 postalCodes = parsePostalCodeListInput(subregion.postalPatterns);
@@ -346,12 +401,7 @@ async function loadSubregionsWithPostalCodes(db) {
             }
         }
 
-        return {
-            ...subregion,
-            postalCodesList: postalCodes,
-            postalCodesPreview: postalCodes.slice(0, 6),
-            postalCodeCount: postalCodes.length,
-        };
+        return buildSubregionResponseRow(subregion, postalCodes, { includePostalCodes });
     });
 }
 
@@ -361,7 +411,9 @@ export const getSubregions = async (c) => {
         const db = getDb(c.env);
         await ensureSubregionSchema(db, c.env);
 
-        let list = await loadSubregionsWithPostalCodes(db);
+        let list = await loadSubregionsWithPostalCodes(db, {
+            includePostalCodes: shouldIncludePostalCodes(c.req.query('includePostalCodes')),
+        });
         if (user?.role === 'regional_admin' || user?.role === 'partner') {
             const scopedIds = Array.isArray(user?.subregionIds)
                 ? user.subregionIds.map((value) => Number.parseInt(String(value), 10)).filter(Number.isInteger)

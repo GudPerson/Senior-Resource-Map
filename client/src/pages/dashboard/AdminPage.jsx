@@ -10,7 +10,7 @@ import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import Pagination from '../../components/Pagination.jsx';
-import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
+import { fetchPaginatedResultPage } from '../../lib/paginatedResults.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
 const ASSET_WORKBOOKS = [
@@ -316,12 +316,7 @@ function normalizeTagList(tags = []) {
         .filter(Boolean);
 }
 
-async function fetchAllAdminResources() {
-    const [hard, soft] = await Promise.all([
-        fetchAllPaginatedResults(api.getHardAssets, { scope: 'managed' }),
-        fetchAllPaginatedResults(api.getSoftAssets, { scope: 'managed' }),
-    ]);
-
+function formatAdminResources(hard = [], soft = []) {
     return [
         ...hard.map((resource) => ({
             ...resource,
@@ -338,6 +333,70 @@ async function fetchAllAdminResources() {
             tags: normalizeTagList(resource.tags),
         })),
     ].sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+}
+
+async function fetchResourcePages(fetchPage, params = {}, options = {}) {
+    const pageSize = options.pageSize || 500;
+    const maxConcurrentPages = Math.max(1, Number(options.maxConcurrentPages || 2));
+    const firstPage = options.firstPage || await fetchPaginatedResultPage(fetchPage, params, { page: 1, pageSize });
+    const totalPages = Math.max(1, firstPage.pagination.totalPages || 1);
+    const pages = [firstPage];
+
+    if (totalPages > 1) {
+        const remainingPages = new Array(totalPages - 1);
+        let nextIndex = 0;
+
+        async function runPageWorker() {
+            while (nextIndex < remainingPages.length) {
+                const index = nextIndex;
+                nextIndex += 1;
+                remainingPages[index] = await fetchPaginatedResultPage(fetchPage, params, { page: index + 2, pageSize });
+            }
+        }
+
+        await Promise.all(
+            Array.from(
+                { length: Math.min(maxConcurrentPages, remainingPages.length) },
+                () => runPageWorker(),
+            ),
+        );
+        pages.push(...remainingPages);
+    }
+
+    const seenIds = new Set();
+    return pages.flatMap((page) => page.data).filter((item) => {
+        const id = item?.id;
+        if (!Number.isInteger(id)) return true;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+    });
+}
+
+async function fetchAllAdminResources(options = {}) {
+    const { onPartial } = options;
+    const [hardFirst, softFirst] = await Promise.all([
+        fetchPaginatedResultPage(api.getHardAssets, { scope: 'managed' }, { page: 1, pageSize: 500 }),
+        fetchPaginatedResultPage(api.getSoftAssets, { scope: 'managed' }, { page: 1, pageSize: 500 }),
+    ]);
+
+    if (typeof onPartial === 'function') {
+        onPartial({
+            items: formatAdminResources(hardFirst.data, softFirst.data),
+            totalCount: (hardFirst.pagination.totalCount || 0) + (softFirst.pagination.totalCount || 0),
+        });
+    }
+
+    const [hard, soft] = await Promise.all([
+        hardFirst.pagination.totalPages > 1
+            ? fetchResourcePages(api.getHardAssets, { scope: 'managed' }, { firstPage: hardFirst })
+            : Promise.resolve(hardFirst.data),
+        softFirst.pagination.totalPages > 1
+            ? fetchResourcePages(api.getSoftAssets, { scope: 'managed' }, { firstPage: softFirst })
+            : Promise.resolve(softFirst.data),
+    ]);
+
+    return formatAdminResources(hard, soft);
 }
 
 export default function AdminPage() {
@@ -357,6 +416,10 @@ export default function AdminPage() {
     const [selectedAudienceZones, setSelectedAudienceZones] = useState([]);
 
     const [loading, setLoading] = useState(true);
+    const [resourcesLoading, setResourcesLoading] = useState(false);
+    const [resourcesError, setResourcesError] = useState('');
+    const [resourceTotalCount, setResourceTotalCount] = useState(null);
+    const [subregionDetailsLoaded, setSubregionDetailsLoaded] = useState(false);
     const [newSubCat, setNewSubCat] = useState(createEmptySubCategoryDraft);
     const [newSubregion, setNewSubregion] = useState({ id: null, subregionCode: '', name: '', description: '', postalCodes: '' });
     const [newAudienceZone, setNewAudienceZone] = useState({
@@ -435,42 +498,37 @@ export default function AdminPage() {
         setLoading(true);
         try {
             const results = await Promise.allSettled([
-                fetchAllAdminResources(),
                 api.getUsers(),
                 api.getSubCategories(),
-                api.getSubregions(),
+                api.getSubregions({ includePostalCodes: false }),
                 canManageAudienceZones ? api.getAudienceZones() : Promise.resolve([])
             ]);
 
             if (results[0].status === 'fulfilled') {
-                const items = results[0].value || [];
-                setResources(items);
-                setSelectedResources((prev) => prev.filter((key) => items.some((item) => getResourceSelectionKey(item) === key)));
-            }
-            if (results[1].status === 'fulfilled') {
-                const items = results[1].value;
+                const items = results[0].value;
                 setUsers(items);
                 setSelectedUsers((prev) => prev.filter((id) => items.some((item) => item.id === id)));
             }
-            if (results[2].status === 'fulfilled') {
-                const items = results[2].value;
+            if (results[1].status === 'fulfilled') {
+                const items = results[1].value;
                 setSubCategories(items);
                 setSelectedSubCategories((prev) => prev.filter((id) => items.some((item) => item.id === id)));
             }
-            if (results[3].status === 'fulfilled') {
-                const regs = results[3].value;
+            if (results[2].status === 'fulfilled') {
+                const regs = results[2].value;
                 setSubregions(regs);
+                setSubregionDetailsLoaded(false);
                 setSelectedSubregions((prev) => prev.filter((id) => regs.some((reg) => reg.id === id)));
             }
-            if (results[4].status === 'fulfilled') {
-                const zones = results[4].value;
+            if (results[3].status === 'fulfilled') {
+                const zones = results[3].value;
                 setAudienceZones(zones);
                 setSelectedAudienceZones((prev) => prev.filter((id) => zones.some((zone) => zone.id === id)));
             }
 
             // Inform of partial failures (e.g. permission issues for Users tab)
             const rejected = results.filter(r => r.status === 'rejected');
-            if (rejected.length > 0 && rejected.length < 4) {
+            if (rejected.length > 0 && rejected.length < results.length) {
                 console.warn('Some admin modules failed to load (likely permissions):', rejected);
             } else if (rejected.length === results.length) {
                 alert('Admin data load failed entirely. Please check your login session.');
@@ -482,7 +540,57 @@ export default function AdminPage() {
         }
     }
 
+    async function loadAdminResources() {
+        if (!availableTabs.includes('resources')) return;
+        setResourcesLoading(true);
+        setResourcesError('');
+        setResourceTotalCount(null);
+        try {
+            const items = await fetchAllAdminResources({
+                onPartial: ({ items: partialItems, totalCount }) => {
+                    setResourceTotalCount(Number.isFinite(totalCount) ? totalCount : null);
+                    if (partialItems.length > 0) {
+                        setResources(partialItems);
+                        setSelectedResources((prev) => prev.filter((key) => partialItems.some((item) => getResourceSelectionKey(item) === key)));
+                    }
+                },
+            });
+            setResourceTotalCount(items.length);
+            setResources(items);
+            setSelectedResources((prev) => prev.filter((key) => items.some((item) => getResourceSelectionKey(item) === key)));
+        } catch (err) {
+            console.error('Admin resources failed to load:', err);
+            setResourcesError(err.message || 'Resources failed to load.');
+        } finally {
+            setResourcesLoading(false);
+        }
+    }
+
+    async function loadFullSubregions() {
+        if (subregionDetailsLoaded) return;
+        try {
+            const regs = await api.getSubregions({ includePostalCodes: true });
+            setSubregions(regs);
+            setSubregionDetailsLoaded(true);
+            setSelectedSubregions((prev) => prev.filter((id) => regs.some((reg) => reg.id === id)));
+        } catch (err) {
+            console.warn('Detailed region boundaries failed to load:', err);
+            setSubregionFeedback({
+                type: 'error',
+                message: err.message || 'Detailed region boundaries failed to load.',
+            });
+        }
+    }
+
     useEffect(() => { loadAll(); }, [currentRole]);
+
+    useEffect(() => { loadAdminResources(); }, [currentRole]);
+
+    useEffect(() => {
+        if (tab === 'subregions') {
+            loadFullSubregions();
+        }
+    }, [tab, subregionDetailsLoaded]);
 
     function getResourceSelectionKey(resource) {
         const assetType = resource.category === 'Places' ? 'hard' : 'soft';
@@ -573,7 +681,7 @@ export default function AdminPage() {
             } else {
                 await api.deleteSoftAsset(id);
             }
-            await loadAll();
+            await loadAdminResources();
         } catch (err) {
             alert('Delete failed: ' + err.message);
         }
@@ -877,6 +985,9 @@ export default function AdminPage() {
             }
 
             await loadAll();
+            if (pendingBulkDelete.type === 'resources') {
+                await loadAdminResources();
+            }
 
             setAdminFeedback({
                 type: failures.length > 0 ? (deletedCount > 0 ? 'warning' : 'error') : 'success',
@@ -1807,8 +1918,10 @@ export default function AdminPage() {
     ), [filteredResources, resourcePage, resourcePageSize]);
 
     const resourceHeadlineCount = resourceSearch.trim()
-        ? filteredResources.length
-        : resources.length;
+        ? (resourcesLoading && resources.length > 0 ? `${filteredResources.length}+` : filteredResources.length)
+        : resourcesLoading
+            ? (Number.isFinite(resourceTotalCount) ? resourceTotalCount : '...')
+            : resources.length;
     const resourceHeadlineLabel = resourceSearch.trim()
         ? 'Matching Resources'
         : 'Total Resources';
@@ -1982,21 +2095,26 @@ export default function AdminPage() {
     const visibleSubCategoryIds = filteredSubCategories.map((category) => category.id);
     const allVisibleSubCategoriesSelected = visibleSubCategoryIds.length > 0 && visibleSubCategoryIds.every((id) => selectedSubCategories.includes(id));
     const adminStatCards = useMemo(() => {
+        const userCount = loading ? '...' : users.length;
+        const standardUserCount = loading ? '...' : users.filter((candidate) => normalizeRole(candidate.role) === 'standard').length;
+        const adminCount = loading ? '...' : users.filter((candidate) => ['super_admin', 'regional_admin'].includes(normalizeRole(candidate.role))).length;
+        const regionCount = loading ? '...' : subregions.length;
+
         if (currentRole === 'regional_admin') {
             return [
                 { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
-                { label: 'Managed Users', val: users.filter((candidate) => normalizeRole(candidate.role) === 'standard').length, color: 'bg-green-50 text-green-700', icon: Users },
-                { label: 'Scoped Regions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
+                { label: 'Managed Users', val: standardUserCount, color: 'bg-green-50 text-green-700', icon: Users },
+                { label: 'Scoped Regions', val: regionCount, color: 'bg-sky-50 text-sky-700', icon: MapPin },
             ];
         }
 
         return [
             { label: resourceHeadlineLabel, val: resourceHeadlineCount, color: 'bg-brand-50 text-brand-700', icon: BookOpen },
-            { label: 'Total Users', val: users.length, color: 'bg-green-50 text-green-700', icon: Users },
-            { label: 'Admins', val: users.filter((candidate) => ['super_admin', 'regional_admin'].includes(normalizeRole(candidate.role))).length, color: 'bg-red-50 text-red-700', icon: Shield },
-            { label: 'Regions', val: subregions.length, color: 'bg-sky-50 text-sky-700', icon: MapPin },
+            { label: 'Total Users', val: userCount, color: 'bg-green-50 text-green-700', icon: Users },
+            { label: 'Admins', val: adminCount, color: 'bg-red-50 text-red-700', icon: Shield },
+            { label: 'Regions', val: regionCount, color: 'bg-sky-50 text-sky-700', icon: MapPin },
         ];
-    }, [currentRole, resourceHeadlineCount, resourceHeadlineLabel, resources.length, subregions.length, users]);
+    }, [currentRole, loading, resourceHeadlineCount, resourceHeadlineLabel, subregions.length, users]);
 
     return (
         <div className="p-6 lg:p-8">
@@ -2138,7 +2256,13 @@ export default function AdminPage() {
                                     Boundary checks are based on the exact postal code set assigned to your scoped subregion(s).
                                 </p>
                             ) : <span />}
-                            <p>{filteredResources.length} matching resource{filteredResources.length === 1 ? '' : 's'}</p>
+                            <p>
+                                {resourcesLoading
+                                    ? (resources.length > 0
+                                        ? `Loading more resources... ${filteredResources.length} shown so far`
+                                        : 'Loading resources...')
+                                    : `${filteredResources.length} matching resource${filteredResources.length === 1 ? '' : 's'}`}
+                            </p>
                         </div>
                     </div>
 
@@ -2152,6 +2276,17 @@ export default function AdminPage() {
                         </div>
                     )}
 
+                    {resourcesError ? (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                            {resourcesError}
+                        </div>
+                    ) : null}
+
+                    {resourcesLoading && resources.length === 0 ? (
+                        <div className="space-y-3">
+                            {[...Array(4)].map((_, i) => <div key={i} className="card h-16 animate-pulse bg-slate-100" />)}
+                        </div>
+                    ) : (
                     <div className=" card overflow-hidden p-0">
                     <div className="overflow-x-auto">
                         <table className="hc-table w-full text-left">
@@ -2229,6 +2364,7 @@ export default function AdminPage() {
                         <div className="text-center py-12 text-slate-400">No resources match the current sort and filter settings.</div>
                     )}
                     </div>
+                    )}
                 </div>
             ) : tab === 'subregions' ? (
                 /* ======== Regions Table ======== */
