@@ -7,7 +7,23 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
-import { ChevronDown, Plus, Save, StickyNote, Trash2 } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronRight,
+    Plus,
+    Save,
+    StickyNote,
+    Trash2,
+    X,
+} from 'lucide-react';
+import {
+    buildMapNoteResourceRows,
+    getMapNoteResourceSummary,
+    getNoteRowsForGroup,
+    getRowAssetKey,
+    hasAnyOwnerNote,
+    normalizeNoteItems,
+} from '../lib/mapNotes.js';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
@@ -88,70 +104,6 @@ function MapLegend({ mobile = false }) {
     );
 }
 
-function getRowAssetKey(row) {
-    return row?.assetKey || `${row?.resourceType}-${row?.resourceId}`;
-}
-
-function getUniqueNoteRows(rows = []) {
-    const seen = new Set();
-    const uniqueRows = [];
-
-    for (const row of rows || []) {
-        const key = getRowAssetKey(row);
-        if (!row || seen.has(key)) continue;
-        seen.add(key);
-        uniqueRows.push(row);
-    }
-
-    return uniqueRows;
-}
-
-function getNoteRowsForGroup(group) {
-    if (group?.isPostalGroup) {
-        return getUniqueNoteRows((group.nestedPlaces || []).flatMap((place) => place.rows || []));
-    }
-
-    return getUniqueNoteRows(group?.rows || []);
-}
-
-function normalizeNoteItems(notes) {
-    if (Array.isArray(notes?.items)) {
-        return notes.items
-            .map((note, index) => ({
-                clientId: note?.id ? `note-${note.id}` : `note-${index}`,
-                id: note?.id || null,
-                text: String(note?.text || '').slice(0, 1000),
-                isShared: Boolean(note?.isShared),
-            }))
-            .filter((note) => note.text.trim());
-    }
-
-    const legacyItems = [];
-    const privateNote = String(notes?.privateNote || '').trim();
-    const handoffNote = String(notes?.handoffNote || '').trim();
-    if (privateNote) {
-        legacyItems.push({
-            clientId: 'legacy-private',
-            id: null,
-            text: privateNote,
-            isShared: false,
-        });
-    }
-    if (handoffNote) {
-        legacyItems.push({
-            clientId: 'legacy-shared',
-            id: null,
-            text: handoffNote,
-            isShared: true,
-        });
-    }
-    return legacyItems;
-}
-
-function hasAnyOwnerNote(row) {
-    return normalizeNoteItems(row?.notes).length > 0;
-}
-
 function buildNoteDrafts(rows) {
     return rows.reduce((drafts, row) => {
         const items = normalizeNoteItems(row?.notes);
@@ -200,44 +152,106 @@ function createEmptyDraftNote() {
     };
 }
 
-function MapResourceNotesDrawer({
-    rows,
-    compactInteractive = false,
+function NoteCountPill({ count, tone = 'brand' }) {
+    if (!count) return null;
+    const className = tone === 'slate'
+        ? 'border-slate-200 bg-slate-50 text-slate-600'
+        : 'border-brand-100 bg-brand-50 text-brand-700';
+
+    return (
+        <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-[11px] font-black leading-none ${className}`}>
+            {count}
+        </span>
+    );
+}
+
+function MapNoteIconButton({ row, onOpenResourceNotes, compact = false }) {
+    const { t } = useLocale();
+    const noteCount = normalizeNoteItems(row?.notes).length;
+
+    if (!noteCount || !onOpenResourceNotes) return null;
+
+    return (
+        <button
+            type="button"
+            onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onOpenResourceNotes(row);
+            }}
+            className={`inline-flex flex-shrink-0 items-center justify-center rounded-full border border-brand-100 bg-brand-50 text-brand-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-200 ${
+                compact ? 'h-8 min-w-8 px-2' : 'h-9 min-w-9 px-2.5'
+            }`}
+            aria-label={t('viewResourceNotesFor', { name: row?.name || t('resource') })}
+            title={t('viewResourceNotesFor', { name: row?.name || t('resource') })}
+        >
+            <StickyNote size={compact ? 13 : 14} strokeWidth={2.25} />
+            <span className="ml-1 text-[11px] font-black leading-none">{noteCount}</span>
+        </button>
+    );
+}
+
+function MapNotesEntryButton({ rows, mode, onOpen }) {
+    const { t } = useLocale();
+    const summary = getMapNoteResourceSummary(rows);
+    const canOpen = rows.length > 0 && (mode === 'owner' || summary.noteCount > 0);
+
+    if (!canOpen) return null;
+
+    return (
+        <button
+            type="button"
+            onClick={() => onOpen(null)}
+            className="mt-3 flex w-full items-center justify-between gap-3 rounded-2xl border border-brand-100 bg-white px-4 py-3 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            aria-label={t('openMapNotes')}
+        >
+            <span className="flex min-w-0 items-center gap-3">
+                <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                    <StickyNote size={18} strokeWidth={2.25} />
+                </span>
+                <span className="min-w-0">
+                    <span className="block text-sm font-black leading-tight text-slate-900">{t('mapNotes')}</span>
+                    <span className="mt-0.5 block text-xs font-semibold leading-5 text-slate-500">
+                        {t('mapNotesSummary', {
+                            resources: summary.resourceCount,
+                            notes: summary.noteCount,
+                            shared: summary.sharedNoteCount,
+                        })}
+                    </span>
+                </span>
+            </span>
+            <ChevronRight size={18} className="flex-shrink-0 text-slate-400" />
+        </button>
+    );
+}
+
+function ResourceNotesEditor({
+    row,
     onUpdateResourceNotes,
 }) {
     const { t } = useLocale();
-    const noteRows = getUniqueNoteRows(rows);
-    const noteSignature = noteRows.map((row) => [
-        getRowAssetKey(row),
-        normalizeNoteItems(row?.notes).map((note) => `${note.text}:${note.isShared}`).join(','),
-    ].join(':')).join('|');
-    const noteCount = noteRows.reduce((count, row) => count + normalizeNoteItems(row?.notes).length, 0);
-    const [open, setOpen] = useState(false);
-    const [drafts, setDrafts] = useState(() => buildNoteDrafts(noteRows));
-    const [savingKey, setSavingKey] = useState('');
-    const [savedKeys, setSavedKeys] = useState(() => new Set());
+    const rowKey = getRowAssetKey(row);
+    const noteSignature = normalizeNoteItems(row?.notes).map((note) => `${note.id || ''}:${note.text}:${note.isShared}`).join('|');
+    const [drafts, setDrafts] = useState(() => buildNoteDrafts(row ? [row] : []));
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (!open) return;
-        setDrafts(buildNoteDrafts(noteRows));
-    }, [open, noteSignature]);
+        setDrafts(buildNoteDrafts(row ? [row] : []));
+        setSaved(false);
+        setError('');
+    }, [rowKey, noteSignature]);
 
-    if (!noteRows.length || !onUpdateResourceNotes) return null;
+    if (!row || !onUpdateResourceNotes) return null;
 
-    function updateDraftNote(row, clientId, values) {
-        const key = getRowAssetKey(row);
-        setSavedKeys((current) => {
-            if (!current.has(key)) return current;
-            const next = new Set(current);
-            next.delete(key);
-            return next;
-        });
+    function updateDraftNote(clientId, values) {
+        setSaved(false);
         setDrafts((current) => ({
             ...current,
-            [key]: {
-                ...(current[key] || {}),
-                notes: (current[key]?.notes || []).map((note) => (
+            [rowKey]: {
+                ...(current[rowKey] || {}),
+                notes: (current[rowKey]?.notes || []).map((note) => (
                     note.clientId === clientId
                         ? { ...note, ...values, text: values.text !== undefined ? values.text.slice(0, 1000) : note.text }
                         : note
@@ -246,47 +260,34 @@ function MapResourceNotesDrawer({
         }));
     }
 
-    function addDraftNote(row) {
-        const key = getRowAssetKey(row);
-        setSavedKeys((current) => {
-            if (!current.has(key)) return current;
-            const next = new Set(current);
-            next.delete(key);
-            return next;
-        });
+    function addDraftNote() {
+        setSaved(false);
         setDrafts((current) => ({
             ...current,
-            [key]: {
-                ...(current[key] || {}),
-                notes: [...(current[key]?.notes || []), createEmptyDraftNote()],
+            [rowKey]: {
+                ...(current[rowKey] || {}),
+                notes: [...(current[rowKey]?.notes || []), createEmptyDraftNote()],
             },
         }));
     }
 
-    function removeDraftNote(row, clientId) {
-        const key = getRowAssetKey(row);
-        setSavedKeys((current) => {
-            if (!current.has(key)) return current;
-            const next = new Set(current);
-            next.delete(key);
-            return next;
-        });
+    function removeDraftNote(clientId) {
+        setSaved(false);
         setDrafts((current) => ({
             ...current,
-            [key]: {
-                ...(current[key] || {}),
+            [rowKey]: {
+                ...(current[rowKey] || {}),
                 notes: (() => {
-                    const nextNotes = (current[key]?.notes || []).filter((note) => note.clientId !== clientId);
+                    const nextNotes = (current[rowKey]?.notes || []).filter((note) => note.clientId !== clientId);
                     return nextNotes.length ? nextNotes : [createEmptyDraftNote()];
                 })(),
             },
         }));
     }
 
-    async function saveRow(row) {
-        const key = getRowAssetKey(row);
-        const draft = drafts[key] || { notes: [] };
-        setSavingKey(key);
+    async function saveRow() {
+        const draft = drafts[rowKey] || { notes: [] };
+        setSaving(true);
         setError('');
         try {
             await onUpdateResourceNotes(row, {
@@ -296,139 +297,247 @@ function MapResourceNotesDrawer({
                     isShared: Boolean(note.isShared),
                 })),
             });
-            setSavedKeys((current) => {
-                const next = new Set(current);
-                next.add(key);
-                return next;
-            });
+            setSaved(true);
         } catch (err) {
             console.error(err);
             setError(err.message || t('failedSaveMapNotes'));
         } finally {
-            setSavingKey('');
+            setSaving(false);
         }
     }
 
-    const triggerAriaLabel = noteCount
-        ? t('resourceNotesCount', { count: noteCount })
-        : t('addResourceNotes');
+    const draft = drafts[rowKey] || {
+        notes: [createEmptyDraftNote()],
+    };
+    const draftNotes = draft.notes?.length ? draft.notes : [createEmptyDraftNote()];
+
+    return (
+        <div className="space-y-3">
+            <p className="rounded-2xl border border-brand-100 bg-brand-50 px-3 py-2 text-xs font-semibold leading-5 text-brand-800">
+                {t('mapNotesPrivacyHelp')}
+            </p>
+            {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
+
+            <div className="grid gap-2.5">
+                {draftNotes.map((note, index) => (
+                    <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+                        <div className="flex items-start gap-2">
+                            <textarea
+                                value={note.text}
+                                onChange={(event) => updateDraftNote(note.clientId, { text: event.target.value })}
+                                maxLength={1000}
+                                rows={3}
+                                className="min-h-[96px] flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
+                                placeholder={t('mapNotePlaceholder')}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => removeDraftNote(note.clientId)}
+                                className="mt-1 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label={t('removeNote')}
+                                disabled={draftNotes.length === 1 && !note.text.trim() && index === 0}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                        <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-1 text-sm font-bold text-slate-600">
+                            <input
+                                type="checkbox"
+                                checked={note.isShared}
+                                onChange={(event) => updateDraftNote(note.clientId, { isShared: event.target.checked })}
+                                className="h-5 w-5 rounded border-slate-300 accent-brand-600"
+                            />
+                            {t('shareThisNote')}
+                        </label>
+                    </div>
+                ))}
+                <button
+                    type="button"
+                    onClick={addDraftNote}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-dashed border-brand-200 bg-white px-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                >
+                    <Plus size={16} />
+                    {t('addAnotherNote')}
+                </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+                {saved ? (
+                    <span className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">
+                        {t('saved')}
+                    </span>
+                ) : null}
+                <button
+                    type="button"
+                    onClick={saveRow}
+                    disabled={saving}
+                    className="btn-primary min-h-11 justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    <Save size={15} />
+                    {saving ? t('saving') : t('saveNotes')}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ResourceNotesReadOnly({ row }) {
+    const { t } = useLocale();
+    const notes = normalizeNoteItems(row?.notes);
+
+    if (!notes.length) {
+        return (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                {t('noSharedNotes')}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2.5">
+            {notes.map((note, index) => (
+                <div key={`${note.id || index}-${note.text}`} className="rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">
+                    <p className="whitespace-pre-wrap">{note.text}</p>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function MapNotesOverlay({
+    open,
+    rows,
+    selectedKey,
+    mode,
+    onSelectResource,
+    onBackToList,
+    onClose,
+    onUpdateResourceNotes,
+}) {
+    const { t } = useLocale();
+    const visibleRows = mode === 'shared'
+        ? rows.filter(hasAnyOwnerNote)
+        : rows;
+    const selectedRow = selectedKey
+        ? visibleRows.find((row) => getRowAssetKey(row) === selectedKey) || null
+        : null;
+    const summary = getMapNoteResourceSummary(visibleRows);
+    const readonly = mode !== 'owner';
+
+    useEffect(() => {
+        if (!open || typeof window === 'undefined') return undefined;
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose, open]);
+
+    if (!open) return null;
 
     return (
         <div
-            className={`${compactInteractive ? 'mt-1.5' : 'mt-2'} border-t border-slate-100 pt-2`}
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            onClick={onClose}
+            role="presentation"
         >
-            <button
-                type="button"
-                onClick={() => setOpen((value) => !value)}
-                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[12px] font-bold transition ${
-                    noteCount
-                        ? 'text-brand-700 hover:bg-brand-50'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-brand-700'
-                }`}
-                aria-expanded={open}
-                aria-label={triggerAriaLabel}
+            <section
+                className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[86vh] sm:max-w-3xl sm:rounded-[28px]"
+                role="dialog"
+                aria-modal="true"
+                aria-label={selectedRow ? t('viewResourceNotesFor', { name: selectedRow.name }) : t('openMapNotes')}
+                onClick={(event) => event.stopPropagation()}
             >
-                <StickyNote size={14} strokeWidth={2.2} />
-                <span>{t('addResourceNotes')}</span>
-                {noteCount ? (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-100 px-1.5 text-[11px] font-black leading-none text-brand-800">
-                        {noteCount}
-                    </span>
-                ) : null}
-                <ChevronDown size={13} className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
-            </button>
+                <header className="flex flex-shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+                    {selectedRow ? (
+                        <button
+                            type="button"
+                            onClick={onBackToList}
+                            className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                            aria-label={t('backToMapNotesList')}
+                        >
+                            <ArrowLeft size={19} />
+                        </button>
+                    ) : (
+                        <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                            <StickyNote size={19} strokeWidth={2.2} />
+                        </span>
+                    )}
 
-            {open ? (
-                <div className="mt-3 space-y-3 rounded-[20px] border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold leading-5 text-slate-500">
-                        {t('mapNotesPrivacyHelp')}
-                    </p>
-                    {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
-                    {noteRows.map((row) => {
-                        const key = getRowAssetKey(row);
-                        const draft = drafts[key] || {
-                            notes: [createEmptyDraftNote()],
-                        };
-                        const draftNotes = draft.notes?.length ? draft.notes : [createEmptyDraftNote()];
-                        const saving = savingKey === key;
-                        const saved = savedKeys.has(key);
+                    <div className="min-w-0 flex-1">
+                        <p className="text-base font-black leading-tight text-slate-900">
+                            {selectedRow ? selectedRow.name : t('mapNotes')}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-semibold leading-5 text-slate-500">
+                            {selectedRow
+                                ? `${selectedRow.mapNoteContext || ''}${selectedRow.mapNoteContext ? ' · ' : ''}${selectedRow.resourceType === 'hard' ? t('placeType') : t('offeringType')}`
+                                : t('mapNotesSummary', {
+                                    resources: summary.resourceCount,
+                                    notes: summary.noteCount,
+                                    shared: summary.sharedNoteCount,
+                                })}
+                        </p>
+                    </div>
 
-                        return (
-                            <div key={key} className="rounded-[18px] border border-slate-200 bg-white p-3 shadow-sm">
-                                <div className="flex flex-wrap items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold leading-snug text-slate-900">{row.name}</p>
-                                        <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                            {row.resourceType === 'hard' ? t('placeType') : t('offeringType')}
-                                        </p>
-                                    </div>
-                                    {saved ? (
-                                        <span className="rounded-full bg-brand-50 px-2 py-1 text-[11px] font-bold text-brand-700">
-                                            {t('saved')}
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                        aria-label={t('closeMapNotes')}
+                    >
+                        <X size={19} />
+                    </button>
+                </header>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+                    {selectedRow ? (
+                        readonly ? (
+                            <ResourceNotesReadOnly row={selectedRow} />
+                        ) : (
+                            <ResourceNotesEditor
+                                row={selectedRow}
+                                onUpdateResourceNotes={onUpdateResourceNotes}
+                            />
+                        )
+                    ) : (
+                        <div className="space-y-3">
+                            <p className="text-sm font-semibold leading-6 text-slate-500">
+                                {readonly ? t('mapNotesSharedListHelp') : t('mapNotesResourceListHelp')}
+                            </p>
+                            {visibleRows.map((row) => {
+                                const notes = normalizeNoteItems(row?.notes);
+                                return (
+                                    <button
+                                        type="button"
+                                        key={getRowAssetKey(row)}
+                                        onClick={() => onSelectResource(row)}
+                                        className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                    >
+                                        <ResourceRowIcon
+                                            resourceType={row.resourceType}
+                                            bucket={row.bucket}
+                                            subCategory={row.subCategory}
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-black leading-tight text-slate-900">{row.name}</span>
+                                            <span className="mt-1 block truncate text-xs font-semibold leading-5 text-slate-500">
+                                                {row.mapNoteContext || (row.mapNoteSource === 'unmapped' ? t('unmappedResources') : '')}
+                                            </span>
                                         </span>
-                                    ) : null}
-                                </div>
-
-                                <div className="mt-3 grid gap-2.5">
-                                    {draftNotes.map((note, index) => (
-                                        <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
-                                            <div className="flex items-start gap-2">
-                                                <textarea
-                                                    value={note.text}
-                                                    onChange={(event) => updateDraftNote(row, note.clientId, { text: event.target.value })}
-                                                    maxLength={1000}
-                                                    rows={2}
-                                                    className="min-h-[72px] flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
-                                                    placeholder={t('mapNotePlaceholder')}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeDraftNote(row, note.clientId)}
-                                                    className="mt-1 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                                                    aria-label={t('removeNote')}
-                                                    disabled={draftNotes.length === 1 && !note.text.trim() && index === 0}
-                                                >
-                                                    <Trash2 size={15} />
-                                                </button>
-                                            </div>
-                                            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-full px-1 text-xs font-bold text-slate-600">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={note.isShared}
-                                                    onChange={(event) => updateDraftNote(row, note.clientId, { isShared: event.target.checked })}
-                                                    className="h-4 w-4 rounded border-slate-300 accent-brand-600"
-                                                />
-                                                {t('shareThisNote')}
-                                            </label>
-                                        </div>
-                                    ))}
-                                    <button
-                                        type="button"
-                                        onClick={() => addDraftNote(row)}
-                                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-dashed border-brand-200 bg-white px-3 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
-                                    >
-                                        <Plus size={14} />
-                                        {t('addAnotherNote')}
+                                        <span className="flex flex-shrink-0 items-center gap-1.5">
+                                            <NoteCountPill count={notes.length} />
+                                            <NoteCountPill count={notes.filter((note) => note.isShared).length} tone="slate" />
+                                            <ChevronRight size={18} className="text-slate-400" />
+                                        </span>
                                     </button>
-                                </div>
-
-                                <div className="mt-3 flex justify-end">
-                                    <button
-                                        type="button"
-                                        onClick={() => saveRow(row)}
-                                        disabled={saving}
-                                        className="btn-primary min-h-11 justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        <Save size={15} />
-                                        {saving ? t('saving') : t('saveNotes')}
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-            ) : null}
+            </section>
         </div>
     );
 }
@@ -527,6 +636,13 @@ function getVisibleGroupRows(group) {
     return (group?.rows || []).filter((row) => !isRepeatedPrimaryRow(group, row));
 }
 
+function getPrimaryPlaceNoteRow(group) {
+    const notedRows = getNoteRowsForGroup(group).filter(hasAnyOwnerNote);
+    return notedRows.find((row) => row?.resourceType === 'hard' && isRepeatedPrimaryRow(group, row))
+        || notedRows.find((row) => row?.resourceType === 'hard')
+        || null;
+}
+
 function getGroupHoverLogoRow(group) {
     return (group?.rows || []).find((row) => row?.logoUrl);
 }
@@ -618,6 +734,7 @@ function DirectoryResourceRow({
     compactInteractive = false,
     showDivider = false,
     canSaveResources,
+    onOpenResourceNotes,
     allowPrintLinks = false,
     compactPrint = false,
 }) {
@@ -661,13 +778,22 @@ function DirectoryResourceRow({
                     <div className="flex items-start gap-2.5">
                         <span className="mt-[0.6em] h-1 w-1 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
-                            {canOpenDetail ? (
-                                <Link to={detailPath} reloadDocument className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
-                                    {row.name}
-                                </Link>
-                            ) : (
-                                <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
-                            )}
+                            <div className="flex items-start gap-2">
+                                <div className="min-w-0 flex-1">
+                                    {canOpenDetail ? (
+                                        <Link to={detailPath} reloadDocument className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                                            {row.name}
+                                        </Link>
+                                    ) : (
+                                        <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
+                                    )}
+                                </div>
+                                <MapNoteIconButton
+                                    row={row}
+                                    onOpenResourceNotes={onOpenResourceNotes}
+                                    compact={compactInteractive}
+                                />
+                            </div>
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
                                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                     <AvailabilityCountBadge row={row} compact={compactInteractive} />
@@ -680,9 +806,6 @@ function DirectoryResourceRow({
                                     compact
                                     className="mt-2"
                                 />
-                            ) : null}
-                            {mode === 'shared' ? (
-                                <SharedResourceNotes notes={sharedNotes} compact={compactInteractive} />
                             ) : null}
                         </div>
                     </div>
@@ -779,21 +902,30 @@ function DirectoryNestedPlaceSection({
     compactInteractive = false,
     canSaveResources,
     onRemoveResource,
+    onOpenResourceNotes,
 }) {
     const nestedPlaceDetailPath = useDirectoryDetailPath(getGroupDetailPath(nestedPlace));
     const visibleRows = getVisibleGroupRows(nestedPlace);
     const titleClassName = compactInteractive ? 'text-[15px]' : 'text-[17px]';
+    const primaryNoteRow = getPrimaryPlaceNoteRow(nestedPlace);
 
     return (
         <div className={compactInteractive ? 'space-y-1.5' : 'space-y-2'}>
-            <div className="min-w-0">
-                {nestedPlaceDetailPath ? (
-                    <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${titleClassName}`}>
-                        {nestedPlace.name}
-                    </Link>
-                ) : (
-                    <h4 className={`font-bold leading-tight text-slate-900 ${titleClassName}`}>{nestedPlace.name}</h4>
-                )}
+            <div className="flex min-w-0 items-start gap-2">
+                <div className="min-w-0 flex-1">
+                    {nestedPlaceDetailPath ? (
+                        <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${titleClassName}`}>
+                            {nestedPlace.name}
+                        </Link>
+                    ) : (
+                        <h4 className={`font-bold leading-tight text-slate-900 ${titleClassName}`}>{nestedPlace.name}</h4>
+                    )}
+                </div>
+                <MapNoteIconButton
+                    row={primaryNoteRow}
+                    onOpenResourceNotes={onOpenResourceNotes}
+                    compact={compactInteractive}
+                />
             </div>
 
             {visibleRows.length ? (
@@ -809,6 +941,7 @@ function DirectoryNestedPlaceSection({
                             showDivider={compactInteractive && index > 0}
                             canSaveResources={canSaveResources}
                             onRemoveResource={onRemoveResource}
+                            onOpenResourceNotes={onOpenResourceNotes}
                         />
                     ))}
                 </div>
@@ -826,6 +959,7 @@ function DirectoryPlaceGroupCard({
     onViewOnMap,
     onRemoveResource,
     onUpdateResourceNotes,
+    onOpenResourceNotes,
     canSaveResources,
     highlighted,
     sectionRef,
@@ -839,6 +973,7 @@ function DirectoryPlaceGroupCard({
     const visibleRows = getVisibleGroupRows(group);
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
+    const primaryNoteRow = getPrimaryPlaceNoteRow(group);
 
     if (!interactive) {
         if (isPostalGroup) {
@@ -992,6 +1127,7 @@ function DirectoryPlaceGroupCard({
                                 compactInteractive={compactInteractive}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onOpenResourceNotes={onOpenResourceNotes}
                             />
                         </div>
                     ) : null}
@@ -1015,6 +1151,7 @@ function DirectoryPlaceGroupCard({
                                     compactInteractive={compactInteractive}
                                     canSaveResources={canSaveResources}
                                     onRemoveResource={onRemoveResource}
+                                    onOpenResourceNotes={onOpenResourceNotes}
                                 />
                             </div>
                         ))}
@@ -1031,11 +1168,6 @@ function DirectoryPlaceGroupCard({
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
             >
                 {groupedCardContent}
-                <MapResourceNotesDrawer
-                    rows={getNoteRowsForGroup(group)}
-                    compactInteractive={compactInteractive}
-                    onUpdateResourceNotes={onUpdateResourceNotes}
-                />
             </section>
         );
     }
@@ -1066,8 +1198,15 @@ function DirectoryPlaceGroupCard({
                         distanceLabel={group.distanceLabel}
                         compact={compactInteractive}
                     />
-                    <div className={compactInteractive ? 'mt-2' : 'mt-2.5'}>
-                        {interactivePlaceTitle}
+                    <div className={`${compactInteractive ? 'mt-2' : 'mt-2.5'} flex items-start gap-2`}>
+                        <div className="min-w-0 flex-1">
+                            {interactivePlaceTitle}
+                        </div>
+                        <MapNoteIconButton
+                            row={primaryNoteRow}
+                            onOpenResourceNotes={onOpenResourceNotes}
+                            compact={compactInteractive}
+                        />
                     </div>
 
                     {visibleRows.length ? (
@@ -1082,17 +1221,13 @@ function DirectoryPlaceGroupCard({
                                     compactInteractive={compactInteractive}
                                     showDivider={compactInteractive && index > 0}
                                     canSaveResources={canSaveResources}
+                                    onOpenResourceNotes={onOpenResourceNotes}
                                 />
                             ))}
                         </div>
                     ) : null}
                 </div>
             </div>
-            <MapResourceNotesDrawer
-                rows={getNoteRowsForGroup(group)}
-                compactInteractive={compactInteractive}
-                onUpdateResourceNotes={onUpdateResourceNotes}
-            />
         </>
     );
 
@@ -1123,7 +1258,7 @@ function DirectoryPlaceGroupCard({
     );
 }
 
-function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource, onUpdateResourceNotes }) {
+function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource, onOpenResourceNotes }) {
     const { t } = useLocale();
     const place = useMemo(() => ({
         address: row.locationLabel || row.contextLabel || row.placeName || '',
@@ -1177,13 +1312,18 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                                 {t('listOnly')}
                             </span>
                         </div>
-                        {detailPath && row.status !== 'unavailable' ? (
-                            <Link to={detailPath} reloadDocument className="mt-1.5 block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
-                                {row.name}
-                            </Link>
-                        ) : (
-                            <p className="mt-1.5 text-base font-bold leading-snug text-slate-900">{row.name}</p>
-                        )}
+                        <div className="mt-1.5 flex items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                                {detailPath && row.status !== 'unavailable' ? (
+                                    <Link to={detailPath} reloadDocument className="block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
+                                        {row.name}
+                                    </Link>
+                                ) : (
+                                    <p className="text-base font-bold leading-snug text-slate-900">{row.name}</p>
+                                )}
+                            </div>
+                            <MapNoteIconButton row={row} onOpenResourceNotes={onOpenResourceNotes} />
+                        </div>
                         {row.contextLabel ? (
                             <p className="mt-1 text-sm text-slate-500">{row.contextLabel}</p>
                         ) : null}
@@ -1204,9 +1344,6 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         </div>
                         {row.descriptor ? (
                             <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>
-                        ) : null}
-                        {mode === 'shared' ? (
-                            <SharedResourceNotes notes={sharedNotes} />
                         ) : null}
                     </div>
 
@@ -1238,11 +1375,6 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         )}
                     </div>
                 ) : null}
-                <MapResourceNotesDrawer
-                    rows={[row]}
-                    compactInteractive
-                    onUpdateResourceNotes={onUpdateResourceNotes}
-                />
             </div>
         </div>
     );
@@ -1257,6 +1389,7 @@ function DirectoryGroupColumn({
     onViewOnMap,
     onRemoveResource,
     onUpdateResourceNotes,
+    onOpenResourceNotes,
     canSaveResources,
     highlightPlaceKey,
     highlightPlaceKeys = [],
@@ -1285,6 +1418,7 @@ function DirectoryGroupColumn({
                     onViewOnMap={onViewOnMap}
                     onRemoveResource={onRemoveResource}
                     onUpdateResourceNotes={onUpdateResourceNotes}
+                    onOpenResourceNotes={onOpenResourceNotes}
                     canSaveResources={canSaveResources}
                     highlighted={isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys)}
                     allowPrintLinks={allowPrintLinks}
@@ -1309,7 +1443,7 @@ function DirectoryUnmappedSection({
     mode,
     canSaveResources,
     onRemoveResource,
-    onUpdateResourceNotes,
+    onOpenResourceNotes,
 }) {
     const { t } = useLocale();
     if (!rows.length) {
@@ -1335,7 +1469,7 @@ function DirectoryUnmappedSection({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
-                        onUpdateResourceNotes={onUpdateResourceNotes}
+                        onOpenResourceNotes={onOpenResourceNotes}
                     />
                 ))}
             </div>
@@ -1381,6 +1515,10 @@ export default function SharedMapDirectoryList({
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
+    const noteResourceRows = useMemo(() => buildMapNoteResourceRows(presentation, {
+        unmappedContextLabel: t('unmappedResources'),
+    }), [presentation, t]);
+    const [notesPanel, setNotesPanel] = useState({ open: false, selectedKey: null });
     const interactive = layout !== 'print';
     const detailReturnPath = useMemo(() => (
         interactive ? normalizeMapReturnPath(buildCurrentAppPath(location)) : ''
@@ -1398,6 +1536,37 @@ export default function SharedMapDirectoryList({
         : (showDesktopHoverLogo
             ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
             : []);
+
+    function openResourceNotes(row = null) {
+        if (!interactive || !noteResourceRows.length) return;
+        setNotesPanel({
+            open: true,
+            selectedKey: row ? getRowAssetKey(row) : null,
+        });
+    }
+
+    function selectResourceNotes(row) {
+        setNotesPanel({
+            open: true,
+            selectedKey: row ? getRowAssetKey(row) : null,
+        });
+    }
+
+    function closeResourceNotes() {
+        setNotesPanel({ open: false, selectedKey: null });
+    }
+
+    function backToNotesList() {
+        setNotesPanel((current) => ({ ...current, selectedKey: null }));
+    }
+
+    useEffect(() => {
+        if (!notesPanel.open || !notesPanel.selectedKey) return;
+        const hasSelectedRow = noteResourceRows.some((row) => getRowAssetKey(row) === notesPanel.selectedKey);
+        if (!hasSelectedRow) {
+            backToNotesList();
+        }
+    }, [noteResourceRows, notesPanel.open, notesPanel.selectedKey]);
 
     useEffect(() => {
         if (!interactive) return undefined;
@@ -1459,6 +1628,11 @@ export default function SharedMapDirectoryList({
                         <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
                             {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
                             <MapLegend mobile />
+                            <MapNotesEntryButton
+                                rows={noteResourceRows}
+                                mode={mode}
+                                onOpen={openResourceNotes}
+                            />
                         </div>
                     ) : null}
 
@@ -1470,6 +1644,7 @@ export default function SharedMapDirectoryList({
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
+                        onOpenResourceNotes={openResourceNotes}
                         canSaveResources={canSaveResources}
                         highlightPlaceKey={flashPlaceKey}
                         highlightPlaceKeys={highlightPlaceKeys}
@@ -1485,6 +1660,16 @@ export default function SharedMapDirectoryList({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        onOpenResourceNotes={openResourceNotes}
+                    />
+                    <MapNotesOverlay
+                        open={notesPanel.open}
+                        rows={noteResourceRows}
+                        selectedKey={notesPanel.selectedKey}
+                        mode={mode}
+                        onSelectResource={selectResourceNotes}
+                        onBackToList={backToNotesList}
+                        onClose={closeResourceNotes}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                     />
                 </div>
@@ -1505,6 +1690,7 @@ export default function SharedMapDirectoryList({
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
+                        onOpenResourceNotes={openResourceNotes}
                         canSaveResources={canSaveResources}
                         highlightPlaceKey={flashPlaceKey}
                         highlightPlaceKeys={highlightPlaceKeys}
@@ -1523,6 +1709,13 @@ export default function SharedMapDirectoryList({
                     >
                         {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
                         {resolvedLayout !== 'print' && <MapLegend />}
+                        {resolvedLayout !== 'print' ? (
+                            <MapNotesEntryButton
+                                rows={noteResourceRows}
+                                mode={mode}
+                                onOpen={openResourceNotes}
+                            />
+                        ) : null}
                     </div>
 
                     <DirectoryGroupColumn
@@ -1534,6 +1727,7 @@ export default function SharedMapDirectoryList({
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
+                        onOpenResourceNotes={openResourceNotes}
                         canSaveResources={canSaveResources}
                         highlightPlaceKey={flashPlaceKey}
                         highlightPlaceKeys={highlightPlaceKeys}
@@ -1553,6 +1747,16 @@ export default function SharedMapDirectoryList({
                     mode={mode}
                     canSaveResources={canSaveResources}
                     onRemoveResource={onRemoveResource}
+                    onOpenResourceNotes={openResourceNotes}
+                />
+                <MapNotesOverlay
+                    open={notesPanel.open}
+                    rows={noteResourceRows}
+                    selectedKey={notesPanel.selectedKey}
+                    mode={mode}
+                    onSelectResource={selectResourceNotes}
+                    onBackToList={backToNotesList}
+                    onClose={closeResourceNotes}
                     onUpdateResourceNotes={onUpdateResourceNotes}
                 />
             </div>
