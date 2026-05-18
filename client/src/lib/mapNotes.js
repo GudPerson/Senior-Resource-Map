@@ -122,3 +122,17 @@ export function getMapNoteResourceSummary(rows = []) {
         sharedNoteCount: 0,
     });
 }
+
+export function buildMapNoteSummaryParts(summary = {}, options = {}) {
+    const mode = options.mode || 'owner';
+    const parts = [
+        { key: 'resources', count: Number(summary.resourceCount || 0) },
+        { key: 'notes', count: Number(summary.noteCount || 0) },
+    ];
+
+    if (mode !== 'shared') {
+        parts.push({ key: 'shared', count: Number(summary.sharedNoteCount || 0) });
+    }
+
+    return parts;
+}

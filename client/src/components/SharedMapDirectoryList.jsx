@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {
     buildMapNoteResourceRows,
+    buildMapNoteSummaryParts,
     getMapNoteResourceSummary,
     getNoteRowsForGroup,
     getRowAssetKey,
@@ -152,6 +153,18 @@ function createEmptyDraftNote() {
     };
 }
 
+function formatMapNotesSummary(summary, mode, t) {
+    const labelKeys = {
+        resources: 'mapNotesSummaryResourcePart',
+        notes: 'mapNotesSummaryNotePart',
+        shared: 'mapNotesSummarySharedPart',
+    };
+
+    return buildMapNoteSummaryParts(summary, { mode })
+        .map((part) => t(labelKeys[part.key], { count: part.count }))
+        .join(' · ');
+}
+
 function NoteCountPill({ count, tone = 'brand' }) {
     if (!count) return null;
     const className = tone === 'slate'
@@ -212,11 +225,7 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
                 <span className="min-w-0">
                     <span className="block text-sm font-black leading-tight text-slate-900">{t('mapNotes')}</span>
                     <span className="mt-0.5 block text-xs font-semibold leading-5 text-slate-500">
-                        {t('mapNotesSummary', {
-                            resources: summary.resourceCount,
-                            notes: summary.noteCount,
-                            shared: summary.sharedNoteCount,
-                        })}
+                        {formatMapNotesSummary(summary, mode, t)}
                     </span>
                 </span>
             </span>
@@ -473,11 +482,7 @@ function MapNotesOverlay({
                         <p className="mt-0.5 truncate text-xs font-semibold leading-5 text-slate-500">
                             {selectedRow
                                 ? `${selectedRow.mapNoteContext || ''}${selectedRow.mapNoteContext ? ' · ' : ''}${selectedRow.resourceType === 'hard' ? t('placeType') : t('offeringType')}`
-                                : t('mapNotesSummary', {
-                                    resources: summary.resourceCount,
-                                    notes: summary.noteCount,
-                                    shared: summary.sharedNoteCount,
-                                })}
+                                : formatMapNotesSummary(summary, mode, t)}
                         </p>
                     </div>
 

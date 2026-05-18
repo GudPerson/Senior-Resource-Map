@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     buildMapNoteResourceRows,
+    buildMapNoteSummaryParts,
     getMapNoteResourceSummary,
 } from '../src/lib/mapNotes.js';
 
@@ -82,4 +83,24 @@ test('buildMapNoteResourceRows returns each mapped and unmapped resource once wi
         noteCount: 4,
         sharedNoteCount: 2,
     });
+});
+
+test('buildMapNoteSummaryParts hides the shared-note count from shared map receivers', () => {
+    const summary = {
+        resourceCount: 12,
+        notedResourceCount: 3,
+        noteCount: 3,
+        sharedNoteCount: 3,
+    };
+
+    assert.deepEqual(buildMapNoteSummaryParts(summary, { mode: 'owner' }), [
+        { key: 'resources', count: 12 },
+        { key: 'notes', count: 3 },
+        { key: 'shared', count: 3 },
+    ]);
+
+    assert.deepEqual(buildMapNoteSummaryParts(summary, { mode: 'shared' }), [
+        { key: 'resources', count: 12 },
+        { key: 'notes', count: 3 },
+    ]);
 });
