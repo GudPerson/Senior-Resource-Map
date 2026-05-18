@@ -375,8 +375,9 @@ async function fetchResourcePages(fetchPage, params = {}, options = {}) {
 
 async function fetchAllAdminResources(options = {}) {
     const { onPartial } = options;
+    const listParams = { scope: 'managed', regionScoped: true };
     const [hardFirst, softFirst] = await Promise.all([
-        fetchPaginatedResultPage(api.getHardAssets, { scope: 'managed' }, { page: 1, pageSize: 500 }),
+        fetchPaginatedResultPage(api.getHardAssets, listParams, { page: 1, pageSize: 500 }),
         fetchPaginatedResultPage(api.getSoftAssets, { scope: 'managed' }, { page: 1, pageSize: 500 }),
     ]);
 
@@ -389,7 +390,7 @@ async function fetchAllAdminResources(options = {}) {
 
     const [hard, soft] = await Promise.all([
         hardFirst.pagination.totalPages > 1
-            ? fetchResourcePages(api.getHardAssets, { scope: 'managed' }, { firstPage: hardFirst })
+            ? fetchResourcePages(api.getHardAssets, listParams, { firstPage: hardFirst })
             : Promise.resolve(hardFirst.data),
         softFirst.pagination.totalPages > 1
             ? fetchResourcePages(api.getSoftAssets, { scope: 'managed' }, { firstPage: softFirst })
@@ -551,13 +552,17 @@ export default function AdminPage() {
                     setResourceTotalCount(Number.isFinite(totalCount) ? totalCount : null);
                     if (partialItems.length > 0) {
                         setResources(partialItems);
-                        setSelectedResources((prev) => prev.filter((key) => partialItems.some((item) => getResourceSelectionKey(item) === key)));
+                        setSelectedResources((prev) => prev.filter((key) => partialItems.some((item) => (
+                            getResourceSelectionKey(item) === key && canDeleteResourceRecord(item)
+                        ))));
                     }
                 },
             });
             setResourceTotalCount(items.length);
             setResources(items);
-            setSelectedResources((prev) => prev.filter((key) => items.some((item) => getResourceSelectionKey(item) === key)));
+            setSelectedResources((prev) => prev.filter((key) => items.some((item) => (
+                getResourceSelectionKey(item) === key && canDeleteResourceRecord(item)
+            ))));
         } catch (err) {
             console.error('Admin resources failed to load:', err);
             setResourcesError(err.message || 'Resources failed to load.');
@@ -595,6 +600,14 @@ export default function AdminPage() {
     function getResourceSelectionKey(resource) {
         const assetType = resource.category === 'Places' ? 'hard' : 'soft';
         return `${assetType}:${resource.id}`;
+    }
+
+    function canDeleteResourceRecord(resource) {
+        if (!resource) return false;
+        if (resource.permissions && Object.prototype.hasOwnProperty.call(resource.permissions, 'canDelete')) {
+            return Boolean(resource.permissions.canDelete);
+        }
+        return currentRole === 'super_admin';
     }
 
     function canManageUserRecord(targetUser) {
@@ -674,6 +687,11 @@ export default function AdminPage() {
     }
 
     async function handleDeleteResource(id, category) {
+        const target = resources.find((resource) => resource.id === id && resource.category === category);
+        if (!canDeleteResourceRecord(target)) {
+            alert('You do not have permission to delete this resource.');
+            return;
+        }
         if (!confirm('Delete this resource permanently?')) return;
         try {
             if (category === 'Places') {
@@ -865,6 +883,7 @@ export default function AdminPage() {
     }
 
     function toggleResourceSelection(resource) {
+        if (!canDeleteResourceRecord(resource)) return;
         const key = getResourceSelectionKey(resource);
         setSelectedResources((prev) =>
             prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
@@ -946,7 +965,10 @@ export default function AdminPage() {
 
         try {
             if (pendingBulkDelete.type === 'resources') {
-                const targets = resources.filter((resource) => selectedResources.includes(getResourceSelectionKey(resource)));
+                const targets = resources.filter((resource) => (
+                    selectedResources.includes(getResourceSelectionKey(resource))
+                    && canDeleteResourceRecord(resource)
+                ));
                 for (const resource of targets) {
                     try {
                         if (resource.category === 'Places') {
@@ -2086,7 +2108,9 @@ export default function AdminPage() {
         .filter((candidate) => canManageUserRecord(candidate))
         .map((candidate) => candidate.id);
     const allManageableUsersSelected = manageableVisibleUserIds.length > 0 && manageableVisibleUserIds.every((id) => selectedUsers.includes(id));
-    const visibleResourceKeys = paginatedResources.map((resource) => getResourceSelectionKey(resource));
+    const visibleResourceKeys = paginatedResources
+        .filter((resource) => canDeleteResourceRecord(resource))
+        .map((resource) => getResourceSelectionKey(resource));
     const allVisibleResourcesSelected = visibleResourceKeys.length > 0 && visibleResourceKeys.every((key) => selectedResources.includes(key));
     const visibleSubregionIds = filteredSubregions.map((subregion) => subregion.id);
     const allVisibleSubregionsSelected = visibleSubregionIds.length > 0 && visibleSubregionIds.every((id) => selectedSubregions.includes(id));
@@ -2319,6 +2343,8 @@ export default function AdminPage() {
                                                 type="checkbox"
                                                 checked={selectedResources.includes(getResourceSelectionKey(r))}
                                                 onChange={() => toggleResourceSelection(r)}
+                                                disabled={!canDeleteResourceRecord(r)}
+                                                title={canDeleteResourceRecord(r) ? 'Select for deletion' : 'You do not have delete access for this resource'}
                                                 className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                             />
                                         </td>
@@ -2340,14 +2366,20 @@ export default function AdminPage() {
                                         ) : null}
                                         <td className="px-4 py-3 text-slate-500 text-sm hidden lg:table-cell">{r.partnerName || '—'}</td>
                                         <td className="px-4 py-3">
-                                            <button
-                                                id={`admin-delete-resource-${r.id}`}
-                                                onClick={() => handleDeleteResource(r.id, r.category)}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {canDeleteResourceRecord(r) ? (
+                                                <button
+                                                    id={`admin-delete-resource-${r.id}`}
+                                                    onClick={() => handleDeleteResource(r.id, r.category)}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            ) : (
+                                                <span className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs font-semibold text-slate-400" title="No delete access">
+                                                    —
+                                                </span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

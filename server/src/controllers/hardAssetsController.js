@@ -59,6 +59,10 @@ function isSingaporeCountry(value) {
     return normalized === 'sg' || normalized === 'singapore';
 }
 
+function isQueryFlagEnabled(value) {
+    return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
+}
+
 async function resolvePlaceWritableSubregionByPostal(db, postalCode, country, user, entityLabel = 'Postal code') {
     try {
         return await resolveWritableSubregionByPostal(db, postalCode, user, entityLabel);
@@ -934,6 +938,7 @@ export const getHardAssets = async (c) => {
             pageSize: c.req.query('pageSize'),
         });
         const listScope = normalizeResourceListScope(c.req.query('scope'));
+        const regionScoped = isQueryFlagEnabled(c.req.query('regionScoped'));
         const query = c.req.query('q');
         const lat = parseFloat(c.req.query('lat'));
         const lng = parseFloat(c.req.query('lng'));
@@ -986,6 +991,7 @@ export const getHardAssets = async (c) => {
         });
         const scopedAssets = filterHardAssetsForResourceList(candidateAssetsWithRegions, user, {
             scope: listScope,
+            regionScoped,
             isVisible: (asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }),
         });
         const { data: pagedAssetSummaries, pagination } = paginateResourceList(scopedAssets, { page, pageSize });

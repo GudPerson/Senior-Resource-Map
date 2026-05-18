@@ -1,5 +1,5 @@
 import { hasHardAssetStaffAccess } from './hardAssetStaff.js';
-import { filterSoftAssetsByRegionRelevance } from './regionScope.js';
+import { actorMatchesAnyRegion, filterSoftAssetsByRegionRelevance } from './regionScope.js';
 import { normalizeRole } from './roles.js';
 
 export function normalizeResourceListScope(value) {
@@ -41,12 +41,25 @@ function canSeeManagedHardAsset(asset, actor, isVisible) {
     return hasHardAssetStaffAccess(actor, asset?.id, ['owner', 'staff']);
 }
 
+function canSeeRegionScopedManagedHardAsset(asset, actor) {
+    if (normalizeRole(actor?.role) === 'super_admin') return true;
+    if (hasHardAssetStaffAccess(actor, asset?.id, ['owner', 'staff'])) return true;
+    return actorMatchesAnyRegion(actor, [
+        ...(Array.isArray(asset?.matchingRegionIds) ? asset.matchingRegionIds : []),
+        asset?.subregionId,
+    ]);
+}
+
 export function filterHardAssetsForResourceList(assets = [], actor, options = {}) {
     const scope = normalizeResourceListScope(options.scope);
     const isVisible = typeof options.isVisible === 'function' ? options.isVisible : () => true;
+    const regionScoped = options.regionScoped === true;
 
     if (scope === 'managed') {
-        return assets.filter((asset) => canSeeManagedHardAsset(asset, actor, isVisible));
+        return assets.filter((asset) => (
+            canSeeManagedHardAsset(asset, actor, isVisible)
+            && (!regionScoped || canSeeRegionScopedManagedHardAsset(asset, actor))
+        ));
     }
 
     return assets.filter((asset) => isVisible(asset));
