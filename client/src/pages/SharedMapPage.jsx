@@ -333,6 +333,9 @@ export default function SharedMapPage() {
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
+    const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
+    const [selectedClusterPlaceKeys, setSelectedClusterPlaceKeys] = useState([]);
+    const [selectionScrollRequest, setSelectionScrollRequest] = useState(0);
     const isPrintView = searchParams.get('view') === 'print';
     const useDesktopLayout = useMediaQuery('(min-width: 1024px)');
     const anchorState = useDirectoryDistanceAnchor({
@@ -422,6 +425,8 @@ export default function SharedMapPage() {
         const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setQuery('');
         setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys([]);
         setHighlightPlaceKey(null);
         window.requestAnimationFrame(() => {
             setHighlightPlaceKey(resolvedPlaceKey);
@@ -432,21 +437,57 @@ export default function SharedMapPage() {
         const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setFocusedPlaceKey(null);
         setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys([]);
         window.requestAnimationFrame(() => {
             setFocusedPlaceKey(resolvedPlaceKey);
             setHighlightPlaceKey(resolvedPlaceKey);
         });
     }
 
-    const activePlaceKey = hoveredPlaceKey || highlightPlaceKey || null;
+    const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
+        ? null
+        : (hoveredPlaceKey || highlightPlaceKey || null);
+    const activePlaceKeys = hoveredClusterPlaceKeys.length
+        ? hoveredClusterPlaceKeys
+        : (selectedClusterPlaceKeys.length ? selectedClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []));
+    const effectiveFocusedPlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
+        ? null
+        : focusedPlaceKey;
 
     const handleMapHoverStart = useCallback((placeKey) => {
         if (!placeKey) return;
+        setHighlightPlaceKey(null);
+        setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys([]);
         setHoveredPlaceKey(String(placeKey));
     }, []);
 
     const handleMapHoverEnd = useCallback((placeKey) => {
         setHoveredPlaceKey((current) => (String(current) === String(placeKey) ? null : current));
+    }, []);
+
+    const handleMapClusterHoverStart = useCallback((placeKeys) => {
+        if (!placeKeys?.length) return;
+        setHighlightPlaceKey(null);
+        setHoveredPlaceKey(null);
+        setSelectedClusterPlaceKeys([]);
+        setHoveredClusterPlaceKeys(placeKeys.map((value) => String(value)));
+    }, []);
+
+    const handleMapClusterHoverEnd = useCallback((placeKeys) => {
+        const normalizedKeys = new Set((placeKeys || []).map((value) => String(value)));
+        setHoveredClusterPlaceKeys((current) => current.filter((value) => !normalizedKeys.has(String(value))));
+    }, []);
+
+    const handleMapClusterSelect = useCallback((placeKeys) => {
+        if (!placeKeys?.length) return;
+        setFocusedPlaceKey(null);
+        setHighlightPlaceKey(null);
+        setHoveredPlaceKey(null);
+        setHoveredClusterPlaceKeys([]);
+        setSelectedClusterPlaceKeys(placeKeys.map((value) => String(value)));
+        setSelectionScrollRequest((value) => value + 1);
     }, []);
 
     async function handleCopyToMyMaps() {
@@ -595,18 +636,24 @@ export default function SharedMapPage() {
                             layout="responsive"
                             onViewOnMap={handleViewOnMap}
                             highlightPlaceKey={activePlaceKey}
-                            selectionPlaceKey={highlightPlaceKey}
+                            highlightPlaceKeys={activePlaceKeys}
+                            selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
+                            selectionScrollRequest={selectionScrollRequest}
                             canSaveResources={Boolean(translatedDirectory.viewer?.canSaveResources)}
                             showDesktopHoverLogo
                             renderDesktopMap={() => (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
                                     pins={interactivePresentation.pins}
-                                    focusedPlaceKey={focusedPlaceKey}
+                                    focusedPlaceKey={effectiveFocusedPlaceKey}
                                     activePlaceKey={activePlaceKey}
+                                    activePlaceKeys={activePlaceKeys}
                                     onViewSection={handleViewSection}
                                     onHoverPlaceStart={handleMapHoverStart}
                                     onHoverPlaceEnd={handleMapHoverEnd}
+                                    onHoverClusterStart={handleMapClusterHoverStart}
+                                    onHoverClusterEnd={handleMapClusterHoverEnd}
+                                    onClusterSelect={handleMapClusterSelect}
                                     markerMode="number"
                                     placeNumberByKey={interactivePresentation.placeNumberByKey}
                                     emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
@@ -617,11 +664,15 @@ export default function SharedMapPage() {
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
                                     pins={interactivePresentation.pins}
-                                    focusedPlaceKey={focusedPlaceKey}
+                                    focusedPlaceKey={effectiveFocusedPlaceKey}
                                     activePlaceKey={activePlaceKey}
+                                    activePlaceKeys={activePlaceKeys}
                                     onViewSection={handleViewSection}
                                     onHoverPlaceStart={handleMapHoverStart}
                                     onHoverPlaceEnd={handleMapHoverEnd}
+                                    onHoverClusterStart={handleMapClusterHoverStart}
+                                    onHoverClusterEnd={handleMapClusterHoverEnd}
+                                    onClusterSelect={handleMapClusterSelect}
                                     markerMode="number"
                                     placeNumberByKey={interactivePresentation.placeNumberByKey}
                                     emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
@@ -637,18 +688,24 @@ export default function SharedMapPage() {
                         layout="responsive"
                         onViewOnMap={handleViewOnMap}
                         highlightPlaceKey={activePlaceKey}
-                        selectionPlaceKey={highlightPlaceKey}
+                        highlightPlaceKeys={activePlaceKeys}
+                        selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
+                        selectionScrollRequest={selectionScrollRequest}
                         canSaveResources={Boolean(translatedDirectory.viewer?.canSaveResources)}
                         showDesktopHoverLogo
                         renderDesktopMap={() => (
                             <DirectoryMap
                                 activeAnchor={activeAnchor}
                                 pins={interactivePresentation.pins}
-                                focusedPlaceKey={focusedPlaceKey}
+                                focusedPlaceKey={effectiveFocusedPlaceKey}
                                 activePlaceKey={activePlaceKey}
+                                activePlaceKeys={activePlaceKeys}
                                 onViewSection={handleViewSection}
                                 onHoverPlaceStart={handleMapHoverStart}
                                 onHoverPlaceEnd={handleMapHoverEnd}
+                                onHoverClusterStart={handleMapClusterHoverStart}
+                                onHoverClusterEnd={handleMapClusterHoverEnd}
+                                onClusterSelect={handleMapClusterSelect}
                                 markerMode="number"
                                 placeNumberByKey={interactivePresentation.placeNumberByKey}
                                 emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
@@ -659,11 +716,15 @@ export default function SharedMapPage() {
                             <DirectoryMap
                                 activeAnchor={activeAnchor}
                                 pins={interactivePresentation.pins}
-                                focusedPlaceKey={focusedPlaceKey}
+                                focusedPlaceKey={effectiveFocusedPlaceKey}
                                 activePlaceKey={activePlaceKey}
+                                activePlaceKeys={activePlaceKeys}
                                 onViewSection={handleViewSection}
                                 onHoverPlaceStart={handleMapHoverStart}
                                 onHoverPlaceEnd={handleMapHoverEnd}
+                                onHoverClusterStart={handleMapClusterHoverStart}
+                                onHoverClusterEnd={handleMapClusterHoverEnd}
+                                onClusterSelect={handleMapClusterSelect}
                                 markerMode="number"
                                 placeNumberByKey={interactivePresentation.placeNumberByKey}
                                 emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}

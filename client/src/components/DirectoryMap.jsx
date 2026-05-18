@@ -17,6 +17,13 @@ import {
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
     CAREAROUND_BASEMAP_URL,
 } from '../lib/mapTheme.js';
+import {
+    buildClusterToken,
+    getClusterActivationAction,
+    getNextClusterZoom,
+    isDuplicateClusterClick,
+    shouldIgnoreClusterHover,
+} from '../lib/mapClusterInteraction.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -309,8 +316,23 @@ function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetV
     );
 }
 
-function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClusterStart, onHoverClusterEnd, onClusterSelect }) {
+function DirectoryClusterHoverSync({
+    clusterGroupRef,
+    enabled = true,
+    activePlaceKeys = [],
+    onHoverClusterStart,
+    onHoverClusterEnd,
+    onClusterSelect,
+}) {
     const lastActivationRef = useRef({ token: null, at: 0 });
+    const selectedClusterTokenRef = useRef('');
+    const activeClusterToken = buildClusterToken(activePlaceKeys);
+
+    useEffect(() => {
+        if (!activeClusterToken) {
+            selectedClusterTokenRef.current = '';
+        }
+    }, [activeClusterToken]);
 
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
@@ -320,13 +342,22 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
             .map((marker) => marker.options?.icon?.options?.placeKey || marker.options?.placeKey)
             .filter(Boolean);
 
+        const shouldSkipHoverEvent = (event) => shouldIgnoreClusterHover({
+            pointerType: event.originalEvent?.pointerType || '',
+            coarsePointer: Boolean(event.originalEvent?.touches?.length)
+                || Boolean(event.originalEvent?.changedTouches?.length)
+                || Boolean(window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches),
+        });
+
         const handleClusterMouseOver = (event) => {
+            if (shouldSkipHoverEvent(event)) return;
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
             onHoverClusterStart?.(resolveClusterPlaceKeys(cluster));
         };
 
         const handleClusterMouseOut = (event) => {
+            if (shouldSkipHoverEvent(event)) return;
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
             onHoverClusterEnd?.(resolveClusterPlaceKeys(cluster));
@@ -338,22 +369,47 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
             event.originalEvent?.preventDefault?.();
             event.originalEvent?.stopPropagation?.();
             const placeKeys = resolveClusterPlaceKeys(cluster);
-            const token = placeKeys.map((value) => String(value)).sort().join('|');
+            const token = buildClusterToken(placeKeys);
+            const eventType = event.type || event.originalEvent?.type || '';
             const now = Date.now();
 
-            if (
-                lastActivationRef.current.token === token
-                && now - lastActivationRef.current.at < 300
-            ) {
+            if (isDuplicateClusterClick({
+                eventType,
+                token,
+                now,
+                lastEvent: lastActivationRef.current,
+            })) {
                 return;
             }
 
-            lastActivationRef.current = { token, at: now };
-            onClusterSelect?.(placeKeys);
+            lastActivationRef.current = { token, eventType, at: now };
             const mapInstance = clusterGroup._map || cluster._map;
+            const activationAction = getClusterActivationAction(placeKeys, activePlaceKeys, selectedClusterTokenRef.current);
+            onClusterSelect?.(placeKeys);
+            selectedClusterTokenRef.current = token;
+
+            if (activationAction === 'select') {
+                const center = cluster.getLatLng?.();
+                if (mapInstance && center) {
+                    if (typeof mapInstance.panTo === 'function') {
+                        mapInstance.panTo(center, { animate: true, duration: 0.35 });
+                    } else if (typeof mapInstance.setView === 'function' && typeof mapInstance.getZoom === 'function') {
+                        mapInstance.setView(center, mapInstance.getZoom(), { animate: true });
+                    }
+                }
+                return;
+            }
+
             const currentZoom = typeof mapInstance?.getZoom === 'function' ? mapInstance.getZoom() : 0;
             if (currentZoom >= 16 && typeof cluster.spiderfy === 'function') {
                 cluster.spiderfy();
+                return;
+            }
+            const center = cluster.getLatLng?.();
+            const mapMaxZoom = typeof mapInstance?.getMaxZoom === 'function' ? mapInstance.getMaxZoom() : 16;
+            const nextZoom = getNextClusterZoom(currentZoom, Math.min(16, mapMaxZoom));
+            if (mapInstance && center && nextZoom > currentZoom && typeof mapInstance.setView === 'function') {
+                mapInstance.setView(center, nextZoom, { animate: true });
                 return;
             }
             if (mapInstance && typeof mapInstance.fitBounds === 'function' && typeof cluster.getAllChildMarkers === 'function') {
@@ -393,7 +449,7 @@ function DirectoryClusterHoverSync({ clusterGroupRef, enabled = true, onHoverClu
             clusterGroup.off('clustermousedown', handleClusterActivate);
             clusterGroup.off('clusterclick', handleClusterActivate);
         };
-    }, [clusterGroupRef, enabled, onClusterSelect, onHoverClusterEnd, onHoverClusterStart]);
+    }, [activePlaceKeys, clusterGroupRef, enabled, onClusterSelect, onHoverClusterEnd, onHoverClusterStart]);
 
     return null;
 }
@@ -739,7 +795,14 @@ export default function DirectoryMap({
                     } : undefined}
                 />
                 <DirectoryMapRecenterControl activeAnchor={anchorPoint} pins={displayPins} interactive={interactive} onResetView={onResetView} />
-                <DirectoryClusterHoverSync clusterGroupRef={clusterGroupRef} enabled={interactive && shouldCluster} onHoverClusterStart={onHoverClusterStart} onHoverClusterEnd={onHoverClusterEnd} onClusterSelect={onClusterSelect} />
+                <DirectoryClusterHoverSync
+                    clusterGroupRef={clusterGroupRef}
+                    enabled={interactive && shouldCluster}
+                    activePlaceKeys={activePlaceKeys}
+                    onHoverClusterStart={onHoverClusterStart}
+                    onHoverClusterEnd={onHoverClusterEnd}
+                    onClusterSelect={onClusterSelect}
+                />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
                 {anchorPoint ? (
                     <Marker position={[anchorPoint.lat, anchorPoint.lng]} icon={createDirectoryAnchorIcon(anchorPoint)} zIndexOffset={1200}>
