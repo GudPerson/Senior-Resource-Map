@@ -215,7 +215,7 @@ function MapResourceNotesDrawer({
     const [open, setOpen] = useState(false);
     const [drafts, setDrafts] = useState(() => buildNoteDrafts(noteRows));
     const [savingKey, setSavingKey] = useState('');
-    const [savedKey, setSavedKey] = useState('');
+    const [savedKeys, setSavedKeys] = useState(() => new Set());
     const [error, setError] = useState('');
 
     useEffect(() => {
@@ -227,6 +227,12 @@ function MapResourceNotesDrawer({
 
     function updateDraftNote(row, clientId, values) {
         const key = getRowAssetKey(row);
+        setSavedKeys((current) => {
+            if (!current.has(key)) return current;
+            const next = new Set(current);
+            next.delete(key);
+            return next;
+        });
         setDrafts((current) => ({
             ...current,
             [key]: {
@@ -242,6 +248,12 @@ function MapResourceNotesDrawer({
 
     function addDraftNote(row) {
         const key = getRowAssetKey(row);
+        setSavedKeys((current) => {
+            if (!current.has(key)) return current;
+            const next = new Set(current);
+            next.delete(key);
+            return next;
+        });
         setDrafts((current) => ({
             ...current,
             [key]: {
@@ -253,6 +265,12 @@ function MapResourceNotesDrawer({
 
     function removeDraftNote(row, clientId) {
         const key = getRowAssetKey(row);
+        setSavedKeys((current) => {
+            if (!current.has(key)) return current;
+            const next = new Set(current);
+            next.delete(key);
+            return next;
+        });
         setDrafts((current) => ({
             ...current,
             [key]: {
@@ -269,7 +287,6 @@ function MapResourceNotesDrawer({
         const key = getRowAssetKey(row);
         const draft = drafts[key] || { notes: [] };
         setSavingKey(key);
-        setSavedKey('');
         setError('');
         try {
             await onUpdateResourceNotes(row, {
@@ -279,7 +296,11 @@ function MapResourceNotesDrawer({
                     isShared: Boolean(note.isShared),
                 })),
             });
-            setSavedKey(key);
+            setSavedKeys((current) => {
+                const next = new Set(current);
+                next.add(key);
+                return next;
+            });
         } catch (err) {
             console.error(err);
             setError(err.message || t('failedSaveMapNotes'));
@@ -288,28 +309,34 @@ function MapResourceNotesDrawer({
         }
     }
 
-    const triggerLabel = noteCount
+    const triggerAriaLabel = noteCount
         ? t('resourceNotesCount', { count: noteCount })
         : t('addResourceNotes');
 
     return (
         <div
-            className={`${compactInteractive ? 'mt-2' : 'mt-2.5'} border-t border-slate-100 pt-2.5`}
+            className={`${compactInteractive ? 'mt-1.5' : 'mt-2'} border-t border-slate-100 pt-2`}
             onClick={(event) => event.stopPropagation()}
         >
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
-                className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold transition ${
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[12px] font-bold transition ${
                     noteCount
-                        ? 'border-brand-200 bg-brand-50/80 text-brand-700 hover:bg-brand-100'
-                        : 'border-slate-200 bg-white/80 text-slate-600 hover:border-brand-200 hover:text-brand-700'
+                        ? 'text-brand-700 hover:bg-brand-50'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-brand-700'
                 }`}
                 aria-expanded={open}
+                aria-label={triggerAriaLabel}
             >
-                <StickyNote size={14} />
-                {triggerLabel}
-                <ChevronDown size={14} className={`transition ${open ? 'rotate-180' : ''}`} />
+                <StickyNote size={14} strokeWidth={2.2} />
+                <span>{t('addResourceNotes')}</span>
+                {noteCount ? (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-100 px-1.5 text-[11px] font-black leading-none text-brand-800">
+                        {noteCount}
+                    </span>
+                ) : null}
+                <ChevronDown size={13} className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
             </button>
 
             {open ? (
@@ -325,7 +352,7 @@ function MapResourceNotesDrawer({
                         };
                         const draftNotes = draft.notes?.length ? draft.notes : [createEmptyDraftNote()];
                         const saving = savingKey === key;
-                        const saved = savedKey === key;
+                        const saved = savedKeys.has(key);
 
                         return (
                             <div key={key} className="rounded-[18px] border border-slate-200 bg-white p-3 shadow-sm">
