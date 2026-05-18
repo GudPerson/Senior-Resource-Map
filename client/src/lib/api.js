@@ -422,6 +422,7 @@ export const api = {
     updateMyMapAssetNotes: (id, resourceType, resourceId, body) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body),
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
     getSharedMap: (token) => request('GET', `/shared-maps/${encodeURIComponent(token)}`),
+    getSharedMapNoteTranslations: (token, locale) => request('GET', `/shared-maps/${encodeURIComponent(token)}/note-translations?locale=${encodeURIComponent(locale)}`),
     copySharedMap: (token) => request('POST', `/shared-maps/${encodeURIComponent(token)}/copy`),
 
     // Memberships

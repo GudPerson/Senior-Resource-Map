@@ -59,6 +59,56 @@ export function normalizeNoteItems(notes) {
     return legacyItems;
 }
 
+function getNoteTranslation(translations, row, index) {
+    const assetKey = getRowAssetKey(row);
+    const assetTranslations = translations?.[assetKey];
+    if (!assetTranslations) return '';
+    return String(assetTranslations[index] || '').trim();
+}
+
+function applyTranslationsToNoteContainer(item, translations, locale) {
+    if (!Array.isArray(item?.notes?.items)) return item;
+    const translatedItems = item.notes.items.map((note, index) => {
+        const translatedText = getNoteTranslation(translations, item, index);
+        if (!translatedText) return note;
+        return {
+            ...note,
+            originalText: note.text,
+            text: translatedText,
+            translatedLocale: locale,
+        };
+    });
+
+    return {
+        ...item,
+        notes: {
+            ...item.notes,
+            items: translatedItems,
+        },
+    };
+}
+
+export function applySharedNoteTranslationsToDirectory(directory, translationPayload) {
+    const translations = translationPayload?.translations || {};
+    const locale = translationPayload?.locale || '';
+    if (!directory || !Object.keys(translations).length) return directory;
+
+    return {
+        ...directory,
+        assets: Array.isArray(directory.assets)
+            ? directory.assets.map((asset) => applyTranslationsToNoteContainer(asset, translations, locale))
+            : directory.assets,
+        places: Array.isArray(directory.places)
+            ? directory.places.map((place) => ({
+                ...place,
+                rows: Array.isArray(place.rows)
+                    ? place.rows.map((row) => applyTranslationsToNoteContainer(row, translations, locale))
+                    : place.rows,
+            }))
+            : directory.places,
+    };
+}
+
 export function hasAnyOwnerNote(row) {
     return normalizeNoteItems(row?.notes).length > 0;
 }

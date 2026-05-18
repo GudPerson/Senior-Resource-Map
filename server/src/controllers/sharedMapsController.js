@@ -5,6 +5,7 @@ import { myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
+import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
 
 function createHttpError(status, message) {
     const error = new Error(message);
@@ -321,6 +322,26 @@ export const getSharedMap = async (c) => {
     } catch (err) {
         console.error('getSharedMap Error:', err);
         return c.json({ error: err.message || 'Failed to fetch shared directory' }, err.status || 500);
+    }
+};
+
+export const getSharedMapNoteTranslations = async (c) => {
+    try {
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const token = String(c.req.param('token') || '').trim();
+        const locale = String(c.req.query('locale') || '').trim();
+        if (!token) {
+            return c.json({ error: 'Share token is required' }, 400);
+        }
+
+        const viewerUser = c.get('user');
+        const directory = await getSharedMapDirectory(db, token, viewerUser);
+        const payload = await translateSharedMapNotes(c.env, directory, locale);
+        return c.json(payload);
+    } catch (err) {
+        console.error('getSharedMapNoteTranslations Error:', err);
+        return c.json({ error: err.message || 'Failed to translate shared notes' }, err.status || 500);
     }
 };
 

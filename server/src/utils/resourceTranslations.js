@@ -200,10 +200,19 @@ async function getGoogleTranslationAccessToken(config) {
     return fresh.accessToken;
 }
 
-export async function translateTextBatch(config, locale, values) {
+async function requestGoogleTranslateText(config, locale, values, { sourceLanguageCode = SOURCE_LOCALE } = {}) {
     if (!Array.isArray(values) || values.length === 0) return [];
 
     const accessToken = await getGoogleTranslationAccessToken(config);
+    const requestBody = {
+        contents: values,
+        mimeType: 'text/plain',
+        targetLanguageCode: locale,
+    };
+    if (sourceLanguageCode) {
+        requestBody.sourceLanguageCode = sourceLanguageCode;
+    }
+
     const endpoint = `https://translation.googleapis.com/v3/projects/${encodeURIComponent(config.projectId)}/locations/${encodeURIComponent(config.location)}:translateText`;
     const response = await fetch(endpoint, {
         method: 'POST',
@@ -211,12 +220,7 @@ export async function translateTextBatch(config, locale, values) {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            contents: values,
-            mimeType: 'text/plain',
-            sourceLanguageCode: SOURCE_LOCALE,
-            targetLanguageCode: locale,
-        }),
+        body: JSON.stringify(requestBody),
     });
 
     const data = await response.json().catch(() => ({}));
@@ -231,6 +235,14 @@ export async function translateTextBatch(config, locale, values) {
     }
 
     return (data?.translations || []).map((item) => cleanText(item?.translatedText || '', 10000));
+}
+
+export async function translateTextBatch(config, locale, values) {
+    return requestGoogleTranslateText(config, locale, values, { sourceLanguageCode: SOURCE_LOCALE });
+}
+
+export async function translateTextBatchAutoSource(config, locale, values) {
+    return requestGoogleTranslateText(config, locale, values, { sourceLanguageCode: null });
 }
 
 function hashText(value) {

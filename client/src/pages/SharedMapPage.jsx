@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, ArrowRight, CopyPlus, LogIn, Menu, Printer, Search, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CopyPlus, Languages, LogIn, Menu, Printer, Search, Sparkles, X } from 'lucide-react';
 
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
@@ -14,6 +14,8 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import { DEFAULT_LOCALE } from '../lib/i18n.js';
+import { applySharedNoteTranslationsToDirectory } from '../lib/mapNotes.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 
 function UnavailableState({ message }) {
@@ -37,7 +39,40 @@ function UnavailableState({ message }) {
     );
 }
 
-function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView }) {
+function SharedMapLanguageSelect({ compact = false, translatingNotes = false }) {
+    const { locale, locales, setLocale, t } = useLocale();
+
+    return (
+        <label className={`flex ${compact ? 'flex-col items-stretch gap-1.5' : 'items-center gap-2'} text-xs font-bold text-slate-600`}>
+            <span className="inline-flex items-center gap-1.5">
+                <Languages size={14} className="text-brand-700" />
+                {t('noteLanguage')}
+            </span>
+            <span className={compact ? 'space-y-1' : 'flex items-center gap-2'}>
+                <select
+                    value={locale}
+                    onChange={(event) => setLocale(event.target.value)}
+                    className={`${compact ? 'h-11 w-full' : 'h-11 min-w-[150px]'} rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-100`}
+                    aria-label={t('noteLanguage')}
+                    title={t('noteLanguage')}
+                >
+                    {locales.map((item) => (
+                        <option key={item.code} value={item.code}>
+                            {item.label}
+                        </option>
+                    ))}
+                </select>
+                {translatingNotes ? (
+                    <span className="block text-[11px] font-semibold text-brand-700">
+                        {t('translatingNotes')}
+                    </span>
+                ) : null}
+            </span>
+        </label>
+    );
+}
+
+function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView, noteTranslationLoading }) {
     const { t } = useLocale();
     return (
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -57,6 +92,7 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+                    <SharedMapLanguageSelect translatingNotes={noteTranslationLoading} />
                     <button
                         type="button"
                         onClick={onOpenPrintView}
@@ -131,6 +167,7 @@ function SharedMapMobileControls({
     copyError,
     onCopyToMyMaps,
     onOpenPrintView,
+    noteTranslationLoading,
 }) {
     const [open, setOpen] = useState(false);
     const { t } = useLocale();
@@ -248,6 +285,8 @@ function SharedMapMobileControls({
                             </div>
 
                             <div className="mt-4 space-y-4 pb-4">
+                                <SharedMapLanguageSelect compact translatingNotes={noteTranslationLoading} />
+
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                                         <Search size={15} className="text-slate-500" />
@@ -282,8 +321,10 @@ export default function SharedMapPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuth, user } = useAuth();
-    const { t } = useLocale();
+    const { locale, t } = useLocale();
     const [directory, setDirectory] = useState(null);
+    const [noteTranslationByLocale, setNoteTranslationByLocale] = useState({});
+    const [noteTranslationLoading, setNoteTranslationLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [query, setQuery] = useState('');
@@ -306,28 +347,76 @@ export default function SharedMapPage() {
         try {
             const nextDirectory = await api.getSharedMap(token);
             setDirectory(nextDirectory);
+            setNoteTranslationByLocale({});
         } catch (err) {
             console.error(err);
-            setError(err.message || t('sharedMapUnavailableTitle'));
+            setError(err.message || '');
         } finally {
             setLoading(false);
         }
-    }, [token, t]);
+    }, [token]);
 
     useEffect(() => {
         loadDirectory();
     }, [loadDirectory]);
 
+    useEffect(() => {
+        if (!token || !directory || locale === DEFAULT_LOCALE) {
+            setNoteTranslationLoading(false);
+            return undefined;
+        }
+
+        if (noteTranslationByLocale[locale]) {
+            setNoteTranslationLoading(false);
+            return undefined;
+        }
+
+        let cancelled = false;
+        setNoteTranslationLoading(true);
+        api.getSharedMapNoteTranslations(token, locale)
+            .then((payload) => {
+                if (cancelled) return;
+                setNoteTranslationByLocale((current) => ({
+                    ...current,
+                    [locale]: payload,
+                }));
+            })
+            .catch((err) => {
+                console.error('Shared note translation failed:', err);
+                if (cancelled) return;
+                setNoteTranslationByLocale((current) => ({
+                    ...current,
+                    [locale]: {
+                        locale,
+                        status: 'error',
+                        translations: {},
+                    },
+                }));
+            })
+            .finally(() => {
+                if (!cancelled) setNoteTranslationLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [directory, locale, noteTranslationByLocale, token]);
+
+    const noteTranslationPayload = locale === DEFAULT_LOCALE ? null : noteTranslationByLocale[locale] || null;
+    const translatedDirectory = useMemo(() => (
+        applySharedNoteTranslationsToDirectory(directory, noteTranslationPayload)
+    ), [directory, noteTranslationPayload]);
+
     const isOwner = useMemo(() => (
-        Boolean(directory?.viewer?.isOwner || (user?.id && directory?.viewer?.isAuthenticated && directory?.viewer?.isOwner))
-    ), [directory?.viewer, user?.id]);
+        Boolean(translatedDirectory?.viewer?.isOwner || (user?.id && translatedDirectory?.viewer?.isAuthenticated && translatedDirectory?.viewer?.isOwner))
+    ), [translatedDirectory?.viewer, user?.id]);
     const activeAnchor = anchorState.activeAnchor;
     const interactivePresentation = useMemo(() => (
-        buildDirectoryPresentation(directory, { query, activeAnchor })
-    ), [activeAnchor, directory, query]);
+        buildDirectoryPresentation(translatedDirectory, { query, activeAnchor })
+    ), [activeAnchor, translatedDirectory, query]);
     const sharedDirectoryUrl = useMemo(() => (
-        buildDirectoryShareUrl(directory?.share?.sharePath || (token ? `/shared/maps/${token}` : ''))
-    ), [directory?.share?.sharePath, token]);
+        buildDirectoryShareUrl(translatedDirectory?.share?.sharePath || (token ? `/shared/maps/${token}` : ''))
+    ), [translatedDirectory?.share?.sharePath, token]);
 
     function handleViewSection(placeKey) {
         const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
@@ -403,7 +492,7 @@ export default function SharedMapPage() {
         );
     }
 
-    if (error || !directory) {
+    if (error || !translatedDirectory) {
         return (
             <div className="min-h-screen bg-slate-50">
                 {useDesktopLayout ? (
@@ -434,7 +523,7 @@ export default function SharedMapPage() {
 
                 <div className="px-4 py-6 sm:px-6 lg:px-8">
                     <DirectoryPrintView
-                        directory={directory}
+                        directory={translatedDirectory}
                         mode="shared"
                         generatedAt={new Date()}
                         activeAnchor={activeAnchor}
@@ -464,7 +553,7 @@ export default function SharedMapPage() {
 
             {!useDesktopLayout ? (
                 <SharedMapMobileControls
-                    directory={directory}
+                    directory={translatedDirectory}
                     query={query}
                     onQueryChange={setQuery}
                     anchorState={anchorState}
@@ -474,6 +563,7 @@ export default function SharedMapPage() {
                     copyError={copyError}
                     onCopyToMyMaps={handleCopyToMyMaps}
                     onOpenPrintView={openPrintView}
+                    noteTranslationLoading={noteTranslationLoading}
                 />
             ) : null}
 
@@ -481,13 +571,14 @@ export default function SharedMapPage() {
                 {useDesktopLayout ? (
                     <>
                         <DirectoryHeader
-                            directory={directory}
+                            directory={translatedDirectory}
                             isAuth={isAuth}
                             isOwner={isOwner}
                             copying={copying}
                             copyError={copyError}
                             onCopyToMyMaps={handleCopyToMyMaps}
                             onOpenPrintView={openPrintView}
+                            noteTranslationLoading={noteTranslationLoading}
                         />
 
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
@@ -505,7 +596,7 @@ export default function SharedMapPage() {
                             onViewOnMap={handleViewOnMap}
                             highlightPlaceKey={activePlaceKey}
                             selectionPlaceKey={highlightPlaceKey}
-                            canSaveResources={Boolean(directory.viewer?.canSaveResources)}
+                            canSaveResources={Boolean(translatedDirectory.viewer?.canSaveResources)}
                             showDesktopHoverLogo
                             renderDesktopMap={() => (
                                 <DirectoryMap
@@ -547,7 +638,7 @@ export default function SharedMapPage() {
                         onViewOnMap={handleViewOnMap}
                         highlightPlaceKey={activePlaceKey}
                         selectionPlaceKey={highlightPlaceKey}
-                        canSaveResources={Boolean(directory.viewer?.canSaveResources)}
+                        canSaveResources={Boolean(translatedDirectory.viewer?.canSaveResources)}
                         showDesktopHoverLogo
                         renderDesktopMap={() => (
                             <DirectoryMap

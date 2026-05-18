@@ -2,11 +2,64 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    applySharedNoteTranslationsToDirectory,
     buildMapNoteResourceRows,
     buildMapNoteRowBadgeParts,
     buildMapNoteSummaryParts,
     getMapNoteResourceSummary,
 } from '../src/lib/mapNotes.js';
+
+test('applySharedNoteTranslationsToDirectory translates visible shared notes without mutating originals', () => {
+    const directory = {
+        assets: [
+            {
+                assetKey: 'soft-20',
+                resourceType: 'soft',
+                resourceId: 20,
+                notes: {
+                    items: [
+                        { id: 7, text: 'Bring referral letter', isShared: true },
+                        { id: 8, text: 'Call before visiting', isShared: true },
+                    ],
+                },
+            },
+        ],
+        places: [
+            {
+                placeKey: 'place-1',
+                rows: [
+                    {
+                        assetKey: 'soft-20',
+                        resourceType: 'soft',
+                        resourceId: 20,
+                        notes: {
+                            items: [
+                                { id: 7, text: 'Bring referral letter', isShared: true },
+                                { id: 8, text: 'Call before visiting', isShared: true },
+                            ],
+                        },
+                    },
+                ],
+            },
+        ],
+    };
+
+    const translated = applySharedNoteTranslationsToDirectory(directory, {
+        locale: 'ms',
+        translations: {
+            'soft-20': {
+                0: 'Bawa surat rujukan',
+            },
+        },
+    });
+
+    assert.equal(translated.assets[0].notes.items[0].text, 'Bawa surat rujukan');
+    assert.equal(translated.assets[0].notes.items[0].originalText, 'Bring referral letter');
+    assert.equal(translated.assets[0].notes.items[0].translatedLocale, 'ms');
+    assert.equal(translated.assets[0].notes.items[1].text, 'Call before visiting');
+    assert.equal(translated.places[0].rows[0].notes.items[0].text, 'Bawa surat rujukan');
+    assert.equal(directory.assets[0].notes.items[0].text, 'Bring referral letter');
+});
 
 test('buildMapNoteResourceRows returns each mapped and unmapped resource once with note counts', () => {
     const presentation = {
