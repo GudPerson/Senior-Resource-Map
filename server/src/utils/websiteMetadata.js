@@ -1,3 +1,10 @@
+import {
+    createEmptySocialLinks,
+    detectSocialPlatform,
+    mergeSocialLinks,
+    splitWebsiteAndSocialLinks,
+} from './socialLinks.js';
+
 function normalizeWhitespace(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
 }
@@ -67,6 +74,31 @@ function extractLinkHrefs(html, selectors = []) {
     }
 
     return [...new Set(matches)];
+}
+
+function extractAnchorHrefs(html) {
+    return extractTags(html, 'a')
+        .map((tag) => normalizeWhitespace(parseAttributes(tag).href || ''))
+        .filter(Boolean);
+}
+
+function extractSocialLinks(html, baseUrl) {
+    const normalized = createEmptySocialLinks();
+
+    for (const href of extractAnchorHrefs(html)) {
+        let absoluteUrl = '';
+        try {
+            absoluteUrl = new URL(href, baseUrl).toString();
+        } catch {
+            continue;
+        }
+        const platform = detectSocialPlatform(absoluteUrl);
+        if (platform && !normalized[platform]) {
+            normalized[platform] = absoluteUrl;
+        }
+    }
+
+    return normalized;
 }
 
 function extractJsonLdBlocks(html) {
@@ -327,18 +359,30 @@ export async function fetchWebsiteMetadata(url) {
         return {
             description: '',
             logoUrl: '',
+            socialLinks: createEmptySocialLinks(),
+            warnings: [],
+        };
+    }
+
+    const directSocialMatch = splitWebsiteAndSocialLinks(url);
+    if (!directSocialMatch.website) {
+        return {
+            description: '',
+            logoUrl: '',
+            socialLinks: directSocialMatch.socialLinks,
             warnings: [],
         };
     }
 
     try {
-        const { url: resolvedUrl, html } = await fetchHtml(url);
+        const { url: resolvedUrl, html } = await fetchHtml(directSocialMatch.website);
         const jsonLd = extractJsonLdHints(html);
         const metaDescription = extractMetaContent(html, [
             { attribute: 'name', value: 'description' },
             { attribute: 'property', value: 'og:description' },
             { attribute: 'name', value: 'twitter:description' },
         ]);
+        const discoveredSocialLinks = extractSocialLinks(html, resolvedUrl);
 
         const description = normalizeWhitespace(jsonLd.description || metaDescription);
         const logoUrl = await chooseValidatedLogoUrl(buildLogoCandidates({ html, resolvedUrl, jsonLd }));
@@ -346,12 +390,14 @@ export async function fetchWebsiteMetadata(url) {
         return {
             description,
             logoUrl,
+            socialLinks: mergeSocialLinks(directSocialMatch.socialLinks, discoveredSocialLinks),
             warnings: [],
         };
     } catch (error) {
         return {
             description: '',
             logoUrl: '',
+            socialLinks: directSocialMatch.socialLinks,
             warnings: [error.message || 'Website metadata could not be read.'],
         };
     }

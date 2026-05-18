@@ -28,6 +28,12 @@ import { enrichHardAssetDraftFromGooglePlaces, resolveGooglePlacePreview, search
 import { enrichPlaceCandidatesWithVertex, searchVertexGroundedPlaceSuggestions } from '../utils/vertexGroundedPlaceSearch.js';
 import { fetchWebsiteMetadata } from '../utils/websiteMetadata.js';
 import {
+    createEmptySocialLinks,
+    mergeSocialLinks,
+    normalizeSocialLinks,
+    splitWebsiteAndSocialLinks,
+} from '../utils/socialLinks.js';
+import {
     attachTranslations,
     loadTranslationsForResources,
     syncResourceTranslations,
@@ -246,6 +252,7 @@ function hasUsefulEnrichment(enrichment) {
         || enrichment?.hours
         || enrichment?.description
         || enrichment?.logoUrl
+        || Object.values(normalizeSocialLinks(enrichment?.socialLinks)).some(Boolean)
         || (Array.isArray(enrichment?.services) && enrichment.services.length > 0)
     );
 }
@@ -285,13 +292,14 @@ function scoreGroundedDraftSuggestion(candidate, suggestion) {
 
 function mapGroundedDraftSuggestionToEnrichment(suggestion) {
     if (!suggestion) return null;
+    const websiteParts = splitWebsiteAndSocialLinks(suggestion.website);
 
     return {
         index: 0,
         googlePlaceId: '',
         address: suggestion.address || '',
         postalCode: suggestion.postalCode || '',
-        website: suggestion.website || '',
+        website: websiteParts.website,
         phone: suggestion.phone || '',
         hours: suggestion.hours || '',
         description: suggestion.description || '',
@@ -299,6 +307,7 @@ function mapGroundedDraftSuggestionToEnrichment(suggestion) {
         logoUrl: suggestion.logoUrl || '',
         sourceUrl: suggestion.sourceUrl || suggestion.website || '',
         sourceTitle: suggestion.sourceTitle || suggestion.name || '',
+        socialLinks: websiteParts.socialLinks,
         confidence: Number.isFinite(Number(suggestion.confidence)) ? Number(suggestion.confidence) : 0.5,
     };
 }
@@ -319,6 +328,7 @@ function mapOfficialDirectoryEntryToEnrichment(entry, source) {
         logoUrl: '',
         sourceUrl: source.url,
         sourceTitle: source.label,
+        socialLinks: createEmptySocialLinks(),
         confidence: 0.95,
     };
 }
@@ -362,6 +372,7 @@ function mergeEnrichmentWithFallback(enrichment, fallback) {
             merged[field] = fallback[field];
         }
     });
+    merged.socialLinks = mergeSocialLinks(fallback.socialLinks, enrichment.socialLinks);
 
     const services = [...(fallback.services || []), ...(enrichment.services || [])]
         .map((service) => normalizeText(service))
@@ -468,6 +479,7 @@ function parseOfficialDirectoryBlock(block, source, metadata = {}) {
         logoUrl: '',
         sourceUrl: source.url,
         sourceTitle: source.label,
+        socialLinks: metadata.socialLinks || createEmptySocialLinks(),
         confidence: 0.9,
     };
 }
@@ -840,6 +852,7 @@ function sanitizeHardAssetPayload(body = {}) {
         phone: cleanOptionalOneLineText(body.phone, 50),
         hours: cleanOptionalText(body.hours, 3000),
         website: normalizeUrlText(body.website, 2000),
+        socialLinks: normalizeSocialLinks(body.socialLinks),
         description: cleanOptionalText(body.description, 10000),
         logoUrl: normalizeUrlText(body.logoUrl, 2000),
         bannerUrl: normalizeUrlText(body.bannerUrl, 2000),
@@ -865,6 +878,7 @@ function sanitizeHardAssetPatch(body = {}) {
         'phone',
         'hours',
         'website',
+        'socialLinks',
         'description',
         'logoUrl',
         'bannerUrl',
@@ -1328,6 +1342,7 @@ export const createHardAsset = async (c) => {
             phone,
             hours,
             website,
+            socialLinks,
             description,
             logoUrl,
             bannerUrl,
@@ -1374,6 +1389,7 @@ export const createHardAsset = async (c) => {
             phone: phone || null,
             hours: hours || null,
             website: website || null,
+            socialLinks: normalizeSocialLinks(socialLinks),
             description: description || null,
             logoUrl: logoUrl || null,
             bannerUrl: bannerUrl || null,
@@ -1508,6 +1524,7 @@ export const updateHardAsset = async (c) => {
             phone: body.phone !== undefined ? (body.phone || null) : existing.phone,
             hours: body.hours !== undefined ? (body.hours || null) : existing.hours,
             website: body.website !== undefined ? (body.website || null) : existing.website,
+            socialLinks: body.socialLinks !== undefined ? normalizeSocialLinks(body.socialLinks) : normalizeSocialLinks(existing.socialLinks),
             description: body.description !== undefined ? (body.description || null) : existing.description,
             logoUrl: body.logoUrl !== undefined ? body.logoUrl : existing.logoUrl,
             bannerUrl: body.bannerUrl !== undefined ? body.bannerUrl : existing.bannerUrl,
@@ -1577,12 +1594,14 @@ export const enrichHardAssetDraft = async (c) => {
         }
 
         const body = await c.req.json();
+        const currentWebsiteParts = splitWebsiteAndSocialLinks(body.website || body.currentWebsite);
+        const currentSocialLinks = normalizeSocialLinks(body.socialLinks || body.currentSocialLinks);
         const candidate = {
             googlePlaceId: body.googlePlaceId || '',
             name: body.name || '',
             address: body.address || '',
             postalCode: body.postalCode || '',
-            website: body.website || '',
+            website: currentWebsiteParts.website || '',
             subCategory: body.subCategory || '',
         };
         const officialDirectoryEnrichment = enrichDraftFromStaticOfficialDirectory(candidate);
@@ -1610,6 +1629,23 @@ export const enrichHardAssetDraft = async (c) => {
         if (enrichment && !enrichment.logoUrl && enrichment.sourceUrl) {
             const metadata = await fetchWebsiteMetadata(enrichment.sourceUrl);
             if (metadata.logoUrl) {
+                enrichment.logoUrl = metadata.logoUrl;
+            }
+            enrichment.socialLinks = mergeSocialLinks(enrichment.socialLinks, metadata.socialLinks);
+        }
+        if (enrichment) {
+            const enrichmentWebsiteParts = splitWebsiteAndSocialLinks(enrichment.website);
+            const metadataSource = enrichmentWebsiteParts.website || currentWebsiteParts.website || '';
+            const metadata = metadataSource ? await fetchWebsiteMetadata(metadataSource) : null;
+            enrichment.website = enrichmentWebsiteParts.website || currentWebsiteParts.website || enrichment.website || '';
+            enrichment.socialLinks = mergeSocialLinks(
+                currentSocialLinks,
+                currentWebsiteParts.socialLinks,
+                enrichment.socialLinks,
+                enrichmentWebsiteParts.socialLinks,
+                metadata?.socialLinks,
+            );
+            if (!enrichment.logoUrl && metadata?.logoUrl) {
                 enrichment.logoUrl = metadata.logoUrl;
             }
         }

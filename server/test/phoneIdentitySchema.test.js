@@ -131,6 +131,28 @@ test('runtime schema bootstrap includes My Map note columns', async () => {
     );
 });
 
+test('runtime schema bootstrap includes hard asset social links column', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('alter table hard_assets add column if not exists social_links')
+            && statement.includes('jsonb')
+            && statement.includes("default '{}'::jsonb")
+        )),
+        'expected hard asset social_links column bootstrap SQL',
+    );
+});
+
 test('runtime schema bootstrap includes partner organisation and staff bridge tables', async () => {
     resetBoundarySchemaBootstrapForTests();
     const statements = [];

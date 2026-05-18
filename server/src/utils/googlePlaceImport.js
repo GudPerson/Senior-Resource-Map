@@ -1,4 +1,5 @@
 import { fetchWebsiteMetadata } from './websiteMetadata.js';
+import { createEmptySocialLinks, mergeSocialLinks, splitWebsiteAndSocialLinks } from './socialLinks.js';
 import { searchVertexGroundedPlaceSuggestions, enrichPlaceCandidatesWithVertex } from './vertexGroundedPlaceSearch.js';
 
 const GOOGLE_MAP_HOSTS = new Set([
@@ -565,7 +566,8 @@ function inferDraftEnrichmentTags(place, candidate, availableHardSubCategories =
 }
 
 function mapGooglePlaceToDraftEnrichment(place, websiteMetadata, candidate, availableHardSubCategories = []) {
-    const website = normalizeText(place?.websiteUri);
+    const rawWebsite = normalizeText(place?.websiteUri);
+    const websiteParts = splitWebsiteAndSocialLinks(rawWebsite);
     const description = normalizeText(
         place?.editorialSummary?.text
         || place?.editorialSummary
@@ -577,14 +579,15 @@ function mapGooglePlaceToDraftEnrichment(place, websiteMetadata, candidate, avai
         googlePlaceId: normalizeText(place?.id),
         address: normalizeText(place?.formattedAddress),
         postalCode: extractPostalCode(place),
-        website,
+        website: websiteParts.website,
         phone: normalizeText(place?.nationalPhoneNumber),
         hours: formatOpeningHours(place),
         description,
         services: inferDraftEnrichmentTags(place, candidate, availableHardSubCategories),
         logoUrl: normalizeText(websiteMetadata?.logoUrl),
-        sourceUrl: website || normalizeText(place?.googleMapsUri),
+        sourceUrl: rawWebsite || normalizeText(place?.googleMapsUri),
         sourceTitle: placeDisplayName(place),
+        socialLinks: mergeSocialLinks(websiteParts.socialLinks, websiteMetadata?.socialLinks),
         confidence: 0.78,
     };
 }
@@ -622,7 +625,7 @@ export async function enrichHardAssetDraftFromGooglePlaces(env, candidate, avail
 
     const detailedPlace = await fetchPlaceDetails(apiKey, best);
     const website = normalizeText(detailedPlace?.websiteUri);
-    const websiteMetadata = website ? await fetchWebsiteMetadata(website) : { description: '', logoUrl: '' };
+    const websiteMetadata = website ? await fetchWebsiteMetadata(website) : { description: '', logoUrl: '', socialLinks: createEmptySocialLinks() };
 
     return mapGooglePlaceToDraftEnrichment(detailedPlace, websiteMetadata, candidate, availableHardSubCategories);
 }
@@ -816,6 +819,7 @@ function buildImportedHardAssetDraftSeed(candidate) {
         phone: candidate.phone || '',
         hours: candidate.hours || '',
         website: candidate.website || '',
+        socialLinks: candidate.socialLinks || createEmptySocialLinks(),
         description: candidate.description || '',
         logoUrl: candidate.logoUrl || '',
         bannerUrl: '',
@@ -899,6 +903,7 @@ async function searchVertexFallbackCandidates(
         }
 
         const dedupeKey = `${normalizeSearchText(name)}::${postalCode || normalizeSearchText(geocoded.address)}`;
+        const websiteParts = splitWebsiteAndSocialLinks(rawCandidate?.website);
         const normalizedCandidate = {
             googlePlaceId: '',
             googleMapsUri: '',
@@ -912,7 +917,8 @@ async function searchVertexFallbackCandidates(
             distanceMeters,
             matchedKeywords: dedupeTags(rawCandidate?.suggestedTags),
             suggestedTags: dedupeTags(rawCandidate?.suggestedTags),
-            website: normalizeUrl(rawCandidate?.website),
+            website: websiteParts.website,
+            socialLinks: websiteParts.socialLinks,
             phone: normalizeText(rawCandidate?.phone),
             hours: normalizeText(rawCandidate?.hours || rawCandidate?.openingHours || rawCandidate?.operatingHours),
             description: normalizeText(rawCandidate?.description),
@@ -1243,12 +1249,15 @@ export async function resolveGooglePlacePreview(env, input, availableHardSubCate
     }
 
     const place = resolvedPlace.place;
-    const website = normalizeText(place?.websiteUri);
-    const websiteMetadata = website ? await fetchWebsiteMetadata(website) : { description: '', logoUrl: '', warnings: [] };
+    const rawWebsite = normalizeText(place?.websiteUri);
+    const websiteSplit = splitWebsiteAndSocialLinks(rawWebsite);
+    const websiteMetadata = rawWebsite ? await fetchWebsiteMetadata(rawWebsite) : { description: '', logoUrl: '', socialLinks: createEmptySocialLinks(), warnings: [] };
+    const website = websiteSplit.website;
+    const socialLinks = mergeSocialLinks(websiteSplit.socialLinks, websiteMetadata.socialLinks);
     const description = normalizeText(place?.editorialSummary?.text || place?.editorialSummary || websiteMetadata.description);
     const warnings = [];
 
-    if (!website) {
+    if (!rawWebsite) {
         warnings.push('Google did not return a website for this place.');
     }
     if (!websiteMetadata.logoUrl) {
@@ -1273,6 +1282,7 @@ export async function resolveGooglePlacePreview(env, input, availableHardSubCate
         hours: formatOpeningHours(place),
         description,
         website,
+        socialLinks,
         logoUrl: normalizeText(websiteMetadata.logoUrl),
         subCategorySuggestion: suggestSubCategory(place?.primaryType, availableHardSubCategories),
     };

@@ -15,6 +15,7 @@ import { useEffect, useState, useMemo } from 'react';
 
 import { api } from '../lib/api.js';
 import { collectSubregionPostalCodes } from '../lib/postalBoundaries.js';
+import { createEmptySocialLinks, mergeSocialLinks } from '../lib/socialLinks.js';
 import AssetForm from './AssetForm.jsx';
 
 function dedupeTags(values) {
@@ -39,6 +40,7 @@ function buildImportedHardAssetDraft(preview) {
         phone: suggestion.phone || '',
         hours: suggestion.hours || '',
         website: suggestion.website || '',
+        socialLinks: mergeSocialLinks(suggestion.socialLinks, preview?.aiSocialLinks),
         // Use AI-generated description/logo as fallback when Places preview has none
         description: suggestion.description || preview?.aiDescription || '',
         logoUrl: suggestion.logoUrl || preview?.aiLogoUrl || '',
@@ -69,6 +71,7 @@ function buildAddressOnlyPreview(postalResults) {
             hours: '',
             description: '',
             website: '',
+            socialLinks: createEmptySocialLinks(),
             logoUrl: '',
             subCategorySuggestion: 'Places',
             suggestedTags: [],
@@ -127,6 +130,7 @@ function createCandidateDraft(candidate) {
         // AI enrichment fields carried into the queue object
         aiDescription: candidate.aiDescription || '',
         aiLogoUrl: candidate.aiLogoUrl || '',
+        aiSocialLinks: candidate.aiSocialLinks || candidate.socialLinks || createEmptySocialLinks(),
         aiServices: Array.isArray(candidate.aiServices) ? candidate.aiServices : [],
         groundingSourceUrl: candidate.groundingSourceUrl || '',
         groundingSourceTitle: candidate.groundingSourceTitle || '',
@@ -764,6 +768,7 @@ export default function HardAssetImportWizard({
                 // Merge AI enrichment from the candidate as fallbacks for empty Places preview fields
                 aiDescription: draft.aiDescription || '',
                 aiLogoUrl: draft.aiLogoUrl || '',
+                aiSocialLinks: draft.aiSocialLinks || createEmptySocialLinks(),
                 aiServices: Array.isArray(draft.aiServices) ? draft.aiServices : [],
             };
             const formDraft = buildImportedHardAssetDraft(previewWithTags);

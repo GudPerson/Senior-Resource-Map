@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarDays, Clock, MapPin, Navigation, Phone } from 'lucide-react';
+import { Building2, CalendarDays, Clock, ExternalLink, Globe, Mail, MapPin, Navigation, Phone } from 'lucide-react';
 
 import { getDistance } from '../lib/geo.js';
 import {
@@ -15,6 +15,7 @@ import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import PartnerPrivatePanel from './PartnerPrivatePanel.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
+import { getSocialLinkEntries, mergeSocialLinks, splitWebsiteAndSocialLinks } from '../lib/socialLinks.js';
 
 function TagBadge({ tag }) {
     return (
@@ -33,6 +34,50 @@ function formatDistance(distance, t) {
     return distance < 1
         ? t('distanceMetersAway', { distance: Math.round(distance * 1000) })
         : t('distanceKmAway', { distance: distance.toFixed(1) });
+}
+
+function normalizeExternalHref(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const candidate = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    try {
+        return new URL(candidate).toString();
+    } catch {
+        return '';
+    }
+}
+
+function SocialLinksStrip({ socialLinks, t }) {
+    const entries = getSocialLinkEntries(socialLinks);
+    if (entries.length === 0) return null;
+
+    return (
+        <div className="sm:col-span-2">
+            <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Globe size={22} /></div>
+                <div className="min-w-0">
+                    <p className="font-bold text-slate-900 mb-2">{t('socialChannels')}</p>
+                    <div className="flex flex-wrap gap-2">
+                        {entries.map((entry) => (
+                            <a
+                                key={entry.key}
+                                href={entry.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`${t('openExternalLink')} ${entry.label}`}
+                                title={entry.label}
+                                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-brand-300 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <span>{entry.label}</span>
+                                <ExternalLink size={14} />
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export default function ResourceDetailContent({
@@ -117,6 +162,12 @@ export default function ResourceDetailContent({
     const primaryLocation = isHard ? asset : (softLocations[0] || asset.location || null);
     const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
     const phone = asset?.phone || primaryLocation?.phone;
+    const websiteParts = isHard ? splitWebsiteAndSocialLinks(asset?.website) : { website: '', socialLinks: {} };
+    const websiteHref = isHard ? normalizeExternalHref(websiteParts.website) : '';
+    const visibleSocialLinks = isHard ? mergeSocialLinks(asset?.socialLinks, websiteParts.socialLinks) : {};
+    const contactEmail = !isHard ? String(asset?.contactEmail || '').trim() : '';
+    const externalCtaLabel = !isHard ? String(asset?.ctaLabel || '').trim() || t('openLink') : '';
+    const externalCtaHref = !isHard ? normalizeExternalHref(asset?.ctaUrl) : '';
     const availablePlaceCount = isHard ? 0 : softLocations.length;
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
@@ -314,6 +365,60 @@ export default function ResourceDetailContent({
                         </div>
                     ) : null}
 
+                    {websiteHref ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Globe size={22} /></div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-slate-900 mb-1">{t('website')}</p>
+                                <a
+                                    href={websiteHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex max-w-full items-center gap-1 break-all text-brand-700 hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
+                                    <span className="min-w-0 break-all">{asset.website || websiteHref}</span>
+                                    <ExternalLink size={15} className="flex-shrink-0" />
+                                </a>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {contactEmail ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Mail size={22} /></div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-slate-900 mb-1">{t('email')}</p>
+                                <a
+                                    href={`mailto:${contactEmail}`}
+                                    className="break-all text-brand-700 hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
+                                    {contactEmail}
+                                </a>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {externalCtaHref ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><ExternalLink size={22} /></div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-slate-900 mb-1">{t('link')}</p>
+                                <a
+                                    href={externalCtaHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex max-w-full items-center gap-1 break-all text-brand-700 hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
+                                    <span className="min-w-0 break-all">{externalCtaLabel}</span>
+                                    <ExternalLink size={15} className="flex-shrink-0" />
+                                </a>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {phone ? (
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Phone size={22} /></div>
@@ -323,6 +428,8 @@ export default function ResourceDetailContent({
                             </div>
                         </div>
                     ) : null}
+
+                    {isHard ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
                 </div>
 
                 {asset.tags && asset.tags.length > 0 ? (

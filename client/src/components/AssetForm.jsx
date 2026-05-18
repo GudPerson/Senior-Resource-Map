@@ -7,6 +7,7 @@ import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/av
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
 import { getPreferredSubregionMatch, resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
 import { normalizeRole } from '../lib/roles.js';
+import { createEmptySocialLinks, mergeSocialLinks, normalizeSocialLinks, SOCIAL_PLATFORMS } from '../lib/socialLinks.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
@@ -77,6 +78,15 @@ function buildEnrichmentPatch(form, data, services) {
         appliedFields.push(label);
     });
 
+    const mergedSocialLinks = mergeSocialLinks(form.socialLinks, data?.socialLinks);
+    const hasNewSocialLinks = SOCIAL_PLATFORMS.some((platform) => (
+        mergedSocialLinks[platform.key] && mergedSocialLinks[platform.key] !== normalizeSocialLinks(form.socialLinks)[platform.key]
+    ));
+    if (hasNewSocialLinks) {
+        patch.socialLinks = mergedSocialLinks;
+        appliedFields.push('social links');
+    }
+
     const existingTags = new Set((form.newTags || []).map((tag) => String(tag).toLowerCase()));
     const nextTags = services.filter((tag) => !existingTags.has(String(tag).toLowerCase()));
     if (nextTags.length > 0) {
@@ -109,6 +119,7 @@ function buildInitialForm(type, initialData, currentUser) {
             coverageRegionIds: initialData.coverageRegionIds || (initialData.subregionId ? [initialData.subregionId] : []),
             postalCode: initialData.postalCode || '',
             website: initialData.website || '',
+            socialLinks: normalizeSocialLinks(initialData.socialLinks),
             sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
             sourceGoogleMapsUri: initialData.sourceGoogleMapsUri || '',
         };
@@ -126,6 +137,7 @@ function buildInitialForm(type, initialData, currentUser) {
             phone: '',
             hours: '',
             website: '',
+            socialLinks: createEmptySocialLinks(),
             description: '',
             logoUrl: '',
             bannerUrl: '',
@@ -341,13 +353,16 @@ export default function AssetForm({
                 address: form.address,
                 postalCode: form.postalCode,
                 website: form.website,
+                socialLinks: form.socialLinks || createEmptySocialLinks(),
                 subCategory: form.subCategory,
             });
             const services = Array.isArray(data?.services) ? data.services.filter(Boolean) : [];
+            const hasSocialSuggestions = SOCIAL_PLATFORMS.some((platform) => data?.socialLinks?.[platform.key]);
             const hasSuggestions = Boolean(
                 data?.address
                 || data?.phone
                 || data?.website
+                || hasSocialSuggestions
                 || data?.hours
                 || data?.description
                 || data?.logoUrl
@@ -393,6 +408,7 @@ export default function AssetForm({
 
             if (isHard) {
                 delete payload.bucket;
+                payload.socialLinks = normalizeSocialLinks(payload.socialLinks);
                 delete payload.ownershipMode;
                 delete payload.partnerId;
                 if (hardSubregionResult.status !== 'ok') {
@@ -478,8 +494,19 @@ export default function AssetForm({
     }));
     const selectedCoverageRegionOptions = coverageRegionOptions.filter((option) => (form.coverageRegionIds || []).map(Number).includes(Number(option.value)));
     const websiteHref = useMemo(() => (isHard ? normalizeExternalHref(form.website) : ''), [form.website, isHard]);
+    const normalizedSocialLinks = useMemo(() => normalizeSocialLinks(form.socialLinks), [form.socialLinks]);
     const hasLogoImage = Boolean(form.logoUrl);
     const hasBannerImage = Boolean(form.bannerUrl);
+
+    function setSocialLink(platformKey, value) {
+        setForm((prev) => ({
+            ...prev,
+            socialLinks: {
+                ...normalizeSocialLinks(prev.socialLinks),
+                [platformKey]: value,
+            },
+        }));
+    }
 
     function moveLogoToBanner() {
         if (!form.logoUrl) return;
@@ -857,6 +884,46 @@ export default function AssetForm({
                                     <ExternalLink size={13} className="flex-shrink-0" />
                                 </a>
                             ) : null}
+                        </div>
+                        <div className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900"><Globe size={13} className="inline mr-1" />Social media links</p>
+                                    <p className="mt-1 text-xs text-slate-500">Optional public channels shown on the resource detail card.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {SOCIAL_PLATFORMS.map((platform) => {
+                                        const href = normalizeExternalHref(normalizedSocialLinks[platform.key]);
+                                        if (!href) return null;
+                                        return (
+                                            <a
+                                                key={platform.key}
+                                                href={href}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 rounded-full border border-brand-100 bg-white px-2.5 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+                                            >
+                                                {platform.label}
+                                                <ExternalLink size={12} />
+                                            </a>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {SOCIAL_PLATFORMS.map((platform) => (
+                                    <div key={platform.key}>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">{platform.label}</label>
+                                        <input
+                                            type="url"
+                                            value={form.socialLinks?.[platform.key] || ''}
+                                            onChange={(e) => setSocialLink(platform.key, e.target.value)}
+                                            placeholder={platform.placeholder}
+                                            className="input-field text-sm"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </>
                 )}

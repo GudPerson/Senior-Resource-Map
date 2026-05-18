@@ -129,6 +129,7 @@ export const hardAssets = pgTable('hard_assets', {
   phone: varchar('phone', { length: 50 }),
   hours: text('hours'),
   website: text('website'),
+  socialLinks: jsonb('social_links').default({}),
   description: text('description'),
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
