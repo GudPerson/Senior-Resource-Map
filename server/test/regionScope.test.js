@@ -4,10 +4,8 @@ import assert from 'node:assert/strict';
 import {
     attachHardAssetRegionMatches,
     attachStandaloneSoftAssetCoverage,
-    filterHardAssetsByRegionRelevance,
     filterSoftAssetsByRegionRelevance,
     getActorRegionIds,
-    hardAssetMatchesActorRegions,
     standaloneSoftAssetMatchesActorRegions,
     summarizeMatchingRegions,
 } from '../src/utils/regionScope.js';
@@ -23,33 +21,7 @@ function actor(overrides = {}) {
     };
 }
 
-test('hard asset read relevance follows overlapping postal-code regions', () => {
-    const asset = {
-        id: 99,
-        postalCode: '680153',
-        matchingRegionIds: [10, 20, 30],
-        subregionId: 20,
-    };
-
-    assert.equal(hardAssetMatchesActorRegions(actor({ subregionIds: [10] }), asset), true);
-    assert.equal(hardAssetMatchesActorRegions(actor({ subregionIds: [30] }), asset), true);
-    assert.equal(hardAssetMatchesActorRegions(actor({ subregionIds: [40] }), asset), false);
-});
-
-test('hard asset direct owner or staff access grants relevance without a region match', () => {
-    const asset = {
-        id: 77,
-        matchingRegionIds: [],
-    };
-
-    assert.equal(hardAssetMatchesActorRegions(actor({
-        subregionIds: [],
-        hardAssetStaffAccess: [{ hardAssetId: 77, staffRole: 'staff' }],
-    }), asset), true);
-});
-
-test('super admin is region-relevant for every asset', () => {
-    assert.equal(hardAssetMatchesActorRegions(actor({ role: 'super_admin', subregionIds: [] }), { id: 99 }), true);
+test('super admin is region-relevant for every standalone soft asset', () => {
     assert.equal(standaloneSoftAssetMatchesActorRegions(actor({ role: 'super_admin', subregionIds: [] }), { id: 501 }), true);
 });
 
@@ -107,13 +79,34 @@ test('postal-code rows attach all matching regions to hard assets', () => {
     );
 });
 
-test('managed hard asset read scope uses region relevance, not edit authority', () => {
-    const scoped = filterHardAssetsByRegionRelevance([
-        { id: 1, matchingRegionIds: [10] },
-        { id: 2, matchingRegionIds: [20] },
-    ], actor({ subregionIds: [10] }));
+test('Singapore national region covers SG hard assets when exact postal rows are missing', () => {
+    const assets = [
+        { id: 1, country: 'SG', postalCode: '679440' },
+        { id: 2, country: 'MY', postalCode: '679440' },
+        { id: 3, country: 'SG', postalCode: 'not-a-postal' },
+    ];
 
-    assert.deepEqual(scoped.map((asset) => asset.id), [1]);
+    assert.deepEqual(
+        attachHardAssetRegionMatches(assets, [], { singaporeRegionId: 186 })
+            .map((asset) => [asset.id, asset.matchingRegionIds]),
+        [[1, [186]], [2, []], [3, []]],
+    );
+});
+
+test('Singapore national region coexists with exact local hard asset matches', () => {
+    const assets = [
+        { id: 1, country: 'SG', postalCode: '680153' },
+    ];
+    const regionRows = [
+        { postalCode: '680153', subregionId: 10 },
+        { postalCode: '680153', subregionId: 20 },
+    ];
+
+    assert.deepEqual(
+        attachHardAssetRegionMatches(assets, regionRows, { singaporeRegionId: 186 })
+            .map((asset) => [asset.id, asset.matchingRegionIds]),
+        [[1, [10, 20, 186]]],
+    );
 });
 
 test('standalone soft asset coverage attaches service region ids', () => {

@@ -17,6 +17,7 @@ import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
+import { loadSingaporeFallbackRegion } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
     filterSoftAssetsForResourceList,
@@ -346,6 +347,7 @@ function buildSoftAssetPermissionSummary(viewer, asset) {
 }
 
 async function attachSoftAssetRegionMetadata(db, assets = []) {
+    const singaporeRegion = await loadSingaporeFallbackRegion(db);
     const hardLocationEntries = assets.flatMap((asset) => {
         const entries = [];
         if (asset?.hostHardAsset) entries.push(asset.hostHardAsset);
@@ -363,7 +365,9 @@ async function attachSoftAssetRegionMetadata(db, assets = []) {
             .from(subregionPostalCodes)
             .where(inArray(subregionPostalCodes.postalCode, hardPostalCodes))
         : [];
-    const hardAssetsWithRegions = attachHardAssetRegionMatches(hardLocationEntries, hardRegionRows);
+    const hardAssetsWithRegions = attachHardAssetRegionMatches(hardLocationEntries, hardRegionRows, {
+        singaporeRegionId: singaporeRegion?.id,
+    });
     const matchingRegionsByHardAssetId = new Map(
         hardAssetsWithRegions.map((asset) => [Number(asset.id), asset.matchingRegionIds || []])
     );

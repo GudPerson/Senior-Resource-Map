@@ -33,7 +33,7 @@ test('resource lists count after filtering before pagination', () => {
     assert.equal(page.pagination.totalPages, 2);
 });
 
-test('managed hard asset lists include hidden direct assignments but not unrelated public assets', () => {
+test('managed hard asset lists include visible places regardless of boundary plus hidden direct assignments', () => {
     const user = actor({
         hardAssetStaffAccess: [{
             hardAssetId: 10,
@@ -43,6 +43,7 @@ test('managed hard asset lists include hidden direct assignments but not unrelat
     const assets = [
         { id: 10, isHidden: true, partnerId: null, subregionId: 4 },
         { id: 11, isHidden: false, partnerId: null, subregionId: 4 },
+        { id: 12, isHidden: true, partnerId: null, subregionId: 4 },
     ];
 
     const scoped = filterHardAssetsForResourceList(assets, user, {
@@ -50,17 +51,18 @@ test('managed hard asset lists include hidden direct assignments but not unrelat
         isVisible: (asset) => !asset.isHidden,
     });
 
-    assert.deepEqual(scoped.map((asset) => asset.id), [10]);
+    assert.deepEqual(scoped.map((asset) => asset.id), [10, 11]);
 });
 
-test('managed hard asset lists include region-relevant assets without edit authority', () => {
+test('managed hard asset lists do not use boundaries to hide visible places', () => {
     const user = actor({
         role: 'regional_admin',
         subregionIds: [10],
     });
     const assets = [
-        { id: 10, isHidden: true, partnerId: null, matchingRegionIds: [10] },
+        { id: 10, isHidden: false, partnerId: null, matchingRegionIds: [10] },
         { id: 11, isHidden: false, partnerId: null, matchingRegionIds: [20] },
+        { id: 12, isHidden: true, partnerId: null, matchingRegionIds: [20] },
     ];
 
     const scoped = filterHardAssetsForResourceList(assets, user, {
@@ -68,7 +70,7 @@ test('managed hard asset lists include region-relevant assets without edit autho
         isVisible: (asset) => !asset.isHidden,
     });
 
-    assert.deepEqual(scoped.map((asset) => asset.id), [10]);
+    assert.deepEqual(scoped.map((asset) => asset.id), [10, 11]);
 });
 
 test('managed soft asset lists follow direct access to linked hard assets', () => {

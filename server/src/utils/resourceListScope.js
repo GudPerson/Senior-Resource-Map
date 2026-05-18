@@ -1,7 +1,5 @@
-import {
-    filterHardAssetsByRegionRelevance,
-    filterSoftAssetsByRegionRelevance,
-} from './regionScope.js';
+import { hasHardAssetStaffAccess } from './hardAssetStaff.js';
+import { filterSoftAssetsByRegionRelevance } from './regionScope.js';
 import { normalizeRole } from './roles.js';
 
 export function normalizeResourceListScope(value) {
@@ -37,12 +35,18 @@ export function paginateResourceList(items = [], input = {}) {
     };
 }
 
+function canSeeManagedHardAsset(asset, actor, isVisible) {
+    if (isVisible(asset)) return true;
+    if (normalizeRole(actor?.role) === 'super_admin') return true;
+    return hasHardAssetStaffAccess(actor, asset?.id, ['owner', 'staff']);
+}
+
 export function filterHardAssetsForResourceList(assets = [], actor, options = {}) {
     const scope = normalizeResourceListScope(options.scope);
     const isVisible = typeof options.isVisible === 'function' ? options.isVisible : () => true;
 
     if (scope === 'managed') {
-        return filterHardAssetsByRegionRelevance(assets, actor);
+        return assets.filter((asset) => canSeeManagedHardAsset(asset, actor, isVisible));
     }
 
     return assets.filter((asset) => isVisible(asset));

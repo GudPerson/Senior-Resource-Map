@@ -9,7 +9,7 @@ import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
-import { resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
+import { loadSingaporeFallbackRegion, resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
     filterHardAssetsForResourceList,
@@ -925,6 +925,7 @@ export const getHardAssets = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         const boundaryContext = await loadScopedBoundaryContext(db, user);
+        const singaporeRegion = await loadSingaporeFallbackRegion(db);
         const allowedPartnerAudienceIds = await resolveStandardAudiencePartnerIds(db, user);
         const allowedAudienceZoneIds = await resolveStandardAudienceZoneIds(db, user);
 
@@ -980,7 +981,9 @@ export const getHardAssets = async (c) => {
                 .from(subregionPostalCodes)
                 .where(inArray(subregionPostalCodes.postalCode, candidatePostalCodes))
             : [];
-        const candidateAssetsWithRegions = attachHardAssetRegionMatches(candidateAssets, regionRows);
+        const candidateAssetsWithRegions = attachHardAssetRegionMatches(candidateAssets, regionRows, {
+            singaporeRegionId: singaporeRegion?.id,
+        });
         const scopedAssets = filterHardAssetsForResourceList(candidateAssetsWithRegions, user, {
             scope: listScope,
             isVisible: (asset) => isAssetVisible(asset, user, { ownerPartner: asset.partner }),
@@ -1223,7 +1226,10 @@ export const getHardAssetById = async (c) => {
                 .from(subregionPostalCodes)
                 .where(eq(subregionPostalCodes.postalCode, asset.postalCode))
             : [];
-        const [assetWithRegions] = attachHardAssetRegionMatches([asset], regionRows);
+        const singaporeRegion = await loadSingaporeFallbackRegion(db);
+        const [assetWithRegions] = attachHardAssetRegionMatches([asset], regionRows, {
+            singaporeRegionId: singaporeRegion?.id,
+        });
         const nestedSoftAssets = [
             ...(assetWithRegions.softAssets || []).map((entry) => entry.softAsset).filter(Boolean),
             ...(assetWithRegions.hostedSoftAssets || []).filter(Boolean),
