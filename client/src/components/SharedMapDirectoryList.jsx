@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import {
     buildMapNoteResourceRows,
+    buildMapNoteRowBadgeParts,
     buildMapNoteSummaryParts,
     getMapNoteResourceSummary,
     getNoteRowsForGroup,
@@ -511,34 +512,32 @@ function MapNotesOverlay({
                             <p className="text-sm font-semibold leading-6 text-slate-500">
                                 {readonly ? t('mapNotesSharedListHelp') : t('mapNotesResourceListHelp')}
                             </p>
-                            {visibleRows.map((row) => {
-                                const notes = normalizeNoteItems(row?.notes);
-                                return (
-                                    <button
-                                        type="button"
-                                        key={getRowAssetKey(row)}
-                                        onClick={() => onSelectResource(row)}
-                                        className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                                    >
-                                        <ResourceRowIcon
-                                            resourceType={row.resourceType}
-                                            bucket={row.bucket}
-                                            subCategory={row.subCategory}
-                                        />
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-black leading-tight text-slate-900">{row.name}</span>
-                                            <span className="mt-1 block truncate text-xs font-semibold leading-5 text-slate-500">
-                                                {row.mapNoteContext || (row.mapNoteSource === 'unmapped' ? t('unmappedResources') : '')}
-                                            </span>
+                            {visibleRows.map((row) => (
+                                <button
+                                    type="button"
+                                    key={getRowAssetKey(row)}
+                                    onClick={() => onSelectResource(row)}
+                                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                >
+                                    <ResourceRowIcon
+                                        resourceType={row.resourceType}
+                                        bucket={row.bucket}
+                                        subCategory={row.subCategory}
+                                    />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-black leading-tight text-slate-900">{row.name}</span>
+                                        <span className="mt-1 block truncate text-xs font-semibold leading-5 text-slate-500">
+                                            {row.mapNoteContext || (row.mapNoteSource === 'unmapped' ? t('unmappedResources') : '')}
                                         </span>
-                                        <span className="flex flex-shrink-0 items-center gap-1.5">
-                                            <NoteCountPill count={notes.length} />
-                                            <NoteCountPill count={notes.filter((note) => note.isShared).length} tone="slate" />
-                                            <ChevronRight size={18} className="text-slate-400" />
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                                    </span>
+                                    <span className="flex flex-shrink-0 items-center gap-1.5">
+                                        {buildMapNoteRowBadgeParts(row, { mode }).map((part) => (
+                                            <NoteCountPill key={part.key} count={part.count} tone={part.tone} />
+                                        ))}
+                                        <ChevronRight size={18} className="text-slate-400" />
+                                    </span>
+                                </button>
+                            ))}
                         </div>
                     )}
                 </div>

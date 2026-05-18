@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     buildMapNoteResourceRows,
+    buildMapNoteRowBadgeParts,
     buildMapNoteSummaryParts,
     getMapNoteResourceSummary,
 } from '../src/lib/mapNotes.js';
@@ -102,5 +103,25 @@ test('buildMapNoteSummaryParts hides the shared-note count from shared map recei
     assert.deepEqual(buildMapNoteSummaryParts(summary, { mode: 'shared' }), [
         { key: 'resources', count: 12 },
         { key: 'notes', count: 3 },
+    ]);
+});
+
+test('buildMapNoteRowBadgeParts shows only visible note count to shared map receivers', () => {
+    const row = {
+        notes: {
+            items: [
+                { id: 1, text: 'Call first', isShared: true },
+                { id: 2, text: 'Bring form', isShared: true },
+            ],
+        },
+    };
+
+    assert.deepEqual(buildMapNoteRowBadgeParts(row, { mode: 'owner' }), [
+        { key: 'notes', count: 2, tone: 'brand' },
+        { key: 'shared', count: 2, tone: 'slate' },
+    ]);
+
+    assert.deepEqual(buildMapNoteRowBadgeParts(row, { mode: 'shared' }), [
+        { key: 'notes', count: 2, tone: 'brand' },
     ]);
 });

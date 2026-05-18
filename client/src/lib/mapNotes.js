@@ -136,3 +136,21 @@ export function buildMapNoteSummaryParts(summary = {}, options = {}) {
 
     return parts;
 }
+
+export function buildMapNoteRowBadgeParts(row, options = {}) {
+    const mode = options.mode || 'owner';
+    const notes = normalizeNoteItems(row?.notes);
+    const parts = [
+        { key: 'notes', count: notes.length, tone: 'brand' },
+    ];
+
+    if (mode !== 'shared') {
+        parts.push({
+            key: 'shared',
+            count: notes.filter((note) => note.isShared).length,
+            tone: 'slate',
+        });
+    }
+
+    return parts.filter((part) => part.count > 0);
+}
