@@ -9,6 +9,7 @@ import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
+import { resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
     filterHardAssetsForResourceList,
@@ -47,6 +48,29 @@ import {
 } from '../utils/inputValidation.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
+
+function isMissingSubregionBoundaryError(error) {
+    return Number(error?.status || 0) === 400
+        && /does not match any configured subregion boundary/i.test(String(error?.message || ''));
+}
+
+function isSingaporeCountry(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'sg' || normalized === 'singapore';
+}
+
+async function resolvePlaceWritableSubregionByPostal(db, postalCode, country, user, entityLabel = 'Postal code') {
+    try {
+        return await resolveWritableSubregionByPostal(db, postalCode, user, entityLabel);
+    } catch (error) {
+        if (!isMissingSubregionBoundaryError(error)) throw error;
+        if (!isSingaporeCountry(country)) throw error;
+
+        const fallback = await resolveSingaporePostalFallback(db, postalCode, user);
+        if (fallback) return fallback;
+        throw error;
+    }
+}
 
 const COUNTRY_NAMES = {
     US: 'United States', CA: 'Canada', GB: 'United Kingdom', AU: 'Australia',
@@ -1360,12 +1384,14 @@ export const createHardAsset = async (c) => {
             return c.json({ error: 'name, country, postalCode, address are required' }, 400);
         }
 
-        const derivedRouting = await resolveWritableSubregionByPostal(db, postalCode, user, 'Postal code');
+        const derivedRouting = await resolvePlaceWritableSubregionByPostal(db, postalCode, country, user, 'Postal code');
         const derivedSubregion = derivedRouting.subregion;
         ensureActorCanCreateInSubregion(user, derivedSubregion.id);
 
         const { owner } = await resolveAssetOwner(db, user, body, derivedSubregion.id);
-        const coords = await geocode(postalCode, country);
+        const coords = derivedRouting.oneMapLocation
+            ? { lat: derivedRouting.oneMapLocation.lat, lng: derivedRouting.oneMapLocation.lng }
+            : await geocode(postalCode, country);
         if (!coords) {
             return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
         }
@@ -1487,7 +1513,7 @@ export const updateHardAsset = async (c) => {
         }
         const nextPostalCode = body.postalCode ?? existing.postalCode;
         const nextCountry = body.country ?? existing.country;
-        const derivedRouting = await resolveWritableSubregionByPostal(db, nextPostalCode, user, 'Postal code');
+        const derivedRouting = await resolvePlaceWritableSubregionByPostal(db, nextPostalCode, nextCountry, user, 'Postal code');
         const derivedSubregion = derivedRouting.subregion;
         ensureActorCanCreateInSubregion(user, derivedSubregion.id);
 
@@ -1503,7 +1529,9 @@ export const updateHardAsset = async (c) => {
         let lat = existing.lat;
         let lng = existing.lng;
         if (nextPostalCode !== existing.postalCode || nextCountry !== existing.country) {
-            const coords = await geocode(nextPostalCode, nextCountry);
+            const coords = derivedRouting.oneMapLocation
+                ? { lat: derivedRouting.oneMapLocation.lat, lng: derivedRouting.oneMapLocation.lng }
+                : await geocode(nextPostalCode, nextCountry);
             if (!coords) {
                 return c.json({ error: `Could not find location for postal code "${nextPostalCode}" in "${nextCountry}".` }, 400);
             }

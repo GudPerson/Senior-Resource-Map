@@ -36,6 +36,7 @@ import { normalizeRole } from '../utils/roles.js';
 import { actorCanManageAsset, actorCanManagePartnerOwnedEntity, canAssignPartnerOwner } from '../utils/ownership.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
+import { resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
@@ -1008,6 +1009,7 @@ async function importPlaces(db, actor, rows, references, env) {
 
     // 2. Bulk Fetch Subregions
     const subregionMap = new Map();
+    const fallbackLocationMap = new Map();
     if (uniquePostals.size > 0) {
         for (const postalChunk of chunkArray(Array.from(uniquePostals), PREFETCH_BATCH_SIZE)) {
             const matches = await db
@@ -1067,9 +1069,19 @@ async function importPlaces(db, actor, rows, references, env) {
                 throw new Error(`The following fields are required: ${missingFields.join(', ')}`);
             }
 
-            const derivedSubregion = subregionMap.get(postalCode);
+            let derivedSubregion = subregionMap.get(postalCode);
             if (!derivedSubregion) {
-                throw new Error(`Postal code ${postalCode} does not match any configured subregion.`);
+                const fallback = country === 'SG'
+                    ? await resolveSingaporePostalFallback(db, postalCode, actor)
+                    : null;
+                if (!fallback) {
+                    throw new Error(`Postal code ${postalCode} does not match any configured subregion.`);
+                }
+                derivedSubregion = fallback.subregion;
+                subregionMap.set(postalCode, derivedSubregion);
+                if (fallback.oneMapLocation) {
+                    fallbackLocationMap.set(postalCode, fallback.oneMapLocation);
+                }
             }
 
             if (!Array.isArray(actor.subregionIds) || !actor.subregionIds.includes(derivedSubregion.id)) {
@@ -1094,7 +1106,10 @@ async function importPlaces(db, actor, rows, references, env) {
                 }
             }
             if (!coords) {
-                coords = await geocodePostalCode(postalCode, country);
+                const fallbackLocation = fallbackLocationMap.get(postalCode);
+                coords = fallbackLocation
+                    ? { lat: fallbackLocation.lat, lng: fallbackLocation.lng }
+                    : await geocodePostalCode(postalCode, country);
             }
 
             const finalKey = existing?.externalKey || externalKey || await buildDeterministicExternalKey('place', name);
