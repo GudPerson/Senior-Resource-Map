@@ -43,7 +43,11 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
-import { buildManagedResourceListParams, shouldUseFullResourceDataset } from '../../lib/resourceListLoading.js';
+import {
+    buildManagedHardResourceListParams,
+    buildManagedResourceListParams,
+    shouldUseFullResourceDataset,
+} from '../../lib/resourceListLoading.js';
 import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
@@ -612,6 +616,10 @@ export default function ResourcesPage() {
         canManageResourceTools,
         role: normalizedRole,
     });
+    const hardResourceListParams = buildManagedHardResourceListParams({
+        canManageResourceTools,
+        role: normalizedRole,
+    });
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
             ? ['full', normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
@@ -641,8 +649,8 @@ export default function ResourcesPage() {
         try {
             const requests = [
                 needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getHardAssets, resourceListParams)
-                    : api.getHardAssets({ ...resourceListParams, page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
+                    ? fetchAllPaginatedResults(api.getHardAssets, hardResourceListParams)
+                    : api.getHardAssets({ ...hardResourceListParams, page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
                 needsFullAssetDataset
                     ? fetchAllPaginatedResults(api.getSoftAssets, resourceListParams)
                     : api.getSoftAssets({ ...resourceListParams, page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
@@ -1043,9 +1051,21 @@ export default function ResourcesPage() {
         setAssetModal({ mode: 'create', assetType, data: null });
     }
 
-    function openEdit(asset, assetType) {
+    async function openEdit(asset, assetType) {
         if (assetType === 'hard') {
-            setInlineAction({ id: asset.id, type: 'edit' });
+            setInlineAction({ id: asset.id, type: 'edit', loading: true, asset });
+            try {
+                const fullAsset = await api.getHardAsset(asset.id);
+                setInlineAction((prev) => (
+                    prev?.id === asset.id && prev?.type === 'edit'
+                        ? { ...prev, loading: false, asset: fullAsset }
+                        : prev
+                ));
+            } catch (err) {
+                console.error('Failed to load place details', err);
+                setInlineAction(null);
+                setActionNotice({ type: 'warning', message: err.message || 'Failed to load place details.' });
+            }
             return;
         }
         setInlineAction(null);
@@ -1780,6 +1800,9 @@ export default function ResourcesPage() {
                             const canManageAccess = canManageHardAssetAccess(asset);
                             const canChangeHardAssetVisibility = canHideHardAsset(asset);
                             const canRemoveHardAsset = canDeleteHardAsset(asset);
+                            const activeInlineHardAsset = inlineAction?.id === asset.id && inlineAction?.asset
+                                ? inlineAction.asset
+                                : asset;
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
@@ -1981,23 +2004,29 @@ export default function ResourcesPage() {
                                                     />
                                                 )}
                                                 {inlineAction.type === 'edit' && (
-                                                    <AssetForm
-                                                        key={`inline-edit-${asset.id}`}
-                                                        type="hard"
-                                                        initialData={asset}
-                                                        partnerHardAssets={hardAssets}
-                                                        currentUser={user}
-                                                        partnerOptions={partnerOptions}
-                                                        subregions={subregions}
-                                                        audienceZones={audienceZones}
-                                                        layoutMode="inline-soft"
-                                                        onSave={async () => {
-                                                            setInlineAction(null);
-                                                            await load();
-                                                            setActionNotice({ type: 'success', message: `Place saved.` });
-                                                        }}
-                                                        onCancel={() => setInlineAction(null)}
-                                                    />
+                                                    inlineAction.loading ? (
+                                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                                                            Loading place details…
+                                                        </div>
+                                                    ) : (
+                                                        <AssetForm
+                                                            key={`inline-edit-${asset.id}-${activeInlineHardAsset.updatedAt || ''}`}
+                                                            type="hard"
+                                                            initialData={activeInlineHardAsset}
+                                                            partnerHardAssets={hardAssets}
+                                                            currentUser={user}
+                                                            partnerOptions={partnerOptions}
+                                                            subregions={subregions}
+                                                            audienceZones={audienceZones}
+                                                            layoutMode="inline-soft"
+                                                            onSave={async () => {
+                                                                setInlineAction(null);
+                                                                await load();
+                                                                setActionNotice({ type: 'success', message: `Place saved.` });
+                                                            }}
+                                                            onCancel={() => setInlineAction(null)}
+                                                        />
+                                                    )
                                                 )}
                                                 {inlineAction.type === 'import' && (
                                                     <SoftAssetCollateralImportWizard

@@ -18,3 +18,8 @@ export function buildManagedResourceListParams({
         ? { scope: 'managed', regionScoped: true }
         : { scope: 'managed' };
 }
+
+export function buildManagedHardResourceListParams(options = {}) {
+    const params = buildManagedResourceListParams(options);
+    return Object.keys(params).length > 0 ? { ...params, summary: true } : params;
+}

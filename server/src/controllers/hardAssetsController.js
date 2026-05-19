@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql, or, ilike } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
-import { hardAssets, subCategories, subregionPostalCodes, users } from '../db/schema.js';
+import { hardAssets, hardAssetTags, subCategories, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
 import { actorCanDeleteHardAsset, actorCanHideHardAsset, actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
@@ -18,6 +18,7 @@ import {
     paginateResourceList,
 } from '../utils/resourceListScope.js';
 import { attachHardAssetRegionMatches } from '../utils/regionScope.js';
+import { formatHardAssetListSummary } from '../utils/hardAssetListSummary.js';
 import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
@@ -939,6 +940,7 @@ export const getHardAssets = async (c) => {
         });
         const listScope = normalizeResourceListScope(c.req.query('scope'));
         const regionScoped = isQueryFlagEnabled(c.req.query('regionScoped'));
+        const summaryOnly = isQueryFlagEnabled(c.req.query('summary'));
         const query = c.req.query('q');
         const lat = parseFloat(c.req.query('lat'));
         const lng = parseFloat(c.req.query('lng'));
@@ -996,6 +998,36 @@ export const getHardAssets = async (c) => {
         });
         const { data: pagedAssetSummaries, pagination } = paginateResourceList(scopedAssets, { page, pageSize });
         const pagedAssetIds = pagedAssetSummaries.map((asset) => asset.id);
+
+        if (summaryOnly) {
+            const tagRows = pagedAssetIds.length > 0
+                ? await db.query.hardAssetTags.findMany({
+                    where: inArray(hardAssetTags.hardAssetId, pagedAssetIds),
+                    with: { tag: true },
+                })
+                : [];
+            const tagsByAssetId = new Map();
+            for (const row of tagRows) {
+                if (!tagsByAssetId.has(row.hardAssetId)) tagsByAssetId.set(row.hardAssetId, []);
+                if (row.tag?.name) tagsByAssetId.get(row.hardAssetId).push(row.tag.name);
+            }
+
+            const manageableAssetIds = pagedAssetSummaries
+                .filter((asset) => actorCanManageAsset(user, asset, asset.partner))
+                .map((asset) => asset.id);
+            const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, manageableAssetIds);
+            const formatted = pagedAssetSummaries.map((asset) => formatHardAssetListSummary(asset, {
+                boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
+                tags: tagsByAssetId.get(asset.id) || [],
+                permissions: buildHardAssetPermissionSummary(user, asset),
+                membershipSummary: membershipSummariesByAssetId.get(asset.id) || null,
+            }));
+
+            return c.json({
+                data: formatted,
+                pagination,
+            });
+        }
 
         const assets = pagedAssetIds.length > 0 ? await db.query.hardAssets.findMany({
             where: inArray(hardAssets.id, pagedAssetIds),

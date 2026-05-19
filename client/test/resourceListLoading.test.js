@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    buildManagedHardResourceListParams,
     buildManagedResourceListParams,
     shouldUseFullResourceDataset,
 } from '../src/lib/resourceListLoading.js';
@@ -52,6 +53,23 @@ test('buildManagedResourceListParams scopes region admin management lists to the
     }), { scope: 'managed' });
 
     assert.deepEqual(buildManagedResourceListParams({
+        canManageResourceTools: false,
+        role: 'regional_admin',
+    }), {});
+});
+
+test('buildManagedHardResourceListParams requests lean summaries for managed hard asset lists', () => {
+    assert.deepEqual(buildManagedHardResourceListParams({
+        canManageResourceTools: true,
+        role: 'regional_admin',
+    }), { scope: 'managed', regionScoped: true, summary: true });
+
+    assert.deepEqual(buildManagedHardResourceListParams({
+        canManageResourceTools: true,
+        role: 'super_admin',
+    }), { scope: 'managed', summary: true });
+
+    assert.deepEqual(buildManagedHardResourceListParams({
         canManageResourceTools: false,
         role: 'regional_admin',
     }), {});
