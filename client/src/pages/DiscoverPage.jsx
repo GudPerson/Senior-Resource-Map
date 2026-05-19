@@ -7,6 +7,7 @@ import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
 import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
+import { normalizeDiscoveryCacheRows } from '../lib/discoveryCache.js';
 import { normalizePostalCode } from '../lib/postalBoundaries.js';
 import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
@@ -540,11 +541,25 @@ export default function DiscoverPage() {
             setDirectoryError('');
 
             try {
-                const [hardData, softData, subcategories] = await Promise.all([
-                    fetchAllPaginatedResults(api.getHardAssets),
-                    fetchAllPaginatedResults(api.getSoftAssets),
+                const [cacheRows, subcategories] = await Promise.all([
+                    withTimeout(api.getDiscoveryCache('all').catch(() => null), null, 12000),
                     withTimeout(api.getSubCategories().catch(() => []), []),
                 ]);
+                let hardData = [];
+                let softData = [];
+
+                if (Array.isArray(cacheRows) && cacheRows.length > 0) {
+                    const cachedDirectory = normalizeDiscoveryCacheRows(cacheRows);
+                    hardData = cachedDirectory.hardAssets;
+                    softData = cachedDirectory.softAssets;
+                }
+
+                if (hardData.length === 0 && softData.length === 0) {
+                    [hardData, softData] = await Promise.all([
+                        fetchAllPaginatedResults(api.getHardAssets),
+                        fetchAllPaginatedResults(api.getSoftAssets),
+                    ]);
+                }
 
                 if (!isActive) return;
 

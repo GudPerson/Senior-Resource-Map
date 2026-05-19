@@ -43,6 +43,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
+import { shouldUseFullResourceDataset } from '../../lib/resourceListLoading.js';
 import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
@@ -575,7 +576,11 @@ export default function ResourcesPage() {
     const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner' || partnerStaffLegacyPartnerIds.length > 0;
     const deferredSearchTerm = useDeferredValue(searchTerm);
     const normalizedQuery = deferredSearchTerm.trim().toLowerCase();
-    const needsFullAssetDataset = canManageResourceTools || Boolean(normalizedQuery) || (boundaryChecksEnabled && boundaryFilter !== 'all');
+    const needsFullAssetDataset = shouldUseFullResourceDataset({
+        query: normalizedQuery,
+        boundaryChecksEnabled,
+        boundaryFilter,
+    });
     const resourceListParams = canManageResourceTools ? { scope: 'managed' } : {};
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset

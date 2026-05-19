@@ -458,4 +458,5 @@ export const api = {
 
     // Public API
     getMapCache: (subregionId = 'all') => request('GET', `/public/map-cache/${subregionId}`),
+    getDiscoveryCache: (subregionId = 'all') => request('GET', `/public/discovery-cache/${subregionId}`),
 };

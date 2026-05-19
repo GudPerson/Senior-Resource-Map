@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildMapCacheQuery, rebuildMapCache } from '../src/utils/cacheBuilder.js';
+import { MAP_CACHE_SCHEMA_VERSION, buildMapCacheQuery, rebuildMapCache } from '../src/utils/cacheBuilder.js';
 
 function stringifyQuery(query) {
     return query.queryChunks
@@ -12,9 +12,15 @@ function stringifyQuery(query) {
 test('buildMapCacheQuery keeps member-only and partner-boundary soft assets out of public cache', () => {
     const queryText = stringifyQuery(buildMapCacheQuery('all'));
 
+    assert.match(queryText, /description/);
+    assert.match(queryText, /postal_code/);
+    assert.match(queryText, /logo_url/);
+    assert.match(queryText, /location_hard_asset_id/);
+    assert.match(queryText, /availability_enabled/);
     assert.match(queryText, /s\.is_member_only = false/);
     assert.match(queryText, /s\.audience_mode = 'public'/);
     assert.match(queryText, /COALESCE\(s\.asset_mode, 'standalone'\) = 'standalone'/);
+    assert.match(queryText, /NOT EXISTS/);
     assert.match(queryText, /COALESCE\(s\.asset_mode, 'standalone'\) = 'child'/);
     assert.match(queryText, /s\.host_hard_asset_id = l\.id/);
     assert.match(queryText, /l\.is_hidden = false/);
@@ -45,4 +51,6 @@ test('rebuildMapCache writes both the scoped cache and the aggregate cache', asy
         writes.map((entry) => entry.key),
         ['locations-cache-region-12.json', 'locations-cache-region-all.json']
     );
+    assert.equal(writes[0].value.version, MAP_CACHE_SCHEMA_VERSION);
+    assert.deepEqual(writes[0].value.data, [{ id: 1, title: 'Visible asset', lat: '1.3000', lng: '103.8000', asset_type: 'soft' }]);
 });

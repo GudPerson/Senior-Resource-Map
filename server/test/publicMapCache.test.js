@@ -24,3 +24,27 @@ test('public map cache endpoint filters out rows without valid coordinates', asy
         dataStore.getJSON = originalGetJSON;
     }
 });
+
+test('public discovery cache endpoint keeps rows without map coordinates', async () => {
+    const originalGetJSON = dataStore.getJSON;
+    dataStore.getJSON = async () => ({
+        version: 2,
+        data: [
+            { id: 1, lat: '1.3000', lng: '103.8000', title: 'Mapped asset' },
+            { id: 2, lat: null, lng: null, title: 'Standalone service' },
+        ],
+    });
+
+    try {
+        const response = await app.fetch(new Request('http://localhost/api/public/discovery-cache/all'));
+        const payload = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.deepEqual(payload, [
+            { id: 1, lat: '1.3000', lng: '103.8000', title: 'Mapped asset' },
+            { id: 2, lat: null, lng: null, title: 'Standalone service' },
+        ]);
+    } finally {
+        dataStore.getJSON = originalGetJSON;
+    }
+});
