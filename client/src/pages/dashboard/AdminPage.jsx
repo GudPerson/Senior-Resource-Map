@@ -10,6 +10,7 @@ import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import Pagination from '../../components/Pagination.jsx';
+import { buildBoundaryStatusFilterOptions, normalizeBoundaryStatusFilterValue } from '../../lib/adminBoundaryFilters.js';
 import { fetchPaginatedResultPage } from '../../lib/paginatedResults.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 
@@ -1931,6 +1932,21 @@ export default function AdminPage() {
         return filteredItems;
     }, [resources, resourceSearch, resourceBoundaryFilter, resourceSort, resourceTypeFilter, boundaryChecksEnabled]);
 
+    const resourceBoundaryFilterOptions = useMemo(() => (
+        buildBoundaryStatusFilterOptions(resources, getResourceBoundaryStatus)
+    ), [resources]);
+    const showResourceBoundaryFilter = boundaryChecksEnabled && resourceBoundaryFilterOptions.length > 2;
+
+    useEffect(() => {
+        if (!boundaryChecksEnabled) return;
+        const nextValue = resourceBoundaryFilterOptions.length > 2
+            ? normalizeBoundaryStatusFilterValue(resourceBoundaryFilter, resourceBoundaryFilterOptions)
+            : 'all';
+        if (nextValue !== resourceBoundaryFilter) {
+            setResourceBoundaryFilter(nextValue);
+        }
+    }, [boundaryChecksEnabled, resourceBoundaryFilter, resourceBoundaryFilterOptions]);
+
     useEffect(() => {
         setResourcePage(1);
     }, [resourceBoundaryFilter, resourceSearch, resourceSort, resourceTypeFilter]);
@@ -1991,6 +2007,21 @@ export default function AdminPage() {
 
         return filteredItems;
     }, [users, userSearch, userBoundaryFilter, userRoleFilter, userSort, boundaryChecksEnabled]);
+
+    const userBoundaryFilterOptions = useMemo(() => (
+        buildBoundaryStatusFilterOptions(users, getUserBoundaryStatus)
+    ), [users]);
+    const showUserBoundaryFilter = boundaryChecksEnabled && userBoundaryFilterOptions.length > 2;
+
+    useEffect(() => {
+        if (!boundaryChecksEnabled) return;
+        const nextValue = userBoundaryFilterOptions.length > 2
+            ? normalizeBoundaryStatusFilterValue(userBoundaryFilter, userBoundaryFilterOptions)
+            : 'all';
+        if (nextValue !== userBoundaryFilter) {
+            setUserBoundaryFilter(nextValue);
+        }
+    }, [boundaryChecksEnabled, userBoundaryFilter, userBoundaryFilterOptions]);
 
     const filteredSubregions = useMemo(() => {
         const query = subregionSearch.trim().toLowerCase();
@@ -2250,18 +2281,15 @@ export default function AdminPage() {
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
-                            {boundaryChecksEnabled ? (
+                            {showResourceBoundaryFilter ? (
                                 <select
                                     value={resourceBoundaryFilter}
                                     onChange={(e) => setResourceBoundaryFilter(e.target.value)}
                                     className="input-field xl:w-48"
                                 >
-                                    <option value="all">All boundary status</option>
-                                    <option value="inside">Inside boundary</option>
-                                    <option value="outside">Outside boundary</option>
-                                    <option value="missing-postal">Missing postal code</option>
-                                    <option value="no-location">No linked location</option>
-                                    <option value="no-boundary">No boundary set</option>
+                                    {resourceBoundaryFilterOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
                                 </select>
                             ) : null}
                             <select
@@ -3317,17 +3345,15 @@ export default function AdminPage() {
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
-                            {boundaryChecksEnabled ? (
+                            {showUserBoundaryFilter ? (
                                 <select
                                     value={userBoundaryFilter}
                                     onChange={(e) => setUserBoundaryFilter(e.target.value)}
                                     className="input-field xl:w-48"
                                 >
-                                    <option value="all">All boundary status</option>
-                                    <option value="inside">Inside boundary</option>
-                                    <option value="outside">Outside boundary</option>
-                                    <option value="missing-postal">Missing postal code</option>
-                                    <option value="no-boundary">No boundary set</option>
+                                    {userBoundaryFilterOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
                                 </select>
                             ) : null}
                             <select
