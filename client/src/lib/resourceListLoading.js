@@ -7,3 +7,14 @@ export function shouldUseFullResourceDataset({
     const hasClientBoundaryFilter = Boolean(boundaryChecksEnabled) && boundaryFilter !== 'all';
     return hasSearchQuery || hasClientBoundaryFilter;
 }
+
+export function buildManagedResourceListParams({
+    canManageResourceTools = false,
+    role = '',
+} = {}) {
+    if (!canManageResourceTools) return {};
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    return normalizedRole === 'regional_admin'
+        ? { scope: 'managed', regionScoped: true }
+        : { scope: 'managed' };
+}

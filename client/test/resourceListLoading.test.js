@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { shouldUseFullResourceDataset } from '../src/lib/resourceListLoading.js';
+import {
+    buildManagedResourceListParams,
+    shouldUseFullResourceDataset,
+} from '../src/lib/resourceListLoading.js';
 
 test('shouldUseFullResourceDataset keeps default manage-resource loads paginated', () => {
     assert.equal(shouldUseFullResourceDataset({
@@ -35,4 +38,21 @@ test('shouldUseFullResourceDataset uses full data only for client-only filters',
         boundaryChecksEnabled: false,
         boundaryFilter: 'inside',
     }), false);
+});
+
+test('buildManagedResourceListParams scopes region admin management lists to their region', () => {
+    assert.deepEqual(buildManagedResourceListParams({
+        canManageResourceTools: true,
+        role: 'regional_admin',
+    }), { scope: 'managed', regionScoped: true });
+
+    assert.deepEqual(buildManagedResourceListParams({
+        canManageResourceTools: true,
+        role: 'super_admin',
+    }), { scope: 'managed' });
+
+    assert.deepEqual(buildManagedResourceListParams({
+        canManageResourceTools: false,
+        role: 'regional_admin',
+    }), {});
 });

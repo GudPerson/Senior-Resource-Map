@@ -43,7 +43,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
-import { shouldUseFullResourceDataset } from '../../lib/resourceListLoading.js';
+import { buildManagedResourceListParams, shouldUseFullResourceDataset } from '../../lib/resourceListLoading.js';
 import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
@@ -247,6 +247,33 @@ function getBoundaryBadgeMeta(status) {
 
 function getAssetBoundaryStatus(asset) {
     return asset?.boundaryStatus || 'no-boundary';
+}
+
+const MANAGED_AREA_FILTER_OPTIONS = [
+    { value: 'inside', label: 'Inside managed area' },
+    { value: 'outside', label: 'Outside managed area' },
+    { value: 'missing-postal', label: 'Missing postal code' },
+    { value: 'no-location', label: 'No linked location' },
+    { value: 'no-boundary', label: 'No managed area set' },
+];
+
+const MANAGED_AREA_FILTER_VALUES = new Set(MANAGED_AREA_FILTER_OPTIONS.map((option) => option.value));
+
+function buildManagedAreaFilterOptions(assets = []) {
+    const activeStatuses = new Set(
+        assets
+            .map((asset) => getAssetBoundaryStatus(asset))
+            .filter((status) => MANAGED_AREA_FILTER_VALUES.has(status)),
+    );
+
+    return [
+        { value: 'all', label: 'All managed-area status' },
+        ...MANAGED_AREA_FILTER_OPTIONS.filter((option) => activeStatuses.has(option.value)),
+    ];
+}
+
+function normalizeManagedAreaFilterValue(value, options = []) {
+    return options.some((option) => option.value === value) ? value : 'all';
 }
 
 function getVisiblePageRange(page, pageSize, totalCount, visibleCount) {
@@ -581,7 +608,10 @@ export default function ResourcesPage() {
         boundaryChecksEnabled,
         boundaryFilter,
     });
-    const resourceListParams = canManageResourceTools ? { scope: 'managed' } : {};
+    const resourceListParams = buildManagedResourceListParams({
+        canManageResourceTools,
+        role: normalizedRole,
+    });
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
             ? ['full', normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
@@ -759,6 +789,24 @@ export default function ResourcesPage() {
         ),
         [boundaryChecksEnabled, boundaryFilter, normalizedQuery, softAssets, sortOrder]
     );
+
+    const activeManagedAreaFilterOptions = useMemo(() => {
+        if (!boundaryChecksEnabled || activeTab === 'templates') return [];
+        return buildManagedAreaFilterOptions(activeTab === 'hard' ? hardAssets : softAssets);
+    }, [activeTab, boundaryChecksEnabled, hardAssets, softAssets]);
+    const showManagedAreaFilter = boundaryChecksEnabled
+        && activeTab !== 'templates'
+        && activeManagedAreaFilterOptions.length > 2;
+
+    useEffect(() => {
+        if (!boundaryChecksEnabled) return;
+        const nextValue = showManagedAreaFilter
+            ? normalizeManagedAreaFilterValue(boundaryFilter, activeManagedAreaFilterOptions)
+            : 'all';
+        if (nextValue !== boundaryFilter) {
+            setBoundaryFilter(nextValue);
+        }
+    }, [activeManagedAreaFilterOptions, boundaryChecksEnabled, boundaryFilter, showManagedAreaFilter]);
 
     const filteredTemplates = useMemo(
         () => sortResourceItems(
@@ -1605,18 +1653,15 @@ export default function ResourcesPage() {
                             className="w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-900 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         />
                     </div>
-                    {boundaryChecksEnabled && activeTab !== 'templates' ? (
+                    {showManagedAreaFilter ? (
                         <select
                             value={boundaryFilter}
                             onChange={(e) => setBoundaryFilter(e.target.value)}
                             className="input-field xl:w-48"
                         >
-                            <option value="all">All managed-area status</option>
-                            <option value="inside">Inside managed area</option>
-                            <option value="outside">Outside managed area</option>
-                            <option value="missing-postal">Missing postal code</option>
-                            <option value="no-location">No linked location</option>
-                            <option value="no-boundary">No managed area set</option>
+                            {activeManagedAreaFilterOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
                         </select>
                     ) : null}
                     <select
@@ -1780,22 +1825,24 @@ export default function ResourcesPage() {
                                         </div>
 
                                         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-1">
-                                            <button
-                                                onClick={() => handleToggleVisibility(asset, 'hard')}
-                                                disabled={!canChangeHardAssetVisibility || visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
-                                                className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                <span className="flex items-center gap-2">
-                                                    {visibilityActionKey === getVisibilityActionKey('hard', asset.id) ? (
-                                                        <RefreshCw size={15} className="animate-spin" />
-                                                    ) : hiddenStatus.hidden ? (
-                                                        <Eye size={15} />
-                                                    ) : (
-                                                        <EyeOff size={15} />
-                                                    )}
-                                                    {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
-                                                </span>
-                                            </button>
+                                            {canChangeHardAssetVisibility ? (
+                                                <button
+                                                    onClick={() => handleToggleVisibility(asset, 'hard')}
+                                                    disabled={visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
+                                                    className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        {visibilityActionKey === getVisibilityActionKey('hard', asset.id) ? (
+                                                            <RefreshCw size={15} className="animate-spin" />
+                                                        ) : hiddenStatus.hidden ? (
+                                                            <Eye size={15} />
+                                                        ) : (
+                                                            <EyeOff size={15} />
+                                                        )}
+                                                        {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
+                                                    </span>
+                                                </button>
+                                            ) : null}
                                             {canEditPlace ? (
                                                 <>
                                                     <button
@@ -2176,20 +2223,22 @@ export default function ResourcesPage() {
                                     />
 
                                     <div className="resource-action-grid mt-auto w-full gap-2 border-t border-slate-100 pt-4">
-                                        <button
-                                            onClick={() => handleToggleVisibility(asset, 'soft')}
-                                            disabled={!canChangeSoftVisibility || isVisibilitySaving}
-                                            className="btn-ghost resource-action-button text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            {isVisibilitySaving ? (
-                                                <RefreshCw size={15} className="animate-spin" />
-                                            ) : hiddenStatus.hidden ? (
-                                                <Eye size={15} />
-                                            ) : (
-                                                <EyeOff size={15} />
-                                            )}
-                                            <span>{hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}</span>
-                                        </button>
+                                        {canChangeSoftVisibility ? (
+                                            <button
+                                                onClick={() => handleToggleVisibility(asset, 'soft')}
+                                                disabled={isVisibilitySaving}
+                                                className="btn-ghost resource-action-button text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {isVisibilitySaving ? (
+                                                    <RefreshCw size={15} className="animate-spin" />
+                                                ) : hiddenStatus.hidden ? (
+                                                    <Eye size={15} />
+                                                ) : (
+                                                    <EyeOff size={15} />
+                                                )}
+                                                <span>{hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}</span>
+                                            </button>
+                                        ) : null}
                                         {canEditOffering ? (
                                             <button onClick={() => openEdit(asset, 'soft')} className="btn-ghost resource-action-button text-sm">
                                                 <Pencil size={15} /> <span>{isChild ? 'Edit place version' : 'Edit'}</span>
