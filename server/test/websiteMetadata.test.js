@@ -143,6 +143,46 @@ test('fetchWebsiteMetadata prefers a site brand image over generic page images',
     }
 });
 
+test('fetchWebsiteMetadata ignores inline lazy-load placeholders before logo data sources', async () => {
+    const originalFetch = global.fetch;
+
+    global.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://sasco.example/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="SASCO community services.">
+                    </head>
+                    <body>
+                        <img
+                            class="site-logo"
+                            src="data:image/svg+xml;base64,PHN2Zy8+"
+                            data-src="https://sasco.example/wp-content/uploads/logo.png"
+                            alt="SASCO logo"
+                        >
+                    </body>
+                </html>
+            `, 'https://sasco.example/');
+        }
+
+        if (url === 'https://sasco.example/wp-content/uploads/logo.png') {
+            return imageResponse('image/png');
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const metadata = await fetchWebsiteMetadata('https://sasco.example/');
+
+        assert.equal(metadata.logoUrl, 'https://sasco.example/wp-content/uploads/logo.png');
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
 test('fetchWebsiteMetadata falls back to favicon when page has no logo metadata', async () => {
     const originalFetch = global.fetch;
 

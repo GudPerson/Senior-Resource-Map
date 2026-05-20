@@ -273,7 +273,10 @@ function buildLogoCandidates({ html, resolvedUrl, jsonLd }) {
 function toAbsoluteUrl(candidate, baseUrl) {
     if (!candidate) return '';
     try {
-        return new URL(candidate, baseUrl).toString();
+        const parsed = new URL(candidate, baseUrl);
+        const protocol = parsed.protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') return '';
+        return parsed.toString();
     } catch {
         return '';
     }
@@ -311,7 +314,10 @@ async function fetchHtml(url) {
 
 function looksLikeImageUrl(value) {
     try {
-        const pathname = new URL(value).pathname.toLowerCase();
+        const parsed = new URL(value);
+        const protocol = parsed.protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') return false;
+        const pathname = parsed.pathname.toLowerCase();
         return /\.(?:avif|gif|ico|jpe?g|png|svg|webp)$/.test(pathname);
     } catch {
         return false;
@@ -326,6 +332,13 @@ async function isFetchImageResponse(response, url) {
 }
 
 async function validateImageUrl(url) {
+    try {
+        const protocol = new URL(url).protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') return false;
+    } catch {
+        return false;
+    }
+
     const timeoutSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
         ? AbortSignal.timeout(4000)
         : undefined;

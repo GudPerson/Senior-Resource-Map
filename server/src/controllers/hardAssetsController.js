@@ -260,6 +260,26 @@ const ALL_SAINTS_SILVER_LIFESTYLE_ENTRIES = [
         hours: 'Monday to Friday, 8.30am to 5.30pm; closed on Saturday, Sunday and public holidays',
     },
 ];
+const SASCO_KHATIB_DESCRIPTION = 'SASCO is dedicated to enriching lives through community-focused services in elderly care, childcare, and professional training. SASCO@Khatib is listed as one of its senior care centres in Yishun.';
+const SASCO_KHATIB_SERVICES = [
+    'elderly care',
+    'senior care',
+    'active ageing',
+    'community support',
+    'day care',
+    'social activities',
+];
+const SASCO_KHATIB_ENTRIES = [
+    {
+        name: 'SASCO@Khatib',
+        postalCode: '760813',
+        address: 'Blk 813 Yishun Ring Road #01-01, Singapore 760813',
+        phone: '+65 9834 9450',
+        website: 'https://sasco.org.sg/active-ageing-centre-care/',
+        sourceUrl: 'https://www.sasco.sg/contact/',
+        sourceTitle: 'SASCO Contact',
+    },
+];
 
 const OFFICIAL_DIRECTORY_SOURCES = [
     {
@@ -278,6 +298,14 @@ const OFFICIAL_DIRECTORY_SOURCES = [
         description: ALL_SAINTS_SILVER_LIFESTYLE_DESCRIPTION,
         services: ALL_SAINTS_SILVER_LIFESTYLE_SERVICES,
         entries: ALL_SAINTS_SILVER_LIFESTYLE_ENTRIES,
+    },
+    {
+        label: 'SASCO Contact',
+        url: 'https://www.sasco.sg/contact/',
+        matches: (candidate) => /\bsasco\b/i.test(candidate?.name || ''),
+        description: SASCO_KHATIB_DESCRIPTION,
+        services: SASCO_KHATIB_SERVICES,
+        entries: SASCO_KHATIB_ENTRIES,
     },
 ];
 
@@ -348,11 +376,25 @@ function isGenericEnrichmentImageUrl(value) {
     }
 }
 
+function isUsableEnrichmentLogoUrl(value) {
+    const text = normalizeText(value);
+    if (!text) return false;
+    try {
+        const protocol = new URL(text).protocol.toLowerCase();
+        return protocol === 'http:' || protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 function chooseEnrichmentLogoUrl(currentLogoUrl, metadataLogoUrl) {
     const current = normalizeText(currentLogoUrl);
     const metadata = normalizeText(metadataLogoUrl);
-    if (!current) return metadata;
-    if (!metadata) return current;
+    const currentUsable = isUsableEnrichmentLogoUrl(current);
+    const metadataUsable = isUsableEnrichmentLogoUrl(metadata);
+    if (!currentUsable && metadataUsable) return metadata;
+    if (!currentUsable) return '';
+    if (!metadataUsable) return current;
     if (isGenericEnrichmentImageUrl(current) && !isGenericEnrichmentImageUrl(metadata)) {
         return metadata;
     }
@@ -426,14 +468,14 @@ function mapOfficialDirectoryEntryToEnrichment(entry, source) {
         googlePlaceId: '',
         address: entry.address || '',
         postalCode: entry.postalCode || '',
-        website: source.url,
+        website: entry.website || source.url,
         phone: entry.phone || '',
         hours: entry.hours || '',
         description: source.description || '',
         services: Array.isArray(source.services) ? source.services : [],
         logoUrl: '',
-        sourceUrl: source.url,
-        sourceTitle: source.label,
+        sourceUrl: entry.sourceUrl || source.url,
+        sourceTitle: entry.sourceTitle || source.label,
         socialLinks: createEmptySocialLinks(),
         confidence: 0.95,
     };

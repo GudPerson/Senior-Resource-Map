@@ -472,6 +472,157 @@ test('manual hard asset enrichment stabilizes All Saints Silver Lifestyle Club d
     }
 });
 
+test('manual hard asset enrichment stabilizes SASCO@Khatib details when AI returns partial fields', async () => {
+    const originalFetch = global.fetch;
+    const serviceAccountJson = createVertexServiceAccountJson();
+
+    global.fetch = async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://oauth2.googleapis.com/token') {
+            return jsonResponse({
+                access_token: 'vertex-access-token',
+                expires_in: 3600,
+            });
+        }
+
+        if (url.includes(':generateContent')) {
+            const body = JSON.parse(init.body);
+            const prompt = body.contents?.[0]?.parts?.[0]?.text || '';
+
+            if (prompt.includes('Places to enrich:')) {
+                return jsonResponse({
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({
+                                            enriched: [
+                                                {
+                                                    index: 0,
+                                                    phone: '+65 9834 9450',
+                                                    hours: 'Mon - Fri: 8.30am - 5.30pm',
+                                                    services: ['active ageing', 'senior care'],
+                                                    logoUrl: 'data:image/svg+xml;base64,PHN2Zy8+',
+                                                    socialLinks: {
+                                                        facebook: 'https://www.facebook.com/SSCH.SG/',
+                                                    },
+                                                    confidence: 0.6,
+                                                },
+                                            ],
+                                        }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                });
+            }
+
+            if (prompt.includes('Postal anchor:')) {
+                return jsonResponse({
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({ candidates: [] }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                });
+            }
+        }
+
+        if (url === 'https://www.sasco.sg/contact/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="SASCO is dedicated to enriching lives through community-focused services in elderly care.">
+                    </head>
+                    <body>
+                        <img class="site-logo" src="https://www.sasco.sg/wp-content/uploads/2025/04/SASCO-Site-Logo.png" alt="SASCO logo">
+                    </body>
+                </html>
+            `, 'https://www.sasco.sg/contact/');
+        }
+
+        if (url === 'https://sasco.org.sg/active-ageing-centre-care/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="SASCO Active Ageing Centre Care combines senior care and active ageing support.">
+                    </head>
+                    <body>
+                        <img class="site-logo" src="data:image/svg+xml;base64,PHN2Zy8+" data-src="https://sasco.org.sg/wp-content/uploads/2022/04/SSCH-Official-Logo-Small.png" alt="SASCO logo">
+                    </body>
+                </html>
+            `, 'https://sasco.org.sg/active-ageing-centre-care/');
+        }
+
+        if (
+            url === 'https://www.sasco.sg/wp-content/uploads/2025/04/SASCO-Site-Logo.png'
+            || url === 'https://sasco.org.sg/wp-content/uploads/2022/04/SSCH-Official-Logo-Small.png'
+            || url === 'https://sasco.org.sg/favicon.ico'
+            || url === 'https://www.sasco.sg/favicon.ico'
+        ) {
+            return imageResponse('image/png');
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const token = await sign({
+            id: 1,
+            username: 'admin',
+            email: 'admin@example.test',
+            role: 'super_admin',
+            name: 'Admin',
+            postalCode: '',
+            subregionIds: [],
+            exp: Math.floor(Date.now() / 1000) + 3600,
+        }, 'test-secret', 'HS256');
+
+        const response = await app.fetch(
+            new Request('http://local/api/hard-assets/import/enrich-draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Token': token,
+                },
+                body: JSON.stringify({
+                    name: 'SASCO@Khatib',
+                    address: 'Singapore 760813',
+                    postalCode: '760813',
+                    subCategory: 'Active Ageing Centre (AAC)',
+                }),
+            }),
+            {
+                JWT_SECRET: 'test-secret',
+                VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
+                VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+            },
+            { waitUntil() {} },
+        );
+        const payload = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.equal(payload.address, 'Blk 813 Yishun Ring Road #01-01, Singapore 760813');
+        assert.equal(payload.website, 'https://sasco.org.sg/active-ageing-centre-care/');
+        assert.equal(payload.phone, '+65 9834 9450');
+        assert.match(payload.description, /community-focused services/i);
+        assert.equal(payload.logoUrl, 'https://www.sasco.sg/wp-content/uploads/2025/04/SASCO-Site-Logo.png');
+        assert.equal(payload.socialLinks.facebook, 'https://www.facebook.com/SSCH.SG/');
+        assert.equal(payload.services.includes('elderly care'), true);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
 test('manual hard asset enrichment falls back to Google Places for any matching place', async () => {
     const originalFetch = global.fetch;
 
