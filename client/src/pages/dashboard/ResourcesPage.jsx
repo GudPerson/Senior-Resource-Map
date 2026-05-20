@@ -594,6 +594,7 @@ export default function ResourcesPage() {
     const [hardAssetsPageSize] = useState(50);
     const [softAssetsPageSize] = useState(50);
     const loadRequestIdRef = useRef(0);
+    const inlineActionDrawerRef = useRef(null);
 
     const normalizedRole = normalizeRole(user?.role);
     const canManageResourceTools = canAccessManagedResources(user);
@@ -641,12 +642,45 @@ export default function ResourcesPage() {
         softAssetsPage,
         user?.id,
     ]);
+    const inlineActionScrollKey = inlineAction?.id
+        ? [
+            inlineAction.assetType || 'hard',
+            inlineAction.id,
+            inlineAction.type,
+            inlineAction.loading ? 'loading' : 'ready',
+            inlineAction.data ? 'data' : 'empty',
+        ].join(':')
+        : '';
 
     useEffect(() => {
         if (!actionNotice) return undefined;
         const timer = window.setTimeout(() => setActionNotice(null), 5000);
         return () => window.clearTimeout(timer);
     }, [actionNotice]);
+
+    useEffect(() => {
+        if (!inlineActionScrollKey) return undefined;
+
+        let secondFrameId = 0;
+        const firstFrameId = window.requestAnimationFrame(() => {
+            secondFrameId = window.requestAnimationFrame(() => {
+                const drawer = inlineActionDrawerRef.current;
+                if (!drawer) return;
+
+                const rect = drawer.getBoundingClientRect();
+                const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+                const preferredTop = Math.max(96, Math.min(180, viewportHeight * 0.24));
+                const nextTop = Math.max(0, window.scrollY + rect.top - preferredTop);
+
+                window.scrollTo({ top: nextTop, behavior: 'smooth' });
+            });
+        });
+
+        return () => {
+            window.cancelAnimationFrame(firstFrameId);
+            if (secondFrameId) window.cancelAnimationFrame(secondFrameId);
+        };
+    }, [inlineActionScrollKey]);
 
     async function load() {
         const requestId = loadRequestIdRef.current + 1;
@@ -1925,7 +1959,10 @@ export default function ResourcesPage() {
                                     </div>
 
                                     {inlineAction?.id === asset.id ? (
-                                        <div className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
+                                        <div
+                                            ref={inlineActionDrawerRef}
+                                            className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60"
+                                        >
                                             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
                                                 <div className="min-w-0 flex-1">
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
@@ -2297,7 +2334,10 @@ export default function ResourcesPage() {
                                         ) : null}
                                     </div>
                                     {inlineAction?.assetType === 'soft' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? (
-                                        <div className="mt-2 w-full rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60">
+                                        <div
+                                            ref={inlineActionDrawerRef}
+                                            className="mt-2 w-full rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60"
+                                        >
                                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                 <div>
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">Offering access</p>
