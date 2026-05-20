@@ -78,6 +78,12 @@ const CategoryBadge = ({ category, onClick }) => (
     </span>
 );
 
+const DashboardLogoFrame = ({ src, alt = 'Logo', sizeClass = 'h-16 w-16', roundedClass = 'rounded-lg' }) => (
+    <div className={`flex ${sizeClass} flex-shrink-0 items-center justify-center overflow-hidden ${roundedClass} border border-slate-200 bg-white p-1 shadow-sm shadow-slate-100/70`}>
+        <img src={src} alt={alt} className="h-full w-full object-contain" loading="lazy" decoding="async" />
+    </div>
+);
+
 function getHiddenStatus(asset) {
     if (asset.isHidden) return { hidden: true, type: 'manual' };
 
@@ -1809,7 +1815,7 @@ export default function ResourcesPage() {
                                     <div className="flex flex-col gap-4">
                                         <div className="flex min-w-0 flex-1 gap-4">
                                             {asset.logoUrl ? (
-                                                <img src={asset.logoUrl} alt="Logo" className="h-16 w-16 flex-shrink-0 rounded-lg border border-slate-200 bg-slate-100 object-cover" />
+                                                <DashboardLogoFrame src={asset.logoUrl} alt={`${asset.name} logo`} />
                                             ) : (
                                                 <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
                                                     <Building2 size={24} />
@@ -2187,7 +2193,7 @@ export default function ResourcesPage() {
                                     <div className="flex w-full items-start justify-between gap-3">
                                         <div className="flex items-center gap-3">
                                             {asset.logoUrl ? (
-                                                <img src={asset.logoUrl} alt="Logo" className="h-12 w-12 flex-shrink-0 rounded-lg bg-slate-100 object-cover" />
+                                                <DashboardLogoFrame src={asset.logoUrl} alt={`${asset.name} logo`} sizeClass="h-12 w-12" />
                                             ) : (
                                                 <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg ${isChild ? 'bg-brand-50 text-brand-600' : 'bg-emerald-50 text-emerald-600'}`}>
                                                     {isChild ? <Files size={20} /> : <CalendarDays size={20} />}
@@ -2372,7 +2378,7 @@ export default function ResourcesPage() {
 
                                                 <div className="mt-3 flex items-start gap-3">
                                                     {template.logoUrl ? (
-                                                        <img src={template.logoUrl} alt="Template logo" className="h-14 w-14 rounded-xl border border-slate-200 bg-white object-cover" />
+                                                        <DashboardLogoFrame src={template.logoUrl} alt={`${template.name} logo`} sizeClass="h-14 w-14" roundedClass="rounded-xl" />
                                                     ) : (
                                                         <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-brand-200 bg-white text-brand-700">
                                                             <Files size={22} />
