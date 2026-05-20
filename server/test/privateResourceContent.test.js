@@ -7,6 +7,7 @@ import {
     canViewPrivateResource,
     decodePrivateFileData,
     insertPrivateFile,
+    loadPrivateAccessCandidates,
     validatePrivateFile,
 } from '../src/utils/privateResourceContent.js';
 import { buildMyMapAssetSnapshot } from '../src/utils/myMapDirectory.js';
@@ -25,6 +26,31 @@ function createResource(overrides = {}) {
             managerUserId: 9,
         },
         ...overrides,
+    };
+}
+
+function createPrivateAccessCandidateDb(rows) {
+    const builder = {
+        from() {
+            return builder;
+        },
+        leftJoin() {
+            return builder;
+        },
+        then(resolve, reject) {
+            return Promise.resolve(rows).then(resolve, reject);
+        },
+    };
+
+    return {
+        query: {
+            users: {
+                findMany: async () => {
+                    throw new Error('ambiguous relation path should not be used');
+                },
+            },
+        },
+        select: () => builder,
     };
 }
 
@@ -48,7 +74,7 @@ test('restricted content view requires direct asset access, Super Admin, or expl
         { id: 31, role: 'partner', subregionIds: [4] },
         resource,
         [{ userId: 31 }],
-    ), true);
+    ), false);
     assert.equal(canManagePrivateResource({ id: 31, role: 'partner', subregionIds: [4] }, resource), false);
 });
 
@@ -132,6 +158,162 @@ test('restricted content view accepts direct standalone soft-asset owner and sta
     assert.equal(canManagePrivateResource(softAssetStaff, resource), true);
     assert.equal(canViewPrivateResource(unrelatedStaff, resource, []), false);
     assert.equal(canManagePrivateResource(unrelatedStaff, resource), false);
+});
+
+test('restricted viewer grants require an active admin or operator status', () => {
+    const resource = createResource({
+        partnerId: null,
+        partner: null,
+    });
+
+    assert.equal(canViewPrivateResource(
+        { id: 31, role: 'regional_admin', subregionIds: [4] },
+        resource,
+        [{ userId: 31 }],
+    ), true);
+    assert.equal(canViewPrivateResource(
+        {
+            id: 82,
+            role: 'standard',
+            hardAssetStaffAccess: [{
+                hardAssetId: 13,
+                staffRole: 'staff',
+                subregionId: 7,
+            }],
+        },
+        resource,
+        [{ userId: 82 }],
+    ), true);
+    assert.equal(canViewPrivateResource(
+        {
+            id: 86,
+            role: 'standard',
+            softAssetStaffAccess: [{
+                softAssetId: 91,
+                staffRole: 'owner',
+            }],
+        },
+        resource,
+        [{ userId: 86 }],
+    ), true);
+    assert.equal(canViewPrivateResource(
+        { id: 90, role: 'standard' },
+        resource,
+        [{ userId: 90 }],
+    ), false);
+    assert.equal(canViewPrivateResource(
+        {
+            id: 91,
+            role: 'standard',
+            hardAssetStaffAccess: [{
+                hardAssetId: 13,
+                staffRole: 'staff',
+                revokedAt: '2026-05-20T00:00:00.000Z',
+            }],
+        },
+        resource,
+        [{ userId: 91 }],
+    ), false);
+});
+
+test('restricted access candidates include region admins and unrelated active operators only', async () => {
+    const resource = createResource({
+        partnerId: null,
+        partner: null,
+    });
+    const db = createPrivateAccessCandidateDb([
+        {
+            id: 31,
+            username: 'region-admin',
+            name: 'Region Admin',
+            role: 'regional_admin',
+            managerUserId: null,
+            subregionId: 4,
+            hardAssetId: null,
+            hardStaffRole: null,
+            hardRevokedAt: null,
+            softAssetId: null,
+            softStaffRole: null,
+            softRevokedAt: null,
+        },
+        {
+            id: 32,
+            username: 'other-region-admin',
+            name: 'Another Region Admin',
+            role: 'regional_admin',
+            managerUserId: null,
+            subregionId: 99,
+            hardAssetId: null,
+            hardStaffRole: null,
+            hardRevokedAt: null,
+            softAssetId: null,
+            softStaffRole: null,
+            softRevokedAt: null,
+        },
+        {
+            id: 82,
+            username: 'other-place-staff',
+            name: 'Other Place Staff',
+            role: 'standard',
+            managerUserId: null,
+            subregionId: null,
+            hardAssetId: 13,
+            hardStaffRole: 'staff',
+            hardRevokedAt: null,
+            softAssetId: null,
+            softStaffRole: null,
+            softRevokedAt: null,
+        },
+        {
+            id: 83,
+            username: 'same-place-staff',
+            name: 'Same Place Staff',
+            role: 'standard',
+            managerUserId: null,
+            subregionId: null,
+            hardAssetId: 12,
+            hardStaffRole: 'staff',
+            hardRevokedAt: null,
+            softAssetId: null,
+            softStaffRole: null,
+            softRevokedAt: null,
+        },
+        {
+            id: 84,
+            username: 'revoked-staff',
+            name: 'Revoked Staff',
+            role: 'standard',
+            managerUserId: null,
+            subregionId: null,
+            hardAssetId: 13,
+            hardStaffRole: 'staff',
+            hardRevokedAt: '2026-05-20T00:00:00.000Z',
+            softAssetId: null,
+            softStaffRole: null,
+            softRevokedAt: null,
+        },
+        {
+            id: 90,
+            username: 'normal-user',
+            name: 'Normal User',
+            role: 'standard',
+            managerUserId: null,
+            subregionId: 4,
+            hardAssetId: null,
+            hardStaffRole: null,
+            hardRevokedAt: null,
+            softAssetId: null,
+            softStaffRole: null,
+            softRevokedAt: null,
+        },
+    ]);
+
+    const candidates = await loadPrivateAccessCandidates(db, resource);
+
+    assert.deepEqual(
+        candidates.map((candidate) => candidate.id),
+        [32, 82, 31],
+    );
 });
 
 test('restricted file validation rejects unsupported files and oversized files', () => {

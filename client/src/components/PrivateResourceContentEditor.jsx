@@ -3,6 +3,11 @@ import Select from 'react-select';
 import { FileText, Loader2, LockKeyhole, Save, Trash2, UploadCloud, Users } from 'lucide-react';
 
 import { api } from '../lib/api.js';
+import {
+    PRIVATE_VIEWER_ALL_OPTION_VALUE,
+    buildPrivateViewerOptions,
+    resolvePrivateViewerUserIds,
+} from '../lib/privateResourceAccess.js';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
 import PrivateFileViewer from './PrivateFileViewer.jsx';
 
@@ -60,12 +65,14 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
         };
     }, [resourceType, resourceId]);
 
-    const accessOptions = useMemo(() => candidates.map((candidate) => ({
-        value: candidate.id,
-        label: `${candidate.name} (@${candidate.username})`,
-    })), [candidates]);
-    const selectedAccessOptions = accessOptions.filter((option) => accessUserIds.includes(option.value));
+    const accessOptions = useMemo(() => buildPrivateViewerOptions(candidates), [candidates]);
+    const viewerOptions = accessOptions.filter((option) => option.value !== PRIVATE_VIEWER_ALL_OPTION_VALUE);
+    const selectedAccessOptions = viewerOptions.filter((option) => accessUserIds.includes(option.value));
     const files = Array.isArray(content?.files) ? content.files : [];
+
+    function handleAccessUsersChange(selected) {
+        setAccessUserIds(resolvePrivateViewerUserIds(selected, candidates));
+    }
 
     async function handleSave() {
         setSaving(true);
@@ -170,19 +177,19 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
                 <div>
                     <div className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700">
                         <Users size={13} />
-                        Additional viewers
+                        Additional read-only viewers
                     </div>
                     <Select
                         isMulti
                         options={accessOptions}
                         value={selectedAccessOptions}
-                        onChange={(selected) => setAccessUserIds(Array.isArray(selected) ? selected.map((item) => item.value) : [])}
+                        onChange={handleAccessUsersChange}
                         className="react-select-container"
                         classNamePrefix="react-select"
-                        placeholder={accessOptions.length ? 'Select additional accounts...' : 'No additional viewer accounts available'}
+                        placeholder={accessOptions.length ? 'Select All, Region Admins, or asset operators...' : 'No eligible read-only viewer accounts available'}
                     />
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Resource editors already have access. Add accounts here only when they need read-only reference access.
+                        Resource editors already have access. Choose All to add every currently eligible Region Admin or active asset Owner/Staff as explicit read-only viewers.
                     </p>
                 </div>
 

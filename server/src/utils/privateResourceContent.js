@@ -2,14 +2,19 @@ import { and, eq } from 'drizzle-orm';
 
 import {
     hardAssets,
+    hardAssetStaffMemberships,
     privateResourceContentAccess,
     privateResourceContentFiles,
     privateResourceContents,
     softAssets,
+    softAssetStaffMemberships,
+    userSubregions,
     users,
 } from '../db/schema.js';
+import { hasAnyHardAssetStaffAccess } from './hardAssetStaff.js';
 import { actorCanManageAsset } from './ownership.js';
 import { normalizeRole } from './roles.js';
+import { hasAnySoftAssetStaffAccess } from './softAssetAccess.js';
 
 export const PRIVATE_RESOURCE_TYPES = new Set(['hard', 'soft']);
 export const PRIVATE_FILE_MAX_BYTES = 10 * 1024 * 1024;
@@ -32,6 +37,11 @@ const EXTENSION_MIME_TYPES = new Map([
     ['heic', 'image/heic'],
     ['heif', 'image/heif'],
 ]);
+
+function toInteger(value) {
+    const number = Number(value);
+    return Number.isInteger(number) ? number : null;
+}
 
 export function normalizePrivateResourceType(value) {
     const type = String(value || '').trim().toLowerCase();
@@ -122,9 +132,15 @@ export function canManagePrivateResource(actor, resource) {
     return actorCanManageAsset(actor, resource, resource?.partner || null);
 }
 
+export function canReceivePrivateResourceViewerGrant(actor) {
+    const role = normalizeRole(actor?.role);
+    if (role === 'regional_admin') return true;
+    return hasAnyHardAssetStaffAccess(actor) || hasAnySoftAssetStaffAccess(actor);
+}
+
 export function canViewPrivateResource(actor, resource, accessGrants = []) {
     if (canManagePrivateResource(actor, resource)) return true;
-    if (normalizeRole(actor?.role) !== 'partner') return false;
+    if (!canReceivePrivateResourceViewerGrant(actor)) return false;
     return accessGrants.some((grant) => Number(grant.userId) === Number(actor?.id));
 }
 
@@ -227,35 +243,119 @@ export async function ensurePrivateContent(db, resourceType, resourceId, actor) 
     return loadPrivateContent(db, created.resourceType, created.resourceId);
 }
 
-export async function loadPrivateAccessCandidates(db, resourceSubregionId, resourcePartnerId = null) {
-    if (!Number.isInteger(resourceSubregionId)) return [];
+function createCandidateViewerActor(candidate) {
+    const hardAssetStaffAccess = (candidate?.hardAssetStaffMemberships || []).map((entry) => ({
+        hardAssetId: toInteger(entry?.hardAssetId),
+        staffRole: entry?.staffRole || null,
+        revokedAt: entry?.revokedAt || null,
+    }));
+    const softAssetStaffAccess = (candidate?.softAssetStaffMemberships || []).map((entry) => ({
+        softAssetId: toInteger(entry?.softAssetId),
+        staffRole: entry?.staffRole || null,
+        revokedAt: entry?.revokedAt || null,
+    }));
 
-    const rows = await db.query.users.findMany({
-        columns: {
-            id: true,
-            username: true,
-            name: true,
-            role: true,
-            managerUserId: true,
-        },
-        with: {
-            subregions: {
-                columns: { subregionId: true },
-            },
-        },
-    });
+    return {
+        ...candidate,
+        hardAssetStaffAccess,
+        softAssetStaffAccess,
+    };
+}
 
-    return rows
-        .filter((candidate) => normalizeRole(candidate.role) === 'partner')
-        .filter((candidate) => Number(candidate.id) !== Number(resourcePartnerId))
-        .filter((candidate) => (candidate.subregions || []).some((entry) => Number(entry.subregionId) === Number(resourceSubregionId)))
-        .map((candidate) => ({
+function addUniqueByKey(items, item, key) {
+    if (!key || items.some((existing) => existing.__key === key)) return;
+    items.push({ ...item, __key: key });
+}
+
+function groupPrivateAccessCandidateRows(rows) {
+    const grouped = new Map();
+
+    for (const row of rows || []) {
+        const id = toInteger(row?.id);
+        if (!id) continue;
+
+        if (!grouped.has(id)) {
+            grouped.set(id, {
+                id,
+                username: row.username,
+                name: row.name,
+                role: row.role,
+                managerUserId: row.managerUserId || null,
+                subregions: [],
+                hardAssetStaffMemberships: [],
+                softAssetStaffMemberships: [],
+            });
+        }
+
+        const candidate = grouped.get(id);
+        const subregionId = toInteger(row.subregionId);
+        if (subregionId) {
+            addUniqueByKey(candidate.subregions, { subregionId }, `subregion:${subregionId}`);
+        }
+
+        const hardAssetId = toInteger(row.hardAssetId);
+        if (hardAssetId) {
+            addUniqueByKey(candidate.hardAssetStaffMemberships, {
+                hardAssetId,
+                staffRole: row.hardStaffRole,
+                revokedAt: row.hardRevokedAt || null,
+            }, `hard:${hardAssetId}:${row.hardStaffRole}:${row.hardRevokedAt || ''}`);
+        }
+
+        const softAssetId = toInteger(row.softAssetId);
+        if (softAssetId) {
+            addUniqueByKey(candidate.softAssetStaffMemberships, {
+                softAssetId,
+                staffRole: row.softStaffRole,
+                revokedAt: row.softRevokedAt || null,
+            }, `soft:${softAssetId}:${row.softStaffRole}:${row.softRevokedAt || ''}`);
+        }
+    }
+
+    return [...grouped.values()].map((candidate) => ({
+        ...candidate,
+        subregions: candidate.subregions.map(({ __key, ...entry }) => entry),
+        hardAssetStaffMemberships: candidate.hardAssetStaffMemberships.map(({ __key, ...entry }) => entry),
+        softAssetStaffMemberships: candidate.softAssetStaffMemberships.map(({ __key, ...entry }) => entry),
+    }));
+}
+
+export async function loadPrivateAccessCandidates(db, resourceOrSubregionId, resourcePartnerId = null) {
+    const resource = typeof resourceOrSubregionId === 'object' && resourceOrSubregionId !== null
+        ? resourceOrSubregionId
+        : { subregionId: resourceOrSubregionId, partnerId: resourcePartnerId };
+
+    const rows = await db.select({
+        id: users.id,
+        username: users.username,
+        name: users.name,
+        role: users.role,
+        managerUserId: users.managerUserId,
+        subregionId: userSubregions.subregionId,
+        hardAssetId: hardAssetStaffMemberships.hardAssetId,
+        hardStaffRole: hardAssetStaffMemberships.staffRole,
+        hardRevokedAt: hardAssetStaffMemberships.revokedAt,
+        softAssetId: softAssetStaffMemberships.softAssetId,
+        softStaffRole: softAssetStaffMemberships.staffRole,
+        softRevokedAt: softAssetStaffMemberships.revokedAt,
+    })
+        .from(users)
+        .leftJoin(userSubregions, eq(userSubregions.userId, users.id))
+        .leftJoin(hardAssetStaffMemberships, eq(hardAssetStaffMemberships.userId, users.id))
+        .leftJoin(softAssetStaffMemberships, eq(softAssetStaffMemberships.userId, users.id));
+
+    return groupPrivateAccessCandidateRows(rows)
+        .map((candidate) => ({ candidate, actor: createCandidateViewerActor(candidate) }))
+        .filter(({ candidate }) => Number(candidate.id) !== Number(resource?.partnerId))
+        .filter(({ actor }) => canReceivePrivateResourceViewerGrant(actor))
+        .filter(({ actor }) => !canManagePrivateResource(actor, resource))
+        .map(({ candidate }) => ({
             id: candidate.id,
             name: candidate.name,
             username: candidate.username,
             managerUserId: candidate.managerUserId || null,
         }))
-        .sort((left, right) => left.name.localeCompare(right.name));
+        .sort((left, right) => (left.name || left.username || '').localeCompare(right.name || right.username || ''));
 }
 
 export async function assertValidPrivateAccessUserIds(db, resource, userIds) {
@@ -264,11 +364,11 @@ export async function assertValidPrivateAccessUserIds(db, resource, userIds) {
         .filter(Number.isInteger))];
     if (requested.length === 0) return [];
 
-    const candidates = await loadPrivateAccessCandidates(db, resource.subregionId, resource.partnerId);
+    const candidates = await loadPrivateAccessCandidates(db, resource);
     const candidateIds = new Set(candidates.map((candidate) => candidate.id));
     const invalid = requested.filter((id) => !candidateIds.has(id));
     if (invalid.length > 0) {
-        const err = new Error('One or more selected partner viewers are outside this resource subregion.');
+        const err = new Error('One or more selected read-only viewers are not eligible for this restricted content.');
         err.status = 400;
         throw err;
     }

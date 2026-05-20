@@ -189,11 +189,11 @@ export const getPrivateResourceAccessCandidates = async (c) => {
             return c.json({ error: 'Insufficient permissions to manage restricted access.' }, 403);
         }
 
-        const candidates = await loadPrivateAccessCandidates(db, resource.subregionId, resource.partnerId);
+        const candidates = await loadPrivateAccessCandidates(db, resource);
         return c.json(candidates);
     } catch (err) {
         console.error('getPrivateResourceAccessCandidates Error:', err);
-        return c.json({ error: err.message || 'Failed to load partner access candidates.' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to load restricted access candidates.' }, err.status || 500);
     }
 };
 
