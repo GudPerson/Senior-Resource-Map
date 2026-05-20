@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '../lib/api.js';
+import { buildRegenerationMessage } from '../lib/translationReview.js';
 
 const FIELD_STATUS_LABELS = {
     machine: 'Auto prepared',
@@ -113,7 +114,7 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
     const [showAllFields, setShowAllFields] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [regenerating, setRegenerating] = useState(false);
+    const [regeneratingTarget, setRegeneratingTarget] = useState('');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -166,6 +167,8 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
         : [];
     const hiddenReadyCount = Math.max(0, activeFieldStates.length - visibleFieldStates.length);
     const readyLanguageCount = summaries.filter((item) => !item.needsAttention && item.totalCount > 0).length;
+    const targetLocaleCodes = useMemo(() => (payload?.targetLocales || []).map((item) => item.locale), [payload]);
+    const regenerating = Boolean(regeneratingTarget);
 
     useEffect(() => {
         setDraftFields(localeEntry.fields || {});
@@ -211,21 +214,39 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
         }
     }
 
-    async function regenerate() {
-        setRegenerating(true);
+    function setNextActiveLocale(nextPayload) {
+        const nextSourceFieldNames = Object.keys(nextPayload?.sourceFields || {});
+        const nextSummaries = (nextPayload?.targetLocales || []).map((item) => buildLanguageSummary(
+            item.locale,
+            item.label,
+            nextSourceFieldNames,
+            nextPayload?.translations?.[item.locale] || {},
+        ));
+        const nextAttentionLocale = nextSummaries.find((item) => item.needsAttention)?.locale;
+        if (nextAttentionLocale) {
+            setActiveLocale(nextAttentionLocale);
+        }
+    }
+
+    async function regenerate(locales = [activeLocale]) {
+        const requestedLocales = [...new Set((locales || []).filter(Boolean))];
+        if (requestedLocales.length === 0) return;
+
+        const targetKey = requestedLocales.length > 1 ? 'all' : requestedLocales[0];
+        setRegeneratingTarget(targetKey);
         setMessage('');
         setError('');
         try {
-            const next = await api.regenerateResourceTranslations(resourceType, resourceId, { locales: [activeLocale], force: false });
+            const next = await api.regenerateResourceTranslations(resourceType, resourceId, { locales: requestedLocales, force: false });
             setPayload(next);
-            const status = next?.translationStatus?.status;
-            setMessage(status === 'not_configured'
-                ? 'English was saved, but auto-translation is not configured yet.'
-                : 'Missing auto text was refreshed. Please review the wording before relying on it.');
+            if (targetKey === 'all') {
+                setNextActiveLocale(next);
+            }
+            setMessage(buildRegenerationMessage(next));
         } catch (err) {
             setError(err.message || 'Failed to fill missing text');
         } finally {
-            setRegenerating(false);
+            setRegeneratingTarget('');
         }
     }
 
@@ -257,9 +278,22 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
                         </p>
                     </div>
                 </div>
-                <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-bold text-sky-800">
-                    {readyLanguageCount} of {summaries.length} languages ready
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    {sourceFieldNames.length > 0 ? (
+                        <button
+                            type="button"
+                            onClick={() => regenerate(targetLocaleCodes)}
+                            disabled={saving || regenerating}
+                            className="btn-primary min-h-11 px-4 text-sm"
+                        >
+                            {regeneratingTarget === 'all' ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                            Fill all missing text
+                        </button>
+                    ) : null}
+                    <span className="rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-bold text-sky-800">
+                        {readyLanguageCount} of {summaries.length} languages ready
+                    </span>
+                </div>
             </div>
 
             {sourceFieldNames.length === 0 ? (
@@ -303,12 +337,12 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
                             </div>
                             <button
                                 type="button"
-                                onClick={regenerate}
+                                onClick={() => regenerate([activeLocale])}
                                 disabled={saving || regenerating}
                                 className="btn-ghost min-h-11 px-4 text-sm"
                             >
-                                {regenerating ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                                Fill missing or outdated text
+                                {regeneratingTarget === activeLocale ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                Refresh this language
                             </button>
                         </div>
 
