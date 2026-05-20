@@ -29,7 +29,7 @@ function createVertexServiceAccountJson() {
 test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, description, and tags', async () => {
     const originalFetch = global.fetch;
     const serviceAccountJson = createVertexServiceAccountJson();
-    let sawStructuredEnrichmentRequest = false;
+    let sawGroundedJsonRequestWithoutSchema = false;
 
     global.fetch = async (input, init = {}) => {
         const url = typeof input === 'string' ? input : input.url;
@@ -43,7 +43,11 @@ test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, descrip
 
         if (url.includes(':generateContent')) {
             const body = JSON.parse(init.body);
-            sawStructuredEnrichmentRequest = Boolean(body.generationConfig?.responseSchema?.properties?.enriched);
+            sawGroundedJsonRequestWithoutSchema = Boolean(
+                body.generationConfig?.responseMimeType === undefined
+                && body.generationConfig?.responseSchema === undefined
+                && body.tools?.[0]?.googleSearch,
+            );
 
             return jsonResponse({
                 candidates: [
@@ -62,6 +66,10 @@ test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, descrip
                                                 hours: 'Monday to Friday, 9.30am to 6pm',
                                                 description: 'Active ageing programmes and community support for seniors.',
                                                 services: ['active ageing', 'senior activities'],
+                                                socialLinks: {
+                                                    facebook: 'https://www.facebook.com/preciousactiveageing',
+                                                    instagram: 'https://www.instagram.com/preciousactiveageing/',
+                                                },
                                                 logoUrl: 'https://fycs.example/logo.png',
                                                 sourceUrl: 'https://fycs.example/active-ageing-centres',
                                                 sourceTitle: 'Fei Yue Active Ageing Centres',
@@ -99,13 +107,15 @@ test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, descrip
 
         const enrichment = result.get('_idx:0');
 
-        assert.equal(sawStructuredEnrichmentRequest, true);
+        assert.equal(sawGroundedJsonRequestWithoutSchema, true);
         assert.equal(enrichment.address, 'Blk 634B Senja Road #02-227, Singapore 672634');
         assert.equal(enrichment.phone, '6351 9555');
         assert.equal(enrichment.hours, 'Monday to Friday, 9.30am to 6pm');
         assert.equal(enrichment.website, 'https://fycs.example/active-ageing-centres');
         assert.equal(enrichment.description, 'Active ageing programmes and community support for seniors.');
         assert.deepEqual(enrichment.services, ['active ageing', 'senior activities']);
+        assert.equal(enrichment.socialLinks.facebook, 'https://www.facebook.com/preciousactiveageing');
+        assert.equal(enrichment.socialLinks.instagram, 'https://www.instagram.com/preciousactiveageing/');
     } finally {
         global.fetch = originalFetch;
     }

@@ -273,7 +273,7 @@ function computeTokenOverlap(left, right) {
     return matches / leftTokens.size;
 }
 
-function hasUsefulEnrichment(enrichment) {
+function hasCorePlaceEnrichment(enrichment) {
     return Boolean(
         enrichment?.address
         || enrichment?.phone
@@ -282,8 +282,36 @@ function hasUsefulEnrichment(enrichment) {
         || enrichment?.description
         || enrichment?.logoUrl
         || Object.values(normalizeSocialLinks(enrichment?.socialLinks)).some(Boolean)
-        || (Array.isArray(enrichment?.services) && enrichment.services.length > 0)
     );
+}
+
+function isGoogleMapsMetadataUrl(value) {
+    try {
+        const parsed = new URL(String(value || '').trim());
+        const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+        const pathname = parsed.pathname.toLowerCase();
+
+        if (hostname === 'maps.app.goo.gl' || hostname === 'maps.google.com') return true;
+        if (hostname === 'google.com' || hostname.endsWith('.google.com')) {
+            return pathname.includes('/maps')
+                || parsed.searchParams.has('cid')
+                || parsed.searchParams.has('q')
+                || parsed.searchParams.has('query');
+        }
+
+        return false;
+    } catch {
+        return false;
+    }
+}
+
+function canFetchEnrichmentMetadata(value) {
+    const website = splitWebsiteAndSocialLinks(value).website;
+    return Boolean(website) && !isGoogleMapsMetadataUrl(website);
+}
+
+function hasAnySocialLink(value) {
+    return Object.values(normalizeSocialLinks(value)).some(Boolean);
 }
 
 function needsCorePlaceEnrichment(enrichment) {
@@ -336,7 +364,7 @@ function mapGroundedDraftSuggestionToEnrichment(suggestion) {
         logoUrl: suggestion.logoUrl || '',
         sourceUrl: suggestion.sourceUrl || suggestion.website || '',
         sourceTitle: suggestion.sourceTitle || suggestion.name || '',
-        socialLinks: websiteParts.socialLinks,
+        socialLinks: mergeSocialLinks(websiteParts.socialLinks, suggestion.socialLinks),
         confidence: Number.isFinite(Number(suggestion.confidence)) ? Number(suggestion.confidence) : 0.5,
     };
 }
@@ -1691,23 +1719,28 @@ export const enrichHardAssetDraft = async (c) => {
             enrichment = mergeEnrichmentWithFallback(enrichment, googlePlacesEnrichment);
             enrichment = mergeEnrichmentWithFallback(enrichment, officialDirectoryEnrichment);
         }
-        if (!hasUsefulEnrichment(enrichment)) {
+        if (needsCorePlaceEnrichment(enrichment)) {
             enrichment = await enrichDraftWithGroundedSearch(c.env, candidate) || enrichment;
             enrichment = mergeEnrichmentWithFallback(enrichment, officialDirectoryEnrichment);
         }
-        if (!hasUsefulEnrichment(enrichment)) {
+        if (!hasCorePlaceEnrichment(enrichment)) {
             enrichment = await enrichDraftFromOfficialDirectory(candidate) || enrichment;
         }
-        if (enrichment && !enrichment.logoUrl && enrichment.sourceUrl) {
+        if (
+            enrichment
+            && (!enrichment.logoUrl || !hasAnySocialLink(enrichment.socialLinks))
+            && canFetchEnrichmentMetadata(enrichment.sourceUrl)
+        ) {
             const metadata = await fetchWebsiteMetadata(enrichment.sourceUrl);
-            if (metadata.logoUrl) {
+            if (!enrichment.logoUrl && metadata.logoUrl) {
                 enrichment.logoUrl = metadata.logoUrl;
             }
             enrichment.socialLinks = mergeSocialLinks(enrichment.socialLinks, metadata.socialLinks);
         }
         if (enrichment) {
             const enrichmentWebsiteParts = splitWebsiteAndSocialLinks(enrichment.website);
-            const metadataSource = enrichmentWebsiteParts.website || currentWebsiteParts.website || '';
+            const metadataSource = [enrichmentWebsiteParts.website, currentWebsiteParts.website]
+                .find(canFetchEnrichmentMetadata) || '';
             const metadata = metadataSource ? await fetchWebsiteMetadata(metadataSource) : null;
             enrichment.website = enrichmentWebsiteParts.website || currentWebsiteParts.website || enrichment.website || '';
             enrichment.socialLinks = mergeSocialLinks(

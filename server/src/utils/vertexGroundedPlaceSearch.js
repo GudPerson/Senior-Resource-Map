@@ -1,3 +1,5 @@
+import { mergeSocialLinks } from './socialLinks.js';
+
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash';
 
@@ -202,6 +204,16 @@ function dedupeTags(values) {
     return next.slice(0, 12);
 }
 
+function normalizeAiSocialLinks(raw = {}) {
+    return mergeSocialLinks(raw?.socialLinks, {
+        facebook: raw?.facebook || raw?.facebookUrl,
+        instagram: raw?.instagram || raw?.instagramUrl,
+        tiktok: raw?.tiktok || raw?.tiktokUrl,
+        youtube: raw?.youtube || raw?.youtubeUrl,
+        linkedin: raw?.linkedin || raw?.linkedinUrl,
+    });
+}
+
 function buildPrompt({ anchor, keywordQuery = '', categoryHints = [], preferredResultCount = 8, radiusLabel = '1 km' }) {
     const categoriesLine = categoryHints.length
         ? `Prioritize places that plausibly fit these CareAround categories when relevant: ${categoryHints.join(', ')}.`
@@ -220,7 +232,8 @@ function buildPrompt({ anchor, keywordQuery = '', categoryHints = [], preferredR
         'Use Google Search grounding. Only return places supported by grounded web results.',
         'Prefer official organization sites, government/community pages, and credible local directory pages.',
         'Return only JSON matching the schema. No markdown.',
-        'For each candidate, extract: name, full street address, postalCode, website, phone, operating hours, description, logoUrl, subCategorySuggestion, suggestedTags, sourceUrl, sourceTitle, sourceSnippet, confidence.',
+        'For each candidate, extract: name, full street address, postalCode, website, phone, operating hours, description, logoUrl, official socialLinks, subCategorySuggestion, suggestedTags, sourceUrl, sourceTitle, sourceSnippet, confidence.',
+        'socialLinks must be an object with facebook, instagram, tiktok, youtube, and linkedin keys. Only return official organization pages; otherwise leave keys blank.',
         'Use sourceSnippet to quote or tightly paraphrase the most relevant grounded evidence.',
         'If a field is unclear, leave it blank instead of guessing.',
     ].join('\n');
@@ -241,6 +254,24 @@ function extractTextFromVertexResponse(responseJson) {
     return combined;
 }
 
+function parseJsonFromModelText(rawText) {
+    const cleanedText = String(rawText || '')
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+
+    try {
+        return JSON.parse(cleanedText);
+    } catch {
+        const firstBrace = cleanedText.indexOf('{');
+        const lastBrace = cleanedText.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            return JSON.parse(cleanedText.slice(firstBrace, lastBrace + 1));
+        }
+        throw new Error('Model response was not valid JSON.');
+    }
+}
+
 function normalizeCandidate(rawCandidate) {
     const name = normalizeText(rawCandidate?.name);
     if (!name) return null;
@@ -254,6 +285,7 @@ function normalizeCandidate(rawCandidate) {
         hours: normalizeLongText(rawCandidate?.hours || rawCandidate?.openingHours || rawCandidate?.operatingHours),
         description: normalizeLongText(rawCandidate?.description),
         logoUrl: normalizeUrl(rawCandidate?.logoUrl),
+        socialLinks: normalizeAiSocialLinks(rawCandidate),
         subCategorySuggestion: normalizeText(rawCandidate?.subCategorySuggestion),
         suggestedTags: dedupeTags(rawCandidate?.suggestedTags),
         sourceUrl: normalizeUrl(rawCandidate?.sourceUrl),
@@ -308,43 +340,6 @@ export async function searchVertexGroundedPlaceSuggestions({
             ],
             generationConfig: {
                 temperature: 0.1,
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: 'object',
-                    properties: {
-                        warnings: {
-                            type: 'array',
-                            items: { type: 'string' },
-                        },
-                        candidates: {
-                            type: 'array',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    name: { type: 'string' },
-                                    address: { type: 'string' },
-                                    postalCode: { type: 'string' },
-                                    website: { type: 'string' },
-                                    phone: { type: 'string' },
-                                    hours: { type: 'string' },
-                                    description: { type: 'string' },
-                                    logoUrl: { type: 'string' },
-                                    subCategorySuggestion: { type: 'string' },
-                                    suggestedTags: {
-                                        type: 'array',
-                                        items: { type: 'string' },
-                                    },
-                                    sourceUrl: { type: 'string' },
-                                    sourceTitle: { type: 'string' },
-                                    sourceSnippet: { type: 'string' },
-                                    confidence: { type: 'number' },
-                                },
-                                required: ['name'],
-                            },
-                        },
-                    },
-                    required: ['candidates'],
-                },
             },
         }),
     });
@@ -362,7 +357,7 @@ export async function searchVertexGroundedPlaceSuggestions({
 
     let parsed;
     try {
-        parsed = JSON.parse(rawText);
+        parsed = parseJsonFromModelText(rawText);
     } catch (err) {
         console.error('Vertex grounded place fallback JSON parse error:', rawText);
         throw clientError(`Vertex AI returned malformed JSON. ${err.message}`, 502);
@@ -413,6 +408,7 @@ function buildEnrichmentPrompt({ candidates, keywordQuery = '' }) {
         '  - website: the official organization or location page, if clearly findable.',
         '  - hours: concise operating hours, if clearly findable.',
         '  - logoUrl: a direct image URL to the organization\'s official logo, if clearly findable.',
+        '  - socialLinks: official social media pages as an object with facebook, instagram, tiktok, youtube, and linkedin keys. Only return official pages, otherwise blank.',
         '  - sourceUrl: the most authoritative web page you used (official site or gov portal preferred).',
         '  - sourceTitle: short page title of that source.',
         '  - confidence: a float 0–1 reflecting how confident you are in the accuracy of the enriched data.',
@@ -439,6 +435,7 @@ function normalizeEnrichmentItem(raw) {
         description: normalizeLongText(raw?.description),
         services: dedupeTags(raw?.services || raw?.suggestedTags || raw?.tags),
         logoUrl: normalizeUrl(raw?.logoUrl),
+        socialLinks: normalizeAiSocialLinks(raw),
         sourceUrl: normalizeUrl(raw?.sourceUrl || raw?.website),
         sourceTitle: normalizeText(raw?.sourceTitle),
         confidence: normalizeConfidence(raw?.confidence),
@@ -497,38 +494,6 @@ export async function enrichPlaceCandidatesWithVertex({ env, candidates, keyword
                 tools: [{ googleSearch: {} }],
                 generationConfig: {
                     temperature: 0.1,
-                    responseMimeType: 'application/json',
-                    responseSchema: {
-                        type: 'object',
-                        properties: {
-                            enriched: {
-                                type: 'array',
-                                items: {
-                                    type: 'object',
-                                    properties: {
-                                        index: { type: 'number' },
-                                        googlePlaceId: { type: 'string' },
-                                        address: { type: 'string' },
-                                        postalCode: { type: 'string' },
-                                        website: { type: 'string' },
-                                        phone: { type: 'string' },
-                                        hours: { type: 'string' },
-                                        description: { type: 'string' },
-                                        services: {
-                                            type: 'array',
-                                            items: { type: 'string' },
-                                        },
-                                        logoUrl: { type: 'string' },
-                                        sourceUrl: { type: 'string' },
-                                        sourceTitle: { type: 'string' },
-                                        confidence: { type: 'number' },
-                                    },
-                                    required: ['index'],
-                                },
-                            },
-                        },
-                        required: ['enriched'],
-                    },
                 },
             }),
         });
@@ -551,9 +516,7 @@ export async function enrichPlaceCandidatesWithVertex({ env, candidates, keyword
 
     let parsed;
     try {
-        // Strip markdown code fences if present (model may wrap JSON when not in controlled-generation mode)
-        const cleanedText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-        parsed = JSON.parse(cleanedText);
+        parsed = parseJsonFromModelText(rawText);
     } catch {
         return new Map();
     }

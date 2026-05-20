@@ -169,9 +169,11 @@ function extractFirstSrcsetUrl(value) {
 }
 
 function extractLikelyLogoImages(html) {
-    const matches = [];
+    const strongMatches = [];
+    const fallbackMatches = [];
     const imgTags = extractTags(html, 'img').map(parseAttributes);
-    const logoPattern = /\b(logo|brand|site-logo|navbar-logo|header-logo)\b/i;
+    const logoPattern = /(^|[^a-z0-9])(logo|brand|site-logo|navbar-logo|header-logo)([^a-z0-9]|$)/i;
+    const genericVisualPattern = /(^|[^a-z0-9])(award|awards|badge|carousel|cert|certificate|partner|program|programme|service|sponsor|thumbnail)([^a-z0-9]|$)/i;
 
     for (const attrs of imgTags) {
         const src = normalizeWhitespace(
@@ -194,11 +196,15 @@ function extractLikelyLogoImages(html) {
         ].map((value) => String(value || '')).join(' ');
 
         if (logoPattern.test(hintText)) {
-            matches.push(src);
+            if (genericVisualPattern.test(hintText)) {
+                fallbackMatches.push(src);
+            } else {
+                strongMatches.push(src);
+            }
         }
     }
 
-    return [...new Set(matches)];
+    return [...new Set([...strongMatches, ...fallbackMatches])];
 }
 
 function buildLogoCandidates({ html, resolvedUrl, jsonLd }) {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 import { sign } from 'hono/jwt';
 
@@ -11,6 +12,26 @@ function htmlResponse(html, url = 'https://fycs.org/active-ageing-centres/') {
             'Content-Type': 'text/html; charset=UTF-8',
             'X-Test-Resolved-Url': url,
         },
+    });
+}
+
+function jsonResponse(payload, status = 200) {
+    return new Response(JSON.stringify(payload), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+function createVertexServiceAccountJson() {
+    const { privateKey } = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+    return JSON.stringify({
+        client_email: 'carearound-enrichment-test@example.iam.gserviceaccount.com',
+        private_key: privateKey,
     });
 }
 
@@ -143,6 +164,170 @@ test('manual hard asset enrichment uses static official directory entries when l
     }
 });
 
+test('manual hard asset enrichment continues to grounded search when first AI pass only returns tags', async () => {
+    const originalFetch = global.fetch;
+    const serviceAccountJson = createVertexServiceAccountJson();
+    let groundedFallbackCalls = 0;
+
+    global.fetch = async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://oauth2.googleapis.com/token') {
+            return jsonResponse({
+                access_token: 'vertex-access-token',
+                expires_in: 3600,
+            });
+        }
+
+        if (url.includes(':generateContent')) {
+            const body = JSON.parse(init.body);
+            const prompt = body.contents?.[0]?.parts?.[0]?.text || '';
+            assert.equal(body.generationConfig?.responseSchema, undefined);
+            assert.equal(body.generationConfig?.responseMimeType, undefined);
+
+            if (prompt.includes('Places to enrich:')) {
+                return jsonResponse({
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({
+                                            enriched: [
+                                                {
+                                                    index: 0,
+                                                    services: ['active ageing', 'senior activities'],
+                                                    confidence: 0.62,
+                                                },
+                                            ],
+                                        }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                });
+            }
+
+            if (prompt.includes('Postal anchor:')) {
+                groundedFallbackCalls += 1;
+                return jsonResponse({
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({
+                                            candidates: [
+                                                {
+                                                    name: 'Precious Active Ageing Centre (Sunshine Gardens)',
+                                                    address: 'Blk 488B Choa Chu Kang Ave 5 #01-145, Singapore 682488',
+                                                    postalCode: '682488',
+                                                    website: 'https://www.preciousaac.com/',
+                                                    phone: '+65 6912 7800',
+                                                    hours: 'Monday to Friday, 8:30 AM to 6:00 PM',
+                                                    description: 'Active ageing centre supporting seniors in Choa Chu Kang with social, wellness, and community activities.',
+                                                    logoUrl: 'https://www.preciousaac.com/logo.png',
+                                                    suggestedTags: ['active ageing', 'senior activities', 'community support'],
+                                                    sourceUrl: 'https://www.preciousaac.com/sunshine-gardens',
+                                                    sourceTitle: 'Precious Active Ageing Centre Sunshine Gardens',
+                                                    sourceSnippet: 'Sunshine Gardens branch details and contact information.',
+                                                    confidence: 0.89,
+                                                },
+                                            ],
+                                        }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                });
+            }
+        }
+
+        if (url === 'https://www.preciousaac.com/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="Precious Active Ageing Centre keeps seniors active and connected.">
+                    </head>
+                    <body>Precious Active Ageing Centre</body>
+                </html>
+            `, 'https://www.preciousaac.com/');
+        }
+
+        if (url === 'https://www.preciousaac.com/sunshine-gardens') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="Precious Active Ageing Centre at Sunshine Gardens keeps seniors active and connected.">
+                    </head>
+                    <body>
+                        <a href="https://www.facebook.com/preciousactiveageing">Facebook</a>
+                    </body>
+                </html>
+            `, 'https://www.preciousaac.com/sunshine-gardens');
+        }
+
+        if (url === 'https://www.preciousaac.com/logo.png' || url === 'https://www.preciousaac.com/favicon.ico') {
+            return new Response('', {
+                status: 200,
+                headers: { 'Content-Type': 'image/png' },
+            });
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const token = await sign({
+            id: 1,
+            username: 'admin',
+            email: 'admin@example.test',
+            role: 'super_admin',
+            name: 'Admin',
+            postalCode: '',
+            subregionIds: [],
+            exp: Math.floor(Date.now() / 1000) + 3600,
+        }, 'test-secret', 'HS256');
+
+        const response = await app.fetch(
+            new Request('http://local/api/hard-assets/import/enrich-draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Token': token,
+                },
+                body: JSON.stringify({
+                    name: 'Precious Active Ageing Centre (Sunshine Gardens)',
+                    address: 'Singapore 682488',
+                    postalCode: '682488',
+                    subCategory: 'Active Ageing Centre (AAC)',
+                }),
+            }),
+            {
+                JWT_SECRET: 'test-secret',
+                VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
+                VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+            },
+            { waitUntil() {} },
+        );
+        const payload = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.equal(groundedFallbackCalls, 1);
+        assert.equal(payload.website, 'https://www.preciousaac.com/');
+        assert.equal(payload.phone, '+65 6912 7800');
+        assert.equal(payload.hours, 'Monday to Friday, 8:30 AM to 6:00 PM');
+        assert.match(payload.description, /supporting seniors/i);
+        assert.equal(payload.logoUrl, 'https://www.preciousaac.com/logo.png');
+        assert.equal(payload.socialLinks.facebook, 'https://www.facebook.com/preciousactiveageing');
+        assert.deepEqual(payload.services, ['active ageing', 'senior activities', 'community support']);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
 test('manual hard asset enrichment falls back to Google Places for any matching place', async () => {
     const originalFetch = global.fetch;
 
@@ -257,6 +442,100 @@ test('manual hard asset enrichment falls back to Google Places for any matching 
         assert.match(payload.description, /Primary care clinic/i);
         assert.equal(payload.logoUrl, 'https://evercare.example/logo.png');
         assert.equal(payload.services.includes('healthcare'), true);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('manual hard asset enrichment does not use Google Maps preview images as logos', async () => {
+    const originalFetch = global.fetch;
+
+    global.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://places.googleapis.com/v1/places:searchText') {
+            return jsonResponse({
+                places: [
+                    {
+                        id: 'google-place-precious',
+                        name: 'places/google-place-precious',
+                        displayName: { text: 'Precious Active Ageing Centre (Sunshine Gardens)' },
+                        formattedAddress: 'Blk 488B Choa Chu Kang Ave 5 #01-145, Singapore 682488',
+                        postalAddress: { postalCode: '682488', regionCode: 'SG' },
+                        googleMapsUri: 'https://maps.google.com/?cid=precious',
+                        primaryType: 'health',
+                    },
+                ],
+            });
+        }
+
+        if (url === 'https://places.googleapis.com/v1/places/google-place-precious') {
+            return jsonResponse({
+                id: 'google-place-precious',
+                name: 'places/google-place-precious',
+                displayName: { text: 'Precious Active Ageing Centre (Sunshine Gardens)' },
+                formattedAddress: 'Blk 488B Choa Chu Kang Ave 5 #01-145, Singapore 682488',
+                postalAddress: { postalCode: '682488', regionCode: 'SG' },
+                googleMapsUri: 'https://maps.google.com/?cid=precious',
+                primaryType: 'health',
+            });
+        }
+
+        if (url === 'https://maps.google.com/?cid=precious') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta property="og:image" content="https://maps.google.com/maps/api/staticmap?center=1,103&key=not-a-carearound-logo">
+                    </head>
+                    <body>Map preview</body>
+                </html>
+            `, 'https://maps.google.com/?cid=precious');
+        }
+
+        if (url.startsWith('https://maps.google.com/maps/api/staticmap')) {
+            return new Response('', {
+                status: 200,
+                headers: { 'Content-Type': 'image/png' },
+            });
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const token = await sign({
+            id: 1,
+            username: 'admin',
+            email: 'admin@example.test',
+            role: 'super_admin',
+            name: 'Admin',
+            postalCode: '',
+            subregionIds: [],
+            exp: Math.floor(Date.now() / 1000) + 3600,
+        }, 'test-secret', 'HS256');
+
+        const response = await app.fetch(
+            new Request('http://local/api/hard-assets/import/enrich-draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Token': token,
+                },
+                body: JSON.stringify({
+                    name: 'Precious Active Ageing Centre (Sunshine Gardens)',
+                    address: 'Singapore 682488',
+                    postalCode: '682488',
+                    subCategory: 'Active Ageing Centre (AAC)',
+                }),
+            }),
+            { JWT_SECRET: 'test-secret', GOOGLE_MAPS_API_KEY: 'test-google-key' },
+            { waitUntil() {} },
+        );
+        const payload = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.equal(payload.address, 'Blk 488B Choa Chu Kang Ave 5 #01-145, Singapore 682488');
+        assert.equal(payload.logoUrl, '');
     } finally {
         global.fetch = originalFetch;
     }

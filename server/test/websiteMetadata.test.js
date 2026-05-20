@@ -61,6 +61,46 @@ test('fetchWebsiteMetadata extracts and validates likely logo image elements', a
     }
 });
 
+test('fetchWebsiteMetadata prefers organization logo filenames over service carousel logos', async () => {
+    const originalFetch = global.fetch;
+
+    global.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://newlife.example/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="New Life Community Services.">
+                    </head>
+                    <body>
+                        <img src="/wp-content/uploads/2023/12/LOGO_NLCS_RGB-02.svg">
+                        <img class="service-logo" src="/wp-content/uploads/2024/01/Homepage_Carousel_CC-01.png">
+                    </body>
+                </html>
+            `, 'https://newlife.example/');
+        }
+
+        if (url === 'https://newlife.example/wp-content/uploads/2023/12/LOGO_NLCS_RGB-02.svg') {
+            return imageResponse('image/svg+xml');
+        }
+
+        if (url === 'https://newlife.example/wp-content/uploads/2024/01/Homepage_Carousel_CC-01.png') {
+            return imageResponse('image/png');
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const metadata = await fetchWebsiteMetadata('https://newlife.example/');
+
+        assert.equal(metadata.logoUrl, 'https://newlife.example/wp-content/uploads/2023/12/LOGO_NLCS_RGB-02.svg');
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
 test('fetchWebsiteMetadata falls back to favicon when page has no logo metadata', async () => {
     const originalFetch = global.fetch;
 

@@ -306,6 +306,8 @@ test('postal search uses Vertex web fallback when Google returns zero place cand
             sawGroundedVertexRequest = true;
             const body = JSON.parse(init.body);
             assert.deepEqual(body.tools, [{ googleSearch: {} }]);
+            assert.equal(body.generationConfig?.responseSchema, undefined);
+            assert.equal(body.generationConfig?.responseMimeType, undefined);
 
             return jsonResponse({
                 candidates: [
