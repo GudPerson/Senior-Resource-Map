@@ -22,6 +22,13 @@ function jsonResponse(payload, status = 200) {
     });
 }
 
+function imageResponse(contentType = 'image/png') {
+    return new Response('', {
+        status: 200,
+        headers: { 'Content-Type': contentType },
+    });
+}
+
 function createVertexServiceAccountJson() {
     const { privateKey } = generateKeyPairSync('rsa', {
         modulusLength: 2048,
@@ -323,6 +330,143 @@ test('manual hard asset enrichment continues to grounded search when first AI pa
         assert.equal(payload.logoUrl, 'https://www.preciousaac.com/logo.png');
         assert.equal(payload.socialLinks.facebook, 'https://www.facebook.com/preciousactiveageing');
         assert.deepEqual(payload.services, ['active ageing', 'senior activities', 'community support']);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('manual hard asset enrichment stabilizes All Saints Silver Lifestyle Club details and logo', async () => {
+    const originalFetch = global.fetch;
+    const serviceAccountJson = createVertexServiceAccountJson();
+
+    global.fetch = async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://oauth2.googleapis.com/token') {
+            return jsonResponse({
+                access_token: 'vertex-access-token',
+                expires_in: 3600,
+            });
+        }
+
+        if (url.includes(':generateContent')) {
+            const body = JSON.parse(init.body);
+            const prompt = body.contents?.[0]?.parts?.[0]?.text || '';
+
+            if (prompt.includes('Places to enrich:')) {
+                return jsonResponse({
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({
+                                            enriched: [
+                                                {
+                                                    index: 0,
+                                                    phone: '6351 1470',
+                                                    services: ['active ageing', 'senior activities'],
+                                                    logoUrl: 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/12/nursing-home-5.png',
+                                                    sourceUrl: 'https://www.allsaintshome.org.sg/our-services-centres/',
+                                                    sourceTitle: 'Our Services & Centres - All Saints Home',
+                                                    confidence: 0.61,
+                                                },
+                                            ],
+                                        }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                });
+            }
+
+            if (prompt.includes('Postal anchor:')) {
+                return jsonResponse({
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({ candidates: [] }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                });
+            }
+        }
+
+        if (url === 'https://www.allsaintshome.org.sg/our-services-centres/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="All Saints Silver Lifestyle Clubs provide active ageing, day care, community rehabilitation, and nursing support for seniors.">
+                        <meta property="og:image" content="https://www.allsaintshome.org.sg/wp-content/uploads/2024/12/nursing-home-5.png">
+                    </head>
+                    <body>
+                        <a href="https://www.allsaintshome.org.sg/">
+                            <img width="398" height="97" src="https://www.allsaintshome.org.sg/wp-content/uploads/2024/10/WeCARE-All-saints-home.png" class="attachment-full size-full" alt="">
+                        </a>
+                    </body>
+                </html>
+            `, 'https://www.allsaintshome.org.sg/our-services-centres/');
+        }
+
+        if (
+            url === 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/10/WeCARE-All-saints-home.png'
+            || url === 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/12/nursing-home-5.png'
+            || url === 'https://www.allsaintshome.org.sg/favicon.ico'
+        ) {
+            return imageResponse('image/png');
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const token = await sign({
+            id: 1,
+            username: 'admin',
+            email: 'admin@example.test',
+            role: 'super_admin',
+            name: 'Admin',
+            postalCode: '',
+            subregionIds: [],
+            exp: Math.floor(Date.now() / 1000) + 3600,
+        }, 'test-secret', 'HS256');
+
+        const response = await app.fetch(
+            new Request('http://local/api/hard-assets/import/enrich-draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Token': token,
+                },
+                body: JSON.stringify({
+                    name: 'All Saints Silver Lifestyle Club @ Yishun Fern Grove',
+                    address: 'Singapore 760674',
+                    postalCode: '760674',
+                    subCategory: 'Active Ageing Centre (AAC)',
+                }),
+            }),
+            {
+                JWT_SECRET: 'test-secret',
+                VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
+                VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+            },
+            { waitUntil() {} },
+        );
+        const payload = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.equal(payload.address, 'Blk 674 Yishun Ave 4 #01-11, Singapore 760674');
+        assert.equal(payload.website, 'https://www.allsaintshome.org.sg/our-services-centres/');
+        assert.equal(payload.phone, '6351 1470');
+        assert.match(payload.description, /active ageing/i);
+        assert.equal(payload.logoUrl, 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/10/WeCARE-All-saints-home.png');
+        assert.equal(payload.services.includes('community rehabilitation'), true);
     } finally {
         global.fetch = originalFetch;
     }

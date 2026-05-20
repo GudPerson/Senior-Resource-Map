@@ -240,6 +240,26 @@ const FEI_YUE_ACTIVE_AGEING_ENTRIES = [
         hours: 'Monday to Friday, 9.30am to 6pm',
     },
 ];
+const ALL_SAINTS_SILVER_LIFESTYLE_DESCRIPTION = 'All Saints Silver Lifestyle Clubs provide active ageing, day care, community rehabilitation, and nursing support for seniors in the community.';
+const ALL_SAINTS_SILVER_LIFESTYLE_SERVICES = [
+    'active ageing',
+    'senior activities',
+    'day care',
+    'dementia day care',
+    'community rehabilitation',
+    'physiotherapy',
+    'occupational therapy',
+    'centre-based nursing',
+];
+const ALL_SAINTS_SILVER_LIFESTYLE_ENTRIES = [
+    {
+        name: 'All Saints Silver Lifestyle Club @ Yishun Fern Grove',
+        postalCode: '760674',
+        address: 'Blk 674 Yishun Ave 4 #01-11, Singapore 760674',
+        phone: '6351 1470',
+        hours: 'Monday to Friday, 8.30am to 5.30pm; closed on Saturday, Sunday and public holidays',
+    },
+];
 
 const OFFICIAL_DIRECTORY_SOURCES = [
     {
@@ -249,6 +269,15 @@ const OFFICIAL_DIRECTORY_SOURCES = [
         description: FEI_YUE_ACTIVE_AGEING_DESCRIPTION,
         services: FEI_YUE_ACTIVE_AGEING_SERVICES,
         entries: FEI_YUE_ACTIVE_AGEING_ENTRIES,
+    },
+    {
+        label: 'All Saints Silver Lifestyle Clubs',
+        url: 'https://www.allsaintshome.org.sg/our-services-centres/',
+        matches: (candidate) => /\ball\s+saints\b/i.test(candidate?.name || '')
+            && /\bsilver\s+lifestyle\s+club\b/i.test(candidate?.name || ''),
+        description: ALL_SAINTS_SILVER_LIFESTYLE_DESCRIPTION,
+        services: ALL_SAINTS_SILVER_LIFESTYLE_SERVICES,
+        entries: ALL_SAINTS_SILVER_LIFESTYLE_ENTRIES,
     },
 ];
 
@@ -308,6 +337,26 @@ function isGoogleMapsMetadataUrl(value) {
 function canFetchEnrichmentMetadata(value) {
     const website = splitWebsiteAndSocialLinks(value).website;
     return Boolean(website) && !isGoogleMapsMetadataUrl(website);
+}
+
+function isGenericEnrichmentImageUrl(value) {
+    try {
+        const pathname = decodeURIComponent(new URL(String(value || '')).pathname).toLowerCase();
+        return /(^|[-_/])(anniversary|award|badge|banner|carousel|certificate|community-rehabilitation|centre-based-nursing|day-care|dementia|homepage|map|music-videos|nursing-home|program|programme|service|shelter|thumbnail|working-hours)([-_/]|\.|$)/i.test(pathname);
+    } catch {
+        return false;
+    }
+}
+
+function chooseEnrichmentLogoUrl(currentLogoUrl, metadataLogoUrl) {
+    const current = normalizeText(currentLogoUrl);
+    const metadata = normalizeText(metadataLogoUrl);
+    if (!current) return metadata;
+    if (!metadata) return current;
+    if (isGenericEnrichmentImageUrl(current) && !isGenericEnrichmentImageUrl(metadata)) {
+        return metadata;
+    }
+    return current;
 }
 
 function hasAnySocialLink(value) {
@@ -1732,9 +1781,7 @@ export const enrichHardAssetDraft = async (c) => {
             && canFetchEnrichmentMetadata(enrichment.sourceUrl)
         ) {
             const metadata = await fetchWebsiteMetadata(enrichment.sourceUrl);
-            if (!enrichment.logoUrl && metadata.logoUrl) {
-                enrichment.logoUrl = metadata.logoUrl;
-            }
+            enrichment.logoUrl = chooseEnrichmentLogoUrl(enrichment.logoUrl, metadata.logoUrl);
             enrichment.socialLinks = mergeSocialLinks(enrichment.socialLinks, metadata.socialLinks);
         }
         if (enrichment) {
@@ -1750,9 +1797,7 @@ export const enrichHardAssetDraft = async (c) => {
                 enrichmentWebsiteParts.socialLinks,
                 metadata?.socialLinks,
             );
-            if (!enrichment.logoUrl && metadata?.logoUrl) {
-                enrichment.logoUrl = metadata.logoUrl;
-            }
+            enrichment.logoUrl = chooseEnrichmentLogoUrl(enrichment.logoUrl, metadata?.logoUrl);
         }
         
         return c.json(enrichment || {});

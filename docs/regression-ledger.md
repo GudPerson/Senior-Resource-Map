@@ -96,6 +96,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Acceptance criteria: website metadata prefers organization logo filenames and site/header/nav logo hints; lower-confidence service/programme/carousel/award/certification images remain fallback-only; AI enrichment still returns the other grounded fields.
 - Verification result: `node --test server/test/websiteMetadata.test.js` passed 4/4, focused enrichment suite passed 17/17, and local live New Life probe returned website, phone, hours, description, social links, and the organization logo path on 2026-05-20.
 
+### 2026-05-20 AI enrichment All Saints fallback recovery
+
+- Current behavior: All Saints Silver Lifestyle Club drafts use an official-directory fallback for stable address, contact, website, service, and description fields when the first grounded AI pass is partial; website logo metadata prefers the All Saints site brand image over generic page/service images.
+- Known-good reference: local live `/api/hard-assets/import/enrich-draft` probe for `All Saints Silver Lifestyle Club @ Yishun Fern Grove` returned official fallback details and `WeCARE-All-saints-home.png` instead of `nursing-home-5.png` or other generic page images.
+- Reproduction steps: enrich a place draft with name `All Saints Silver Lifestyle Club @ Yishun Fern Grove`, postal code `760674`, address `Singapore 760674`, and category `Active Ageing Centre (AAC)`.
+- Acceptance criteria: enrichment returns address, website, phone, description, service tags, and a brand logo; partial AI output with only contact/tags or a generic image is merged with the official fallback instead of being treated as complete.
+- Verification result: focused website metadata and hard-asset enrichment tests passed, and a local live All Saints probe returned address, website, phone, hours, description, 8 services, social links, and the All Saints brand image on 2026-05-20.
+
 ### 2026-05-19 Place enrichment quality recovery
 
 - Current behavior: place enrichment keeps flyer/programme extraction untouched while improving hard-place enrichment with richer grounded output, official social-link preservation, validated logo metadata, and a fallback from tags-only AI output to a deeper grounded search.

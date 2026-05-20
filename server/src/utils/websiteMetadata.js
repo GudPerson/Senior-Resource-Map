@@ -140,20 +140,6 @@ function extractJsonLdHints(html) {
                 logoUrl = normalizeWhitespace(logoValue);
             } else if (logoValue && typeof logoValue === 'object') {
                 logoUrl = normalizeWhitespace(logoValue.url || logoValue.contentUrl || '');
-            } else if (node?.image) {
-                const imageValue = node.image;
-                if (typeof imageValue === 'string') {
-                    logoUrl = normalizeWhitespace(imageValue);
-                } else if (Array.isArray(imageValue)) {
-                    const first = imageValue.find((entry) => typeof entry === 'string' || entry?.url || entry?.contentUrl);
-                    if (typeof first === 'string') {
-                        logoUrl = normalizeWhitespace(first);
-                    } else if (first) {
-                        logoUrl = normalizeWhitespace(first.url || first.contentUrl || '');
-                    }
-                } else if (typeof imageValue === 'object') {
-                    logoUrl = normalizeWhitespace(imageValue.url || imageValue.contentUrl || '');
-                }
             }
         }
 
@@ -168,22 +154,44 @@ function extractFirstSrcsetUrl(value) {
     return first.split(/\s+/)[0] || '';
 }
 
-function extractLikelyLogoImages(html) {
+function compactLogoHint(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function getSiteBrandToken(baseUrl) {
+    try {
+        const hostname = new URL(baseUrl).hostname.toLowerCase().replace(/^www\./, '');
+        const firstLabel = hostname.split('.')[0] || '';
+        const compact = compactLogoHint(firstLabel);
+        return compact.length >= 5 ? compact : '';
+    } catch {
+        return '';
+    }
+}
+
+function collectImageSources(attrs) {
+    return [
+        attrs.src,
+        attrs['data-src'],
+        attrs['data-lazy-src'],
+        attrs['data-wpfc-original-src'],
+        extractFirstSrcsetUrl(attrs.srcset),
+        extractFirstSrcsetUrl(attrs['data-srcset']),
+        extractFirstSrcsetUrl(attrs['data-wpfc-original-srcset']),
+    ].map(normalizeWhitespace).filter(Boolean);
+}
+
+function extractLikelyLogoImages(html, resolvedUrl = '') {
     const strongMatches = [];
     const fallbackMatches = [];
     const imgTags = extractTags(html, 'img').map(parseAttributes);
     const logoPattern = /(^|[^a-z0-9])(logo|brand|site-logo|navbar-logo|header-logo)([^a-z0-9]|$)/i;
     const genericVisualPattern = /(^|[^a-z0-9])(award|awards|badge|carousel|cert|certificate|partner|program|programme|service|sponsor|thumbnail)([^a-z0-9]|$)/i;
+    const siteBrandToken = getSiteBrandToken(resolvedUrl);
 
     for (const attrs of imgTags) {
-        const src = normalizeWhitespace(
-            attrs.src
-            || attrs['data-src']
-            || attrs['data-lazy-src']
-            || extractFirstSrcsetUrl(attrs.srcset)
-            || ''
-        );
-        if (!src) continue;
+        const sources = collectImageSources(attrs);
+        if (sources.length === 0) continue;
 
         const hintText = [
             attrs.alt,
@@ -193,10 +201,18 @@ function extractLikelyLogoImages(html) {
             attrs.src,
             attrs['data-src'],
             attrs['data-lazy-src'],
-        ].map((value) => String(value || '')).join(' ');
+            attrs['data-wpfc-original-src'],
+            ].map((value) => String(value || '')).join(' ');
+        const compactHintText = compactLogoHint(hintText);
 
-        if (logoPattern.test(hintText)) {
-            if (genericVisualPattern.test(hintText)) {
+        for (const src of sources) {
+            const sourceHintText = `${hintText} ${src}`;
+            const sourceCompactHintText = compactLogoHint(sourceHintText);
+            const looksLikeLogo = logoPattern.test(sourceHintText)
+                || (siteBrandToken && sourceCompactHintText.includes(siteBrandToken));
+            if (!looksLikeLogo) continue;
+
+            if (genericVisualPattern.test(sourceHintText) || genericVisualPattern.test(compactHintText)) {
                 fallbackMatches.push(src);
             } else {
                 strongMatches.push(src);
@@ -224,7 +240,7 @@ function buildLogoCandidates({ html, resolvedUrl, jsonLd }) {
         add(value, 'meta-logo', 95);
     }
 
-    for (const value of extractLikelyLogoImages(html)) {
+    for (const value of extractLikelyLogoImages(html, resolvedUrl)) {
         add(value, 'logo-image', 90);
     }
 

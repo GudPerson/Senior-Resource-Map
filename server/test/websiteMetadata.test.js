@@ -101,6 +101,48 @@ test('fetchWebsiteMetadata prefers organization logo filenames over service caro
     }
 });
 
+test('fetchWebsiteMetadata prefers a site brand image over generic page images', async () => {
+    const originalFetch = global.fetch;
+
+    global.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://www.allsaintshome.org.sg/our-services-centres/') {
+            return htmlResponse(`
+                <html>
+                    <head>
+                        <meta name="description" content="All Saints Home eldercare services.">
+                        <meta property="og:image" content="https://www.allsaintshome.org.sg/wp-content/uploads/2024/12/nursing-home-5.png">
+                    </head>
+                    <body>
+                        <a href="https://www.allsaintshome.org.sg/">
+                            <img width="398" height="97" src="https://www.allsaintshome.org.sg/wp-content/uploads/2024/10/WeCARE-All-saints-home.png" class="attachment-full size-full" alt="">
+                        </a>
+                    </body>
+                </html>
+            `, 'https://www.allsaintshome.org.sg/our-services-centres/');
+        }
+
+        if (url === 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/10/WeCARE-All-saints-home.png') {
+            return imageResponse('image/png');
+        }
+
+        if (url === 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/12/nursing-home-5.png') {
+            return imageResponse('image/png');
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    try {
+        const metadata = await fetchWebsiteMetadata('https://www.allsaintshome.org.sg/our-services-centres/');
+
+        assert.equal(metadata.logoUrl, 'https://www.allsaintshome.org.sg/wp-content/uploads/2024/10/WeCARE-All-saints-home.png');
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
 test('fetchWebsiteMetadata falls back to favicon when page has no logo metadata', async () => {
     const originalFetch = global.fetch;
 
