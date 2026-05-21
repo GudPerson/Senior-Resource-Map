@@ -20,6 +20,7 @@ export const PARENT_PROPAGATED_FIELDS = Object.freeze([
 export const CHILD_OVERRIDE_FIELDS = Object.freeze([
     'schedule',
     'contactPhone',
+    'whatsappContact',
     'contactEmail',
     'ctaLabel',
     'ctaUrl',
@@ -116,6 +117,7 @@ export function buildChildValuesFromParent(parent, host, actor, externalKey = nu
         hideUntil: null,
         overriddenFields: [],
         contactPhone: host.phone || null,
+        whatsappContact: host.whatsappContact || null,
         contactEmail: null,
         ctaLabel: null,
         ctaUrl: null,

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarDays, Clock, ExternalLink, Globe, Mail, MapPin, Navigation, Phone } from 'lucide-react';
+import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Mail, MapPin, MessageCircle, Navigation, Phone, Share2 } from 'lucide-react';
 
 import { getDistance } from '../lib/geo.js';
 import {
@@ -16,6 +16,8 @@ import PartnerPrivatePanel from './PartnerPrivatePanel.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
 import { getSocialLinkEntries, mergeSocialLinks, splitWebsiteAndSocialLinks } from '../lib/socialLinks.js';
+import { buildWhatsAppContactHref, formatWhatsAppContactLabel } from '../lib/whatsappContact.js';
+import { shareResourceLink } from '../lib/resourceShare.js';
 
 function TagBadge({ tag }) {
     return (
@@ -92,6 +94,7 @@ export default function ResourceDetailContent({
     type,
 }) {
     const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
+    const [shareStatus, setShareStatus] = useState('idle');
     const isPhone = useMediaQuery('(max-width: 639px)');
     const { locale, t } = useLocale();
     const asset = useMemo(() => localizeResource(rawAsset, locale), [rawAsset, locale]);
@@ -113,6 +116,9 @@ export default function ResourceDetailContent({
     const directionsButtonClass = isCompact
         ? 'w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-white font-bold transition shadow-sm text-base'
         : 'w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white font-bold transition shadow-sm text-lg';
+    const secondaryActionButtonClass = isCompact
+        ? 'w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-slate-200 bg-white text-slate-800 font-bold transition shadow-sm text-base hover:border-brand-200 hover:text-brand-700'
+        : 'w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border border-slate-200 bg-white text-slate-800 font-bold transition shadow-sm text-lg hover:border-brand-200 hover:text-brand-700';
     const relatedCardClass = isCompact
         ? 'rounded-[24px] border p-4 shadow-sm'
         : 'rounded-[28px] border p-4 shadow-sm sm:p-6';
@@ -162,6 +168,9 @@ export default function ResourceDetailContent({
     const primaryLocation = isHard ? asset : (softLocations[0] || asset.location || null);
     const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
     const phone = asset?.phone || primaryLocation?.phone;
+    const whatsappContact = String(asset?.whatsappContact || primaryLocation?.whatsappContact || '').trim();
+    const whatsappHref = buildWhatsAppContactHref(whatsappContact);
+    const whatsappLabel = formatWhatsAppContactLabel(whatsappContact);
     const websiteParts = isHard ? splitWebsiteAndSocialLinks(asset?.website) : { website: '', socialLinks: {} };
     const websiteHref = isHard ? normalizeExternalHref(websiteParts.website) : '';
     const visibleSocialLinks = isHard ? mergeSocialLinks(asset?.socialLinks, websiteParts.socialLinks) : {};
@@ -201,6 +210,21 @@ export default function ResourceDetailContent({
             window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target.address)}`, '_blank', 'noopener,noreferrer');
         }
     }, [asset, isHard, primaryLocation]);
+
+    const handleShareResource = useCallback(async () => {
+        try {
+            const result = await shareResourceLink({
+                type,
+                id: asset.id,
+                title: asset.name,
+            });
+            setShareStatus(result.mode === 'native' ? 'shared' : 'copied');
+            window.setTimeout(() => setShareStatus('idle'), 1800);
+        } catch {
+            setShareStatus('failed');
+            window.setTimeout(() => setShareStatus('idle'), 2200);
+        }
+    }, [asset.id, asset.name, type]);
 
     return (
         <div className={`${rootSpacingClass} ${className}`}>
@@ -429,6 +453,25 @@ export default function ResourceDetailContent({
                         </div>
                     ) : null}
 
+                    {whatsappHref ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><MessageCircle size={22} /></div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-slate-900 mb-1">{t('whatsappContact')}</p>
+                                <a
+                                    href={whatsappHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex max-w-full items-center gap-1 break-all text-brand-700 hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
+                                    <span>{whatsappLabel}</span>
+                                    <ExternalLink size={15} className="flex-shrink-0" />
+                                </a>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {isHard ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
                 </div>
 
@@ -441,8 +484,8 @@ export default function ResourceDetailContent({
                     </div>
                 ) : null}
 
-                {hasDirectionsTarget ? (
-                    <div className="mt-8">
+                <div className={isCompact ? 'mt-8 grid grid-cols-1 gap-3' : 'mt-8 flex flex-col gap-3 sm:flex-row'}>
+                    {hasDirectionsTarget ? (
                         <button
                             type="button"
                             onClick={() => handleDirections()}
@@ -452,8 +495,22 @@ export default function ResourceDetailContent({
                             <Navigation size={20} />
                             {isHard ? t('getDirections') : t('getDirectionsNearest')}
                         </button>
-                    </div>
-                ) : null}
+                    ) : null}
+                    <button
+                        type="button"
+                        onClick={handleShareResource}
+                        className={secondaryActionButtonClass}
+                    >
+                        {shareStatus === 'copied' || shareStatus === 'shared' ? <Check size={20} /> : <Share2 size={20} />}
+                        {shareStatus === 'copied'
+                            ? t('resourceLinkCopied')
+                            : shareStatus === 'shared'
+                                ? t('resourceLinkShared')
+                                : shareStatus === 'failed'
+                                    ? t('copyFailed')
+                                    : t('shareResource')}
+                    </button>
+                </div>
 
                 <PartnerPrivatePanel
                     resourceType={type}

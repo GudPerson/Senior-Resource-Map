@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, Phone, Clock, Package2, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, MessageCircle, Phone, Clock, Package2, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -118,6 +118,7 @@ function buildInitialForm(type, initialData, currentUser) {
             subregionId: initialData.subregionId || '',
             coverageRegionIds: initialData.coverageRegionIds || (initialData.subregionId ? [initialData.subregionId] : []),
             postalCode: initialData.postalCode || '',
+            whatsappContact: initialData.whatsappContact || '',
             website: initialData.website || '',
             socialLinks: normalizeSocialLinks(initialData.socialLinks),
             sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
@@ -135,6 +136,7 @@ function buildInitialForm(type, initialData, currentUser) {
             postalCode: '',
             address: '',
             phone: '',
+            whatsappContact: '',
             hours: '',
             website: '',
             socialLinks: createEmptySocialLinks(),
@@ -161,6 +163,12 @@ function buildInitialForm(type, initialData, currentUser) {
         locationIds: [],
         description: '',
         schedule: '',
+        contactPhone: '',
+        whatsappContact: '',
+        contactEmail: '',
+        ctaLabel: '',
+        ctaUrl: '',
+        venueNote: '',
         logoUrl: '',
         bannerUrl: '',
         galleryUrls: [],
@@ -848,6 +856,11 @@ export default function AssetForm({
                             <input type="tel" value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(312) 555-0000" className="input-field" />
                         </div>
                         <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1"><MessageCircle size={13} className="inline mr-1" />WhatsApp contact</label>
+                            <input value={form.whatsappContact || ''} onChange={(e) => setField('whatsappContact', e.target.value)} placeholder="87654321 or https://wa.me/6587654321" className="input-field" />
+                            <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
+                        </div>
+                        <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Hours</label>
                             <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon–Fri 9am–5pm" className="input-field" />
                         </div>
@@ -937,6 +950,21 @@ export default function AssetForm({
                                 value={form.schedule || ''}
                                 onChange={(e) => setField('schedule', e.target.value)}
                                 placeholder="e.g. Every Tuesday at 10 AM"
+                                className="input-field"
+                            />
+                        </div>
+                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                            <div className="mb-3 flex items-center gap-2">
+                                <MessageCircle size={16} className="text-brand-600" />
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-800">Public WhatsApp contact</h3>
+                                    <p className="text-xs text-slate-500">Optional contact shown on this programme/service. This is not used for WhatsApp sign-in.</p>
+                                </div>
+                            </div>
+                            <input
+                                value={form.whatsappContact || ''}
+                                onChange={(e) => setField('whatsappContact', e.target.value)}
+                                placeholder="87654321 or https://wa.me/6587654321"
                                 className="input-field"
                             />
                         </div>

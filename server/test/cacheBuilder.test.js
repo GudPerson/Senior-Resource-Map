@@ -15,6 +15,8 @@ test('buildMapCacheQuery keeps member-only and partner-boundary soft assets out 
     assert.match(queryText, /description/);
     assert.match(queryText, /postal_code/);
     assert.match(queryText, /logo_url/);
+    assert.match(queryText, /whatsapp_contact/);
+    assert.match(queryText, /location_whatsapp_contact/);
     assert.match(queryText, /location_hard_asset_id/);
     assert.match(queryText, /availability_enabled/);
     assert.match(queryText, /s\.is_member_only = false/);

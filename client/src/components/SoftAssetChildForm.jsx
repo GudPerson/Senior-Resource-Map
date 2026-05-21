@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Clock, EyeOff, FileText, Link2, Loader2, Lock, Mail, MapPin, Package2, Phone, RotateCcw } from 'lucide-react';
+import { Clock, EyeOff, FileText, Link2, Loader2, Lock, Mail, MapPin, MessageCircle, Package2, Phone, RotateCcw } from 'lucide-react';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
@@ -28,6 +28,7 @@ function buildInitialForm(initialData) {
         hideFrom: formatDateTimeLocal(initialData?.hideFrom),
         hideUntil: formatDateTimeLocal(initialData?.hideUntil),
         contactPhone: initialData?.contactPhone || '',
+        whatsappContact: initialData?.whatsappContact || '',
         contactEmail: initialData?.contactEmail || '',
         ctaLabel: initialData?.ctaLabel || '',
         ctaUrl: initialData?.ctaUrl || '',
@@ -86,6 +87,7 @@ export default function SoftAssetChildForm({
             const payload = {
                 schedule: form.schedule || null,
                 contactPhone: form.contactPhone || null,
+                whatsappContact: form.whatsappContact || null,
                 contactEmail: form.contactEmail || null,
                 ctaLabel: form.ctaLabel || null,
                 ctaUrl: form.ctaUrl || null,
@@ -223,6 +225,15 @@ export default function SoftAssetChildForm({
                         <ResetButton visible={overriddenFieldSet.has('contactPhone')} onClick={() => handleReset('contactPhone')} disabled={resettingField === 'contactPhone'} />
                     </div>
                     <input value={form.contactPhone} onChange={(e) => setField('contactPhone', e.target.value)} placeholder="+65 6000 1111" className="input-field" />
+                </div>
+
+                <div>
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-1 text-sm font-semibold text-slate-700"><MessageCircle size={13} /> WhatsApp contact</label>
+                        <ResetButton visible={overriddenFieldSet.has('whatsappContact')} onClick={() => handleReset('whatsappContact')} disabled={resettingField === 'whatsappContact'} />
+                    </div>
+                    <input value={form.whatsappContact} onChange={(e) => setField('whatsappContact', e.target.value)} placeholder="87654321 or https://wa.me/6587654321" className="input-field" />
+                    <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
                 </div>
 
                 <div>

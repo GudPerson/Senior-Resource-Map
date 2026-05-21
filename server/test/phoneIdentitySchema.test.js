@@ -153,6 +153,28 @@ test('runtime schema bootstrap includes hard asset social links column', async (
     );
 });
 
+test('runtime schema bootstrap includes public WhatsApp contact columns', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table hard_assets add column if not exists whatsapp_contact')),
+        'expected hard asset WhatsApp contact column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table soft_assets add column if not exists whatsapp_contact')),
+        'expected soft asset WhatsApp contact column bootstrap SQL',
+    );
+});
+
 test('runtime schema bootstrap includes partner organisation and staff bridge tables', async () => {
     resetBoundarySchemaBootstrapForTests();
     const statements = [];

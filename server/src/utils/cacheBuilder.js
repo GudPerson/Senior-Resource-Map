@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { dataStore } from './dataStore.js';
 
-export const MAP_CACHE_SCHEMA_VERSION = 3;
+export const MAP_CACHE_SCHEMA_VERSION = 4;
 
 /**
  * Rebuilds the edge cache JSON for a specific subregion
@@ -26,6 +26,7 @@ export function buildMapCacheQuery(subregionId) {
                 h.banner_url,
                 h.updated_at,
                 h.phone,
+                h.whatsapp_contact,
                 h.website,
                 h.hours,
                 NULL::text as schedule,
@@ -37,6 +38,7 @@ export function buildMapCacheQuery(subregionId) {
                 h.name as location_name,
                 h.address as location_address,
                 h.postal_code as location_postal_code,
+                h.whatsapp_contact as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM hard_asset_tags hat
@@ -75,6 +77,7 @@ export function buildMapCacheQuery(subregionId) {
                 s.banner_url,
                 s.updated_at,
                 s.contact_phone as phone,
+                s.whatsapp_contact,
                 s.cta_url as website,
                 NULL::text as hours,
                 s.schedule,
@@ -86,6 +89,7 @@ export function buildMapCacheQuery(subregionId) {
                 l.name as location_name,
                 l.address as location_address,
                 l.postal_code as location_postal_code,
+                l.whatsapp_contact as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM soft_asset_tags sat
@@ -131,6 +135,7 @@ export function buildMapCacheQuery(subregionId) {
                 s.banner_url,
                 s.updated_at,
                 s.contact_phone as phone,
+                s.whatsapp_contact,
                 s.cta_url as website,
                 NULL::text as hours,
                 s.schedule,
@@ -142,6 +147,7 @@ export function buildMapCacheQuery(subregionId) {
                 NULL::text as location_name,
                 NULL::text as location_address,
                 NULL::text as location_postal_code,
+                NULL::text as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM soft_asset_tags sat
@@ -181,6 +187,7 @@ export function buildMapCacheQuery(subregionId) {
                 s.banner_url,
                 s.updated_at,
                 s.contact_phone as phone,
+                s.whatsapp_contact,
                 s.cta_url as website,
                 NULL::text as hours,
                 s.schedule,
@@ -192,6 +199,7 @@ export function buildMapCacheQuery(subregionId) {
                 l.name as location_name,
                 l.address as location_address,
                 l.postal_code as location_postal_code,
+                l.whatsapp_contact as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM soft_asset_tags sat
@@ -237,6 +245,7 @@ export function buildMapCacheQuery(subregionId) {
                 h.banner_url,
                 h.updated_at,
                 h.phone,
+                h.whatsapp_contact,
                 h.website,
                 h.hours,
                 NULL::text as schedule,
@@ -248,6 +257,7 @@ export function buildMapCacheQuery(subregionId) {
                 h.name as location_name,
                 h.address as location_address,
                 h.postal_code as location_postal_code,
+                h.whatsapp_contact as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM hard_asset_tags hat
@@ -287,6 +297,7 @@ export function buildMapCacheQuery(subregionId) {
                 s.banner_url,
                 s.updated_at,
                 s.contact_phone as phone,
+                s.whatsapp_contact,
                 s.cta_url as website,
                 NULL::text as hours,
                 s.schedule,
@@ -298,6 +309,7 @@ export function buildMapCacheQuery(subregionId) {
                 l.name as location_name,
                 l.address as location_address,
                 l.postal_code as location_postal_code,
+                l.whatsapp_contact as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM soft_asset_tags sat
@@ -344,6 +356,7 @@ export function buildMapCacheQuery(subregionId) {
                 s.banner_url,
                 s.updated_at,
                 s.contact_phone as phone,
+                s.whatsapp_contact,
                 s.cta_url as website,
                 NULL::text as hours,
                 s.schedule,
@@ -355,6 +368,7 @@ export function buildMapCacheQuery(subregionId) {
                 NULL::text as location_name,
                 NULL::text as location_address,
                 NULL::text as location_postal_code,
+                NULL::text as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM soft_asset_tags sat
@@ -403,6 +417,7 @@ export function buildMapCacheQuery(subregionId) {
                 s.banner_url,
                 s.updated_at,
                 s.contact_phone as phone,
+                s.whatsapp_contact,
                 s.cta_url as website,
                 NULL::text as hours,
                 s.schedule,
@@ -414,6 +429,7 @@ export function buildMapCacheQuery(subregionId) {
                 l.name as location_name,
                 l.address as location_address,
                 l.postal_code as location_postal_code,
+                l.whatsapp_contact as location_whatsapp_contact,
                 COALESCE((
                     SELECT jsonb_agg(t.name ORDER BY t.name)
                     FROM soft_asset_tags sat

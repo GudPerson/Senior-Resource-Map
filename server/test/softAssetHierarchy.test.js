@@ -29,6 +29,7 @@ test('buildChildValuesFromParent materializes a hidden child for one host', () =
         id: 44,
         subregionId: 3,
         phone: '+65 6000 1111',
+        whatsappContact: '87654321',
     };
     const actor = { id: 19 };
 
@@ -44,6 +45,7 @@ test('buildChildValuesFromParent materializes a hidden child for one host', () =
     assert.equal(child.isHidden, true);
     assert.deepEqual(child.overriddenFields, []);
     assert.equal(child.contactPhone, '+65 6000 1111');
+    assert.equal(child.whatsappContact, '87654321');
 });
 
 test('buildChildPropagationPatch keeps local overrides while syncing canonical fields', () => {
@@ -80,6 +82,7 @@ test('buildChildEditablePatch only accepts host-local fields and records overrid
     const patch = buildChildEditablePatch({
         schedule: 'Wednesdays 11am',
         contactEmail: 'host@example.com',
+        whatsappContact: 'https://wa.me/6587654321',
         isHidden: false,
     }, {
         overriddenFields: ['ctaLabel'],
@@ -87,8 +90,9 @@ test('buildChildEditablePatch only accepts host-local fields and records overrid
 
     assert.equal(patch.schedule, 'Wednesdays 11am');
     assert.equal(patch.contactEmail, 'host@example.com');
+    assert.equal(patch.whatsappContact, 'https://wa.me/6587654321');
     assert.equal(patch.isHidden, false);
-    assert.deepEqual(patch.overriddenFields.sort(), ['contactEmail', 'ctaLabel', 'schedule']);
+    assert.deepEqual(patch.overriddenFields.sort(), ['contactEmail', 'ctaLabel', 'schedule', 'whatsappContact']);
 });
 
 test('buildChildEditablePatch rejects parent-controlled fields', () => {

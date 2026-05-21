@@ -16,6 +16,8 @@ test('normalizeDiscoveryCacheRows groups public cache rows into Discovery hard a
             address: 'Blk 10 Test Road Singapore 123456',
             postal_code: '123456',
             logo_url: 'https://example.com/hub.png',
+            phone: '+65 6000 1111',
+            whatsapp_contact: '87654321',
         },
         {
             id: 20,
@@ -29,10 +31,12 @@ test('normalizeDiscoveryCacheRows groups public cache rows into Discovery hard a
             availability_enabled: true,
             availability_count: 8,
             availability_unit: 'slots',
+            whatsapp_contact: 'https://wa.me/6588887777',
             location_hard_asset_id: 10,
             location_name: 'Community Hub',
             location_address: 'Blk 10 Test Road Singapore 123456',
             location_postal_code: '123456',
+            location_whatsapp_contact: '87654321',
         },
         {
             id: 20,
@@ -56,10 +60,13 @@ test('normalizeDiscoveryCacheRows groups public cache rows into Discovery hard a
     assert.equal(normalized.hardAssets[0].name, 'Community Hub');
     assert.equal(normalized.hardAssets[0].subCategory, 'Active Ageing Centres');
     assert.equal(normalized.hardAssets[0].postalCode, '123456');
+    assert.equal(normalized.hardAssets[0].whatsappContact, '87654321');
     assert.equal(normalized.hardAssets[0].softAssets.length, 1);
     assert.equal(normalized.hardAssets[0].softAssets[0].name, 'Chair Yoga');
+    assert.equal(normalized.hardAssets[0].softAssets[0].whatsappContact, 'https://wa.me/6588887777');
     assert.equal(normalized.softAssets[0].locations.length, 2);
     assert.equal(normalized.softAssets[0].location.name, 'Community Hub');
+    assert.equal(normalized.softAssets[0].location.whatsappContact, '87654321');
     assert.equal(normalized.softAssets[0].availabilityEnabled, true);
     assert.equal(normalized.softAssets[0].availabilityCount, 8);
 });

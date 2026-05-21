@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Building2, CalendarDays, MapPin, Clock, Navigation } from 'lucide-react';
+import { ArrowUpRight, Building2, CalendarDays, Check, MapPin, Clock, Navigation, Share2 } from 'lucide-react';
 import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
 import { openResourceDetail } from '../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
@@ -10,6 +10,7 @@ import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import SaveAssetButton from './SaveAssetButton.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
+import { shareResourceLink } from '../lib/resourceShare.js';
 
 function hasValidCoordinates(value) {
     return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
@@ -67,6 +68,7 @@ export const AssetCard = React.memo(({
         ? Boolean(asset.address || hasValidCoordinates(asset))
         : Boolean(displayLocation && (displayLocation.address || hasValidCoordinates(displayLocation)));
     const [isExpanded, setIsExpanded] = useState(false);
+    const [shareStatus, setShareStatus] = useState('idle');
     const navigate = useNavigate();
     const softAssetCounts = isHard ? summarizeSoftAssetBuckets(asset.softAssets || []) : null;
     const showExpandedDescription = isExpanded || isSelected;
@@ -93,6 +95,18 @@ export const AssetCard = React.memo(({
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank', 'noopener,noreferrer');
         } else if (target?.address) {
             window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target.address)}`, '_blank', 'noopener,noreferrer');
+        }
+    };
+
+    const handleShare = async (e) => {
+        e.stopPropagation();
+        try {
+            await shareResourceLink({ type, id: asset.id, title: asset.name });
+            setShareStatus('copied');
+            window.setTimeout(() => setShareStatus('idle'), 1800);
+        } catch {
+            setShareStatus('failed');
+            window.setTimeout(() => setShareStatus('idle'), 2200);
         }
     };
 
@@ -155,6 +169,15 @@ export const AssetCard = React.memo(({
                         summary={savedAssetSummary}
                         variant="card"
                     />
+                    <button
+                        type="button"
+                        onClick={handleShare}
+                        title={shareStatus === 'copied' ? t('resourceLinkCopied') : shareStatus === 'failed' ? t('copyFailed') : t('shareResource')}
+                        aria-label={shareStatus === 'copied' ? t('resourceLinkCopied') : shareStatus === 'failed' ? t('copyFailed') : t('shareResource')}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-brand-200 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2"
+                    >
+                        {shareStatus === 'copied' ? <Check size={16} /> : <Share2 size={16} />}
+                    </button>
                 </div>
             </div>
 

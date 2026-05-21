@@ -86,3 +86,26 @@ test('workbook import accepts template-shaped xlsx rows after parser hardening',
     assert.equal(rows[0].externalKey, 'place-1');
     assert.equal(rows[0].name, 'Test Place');
 });
+
+test('workbook parser preserves WhatsApp contact fields across resource sheets', async () => {
+    const placeFile = mockUpload('places.csv', [
+        'externalKey,name,country,postalCode,ownershipMode,whatsappContact',
+        'place-1,Test Place,SG,160024,system,87654321',
+    ].join('\n'));
+    const standaloneFile = mockUpload('standalone_offerings.csv', [
+        'externalKey,name,bucket,subCategory,ownershipMode,audienceMode,whatsappContact',
+        'offering-1,Test Service,Services,Health,system,public,https://wa.me/6587654321',
+    ].join('\n'));
+    const rolloutFile = mockUpload('template_rollouts.csv', [
+        'templateExternalKey,hostExternalKey,whatsappContact',
+        'template-1,place-1,+65 8765 4321',
+    ].join('\n'));
+
+    const placeRows = await parseWorkbookRows(placeFile, 'places');
+    const standaloneRows = await parseWorkbookRows(standaloneFile, 'standalone-offerings');
+    const rolloutRows = await parseWorkbookRows(rolloutFile, 'template-rollouts');
+
+    assert.equal(String(placeRows[0].whatsappContact), '87654321');
+    assert.equal(standaloneRows[0].whatsappContact, 'https://wa.me/6587654321');
+    assert.equal(rolloutRows[0].whatsappContact, '+65 8765 4321');
+});

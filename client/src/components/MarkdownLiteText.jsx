@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { normalizeMarkdownLiteInput } from '../lib/markdownLite.js';
+
 const INLINE_TOKEN_PATTERN = /(\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|(https?:\/\/[^\s]+)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*)/g;
 const LIST_ITEM_PATTERN = /^(\s*)([-+*]|\d+\.)\s+(.+)$/;
 
@@ -73,7 +75,7 @@ function renderInlineMarkdown(text, linkClassName) {
 }
 
 function buildBlocks(text) {
-    const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+    const lines = normalizeMarkdownLiteInput(text).split('\n');
     const blocks = [];
     let currentParagraph = [];
     let currentList = null;

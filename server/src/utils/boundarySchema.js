@@ -36,6 +36,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS users_manager_user_idx ON users (manager_user_id)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS whatsapp_contact VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS website TEXT`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_place_id TEXT`);
@@ -210,6 +211,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS overridden_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS whatsapp_contact VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS cta_label VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS cta_url TEXT`);

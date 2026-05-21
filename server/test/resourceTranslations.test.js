@@ -53,12 +53,14 @@ test('extractTranslatableFields keeps public text clean and bounded', () => {
         name: '  Group A\u0000/B  ',
         description: 'Line 1\r\nLine 2',
         contactPhone: '+65 6000 0000',
+        whatsappContact: '87654321',
         ctaUrl: 'https://example.com/register',
     });
 
     assert.equal(fields.name, 'Group A/B');
     assert.equal(fields.description, 'Line 1\nLine 2');
     assert.equal(fields.contactPhone, undefined);
+    assert.equal(fields.whatsappContact, undefined);
     assert.equal(fields.ctaUrl, undefined);
 });
 
