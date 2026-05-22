@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
 import PhoneVerificationPanel from '../../components/PhoneVerificationPanel.jsx';
-import { User, Phone, Lock, CheckCircle, Link2, MapPin, Mail } from 'lucide-react';
+import { User, Phone, Lock, CheckCircle, Link2, MapPin, Mail, Bell, ShieldCheck } from 'lucide-react';
 import {
     CHAS_CARD_OPTIONS,
     GENDER_OPTIONS,
@@ -84,6 +84,15 @@ export default function ProfilePage() {
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+    const [governanceFeedback, setGovernanceFeedback] = useState('');
+    const [governanceSaving, setGovernanceSaving] = useState(false);
+    const [notificationPreferences, setNotificationPreferences] = useState({
+        in_app: true,
+        email: false,
+        whatsapp: false,
+        sms: false,
+    });
+    const [pilotConsentStatus, setPilotConsentStatus] = useState('unknown');
     const searchParams = new URLSearchParams(location.search);
     const isEligibilityPrompt = searchParams.get('eligibility') === '1';
     const returnTo = normalizeReturnTo(searchParams.get('returnTo'));
@@ -118,6 +127,29 @@ export default function ProfilePage() {
     useEffect(() => {
         let cancelled = false;
 
+        async function loadGovernancePreferences() {
+            if (!user?.id) return;
+            try {
+                const [preferenceData, consentData] = await Promise.all([
+                    api.getMyNotificationPreferences(),
+                    api.getMyConsentStatus(),
+                ]);
+                if (cancelled) return;
+                const nextPreferences = { in_app: true, email: false, whatsapp: false, sms: false };
+                (preferenceData?.preferences || []).forEach((preference) => {
+                    if (preference?.category === 'general' && Object.hasOwn(nextPreferences, preference.channel)) {
+                        nextPreferences[preference.channel] = Boolean(preference.enabled);
+                    }
+                });
+                setNotificationPreferences(nextPreferences);
+                const latestPilotConsent = (consentData?.consents || [])
+                    .find((record) => record?.consentType === 'pilot_terms');
+                setPilotConsentStatus(latestPilotConsent?.status || 'unknown');
+            } catch {
+                if (!cancelled) setGovernanceFeedback('Privacy preferences are not available yet. Please try again later.');
+            }
+        }
+
         async function loadLinkedPlaces() {
             if (!user?.id) {
                 setLinkedPlaces([]);
@@ -144,6 +176,7 @@ export default function ProfilePage() {
             }
         }
 
+        loadGovernancePreferences();
         loadLinkedPlaces();
         return () => {
             cancelled = true;
@@ -186,6 +219,44 @@ export default function ProfilePage() {
             setError(err.message);
         } finally {
             setSaving(false);
+        }
+    }
+
+    async function saveNotificationPreferences() {
+        setGovernanceSaving(true);
+        setGovernanceFeedback('');
+        try {
+            await api.updateMyNotificationPreferences({
+                preferences: Object.entries(notificationPreferences).map(([channel, enabled]) => ({
+                    channel,
+                    category: 'general',
+                    enabled,
+                })),
+            });
+            setGovernanceFeedback('Notification preferences saved. External delivery remains disabled in this pilot phase.');
+        } catch (err) {
+            setGovernanceFeedback(err.message || 'Notification preferences could not be saved.');
+        } finally {
+            setGovernanceSaving(false);
+        }
+    }
+
+    async function recordPilotConsent(status) {
+        setGovernanceSaving(true);
+        setGovernanceFeedback('');
+        try {
+            await api.recordMyConsent({
+                consentType: 'pilot_terms',
+                consentVersion: '2026-05',
+                status,
+                sourceSurface: 'profile',
+            });
+            setPilotConsentStatus(status);
+            setGovernanceFeedback(status === 'accepted' ? 'Pilot consent recorded.' : 'Pilot consent withdrawal recorded.');
+        } catch (err) {
+            setGovernanceFeedback(err.message || 'Consent status could not be saved.');
+        } finally {
+            setGovernanceSaving(false);
         }
     }
 
@@ -447,6 +518,76 @@ export default function ProfilePage() {
                         Terms of Use
                     </Link>
                 </div>
+            </div>
+
+            <div className="card mt-6 shadow-sm">
+                <div className="flex items-start gap-3">
+                    <span className="rounded-xl bg-brand-50 p-3 text-brand-700">
+                        <Bell size={18} />
+                    </span>
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900">Pilot preferences</h2>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                            In-app notifications can be used in this phase. Email, WhatsApp, and SMS preferences are recorded for future design but delivery stays off.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                    {[
+                        ['in_app', 'In-app'],
+                        ['email', 'Email'],
+                        ['whatsapp', 'WhatsApp'],
+                        ['sms', 'SMS'],
+                    ].map(([channel, label]) => (
+                        <label key={channel} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <span>
+                                <span className="block text-sm font-semibold text-slate-800">{label}</span>
+                                {channel !== 'in_app' ? (
+                                    <span className="block text-xs text-slate-500">Preference only. Delivery is disabled.</span>
+                                ) : null}
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={notificationPreferences[channel]}
+                                onChange={(event) => setNotificationPreferences((current) => ({
+                                    ...current,
+                                    [channel]: event.target.checked,
+                                }))}
+                            />
+                        </label>
+                    ))}
+                </div>
+
+                <button type="button" onClick={saveNotificationPreferences} disabled={governanceSaving} className="btn-primary mt-4 w-full justify-center">
+                    Save notification preferences
+                </button>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div className="flex items-start gap-3">
+                        <ShieldCheck size={18} className="mt-0.5 text-brand-700" />
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900">Pilot consent</p>
+                            <p className="mt-1 text-sm text-slate-500">
+                                Current status: <span className="font-semibold text-slate-700">{pilotConsentStatus.replace(/_/g, ' ')}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <button type="button" onClick={() => recordPilotConsent('accepted')} disabled={governanceSaving} className="btn-secondary">
+                            Accept / refresh consent
+                        </button>
+                        <button type="button" onClick={() => recordPilotConsent('withdrawn')} disabled={governanceSaving} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+                            Withdraw consent
+                        </button>
+                    </div>
+                </div>
+
+                {governanceFeedback ? (
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        {governanceFeedback}
+                    </div>
+                ) : null}
             </div>
         </div>
     );

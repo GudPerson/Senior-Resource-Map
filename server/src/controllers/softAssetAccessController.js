@@ -19,6 +19,10 @@ import {
     positiveIntValueSchema,
     validateRequestBody,
 } from '../utils/inputValidation.js';
+import {
+    assertAssetOperatorOrganizationEligibility,
+    filterAssetAccessCandidatesByOrganization,
+} from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
 import { SOFT_ASSET_MODES } from '../utils/softAssetHierarchy.js';
 
@@ -188,13 +192,16 @@ export const getSoftAssetStaffCandidates = async (c) => {
             .from(users)
             .limit(200);
 
-        const candidates = rows
+        const baseCandidates = rows
             .filter((row) => !activeUserIds.has(Number(row.id)))
             .filter((row) => {
                 if (!query) return true;
                 const haystack = `${row.name || ''} ${row.username || ''} ${row.email || ''}`.toLowerCase();
                 return haystack.includes(query);
             })
+            .slice(0, 120);
+        const eligibleCandidates = await filterAssetAccessCandidatesByOrganization(db, 'soft', softAsset.id, baseCandidates);
+        const candidates = eligibleCandidates
             .slice(0, 50)
             .map((row) => ({
                 id: row.id,
@@ -230,6 +237,7 @@ export const addSoftAssetStaff = async (c) => {
 
         const targetUser = await loadUserById(db, body.userId);
         if (!targetUser) throw httpError('User was not found.', 404);
+        await assertAssetOperatorOrganizationEligibility(db, 'soft', softAsset.id, targetUser.id);
 
         const [existingActive] = await db.select({ id: softAssetStaffMemberships.id })
             .from(softAssetStaffMemberships)

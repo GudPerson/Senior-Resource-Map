@@ -107,6 +107,56 @@ const HiddenBadge = ({ status }) => {
     );
 };
 
+function formatFriendlyDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatFreshnessStatus(value) {
+    return String(value || 'unverified')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatAgreementCoverageLabel(organizationLink) {
+    const status = organizationLink?.agreementCoverage?.status || organizationLink?.agreementCoverageStatus || 'unknown';
+    if (status === 'covered') return 'Agreement active';
+    if (status === 'expired') return 'Agreement expired';
+    if (status === 'not_allowed') return 'Agreement limited';
+    if (status === 'missing') return 'Agreement missing';
+    return 'Agreement not checked';
+}
+
+const GovernanceMetadata = ({ asset }) => {
+    const organizationLinks = Array.isArray(asset?.organizationLinks) ? asset.organizationLinks : [];
+    const hasFreshness = Boolean(asset?.lastReviewedAt || asset?.sourceType || asset?.verificationStatus || asset?.verificationConfidence);
+    if (organizationLinks.length === 0 && !hasFreshness) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">
+            {organizationLinks.map((link) => (
+                <span
+                    key={`${link.organizationId}-${link.linkId || link.organizationName}`}
+                    className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700"
+                    title={formatAgreementCoverageLabel(link)}
+                >
+                    <ShieldCheck size={10} />
+                    {link.organizationName || `Organisation ${link.organizationId}`}
+                </span>
+            ))}
+            {hasFreshness ? (
+                <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-slate-600">
+                    <CheckCircle2 size={10} className={asset?.verificationStatus === 'verified' ? 'text-emerald-600' : 'text-slate-400'} />
+                    {asset?.lastReviewedAt ? `Reviewed ${formatFriendlyDate(asset.lastReviewedAt)}` : formatFreshnessStatus(asset?.verificationStatus)}
+                    {asset?.verificationConfidence ? ` · ${asset.verificationConfidence}%` : ''}
+                </span>
+            ) : null}
+        </div>
+    );
+};
+
 const VisibilityBadge = ({ hidden }) => (
     <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${hidden ? 'border-red-200 bg-red-50 text-red-600' : 'border-green-200 bg-green-50 text-green-700'}`}>
         {hidden ? <EyeOff size={11} /> : <Eye size={11} />}
@@ -1866,6 +1916,9 @@ export default function ResourcesPage() {
                                                                     <span className="text-xs text-slate-400">{asset.partnerName ? `Owner: ${asset.partnerName}` : 'Owner: System'}</span>
                                                                 ) : null}
                                                             </div>
+                                                            <div className="mt-2">
+                                                                <GovernanceMetadata asset={asset} />
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -2248,6 +2301,9 @@ export default function ResourcesPage() {
                                                 {isChild && asset.parentSummary ? (
                                                     <p className="mt-1 text-xs font-medium text-brand-700">Generated from: {asset.parentSummary.name}</p>
                                                 ) : null}
+                                                <div className="mt-2">
+                                                    <GovernanceMetadata asset={asset} />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

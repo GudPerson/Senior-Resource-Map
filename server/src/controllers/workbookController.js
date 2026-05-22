@@ -6,6 +6,7 @@ import { getDb } from '../db/index.js';
 import {
     audienceZones,
     hardAssets,
+    sensitiveAuditLogs,
     softAssetLocations,
     softAssetParents,
     softAssets,
@@ -42,6 +43,20 @@ import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateEx
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
 import { positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
+
+async function recordExportAudit(db, actor, resourceType, exportKind, metadata = {}) {
+    try {
+        await db.insert(sensitiveAuditLogs).values({
+            actorUserId: actor?.id || null,
+            actionType: exportKind,
+            entityType: 'workbook_export',
+            resourceType,
+            metadata,
+        });
+    } catch {
+        // Authorization has already passed; audit write failure should not block an export response.
+    }
+}
 
 const CONTENT_TYPES = {
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1635,6 +1650,10 @@ export async function exportWorkbookData(c) {
     await ensureBoundarySchema(db, c.env);
     const references = await buildWorkbookReferences(db);
     const rows = await resolveTemplateExport(resourceType, db, actor);
+    await recordExportAudit(db, actor, resourceType, 'workbook_exported', {
+        format,
+        rowCount: rows.length,
+    });
     const referenceRows = buildReferenceRows(resourceType, references);
     const body = format === XLSX_FORMAT
         ? buildWorkbookBuffer(resourceType, rows, referenceRows)
@@ -1669,6 +1688,11 @@ export async function exportFilteredWorkbookData(c) {
 
         const references = await buildWorkbookReferences(db);
         const rows = await resolveTemplateExport(resourceType, db, actor, { orderedIds });
+        await recordExportAudit(db, actor, resourceType, 'filtered_workbook_exported', {
+            format,
+            requestedCount: orderedIds.length,
+            rowCount: rows.length,
+        });
         const referenceRows = buildReferenceRows(resourceType, references);
         const body = format === XLSX_FORMAT
             ? buildWorkbookBuffer(resourceType, rows, referenceRows)

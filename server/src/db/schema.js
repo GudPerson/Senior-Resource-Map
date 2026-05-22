@@ -43,6 +43,10 @@ export const partnerOrganizations = pgTable('partner_organizations', {
   id: serial('id').primaryKey(),
   legacyPartnerUserId: integer('legacy_partner_user_id').references(() => users.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  governanceStatus: varchar('governance_status', { length: 40 }).notNull().default('active'),
+  dataContactName: varchar('data_contact_name', { length: 255 }),
+  dataContactEmail: varchar('data_contact_email', { length: 255 }),
   createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),
@@ -87,6 +91,73 @@ export const partnerStaffEvents = pgTable('partner_staff_events', {
   organizationIdx: index('partner_staff_events_organization_idx').on(table.organizationId),
   actorIdx: index('partner_staff_events_actor_idx').on(table.actorUserId),
   targetIdx: index('partner_staff_events_target_idx').on(table.targetUserId),
+}));
+
+export const organizationAccessMemberships = pgTable('organization_access_memberships', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  accessRole: varchar('access_role', { length: 40 }).notNull().default('staff'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeUserUnique: uniqueIndex('organization_access_memberships_active_user_unique')
+    .on(table.organizationId, table.userId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  organizationIdx: index('organization_access_memberships_organization_idx').on(table.organizationId),
+  userIdx: index('organization_access_memberships_user_idx').on(table.userId),
+  roleIdx: index('organization_access_memberships_role_idx').on(table.accessRole),
+}));
+
+export const organizationAgreements = pgTable('organization_agreements', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }).notNull(),
+  agreementReference: varchar('agreement_reference', { length: 160 }).notNull(),
+  agreementType: varchar('agreement_type', { length: 80 }).notNull().default('data_sharing'),
+  fileUrl: text('file_url'),
+  fileName: text('file_name'),
+  status: varchar('status', { length: 40 }).notNull().default('draft'),
+  effectiveAt: timestamp('effective_at'),
+  expiresAt: timestamp('expires_at'),
+  allowedUses: jsonb('allowed_uses').notNull().default({}),
+  reviewedByUserId: integer('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedByUserId: integer('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at'),
+  approvedAt: timestamp('approved_at'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  organizationIdx: index('organization_agreements_organization_idx').on(table.organizationId),
+  statusIdx: index('organization_agreements_status_idx').on(table.status),
+  expiresIdx: index('organization_agreements_expires_idx').on(table.expiresAt),
+}));
+
+export const organizationResourceLinks = pgTable('organization_resource_links', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }).notNull(),
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  linkStatus: varchar('link_status', { length: 40 }).notNull().default('active'),
+  agreementCoverageStatus: varchar('agreement_coverage_status', { length: 40 }).notNull().default('unknown'),
+  linkedByUserId: integer('linked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  unlinkedByUserId: integer('unlinked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  unlinkedAt: timestamp('unlinked_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeResourceUnique: uniqueIndex('organization_resource_links_active_resource_unique')
+    .on(table.organizationId, table.resourceType, table.resourceId)
+    .where(sql`${table.unlinkedAt} IS NULL`),
+  organizationIdx: index('organization_resource_links_organization_idx').on(table.organizationId),
+  resourceIdx: index('organization_resource_links_resource_idx').on(table.resourceType, table.resourceId),
+  statusIdx: index('organization_resource_links_status_idx').on(table.linkStatus),
+  coverageStatusIdx: index('organization_resource_links_coverage_status_idx').on(table.agreementCoverageStatus),
 }));
 
 export const audienceZones = pgTable('audience_zones', {
@@ -137,6 +208,11 @@ export const hardAssets = pgTable('hard_assets', {
   galleryUrls: jsonb('gallery_urls').default('[]'),
   sourceGooglePlaceId: text('source_google_place_id'),
   sourceGoogleMapsUri: text('source_google_maps_uri'),
+  lastReviewedAt: timestamp('last_reviewed_at'),
+  lastVerifiedByUserId: integer('last_verified_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  sourceType: varchar('source_type', { length: 80 }),
+  verificationStatus: varchar('verification_status', { length: 40 }).notNull().default('unverified'),
+  verificationConfidence: varchar('verification_confidence', { length: 40 }),
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
   hideUntil: timestamp('hide_until'),
@@ -161,6 +237,11 @@ export const softAssetParents = pgTable('soft_asset_parents', {
   isMemberOnly: boolean('is_member_only').default(false),
   eligibilityRules: jsonb('eligibility_rules'),
   tags: jsonb('tags').default('[]'),
+  lastReviewedAt: timestamp('last_reviewed_at'),
+  lastVerifiedByUserId: integer('last_verified_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  sourceType: varchar('source_type', { length: 80 }),
+  verificationStatus: varchar('verification_status', { length: 40 }).notNull().default('unverified'),
+  verificationConfidence: varchar('verification_confidence', { length: 40 }),
   isDeleted: boolean('is_deleted').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
@@ -196,6 +277,11 @@ export const softAssets = pgTable('soft_assets', {
   availabilityEnabled: boolean('availability_enabled').default(false),
   availabilityCount: integer('availability_count').default(0),
   availabilityUnit: text('availability_unit'),
+  lastReviewedAt: timestamp('last_reviewed_at'),
+  lastVerifiedByUserId: integer('last_verified_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  sourceType: varchar('source_type', { length: 80 }),
+  verificationStatus: varchar('verification_status', { length: 40 }).notNull().default('unverified'),
+  verificationConfidence: varchar('verification_confidence', { length: 40 }),
   isHidden: boolean('is_hidden').default(false),
   hideFrom: timestamp('hide_from'),
   hideUntil: timestamp('hide_until'),
@@ -334,6 +420,102 @@ export const phoneLoginAttempts = pgTable('phone_login_attempts', {
   resolvedUserIdx: index('phone_login_attempts_resolved_user_idx').on(table.resolvedUserId),
 }));
 
+export const userConsentRecords = pgTable('user_consent_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  consentType: varchar('consent_type', { length: 80 }).notNull(),
+  consentVersion: varchar('consent_version', { length: 40 }).notNull(),
+  status: varchar('status', { length: 40 }).notNull().default('accepted'),
+  sourceSurface: varchar('source_surface', { length: 120 }),
+  acceptedAt: timestamp('accepted_at'),
+  withdrawnAt: timestamp('withdrawn_at'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('user_consent_records_user_idx').on(table.userId),
+  userTypeVersionIdx: index('user_consent_records_user_type_version_idx').on(table.userId, table.consentType, table.consentVersion),
+  statusIdx: index('user_consent_records_status_idx').on(table.status),
+}));
+
+export const notificationPreferences = pgTable('notification_preferences', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  channel: varchar('channel', { length: 40 }).notNull(),
+  category: varchar('category', { length: 80 }).notNull().default('general'),
+  enabled: boolean('enabled').notNull().default(true),
+  deliveryAllowed: boolean('delivery_allowed').notNull().default(false),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userChannelCategoryUnique: uniqueIndex('notification_preferences_user_channel_category_unique').on(table.userId, table.channel, table.category),
+  userIdx: index('notification_preferences_user_idx').on(table.userId),
+  channelIdx: index('notification_preferences_channel_idx').on(table.channel),
+}));
+
+export const userOptOutRecords = pgTable('user_opt_out_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  optOutType: varchar('opt_out_type', { length: 80 }).notNull(),
+  reason: text('reason'),
+  active: boolean('active').notNull().default(true),
+  sourceSurface: varchar('source_surface', { length: 120 }),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  revokedByUserId: integer('revoked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  revokedAt: timestamp('revoked_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeUserTypeUnique: uniqueIndex('user_opt_out_records_active_user_type_unique')
+    .on(table.userId, table.optOutType)
+    .where(sql`${table.active} = TRUE AND ${table.revokedAt} IS NULL`),
+  userIdx: index('user_opt_out_records_user_idx').on(table.userId),
+  typeIdx: index('user_opt_out_records_type_idx').on(table.optOutType),
+}));
+
+export const sensitiveAuditLogs = pgTable('sensitive_audit_logs', {
+  id: serial('id').primaryKey(),
+  actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'set null' }),
+  actionType: varchar('action_type', { length: 120 }).notNull(),
+  entityType: varchar('entity_type', { length: 80 }),
+  entityId: integer('entity_id'),
+  resourceType: varchar('resource_type', { length: 20 }),
+  resourceId: integer('resource_id'),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'set null' }),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  actorIdx: index('sensitive_audit_logs_actor_idx').on(table.actorUserId),
+  actionIdx: index('sensitive_audit_logs_action_idx').on(table.actionType),
+  entityIdx: index('sensitive_audit_logs_entity_idx').on(table.entityType, table.entityId),
+  organizationIdx: index('sensitive_audit_logs_organization_idx').on(table.organizationId),
+  resourceIdx: index('sensitive_audit_logs_resource_idx').on(table.resourceType, table.resourceId),
+  createdIdx: index('sensitive_audit_logs_created_idx').on(table.createdAt),
+}));
+
+export const retentionRecords = pgTable('retention_records', {
+  id: serial('id').primaryKey(),
+  entityType: varchar('entity_type', { length: 80 }).notNull(),
+  entityId: integer('entity_id').notNull(),
+  retentionCategory: varchar('retention_category', { length: 80 }).notNull(),
+  retainUntil: timestamp('retain_until'),
+  deletionEligible: boolean('deletion_eligible').notNull().default(false),
+  deletionStatus: varchar('deletion_status', { length: 40 }).notNull().default('active'),
+  reviewedByUserId: integer('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  deletedByUserId: integer('deleted_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at'),
+  deletedAt: timestamp('deleted_at'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  entityCategoryUnique: uniqueIndex('retention_records_entity_category_unique').on(table.entityType, table.entityId, table.retentionCategory),
+  statusIdx: index('retention_records_status_idx').on(table.deletionStatus),
+  retainUntilIdx: index('retention_records_retain_until_idx').on(table.retainUntil),
+}));
+
 export const softAssetAudienceZones = pgTable('soft_asset_audience_zones', {
   softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
   audienceZoneId: integer('audience_zone_id').references(() => audienceZones.id, { onDelete: 'cascade' }).notNull(),
@@ -413,6 +595,29 @@ export const myMapShareSnapshots = pgTable('my_map_share_snapshots', {
 }, (table) => ({
   mapUnique: uniqueIndex('my_map_share_snapshots_map_unique').on(table.mapId),
   shareTokenIdx: index('my_map_share_snapshots_share_token_idx').on(table.shareToken),
+}));
+
+export const recommendationReviewRecords = pgTable('recommendation_review_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewerUserId: integer('reviewer_user_id').references(() => users.id, { onDelete: 'set null' }),
+  mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'set null' }),
+  resourceType: varchar('resource_type', { length: 20 }),
+  resourceId: integer('resource_id'),
+  recommendationType: varchar('recommendation_type', { length: 80 }).notNull().default('social_prescribing'),
+  decision: varchar('decision', { length: 40 }).notNull().default('pending'),
+  status: varchar('status', { length: 40 }).notNull().default('draft'),
+  explanationShown: text('explanation_shown'),
+  reviewNotes: text('review_notes'),
+  metadata: jsonb('metadata').notNull().default({}),
+  reviewedAt: timestamp('reviewed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('recommendation_review_records_user_idx').on(table.userId),
+  reviewerIdx: index('recommendation_review_records_reviewer_idx').on(table.reviewerUserId),
+  resourceIdx: index('recommendation_review_records_resource_idx').on(table.resourceType, table.resourceId),
+  statusIdx: index('recommendation_review_records_status_idx').on(table.status),
 }));
 
 export const privateResourceContents = pgTable('private_resource_contents', {
@@ -554,10 +759,54 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   partnerPostalCodes: many(partnerPostalCodes),
   hardAssetStaffMemberships: many(hardAssetStaffMemberships),
   softAssetStaffMemberships: many(softAssetStaffMemberships),
+  organizationAccessMemberships: many(organizationAccessMemberships),
+  consentRecords: many(userConsentRecords),
+  notificationPreferences: many(notificationPreferences),
+  optOutRecords: many(userOptOutRecords),
   ownedAudienceZones: many(audienceZones, { relationName: 'audience_zone_owner' }),
   createdAudienceZones: many(audienceZones, { relationName: 'audience_zone_creator' }),
   privateContentGrants: many(privateResourceContentAccess),
   resourceTranslations: many(resourceTranslations),
+}));
+
+export const partnerOrganizationsRelations = relations(partnerOrganizations, ({ one, many }) => ({
+  legacyPartnerUser: one(users, {
+    fields: [partnerOrganizations.legacyPartnerUserId],
+    references: [users.id],
+  }),
+  governanceAccess: many(organizationAccessMemberships),
+  agreements: many(organizationAgreements),
+  resourceLinks: many(organizationResourceLinks),
+}));
+
+export const organizationAccessMembershipsRelations = relations(organizationAccessMemberships, ({ one }) => ({
+  organization: one(partnerOrganizations, {
+    fields: [organizationAccessMemberships.organizationId],
+    references: [partnerOrganizations.id],
+  }),
+  user: one(users, {
+    fields: [organizationAccessMemberships.userId],
+    references: [users.id],
+  }),
+}));
+
+export const organizationAgreementsRelations = relations(organizationAgreements, ({ one }) => ({
+  organization: one(partnerOrganizations, {
+    fields: [organizationAgreements.organizationId],
+    references: [partnerOrganizations.id],
+  }),
+  approver: one(users, {
+    fields: [organizationAgreements.approvedByUserId],
+    references: [users.id],
+    relationName: 'organization_agreement_approver',
+  }),
+}));
+
+export const organizationResourceLinksRelations = relations(organizationResourceLinks, ({ one }) => ({
+  organization: one(partnerOrganizations, {
+    fields: [organizationResourceLinks.organizationId],
+    references: [partnerOrganizations.id],
+  }),
 }));
 
 export const privateResourceContentsRelations = relations(privateResourceContents, ({ one, many }) => ({
@@ -864,6 +1113,22 @@ export const myMapShareSnapshotsRelations = relations(myMapShareSnapshots, ({ on
   }),
 }));
 
+export const recommendationReviewRecordsRelations = relations(recommendationReviewRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [recommendationReviewRecords.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [recommendationReviewRecords.reviewerUserId],
+    references: [users.id],
+    relationName: 'recommendation_reviewer',
+  }),
+  map: one(myMaps, {
+    fields: [recommendationReviewRecords.mapId],
+    references: [myMaps.id],
+  }),
+}));
+
 export const userAssetMembershipsRelations = relations(userAssetMemberships, ({ one }) => ({
   user: one(users, {
     fields: [userAssetMemberships.userId],
@@ -897,6 +1162,27 @@ export const phoneVerificationAttemptsRelations = relations(phoneVerificationAtt
 export const phoneLoginAttemptsRelations = relations(phoneLoginAttempts, ({ one }) => ({
   resolvedUser: one(users, {
     fields: [phoneLoginAttempts.resolvedUserId],
+    references: [users.id],
+  }),
+}));
+
+export const userConsentRecordsRelations = relations(userConsentRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [userConsentRecords.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userOptOutRecordsRelations = relations(userOptOutRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [userOptOutRecords.userId],
     references: [users.id],
   }),
 }));

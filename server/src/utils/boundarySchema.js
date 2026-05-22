@@ -41,6 +41,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_place_id TEXT`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_maps_uri TEXT`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS last_reviewed_at TIMESTAMP`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS last_verified_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_type VARCHAR(80)`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS snapshot JSONB`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_maps (
@@ -94,6 +99,25 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
                     share_token VARCHAR(64) NOT NULL,
                     snapshot JSONB NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS recommendation_review_records (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    reviewer_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    map_id INTEGER REFERENCES my_maps(id) ON DELETE SET NULL,
+                    resource_type VARCHAR(20),
+                    resource_id INTEGER,
+                    recommendation_type VARCHAR(80) NOT NULL DEFAULT 'social_prescribing',
+                    decision VARCHAR(40) NOT NULL DEFAULT 'pending',
+                    status VARCHAR(40) NOT NULL DEFAULT 'draft',
+                    explanation_shown TEXT,
+                    review_notes TEXT,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    reviewed_at TIMESTAMP,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -208,6 +232,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS eligibility_rules JSONB`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS last_reviewed_at TIMESTAMP`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS last_verified_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS source_type VARCHAR(80)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS overridden_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
@@ -219,6 +248,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_enabled BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_count INTEGER NOT NULL DEFAULT 0`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_unit TEXT`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS last_reviewed_at TIMESTAMP`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS last_verified_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS source_type VARCHAR(80)`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE hard_assets ALTER COLUMN partner_id DROP NOT NULL`);
             await db.execute(sql`ALTER TABLE soft_assets ALTER COLUMN partner_id DROP NOT NULL`);
             await db.execute(sql`UPDATE hard_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
@@ -317,16 +351,85 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS user_consent_records (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    consent_type VARCHAR(80) NOT NULL,
+                    consent_version VARCHAR(40) NOT NULL,
+                    status VARCHAR(40) NOT NULL DEFAULT 'accepted',
+                    source_surface VARCHAR(120),
+                    accepted_at TIMESTAMP,
+                    withdrawn_at TIMESTAMP,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS notification_preferences (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    channel VARCHAR(40) NOT NULL,
+                    category VARCHAR(80) NOT NULL DEFAULT 'general',
+                    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    delivery_allowed BOOLEAN NOT NULL DEFAULT FALSE,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS user_opt_out_records (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    opt_out_type VARCHAR(80) NOT NULL,
+                    reason TEXT,
+                    active BOOLEAN NOT NULL DEFAULT TRUE,
+                    source_surface VARCHAR(120),
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    revoked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    revoked_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS retention_records (
+                    id SERIAL PRIMARY KEY,
+                    entity_type VARCHAR(80) NOT NULL,
+                    entity_id INTEGER NOT NULL,
+                    retention_category VARCHAR(80) NOT NULL,
+                    retain_until TIMESTAMP,
+                    deletion_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+                    deletion_status VARCHAR(40) NOT NULL DEFAULT 'active',
+                    reviewed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    deleted_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    reviewed_at TIMESTAMP,
+                    deleted_at TIMESTAMP,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS partner_organizations (
                     id SERIAL PRIMARY KEY,
                     legacy_partner_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    governance_status VARCHAR(40) NOT NULL DEFAULT 'active',
+                    data_contact_name VARCHAR(255),
+                    data_contact_email VARCHAR(255),
                     created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`ALTER TABLE partner_organizations ADD COLUMN IF NOT EXISTS description TEXT`);
+            await db.execute(sql`ALTER TABLE partner_organizations ADD COLUMN IF NOT EXISTS governance_status VARCHAR(40) NOT NULL DEFAULT 'active'`);
+            await db.execute(sql`ALTER TABLE partner_organizations ADD COLUMN IF NOT EXISTS data_contact_name VARCHAR(255)`);
+            await db.execute(sql`ALTER TABLE partner_organizations ADD COLUMN IF NOT EXISTS data_contact_email VARCHAR(255)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS partner_staff_memberships (
                     id SERIAL PRIMARY KEY,
@@ -348,6 +451,73 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     target_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                     event_type VARCHAR(80) NOT NULL,
                     metadata JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS organization_access_memberships (
+                    id SERIAL PRIMARY KEY,
+                    organization_id INTEGER NOT NULL REFERENCES partner_organizations(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    access_role VARCHAR(40) NOT NULL DEFAULT 'staff',
+                    revoked_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS organization_agreements (
+                    id SERIAL PRIMARY KEY,
+                    organization_id INTEGER NOT NULL REFERENCES partner_organizations(id) ON DELETE CASCADE,
+                    agreement_reference VARCHAR(160) NOT NULL,
+                    agreement_type VARCHAR(80) NOT NULL DEFAULT 'data_sharing',
+                    file_url TEXT,
+                    file_name TEXT,
+                    status VARCHAR(40) NOT NULL DEFAULT 'draft',
+                    effective_at TIMESTAMP,
+                    expires_at TIMESTAMP,
+                    allowed_uses JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    reviewed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    approved_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    reviewed_at TIMESTAMP,
+                    approved_at TIMESTAMP,
+                    revoked_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS organization_resource_links (
+                    id SERIAL PRIMARY KEY,
+                    organization_id INTEGER NOT NULL REFERENCES partner_organizations(id) ON DELETE CASCADE,
+                    resource_type VARCHAR(20) NOT NULL,
+                    resource_id INTEGER NOT NULL,
+                    link_status VARCHAR(40) NOT NULL DEFAULT 'active',
+                    agreement_coverage_status VARCHAR(40) NOT NULL DEFAULT 'unknown',
+                    linked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    unlinked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    unlinked_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`ALTER TABLE organization_resource_links ADD COLUMN IF NOT EXISTS agreement_coverage_status VARCHAR(40) NOT NULL DEFAULT 'unknown'`);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS sensitive_audit_logs (
+                    id SERIAL PRIMARY KEY,
+                    actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    target_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    action_type VARCHAR(120) NOT NULL,
+                    entity_type VARCHAR(80),
+                    entity_id INTEGER,
+                    resource_type VARCHAR(20),
+                    resource_id INTEGER,
+                    organization_id INTEGER REFERENCES partner_organizations(id) ON DELETE SET NULL,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             `);
@@ -433,6 +603,10 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_sort_idx ON my_map_asset_notes (map_asset_id, sort_order)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_share_snapshots_map_unique ON my_map_share_snapshots (map_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_share_snapshots_share_token_idx ON my_map_share_snapshots (share_token)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS recommendation_review_records_user_idx ON recommendation_review_records (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS recommendation_review_records_reviewer_idx ON recommendation_review_records (reviewer_user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS recommendation_review_records_resource_idx ON recommendation_review_records (resource_type, resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS recommendation_review_records_status_idx ON recommendation_review_records (status)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_contents_resource_unique ON private_resource_contents (resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS private_resource_contents_resource_idx ON private_resource_contents (resource_type, resource_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS private_resource_content_access_content_user_unique ON private_resource_content_access (content_id, user_id)`);
@@ -458,6 +632,18 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS phone_login_attempts_status_idx ON phone_login_attempts (status)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS phone_login_attempts_requested_phone_idx ON phone_login_attempts (requested_phone_e164)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS phone_login_attempts_resolved_user_idx ON phone_login_attempts (resolved_user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_consent_records_user_idx ON user_consent_records (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_consent_records_user_type_version_idx ON user_consent_records (user_id, consent_type, consent_version)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_consent_records_status_idx ON user_consent_records (status)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS notification_preferences_user_channel_category_unique ON notification_preferences (user_id, channel, category)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS notification_preferences_user_idx ON notification_preferences (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS notification_preferences_channel_idx ON notification_preferences (channel)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_opt_out_records_active_user_type_unique ON user_opt_out_records (user_id, opt_out_type) WHERE active = TRUE AND revoked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_opt_out_records_user_idx ON user_opt_out_records (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_opt_out_records_type_idx ON user_opt_out_records (opt_out_type)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS retention_records_entity_category_unique ON retention_records (entity_type, entity_id, retention_category)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS retention_records_status_idx ON retention_records (deletion_status)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS retention_records_retain_until_idx ON retention_records (retain_until)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS partner_organizations_legacy_partner_unique ON partner_organizations (legacy_partner_user_id) WHERE legacy_partner_user_id IS NOT NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_organizations_legacy_partner_idx ON partner_organizations (legacy_partner_user_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS partner_staff_memberships_active_user_unique ON partner_staff_memberships (organization_id, user_id) WHERE revoked_at IS NULL`);
@@ -467,6 +653,24 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_staff_events_organization_idx ON partner_staff_events (organization_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_staff_events_actor_idx ON partner_staff_events (actor_user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS partner_staff_events_target_idx ON partner_staff_events (target_user_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS organization_access_memberships_active_user_unique ON organization_access_memberships (organization_id, user_id) WHERE revoked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_access_memberships_organization_idx ON organization_access_memberships (organization_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_access_memberships_user_idx ON organization_access_memberships (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_access_memberships_role_idx ON organization_access_memberships (access_role)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_agreements_organization_idx ON organization_agreements (organization_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_agreements_status_idx ON organization_agreements (status)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_agreements_expires_idx ON organization_agreements (expires_at)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS organization_resource_links_active_resource_unique ON organization_resource_links (organization_id, resource_type, resource_id) WHERE unlinked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_organization_idx ON organization_resource_links (organization_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_resource_idx ON organization_resource_links (resource_type, resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_status_idx ON organization_resource_links (link_status)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_coverage_status_idx ON organization_resource_links (agreement_coverage_status)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_actor_idx ON sensitive_audit_logs (actor_user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_action_idx ON sensitive_audit_logs (action_type)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_entity_idx ON sensitive_audit_logs (entity_type, entity_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_organization_idx ON sensitive_audit_logs (organization_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_resource_idx ON sensitive_audit_logs (resource_type, resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_created_idx ON sensitive_audit_logs (created_at)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS hard_asset_staff_memberships_active_user_unique ON hard_asset_staff_memberships (hard_asset_id, user_id) WHERE revoked_at IS NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS hard_asset_staff_memberships_hard_asset_idx ON hard_asset_staff_memberships (hard_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS hard_asset_staff_memberships_user_idx ON hard_asset_staff_memberships (user_id)`);

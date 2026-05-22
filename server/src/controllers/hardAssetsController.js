@@ -26,6 +26,7 @@ import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata } from '../utils/eligibility.js';
 import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
+import { loadOrganizationContextsForResources } from '../utils/organizationResourceContext.js';
 import { enrichHardAssetDraftFromGooglePlaces, resolveGooglePlacePreview, searchGooglePlaceCandidatesByPostal } from '../utils/googlePlaceImport.js';
 import { enrichPlaceCandidatesWithVertex, searchVertexGroundedPlaceSuggestions } from '../utils/vertexGroundedPlaceSearch.js';
 import { fetchWebsiteMetadata } from '../utils/websiteMetadata.js';
@@ -87,6 +88,51 @@ function clientError(message, status = 400) {
     const err = new Error(message);
     err.status = status;
     return err;
+}
+
+function normalizeVerificationDate(value) {
+    if (value === undefined) return undefined;
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        throw clientError('Last reviewed date is invalid.');
+    }
+    return date;
+}
+
+function normalizeVerificationConfidence(value) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        throw clientError('Verification confidence must be between 0 and 100.');
+    }
+    return String(Math.round(parsed));
+}
+
+function buildFreshnessInsert(body, user) {
+    const lastReviewedAt = normalizeVerificationDate(body.lastReviewedAt);
+    return {
+        lastReviewedAt: lastReviewedAt === undefined ? null : lastReviewedAt,
+        lastVerifiedByUserId: lastReviewedAt ? user?.id || null : null,
+        sourceType: cleanOptionalOneLineText(body.sourceType, 80) || null,
+        verificationStatus: cleanOptionalOneLineText(body.verificationStatus, 40) || 'unverified',
+        verificationConfidence: normalizeVerificationConfidence(body.verificationConfidence) ?? null,
+    };
+}
+
+function buildFreshnessUpdate(body, existing, user) {
+    const lastReviewedAt = normalizeVerificationDate(body.lastReviewedAt);
+    const verificationConfidence = normalizeVerificationConfidence(body.verificationConfidence);
+    return {
+        lastReviewedAt: lastReviewedAt !== undefined ? lastReviewedAt : existing.lastReviewedAt,
+        lastVerifiedByUserId: lastReviewedAt !== undefined
+            ? (lastReviewedAt ? user?.id || existing.lastVerifiedByUserId || null : null)
+            : existing.lastVerifiedByUserId,
+        sourceType: body.sourceType !== undefined ? (cleanOptionalOneLineText(body.sourceType, 80) || null) : existing.sourceType,
+        verificationStatus: body.verificationStatus !== undefined ? (cleanOptionalOneLineText(body.verificationStatus, 40) || 'unverified') : existing.verificationStatus,
+        verificationConfidence: verificationConfidence !== undefined ? verificationConfidence : existing.verificationConfidence,
+    };
 }
 
 async function geocode(postalCode, country) {
@@ -1136,10 +1182,15 @@ export const getHardAssets = async (c) => {
             const manageableAssetIds = pagedAssetSummaries
                 .filter((asset) => actorCanManageAsset(user, asset, asset.partner))
                 .map((asset) => asset.id);
+            const organizationContextsByResource = await loadOrganizationContextsForResources(
+                db,
+                pagedAssetIds.map((id) => ({ resourceType: 'hard', resourceId: id })),
+            );
             const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, manageableAssetIds);
             const formatted = pagedAssetSummaries.map((asset) => formatHardAssetListSummary(asset, {
                 boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
                 tags: tagsByAssetId.get(asset.id) || [],
+                organizationLinks: organizationContextsByResource.get(`hard:${asset.id}`) || [],
                 permissions: buildHardAssetPermissionSummary(user, asset),
                 membershipSummary: membershipSummariesByAssetId.get(asset.id) || null,
             }));
@@ -1252,6 +1303,10 @@ export const getHardAssets = async (c) => {
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, nestedSoftAssets);
         const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, manageableAssetIds);
+        const organizationContextsByResource = await loadOrganizationContextsForResources(
+            db,
+            pagedAssetIds.map((id) => ({ resourceType: 'hard', resourceId: id })),
+        );
         const formatted = pagedAssets
             .map((asset) => ({
                 ...formatHardAsset(
@@ -1266,6 +1321,7 @@ export const getHardAssets = async (c) => {
                 ),
                 matchingRegionIds: asset.matchingRegionIds || [],
                 primaryRegionId: asset.subregionId || null,
+                organizationLinks: organizationContextsByResource.get(`hard:${asset.id}`) || [],
                 permissions: buildHardAssetPermissionSummary(user, asset),
             }));
 
@@ -1411,6 +1467,7 @@ export const getHardAssetById = async (c) => {
             ),
             matchingRegionIds: assetWithRegions.matchingRegionIds || [],
             primaryRegionId: assetWithRegions.subregionId || null,
+            organizationLinks: (await loadOrganizationContextsForResources(db, [{ resourceType: 'hard', resourceId: assetWithRegions.id }])).get(`hard:${assetWithRegions.id}`) || [],
             permissions: buildHardAssetPermissionSummary(user, assetWithRegions),
         });
 
@@ -1589,6 +1646,7 @@ export const createHardAsset = async (c) => {
             galleryUrls: galleryUrls || [],
             sourceGooglePlaceId: sourceGooglePlaceId || null,
             sourceGoogleMapsUri: sourceGoogleMapsUri || null,
+            ...buildFreshnessInsert(body, user),
             isHidden: isHidden || false,
             hideFrom: hideFrom ? new Date(hideFrom) : null,
             hideUntil: hideUntil ? new Date(hideUntil) : null,
@@ -1727,6 +1785,7 @@ export const updateHardAsset = async (c) => {
             galleryUrls: body.galleryUrls !== undefined ? body.galleryUrls : existing.galleryUrls,
             sourceGooglePlaceId: body.sourceGooglePlaceId !== undefined ? (body.sourceGooglePlaceId || null) : existing.sourceGooglePlaceId,
             sourceGoogleMapsUri: body.sourceGoogleMapsUri !== undefined ? (body.sourceGoogleMapsUri || null) : existing.sourceGoogleMapsUri,
+            ...buildFreshnessUpdate(body, existing, user),
             isHidden: body.isHidden !== undefined ? body.isHidden : existing.isHidden,
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,

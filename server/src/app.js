@@ -22,6 +22,7 @@ import membershipsRoutes from './routes/memberships.js';
 import privateResourceContentRoutes from './routes/privateResourceContent.js';
 import resourceTranslationsRoutes from './routes/resourceTranslations.js';
 import phoneIdentitiesRoutes from './routes/phoneIdentities.js';
+import governanceRoutes from './routes/governance.js';
 import {
     aiRateLimit,
     authPollingRateLimit,
@@ -113,6 +114,7 @@ app.route('/api/memberships', membershipsRoutes);
 app.route('/api/private-resource-content', privateResourceContentRoutes);
 app.route('/api/resource-translations', resourceTranslationsRoutes);
 app.route('/api/phone-identities', phoneIdentitiesRoutes);
+app.route('/api/governance', governanceRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

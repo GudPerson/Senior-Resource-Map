@@ -23,6 +23,14 @@ function formatDateTimeLocal(value) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function formatDateInput(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 function normalizeExternalHref(value) {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -123,6 +131,10 @@ function buildInitialForm(type, initialData, currentUser) {
             socialLinks: normalizeSocialLinks(initialData.socialLinks),
             sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
             sourceGoogleMapsUri: initialData.sourceGoogleMapsUri || '',
+            lastReviewedAt: formatDateInput(initialData.lastReviewedAt),
+            sourceType: initialData.sourceType || '',
+            verificationStatus: initialData.verificationStatus || 'unverified',
+            verificationConfidence: initialData.verificationConfidence || '',
         };
     }
 
@@ -146,6 +158,10 @@ function buildInitialForm(type, initialData, currentUser) {
             galleryUrls: [],
             sourceGooglePlaceId: '',
             sourceGoogleMapsUri: '',
+            lastReviewedAt: '',
+            sourceType: '',
+            verificationStatus: 'unverified',
+            verificationConfidence: '',
             newTags: [],
             isHidden: false,
             hideFrom: '',
@@ -187,11 +203,31 @@ function buildInitialForm(type, initialData, currentUser) {
         coverageRegionIds: [],
         audienceMode: 'public',
         audienceZoneIds: [],
+        lastReviewedAt: '',
+        sourceType: '',
+        verificationStatus: 'unverified',
+        verificationConfidence: '',
     };
 }
 
 const OWNERSHIP_OPTIONS = [
     { value: 'system', label: 'System-owned' },
+];
+
+const SOURCE_TYPE_OPTIONS = [
+    { value: '', label: 'Not recorded' },
+    { value: 'official_source', label: 'Official source' },
+    { value: 'staff_verified', label: 'Staff verified' },
+    { value: 'public_directory', label: 'Public directory' },
+    { value: 'uploaded_material', label: 'Uploaded material' },
+    { value: 'ai_assisted', label: 'AI assisted' },
+];
+
+const VERIFICATION_STATUS_OPTIONS = [
+    { value: 'unverified', label: 'Not verified' },
+    { value: 'needs_review', label: 'Needs review' },
+    { value: 'verified', label: 'Verified' },
+    { value: 'stale', label: 'Stale' },
 ];
 
 function TooltipMultiValueLabel(props) {
@@ -1094,6 +1130,77 @@ export default function AssetForm({
                         Save this resource first, then edit it again to add restricted notes and files.
                     </div>
                 )}
+
+                <div className="col-span-2 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                                <ShieldCheck size={16} className="text-brand-600" />
+                                Freshness check
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Track when this record was last reviewed. This is governance metadata only and does not change who can edit the resource.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setField('lastReviewedAt', formatDateInput(new Date()));
+                                setField('verificationStatus', 'verified');
+                            }}
+                            className="btn-secondary shrink-0 px-3 py-2 text-xs"
+                        >
+                            Mark reviewed today
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                        <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-700">Last reviewed</label>
+                            <input
+                                type="date"
+                                value={form.lastReviewedAt || ''}
+                                onChange={(event) => setField('lastReviewedAt', event.target.value)}
+                                className="input-field text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-700">Source</label>
+                            <select
+                                value={form.sourceType || ''}
+                                onChange={(event) => setField('sourceType', event.target.value)}
+                                className="input-field text-sm"
+                            >
+                                {SOURCE_TYPE_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-700">Status</label>
+                            <select
+                                value={form.verificationStatus || 'unverified'}
+                                onChange={(event) => setField('verificationStatus', event.target.value)}
+                                className="input-field text-sm"
+                            >
+                                {VERIFICATION_STATUS_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-semibold text-slate-700">Confidence</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={form.verificationConfidence || ''}
+                                onChange={(event) => setField('verificationConfidence', event.target.value)}
+                                placeholder="0-100"
+                                className="input-field text-sm"
+                            />
+                        </div>
+                    </div>
+                </div>
 
                 <div className="col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Tags (Press enter to add)</label>

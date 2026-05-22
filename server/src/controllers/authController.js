@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
-import { users, userSubregions } from '../db/schema.js';
+import { sensitiveAuditLogs, users, userSubregions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { normalizeRole } from '../utils/roles.js';
 import { canDirectlyManageUser } from '../utils/ownership.js';
@@ -479,6 +479,19 @@ export const impersonate = async (c) => {
                 },
             },
         });
+
+        try {
+            await db.insert(sensitiveAuditLogs).values({
+                actorUserId: actor.id,
+                targetUserId: targetUser.id,
+                actionType: 'user_view_started',
+                entityType: 'user',
+                entityId: targetUser.id,
+                metadata: { actorRole },
+            });
+        } catch {
+            // Do not block an already-authorized user view if the audit table is temporarily unavailable.
+        }
 
         return c.json({
             token,

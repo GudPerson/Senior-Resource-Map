@@ -25,6 +25,7 @@ import {
     normalizeResourceListScope,
     paginateResourceList,
 } from '../utils/resourceListScope.js';
+import { loadOrganizationContextsForResources } from '../utils/organizationResourceContext.js';
 import {
     attachHardAssetRegionMatches,
     attachStandaloneSoftAssetCoverage,
@@ -65,6 +66,57 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+
+function clientError(message, status = 400) {
+    const err = new Error(message);
+    err.status = status;
+    return err;
+}
+
+function normalizeVerificationDate(value) {
+    if (value === undefined) return undefined;
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        throw clientError('Last reviewed date is invalid.');
+    }
+    return date;
+}
+
+function normalizeVerificationConfidence(value) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        throw clientError('Verification confidence must be between 0 and 100.');
+    }
+    return String(Math.round(parsed));
+}
+
+function buildFreshnessInsert(body, user) {
+    const lastReviewedAt = normalizeVerificationDate(body.lastReviewedAt);
+    return {
+        lastReviewedAt: lastReviewedAt === undefined ? null : lastReviewedAt,
+        lastVerifiedByUserId: lastReviewedAt ? user?.id || null : null,
+        sourceType: cleanOptionalOneLineText(body.sourceType, 80) || null,
+        verificationStatus: cleanOptionalOneLineText(body.verificationStatus, 40) || 'unverified',
+        verificationConfidence: normalizeVerificationConfidence(body.verificationConfidence) ?? null,
+    };
+}
+
+function buildFreshnessUpdate(body, existing, user) {
+    const lastReviewedAt = normalizeVerificationDate(body.lastReviewedAt);
+    const verificationConfidence = normalizeVerificationConfidence(body.verificationConfidence);
+    return {
+        lastReviewedAt: lastReviewedAt !== undefined ? lastReviewedAt : existing.lastReviewedAt,
+        lastVerifiedByUserId: lastReviewedAt !== undefined
+            ? (lastReviewedAt ? user?.id || existing.lastVerifiedByUserId || null : null)
+            : existing.lastVerifiedByUserId,
+        sourceType: body.sourceType !== undefined ? (cleanOptionalOneLineText(body.sourceType, 80) || null) : existing.sourceType,
+        verificationStatus: body.verificationStatus !== undefined ? (cleanOptionalOneLineText(body.verificationStatus, 40) || 'unverified') : existing.verificationStatus,
+        verificationConfidence: verificationConfidence !== undefined ? verificationConfidence : existing.verificationConfidence,
+    };
+}
 
 const softAssetWithRelations = {
     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
@@ -565,8 +617,16 @@ export const getSoftAssets = async (c) => {
                 permissions: buildSoftAssetPermissionSummary(user, raw),
             }));
         const { data: pagedFormatted, pagination } = paginateResourceList(formatted, { page, pageSize });
+        const organizationContextsByResource = await loadOrganizationContextsForResources(
+            db,
+            pagedFormatted.map((asset) => ({ resourceType: 'soft', resourceId: asset.id })),
+        );
+        const pagedWithOrganizationContext = pagedFormatted.map((asset) => ({
+            ...asset,
+            organizationLinks: organizationContextsByResource.get(`soft:${asset.id}`) || [],
+        }));
 
-        const formattedWithTranslations = await attachSoftAssetTranslations(db, pagedFormatted);
+        const formattedWithTranslations = await attachSoftAssetTranslations(db, pagedWithOrganizationContext);
 
         return c.json({
             data: formattedWithTranslations,
@@ -619,6 +679,7 @@ export const getSoftAssetById = async (c) => {
             coverageRegionIds: asset.coverageRegionIds || [],
             matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
             primaryRegionId: asset.subregionId || null,
+            organizationLinks: (await loadOrganizationContextsForResources(db, [{ resourceType: 'soft', resourceId: asset.id }])).get(`soft:${asset.id}`) || [],
             permissions: buildSoftAssetPermissionSummary(user, asset),
         }));
     } catch (err) {
@@ -746,6 +807,7 @@ export const createSoftAsset = async (c) => {
             availabilityEnabled: normalizeAvailabilityEnabled(availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(availabilityCount),
             availabilityUnit: normalizeAvailabilityUnit(availabilityUnit),
+            ...buildFreshnessInsert(body, user),
             isHidden: Boolean(isHidden),
             hideFrom: hideFrom ? new Date(hideFrom) : null,
             hideUntil: hideUntil ? new Date(hideUntil) : null,
@@ -983,6 +1045,7 @@ export const updateSoftAsset = async (c) => {
             availabilityEnabled: body.availabilityEnabled !== undefined ? Boolean(body.availabilityEnabled) : existing.availabilityEnabled,
             availabilityCount: body.availabilityCount !== undefined ? normalizeAvailabilityCount(body.availabilityCount) : normalizeAvailabilityCount(existing.availabilityCount),
             availabilityUnit: body.availabilityUnit !== undefined ? normalizeAvailabilityUnit(body.availabilityUnit) : normalizeAvailabilityUnit(existing.availabilityUnit),
+            ...buildFreshnessUpdate(body, existing, user),
             isHidden: body.isHidden !== undefined ? Boolean(body.isHidden) : existing.isHidden,
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,

@@ -1,4 +1,5 @@
 import { getDb } from '../db/index.js';
+import { sensitiveAuditLogs } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { hasAnyHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
 import { hasAnySoftAssetStaffAccess } from '../utils/softAssetAccess.js';
@@ -119,6 +120,21 @@ function createContentDisposition(fileName) {
     return `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`;
 }
 
+async function recordRestrictedContentAudit(db, user, actionType, resourceType, resourceId, metadata = {}) {
+    try {
+        await db.insert(sensitiveAuditLogs).values({
+            actorUserId: user?.id || null,
+            actionType,
+            entityType: 'restricted_content',
+            resourceType,
+            resourceId,
+            metadata,
+        });
+    } catch {
+        // Audit writes should not block the already-authorized read/write path.
+    }
+}
+
 export const getPrivateResourceContent = async (c) => {
     try {
         const user = c.get('user');
@@ -168,6 +184,10 @@ export const updatePrivateResourceContent = async (c) => {
             await syncPrivateAccessGrants(db, content.id, resource, body.accessUserIds || [], user);
         }
 
+        await recordRestrictedContentAudit(db, user, 'restricted_content_updated', resourceType, resourceId, {
+            accessGrantCount: Array.isArray(body?.accessUserIds) ? body.accessUserIds.length : undefined,
+        });
+
         const updated = await loadPrivateContent(db, resourceType, resourceId);
         return c.json(formatPrivateContent(updated, resource, user));
     } catch (err) {
@@ -213,7 +233,12 @@ export const uploadPrivateResourceFile = async (c) => {
         const body = await c.req.parseBody();
         const file = body.file;
         const content = await ensurePrivateContent(db, resourceType, resourceId, user);
-        await insertPrivateFile(db, content.id, file, user);
+        const inserted = await insertPrivateFile(db, content.id, file, user);
+        await recordRestrictedContentAudit(db, user, 'private_file_uploaded', resourceType, resourceId, {
+            fileId: inserted?.id || null,
+            fileName: inserted?.fileName || null,
+            fileSize: inserted?.fileSize || null,
+        });
 
         const updated = await loadPrivateContent(db, resourceType, resourceId);
         return c.json(formatPrivateContent(updated, resource, user), 201);
@@ -242,6 +267,12 @@ export const downloadPrivateResourceFile = async (c) => {
         if (!file) {
             return c.json({ error: 'File not found.' }, 404);
         }
+
+        await recordRestrictedContentAudit(db, user, 'private_file_downloaded', resourceType, resourceId, {
+            fileId: file.id,
+            fileName: file.fileName,
+            fileSize: file.fileSize,
+        });
 
         const bytes = decodePrivateFileData(file.fileData);
         return new Response(bytes, {
@@ -284,6 +315,11 @@ export const deletePrivateResourceFile = async (c) => {
         }
 
         await deletePrivateFileForContent(db, content.id, fileId);
+        await recordRestrictedContentAudit(db, user, 'private_file_deleted', resourceType, resourceId, {
+            fileId,
+            fileName: file.fileName,
+            fileSize: file.fileSize,
+        });
         const updated = await loadPrivateContent(db, resourceType, resourceId);
         return c.json(formatPrivateContent(updated, resource, user));
     } catch (err) {

@@ -264,3 +264,32 @@ test('runtime schema bootstrap includes direct hard-asset staff memberships', as
         'expected hard asset staff lookup index',
     );
 });
+
+test('runtime schema bootstrap includes organisation governance link coverage status', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create table if not exists organization_resource_links')
+            && statement.includes('agreement_coverage_status')
+        )),
+        'expected organisation resource link coverage status in create table SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table organization_resource_links add column if not exists agreement_coverage_status')),
+        'expected organisation resource link coverage status additive SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('create index if not exists organization_resource_links_coverage_status_idx')),
+        'expected coverage status lookup index',
+    );
+});
