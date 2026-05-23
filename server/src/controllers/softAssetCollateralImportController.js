@@ -15,6 +15,12 @@ import {
     loadHardAssetsByIds,
 } from '../utils/softAssetScope.js';
 import { inferSoftAssetBucket, normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
+import {
+    normalizeImportedSoftAssetName,
+    normalizeImportedSoftAssetPhone,
+    normalizeImportedSoftAssetShortText,
+    normalizeImportedSoftAssetSubCategory,
+} from '../utils/softAssetImportFields.js';
 import { extractCollateralDraftRows } from '../utils/vertexCollateralImport.js';
 import {
     buildCollateralReviewRows,
@@ -185,13 +191,16 @@ function buildResolvedHostSummary(hostAsset) {
 }
 
 function buildRowPayload(row) {
-    const name = normalizeText(row?.name);
+    const name = normalizeImportedSoftAssetName(row?.name);
     if (!name) {
         throw clientError('Each reviewed draft needs a name before it can be created or updated.');
     }
 
     const bucket = normalizeReviewBucket(row?.bucket, row);
-    const subCategory = normalizeText(row?.subCategory || row?.subCategorySuggestion || bucket) || bucket;
+    const subCategory = normalizeImportedSoftAssetSubCategory(
+        row?.subCategory || row?.subCategorySuggestion || bucket,
+        bucket,
+    );
 
     return {
         name,
@@ -199,9 +208,9 @@ function buildRowPayload(row) {
         subCategory,
         description: normalizeOptionalText(row?.description),
         schedule: normalizeOptionalText(row?.schedule),
-        contactPhone: normalizeOptionalText(row?.contactPhone),
+        contactPhone: normalizeImportedSoftAssetPhone(row?.contactPhone),
         contactEmail: normalizeOptionalEmail(row?.contactEmail),
-        ctaLabel: normalizeOptionalText(row?.ctaLabel),
+        ctaLabel: normalizeImportedSoftAssetShortText(row?.ctaLabel),
         ctaUrl: normalizeOptionalUrl(row?.ctaUrl),
         venueNote: normalizeOptionalText(row?.venueNote),
         newTags: normalizeTags(row?.newTags),
