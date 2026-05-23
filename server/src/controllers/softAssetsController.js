@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or, ilike } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import { softAssetRegionCoverages, softAssets, softAssetLocations, subregionPostalCodes } from '../db/schema.js';
@@ -66,6 +66,7 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import { buildSoftAssetSearchWhere } from '../utils/softAssetSearch.js';
 
 function clientError(message, status = 400) {
     const err = new Error(message);
@@ -564,12 +565,9 @@ export const getSoftAssets = async (c) => {
 
         const whereClauses = [eq(softAssets.isDeleted, false)];
 
-        if (query) {
-            whereClauses.push(or(
-                ilike(softAssets.name, `%${query}%`),
-                ilike(softAssets.description, `%${query}%`),
-                ilike(softAssets.subCategory, `%${query}%`)
-            ));
+        const searchWhere = buildSoftAssetSearchWhere(query);
+        if (searchWhere) {
+            whereClauses.push(searchWhere);
         }
 
         const finalWhere = and(...whereClauses);

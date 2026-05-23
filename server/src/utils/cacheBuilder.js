@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { dataStore } from './dataStore.js';
 
-export const MAP_CACHE_SCHEMA_VERSION = 4;
+export const MAP_CACHE_SCHEMA_VERSION = 5;
 
 /**
  * Rebuilds the edge cache JSON for a specific subregion
