@@ -23,3 +23,8 @@ export function buildManagedHardResourceListParams(options = {}) {
     const params = buildManagedResourceListParams(options);
     return Object.keys(params).length > 0 ? { ...params, summary: true } : params;
 }
+
+export function withResourceListSearchParam(params = {}, query = '') {
+    const normalizedQuery = String(query || '').trim();
+    return normalizedQuery ? { ...params, q: normalizedQuery } : params;
+}

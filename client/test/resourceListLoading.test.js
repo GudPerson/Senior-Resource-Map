@@ -5,6 +5,7 @@ import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
     shouldUseFullResourceDataset,
+    withResourceListSearchParam,
 } from '../src/lib/resourceListLoading.js';
 
 test('shouldUseFullResourceDataset keeps default manage-resource loads paginated', () => {
@@ -73,4 +74,23 @@ test('buildManagedHardResourceListParams requests lean summaries for managed har
         canManageResourceTools: false,
         role: 'regional_admin',
     }), {});
+});
+
+test('withResourceListSearchParam scopes full dataset loads to the active search query', () => {
+    assert.deepEqual(withResourceListSearchParam({
+        scope: 'managed',
+        summary: true,
+    }, ' frcs '), {
+        scope: 'managed',
+        summary: true,
+        q: 'frcs',
+    });
+
+    assert.deepEqual(withResourceListSearchParam({
+        scope: 'managed',
+        regionScoped: true,
+    }, ''), {
+        scope: 'managed',
+        regionScoped: true,
+    });
 });

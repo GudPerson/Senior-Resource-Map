@@ -47,6 +47,7 @@ import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
     shouldUseFullResourceDataset,
+    withResourceListSearchParam,
 } from '../../lib/resourceListLoading.js';
 import {
     canAccessManagedResources,
@@ -677,9 +678,11 @@ export default function ResourcesPage() {
         canManageResourceTools,
         role: normalizedRole,
     });
+    const fullResourceListParams = withResourceListSearchParam(resourceListParams, normalizedQuery);
+    const fullHardResourceListParams = withResourceListSearchParam(hardResourceListParams, normalizedQuery);
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
-            ? ['full', normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
+            ? ['full', normalizedQuery, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
             : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
     ), [
         directAssetAccessKey,
@@ -739,10 +742,10 @@ export default function ResourcesPage() {
         try {
             const requests = [
                 needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getHardAssets, hardResourceListParams)
+                    ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
                     : api.getHardAssets({ ...hardResourceListParams, page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
                 needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getSoftAssets, resourceListParams)
+                    ? fetchAllPaginatedResults(api.getSoftAssets, fullResourceListParams)
                     : api.getSoftAssets({ ...resourceListParams, page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
             ];
 
