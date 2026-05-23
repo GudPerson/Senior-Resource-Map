@@ -11,7 +11,7 @@ import ImageUpload from '../../components/ImageUpload.jsx';
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import Pagination from '../../components/Pagination.jsx';
 import { buildBoundaryStatusFilterOptions, normalizeBoundaryStatusFilterValue } from '../../lib/adminBoundaryFilters.js';
-import { fetchPaginatedResultPage } from '../../lib/paginatedResults.js';
+import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../lib/paginatedResults.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 
@@ -62,6 +62,10 @@ function buildCategoryPinPreviewHtml(category) {
 }
 
 const DEFAULT_SORT_VALUE = 'default';
+const ADMIN_RESOURCE_PAGE_SIZE = 500;
+const ADMIN_RESOURCE_INITIAL_TIMEOUT_MS = 30_000;
+const ADMIN_RESOURCE_REMAINING_TIMEOUT_MS = 22_000;
+const ADMIN_RESOURCE_PAGE_ATTEMPTS = 2;
 
 const RESOURCE_TYPE_FILTER_OPTIONS = [
     { value: 'all', label: 'All resource types' },
@@ -338,68 +342,74 @@ function formatAdminResources(hard = [], soft = []) {
 }
 
 async function fetchResourcePages(fetchPage, params = {}, options = {}) {
-    const pageSize = options.pageSize || 500;
-    const maxConcurrentPages = Math.max(1, Number(options.maxConcurrentPages || 2));
-    const firstPage = options.firstPage || await fetchPaginatedResultPage(fetchPage, params, { page: 1, pageSize });
-    const totalPages = Math.max(1, firstPage.pagination.totalPages || 1);
-    const pages = [firstPage];
-
-    if (totalPages > 1) {
-        const remainingPages = new Array(totalPages - 1);
-        let nextIndex = 0;
-
-        async function runPageWorker() {
-            while (nextIndex < remainingPages.length) {
-                const index = nextIndex;
-                nextIndex += 1;
-                remainingPages[index] = await fetchPaginatedResultPage(fetchPage, params, { page: index + 2, pageSize });
-            }
-        }
-
-        await Promise.all(
-            Array.from(
-                { length: Math.min(maxConcurrentPages, remainingPages.length) },
-                () => runPageWorker(),
-            ),
-        );
-        pages.push(...remainingPages);
-    }
-
-    const seenIds = new Set();
-    return pages.flatMap((page) => page.data).filter((item) => {
-        const id = item?.id;
-        if (!Number.isInteger(id)) return true;
-        if (seenIds.has(id)) return false;
-        seenIds.add(id);
-        return true;
+    return fetchPaginatedResultsPartial(fetchPage, params, {
+        pageSize: options.pageSize || ADMIN_RESOURCE_PAGE_SIZE,
+        maxConcurrentPages: options.maxConcurrentPages || 1,
+        maxAttempts: options.maxAttempts || ADMIN_RESOURCE_PAGE_ATTEMPTS,
+        pageTimeoutMs: options.pageTimeoutMs || ADMIN_RESOURCE_REMAINING_TIMEOUT_MS,
+        firstResponse: options.firstPage,
     });
 }
 
 async function fetchAllAdminResources(options = {}) {
     const { onPartial } = options;
     const listParams = { scope: 'managed', regionScoped: true };
-    const [hardFirst, softFirst] = await Promise.all([
-        fetchPaginatedResultPage(api.getHardAssets, listParams, { page: 1, pageSize: 500 }),
-        fetchPaginatedResultPage(api.getSoftAssets, { scope: 'managed' }, { page: 1, pageSize: 500 }),
+    const initialPageOptions = {
+        page: 1,
+        pageSize: ADMIN_RESOURCE_PAGE_SIZE,
+        maxAttempts: ADMIN_RESOURCE_PAGE_ATTEMPTS,
+        pageTimeoutMs: ADMIN_RESOURCE_INITIAL_TIMEOUT_MS,
+    };
+    const [hardFirstResult, softFirstResult] = await Promise.allSettled([
+        fetchPaginatedResultPage(api.getHardAssets, listParams, initialPageOptions),
+        fetchPaginatedResultPage(api.getSoftAssets, { scope: 'managed' }, initialPageOptions),
     ]);
+    const hardFirst = hardFirstResult.status === 'fulfilled' ? hardFirstResult.value : null;
+    const softFirst = softFirstResult.status === 'fulfilled' ? softFirstResult.value : null;
+
+    if (!hardFirst && !softFirst) {
+        throw new Error('Resource pages failed to load. Please refresh and try again.');
+    }
 
     if (typeof onPartial === 'function') {
+        const partialTotalCount = hardFirst && softFirst
+            ? (hardFirst.pagination.totalCount || 0) + (softFirst.pagination.totalCount || 0)
+            : null;
         onPartial({
-            items: formatAdminResources(hardFirst.data, softFirst.data),
-            totalCount: (hardFirst.pagination.totalCount || 0) + (softFirst.pagination.totalCount || 0),
+            items: formatAdminResources(hardFirst?.data || [], softFirst?.data || []),
+            totalCount: partialTotalCount,
         });
     }
 
     const [hard, soft] = await Promise.all([
-        hardFirst.pagination.totalPages > 1
+        hardFirst
             ? fetchResourcePages(api.getHardAssets, listParams, { firstPage: hardFirst })
-            : Promise.resolve(hardFirst.data),
-        softFirst.pagination.totalPages > 1
+            : Promise.resolve({
+                data: [],
+                pagination: { totalCount: 0, totalPages: 0, loadedPages: 0, failedPages: ['hard-assets'] },
+            }),
+        softFirst
             ? fetchResourcePages(api.getSoftAssets, { scope: 'managed' }, { firstPage: softFirst })
-            : Promise.resolve(softFirst.data),
+            : Promise.resolve({
+                data: [],
+                pagination: { totalCount: 0, totalPages: 0, loadedPages: 0, failedPages: ['soft-assets'] },
+            }),
     ]);
 
-    return formatAdminResources(hard, soft);
+    const failedPageCount = (hard.pagination.failedPages?.length || 0)
+        + (soft.pagination.failedPages?.length || 0)
+        + (hardFirst ? 0 : 1)
+        + (softFirst ? 0 : 1);
+    const totalCount = hardFirst && softFirst
+        ? (hard.pagination.totalCount || 0) + (soft.pagination.totalCount || 0)
+        : null;
+
+    return {
+        items: formatAdminResources(hard.data, soft.data),
+        totalCount,
+        isPartial: failedPageCount > 0,
+        failedPageCount,
+    };
 }
 
 export default function AdminPage() {
@@ -549,7 +559,7 @@ export default function AdminPage() {
         setResourcesError('');
         setResourceTotalCount(null);
         try {
-            const items = await fetchAllAdminResources({
+            const result = await fetchAllAdminResources({
                 onPartial: ({ items: partialItems, totalCount }) => {
                     setResourceTotalCount(Number.isFinite(totalCount) ? totalCount : null);
                     if (partialItems.length > 0) {
@@ -560,11 +570,15 @@ export default function AdminPage() {
                     }
                 },
             });
-            setResourceTotalCount(items.length);
+            const items = result.items || [];
+            setResourceTotalCount(Number.isFinite(result.totalCount) ? result.totalCount : items.length);
             setResources(items);
             setSelectedResources((prev) => prev.filter((key) => items.some((item) => (
                 getResourceSelectionKey(item) === key && canDeleteResourceRecord(item)
             ))));
+            if (result.isPartial) {
+                setResourcesError(`Some resource pages could not be loaded (${items.length} shown${Number.isFinite(result.totalCount) ? ` of ${result.totalCount}` : ''}). Refresh the page or narrow the search if the missing rows are needed.`);
+            }
         } catch (err) {
             console.error('Admin resources failed to load:', err);
             setResourcesError(err.message || 'Resources failed to load.');

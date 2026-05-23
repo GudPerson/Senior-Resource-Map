@@ -68,6 +68,81 @@ export async function fetchPaginatedResultPage(fetchPage, params = {}, options =
     throw lastError || new Error('Resource page failed to load.');
 }
 
+function uniquePaginatedItems(items = []) {
+    const seenIds = new Set();
+    return items.filter((item) => {
+        const id = item?.id;
+        if (!Number.isInteger(id)) return true;
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+    });
+}
+
+export async function fetchPaginatedResultsPartial(fetchPage, params = {}, options = {}) {
+    const settings = typeof options === 'number' ? { pageSize: options } : options;
+    const pageSize = settings.pageSize || 500;
+    const maxConcurrentPages = Math.max(1, Number(settings.maxConcurrentPages || 2));
+    const firstResponse = settings.firstResponse || await fetchPaginatedResultPage(fetchPage, params, {
+        ...settings,
+        page: 1,
+        pageSize,
+    });
+
+    const totalPages = Math.max(1, firstResponse.pagination.totalPages || 1);
+    const responses = [firstResponse];
+    const failedPages = [];
+
+    if (totalPages > 1) {
+        const remainingResponses = new Array(totalPages - 1);
+        let nextIndex = 0;
+
+        async function runPageWorker() {
+            while (nextIndex < remainingResponses.length) {
+                const index = nextIndex;
+                nextIndex += 1;
+                const page = index + 2;
+
+                try {
+                    remainingResponses[index] = await fetchPaginatedResultPage(fetchPage, params, {
+                        ...settings,
+                        page,
+                        pageSize,
+                    });
+                } catch (err) {
+                    failedPages.push({
+                        page,
+                        error: err,
+                    });
+                }
+            }
+        }
+
+        await Promise.all(
+            Array.from(
+                { length: Math.min(maxConcurrentPages, remainingResponses.length) },
+                () => runPageWorker(),
+            ),
+        );
+        responses.push(...remainingResponses.filter(Boolean));
+    }
+
+    const data = uniquePaginatedItems(responses.flatMap((response) => response.data));
+    return {
+        data,
+        pagination: {
+            ...firstResponse.pagination,
+            page: 1,
+            pageSize,
+            totalPages,
+            loadedPages: responses.length,
+            failedPages: failedPages.map((failure) => failure.page).sort((left, right) => left - right),
+            isPartial: failedPages.length > 0,
+        },
+        failedPages,
+    };
+}
+
 export async function fetchAllPaginatedResults(fetchPage, params = {}, options = {}) {
     const settings = typeof options === 'number' ? { pageSize: options } : options;
     const pageSize = settings.pageSize || 500;
@@ -110,12 +185,5 @@ export async function fetchAllPaginatedResults(fetchPage, params = {}, options =
         ...remainingResponses.flatMap((response) => response.data),
     ];
 
-    const seenIds = new Set();
-    return flattened.filter((item) => {
-        const id = item?.id;
-        if (!Number.isInteger(id)) return true;
-        if (seenIds.has(id)) return false;
-        seenIds.add(id);
-        return true;
-    });
+    return uniquePaginatedItems(flattened);
 }

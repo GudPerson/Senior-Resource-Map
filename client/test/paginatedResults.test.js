@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     DEFAULT_RESOURCE_PAGE_TIMEOUT_MS,
     fetchAllPaginatedResults,
+    fetchPaginatedResultsPartial,
 } from '../src/lib/paginatedResults.js';
 
 test('resource page timeout allows slow production pages to complete', () => {
@@ -69,4 +70,34 @@ test('fetchAllPaginatedResults limits concurrent page fetches', async () => {
 
     assert.equal(maxActiveRequests, 2);
     assert.deepEqual(result.map((item) => item.id), [1, 2, 3, 4, 5]);
+});
+
+test('fetchPaginatedResultsPartial keeps loaded pages when a later page fails', async () => {
+    const fetchPage = async ({ page, pageSize }) => {
+        if (page === 3) {
+            throw new Error('temporary page failure');
+        }
+
+        return {
+            data: [{ id: page }],
+            pagination: {
+                page,
+                pageSize,
+                totalCount: 4,
+                totalPages: 4,
+            },
+        };
+    };
+
+    const result = await fetchPaginatedResultsPartial(fetchPage, {}, {
+        pageSize: 1,
+        maxAttempts: 1,
+        pageTimeoutMs: 100,
+        maxConcurrentPages: 2,
+        waitMs: async () => {},
+    });
+
+    assert.equal(result.pagination.isPartial, true);
+    assert.deepEqual(result.pagination.failedPages, [3]);
+    assert.deepEqual(result.data.map((item) => item.id), [1, 2, 4]);
 });
