@@ -1,13 +1,15 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { softAssets, softAssetLocations, subCategories, tags } from '../db/schema.js';
+import { softAssets, softAssetLocations, softAssetTags, subCategories, tags } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
-import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { normalizeRole } from '../utils/roles.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
-import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
+import {
+    allocateUniqueSoftAssetExternalKeys,
+    buildImportRowFailureResult,
+} from '../utils/softAssetImportCommit.js';
 import {
     determineSoftSubregion,
     ensureActorCanManageLinkedHardAssets,
@@ -20,6 +22,7 @@ import {
     normalizeImportedSoftAssetPhone,
     normalizeImportedSoftAssetShortText,
     normalizeImportedSoftAssetSubCategory,
+    normalizeImportedSoftAssetTags,
 } from '../utils/softAssetImportFields.js';
 import { extractCollateralDraftRows } from '../utils/vertexCollateralImport.js';
 import {
@@ -39,15 +42,7 @@ function normalizeText(value) {
 }
 
 function normalizeTags(values) {
-    const seen = new Set();
-    return (Array.isArray(values) ? values : [])
-        .map((tag) => normalizeText(tag).toLowerCase())
-        .filter((tag) => {
-            if (!tag || seen.has(tag)) return false;
-            seen.add(tag);
-            return true;
-        })
-        .slice(0, 12);
+    return normalizeImportedSoftAssetTags(values);
 }
 
 function normalizeOptionalEmail(value) {
@@ -249,17 +244,19 @@ function getDefaultOwnerForHost(user, hostAsset) {
     return hostAsset?.partnerId || null;
 }
 
-async function createStandaloneSoftAssetFromDraft(db, user, hostAsset, draftPayload) {
+async function loadExistingSoftAssetExternalKeys(db) {
+    const rows = await db.select({ externalKey: softAssets.externalKey }).from(softAssets);
+    return new Set(rows.map((row) => row.externalKey).filter(Boolean));
+}
+
+function buildStandaloneSoftAssetInsertValues(user, hostAsset, draftPayload, externalKey) {
     const ownerPartnerId = getDefaultOwnerForHost(user, hostAsset);
     const linkedHardAssets = [hostAsset];
     const finalSubregionId = determineSoftSubregion(user, { subregionId: hostAsset.subregionId }, linkedHardAssets);
 
-    const [created] = await db.insert(softAssets).values({
+    return {
         assetMode: 'standalone',
-        externalKey: await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
-            prefix: 'offering',
-            name: draftPayload.name,
-        }),
+        externalKey,
         partnerId: ownerPartnerId,
         createdByUserId: user.id,
         subregionId: finalSubregionId,
@@ -282,15 +279,100 @@ async function createStandaloneSoftAssetFromDraft(db, user, hostAsset, draftPayl
         isHidden: Boolean(draftPayload.isHidden),
         hideFrom: null,
         hideUntil: null,
-    }).returning({ id: softAssets.id, name: softAssets.name });
+    };
+}
 
-    await db.insert(softAssetLocations).values({
-        softAssetId: created.id,
-        hardAssetId: hostAsset.id,
-    });
-    await syncAssetTags(db, created.id, 'soft', draftPayload.newTags);
+async function createStandaloneSoftAssetsFromDrafts(db, user, hostAsset, entries) {
+    if (!entries.length) return [];
 
-    return created;
+    const existingKeys = await loadExistingSoftAssetExternalKeys(db);
+    const externalKeys = allocateUniqueSoftAssetExternalKeys(entries, existingKeys);
+    const insertValues = entries.map((entry, index) => (
+        buildStandaloneSoftAssetInsertValues(user, hostAsset, entry.payload, externalKeys[index])
+    ));
+
+    const createdRows = await db.insert(softAssets)
+        .values(insertValues)
+        .returning({
+            id: softAssets.id,
+            name: softAssets.name,
+            externalKey: softAssets.externalKey,
+        });
+
+    const createdByKey = new Map(createdRows.map((row) => [row.externalKey, row]));
+    const linkedRows = externalKeys
+        .map((externalKey, index) => {
+            const created = createdByKey.get(externalKey);
+            if (!created) return null;
+            return {
+                ...entries[index],
+                created,
+            };
+        })
+        .filter(Boolean);
+
+    if (linkedRows.length) {
+        await db.insert(softAssetLocations).values(linkedRows.map((entry) => ({
+            softAssetId: entry.created.id,
+            hardAssetId: hostAsset.id,
+        })));
+    }
+
+    return linkedRows;
+}
+
+async function syncSoftAssetTagsForImport(db, assignments = []) {
+    const usableAssignments = assignments
+        .map((entry) => ({
+            softAssetId: Number.parseInt(String(entry?.softAssetId ?? ''), 10),
+            tags: normalizeImportedSoftAssetTags(entry?.tags),
+        }))
+        .filter((entry) => Number.isInteger(entry.softAssetId) && entry.softAssetId > 0);
+
+    if (!usableAssignments.length) return;
+
+    const softAssetIds = [...new Set(usableAssignments.map((entry) => entry.softAssetId))];
+    await db.delete(softAssetTags).where(inArray(softAssetTags.softAssetId, softAssetIds));
+
+    const tagNames = [...new Set(usableAssignments.flatMap((entry) => entry.tags))];
+    if (!tagNames.length) return;
+
+    const existingRows = await db.select({ id: tags.id, name: tags.name })
+        .from(tags)
+        .where(inArray(tags.name, tagNames));
+    const existingNames = new Set(existingRows.map((row) => row.name));
+    const missingTagNames = tagNames.filter((name) => !existingNames.has(name));
+
+    if (missingTagNames.length) {
+        await db.insert(tags)
+            .values(missingTagNames.map((name) => ({ name })))
+            .onConflictDoNothing();
+    }
+
+    const allTagRows = await db.select({ id: tags.id, name: tags.name })
+        .from(tags)
+        .where(inArray(tags.name, tagNames));
+    const tagIdByName = new Map(allTagRows.map((row) => [row.name, row.id]));
+    const mappingKeys = new Set();
+    const mappingRows = [];
+
+    for (const assignment of usableAssignments) {
+        for (const name of assignment.tags) {
+            const tagId = tagIdByName.get(name);
+            if (!tagId) continue;
+            const key = `${assignment.softAssetId}:${tagId}`;
+            if (mappingKeys.has(key)) continue;
+            mappingKeys.add(key);
+            mappingRows.push({
+                softAssetId: assignment.softAssetId,
+                tagId,
+            });
+        }
+    }
+
+    if (mappingRows.length) {
+        await db.insert(softAssetTags).values(mappingRows);
+    }
 }
 
 async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
@@ -313,8 +395,6 @@ async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
     }
 
     await db.update(softAssets).set(patch).where(eq(softAssets.id, assetId));
-
-    await syncAssetTags(db, assetId, 'soft', draftPayload.newTags);
 }
 
 async function hideStandaloneSoftAssetFromRefresh(db, assetId) {
@@ -412,6 +492,8 @@ export const commitSoftAssetCollateralImport = async (c) => {
         const existingOfferingById = new Map(manageableExistingOfferings.map((asset) => [asset.id, formatExistingSoftAsset(asset)]));
 
         const results = [];
+        const pendingCreates = [];
+        const pendingTagAssignments = [];
         let changed = false;
 
         for (const reviewedRow of reviewedRows) {
@@ -433,20 +515,58 @@ export const commitSoftAssetCollateralImport = async (c) => {
                         throw clientError('The selected existing offering could not be found for this host place.', 404);
                     }
 
-                    await updateStandaloneSoftAssetFromDraft(db, target.id, mergeBlankDraftFieldsWithExisting(payload, target));
+                    const mergedPayload = mergeBlankDraftFieldsWithExisting(payload, target);
+                    await updateStandaloneSoftAssetFromDraft(db, target.id, mergedPayload);
+                    pendingTagAssignments.push({
+                        softAssetId: target.id,
+                        tags: mergedPayload.newTags,
+                    });
                     changed = true;
-                    results.push({ id: rowKey, status: 'updated', softAssetId: target.id, name: payload.name });
+                    results.push({ id: rowKey, status: 'updated', softAssetId: target.id, name: mergedPayload.name });
                     continue;
                 }
 
-                const created = await createStandaloneSoftAssetFromDraft(db, user, hostAsset, payload);
-                changed = true;
-                results.push({ id: rowKey, status: 'created', softAssetId: created.id, name: created.name });
+                pendingCreates.push({ rowKey, reviewedRow, payload });
             } catch (rowErr) {
+                results.push(buildImportRowFailureResult(reviewedRow, rowKey, rowErr));
+            }
+        }
+
+        if (pendingCreates.length) {
+            try {
+                const createdEntries = await createStandaloneSoftAssetsFromDrafts(db, user, hostAsset, pendingCreates);
+                if (createdEntries.length) {
+                    changed = true;
+                }
+
+                for (const entry of createdEntries) {
+                    pendingTagAssignments.push({
+                        softAssetId: entry.created.id,
+                        tags: entry.payload.newTags,
+                    });
+                    results.push({
+                        id: entry.rowKey,
+                        status: 'created',
+                        softAssetId: entry.created.id,
+                        name: entry.created.name,
+                    });
+                }
+            } catch (createErr) {
+                for (const entry of pendingCreates) {
+                    results.push(buildImportRowFailureResult(entry.reviewedRow, entry.rowKey, createErr));
+                }
+            }
+        }
+
+        if (pendingTagAssignments.length) {
+            try {
+                await syncSoftAssetTagsForImport(db, pendingTagAssignments);
+            } catch (tagErr) {
+                console.error('soft asset import tag sync failed:', tagErr);
                 results.push({
-                    id: rowKey,
+                    id: 'tag-sync',
                     status: 'failed',
-                    error: rowErr.message || 'Failed to process this draft row.',
+                    error: 'Offerings were saved, but tags could not be fully updated. Try saving again or edit tags manually.',
                 });
             }
         }
@@ -462,6 +582,7 @@ export const commitSoftAssetCollateralImport = async (c) => {
                     results.push({
                         id: rowKey,
                         status: 'failed',
+                        name: normalizeText(missingRow?.name) || undefined,
                         error: 'The selected existing offering could not be found for this host place.',
                     });
                     continue;

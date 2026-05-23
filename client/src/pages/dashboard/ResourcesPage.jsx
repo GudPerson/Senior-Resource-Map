@@ -2136,17 +2136,22 @@ export default function ResourcesPage() {
                                                             const createdCount = (result?.results || []).filter((row) => row.status === 'created').length;
                                                             const updatedCount = (result?.results || []).filter((row) => row.status === 'updated').length;
                                                             const skippedCount = (result?.results || []).filter((row) => row.status === 'skipped').length;
-                                                            const failedCount = (result?.results || []).filter((row) => row.status === 'failed').length;
+                                                            const failedRows = (result?.results || []).filter((row) => row.status === 'failed');
+                                                            const failedCount = failedRows.length;
                                                             const summaryParts = [
                                                                 createdCount ? `${createdCount} created` : null,
                                                                 updatedCount ? `${updatedCount} updated` : null,
                                                                 skippedCount ? `${skippedCount} skipped` : null,
                                                                 failedCount ? `${failedCount} failed` : null,
                                                             ].filter(Boolean);
+                                                            const failedPreview = failedRows
+                                                                .slice(0, 4)
+                                                                .map((row) => `${row.name || row.id}: ${row.error || 'failed'}`)
+                                                                .join(' | ');
                                                             setActionNotice({
                                                                 type: failedCount ? 'warning' : 'success',
                                                                 message: summaryParts.length
-                                                                    ? `Collateral import finished for ${asset.name}: ${summaryParts.join(', ')}.`
+                                                                    ? `Collateral import finished for ${asset.name}: ${summaryParts.join(', ')}.${failedPreview ? ` Failed rows: ${failedPreview}${failedCount > 4 ? ' …' : ''}` : ''}`
                                                                     : `Collateral import finished for ${asset.name}.`,
                                                             });
                                                         }}
