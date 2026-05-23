@@ -1,6 +1,6 @@
 # Import Material Refresh Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add a review-first refresh workflow to Import Material so updated flyers can update existing offerings and prompt users about previously listed programmes missing from the refreshed material.
 
@@ -33,7 +33,7 @@
 - Create: `server/src/utils/collateralImportMatching.js`
 - Create: `server/test/collateralImportMatching.test.js`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `server/test/collateralImportMatching.test.js`:
 
@@ -181,7 +181,7 @@ test('buildUpdateDiffs reports changed fields and ignores unchanged fields', () 
 });
 ```
 
-- [ ] **Step 2: Run tests to verify RED**
+- [x] **Step 2: Run tests to verify RED**
 
 Run:
 
@@ -191,7 +191,7 @@ npm run test --workspace=server -- collateralImportMatching.test.js
 
 Expected: FAIL because `server/src/utils/collateralImportMatching.js` does not exist.
 
-- [ ] **Step 3: Implement utility**
+- [x] **Step 3: Implement utility**
 
 Create `server/src/utils/collateralImportMatching.js` with exported helpers:
 
@@ -380,7 +380,7 @@ export function buildMissingOfferingRows({ existingOfferings, reviewRows, import
 }
 ```
 
-- [ ] **Step 4: Run tests to verify GREEN**
+- [x] **Step 4: Run tests to verify GREEN**
 
 Run:
 
@@ -396,7 +396,7 @@ Expected: PASS.
 - Modify: `server/src/controllers/softAssetCollateralImportController.js`
 - Test: `server/test/collateralImportMatching.test.js`
 
-- [ ] **Step 1: Write failing tests for missing action semantics**
+- [x] **Step 1: Write failing tests for missing action semantics**
 
 Add to `server/test/collateralImportMatching.test.js`:
 
@@ -413,7 +413,7 @@ test('missing offering hide and mark ended actions are explicit review actions',
 });
 ```
 
-- [ ] **Step 2: Run test**
+- [x] **Step 2: Run test**
 
 Run:
 
@@ -423,7 +423,7 @@ npm run test --workspace=server -- collateralImportMatching.test.js
 
 Expected: PASS after Task 1. This anchors the explicit-action contract before wiring commit.
 
-- [ ] **Step 3: Replace local matching helpers with utility import**
+- [x] **Step 3: Replace local matching helpers with utility import**
 
 In `server/src/controllers/softAssetCollateralImportController.js`, import:
 
@@ -437,7 +437,7 @@ import {
 
 Remove the controller-local `normalizeName`, `tokenizeName`, `computeTokenSimilarity`, `formatMatchReason`, and `buildMatchCandidatesForDraft` helpers.
 
-- [ ] **Step 4: Include import mode in preview**
+- [x] **Step 4: Include import mode in preview**
 
 In `previewSoftAssetCollateralImport`, read:
 
@@ -465,7 +465,7 @@ const missingOfferings = buildMissingOfferingRows({
 
 Return `importMode`, `draftRows`, and `missingOfferings`.
 
-- [ ] **Step 5: Include import mode and missing actions in commit**
+- [x] **Step 5: Include import mode and missing actions in commit**
 
 In `commitSoftAssetCollateralImport`, read:
 
@@ -476,7 +476,7 @@ const missingOfferings = Array.isArray(body?.missingOfferings) ? body.missingOff
 
 After reviewed draft rows are processed, loop through `missingOfferings`. For `hide` and `mark_ended`, update the target manageable existing offering with `isHidden: true` and `updatedAt: new Date()`. For `keep_active` and `review_later`, push skipped-style results without changing the offering.
 
-- [ ] **Step 6: Run server tests**
+- [x] **Step 6: Run server tests**
 
 Run:
 
@@ -491,7 +491,7 @@ Expected: all server tests pass.
 **Files:**
 - Modify: `client/src/components/SoftAssetCollateralImportWizard.jsx`
 
-- [ ] **Step 1: Add import mode state**
+- [x] **Step 1: Add import mode state**
 
 Add:
 
@@ -502,7 +502,7 @@ const [missingOfferings, setMissingOfferings] = useState([]);
 
 Append `importMode` to the preview `FormData`.
 
-- [ ] **Step 2: Use backend suggested actions**
+- [x] **Step 2: Use backend suggested actions**
 
 In `buildDraftRowState`, set:
 
@@ -513,7 +513,7 @@ reviewStatus: row.reviewStatus || 'new_offering',
 updateDiffs: Array.isArray(row.updateDiffs) ? row.updateDiffs : [],
 ```
 
-- [ ] **Step 3: Store missing offerings from preview**
+- [x] **Step 3: Store missing offerings from preview**
 
 After preview succeeds:
 
@@ -523,11 +523,11 @@ setMissingOfferings(data.missingOfferings || []);
 
 Also reset missing offerings in `resetPreview`.
 
-- [ ] **Step 4: Submit import mode and missing offerings**
+- [x] **Step 4: Submit import mode and missing offerings**
 
 Add `importMode` and `missingOfferings` to the commit payload. Each missing row should send `softAssetId` and `action`.
 
-- [ ] **Step 5: Add New vs Refresh selector**
+- [x] **Step 5: Add New vs Refresh selector**
 
 In the upload form, add two selectable buttons:
 
@@ -538,7 +538,7 @@ In the upload form, add two selectable buttons:
 
 The refresh option copy should explain that missing existing programmes will be reviewed.
 
-- [ ] **Step 6: Show update diffs**
+- [x] **Step 6: Show update diffs**
 
 For rows with `updateDiffs.length`, render a compact list under the suggested match:
 
@@ -548,7 +548,7 @@ For rows with `updateDiffs.length`, render a compact list under the suggested ma
 ))}
 ```
 
-- [ ] **Step 7: Show missing programme review section**
+- [x] **Step 7: Show missing programme review section**
 
 In preview mode, if `missingOfferings.length`, render cards with actions:
 
@@ -561,7 +561,7 @@ In preview mode, if `missingOfferings.length`, render cards with actions:
 </select>
 ```
 
-- [ ] **Step 8: Build client**
+- [x] **Step 8: Build client**
 
 Run:
 
@@ -576,7 +576,7 @@ Expected: build succeeds.
 **Files:**
 - Verify only unless fixes are needed.
 
-- [ ] **Step 1: Run focused tests**
+- [x] **Step 1: Run focused tests**
 
 Run:
 
@@ -586,7 +586,7 @@ npm run test --workspace=server -- collateralImportMatching.test.js
 
 Expected: PASS.
 
-- [ ] **Step 2: Run full server tests**
+- [x] **Step 2: Run full server tests**
 
 Run:
 
@@ -596,7 +596,7 @@ npm run test:server
 
 Expected: PASS.
 
-- [ ] **Step 3: Run client build**
+- [x] **Step 3: Run client build**
 
 Run:
 
@@ -606,7 +606,7 @@ npm run build:client
 
 Expected: PASS.
 
-- [ ] **Step 4: Check local readiness for UAT**
+- [x] **Step 4: Check local readiness for UAT**
 
 Run:
 
@@ -617,7 +617,7 @@ curl -sS -o /dev/null -w 'api %{http_code}\n' http://localhost:8787/api/auth/me
 
 Expected: client returns `200`; API returns an HTTP response such as `200` or `401`, not connection refused. Start `npm run dev:server` and `npm run dev:client` if either port is down.
 
-- [ ] **Step 5: Commit implementation**
+- [x] **Step 5: Commit implementation**
 
 Run:
 

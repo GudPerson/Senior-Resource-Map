@@ -16,6 +16,11 @@ import {
 } from '../utils/softAssetScope.js';
 import { inferSoftAssetBucket, normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { extractCollateralDraftRows } from '../utils/vertexCollateralImport.js';
+import {
+    buildCollateralReviewRows,
+    buildMissingOfferingRows,
+    normalizeImportMode,
+} from '../utils/collateralImportMatching.js';
 
 function clientError(message, status = 400) {
     const err = new Error(message);
@@ -25,32 +30,6 @@ function clientError(message, status = 400) {
 
 function normalizeText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
-}
-
-function normalizeName(value) {
-    return normalizeText(value)
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function tokenizeName(value) {
-    return new Set(
-        normalizeName(value)
-            .split(' ')
-            .map((token) => token.trim())
-            .filter((token) => token.length > 1),
-    );
-}
-
-function computeTokenSimilarity(left, right) {
-    if (!left.size || !right.size) return 0;
-    let overlap = 0;
-    left.forEach((token) => {
-        if (right.has(token)) overlap += 1;
-    });
-    return overlap / Math.max(left.size, right.size);
 }
 
 function normalizeTags(values) {
@@ -118,46 +97,6 @@ function normalizeReviewBucket(value, row = {}) {
     }
 }
 
-function formatMatchReason(reason) {
-    if (reason === 'exact_name') return 'Exact name match at this host';
-    if (reason === 'fuzzy_name') return 'Likely same-host name match';
-    return 'Suggested existing match';
-}
-
-function buildMatchCandidatesForDraft(draftRow, existingOfferings) {
-    const normalizedDraftName = normalizeName(draftRow?.name);
-    const draftTokens = tokenizeName(draftRow?.name);
-    const normalizedDraftBucket = normalizeText(draftRow?.bucket);
-    const normalizedDraftSubCategory = normalizeText(draftRow?.subCategorySuggestion || draftRow?.subCategory);
-
-    if (!normalizedDraftName) return [];
-
-    return existingOfferings
-        .map((asset) => {
-            const normalizedAssetName = normalizeName(asset.name);
-            const assetTokens = tokenizeName(asset.name);
-            const exactName = normalizedAssetName === normalizedDraftName;
-            let score = exactName ? 1 : computeTokenSimilarity(draftTokens, assetTokens);
-
-            if (!exactName && score < 0.35) return null;
-            if (normalizedDraftBucket && normalizeText(asset.bucket) === normalizedDraftBucket) score += 0.12;
-            if (normalizedDraftSubCategory && normalizeText(asset.subCategory) === normalizedDraftSubCategory) score += 0.08;
-
-            return {
-                id: asset.id,
-                name: asset.name,
-                bucket: asset.bucket || 'Programmes',
-                subCategory: asset.subCategory || '',
-                score: Number(score.toFixed(2)),
-                matchReason: exactName ? 'exact_name' : 'fuzzy_name',
-                label: formatMatchReason(exactName ? 'exact_name' : 'fuzzy_name'),
-            };
-        })
-        .filter(Boolean)
-        .sort((left, right) => right.score - left.score)
-        .slice(0, 3);
-}
-
 function formatExistingSoftAsset(asset) {
     return {
         id: asset.id,
@@ -175,6 +114,11 @@ function formatExistingSoftAsset(asset) {
         newTags: (asset.tags || []).map((entry) => entry.tag?.name).filter(Boolean),
         partner: asset.partner || null,
     };
+}
+
+function parsePositiveId(value) {
+    const id = Number.parseInt(String(value ?? ''), 10);
+    return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 async function loadScopedHostHardAsset(db, user, hostHardAssetId) {
@@ -266,6 +210,29 @@ function buildRowPayload(row) {
     };
 }
 
+function mergeBlankDraftFieldsWithExisting(payload, existing) {
+    const merged = { ...payload };
+    [
+        'description',
+        'schedule',
+        'contactPhone',
+        'contactEmail',
+        'ctaLabel',
+        'ctaUrl',
+        'venueNote',
+    ].forEach((field) => {
+        if (!merged[field] && existing?.[field]) {
+            merged[field] = existing[field];
+        }
+    });
+
+    if ((!Array.isArray(merged.newTags) || merged.newTags.length === 0) && Array.isArray(existing?.newTags)) {
+        merged.newTags = existing.newTags;
+    }
+
+    return merged;
+}
+
 function getDefaultOwnerForHost(user, hostAsset) {
     if (normalizeRole(user?.role) === 'partner') {
         return user?.id || null;
@@ -341,6 +308,13 @@ async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
     await syncAssetTags(db, assetId, 'soft', draftPayload.newTags);
 }
 
+async function hideStandaloneSoftAssetFromRefresh(db, assetId) {
+    await db.update(softAssets).set({
+        isHidden: true,
+        updatedAt: new Date(),
+    }).where(eq(softAssets.id, assetId));
+}
+
 async function rebuildSoftAssetCaches(subregionIds, env, user) {
     const uniqueIds = [...new Set((subregionIds || []).filter((value) => value !== undefined && value !== null))];
     for (const subregionId of uniqueIds) {
@@ -359,6 +333,7 @@ export const previewSoftAssetCollateralImport = async (c) => {
         await ensureBoundarySchema(db, c.env);
 
         const formData = await c.req.formData();
+        const importMode = normalizeImportMode(formData.get('importMode'));
         const hostAsset = await loadScopedHostHardAsset(db, user, formData.get('hostHardAssetId'));
         const uploadedFiles = formData
             .getAll('files')
@@ -381,16 +356,26 @@ export const previewSoftAssetCollateralImport = async (c) => {
         const formattedExistingOfferings = existingOfferings
             .filter((asset) => actorCanManageAsset(user, asset, asset.partner))
             .map(formatExistingSoftAsset);
-        const draftRows = extraction.draftRows.map((draftRow, index) => ({
-            id: `draft-${index + 1}`,
-            ...draftRow,
-            matchCandidates: buildMatchCandidatesForDraft(draftRow, formattedExistingOfferings),
-        }));
+        const draftRows = buildCollateralReviewRows({
+            draftRows: extraction.draftRows.map((draftRow, index) => ({
+                id: `draft-${index + 1}`,
+                ...draftRow,
+            })),
+            existingOfferings: formattedExistingOfferings,
+            importMode,
+        });
+        const missingOfferings = buildMissingOfferingRows({
+            existingOfferings: formattedExistingOfferings,
+            reviewRows: draftRows,
+            importMode,
+        });
 
         return c.json({
             resolvedHost: buildResolvedHostSummary(hostAsset),
             warnings: extraction.warnings,
+            importMode,
             draftRows,
+            missingOfferings,
         });
     } catch (err) {
         console.error('previewSoftAssetCollateralImport Error:', err);
@@ -405,10 +390,12 @@ export const commitSoftAssetCollateralImport = async (c) => {
         await ensureBoundarySchema(db, c.env);
 
         const body = await c.req.json();
+        const importMode = normalizeImportMode(body?.importMode);
         const hostAsset = await loadScopedHostHardAsset(db, user, body?.hostHardAssetId);
         const reviewedRows = Array.isArray(body?.draftRows) ? body.draftRows : [];
-        if (reviewedRows.length === 0) {
-            return c.json({ error: 'No reviewed draft rows were provided.' }, 400);
+        const missingOfferings = Array.isArray(body?.missingOfferings) ? body.missingOfferings : [];
+        if (reviewedRows.length === 0 && missingOfferings.length === 0) {
+            return c.json({ error: 'No reviewed import rows were provided.' }, 400);
         }
 
         const existingOfferings = await loadHostScopedStandaloneOfferings(db, hostAsset.id);
@@ -437,7 +424,7 @@ export const commitSoftAssetCollateralImport = async (c) => {
                         throw clientError('The selected existing offering could not be found for this host place.', 404);
                     }
 
-                    await updateStandaloneSoftAssetFromDraft(db, target.id, payload);
+                    await updateStandaloneSoftAssetFromDraft(db, target.id, mergeBlankDraftFieldsWithExisting(payload, target));
                     changed = true;
                     results.push({ id: rowKey, status: 'updated', softAssetId: target.id, name: payload.name });
                     continue;
@@ -455,12 +442,60 @@ export const commitSoftAssetCollateralImport = async (c) => {
             }
         }
 
+        if (importMode === 'refresh') {
+            for (const missingRow of missingOfferings) {
+                const rowKey = missingRow?.id || `missing-${results.length + 1}`;
+                const action = String(missingRow?.action || missingRow?.suggestedAction || 'review_later').trim().toLowerCase();
+                const targetId = parsePositiveId(missingRow?.softAssetId ?? missingRow?.targetSoftAssetId);
+                const target = existingOfferingById.get(targetId);
+
+                if (!target) {
+                    results.push({
+                        id: rowKey,
+                        status: 'failed',
+                        error: 'The selected existing offering could not be found for this host place.',
+                    });
+                    continue;
+                }
+
+                if (action === 'hide' || action === 'mark_ended') {
+                    await hideStandaloneSoftAssetFromRefresh(db, target.id);
+                    changed = true;
+                    results.push({
+                        id: rowKey,
+                        status: action === 'mark_ended' ? 'ended' : 'hidden',
+                        softAssetId: target.id,
+                        name: target.name,
+                    });
+                    continue;
+                }
+
+                if (action === 'keep_active') {
+                    results.push({
+                        id: rowKey,
+                        status: 'kept_active',
+                        softAssetId: target.id,
+                        name: target.name,
+                    });
+                    continue;
+                }
+
+                results.push({
+                    id: rowKey,
+                    status: 'review_later',
+                    softAssetId: target.id,
+                    name: target.name,
+                });
+            }
+        }
+
         if (changed) {
             await rebuildSoftAssetCaches([hostAsset.subregionId], c.env, user);
         }
 
         return c.json({
             resolvedHost: buildResolvedHostSummary(hostAsset),
+            importMode,
             results,
         });
     } catch (err) {

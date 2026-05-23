@@ -43,9 +43,11 @@ function buildDraftRowState(row, index) {
 
     return {
         id: row.id || `draft-${index + 1}`,
-        action: 'create',
-        targetSoftAssetId: row.matchCandidates?.[0]?.id || '',
+        action: row.suggestedAction || 'create',
+        targetSoftAssetId: String(row.targetSoftAssetId || row.matchCandidates?.[0]?.id || ''),
         expanded: index === 0,
+        reviewStatus: row.reviewStatus || 'new_offering',
+        updateDiffs: Array.isArray(row.updateDiffs) ? row.updateDiffs : [],
         bucket: row.bucket || 'Programmes',
         name: row.name || '',
         subCategory: row.subCategorySuggestion || row.bucket || 'Programmes',
@@ -69,6 +71,19 @@ function buildDraftRowState(row, index) {
     };
 }
 
+function buildMissingOfferingState(row) {
+    return {
+        id: row.id || `missing-${row.softAssetId}`,
+        softAssetId: row.softAssetId,
+        name: row.name || '',
+        bucket: row.bucket || 'Programmes',
+        subCategory: row.subCategory || '',
+        schedule: row.schedule || '',
+        description: row.description || '',
+        action: row.suggestedAction || 'review_later',
+    };
+}
+
 function getAvailabilityBadgeClasses(status) {
     if (status === 'full') return 'border-red-200 bg-red-50 text-red-700';
     return 'border-slate-200 bg-slate-50 text-slate-600';
@@ -86,10 +101,32 @@ function getConfidenceBadgeClasses(value) {
     return 'border-red-200 bg-red-50 text-red-700';
 }
 
+function formatReviewStatusLabel(status) {
+    if (status === 'likely_update') return 'Likely update';
+    if (status === 'possible_match') return 'Review match';
+    if (status === 'no_change') return 'No changes';
+    return 'New offering';
+}
+
+function getReviewBadgeClasses(status) {
+    if (status === 'likely_update') return 'border-blue-200 bg-blue-50 text-blue-700';
+    if (status === 'possible_match') return 'border-amber-200 bg-amber-50 text-amber-700';
+    if (status === 'no_change') return 'border-green-200 bg-green-50 text-green-700';
+    return 'border-slate-200 bg-slate-50 text-slate-600';
+}
+
 function formatSelectedFiles(files) {
     if (!files.length) return 'No files selected';
     if (files.length === 1) return files[0].name;
     return `${files.length} files selected`;
+}
+
+function getMissingActionCounts(rows) {
+    return rows.reduce((accumulator, row) => {
+        const action = row.action || 'review_later';
+        accumulator[action] = (accumulator[action] || 0) + 1;
+        return accumulator;
+    }, { review_later: 0, keep_active: 0, hide: 0, mark_ended: 0 });
 }
 
 function getActionCounts(rows) {
@@ -113,6 +150,29 @@ function CandidateMatchSummary({ candidates = [] }) {
     );
 }
 
+function UpdateDiffList({ diffs = [] }) {
+    if (!diffs.length) return null;
+
+    return (
+        <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Changed fields</p>
+            <div className="mt-2 space-y-2">
+                {diffs.slice(0, 6).map((diff) => (
+                    <div key={diff.field} className="text-xs leading-5 text-slate-600">
+                        <span className="font-semibold text-slate-800">{diff.label}: </span>
+                        <span className="line-through decoration-slate-300">{diff.before || 'blank'}</span>
+                        <span className="px-1 text-slate-400">-&gt;</span>
+                        <span className="font-semibold text-blue-700">{diff.after || 'blank'}</span>
+                    </div>
+                ))}
+                {diffs.length > 6 ? (
+                    <p className="text-xs font-semibold text-blue-700">+ {diffs.length - 6} more changed fields</p>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 export default function SoftAssetCollateralImportWizard({
     hostAsset,
     onSave,
@@ -123,7 +183,9 @@ export default function SoftAssetCollateralImportWizard({
     const [commitLoading, setCommitLoading] = useState(false);
     const [error, setError] = useState('');
     const [previewData, setPreviewData] = useState(null);
+    const [importMode, setImportMode] = useState('new');
     const [draftRows, setDraftRows] = useState([]);
+    const [missingOfferings, setMissingOfferings] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
     const [availableTagOptions, setAvailableTagOptions] = useState([]);
     const [creatingSubCategoryRowId, setCreatingSubCategoryRowId] = useState(null);
@@ -143,15 +205,25 @@ export default function SoftAssetCollateralImportWizard({
     );
 
     const actionCounts = useMemo(() => getActionCounts(draftRows), [draftRows]);
+    const missingActionCounts = useMemo(() => getMissingActionCounts(missingOfferings), [missingOfferings]);
 
     function resetPreview() {
         setPreviewData(null);
         setDraftRows([]);
+        setMissingOfferings([]);
         setError('');
     }
 
     function updateRow(rowId, patch) {
         setDraftRows((prev) => prev.map((row) => (
+            row.id === rowId
+                ? { ...row, ...patch }
+                : row
+        )));
+    }
+
+    function updateMissingOffering(rowId, patch) {
+        setMissingOfferings((prev) => prev.map((row) => (
             row.id === rowId
                 ? { ...row, ...patch }
                 : row
@@ -190,6 +262,7 @@ export default function SoftAssetCollateralImportWizard({
 
         const formData = new FormData();
         formData.append('hostHardAssetId', String(hostAsset.id));
+        formData.append('importMode', importMode);
         files.forEach((file) => formData.append('files', file));
 
         setPreviewLoading(true);
@@ -198,6 +271,7 @@ export default function SoftAssetCollateralImportWizard({
             const data = await api.previewSoftAssetCollateralImport(formData);
             setPreviewData(data);
             setDraftRows((data.draftRows || []).map(buildDraftRowState));
+            setMissingOfferings((data.missingOfferings || []).map(buildMissingOfferingState));
         } catch (err) {
             setError(err.message || 'Failed to preview the uploaded flyer or programme material.');
         } finally {
@@ -211,6 +285,7 @@ export default function SoftAssetCollateralImportWizard({
         try {
             const result = await api.commitSoftAssetCollateralImport({
                 hostHardAssetId: hostAsset.id,
+                importMode,
                 draftRows: draftRows.map((row) => ({
                     id: row.id,
                     action: row.action,
@@ -231,6 +306,11 @@ export default function SoftAssetCollateralImportWizard({
                     ctaUrl: row.ctaUrl,
                     venueNote: row.venueNote,
                 })),
+                missingOfferings: missingOfferings.map((row) => ({
+                    id: row.id,
+                    softAssetId: row.softAssetId,
+                    action: row.action,
+                })),
             });
             await onSave?.(result);
         } catch (err) {
@@ -246,9 +326,11 @@ export default function SoftAssetCollateralImportWizard({
                 <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Collateral import review</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">
+                                {importMode === 'refresh' ? 'Refresh material review' : 'Collateral import review'}
+                            </p>
                             <p className="mt-1 text-sm text-slate-700">
-                                Review the extracted offering drafts for {hostAsset.name}. Nothing will be created or updated until you confirm.
+                                Review the extracted offering drafts for {hostAsset.name}. Nothing will be created, updated, or hidden until you confirm.
                             </p>
                         </div>
                         <button
@@ -292,6 +374,9 @@ export default function SoftAssetCollateralImportWizard({
                                         </div>
                                         <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getConfidenceBadgeClasses(row.confidence)}`}>
                                             {formatConfidenceLabel(row.confidence)}
+                                        </div>
+                                        <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getReviewBadgeClasses(row.reviewStatus)}`}>
+                                            {formatReviewStatusLabel(row.reviewStatus)}
                                         </div>
                                         {row.sessionCount ? (
                                             <div className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -359,6 +444,7 @@ export default function SoftAssetCollateralImportWizard({
                                             <div className="mt-2">
                                                 <CandidateMatchSummary candidates={row.matchCandidates} />
                                             </div>
+                                            <UpdateDiffList diffs={row.updateDiffs} />
                                         </div>
 
                                         <div>
@@ -559,6 +645,55 @@ export default function SoftAssetCollateralImportWizard({
                                 </div>
                             ))}
                         </div>
+
+                        {missingOfferings.length ? (
+                            <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-2xl bg-white p-2 text-amber-700 shadow-sm shadow-amber-100/70">
+                                        <AlertTriangle size={18} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-base font-black text-slate-900">Previously listed, not found in this material</h4>
+                                        <p className="mt-1 text-sm leading-6 text-amber-800">
+                                            These existing offerings are still on this place but were not detected in the refreshed material. Choose whether to keep them active, review later, hide, or mark as ended.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 space-y-3">
+                                    {missingOfferings.map((row) => (
+                                        <div key={row.id} className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm shadow-amber-100/60">
+                                            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-900">{row.name}</p>
+                                                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                                        {row.bucket}{row.subCategory ? ` • ${row.subCategory}` : ''}
+                                                    </p>
+                                                    {row.schedule ? (
+                                                        <p className="mt-2 text-sm leading-6 text-slate-600">{row.schedule}</p>
+                                                    ) : null}
+                                                </div>
+                                                <div>
+                                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                                        Follow-up action
+                                                    </label>
+                                                    <select
+                                                        value={row.action}
+                                                        onChange={(event) => updateMissingOffering(row.id, { action: event.target.value })}
+                                                        className="input-field"
+                                                    >
+                                                        <option value="review_later">Review later</option>
+                                                        <option value="keep_active">Keep active</option>
+                                                        <option value="hide">Hide from app</option>
+                                                        <option value="mark_ended">Mark as ended / hide</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="space-y-4">
@@ -586,6 +721,25 @@ export default function SoftAssetCollateralImportWizard({
                                     <span>Skip</span>
                                     <span className="font-black text-slate-900">{actionCounts.skip || 0}</span>
                                 </div>
+                                {importMode === 'refresh' ? (
+                                    <>
+                                        <div className="border-t border-slate-200 pt-3" />
+                                        <div className="flex items-center justify-between">
+                                            <span>Review later</span>
+                                            <span className="font-black text-slate-900">{missingActionCounts.review_later || 0}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Keep active</span>
+                                            <span className="font-black text-slate-900">{missingActionCounts.keep_active || 0}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Hide / ended</span>
+                                            <span className="font-black text-slate-900">
+                                                {(missingActionCounts.hide || 0) + (missingActionCounts.mark_ended || 0)}
+                                            </span>
+                                        </div>
+                                    </>
+                                ) : null}
                             </div>
                         </div>
 
@@ -599,7 +753,7 @@ export default function SoftAssetCollateralImportWizard({
                             <button
                                 type="button"
                                 onClick={handleCommit}
-                                disabled={commitLoading || !draftRows.length}
+                                disabled={commitLoading || (!draftRows.length && !missingOfferings.length)}
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {commitLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
@@ -652,6 +806,43 @@ export default function SoftAssetCollateralImportWizard({
             </div>
 
             <form onSubmit={handlePreviewSubmit} className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setImportMode('new');
+                            resetPreview();
+                        }}
+                        className={`rounded-3xl border px-4 py-4 text-left transition ${
+                            importMode === 'new'
+                                ? 'border-brand-300 bg-brand-50 shadow-sm shadow-brand-100/70'
+                                : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/40'
+                        }`}
+                    >
+                        <p className="text-sm font-black text-slate-900">New material</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                            Create offerings from a new flyer or calendar, with duplicate warnings where possible.
+                        </p>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setImportMode('refresh');
+                            resetPreview();
+                        }}
+                        className={`rounded-3xl border px-4 py-4 text-left transition ${
+                            importMode === 'refresh'
+                                ? 'border-brand-300 bg-brand-50 shadow-sm shadow-brand-100/70'
+                                : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/40'
+                        }`}
+                    >
+                        <p className="text-sm font-black text-slate-900">Refresh existing material</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                            Update matching offerings and review existing programmes that no longer appear.
+                        </p>
+                    </button>
+                </div>
+
                 <label className="block rounded-3xl border border-dashed border-brand-200 bg-brand-50/40 p-6 text-center transition hover:border-brand-300 hover:bg-brand-50/70">
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm shadow-brand-100/70">
                         <Upload size={22} />
