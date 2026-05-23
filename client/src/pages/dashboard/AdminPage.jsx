@@ -12,6 +12,7 @@ import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.j
 import Pagination from '../../components/Pagination.jsx';
 import { buildBoundaryStatusFilterOptions, normalizeBoundaryStatusFilterValue } from '../../lib/adminBoundaryFilters.js';
 import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../lib/paginatedResults.js';
+import { buildManagedHardResourceListParams, buildManagedResourceListParams } from '../../lib/resourceListLoading.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 
@@ -351,9 +352,35 @@ async function fetchResourcePages(fetchPage, params = {}, options = {}) {
     });
 }
 
+function createAdminResourceInitialLoadError(results = []) {
+    const messages = results
+        .filter((result) => result.status === 'rejected')
+        .map((result) => result.reason?.message || String(result.reason || ''))
+        .filter(Boolean);
+
+    const authMessage = messages.find((message) => (
+        /session expired|user view session expired|no token provided|invalid token/i.test(message)
+    ));
+    if (authMessage) return new Error(authMessage);
+
+    const timedOut = messages.some((message) => /timed out/i.test(message));
+    if (timedOut) {
+        return new Error('Resource pages are taking too long to load. Please refresh and try again.');
+    }
+
+    return new Error('Resource pages failed to load. Please refresh and try again.');
+}
+
 async function fetchAllAdminResources(options = {}) {
-    const { onPartial } = options;
-    const listParams = { scope: 'managed', regionScoped: true };
+    const { onPartial, role } = options;
+    const hardListParams = buildManagedHardResourceListParams({
+        canManageResourceTools: true,
+        role,
+    });
+    const softListParams = buildManagedResourceListParams({
+        canManageResourceTools: true,
+        role,
+    });
     const initialPageOptions = {
         page: 1,
         pageSize: ADMIN_RESOURCE_PAGE_SIZE,
@@ -361,14 +388,14 @@ async function fetchAllAdminResources(options = {}) {
         pageTimeoutMs: ADMIN_RESOURCE_INITIAL_TIMEOUT_MS,
     };
     const [hardFirstResult, softFirstResult] = await Promise.allSettled([
-        fetchPaginatedResultPage(api.getHardAssets, listParams, initialPageOptions),
-        fetchPaginatedResultPage(api.getSoftAssets, { scope: 'managed' }, initialPageOptions),
+        fetchPaginatedResultPage(api.getHardAssets, hardListParams, initialPageOptions),
+        fetchPaginatedResultPage(api.getSoftAssets, softListParams, initialPageOptions),
     ]);
     const hardFirst = hardFirstResult.status === 'fulfilled' ? hardFirstResult.value : null;
     const softFirst = softFirstResult.status === 'fulfilled' ? softFirstResult.value : null;
 
     if (!hardFirst && !softFirst) {
-        throw new Error('Resource pages failed to load. Please refresh and try again.');
+        throw createAdminResourceInitialLoadError([hardFirstResult, softFirstResult]);
     }
 
     if (typeof onPartial === 'function') {
@@ -383,13 +410,13 @@ async function fetchAllAdminResources(options = {}) {
 
     const [hard, soft] = await Promise.all([
         hardFirst
-            ? fetchResourcePages(api.getHardAssets, listParams, { firstPage: hardFirst })
+            ? fetchResourcePages(api.getHardAssets, hardListParams, { firstPage: hardFirst })
             : Promise.resolve({
                 data: [],
                 pagination: { totalCount: 0, totalPages: 0, loadedPages: 0, failedPages: ['hard-assets'] },
             }),
         softFirst
-            ? fetchResourcePages(api.getSoftAssets, { scope: 'managed' }, { firstPage: softFirst })
+            ? fetchResourcePages(api.getSoftAssets, softListParams, { firstPage: softFirst })
             : Promise.resolve({
                 data: [],
                 pagination: { totalCount: 0, totalPages: 0, loadedPages: 0, failedPages: ['soft-assets'] },
@@ -560,6 +587,7 @@ export default function AdminPage() {
         setResourceTotalCount(null);
         try {
             const result = await fetchAllAdminResources({
+                role: currentRole,
                 onPartial: ({ items: partialItems, totalCount }) => {
                     setResourceTotalCount(Number.isFinite(totalCount) ? totalCount : null);
                     if (partialItems.length > 0) {
