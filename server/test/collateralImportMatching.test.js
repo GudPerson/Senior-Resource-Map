@@ -15,6 +15,7 @@ const hostOffering = {
     description: 'Gentle seated yoga for seniors.',
     schedule: 'Mondays 9am',
     contactPhone: '+65 6123 4567',
+    whatsappContact: '87654321',
     contactEmail: '',
     ctaLabel: 'Register',
     ctaUrl: '',
@@ -54,6 +55,7 @@ test('classifies exact duplicate content as no change and skip', () => {
             description: 'Gentle seated yoga for seniors.',
             schedule: 'Mondays 9am',
             contactPhone: '+65 6123 4567',
+            whatsappContact: '87654321',
             ctaLabel: 'Register',
             venueNote: 'Activity room',
             newTags: ['fitness', 'senior activities'],
@@ -152,6 +154,7 @@ test('buildUpdateDiffs treats blank optional draft fields as preserve-existing e
             description: '',
             schedule: 'Mondays 9am',
             contactPhone: '',
+            whatsappContact: '',
             contactEmail: '',
             ctaLabel: '',
             ctaUrl: '',
@@ -161,6 +164,23 @@ test('buildUpdateDiffs treats blank optional draft fields as preserve-existing e
     });
 
     assert.deepEqual(diffs, []);
+});
+
+test('buildUpdateDiffs tracks WhatsApp contact changes for import refresh reviews', () => {
+    const diffs = buildUpdateDiffs({
+        existing: hostOffering,
+        draft: {
+            ...hostOffering,
+            whatsappContact: 'https://wa.me/6587654321',
+        },
+    });
+
+    assert.deepEqual(diffs, [{
+        field: 'whatsappContact',
+        label: 'WhatsApp contact',
+        before: '87654321',
+        after: 'https://wa.me/6587654321',
+    }]);
 });
 
 test('missing offering hide and mark ended actions are explicit review actions', () => {

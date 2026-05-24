@@ -61,6 +61,7 @@ function buildDraftRowState(row, index) {
         visibilityAction: row.visibilityAction || (isHidden ? 'hide' : 'preserve'),
         newTags: Array.isArray(row.newTags) ? row.newTags : [],
         contactPhone: row.contactPhone || '',
+        whatsappContact: row.whatsappContact || '',
         contactEmail: row.contactEmail || '',
         ctaLabel: row.ctaLabel || '',
         ctaUrl: row.ctaUrl || '',
@@ -301,6 +302,7 @@ export default function SoftAssetCollateralImportWizard({
                     visibilityAction: row.isHidden ? 'hide' : 'preserve',
                     newTags: row.newTags,
                     contactPhone: row.contactPhone,
+                    whatsappContact: row.whatsappContact,
                     contactEmail: row.contactEmail,
                     ctaLabel: row.ctaLabel,
                     ctaUrl: row.ctaUrl,
@@ -585,6 +587,17 @@ export default function SoftAssetCollateralImportWizard({
                                                     onChange={(event) => updateRow(row.id, { contactPhone: event.target.value })}
                                                     className="input-field"
                                                     placeholder="+65 6123 4567"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                                    WhatsApp contact
+                                                </label>
+                                                <input
+                                                    value={row.whatsappContact}
+                                                    onChange={(event) => updateRow(row.id, { whatsappContact: event.target.value })}
+                                                    className="input-field"
+                                                    placeholder="87654321 or https://wa.me/6587654321"
                                                 />
                                             </div>
                                             <div>

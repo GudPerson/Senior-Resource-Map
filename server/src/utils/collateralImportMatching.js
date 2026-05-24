@@ -5,6 +5,7 @@ const DIFF_FIELDS = [
     ['description', 'Description'],
     ['schedule', 'Schedule'],
     ['contactPhone', 'Contact phone'],
+    ['whatsappContact', 'WhatsApp contact'],
     ['contactEmail', 'Contact email'],
     ['ctaLabel', 'Action label'],
     ['ctaUrl', 'Action link'],
@@ -14,6 +15,7 @@ const PRESERVE_WHEN_DRAFT_BLANK_FIELDS = new Set([
     'description',
     'schedule',
     'contactPhone',
+    'whatsappContact',
     'contactEmail',
     'ctaLabel',
     'ctaUrl',
@@ -139,6 +141,9 @@ function scoreCandidate(draftRow, asset) {
     score += tagOverlap(normalizeTags(draftRow?.newTags), normalizeTags(asset?.newTags)) * 0.06;
 
     if (normalizeText(draftRow?.contactPhone) && normalizeText(draftRow?.contactPhone) === normalizeText(asset?.contactPhone)) {
+        score += 0.02;
+    }
+    if (normalizeText(draftRow?.whatsappContact) && normalizeComparable(draftRow?.whatsappContact) === normalizeComparable(asset?.whatsappContact)) {
         score += 0.02;
     }
     if (normalizeText(draftRow?.contactEmail) && normalizeComparable(draftRow?.contactEmail) === normalizeComparable(asset?.contactEmail)) {

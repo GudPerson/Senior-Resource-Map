@@ -89,6 +89,25 @@ test('consolidateCollateralDraftRows keeps same-name sessions with different tim
     assert.equal(draftRows[0].sessionCount, 4);
 });
 
+test('consolidateCollateralDraftRows preserves WhatsApp contact from grouped collateral rows', () => {
+    const { draftRows } = consolidateCollateralDraftRows([
+        {
+            bucket: 'Programmes',
+            name: 'Ukulele Interest Group',
+            schedule: '5 June 2026 (Friday), 2:30pm-4pm',
+        },
+        {
+            bucket: 'Programmes',
+            name: 'Ukulele Interest Group',
+            schedule: '12 June 2026 (Friday), 2:30pm-4pm',
+            whatsappContact: 'https://wa.me/6587654321',
+        },
+    ]);
+
+    assert.equal(draftRows.length, 1);
+    assert.equal(draftRows[0].whatsappContact, 'https://wa.me/6587654321');
+});
+
 test('consolidateCollateralDraftRows marks full programmes as hidden drafts', () => {
     const { draftRows } = consolidateCollateralDraftRows([
         {

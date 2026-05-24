@@ -990,19 +990,71 @@ export default function AssetForm({
                             />
                         </div>
                         <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                            <div className="mb-3 flex items-center gap-2">
+                            <div className="mb-4 flex items-center gap-2">
                                 <MessageCircle size={16} className="text-brand-600" />
                                 <div>
-                                    <h3 className="text-sm font-semibold text-slate-800">Public WhatsApp contact</h3>
-                                    <p className="text-xs text-slate-500">Optional contact shown on this programme/service. This is not used for WhatsApp sign-in.</p>
+                                    <h3 className="text-sm font-semibold text-slate-800">Public contact and action details</h3>
+                                    <p className="text-xs text-slate-500">Optional public details shown on this offering. WhatsApp contact is not used for sign-in.</p>
                                 </div>
                             </div>
-                            <input
-                                value={form.whatsappContact || ''}
-                                onChange={(e) => setField('whatsappContact', e.target.value)}
-                                placeholder="87654321 or https://wa.me/6587654321"
-                                className="input-field"
-                            />
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1 block text-sm font-semibold text-slate-700">Contact phone</label>
+                                    <input
+                                        value={form.contactPhone || ''}
+                                        onChange={(e) => setField('contactPhone', e.target.value)}
+                                        placeholder="+65 6123 4567"
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-semibold text-slate-700">WhatsApp contact</label>
+                                    <input
+                                        value={form.whatsappContact || ''}
+                                        onChange={(e) => setField('whatsappContact', e.target.value)}
+                                        placeholder="87654321 or https://wa.me/6587654321"
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-semibold text-slate-700">Contact email</label>
+                                    <input
+                                        type="email"
+                                        value={form.contactEmail || ''}
+                                        onChange={(e) => setField('contactEmail', e.target.value)}
+                                        placeholder="info@example.org"
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-semibold text-slate-700">Action button label</label>
+                                    <input
+                                        value={form.ctaLabel || ''}
+                                        onChange={(e) => setField('ctaLabel', e.target.value)}
+                                        placeholder="Register now"
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-semibold text-slate-700">Action button link</label>
+                                    <input
+                                        type="url"
+                                        value={form.ctaUrl || ''}
+                                        onChange={(e) => setField('ctaUrl', e.target.value)}
+                                        placeholder="https://..."
+                                        className="input-field"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-1 block text-sm font-semibold text-slate-700">Venue note</label>
+                                    <input
+                                        value={form.venueNote || ''}
+                                        onChange={(e) => setField('venueNote', e.target.value)}
+                                        placeholder="Level 2 studio room"
+                                        className="input-field"
+                                    />
+                                </div>
+                            </div>
                         </div>
                         <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                             {selectedLinkedLocations.length > 0 ? (

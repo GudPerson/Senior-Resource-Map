@@ -264,7 +264,7 @@ function buildCollateralPrompt({ hostAsset, softSubCategoryNames, tagNames }) {
         'Return only JSON matching the schema. No markdown.',
         categoryHint,
         tagHint,
-        'For each detected offering candidate, extract these fields when present: bucket, name, subCategorySuggestion, description, schedule, scheduleSessions, newTags, contactPhone, contactEmail, ctaLabel, ctaUrl, venueNote, availabilityStatus, isHidden, visibilityAction, sourceExcerpt, confidence.',
+        'For each detected offering candidate, extract these fields when present: bucket, name, subCategorySuggestion, description, schedule, scheduleSessions, newTags, contactPhone, whatsappContact, contactEmail, ctaLabel, ctaUrl, venueNote, availabilityStatus, isHidden, visibilityAction, sourceExcerpt, confidence.',
         'availabilityStatus should be one of "available", "full", or "unknown". visibilityAction should be "hide" only when the reviewer should save the draft as hidden; otherwise use "preserve".',
         'Confidence should be a number from 0 to 1.',
         'sourceExcerpt should quote or tightly paraphrase the exact collateral text that supports the row.',
@@ -300,6 +300,7 @@ function buildCollateralResponseSchema() {
                             items: { type: 'string' },
                         },
                         contactPhone: { type: 'string' },
+                        whatsappContact: { type: 'string' },
                         contactEmail: { type: 'string' },
                         ctaLabel: { type: 'string' },
                         ctaUrl: { type: 'string' },
@@ -579,6 +580,7 @@ function normalizeDraftRow(rawRow, softSubCategoryNames, knownTagNames) {
         ),
         newTags: normalizeTags(rawRow?.newTags, knownTagNames),
         contactPhone: normalizeText(rawRow?.contactPhone || ''),
+        whatsappContact: normalizeText(rawRow?.whatsappContact || rawRow?.whatsAppContact || rawRow?.whatsapp || ''),
         contactEmail: normalizeEmail(rawRow?.contactEmail || ''),
         ctaLabel: normalizeText(rawRow?.ctaLabel || ''),
         ctaUrl: normalizeUrl(rawRow?.ctaUrl || ''),
@@ -637,6 +639,7 @@ export function consolidateCollateralDraftRows(draftRows = []) {
             : normalizeLongText(draftRow.description || '');
         group.subCategorySuggestion = group.subCategorySuggestion || draftRow.subCategorySuggestion || bucket;
         group.contactPhone = group.contactPhone || draftRow.contactPhone || '';
+        group.whatsappContact = group.whatsappContact || draftRow.whatsappContact || '';
         group.contactEmail = group.contactEmail || draftRow.contactEmail || '';
         group.ctaLabel = group.ctaLabel || draftRow.ctaLabel || '';
         group.ctaUrl = group.ctaUrl || draftRow.ctaUrl || '';
