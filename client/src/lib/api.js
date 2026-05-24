@@ -18,6 +18,7 @@ const COOKIE_SCOPED_AUTH_PATH_PREFIXES = [
     '/phone-identities',
     '/private-resource-content',
     '/soft-asset-parents',
+    '/soft-assets',
     '/subregions',
     '/users',
 ];
@@ -152,15 +153,33 @@ async function request(method, path, body) {
     return requestWithBaseCandidates(method, path, body);
 }
 
-async function requestFormData(path, formData) {
-    for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
-        const base = BASE_CANDIDATES[i];
-        const res = await fetch(`${base}${path}`, {
-            method: 'POST',
-            headers: getSessionAuthHeaders(),
-            credentials: 'include',
-            body: formData,
-        });
+export async function requestFormDataWithBaseCandidates(path, formData, options = {}) {
+    const {
+        baseCandidates = BASE_CANDIDATES,
+        fetchImpl = globalThis.fetch,
+    } = options;
+    const canUseFallbackBase = canRetryAcrossBasesForPath(path);
+    let lastNetworkError = null;
+
+    for (let i = 0; i < baseCandidates.length; i += 1) {
+        if (!canUseFallbackBase && i > 0) break;
+
+        const base = baseCandidates[i];
+        let res;
+
+        try {
+            res = await fetchImpl(`${base}${path}`, {
+                method: 'POST',
+                headers: getSessionAuthHeaders(),
+                credentials: 'include',
+                body: formData,
+            });
+        } catch (err) {
+            lastNetworkError = err;
+            if (canUseFallbackBase && i < baseCandidates.length - 1) continue;
+            throw new Error('Upload request could not reach the API. Please refresh and try again.');
+        }
+
         const contentType = res.headers.get('content-type') || '';
         const isJson = contentType.includes('application/json');
         const data = isJson ? await res.json() : await res.text();
@@ -170,22 +189,29 @@ async function requestFormData(path, formData) {
                 handleAuthJsonError(data);
                 throw new Error(data.error);
             }
-            if (!isJson && i < BASE_CANDIDATES.length - 1) continue;
+            if (!isJson && canUseFallbackBase && i < baseCandidates.length - 1) continue;
             if (!isJson) {
-                throw new Error('Upload API misconfigured: received HTML instead of JSON.');
+                throw new Error('Upload API returned an unexpected response. Please refresh and try again.');
             }
             throw new Error('Upload failed');
         }
 
         if (!isJson) {
-            if (i < BASE_CANDIDATES.length - 1) continue;
-            throw new Error('Upload API returned non-JSON response unexpectedly.');
+            if (canUseFallbackBase && i < baseCandidates.length - 1) continue;
+            throw new Error('Upload API returned an unexpected response. Please refresh and try again.');
         }
 
         return data;
     }
 
+    if (lastNetworkError) {
+        throw new Error('Upload request could not reach the API. Please refresh and try again.');
+    }
     throw new Error('Upload failed');
+}
+
+async function requestFormData(path, formData) {
+    return requestFormDataWithBaseCandidates(path, formData);
 }
 
 async function requestBlob(path, options = {}) {
