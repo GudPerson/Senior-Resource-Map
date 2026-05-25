@@ -51,22 +51,38 @@ async function loginAsPartner(page) {
     await page.waitForURL(/\/dashboard(?:$|\/)/, { timeout: 30_000 });
 }
 
+function savedResourceDetailLink(page) {
+    return page.getByRole('link', { name: /View (details|place)/i }).first();
+}
+
+async function toggleFirstDiscoverSaveButton(page) {
+    const saveButton = page.getByRole('button', { name: 'Save to My Directory' }).first();
+    await expect(saveButton).toBeVisible({ timeout: 30_000 });
+    const toggleResponsePromise = page.waitForResponse((response) => (
+        response.url().includes('/favorites/toggle') && response.request().method() === 'POST'
+    ), { timeout: 30_000 });
+    await saveButton.click();
+    const toggleResponse = await toggleResponsePromise;
+    expect(toggleResponse.ok(), 'saved asset toggle request should complete before navigation').toBeTruthy();
+    return toggleResponse.json().catch(() => null);
+}
+
 async function ensureSavedAsset(page) {
     await page.goto('/my-directory', { waitUntil: 'domcontentloaded' });
-    const existingDetailLink = page.getByRole('link', { name: 'View details' }).first();
+    const existingDetailLink = savedResourceDetailLink(page);
 
-    if (await existingDetailLink.isVisible().catch(() => false)) {
+    if (await existingDetailLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
         return;
     }
 
     await page.goto('/discover', { waitUntil: 'domcontentloaded' });
-    const saveButton = page.locator('button[aria-label="Save asset"]:visible').first();
-    await expect(saveButton).toBeVisible({ timeout: 30_000 });
-    await saveButton.click();
-    await expect(page.locator('button[aria-label="Remove saved asset"]:visible').first()).toBeVisible({ timeout: 15_000 });
+    const firstToggle = await toggleFirstDiscoverSaveButton(page);
+    if (firstToggle?.saved !== true) {
+        await toggleFirstDiscoverSaveButton(page);
+    }
 
     await page.goto('/my-directory', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('link', { name: 'View details' }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(savedResourceDetailLink(page)).toBeVisible({ timeout: 15_000 });
 }
 
 async function openPostalImportWizard(page) {
@@ -118,7 +134,7 @@ test('create-map flow can select saved assets and submit the modal path', async 
     await ensureSavedAsset(page);
 
     await page.goto('/my-directory?section=my-maps', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'Create My Map' }).click();
+    await page.getByRole('button', { name: 'Create map' }).first().click();
 
     const smokeMapName = `Smoke Map ${Date.now()}`;
     await page.locator('#create-map-name').fill(smokeMapName);
@@ -126,7 +142,7 @@ test('create-map flow can select saved assets and submit the modal path', async 
     const firstSelectableAsset = page.locator('[data-testid^="create-map-asset-"]').first();
     await expect(firstSelectableAsset).toBeVisible({ timeout: 15_000 });
     await firstSelectableAsset.check();
-    await expect(page.getByText('1 asset selected')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/1 (asset|resource) selected/i)).toBeVisible({ timeout: 10_000 });
 
     await page.getByTestId('create-map-submit').click();
     await page.waitForURL(/\/my-directory\/maps\/\d+$/, { timeout: 30_000 });
@@ -145,7 +161,7 @@ test('saved resource detail still opens from the discover side of the product', 
     await ensureSavedAsset(page);
 
     await page.goto('/my-directory', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('link', { name: 'View details' }).first().click();
+    await savedResourceDetailLink(page).click();
     await page.waitForURL(/\/resource\/(hard|soft)\/\d+$/, { timeout: 30_000 });
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 });
 });
