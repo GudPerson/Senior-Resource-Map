@@ -374,7 +374,7 @@ function statusView(status, t, mode = 'login') {
     };
 }
 
-export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = 'login' }) {
+export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequiresUserAction, mode = 'login' }) {
     const [phone, setPhone] = useState('');
     const [status, setStatus] = useState('idle');
     const [attemptId, setAttemptId] = useState(null);
@@ -432,6 +432,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             setStatus('signup_required');
             pollUntilRef.current = 0;
             setPendingRecoveryVisible(false);
+            onRequiresUserAction?.();
             return;
         }
 
@@ -441,6 +442,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             setAttemptId(null);
             pollUntilRef.current = 0;
             setPendingRecoveryVisible(false);
+            onRequiresUserAction?.();
             return;
         }
 
@@ -455,7 +457,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             }
             setStatus('pending');
         }
-    }, [onSignedIn, phone]);
+    }, [onRequiresUserAction, onSignedIn, phone]);
 
     const pollAttemptById = useCallback(async (id) => {
         const normalizedAttemptId = Number.parseInt(String(id || ''), 10);
@@ -467,10 +469,11 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             finishWithResult(result);
         } catch (err) {
             setError(err.message || t('phoneLoginPollingError'));
+            onRequiresUserAction?.();
         } finally {
             pollInFlightRef.current = false;
         }
-    }, [finishWithResult, t]);
+    }, [finishWithResult, onRequiresUserAction, t]);
 
     const restoreStoredAttemptAndPoll = useCallback(() => {
         const storedAttempt = readStoredPhoneLoginAttempt();
@@ -518,7 +521,13 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
         const storedAttempt = readStoredPhoneLoginAttempt();
         if (!isPhoneLoginReturn && !storedAttempt?.attemptId) return undefined;
 
-        restoreStoredAttemptAndPoll();
+        if (storedAttempt?.attemptId) {
+            restoreStoredAttemptAndPoll();
+        } else {
+            setStatus('expired');
+            setError(t('phoneLoginExpiredBody'));
+            onRequiresUserAction?.();
+        }
 
         if (isPhoneLoginReturn) {
             const url = new URL(window.location.href);
@@ -526,7 +535,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
         }
         return undefined;
-    }, [restoreStoredAttemptAndPoll]);
+    }, [onRequiresUserAction, restoreStoredAttemptAndPoll, t]);
 
     useEffect(() => {
         if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
@@ -574,6 +583,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, mode = '
             setStatus('failed');
             setError(friendlyErrorMessage(err.message, t));
             setPendingRecoveryVisible(false);
+            onRequiresUserAction?.();
         } finally {
             setActionBusy(false);
         }

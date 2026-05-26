@@ -8,7 +8,8 @@ import AuthHandoffScreen from '../components/AuthHandoffScreen.jsx';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import PhoneLoginPanel from '../components/PhoneLoginPanel.jsx';
 import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
-import { clearStoredPhoneLoginAttempt } from '../lib/phoneLoginAttemptStorage.js';
+import { shouldShowPhoneLoginHandoff } from '../lib/authHandoff.js';
+import { clearStoredPhoneLoginAttempt, readStoredPhoneLoginAttempt } from '../lib/phoneLoginAttemptStorage.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
 function normalizeReturnTo(value) {
@@ -18,16 +19,18 @@ function normalizeReturnTo(value) {
 }
 
 export default function AuthPage({ isPartner = false }) {
+    const { login, isAuth } = useAuth();
+    const { t } = useLocale();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [tab, setTab] = useState('login');
     const [form, setForm] = useState({ username: '', email: '', password: '', name: '', postalCode: '', role: 'user' });
     const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [handoffVisible, setHandoffVisible] = useState(false);
-    const { login, isAuth } = useAuth();
-    const { t } = useLocale();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const [handoffVisible, setHandoffVisible] = useState(() => (
+        shouldShowPhoneLoginHandoff(location.search, readStoredPhoneLoginAttempt())
+    ));
     const skipPostLoginRedirectRef = useRef(false);
     const googleIntentTimerRef = useRef(null);
 
@@ -193,6 +196,7 @@ export default function AuthPage({ isPartner = false }) {
                                 t={t}
                                 returnTo={normalizeReturnTo(new URLSearchParams(location.search).get('returnTo'))}
                                 onSignedIn={handlePhoneSignedIn}
+                                onRequiresUserAction={() => setHandoffVisible(false)}
                                 mode={tab}
                             />
                         ) : null}
