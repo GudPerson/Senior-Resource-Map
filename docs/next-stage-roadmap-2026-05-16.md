@@ -1,68 +1,73 @@
 # CareAround SG Next-Stage Roadmap
 
-Date: 2026-05-16
+Date: 2026-05-28
 
-Purpose: capture the next practical development sequence after the Region, Asset Access, phone-auth, and Orchestrator work.
+Purpose: capture the next practical development sequence after the Region, Asset Access, phone-auth, Orchestrator, My Map resource notes, import-refresh, governance, and auth-stability work already committed on GitHub `main`.
+
+## Current Baseline
+
+GitHub `main` and Cloudflare Pages Production are currently aligned on `b7af05c4` - `Fix mobile WhatsApp auth handoff`.
+
+Personal Resource Notes for My Map is no longer future work. It has been implemented as My Map resource notes with:
+
+- multiple notes per map resource
+- per-note `Share this note` control
+- private notes kept out of shared-map snapshots
+- shared notes included only when marked for sharing and republished
+- shared-note display and translation for shared-map receivers
+- tests around note storage, snapshot filtering, summary badges, and translation
 
 ## Recommended Order
 
-1. **Documentation foundation**
-   - Lock in the CareAround Orchestrator.
-   - Refresh the README so the product map reflects Region, Asset Access, Audience Zones, phone auth, and current staff-access direction.
-   - Keep this work docs-only, with no deploy required.
+1. **State reset and baseline verification**
+   - Keep the handoff, roadmap, README, and regression ledger aligned with GitHub `main`.
+   - Run `npm run test:server` and `npm run build:client`.
+   - Run smoke/local UAT when credentials and local servers are available.
+   - Keep this work docs-only unless verification finds a real regression.
 
-2. **Personal Resource Notes for My Map**
-   - Lowest-risk user-facing feature from the current list.
-   - Adds immediate value to caregivers and users who already build My Maps.
-   - Should start as private owner-only notes, not shared-map notes.
-
-3. **User Alerts / Notifications V1**
+2. **User Alerts / Notifications V1**
    - Start with in-app alerts only.
    - Use low-risk events first: resource changed, saved resource hidden, map share status, profile reminder, staff review task.
-   - Defer WhatsApp, SMS, and email notifications until consent, templates, audit, and retention are designed.
+   - Defer WhatsApp, SMS, email, and push notifications until consent, templates, audit, and retention rules are designed.
 
-4. **Partner Analytics V1**
+3. **Partner Analytics V1**
    - Start with aggregate, privacy-safe reporting.
    - Define metrics before implementing dashboards.
    - Use small-count suppression and clear reporting boundaries before showing partner-facing insights.
 
-5. **AI Social Prescribing**
+4. **AI Social Prescribing / Guided Matching**
    - Start with rule-based, explainable matching before generative recommendations.
    - Treat suggestions as planning aids, not medical, clinical, financial, legal, or official advice.
    - Require human review for staff-assisted shortlist workflows.
 
+5. **Post-stabilization cleanup**
+   - Clean up large or complex surfaces only in small slices after a green baseline.
+   - Prioritize docs drift, stale branch cleanup, and focused component extractions over broad rewrites.
+
+## Already Implemented And Locked
+
+These are not next-stage feature candidates unless a new regression is found:
+
+- Discover recovery and stabilization.
+- My Directory saved assets.
+- Private Maps interactive behavior.
+- Private Maps print/export.
+- My Map resource notes.
+- Shared maps, including map-note sharing and shared-note translation.
+- Dashboard resources/admin stabilization.
+- Workbook import/export.
+- Import Material refresh review and batch saves.
+- Offering public contact/action field parity.
+- Direct hard-asset Owner/Staff access and local audience zones.
+- Restricted resource notes/files.
+- Secure multilingual foundation and translation review.
+- Client route recovery.
+- Phone identity uniqueness.
+- WhatsApp phone login/signup, same-device preflight, recovery guidance, and auth handoff.
+- Pilot governance foundation.
+- AI enrichment stabilization.
+
 ## Feature Briefs
-
-### Personal Resource Notes For My Map
-
-Orchestrator lenses: Frontend Product Engineer, Backend Platform Engineer, UI/UX Product Designer, Privacy/Governance Reviewer, QA/Regression Lead.
-
-V1 goal:
-
-- Let a signed-in map owner add private notes to resources inside their own My Map.
-- Keep notes owner-only by default.
-- Do not expose notes in shared maps, public snapshots, exports, or guest views.
-
-Why first:
-
-- It extends an already locked user journey instead of creating a new subsystem.
-- It supports real caregiver planning: "why this option matters," "call first," "near Mum's home," or "ask about fees."
-- It can be tested against the existing My Maps and Shared Maps privacy boundary.
-
-Out of scope for V1:
-
-- Shared-map recipient notes.
-- Collaborative comments.
-- Staff notes inside personal maps.
-- AI-generated notes.
-- Sensitive case-note workflows.
-
-First acceptance criteria:
-
-- Map owner can create, edit, and clear a note for a map resource.
-- Notes are visible only in the owner's private map view.
-- Shared map payloads and public views do not include private notes.
-- Existing My Directory, My Maps, print/export, and shared-map behavior remain stable.
 
 ### User Alerts / Notifications V1
 
@@ -128,7 +133,7 @@ First acceptance criteria:
 - Small groups are suppressed or withheld where privacy risk exists.
 - Reports do not imply service impact or outcome without evidence.
 
-### AI Social Prescribing
+### AI Social Prescribing / Guided Matching
 
 Orchestrator lenses: System Architect, AI/Recommendation Engineer, Data/Analytics Engineer, UI/UX Product Designer, Privacy/Governance Reviewer, QA/Regression Lead.
 
@@ -159,7 +164,7 @@ First acceptance criteria:
 - Results explain why they appear.
 - Users and staff can distinguish "planning aid" from official advice.
 - Staff-assisted recommendations can be reviewed before sharing.
-- AI output does not bypass visibility, eligibility, membership, or Region/Audience Zone rules.
+- AI output does not bypass visibility, eligibility, membership, Region, Audience Zone, or Asset Access rules.
 
 ## Operating Notes
 
@@ -167,4 +172,4 @@ First acceptance criteria:
 - Keep each feature in its own design, implementation, verification, commit, push, and deploy cycle.
 - Prefer small production deploys during beta so production-only regressions are caught early.
 - Update `docs/regression-ledger.md` when a new behavior becomes locked.
-- Review privacy/terms copy before adding notifications, analytics, AI matching, or new user-generated notes.
+- Review privacy/terms copy before adding notifications, analytics, AI matching, external messaging, or new user-generated data categories.

@@ -2,32 +2,40 @@
 
 This checklist is the pre-ship gate for launch-safe changes. Use it together with `docs/regression-ledger.md`; the ledger is the source of truth for locked surfaces and behavior-specific acceptance criteria.
 
-Last refreshed: 2026-05-15 (Asia/Singapore)
+Last refreshed: 2026-05-28 (Asia/Singapore)
 
 ## Current Stabilization Scope
 
 The regression ledger currently treats these areas as locked or stabilized:
 
 - Discover
+- Auth session continuity
+- Auth transition handoff
 - My Directory saved assets
 - Private Maps interactive
 - Private Maps print/export
+- My Map resource notes
 - Shared maps
 - Dashboard resources/admin
 - Workbook import/export
+- Subregion boundary upload
+- SG postal fallback for place writes
+- Hard asset boundary visibility
 - Asset create/edit forms
+- Resource detail contact/social links
 - AI enrichment
-- Partner-only detail content
+- Import Material refresh saves
+- Restricted resource notes/files
+- Pilot governance foundation
 - Direct hard-asset access and local audience zones
 - Secure multilingual foundation
 - Client route recovery
 - Phone identity uniqueness
 - WhatsApp phone login and signup
-- Subregion boundary upload
 
-Active next recovery family in the ledger:
+Current restart family in the ledger:
 
-- Release smoke and final deployment check
+- State reset, green baseline verification, and then a deliberate next-feature choice.
 
 Before release work, review the relevant row in `docs/regression-ledger.md` for reproduction steps, known-good references, acceptance criteria, and any deploy gates.
 

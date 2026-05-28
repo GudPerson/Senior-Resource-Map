@@ -35,14 +35,27 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - My Directory saved assets
 - Private Maps interactive
 - Private Maps print/export
+- My Map resource notes
 - Shared maps
-- Dashboard resources
-- Dashboard admin resources
+- Dashboard resources/admin
+- Workbook import/export
+- Subregion boundary upload
+- SG postal fallback for place writes
+- Hard asset boundary visibility
+- Asset create/edit forms
 - Discover
 - Resource detail contact/social links
+- AI enrichment
+- Import Material refresh saves
+- Restricted resource notes/files
+- Pilot governance foundation
+- Direct hard-asset access and local audience zones
 - Auth session continuity
+- Auth transition handoff
 - Secure multilingual foundation
+- Client route recovery
 - Phone identity uniqueness
+- WhatsApp phone login and signup
 
 ## Audit matrix
 
@@ -54,6 +67,7 @@ These surfaces are approved on the stabilization branch and should not be reopen
 | My Directory saved assets | Recovered and locked on stabilization branch | User-approved stabilization branch behavior | Load `/my-directory`, test search, scope, select-all, remove-selected | Saved cards render, filters work, bulk actions stable | 2026-04-22 |
 | Private Maps interactive | Recovered and locked on stabilization branch | `efc03d82`, related private-map commits | Create/open `/my-directory/maps/:id`, test hover, cluster click, selection | Hover linking, cluster zoom/spiderfy, card↔pin sync stable | 2026-04-22 |
 | Private Maps print/export | Recovered and locked on stabilization branch; print card links and map interactivity retested locally; hidden export surface moved off-screen after it was found overlapping live map hit-testing; print header copy wraps without truncating | `865461f4`, `940cc182` + user-approved stabilization layout pass | Open `?view=print`, test layout, grouped asset detail links, pin/cluster hover, top-edge pin hover, cluster click zoom/spiderfy, map reset, Save as image, header title/description wrapping, distance-anchor note placement, and `elementFromPoint` on visible marker centers | Wide layout, QR present, map name is not truncated, description wraps before QR area, distance anchor note sits just above map, grouped print entries navigate to detail pages, hover highlights matching card(s) with orange ring, top-edge pins remain responsive, cluster click expands, reset restores full map, export clone does not intercept marker hit-testing, capture succeeds, print preview matches approved baseline | 2026-04-25 |
+| My Map resource notes | Implemented and locked after stale roadmap wording incorrectly treated this as future work; map owners can attach multiple notes to individual map resources, mark selected notes for sharing, and keep other notes private | Commits `d1fe8cc5`, `edde303c`, `b2689c3d`, `d3532c2f`, `0bdb5097`, `84ca2d24`, `cda11571` + 2026-05-28 production screenshot of `/my-directory/maps/25` note overlay | Open a private map, open Map notes for a resource, add multiple notes, mark one note as shared, save, publish or update the share link, then open the shared map in another session/language | Private notes stay visible only to the map owner; only notes marked `Share this note` are included in the next published shared-map snapshot; shared-map receivers see note counts without owner-only shared/private badge leakage; shared notes translate with receiver locale; existing My Directory, private maps, shared maps, print/export, and map interaction behavior remain stable | 2026-05-28 |
 | Shared maps | Recovered and locked on stabilization branch; mobile shared-map cluster taps retested after the 2026-05-18 regression where touch users needed a quick double tap to explode clusters | User-approved stabilization branch behavior + 2026-05-18 mobile cluster smoke | Open shared directory as guest/logged-in user, test copy/save flows, map notes, receiver-side note translation, and mobile cluster tap sequence | Shared view loads, copy/save behavior correct; shared note translations follow receiver language selection; mobile cluster taps split immediately without a center-only pause; large clusters split to the next visible cluster layer, and 2/3-resource clusters uncluster on the next tap when their resources fit in the map window | 2026-05-18 |
 | Dashboard resources/admin | Recovered and locked on stabilization branch; punctuation-normalized resource search retested locally; dashboard resource logos render inside stable contained frames; managed search now scopes full-pagination loads by query before client-only filtering | User-approved stabilization branch behavior + 2026-05-20 logo-frame polish + 2026-05-23 managed-search fetch stabilization | Load `/dashboard/resources` and `/dashboard/admin`, test search, counts, export, uploaded/enriched logos with wide, tall, and square artwork, and a managed search such as `frcs` | Search stable, counts consistent, filtered workbook export works, admin search does not reload on every letter, names with parentheses remain searchable; resource, offering, and template logos fit fully within their frames without cropping or overflowing; text search does not fetch the entire managed dataset before applying local filters | 2026-05-23 |
 | Workbook import/export | Recovered and locked on stabilization branch; local full/filtered exports and import reports revalidated | Local verification artifacts in `output/workbook-local-2026-04-25T05-42-07-819Z` | Run places export/import, standalone offering import, template import, rollout import, filtered workbook flows, error-report flows; re-open exported `.xlsx` files with `openpyxl` | No timeout/subrequest regressions; reports accurate; filtered/full export formats round-trip safely; `.xlsx` files include `Guide`, `Data`, and `Reference` sheets | 2026-04-25 |
@@ -162,25 +176,16 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Acceptance criteria: `server/.env` points at the confirmed live database; tracked scripts/config files do not contain database connection strings; future cleanup scripts print only non-secret database fingerprints/counts before mutating data.
 - Verification result: local `server/.env` was reconciled to the confirmed live database on 2026-05-16, `server/migrate_regions.js` was changed to read `DATABASE_URL` from env, and Drizzle config was moved to env-backed `server/drizzle.config.js`.
 
-## Current recovery order
+## Current recovery status
 
-1. Discover
-2. My Directory + Private Maps
-3. Dashboard resources/admin
-4. Workbook import/export
-5. Asset create/edit forms
-6. AI enrichment and secondary polish
+The earlier stabilization recovery order has completed. The current baseline on GitHub `main` includes the recovered public discovery, saved assets, private maps, shared maps, dashboard resource/admin, workbook, asset form, AI enrichment, import-refresh, governance, phone-auth, and My Map resource-note surfaces listed above.
 
-Completed and locked:
-- Discover
-- My Directory + Private Maps
-- Dashboard resources/admin
-- Workbook import/export
-- Asset create/edit forms
-- AI enrichment
+Current restart family:
 
-Active next recovery family:
-- Release smoke and final deployment check
+1. Keep handoff, roadmap, README, and this ledger aligned with GitHub `main` and production deployment source.
+2. Run the green baseline: `npm run test:server` and `npm run build:client`.
+3. Run smoke/local UAT when the needed credentials and servers are available.
+4. Choose the next feature from remaining future work rather than reopening locked surfaces without a regression.
 
 ## Recovery workflow
 

@@ -6,7 +6,7 @@ This README is written as a plain-English map of the product. It is meant to hel
 
 It is not mainly a technical setup guide.
 
-Last refreshed: 2026-05-16, after the Region, Asset Access, phone auth, and CareAround Orchestrator updates.
+Last refreshed: 2026-05-28, after the Region, Asset Access, phone auth, My Map resource notes, import-refresh, governance, and auth handoff updates.
 
 ## The Big Picture
 
@@ -24,8 +24,9 @@ The product is built around a few everyday ideas:
 | Offering | A service, programme, promotion, event, or support activity. It may happen at one place, multiple places, or be managed as a reusable template. |
 | Saved Asset | A place or offering that a signed-in user has saved for later. |
 | My Directory | The user's personal collection of saved resources. |
-| My Map | A curated directory made from saved resources. It can be kept private, shared by link, printed, or exported as an image. |
+| My Map | A curated directory made from saved resources. It can be kept private, annotated with per-resource notes, shared by link, printed, or exported as an image. |
 | Shared Map | A read-only public version of a My Map that other people can view through a link. |
+| Map Note | A note attached to a resource inside a My Map. Notes stay private unless the owner marks an individual note for sharing and republishes the share link. |
 | Region | A postal-code service area used for governance, review, and resource relevance. Regions may overlap. The database may still use older `subregion` wording internally. |
 | Asset Access | A direct Owner/Staff assignment that decides who can edit a place or standalone service. Region overlap does not automatically grant edit rights. |
 | Audience Zone | A targeted postal-code group used to decide who can see or use certain restricted offerings. Zones may overlap Regions and other zones. |
@@ -36,7 +37,7 @@ The product is built around a few everyday ideas:
 | User group | What they can do |
 | --- | --- |
 | Guest | Browse public resources and shared maps without signing in. Guests cannot save resources or create maps. |
-| Standard User | Save resources, manage My Directory, create My Maps, view shared maps, copy shared maps, maintain a profile, and link memberships. |
+| Standard User | Save resources, manage My Directory, create My Maps, add map notes, view shared maps, copy shared maps, maintain a profile, and link memberships. |
 | Asset Owner / Staff | Manage assigned places or standalone services, including linked offerings and protected staff-only resource content. Owners can manage staff access where allowed. |
 | Region Admin | Govern resources and users within assigned Regions, review coverage and shared zones, and manage assets only when explicitly assigned as Owner or Staff. |
 | Super Admin | Manage the full system, including users, resources, categories, Regions, audience zones, asset access, and data tools. |
@@ -127,6 +128,8 @@ A user can:
 - Add or edit a description.
 - Search within the map.
 - Use a distance anchor, such as a postal code, to make the map more useful for a specific person or household.
+- Add notes to individual resources in the map.
+- Mark selected notes for sharing while keeping other notes private.
 - Print the map.
 - Save the map as an image.
 - Share the map through a public read-only link.
@@ -153,6 +156,7 @@ Guests can:
 - Open the shared link.
 - Browse the directory.
 - Use the map and list.
+- View only the map notes that the owner marked for sharing and included in the latest published share snapshot.
 - Print the shared map.
 
 Signed-in users can also:
@@ -165,6 +169,7 @@ The owner can:
 - Publish a share link.
 - Unpublish it.
 - Republish later, which creates a fresh link.
+- Decide which resource notes are private and which notes should be included the next time the share link is published or updated.
 
 Important relationship:
 
@@ -432,8 +437,9 @@ Admin creates a restricted offering
 
 ```text
 User creates a private map
+  -> user adds private planning notes or marks selected notes for sharing
   -> user publishes a share link
-  -> guest can view the read-only map
+  -> guest can view the read-only map and shared notes from that published snapshot
   -> signed-in recipient can save resources or copy the map
   -> owner can unpublish the link later
 ```
@@ -478,6 +484,7 @@ User signs in or saves data
 | Saved Assets | Sign-in, live resource data, saved snapshots | Saved resources should remain understandable even if live content changes later. |
 | My Directory | Saved Assets | The directory is the user's working list before creating maps. |
 | My Maps | Saved Assets, map grouping, distance anchor, snapshots | Maps need stable resources, useful location grouping, and resilience when data changes. |
+| My Map Notes | My Maps, saved map assets, share snapshots, note-level sharing controls | Planning notes must stay private unless the owner explicitly marks a note for sharing and republishes the shared map. |
 | Shared Maps | My Maps, share links, viewer permissions | Sharing should be simple for guests but richer for signed-in users. |
 | Membership Access | User accounts, membership links, linked places, member-only offerings | A broken membership flow can make restricted offerings impossible to understand. |
 | Dashboard | Roles, direct Asset Access, Regions, audience zones, import tools | Admin decisions shape the entire public experience. |
@@ -553,7 +560,8 @@ This section is intentionally written as questions, not as confirmed bugs. It is
 ### Future enhancement questions
 
 - Should CareAround SG support guided recommendations, not just search and saving?
-- Should My Maps support private personal notes, priority labels, or caregiver comments?
+- Are My Map note-sharing warnings clear enough for users to understand what stays private and what appears in a shared link?
+- Should future My Map planning support priority labels or caregiver task states without turning the feature into sensitive case-note storage?
 - Should shared maps have expiry dates or version history?
 - Should partners or asset owners get analytics about saved resources, copied maps, or QR membership usage?
 - Should in-app notifications start with only low-risk account and resource-change alerts before external messaging is considered?
@@ -569,15 +577,16 @@ This README can become the base for a future guide. A practical guide could be s
 4. Understanding places and offerings.
 5. Saving resources.
 6. Building My Directory and My Maps.
-7. Sharing, printing, and exporting maps.
-8. Completing your profile and linking memberships.
-9. Understanding privacy, cookies, and terms.
-10. Managing resources as an Asset Owner, Staff member, Region Admin, or Super Admin.
-11. Reviewing translations.
-12. Using staff-only notes and files safely.
-13. Importing data safely.
-14. Exporting user data safely.
-15. Troubleshooting common access and visibility questions.
+7. Adding map notes and choosing which notes to share.
+8. Sharing, printing, and exporting maps.
+9. Completing your profile and linking memberships.
+10. Understanding privacy, cookies, and terms.
+11. Managing resources as an Asset Owner, Staff member, Region Admin, or Super Admin.
+12. Reviewing translations.
+13. Using staff-only notes and files safely.
+14. Importing data safely.
+15. Exporting user data safely.
+16. Troubleshooting common access and visibility questions.
 
 A more detailed guide foundation is kept in `docs/user-guide-foundation.md`.
 
