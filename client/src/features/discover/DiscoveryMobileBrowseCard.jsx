@@ -2,6 +2,7 @@ import { MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
+import DiscoveryLocationIndicatorBadges from '../../components/DiscoveryLocationIndicatorBadges.jsx';
 import OfferingAccessNotice from '../../components/OfferingAccessNotice.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { openResourceDetail } from '../../lib/appNavigation.js';
@@ -26,7 +27,7 @@ export function DiscoveryMobileBrowseCard({
     const asset = localizeResource(rawAsset, locale);
     const navigate = useNavigate();
     const isHard = type === 'hard';
-    const catColor = subCatColors[asset.subCategory] || '#64748b';
+    const catColor = asset.categoryColor || subCatColors[asset.subCategory] || '#64748b';
     const displayLocation = isHard ? asset : asset._displayLocation;
     const totalLocationCount = isHard ? 1 : (asset._locationCount || 0);
     const otherLocationCount = !isHard && totalLocationCount > 1 ? totalLocationCount - 1 : 0;
@@ -127,6 +128,12 @@ export function DiscoveryMobileBrowseCard({
                     {asset.name}
                 </h2>
             </div>
+
+            <DiscoveryLocationIndicatorBadges
+                compact={isCompact}
+                indicators={asset._locationIndicators}
+                className="mt-3"
+            />
 
             {availabilityEnabled ? (
                 <div className="mt-3">

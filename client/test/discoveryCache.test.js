@@ -9,6 +9,7 @@ test('normalizeDiscoveryCacheRows groups public cache rows into Discovery hard a
             id: 10,
             title: 'Community Hub',
             category: 'Active Ageing Centres',
+            category_color: '#f59e0b',
             description: 'Neighbourhood support',
             lat: '1.3000',
             lng: '103.8000',
@@ -23,6 +24,7 @@ test('normalizeDiscoveryCacheRows groups public cache rows into Discovery hard a
             id: 20,
             title: 'Chair Yoga',
             category: 'Programmes',
+            category_color: '#0ea5e9',
             description: 'Gentle movement',
             lat: '1.3000',
             lng: '103.8000',
@@ -59,10 +61,12 @@ test('normalizeDiscoveryCacheRows groups public cache rows into Discovery hard a
     assert.equal(normalized.softAssets.length, 1);
     assert.equal(normalized.hardAssets[0].name, 'Community Hub');
     assert.equal(normalized.hardAssets[0].subCategory, 'Active Ageing Centres');
+    assert.equal(normalized.hardAssets[0].categoryColor, '#f59e0b');
     assert.equal(normalized.hardAssets[0].postalCode, '123456');
     assert.equal(normalized.hardAssets[0].whatsappContact, '87654321');
     assert.equal(normalized.hardAssets[0].softAssets.length, 1);
     assert.equal(normalized.hardAssets[0].softAssets[0].name, 'Chair Yoga');
+    assert.equal(normalized.hardAssets[0].softAssets[0].categoryColor, '#0ea5e9');
     assert.equal(normalized.hardAssets[0].softAssets[0].whatsappContact, 'https://wa.me/6588887777');
     assert.equal(normalized.softAssets[0].locations.length, 2);
     assert.equal(normalized.softAssets[0].location.name, 'Community Hub');

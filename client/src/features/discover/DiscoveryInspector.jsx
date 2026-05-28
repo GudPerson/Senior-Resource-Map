@@ -87,7 +87,7 @@ export function DiscoveryInspector({
     }
 
     const isHard = asset._type === 'hard';
-    const color = subCatColors[asset.subCategory] || '#64748b';
+    const color = asset.categoryColor || subCatColors[asset.subCategory] || '#64748b';
     const locations = buildSortedLocations(asset, userLocation);
     const primaryLocation = isHard
         ? asset

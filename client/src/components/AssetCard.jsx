@@ -8,6 +8,7 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import SaveAssetButton from './SaveAssetButton.jsx';
+import DiscoveryLocationIndicatorBadges from './DiscoveryLocationIndicatorBadges.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
 import { shareResourceLink } from '../lib/resourceShare.js';
@@ -110,7 +111,7 @@ export const AssetCard = React.memo(({
         }
     };
 
-    const catColor = subCatColors[asset.subCategory] || '#64748b';
+    const catColor = asset.categoryColor || subCatColors[asset.subCategory] || '#64748b';
 
     return (
         <article
@@ -198,6 +199,11 @@ export const AssetCard = React.memo(({
                     {asset.name}
                 </h2>
             </div>
+
+            <DiscoveryLocationIndicatorBadges
+                indicators={asset._locationIndicators}
+                className="mb-2"
+            />
 
             {/* Description */}
             {asset.description && (

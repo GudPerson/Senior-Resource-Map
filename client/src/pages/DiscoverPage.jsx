@@ -24,6 +24,10 @@ import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import {
+    applyLocationIndicators,
+    buildLocationIndicatorResourceRefs,
+} from '../features/discover/locationIndicators.js';
+import {
     buildPostalGroupedSavedPlacePins,
     buildRenderedPostalGroupedSavedPins,
     buildSavedPlacePins,
@@ -441,6 +445,7 @@ export default function DiscoverPage() {
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
     const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
+    const [locationIndicatorsByResourceKey, setLocationIndicatorsByResourceKey] = useState({});
 
     const resultsListRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
@@ -885,6 +890,61 @@ export default function DiscoverPage() {
         () => filtered.slice(0, visibleCount),
         [filtered, visibleCount]
     );
+    const displayedIndicatorRefs = useMemo(
+        () => buildLocationIndicatorResourceRefs(displayedResources),
+        [displayedResources]
+    );
+    const displayedIndicatorRequestKey = useMemo(
+        () => displayedIndicatorRefs.map((resource) => `${resource.type}:${resource.id}`).join('|'),
+        [displayedIndicatorRefs]
+    );
+    const indicatorContextPostalCode = searchOrigin?.source === 'postal' ? searchOrigin.postalCode : '';
+    const userRegionIndicatorKey = Array.isArray(user?.subregionIds) ? user.subregionIds.join(',') : '';
+    const displayedResourcesWithLocationIndicators = useMemo(
+        () => applyLocationIndicators(displayedResources, locationIndicatorsByResourceKey),
+        [displayedResources, locationIndicatorsByResourceKey]
+    );
+
+    useEffect(() => {
+        let isActive = true;
+
+        if (displayedIndicatorRefs.length === 0 || (!user && !indicatorContextPostalCode)) {
+            setLocationIndicatorsByResourceKey({});
+            return () => {
+                isActive = false;
+            };
+        }
+
+        async function loadLocationIndicators() {
+            try {
+                const result = await api.getDiscoveryLocationIndicators({
+                    resources: displayedIndicatorRefs,
+                    contextPostalCode: indicatorContextPostalCode || undefined,
+                });
+                if (!isActive) return;
+                setLocationIndicatorsByResourceKey(result?.indicators || {});
+            } catch (err) {
+                console.error('Discovery location indicators failed', err);
+                if (isActive) {
+                    setLocationIndicatorsByResourceKey({});
+                }
+            }
+        }
+
+        loadLocationIndicators();
+
+        return () => {
+            isActive = false;
+        };
+    }, [
+        displayedIndicatorRefs,
+        displayedIndicatorRequestKey,
+        indicatorContextPostalCode,
+        user,
+        user?.id,
+        user?.postalCode,
+        userRegionIndicatorKey,
+    ]);
 
     const saveAllTargetItems = useMemo(() => (
         filtered.map((resource) => ({
@@ -2120,7 +2180,7 @@ export default function DiscoverPage() {
 
     const resultsList = (
         <DiscoveryResultsList
-            filtered={displayedResources}
+            filtered={displayedResourcesWithLocationIndicators}
             totalCount={filtered.length}
             pageSize={listPageSize}
             onLoadMore={() => setVisibleCount((current) => current + listPageSize)}

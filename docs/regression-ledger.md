@@ -15,6 +15,13 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+Enhancement safety gate:
+- Before changing a locked surface, name the affected ledger row(s), the intended behavior change, and the non-goals that must stay unchanged.
+- Keep enhancements additive and narrow. Do not rewrite stabilized flows, shared data contracts, ranking, filtering, access rules, auth/session behavior, or deployment plumbing unless that is the explicit approved task.
+- For each enhancement, add or update the smallest useful automated checks for the new behavior and for any "must not change" contract where practical.
+- If local verification is blocked by missing secrets, credentials, or production-only services, record the blocker plainly and do not treat the behavior as fully verified.
+- Update this ledger when an enhancement becomes locked, changes the acceptance criteria of a locked surface, or provides release evidence for that surface.
+
 ## Known-good reference seeds
 
 Use these as starting points where applicable:
@@ -87,6 +94,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 | WhatsApp phone login and signup | Phone login uses GudAuth verification plus active verified phone identities; unknown verified phones enter a guided standard-user signup flow; return links recover in-progress attempts even if the login marker is stripped from the URL; mobile and tablet launch uses the native WhatsApp app URL instead of stopping on the web `Open app` interstitial, with a larger interim loader on coarse-pointer screens and an interim-page self-redirect plus fallback button once the code is ready; phone-first account creation requires a soft acknowledgement that it may create a separate account; phone-first users can add a real recovery email/password from Profile before unlinking WhatsApp | `codex/phone-login-phase4a` implementation + `80e6820c` mobile launch behavior | Start WhatsApp sign-in from `/login` on desktop, Android, iPhone, and tablet widths; confirm the prepared code opens in WhatsApp on mobile/tablet without remaining stuck on the interim loader or requiring the WhatsApp web interstitial; send the prefilled WhatsApp code; click the GudAuth return link; test both an existing verified phone and a new phone that has no CareAround account; create a phone-first account, add a recovery email/password in Profile, and then unlink WhatsApp | Browser calls only CareAround `/api` routes; raw `users.phone` is not trusted for login; legacy/unverified/revoked identities cannot log in; exactly one active verified identity creates a normal session; unknown verified phones ask for display name and optional postal code before creating a standard user; phone-first account creation is disabled until the separate-account acknowledgement is checked; placeholder phone-only email is hidden as `No email added`; stored attempts resume after WhatsApp return without needing a manual refresh or check button; mobile/tablet launch URLs prefer `whatsapp://send` with the generated code while desktop keeps the web WhatsApp URL; if automatic app launch is blocked, the interim page exposes a large direct `Open WhatsApp` fallback; unlinking WhatsApp is blocked while the account still has a phone-only placeholder email, and succeeds only after a real recovery email/password is saved | 2026-05-13 |
 
 ## Recent stabilization notes
+
+### 2026-05-28 Discover location relevance indicators
+
+- Current behavior: Discover result cards can show subtle location-relevance indicators without changing the result feed. Audience-zone matches render as an icon-only star-in-circle with non-internal assistive text, including place-owned zones matched by the searched postal code; home/profile Region matches render `Recommended for you`; searched-postal Region matches render `Recommended for this location`. Category pills use the configured category badge color when the public cache carries it. The existing distance pill remains unchanged.
+- Known-good reference: 2026-05-28 user-approved enhancement scoped as visual-only, not a recommendation engine, ranking change, search-order change, filtering change, visibility change, access-rule change, or distance-sort change.
+- Reproduction steps: open `/discover` as a signed-in standard user with a profile postal code, inspect cards that match the profile Region, run a postal-code search for a configured Region such as `681808`, and inspect a place with a matching place-owned audience zone such as Fei Yue Active Ageing Centre (Brickland) where available.
+- Acceptance criteria: indicators are added only as display flags; Discover ordering, filtering, radius behavior, visibility, access rules, and distance sorting do not change; category pill colors follow configured category badge colors without requiring a private category lookup when the public cache includes the color; public UI never shows the words Audience Zone, subregion, boundary, or service boundary; the indicator API returns only booleans keyed to already-visible resource IDs and never returns profile postal code, searched postal code, Region IDs, Audience Zone IDs, zone names, or internal labels.
+- Verification result: `node --test client/test/*.test.js` passed 71/71, `npm run test:server` passed 289/289, `npm run build:client` passed with the existing large-chunk warning, and `git diff --check` passed on 2026-05-29. Local `/discover?postal=681808` rendered from the public cache and confirmed the AAC category pill uses its configured orange badge color; local indicator rendering remains blocked until `DATABASE_URL` is restored for the local API or the branch is verified in a deployed Worker environment with existing secrets.
 
 ### 2026-05-25 Offering contact field parity
 

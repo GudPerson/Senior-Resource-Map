@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { dataStore } from './dataStore.js';
 
-export const MAP_CACHE_SCHEMA_VERSION = 5;
+export const MAP_CACHE_SCHEMA_VERSION = 6;
 
 /**
  * Rebuilds the edge cache JSON for a specific subregion
@@ -16,6 +16,13 @@ export function buildMapCacheQuery(subregionId) {
                 h.id,
                 h.name as title,
                 h.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = h.sub_category
+                      AND sc.type = 'hard'
+                    LIMIT 1
+                ) as category_color,
                 h.description,
                 h.lat,
                 h.lng,
@@ -67,6 +74,13 @@ export function buildMapCacheQuery(subregionId) {
                 s.id,
                 s.name as title,
                 s.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = s.sub_category
+                      AND sc.type = 'soft'
+                    LIMIT 1
+                ) as category_color,
                 s.description,
                 l.lat,
                 l.lng,
@@ -125,6 +139,13 @@ export function buildMapCacheQuery(subregionId) {
                 s.id,
                 s.name as title,
                 s.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = s.sub_category
+                      AND sc.type = 'soft'
+                    LIMIT 1
+                ) as category_color,
                 s.description,
                 NULL::numeric as lat,
                 NULL::numeric as lng,
@@ -177,6 +198,13 @@ export function buildMapCacheQuery(subregionId) {
                 s.id,
                 s.name as title,
                 s.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = s.sub_category
+                      AND sc.type = 'soft'
+                    LIMIT 1
+                ) as category_color,
                 s.description,
                 l.lat,
                 l.lng,
@@ -235,6 +263,13 @@ export function buildMapCacheQuery(subregionId) {
                 h.id,
                 h.name as title,
                 h.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = h.sub_category
+                      AND sc.type = 'hard'
+                    LIMIT 1
+                ) as category_color,
                 h.description,
                 h.lat,
                 h.lng,
@@ -287,6 +322,13 @@ export function buildMapCacheQuery(subregionId) {
                 s.id,
                 s.name as title,
                 s.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = s.sub_category
+                      AND sc.type = 'soft'
+                    LIMIT 1
+                ) as category_color,
                 s.description,
                 l.lat,
                 l.lng,
@@ -346,6 +388,13 @@ export function buildMapCacheQuery(subregionId) {
                 s.id,
                 s.name as title,
                 s.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = s.sub_category
+                      AND sc.type = 'soft'
+                    LIMIT 1
+                ) as category_color,
                 s.description,
                 NULL::numeric as lat,
                 NULL::numeric as lng,
@@ -407,6 +456,13 @@ export function buildMapCacheQuery(subregionId) {
                 s.id,
                 s.name as title,
                 s.sub_category as category,
+                (
+                    SELECT sc.color
+                    FROM sub_categories sc
+                    WHERE sc.name = s.sub_category
+                      AND sc.type = 'soft'
+                    LIMIT 1
+                ) as category_color,
                 s.description,
                 l.lat,
                 l.lng,

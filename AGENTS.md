@@ -12,7 +12,7 @@ These instructions apply to the whole repository. Treat this project as an evolv
 
 ## Start Every Task Safely
 
-- Work from the active repo root only: `/Users/sweetbuns/Documents/Senior-Resource-Map`.
+- Work from the repo root confirmed by `pwd` and `git status --short --branch`. This fresh GitHub checkout is currently `/Users/sweetbuns/CareAroundSG`; the historical checkout `/Users/sweetbuns/Documents/Senior-Resource-Map` may still exist, but do not switch between checkouts unless the user explicitly asks. If repo docs or handoff notes disagree about the active path, pause and reconcile the source of truth before editing.
 - Before changing code, check the current branch and worktree state with `git status --short --branch`.
 - Inspect the existing architecture and nearby implementation before proposing or editing anything.
 - Preserve `.env` files and never print, copy, commit, or summarize secret values.

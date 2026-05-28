@@ -312,7 +312,7 @@ export default function ResourceDetailContent({
                     <div>
                         <div
                             className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-full bg-white text-sm font-bold border shadow-sm"
-                            style={{ color: subCatColors[asset.subCategory] || '#334155', borderColor: 'var(--color-border)' }}
+                            style={{ color: asset.categoryColor || subCatColors[asset.subCategory] || '#334155', borderColor: 'var(--color-border)' }}
                         >
                             {isHard ? <Building2 size={16} /> : <CalendarDays size={16} />}
                             {asset.subCategory || (isHard ? t('place') : t('offering'))}
