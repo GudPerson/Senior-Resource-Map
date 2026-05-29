@@ -82,7 +82,7 @@ test('evaluateOfferingAccess grants or denies CHAS, caregiver, and volunteer mat
     assert.equal(denied.status, OFFERING_ACCESS.DENIED);
 });
 
-test('standard users do not see offerings that conflict with saved profile details', () => {
+test('visible resource responses do not expose offerings that conflict with saved profile details', () => {
     const rules = normalizeEligibilityRules({
         version: 1,
         criteria: {
@@ -109,6 +109,6 @@ test('standard users do not see offerings that conflict with saved profile detai
             role: 'super_admin',
             chasCard: 'orange',
         }, {}),
-        true,
+        false,
     );
 });
