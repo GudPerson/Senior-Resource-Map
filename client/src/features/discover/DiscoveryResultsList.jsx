@@ -16,6 +16,10 @@ export function DiscoveryResultsList({
     onCategoryClick,
     onFocusAssetOnMap,
     onResultsScroll,
+    onResultsTouchEnd,
+    onResultsTouchMove,
+    onResultsTouchStart,
+    onResultsWheel,
     onTagClick,
     savedMapAssetKeys = new Set(),
     scrollContainerRef = null,
@@ -56,6 +60,11 @@ export function DiscoveryResultsList({
         <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
+            onTouchCancel={onResultsTouchEnd}
+            onTouchEnd={onResultsTouchEnd}
+            onTouchMove={onResultsTouchMove}
+            onTouchStart={onResultsTouchStart}
+            onWheel={onResultsWheel}
             className={`relative flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 lg:p-5 ${isDesktop ? 'pb-20' : 'pb-28'} scroll-smooth hide-scrollbar`}
             style={{ WebkitOverflowScrolling: 'touch' }}
         >

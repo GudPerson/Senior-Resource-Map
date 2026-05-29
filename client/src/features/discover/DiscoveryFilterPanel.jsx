@@ -614,6 +614,7 @@ function DesktopFilterPanel({
     isSaveAllPending,
     locationNotice,
     onApplySearch,
+    onCollapsedPullExpand,
     onCollapse,
     onExpand,
     onSearchChange,
@@ -656,11 +657,39 @@ function DesktopFilterPanel({
             ? t('homePostalCode')
             : '';
     const showSearchLabel = locationControlMode === 'full';
+    const collapsedPullStartYRef = useRef(null);
+
+    const handleCollapsedSummaryWheel = (event) => {
+        onCollapsedPullExpand?.({ deltaY: event.deltaY });
+    };
+
+    const handleCollapsedSummaryTouchStart = (event) => {
+        collapsedPullStartYRef.current = event.touches?.[0]?.clientY ?? null;
+    };
+
+    const handleCollapsedSummaryTouchMove = (event) => {
+        const startY = collapsedPullStartYRef.current;
+        const currentY = event.touches?.[0]?.clientY;
+        if (startY === null || currentY === undefined) {
+            return;
+        }
+
+        onCollapsedPullExpand?.({ pullDistance: currentY - startY });
+    };
+
+    const handleCollapsedSummaryTouchEnd = () => {
+        collapsedPullStartYRef.current = null;
+    };
 
     if (isCollapsed) {
         return (
             <div
                 className="hidden flex-shrink-0 lg:block"
+                onTouchCancel={handleCollapsedSummaryTouchEnd}
+                onTouchEnd={handleCollapsedSummaryTouchEnd}
+                onTouchMove={handleCollapsedSummaryTouchMove}
+                onTouchStart={handleCollapsedSummaryTouchStart}
+                onWheel={handleCollapsedSummaryWheel}
                 style={{
                     background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(246,252,251,0.92) 100%)',
                     borderBottom: '1px solid var(--color-border)',
