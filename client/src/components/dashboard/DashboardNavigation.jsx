@@ -11,6 +11,7 @@ function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
             id={id}
             to={to}
             end
+            reloadDocument
             onClick={onNavigate}
             className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl text-base font-semibold transition-all min-h-[44px] ${isActive

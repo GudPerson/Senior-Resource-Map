@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Files, User, Shield, Map, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
@@ -7,7 +7,6 @@ import { canAccessAdmin, canAccessManagedResources, getRoleMeta } from '../../li
 export default function DashboardOverview() {
     const { user } = useAuth();
     const { t } = useLocale();
-    const navigate = useNavigate();
     const roleMeta = getRoleMeta(user?.role);
     const canShowAdmin = canAccessAdmin(user?.role);
     const canShowResources = canAccessManagedResources(user);
@@ -81,10 +80,11 @@ export default function DashboardOverview() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                 {launchpadItems.map((item) => (
-                    <button
+                    <Link
                         key={item.id}
-                        id={item.id}
-                        onClick={() => navigate(item.to)}
+                        id={`overview-${item.id}`}
+                        to={item.to}
+                        reloadDocument
                         className="group relative flex flex-col p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-3xl border-2 transition-all text-left bg-white hover:border-brand-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                         style={{ borderColor: 'var(--color-border)' }}
                     >
@@ -109,7 +109,7 @@ export default function DashboardOverview() {
                         <div className="mt-4 hidden lg:flex items-center gap-1 text-xs font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100 uppercase tracking-wider">
                             {t('overviewOpen')}
                         </div>
-                    </button>
+                    </Link>
                 ))}
             </div>
         </div>
