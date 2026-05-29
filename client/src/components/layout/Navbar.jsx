@@ -52,10 +52,10 @@ export default function Navbar() {
 
                             <div className="hidden xl:flex items-center gap-1 text-xs font-semibold text-slate-500">
                                 <Link to="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-slate-100 hover:text-brand-700">
-                                    Privacy
+                                    {t('privacy')}
                                 </Link>
                                 <Link to="/terms" className="rounded-lg px-2 py-1 transition hover:bg-slate-100 hover:text-brand-700">
-                                    Terms
+                                    {t('terms')}
                                 </Link>
                             </div>
 

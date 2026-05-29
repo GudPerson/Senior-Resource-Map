@@ -7,6 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import OneMapBadge from './OneMapBadge.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import homeAnchorImage from '../assets/home-anchor.png';
 import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
 import {
@@ -288,6 +289,7 @@ function fitDirectoryCamera(map, pins, anchorPoint, {
 
 function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetView }) {
     const map = useMap();
+    const { t } = useLocale();
     const anchorPoint = normalizeAnchorPoint(activeAnchor);
     const totalPointCount = (pins?.length || 0) + (anchorPoint ? 1 : 0);
     if (!interactive || totalPointCount <= 1) return null;
@@ -297,8 +299,8 @@ function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetV
             <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                 <button
                     type="button"
-                    title="Reset map view"
-                    aria-label="Reset map view"
+                    title={t('mapResetView')}
+                    aria-label={t('mapResetView')}
                     className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
                     onClick={(e) => {
                         e.stopPropagation();

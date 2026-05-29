@@ -184,9 +184,12 @@ function prepareWhatsAppLaunchWindow(
     }
 }
 
-function writeWhatsAppRedirectWindow(preparedWindow, launchUrl) {
+function writeWhatsAppRedirectWindow(preparedWindow, launchUrl, labels = {}) {
     const safeLaunchUrl = escapePreparedWindowText(launchUrl);
     const scriptLaunchUrl = JSON.stringify(launchUrl).replace(/</g, '\\u003c');
+    const title = escapePreparedWindowText(labels.title || 'Opening WhatsApp...');
+    const body = escapePreparedWindowText(labels.body || 'If WhatsApp does not open automatically, tap the button below.');
+    const action = escapePreparedWindowText(labels.action || 'Open WhatsApp');
 
     preparedWindow.document.open();
     preparedWindow.document.write(`<!doctype html>
@@ -195,7 +198,7 @@ function writeWhatsAppRedirectWindow(preparedWindow, launchUrl) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="refresh" content="0;url=${safeLaunchUrl}" />
-    <title>Opening WhatsApp...</title>
+    <title>${title}</title>
     <style>
       body {
         align-items: center;
@@ -281,9 +284,9 @@ function writeWhatsAppRedirectWindow(preparedWindow, launchUrl) {
   <body>
     <main>
       <div class="spinner" aria-hidden="true"></div>
-      <h1>Opening WhatsApp...</h1>
-      <p>If WhatsApp does not open automatically, tap the button below.</p>
-      <a href="${safeLaunchUrl}" id="open-whatsapp">Open WhatsApp</a>
+      <h1>${title}</h1>
+      <p>${body}</p>
+      <a href="${safeLaunchUrl}" id="open-whatsapp">${action}</a>
     </main>
     <script>
       const launchUrl = ${scriptLaunchUrl};
@@ -299,7 +302,7 @@ function writeWhatsAppRedirectWindow(preparedWindow, launchUrl) {
     preparedWindow.document.close();
 }
 
-function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
+function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl, labels = {}) {
     const launchUrl = getPreferredWhatsAppLaunchUrl(whatsappUrl, {
         preferNative: typeof navigator !== 'undefined' && isLikelyMobileDevice(navigator),
     });
@@ -314,7 +317,7 @@ function launchPreparedWhatsAppWindow(preparedWindow, whatsappUrl) {
 
     try {
         if (preparedWindow && !preparedWindow.closed) {
-            writeWhatsAppRedirectWindow(preparedWindow, launchUrl);
+            writeWhatsAppRedirectWindow(preparedWindow, launchUrl, labels);
             return true;
         }
     } catch {
@@ -551,7 +554,11 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
             pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
             if (result?.attemptId) writeStoredPhoneLinkAttempt(result.attemptId, savedPhoneText);
             applyAttempt(result);
-            launchPreparedWhatsAppWindow(preparedWhatsAppWindow, getWhatsAppUrl(result?.challenge));
+            launchPreparedWhatsAppWindow(preparedWhatsAppWindow, getWhatsAppUrl(result?.challenge), {
+                title: t('phoneLoginOpeningWhatsApp'),
+                body: t('phoneLoginRedirectHelp'),
+                action: t('phoneLoginOpenWhatsAppFallback'),
+            });
         } catch (err) {
             try {
                 preparedWhatsAppWindow?.close?.();

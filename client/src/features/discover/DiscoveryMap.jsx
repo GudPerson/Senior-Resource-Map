@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Minus, Plus } from 'lucide-react';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
 import {
@@ -508,6 +509,7 @@ function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPi
 
 function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     const map = useMap();
+    const { t } = useLocale();
 
     return (
         <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
@@ -515,8 +517,8 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                 <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                     <button
                         type="button"
-                        title="Zoom in"
-                        aria-label="Zoom in"
+                        title={t('mapZoomIn')}
+                        aria-label={t('mapZoomIn')}
                         className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
                         onClick={(event) => {
                             event.stopPropagation();
@@ -530,8 +532,8 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                 <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                     <button
                         type="button"
-                        title="Zoom out"
-                        aria-label="Zoom out"
+                        title={t('mapZoomOut')}
+                        aria-label={t('mapZoomOut')}
                         className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
                         onClick={(event) => {
                             event.stopPropagation();
@@ -546,8 +548,8 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                     <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                         <button
                             type="button"
-                            title="Reset map view"
-                            aria-label="Reset map view"
+                            title={t('mapResetView')}
+                            aria-label={t('mapResetView')}
                             className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
                             onClick={(event) => {
                                 event.stopPropagation();

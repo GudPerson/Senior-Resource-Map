@@ -146,7 +146,7 @@ export default function ProfilePage() {
                     .find((record) => record?.consentType === 'pilot_terms');
                 setPilotConsentStatus(latestPilotConsent?.status || 'unknown');
             } catch {
-                if (!cancelled) setGovernanceFeedback('Privacy preferences are not available yet. Please try again later.');
+                if (!cancelled) setGovernanceFeedback(t('privacyPreferencesUnavailable'));
             }
         }
 
@@ -233,9 +233,9 @@ export default function ProfilePage() {
                     enabled,
                 })),
             });
-            setGovernanceFeedback('Notification preferences saved. External delivery remains disabled in this pilot phase.');
+            setGovernanceFeedback(t('notificationPreferencesSaved'));
         } catch (err) {
-            setGovernanceFeedback(err.message || 'Notification preferences could not be saved.');
+            setGovernanceFeedback(err.message || t('notificationPreferencesSaveFailed'));
         } finally {
             setGovernanceSaving(false);
         }
@@ -252,13 +252,25 @@ export default function ProfilePage() {
                 sourceSurface: 'profile',
             });
             setPilotConsentStatus(status);
-            setGovernanceFeedback(status === 'accepted' ? 'Pilot consent recorded.' : 'Pilot consent withdrawal recorded.');
+            setGovernanceFeedback(status === 'accepted' ? t('pilotConsentRecorded') : t('pilotConsentWithdrawalRecorded'));
         } catch (err) {
-            setGovernanceFeedback(err.message || 'Consent status could not be saved.');
+            setGovernanceFeedback(err.message || t('consentStatusSaveFailed'));
         } finally {
             setGovernanceSaving(false);
         }
     }
+
+    const notificationChannelLabels = {
+        in_app: t('notificationInApp'),
+        email: t('notificationEmail'),
+        whatsapp: t('notificationWhatsApp'),
+        sms: t('notificationSms'),
+    };
+    const pilotConsentStatusLabel = pilotConsentStatus === 'accepted'
+        ? t('statusAccepted')
+        : pilotConsentStatus === 'withdrawn'
+            ? t('statusWithdrawn')
+            : t('statusUnknown');
 
     return (
         <div className="p-6 lg:p-8 max-w-xl">
@@ -506,16 +518,16 @@ export default function ProfilePage() {
             </div>
 
             <div className="card mt-6 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-900">Privacy and terms</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('profilePrivacyTermsTitle')}</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Review how CareAround SG handles personal data, cookies, browser preferences, and account responsibilities.
+                    {t('profilePrivacyTermsBody')}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                     <Link to="/privacy" className="btn-ghost px-4 py-2 text-sm">
-                        Privacy & Cookies Notice
+                        {t('privacyCookiesNotice')}
                     </Link>
                     <Link to="/terms" className="btn-ghost px-4 py-2 text-sm">
-                        Terms of Use
+                        {t('termsOfUse')}
                     </Link>
                 </div>
             </div>
@@ -526,25 +538,20 @@ export default function ProfilePage() {
                         <Bell size={18} />
                     </span>
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900">Pilot preferences</h2>
+                        <h2 className="text-lg font-bold text-slate-900">{t('pilotPreferencesTitle')}</h2>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
-                            In-app notifications can be used in this phase. Email, WhatsApp, and SMS preferences are recorded for future design but delivery stays off.
+                            {t('pilotPreferencesBody')}
                         </p>
                     </div>
                 </div>
 
                 <div className="mt-4 grid gap-3">
-                    {[
-                        ['in_app', 'In-app'],
-                        ['email', 'Email'],
-                        ['whatsapp', 'WhatsApp'],
-                        ['sms', 'SMS'],
-                    ].map(([channel, label]) => (
+                    {Object.entries(notificationChannelLabels).map(([channel, label]) => (
                         <label key={channel} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                             <span>
                                 <span className="block text-sm font-semibold text-slate-800">{label}</span>
                                 {channel !== 'in_app' ? (
-                                    <span className="block text-xs text-slate-500">Preference only. Delivery is disabled.</span>
+                                    <span className="block text-xs text-slate-500">{t('preferenceOnlyDeliveryDisabled')}</span>
                                 ) : null}
                             </span>
                             <input
@@ -560,25 +567,25 @@ export default function ProfilePage() {
                 </div>
 
                 <button type="button" onClick={saveNotificationPreferences} disabled={governanceSaving} className="btn-primary mt-4 w-full justify-center">
-                    Save notification preferences
+                    {t('saveNotificationPreferences')}
                 </button>
 
                 <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-4">
                     <div className="flex items-start gap-3">
                         <ShieldCheck size={18} className="mt-0.5 text-brand-700" />
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-900">Pilot consent</p>
+                            <p className="text-sm font-semibold text-slate-900">{t('pilotConsentTitle')}</p>
                             <p className="mt-1 text-sm text-slate-500">
-                                Current status: <span className="font-semibold text-slate-700">{pilotConsentStatus.replace(/_/g, ' ')}</span>
+                                {t('currentStatus', { status: pilotConsentStatusLabel })}
                             </p>
                         </div>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         <button type="button" onClick={() => recordPilotConsent('accepted')} disabled={governanceSaving} className="btn-secondary">
-                            Accept / refresh consent
+                            {t('acceptRefreshConsent')}
                         </button>
                         <button type="button" onClick={() => recordPilotConsent('withdrawn')} disabled={governanceSaving} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
-                            Withdraw consent
+                            {t('withdrawConsent')}
                         </button>
                     </div>
                 </div>
