@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { api } from '../lib/api.js';
 import {
     buildMembershipLinkPath,
@@ -14,6 +15,7 @@ export default function MembershipLinkPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { isAuth } = useAuth();
+    const { t } = useLocale();
     const [state, setState] = useState({ status: 'idle', message: '', place: null });
 
     const token = useMemo(
@@ -26,7 +28,7 @@ export default function MembershipLinkPage() {
 
         async function redeem() {
             if (!token) {
-                setState({ status: 'error', message: 'Membership link is missing or invalid.', place: null });
+                setState({ status: 'error', message: t('membershipLinkMissingInvalid'), place: null });
                 return;
             }
 
@@ -43,14 +45,14 @@ export default function MembershipLinkPage() {
                 clearPendingMembershipToken();
                 setState({
                     status: 'success',
-                    message: 'Membership linked successfully.',
+                    message: t('membershipLinkedSuccessfully'),
                     place: response.place || null,
                 });
             } catch (error) {
                 if (!active) return;
                 setState({
                     status: 'error',
-                    message: error.message || 'Failed to link membership.',
+                    message: error.message || t('membershipLinkFailed'),
                     place: null,
                 });
             }
@@ -60,28 +62,28 @@ export default function MembershipLinkPage() {
         return () => {
             active = false;
         };
-    }, [isAuth, navigate, token]);
+    }, [isAuth, navigate, t, token]);
 
     return (
         <div className="min-h-screen px-4 py-16" style={{ background: 'var(--page-gradient)' }}>
             <div className="mx-auto max-w-lg rounded-[28px] border border-slate-200 bg-white/95 p-8 shadow-xl">
-                <h1 className="text-2xl font-black text-slate-900">Membership linking</h1>
+                <h1 className="text-2xl font-black text-slate-900">{t('membershipLinkingTitle')}</h1>
                 <p className="mt-2 text-sm text-slate-500">
-                    Join a community place with one scan so member-only offerings can recognise your access.
+                    {t('membershipLinkingDescription')}
                 </p>
 
                 {state.status === 'loading' ? (
                     <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                        Linking your membership…
+                        {t('membershipLinkingLoading')}
                     </div>
                 ) : null}
 
                 {state.status === 'success' ? (
                     <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-5 text-sm text-green-800">
-                        <p className="font-semibold">You&apos;re now linked.</p>
+                        <p className="font-semibold">{t('membershipLinkedTitle')}</p>
                         {state.place ? (
                             <p className="mt-2">
-                                Your account has been linked to <span className="font-semibold">{state.place.name}</span>.
+                                {t('membershipLinkedPlaceMessage', { name: state.place.name })}
                             </p>
                         ) : null}
                     </div>
@@ -95,10 +97,10 @@ export default function MembershipLinkPage() {
 
                 <div className="mt-6 flex flex-wrap gap-3">
                     <Link to="/discover" className="btn-primary">
-                        Go to Discover
+                        {t('membershipGoToDiscover')}
                     </Link>
                     <Link to="/my-directory" className="btn-ghost">
-                        Go to My Directory
+                        {t('membershipGoToMyDirectory')}
                     </Link>
                 </div>
             </div>

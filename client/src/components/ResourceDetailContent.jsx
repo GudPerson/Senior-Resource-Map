@@ -4,6 +4,7 @@ import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Mail, MapPi
 import { getDistance } from '../lib/geo.js';
 import {
     SOFT_ASSET_BUCKETS,
+    getSoftAssetBucketLabel,
     groupSoftAssetsByBucket,
     summarizeSoftAssetBuckets,
 } from '../lib/softAssetBuckets.js';
@@ -243,6 +244,7 @@ export default function ResourceDetailContent({
     const relatedSoftAssetCounts = useMemo(() => (
         isHard ? summarizeSoftAssetBuckets(asset?.softAssets || []) : { Programmes: 0, Services: 0, Promotions: 0 }
     ), [asset?.softAssets, isHard]);
+    const activeSoftBucketLabel = getSoftAssetBucketLabel(t, activeSoftBucket);
     const hasDirectionsTarget = isHard
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
@@ -605,7 +607,7 @@ export default function ResourceDetailContent({
                                         className={isCompact ? 'mt-1 text-xs font-bold uppercase tracking-[0.12em]' : 'mt-1 text-[10px] font-bold uppercase tracking-[0.1em] sm:text-xs sm:tracking-[0.12em]'}
                                         style={{ color: activeSoftBucket === bucket ? 'var(--color-brand)' : 'var(--color-text-muted)' }}
                                     >
-                                        {bucket}
+                                        {getSoftAssetBucketLabel(t, bucket)}
                                     </div>
                                 </button>
                             ))}
@@ -650,7 +652,7 @@ export default function ResourceDetailContent({
                                 className="rounded-2xl border border-dashed px-5 py-8 text-center"
                                 style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(248,252,251,0.82)' }}
                             >
-                                <p className="text-base font-bold text-slate-900">{t('noBucketItems', { bucket: activeSoftBucket.toLowerCase() })}</p>
+                                <p className="text-base font-bold text-slate-900">{t('noBucketItems', { bucket: activeSoftBucketLabel.toLocaleLowerCase() })}</p>
                                 <p className="mt-1 text-sm text-slate-500">
                                     {t('switchTabs')}
                                 </p>

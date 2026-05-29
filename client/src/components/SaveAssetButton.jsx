@@ -1,6 +1,7 @@
 import { Heart } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 
 const VARIANT_STYLES = {
@@ -36,6 +37,7 @@ export function SaveAssetButton({
     onClick,
 }) {
     const { isAuth } = useAuth();
+    const { t } = useLocale();
     const { isSaved, isSavedAssetPending, toggleSavedAsset } = useSavedAssets();
 
     if (!isAuth) return null;
@@ -71,8 +73,8 @@ export function SaveAssetButton({
                 ...(saved ? resolvedVariant.savedStyle : resolvedVariant.unsavedStyle),
                 ...style,
             }}
-            aria-label={saved ? 'Remove from My Directory' : 'Save to My Directory'}
-            title={saved ? 'Remove from My Directory' : 'Save to My Directory'}
+            aria-label={saved ? t('removeFromMyDirectory') : t('saveToMyDirectory')}
+            title={saved ? t('removeFromMyDirectory') : t('saveToMyDirectory')}
             aria-pressed={saved}
             disabled={pending}
             data-testid={`save-asset-${resourceType}-${resourceId}`}

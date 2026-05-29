@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, MapPin, MoreHorizontal, Rows3, Search } from 'lucide-react';
 
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+
 function MobileWorkspaceTab({ action, active, onClick }) {
     const Icon = action.icon;
 
@@ -27,50 +29,53 @@ function MobileWorkspaceTab({ action, active, onClick }) {
 
 export default function MobileDirectoryWorkspace({
     title,
-    eyebrow = 'Directory',
+    eyebrow = null,
     summary = null,
     backHref = null,
-    backLabel = 'Back',
+    backLabel = null,
     map,
     listContent = null,
     searchContent = null,
     distanceContent = null,
     moreContent = null,
 }) {
+    const { t } = useLocale();
+    const resolvedEyebrow = eyebrow || t('mobileDirectoryEyebrow');
+    const resolvedBackLabel = backLabel || t('back');
     const panels = useMemo(() => ([
         listContent ? {
             key: 'list',
-            label: 'List',
+            label: t('mobileDirectoryList'),
             icon: Rows3,
-            title: 'Directory list',
-            description: 'Browse the places and offerings in this shared map without losing your map context.',
+            title: t('mobileDirectoryListTitle'),
+            description: t('mobileDirectoryListDescription'),
             content: listContent,
         } : null,
         searchContent ? {
             key: 'search',
-            label: 'Search',
+            label: t('search'),
             icon: Search,
-            title: 'Search this map',
-            description: 'Filter the map and the directory together so nearby results still feel connected.',
+            title: t('mobileDirectorySearchTitle'),
+            description: t('mobileDirectorySearchDescription'),
             content: searchContent,
         } : null,
         distanceContent ? {
             key: 'distance',
-            label: 'Distance',
+            label: t('mobileDirectoryDistance'),
             icon: MapPin,
-            title: 'Distance anchor',
-            description: 'Change the location reference used for nearby distance labels across this shared map.',
+            title: t('mobileDirectoryDistanceTitle'),
+            description: t('mobileDirectoryDistanceDescription'),
             content: distanceContent,
         } : null,
         moreContent ? {
             key: 'more',
-            label: 'More',
+            label: t('mobileDirectoryMore'),
             icon: MoreHorizontal,
-            title: 'More actions',
-            description: 'Secondary actions live here so the main map flow stays focused and easy to scan.',
+            title: t('mobileDirectoryMoreTitle'),
+            description: t('mobileDirectoryMoreDescription'),
             content: moreContent,
         } : null,
-    ].filter(Boolean)), [distanceContent, listContent, moreContent, searchContent]);
+    ].filter(Boolean)), [distanceContent, listContent, moreContent, searchContent, t]);
 
     const [activePanelKey, setActivePanelKey] = useState(() => panels[0]?.key || null);
 
@@ -107,7 +112,7 @@ export default function MobileDirectoryWorkspace({
                             <Link
                                 to={backHref}
                                 className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm"
-                                aria-label={backLabel}
+                                aria-label={resolvedBackLabel}
                             >
                                 <ArrowLeft size={18} />
                             </Link>
@@ -115,7 +120,7 @@ export default function MobileDirectoryWorkspace({
 
                         <div className="min-w-0 flex-1">
                             <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                {eyebrow}
+                                {resolvedEyebrow}
                             </p>
                             <h1 className="mt-1 text-[1.28rem] font-extrabold leading-tight tracking-[-0.02em] text-slate-900">
                                 {title}

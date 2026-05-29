@@ -1,5 +1,11 @@
 export const SOFT_ASSET_BUCKETS = ['Programmes', 'Services', 'Promotions'];
 
+const SOFT_ASSET_BUCKET_TRANSLATION_KEYS = {
+    Programmes: 'softAssetBucketProgrammes',
+    Services: 'softAssetBucketServices',
+    Promotions: 'softAssetBucketPromotions',
+};
+
 function normalizeBucket(value) {
     if (!value) return null;
     const normalized = String(value).trim().toLowerCase();
@@ -13,6 +19,14 @@ function normalizeBucket(value) {
         return 'Promotions';
     }
     return null;
+}
+
+export function getSoftAssetBucketLabel(t, bucket) {
+    const normalizedBucket = normalizeBucket(bucket);
+    if (!normalizedBucket) return String(bucket || '').trim();
+
+    const key = SOFT_ASSET_BUCKET_TRANSLATION_KEYS[normalizedBucket];
+    return typeof t === 'function' ? t(key) : normalizedBucket;
 }
 
 export function getSoftAssetBucket(asset) {

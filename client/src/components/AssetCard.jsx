@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, Building2, CalendarDays, Check, MapPin, Clock, Navigation, Share2 } from 'lucide-react';
-import { SOFT_ASSET_BUCKETS, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
+import { SOFT_ASSET_BUCKETS, getSoftAssetBucketLabel, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
 import { openResourceDetail } from '../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
@@ -298,7 +298,7 @@ export const AssetCard = React.memo(({
                         style={{ backgroundColor: 'var(--color-badge-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                     >
                         <Navigation size={14} style={{ color: 'var(--color-brand)' }} />
-                        Get directions
+                        {t('getDirectionsShort')}
                     </button>
                 </div>
             )}
@@ -318,7 +318,7 @@ export const AssetCard = React.memo(({
                                 {softAssetCounts?.[bucket] || 0}
                             </div>
                             <div className="asset-card__bucket-label mt-1 font-bold uppercase" style={{ color: 'var(--color-text-muted)' }}>
-                                {bucket}
+                                {getSoftAssetBucketLabel(t, bucket)}
                             </div>
                         </div>
                     ))}

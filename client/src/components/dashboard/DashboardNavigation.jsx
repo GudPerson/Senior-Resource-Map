@@ -65,7 +65,7 @@ export function DashboardSidebar({
                         </span>
                         {isAssetStaff ? (
                             <p className="mt-1 text-[11px] font-semibold text-brand-700">
-                                Asset access
+                                {t('dashboardAssetAccess')}
                             </p>
                         ) : null}
                         {isImpersonating ? (

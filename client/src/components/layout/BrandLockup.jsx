@@ -1,4 +1,5 @@
 import careAroundMark from '../../assets/carearound-mark.png';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 
 export default function BrandLockup({
     className = '',
@@ -6,6 +7,7 @@ export default function BrandLockup({
     showTagline = false,
     textClassName = '',
 }) {
+    const { t } = useLocale();
     const iconSize = compact ? 'h-10 sm:h-11' : 'h-14';
 
     return (
@@ -25,10 +27,10 @@ export default function BrandLockup({
                     </div>
                     <span
                         className="brand-lockup-beta inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700"
-                        title="CareAround SG is currently in beta testing"
-                        aria-label="CareAround SG is currently in beta testing"
+                        title={t('brandBetaTitle')}
+                        aria-label={t('brandBetaTitle')}
                     >
-                        Beta
+                        {t('beta')}
                     </span>
                 </div>
                 {showTagline && (
@@ -36,7 +38,7 @@ export default function BrandLockup({
                         className={`brand-lockup-tagline mt-0.5 text-xs font-semibold sm:text-sm ${compact ? 'hidden sm:block' : ''}`}
                         style={{ color: 'var(--color-accent)', fontStyle: 'italic' }}
                     >
-                        Care, closer to home.
+                        {t('brandTagline')}
                     </div>
                 )}
             </div>

@@ -317,13 +317,13 @@ export default function AuthPage({ isPartner = false }) {
 
                 <div className="mt-4 border-t border-slate-100 pt-4 text-center text-xs leading-6" style={{ color: 'var(--color-text-secondary)' }}>
                     <p>
-                        By using CareAround SG, you agree to the{' '}
+                        {t('authLegalAgreementPrefix')}{' '}
                         <Link to="/terms" className="font-semibold text-brand-700 hover:underline">
-                            Terms of Use
+                            {t('termsOfUse')}
                         </Link>{' '}
-                        and acknowledge the{' '}
+                        {t('authLegalAgreementMiddle')}{' '}
                         <Link to="/privacy" className="font-semibold text-brand-700 hover:underline">
-                            Privacy & Cookies Notice
+                            {t('privacyCookiesNotice')}
                         </Link>
                         .
                     </p>
