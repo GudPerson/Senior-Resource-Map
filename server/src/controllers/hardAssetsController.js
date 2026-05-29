@@ -23,7 +23,7 @@ import { syncAssetTags } from '../utils/tags.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
-import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata } from '../utils/eligibility.js';
+import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, shouldExposeOfferingToViewer } from '../utils/eligibility.js';
 import { createMembershipLinkToken } from '../utils/membershipTokens.js';
 import { loadMembershipSummariesForAssets } from '../utils/memberships.js';
 import { loadOrganizationContextsForResources } from '../utils/organizationResourceContext.js';
@@ -951,11 +951,12 @@ function formatNestedSoftAsset(asset, viewer, eligibilityContext, membershipHost
     };
 }
 
-function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap) {
+function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap, options = {}) {
     const combined = [
         ...(asset.softAssets || []).map((entry) => entry.softAsset),
         ...(asset.hostedSoftAssets || []),
     ];
+    const hideDeniedOfferings = options.hideDeniedOfferings !== false;
 
     const seen = new Set();
     return combined
@@ -967,12 +968,20 @@ function collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allow
                 allowedPartnerAudienceIds,
                 allowedAudienceZoneIds,
                 treatMemberOnlyAsVisible: true,
-            });
+            }) && (
+                !hideDeniedOfferings
+                || shouldExposeOfferingToViewer(
+                    softAsset,
+                    viewer,
+                    eligibilityContext,
+                    membershipHostIdMap?.get?.(softAsset.id) || [],
+                )
+            );
         })
         .map((softAsset) => formatNestedSoftAsset(softAsset, viewer, eligibilityContext, membershipHostIdMap));
 }
 
-function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap, membershipSummary = null) {
+function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap, membershipSummary = null, options = {}) {
     return {
         ...asset,
         partnerName: asset.partner?.name || null,
@@ -980,7 +989,15 @@ function formatHardAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         ownershipMode: asset.partnerId ? 'partner' : 'system',
         creatorName: asset.creator?.name || null,
         tags: asset.tags.map((t) => t.tag.name),
-        softAssets: collectHostedSoftAssets(asset, viewer, allowedPartnerAudienceIds, allowedAudienceZoneIds, eligibilityContext, membershipHostIdMap),
+        softAssets: collectHostedSoftAssets(
+            asset,
+            viewer,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+            eligibilityContext,
+            membershipHostIdMap,
+            options,
+        ),
         boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
         ...(membershipSummary || {}),
     };
@@ -1318,6 +1335,7 @@ export const getHardAssets = async (c) => {
                     eligibilityContext,
                     membershipHostIdMap,
                     membershipSummariesByAssetId.get(asset.id) || null,
+                    { hideDeniedOfferings: listScope !== 'managed' },
                 ),
                 matchingRegionIds: asset.matchingRegionIds || [],
                 primaryRegionId: asset.subregionId || null,

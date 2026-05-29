@@ -3,6 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { softAssetLocations, userAssetMemberships } from '../db/schema.js';
 import { getAgeFromDateOfBirth } from './profileAttributes.js';
+import { normalizeRole } from './roles.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
 
 export const OFFERING_ACCESS = Object.freeze({
@@ -335,4 +336,10 @@ export function getOfferingAccessMetadata(asset, viewer, eligibilityContext, mem
         access: result.status,
         missingProfileFields: result.missingProfileFields || [],
     };
+}
+
+export function shouldExposeOfferingToViewer(asset, viewer, eligibilityContext, membershipHostIds = []) {
+    if (normalizeRole(viewer?.role) !== 'standard') return true;
+
+    return evaluateOfferingAccess(asset, viewer, eligibilityContext, membershipHostIds).status !== OFFERING_ACCESS.DENIED;
 }
