@@ -7,9 +7,9 @@ function GlossyAudienceStarIcon({ compact = false }) {
             aria-hidden="true"
             className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full ${compact ? 'h-6 w-6' : 'h-7 w-7'}`}
             style={{
-                background: 'radial-gradient(circle at 34% 26%, #ffdf66 0%, #ffc400 46%, #ff9f0a 100%)',
+                background: 'radial-gradient(circle at 34% 26%, color-mix(in srgb, var(--color-brand-light) 74%, white) 0%, var(--color-brand) 50%, var(--color-brand-strong) 100%)',
                 boxShadow:
-                    'inset -4px -5px 0 rgba(242, 135, 0, 0.34), inset 3px 4px 0 rgba(255, 255, 255, 0.2), 0 1px 3px rgba(15, 23, 42, 0.18)',
+                    'inset -4px -5px 0 rgba(12, 138, 130, 0.34), inset 3px 4px 0 rgba(255, 255, 255, 0.24), 0 1px 3px rgba(15, 23, 42, 0.18)',
             }}
         >
             <span className="absolute -left-1 top-0 h-4/5 w-4/5 rounded-full bg-white/20 blur-[1px]" />

@@ -10,10 +10,15 @@ const componentSource = readFileSync(
     'utf8',
 );
 
-test('audience relevance star uses an original glossy filled icon', () => {
+test('audience relevance star uses a brand-teal glossy filled icon', () => {
     assert.equal(componentSource.includes("from 'lucide-react'"), false);
     assert.match(componentSource, /radial-gradient/);
     assert.match(componentSource, /boxShadow/);
+    assert.match(componentSource, /var\(--color-brand\)/);
+    assert.match(componentSource, /var\(--color-brand-strong\)/);
+    assert.equal(componentSource.includes('#ffdf66'), false);
+    assert.equal(componentSource.includes('#ffc400'), false);
+    assert.equal(componentSource.includes('#ff9f0a'), false);
     assert.match(componentSource, /fill="#fff"/);
     assert.match(componentSource, /aria-hidden="true"/);
 });
