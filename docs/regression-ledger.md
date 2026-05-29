@@ -74,6 +74,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 
 ## Recent stabilization notes
 
+### 2026-05-29 Discover location indicators Phase 1
+
+- Current behavior: branch `codex/discover-location-indicators-v2` adds display-only Discover card indicators for already-visible resources. The Worker endpoint accepts compact hard/soft resource refs and an optional searched postal context, then returns only boolean flags keyed by those resource refs. The client decorates the already-ordered displayed card list and renders a subtle star icon and/or public-safe recommendation pill without changing ranking, sorting, filtering, visibility, access rules, saved-map behavior, or the existing distance pill.
+- Known-good reference: clean GitHub `origin/main` at `b7af05c4` plus approved design spec `docs/superpowers/specs/2026-05-29-discover-location-indicators-design.md`. Archived attempt `e8cf4913` was used as reference only, not restored wholesale.
+- Reproduction steps: load `/discover` as guest and signed-in user; search by postal code; compare card order/counts before and after indicator fetch; confirm cards within the signed-in user's home Region can show `Recommended for you`, cards within the searched postal Region can show `Recommended for this location`, and resources within matching Audience Zone context can show only the star icon.
+- Acceptance criteria: indicator fetch failures fall closed to no badges; endpoint responses expose no saved profile postal code, searched postal code, Region IDs, Audience Zone IDs, zone names, or internal labels; public UI does not say `Audience Zone`, `subregion`, `boundary`, or `service boundary`; Phase 1 does not add exact Locate Me Region matching because reverse geocoding would require a separately approved geolocation/privacy path.
+- Verification result: `node --test client/test/locationIndicators.test.js`, `node --test server/test/discoveryController.test.js`, `node --test server/test/discoveryLocationIndicators.test.js`, `node --test client/test/*.test.js` passed 72/72, `npm run test:server` passed 290/290, and `npm run build:client` passed with the existing large chunk warning on 2026-05-29. No deploy was performed; full browser UAT still requires a Worker environment with existing secrets because a Pages-only preview cannot exercise the new endpoint.
+
 ### 2026-05-25 Offering contact field parity
 
 - Current behavior: create/edit offering and Import Material review rows expose the same public contact/action fields: Contact phone, WhatsApp contact, Contact email, Action button label, Action button link, and Venue note. Collateral import prompts, review matching, grouped extraction rows, create payloads, and update payloads now preserve `whatsappContact` the same way as the other optional offering contact fields.

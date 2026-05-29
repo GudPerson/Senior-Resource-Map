@@ -13,6 +13,7 @@ This is a display-only enhancement. It must not change ranking, sorting, filteri
 - Production behavior remains the source of truth for deployed behavior.
 - The archived attempt at `/Users/sweetbuns/CareAroundSG-archive-20260529-005238` is reference only.
 - Local full Worker UAT is blocked unless `server/.env` or Worker secrets are available locally.
+- Phase 1 defers exact Locate Me Region matching because browser geolocation provides latitude/longitude, not a postal code or Region, and reverse geocoding needs a separately approved geolocation/privacy path.
 
 ## User-Facing Behavior
 

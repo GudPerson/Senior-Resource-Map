@@ -1,6 +1,7 @@
 import { MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import DiscoveryLocationIndicatorBadges from '../../components/DiscoveryLocationIndicatorBadges.jsx';
 import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import OfferingAccessNotice from '../../components/OfferingAccessNotice.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
@@ -127,6 +128,12 @@ export function DiscoveryMobileBrowseCard({
                     {asset.name}
                 </h2>
             </div>
+
+            <DiscoveryLocationIndicatorBadges
+                className="mt-2"
+                compact={isCompact}
+                indicators={asset._locationIndicators}
+            />
 
             {availabilityEnabled ? (
                 <div className="mt-3">
