@@ -447,6 +447,9 @@ export const api = {
     updateGovernanceRetentionRecord: (retentionId, body) => request('PATCH', `/governance/retention/${retentionId}`, body),
     updateResourceFreshness: (resourceType, resourceId, body) => request('PATCH', `/governance/resources/${resourceType}/${resourceId}/freshness`, body),
 
+    // Discovery
+    getDiscoveryLocationIndicators: (body) => request('POST', '/discovery/location-indicators', body),
+
     // Phone identity verification
     getMyPhoneIdentity: () => request('GET', '/phone-identities/me'),
     unlinkMyPhoneIdentity: () => request('DELETE', '/phone-identities/me'),

@@ -24,6 +24,10 @@ import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import {
+    applyLocationIndicators,
+    buildLocationIndicatorResourceRefs,
+} from '../features/discover/locationIndicators.js';
+import {
     buildPostalGroupedSavedPlacePins,
     buildRenderedPostalGroupedSavedPins,
     buildSavedPlacePins,
@@ -441,6 +445,7 @@ export default function DiscoverPage() {
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
     const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
+    const [locationIndicatorsByResourceKey, setLocationIndicatorsByResourceKey] = useState({});
 
     const resultsListRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
@@ -884,6 +889,59 @@ export default function DiscoverPage() {
     const displayedResources = useMemo(
         () => filtered.slice(0, visibleCount),
         [filtered, visibleCount]
+    );
+    const locationIndicatorResourceRefs = useMemo(
+        () => buildLocationIndicatorResourceRefs(displayedResources),
+        [displayedResources]
+    );
+    const indicatorContextPostalCode = searchOrigin?.source === 'postal' ? searchOrigin.postalCode : '';
+    const userRegionKey = Array.isArray(user?.subregionIds) ? user.subregionIds.join(',') : '';
+
+    useEffect(() => {
+        let isActive = true;
+        const hasSignedInContext = Boolean(isAuth && user);
+        const hasPostalContext = Boolean(indicatorContextPostalCode);
+
+        async function loadLocationIndicators() {
+            if (loading || locationIndicatorResourceRefs.length === 0 || (!hasSignedInContext && !hasPostalContext)) {
+                setLocationIndicatorsByResourceKey({});
+                return;
+            }
+
+            try {
+                const data = await api.getDiscoveryLocationIndicators({
+                    resources: locationIndicatorResourceRefs,
+                    contextPostalCode: indicatorContextPostalCode,
+                });
+                if (isActive) {
+                    setLocationIndicatorsByResourceKey(data?.indicators || {});
+                }
+            } catch (err) {
+                console.error('Discovery location indicators failed', err);
+                if (isActive) {
+                    setLocationIndicatorsByResourceKey({});
+                }
+            }
+        }
+
+        loadLocationIndicators();
+
+        return () => {
+            isActive = false;
+        };
+    }, [
+        indicatorContextPostalCode,
+        isAuth,
+        loading,
+        locationIndicatorResourceRefs,
+        user?.id,
+        user?.postalCode,
+        userRegionKey,
+    ]);
+
+    const displayedResourcesWithIndicators = useMemo(
+        () => applyLocationIndicators(displayedResources, locationIndicatorsByResourceKey),
+        [displayedResources, locationIndicatorsByResourceKey]
     );
 
     const saveAllTargetItems = useMemo(() => (
@@ -2120,7 +2178,7 @@ export default function DiscoverPage() {
 
     const resultsList = (
         <DiscoveryResultsList
-            filtered={displayedResources}
+            filtered={displayedResourcesWithIndicators}
             totalCount={filtered.length}
             pageSize={listPageSize}
             onLoadMore={() => setVisibleCount((current) => current + listPageSize)}
