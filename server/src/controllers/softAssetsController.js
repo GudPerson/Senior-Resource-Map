@@ -14,7 +14,7 @@ import { actorCanManageAsset } from '../utils/ownership.js';
 import { hasAnyHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
 import { hasSoftAssetStaffAccess } from '../utils/softAssetAccess.js';
 import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
-import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules } from '../utils/eligibility.js';
+import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules, shouldExposeOfferingToViewer } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { loadSingaporeFallbackRegion } from '../utils/singaporePostalFallback.js';
@@ -606,7 +606,18 @@ export const getSoftAssets = async (c) => {
                     membershipHostIdMap,
                 ),
             }))
-            .filter(({ raw, formatted }) => listScope === 'managed' || canExposeFormattedSoftAsset(raw, formatted))
+            .filter(({ raw, formatted }) => (
+                listScope === 'managed'
+                || (
+                    canExposeFormattedSoftAsset(raw, formatted)
+                    && shouldExposeOfferingToViewer(
+                        raw,
+                        user,
+                        eligibilityContext,
+                        membershipHostIdMap.get(raw.id) || [],
+                    )
+                )
+            ))
             .map(({ raw, formatted }) => ({
                 ...formatted,
                 coverageRegionIds: raw.coverageRegionIds || [],
@@ -669,6 +680,14 @@ export const getSoftAssetById = async (c) => {
             membershipHostIdMap,
         );
         if (!canExposeFormattedSoftAsset(asset, formatted)) {
+            return c.json({ error: 'Not found' }, 404);
+        }
+        if (!shouldExposeOfferingToViewer(
+            asset,
+            user,
+            eligibilityContext,
+            membershipHostIdMap.get(asset.id) || [],
+        )) {
             return c.json({ error: 'Not found' }, 404);
         }
 

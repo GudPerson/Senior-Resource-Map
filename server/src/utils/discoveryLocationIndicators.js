@@ -49,6 +49,32 @@ function buildResourceKey(type, id) {
     return `${type}:${id}`;
 }
 
+async function loadAudienceZoneIdsByHardAssetId(db, hardAssetIds = []) {
+    const normalizedHardAssetIds = uniqueSortedIntegers(hardAssetIds);
+    const idsByHardAssetId = new Map();
+    if (normalizedHardAssetIds.length === 0) return idsByHardAssetId;
+
+    const rows = await db
+        .select({
+            hardAssetId: audienceZones.hardAssetId,
+            audienceZoneId: audienceZones.id,
+        })
+        .from(audienceZones)
+        .where(inArray(audienceZones.hardAssetId, normalizedHardAssetIds));
+
+    for (const row of rows) {
+        const hardAssetId = toPositiveInteger(row.hardAssetId);
+        const audienceZoneId = toPositiveInteger(row.audienceZoneId);
+        if (!hardAssetId || !audienceZoneId) continue;
+        if (!idsByHardAssetId.has(hardAssetId)) {
+            idsByHardAssetId.set(hardAssetId, []);
+        }
+        idsByHardAssetId.get(hardAssetId).push(audienceZoneId);
+    }
+
+    return idsByHardAssetId;
+}
+
 export function normalizeDiscoveryIndicatorResources(resources = []) {
     const seen = new Set();
     const normalized = [];
@@ -173,25 +199,7 @@ export async function loadDiscoveryIndicatorResourceMetadata(db, resources = [])
         })
         : [];
     const hardRowsWithRegions = await attachRegionMetadataToHardAssets(db, hardRows);
-    const hardAudienceZoneRows = hardIds.length > 0
-        ? await db
-            .select({
-                hardAssetId: audienceZones.hardAssetId,
-                audienceZoneId: audienceZones.id,
-            })
-            .from(audienceZones)
-            .where(inArray(audienceZones.hardAssetId, hardIds))
-        : [];
-    const audienceZoneIdsByHardAssetId = new Map();
-    for (const row of hardAudienceZoneRows) {
-        const hardAssetId = toPositiveInteger(row.hardAssetId);
-        const audienceZoneId = toPositiveInteger(row.audienceZoneId);
-        if (!hardAssetId || !audienceZoneId) continue;
-        if (!audienceZoneIdsByHardAssetId.has(hardAssetId)) {
-            audienceZoneIdsByHardAssetId.set(hardAssetId, []);
-        }
-        audienceZoneIdsByHardAssetId.get(hardAssetId).push(audienceZoneId);
-    }
+    const audienceZoneIdsByHardAssetId = await loadAudienceZoneIdsByHardAssetId(db, hardIds);
 
     for (const asset of hardRowsWithRegions) {
         const audienceZoneIds = uniqueSortedIntegers(audienceZoneIdsByHardAssetId.get(Number(asset.id)) || []);
@@ -245,8 +253,24 @@ export async function loadDiscoveryIndicatorResourceMetadata(db, resources = [])
     const linkedRegionIdsByHardAssetId = new Map(
         linkedHardAssetsWithRegions.map((asset) => [Number(asset.id), asset.matchingRegionIds || []])
     );
+    const linkedAudienceZoneIdsByHardAssetId = await loadAudienceZoneIdsByHardAssetId(
+        db,
+        linkedHardAssets.map((asset) => asset.id),
+    );
 
     for (const asset of softRows) {
+        const linkedAudienceZoneIds = [
+            ...(linkedAudienceZoneIdsByHardAssetId.get(Number(asset.hostHardAsset?.id)) || []),
+            ...(Array.isArray(asset.locations)
+                ? asset.locations.flatMap((location) => (
+                    linkedAudienceZoneIdsByHardAssetId.get(Number(location?.hardAsset?.id)) || []
+                ))
+                : []),
+        ];
+        const audienceZoneIds = uniqueSortedIntegers([
+            ...getAssetAudienceZoneIds(asset),
+            ...linkedAudienceZoneIds,
+        ]);
         const linkedRegionIds = [
             ...(linkedRegionIdsByHardAssetId.get(Number(asset.hostHardAsset?.id)) || []),
             ...(Array.isArray(asset.locations)
@@ -263,8 +287,8 @@ export async function loadDiscoveryIndicatorResourceMetadata(db, resources = [])
         metadata.push({
             type: 'soft',
             id: asset.id,
-            audienceMode: asset.audienceMode || 'public',
-            audienceZoneIds: getAssetAudienceZoneIds(asset),
+            audienceMode: audienceZoneIds.length > 0 ? 'audience_zones' : (asset.audienceMode || 'public'),
+            audienceZoneIds,
             matchingRegionIds: uniqueSortedIntegers(linkedRegionIds),
         });
     }

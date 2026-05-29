@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import * as eligibilityUtils from '../src/utils/eligibility.js';
 import {
     evaluateOfferingAccess,
     getMissingEligibilityProfileFields,
@@ -79,4 +80,35 @@ test('evaluateOfferingAccess grants or denies CHAS, caregiver, and volunteer mat
 
     assert.equal(granted.status, OFFERING_ACCESS.GRANTED);
     assert.equal(denied.status, OFFERING_ACCESS.DENIED);
+});
+
+test('standard users do not see offerings that conflict with saved profile details', () => {
+    const rules = normalizeEligibilityRules({
+        version: 1,
+        criteria: {
+            chasCard: { anyOf: ['blue'] },
+        },
+    });
+    const asset = createAsset(rules);
+
+    assert.equal(
+        eligibilityUtils.shouldExposeOfferingToViewer?.(asset, {
+            role: 'standard',
+            chasCard: 'orange',
+        }, {}),
+        false,
+    );
+    assert.equal(
+        eligibilityUtils.shouldExposeOfferingToViewer?.(asset, {
+            role: 'standard',
+        }, {}),
+        true,
+    );
+    assert.equal(
+        eligibilityUtils.shouldExposeOfferingToViewer?.(asset, {
+            role: 'super_admin',
+            chasCard: 'orange',
+        }, {}),
+        true,
+    );
 });

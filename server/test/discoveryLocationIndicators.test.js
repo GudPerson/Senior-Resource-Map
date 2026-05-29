@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     buildDiscoveryIndicatorContext,
     buildDiscoveryLocationIndicators,
+    loadDiscoveryIndicatorResourceMetadata,
     normalizeDiscoveryIndicatorResources,
 } from '../src/utils/discoveryLocationIndicators.js';
 
@@ -199,4 +200,70 @@ test('buildDiscoveryIndicatorContext ignores the national Singapore region for b
             withinContextRegion: false,
         },
     });
+});
+
+test('loadDiscoveryIndicatorResourceMetadata inherits host hard asset audience zones for tied soft assets', async () => {
+    const fakeDb = {
+        query: {
+            hardAssets: {
+                async findMany() {
+                    return [];
+                },
+            },
+            softAssets: {
+                async findMany() {
+                    return [{
+                        id: 20,
+                        audienceMode: 'public',
+                        audienceZones: [],
+                        hostHardAsset: { id: 10, postalCode: '681809' },
+                        locations: [
+                            { hardAsset: { id: 11, postalCode: '681810' } },
+                        ],
+                        regionCoverages: [],
+                    }];
+                },
+            },
+        },
+        select(selection) {
+            const selectedKeys = Object.keys(selection);
+            return {
+                from() {
+                    return {
+                        async where() {
+                            if (selectedKeys.includes('subregionCode')) return [];
+                            if (selectedKeys.includes('postalCode')) return [];
+                            if (selectedKeys.includes('hardAssetId') && selectedKeys.includes('audienceZoneId')) {
+                                return [
+                                    { hardAssetId: 10, audienceZoneId: 202 },
+                                    { hardAssetId: 11, audienceZoneId: 303 },
+                                ];
+                            }
+                            return [];
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    const metadata = await loadDiscoveryIndicatorResourceMetadata(fakeDb, [
+        { type: 'soft', id: 20 },
+    ]);
+
+    assert.deepEqual(metadata, [{
+        type: 'soft',
+        id: 20,
+        audienceMode: 'audience_zones',
+        audienceZoneIds: [202, 303],
+        matchingRegionIds: [],
+    }]);
+
+    const indicators = buildDiscoveryLocationIndicators(metadata, {
+        audienceZoneIds: [202],
+        contextRegionIds: [],
+        homeRegionIds: [],
+    });
+
+    assert.equal(indicators['soft:20'].withinAudienceZone, true);
 });
