@@ -28,6 +28,11 @@ import {
     buildLocationIndicatorResourceRefs,
 } from '../features/discover/locationIndicators.js';
 import {
+    getSearchPanelActionForResultsScroll,
+    shouldExpandSearchPanelFromCollapsedSummaryPull,
+    shouldExpandSearchPanelFromTopPull,
+} from '../features/discover/searchPanelBehavior.js';
+import {
     buildPostalGroupedSavedPlacePins,
     buildRenderedPostalGroupedSavedPins,
     buildSavedPlacePins,
@@ -60,8 +65,6 @@ const SAVED_PIN_FOCUS_ZOOM = 18;
 const DISCOVERY_DESKTOP_BASE_PANE_WIDTH = 430;
 const DISCOVERY_DESKTOP_MAX_ACCESSIBLE_PANE_WIDTH = 620;
 const DISCOVERY_DESKTOP_MAX_ACCESSIBLE_FONT_SCALE = 1.5;
-const DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_TOP = 32;
-const DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_DELTA = 14;
 const TOUCH_DESKTOP_PANE_PRESET_WIDTHS = [450, 676, 992];
 
 function normalizeSubCategoryLookupKey(value) {
@@ -448,6 +451,7 @@ export default function DiscoverPage() {
     const [locationIndicatorsByResourceKey, setLocationIndicatorsByResourceKey] = useState({});
 
     const resultsListRef = useRef(null);
+    const resultsPullStartYRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
     const autoCollapseScrollTopRef = useRef(0);
     const postalGroupHoverCloseTimeoutRef = useRef(null);
@@ -1989,15 +1993,71 @@ export default function DiscoverPage() {
         const previousScrollTop = autoCollapseScrollTopRef.current;
         autoCollapseScrollTopRef.current = nextScrollTop;
 
-        if (!isDesktop || desktopPaneMode !== 'browse' || isSearchPanelCollapsed) {
+        const panelAction = getSearchPanelActionForResultsScroll({
+            desktopPaneMode,
+            isDesktop,
+            isSearchPanelCollapsed,
+            nextScrollTop,
+            previousScrollTop,
+        });
+        if (panelAction === 'collapse') {
+            setIsSearchPanelCollapsed(true);
+        } else if (panelAction === 'expand') {
+            setIsSearchPanelCollapsed(false);
+        }
+    }, [desktopPaneMode, isDesktop, isSearchPanelCollapsed]);
+
+    const handleResultsListWheel = useCallback((event) => {
+        if (shouldExpandSearchPanelFromTopPull({
+            desktopPaneMode,
+            isDesktop,
+            isSearchPanelCollapsed,
+            scrollTop: event.currentTarget.scrollTop,
+            deltaY: event.deltaY,
+        })) {
+            autoCollapseScrollTopRef.current = event.currentTarget.scrollTop;
+            setIsSearchPanelCollapsed(false);
+        }
+    }, [desktopPaneMode, isDesktop, isSearchPanelCollapsed]);
+
+    const handleResultsListTouchStart = useCallback((event) => {
+        resultsPullStartYRef.current = event.touches?.[0]?.clientY ?? null;
+    }, []);
+
+    const handleResultsListTouchMove = useCallback((event) => {
+        const startY = resultsPullStartYRef.current;
+        const currentY = event.touches?.[0]?.clientY;
+        if (startY === null || currentY === undefined) {
             return;
         }
 
-        const scrolledDown = nextScrollTop - previousScrollTop >= DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_DELTA;
-        if (nextScrollTop >= DISCOVERY_SEARCH_AUTO_COLLAPSE_SCROLL_TOP && scrolledDown) {
-            setIsSearchPanelCollapsed(true);
+        if (shouldExpandSearchPanelFromTopPull({
+            desktopPaneMode,
+            isDesktop,
+            isSearchPanelCollapsed,
+            scrollTop: event.currentTarget.scrollTop,
+            pullDistance: currentY - startY,
+        })) {
+            autoCollapseScrollTopRef.current = event.currentTarget.scrollTop;
+            resultsPullStartYRef.current = currentY;
+            setIsSearchPanelCollapsed(false);
         }
     }, [desktopPaneMode, isDesktop, isSearchPanelCollapsed]);
+
+    const handleResultsListTouchEnd = useCallback(() => {
+        resultsPullStartYRef.current = null;
+    }, []);
+
+    const handleCollapsedSearchPanelPull = useCallback((gesture = {}) => {
+        if (shouldExpandSearchPanelFromCollapsedSummaryPull({
+            isDesktop,
+            isSearchPanelCollapsed,
+            deltaY: gesture.deltaY,
+            pullDistance: gesture.pullDistance,
+        })) {
+            handleExpandSearchPanel();
+        }
+    }, [handleExpandSearchPanel, isDesktop, isSearchPanelCollapsed]);
 
     const handleHomeAnchorAndCollapse = useCallback(async () => {
         await handleHomeAnchor();
@@ -2146,6 +2206,7 @@ export default function DiscoverPage() {
             mobileCardDensity={mobileCardDensity}
             onApplySearch={handleApplySearch}
             onChangeMobileCardDensity={setMobileCardDensity}
+            onCollapsedPullExpand={handleCollapsedSearchPanelPull}
             onCollapse={handleCollapseSearchPanel}
             onExpand={handleExpandSearchPanel}
             onOpenBrowse={() => setMobileMode('browse')}
@@ -2191,6 +2252,10 @@ export default function DiscoverPage() {
             onCategoryClick={handleSearchChange}
             onFocusAssetOnMap={handleFocusAssetOnMap}
             onResultsScroll={handleResultsListScroll}
+            onResultsTouchEnd={handleResultsListTouchEnd}
+            onResultsTouchMove={handleResultsListTouchMove}
+            onResultsTouchStart={handleResultsListTouchStart}
+            onResultsWheel={handleResultsListWheel}
             onTagClick={handleSearchChange}
             savedMapAssetKeys={savedMapAssetKeys}
             scrollContainerRef={resultsListRef}
