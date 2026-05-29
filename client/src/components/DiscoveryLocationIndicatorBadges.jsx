@@ -1,7 +1,31 @@
-import { CircleStar } from 'lucide-react';
-
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getDiscoveryLocationIndicatorPresentation } from '../features/discover/locationIndicators.js';
+
+function GlossyAudienceStarIcon({ compact = false }) {
+    return (
+        <span
+            aria-hidden="true"
+            className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full ${compact ? 'h-6 w-6' : 'h-7 w-7'}`}
+            style={{
+                background: 'radial-gradient(circle at 34% 26%, #ffdf66 0%, #ffc400 46%, #ff9f0a 100%)',
+                boxShadow:
+                    'inset -4px -5px 0 rgba(242, 135, 0, 0.34), inset 3px 4px 0 rgba(255, 255, 255, 0.2), 0 1px 3px rgba(15, 23, 42, 0.18)',
+            }}
+        >
+            <span className="absolute -left-1 top-0 h-4/5 w-4/5 rounded-full bg-white/20 blur-[1px]" />
+            <svg
+                aria-hidden="true"
+                className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}
+                viewBox="0 0 24 24"
+            >
+                <path
+                    fill="#fff"
+                    d="M12 3.35a1 1 0 0 1 .9.56l2.55 5.16 5.69.82a1 1 0 0 1 .55 1.71l-4.12 4.01.97 5.67a1 1 0 0 1-1.45 1.05L12 19.65l-5.09 2.68a1 1 0 0 1-1.45-1.05l.97-5.67-4.12-4.01a1 1 0 0 1 .55-1.71l5.69-.82 2.55-5.16a1 1 0 0 1 .9-.56Z"
+                />
+            </svg>
+        </span>
+    );
+}
 
 export default function DiscoveryLocationIndicatorBadges({
     className = '',
@@ -19,9 +43,9 @@ export default function DiscoveryLocationIndicatorBadges({
                 <span
                     aria-label={t('discoveryRelevantToYourArea')}
                     title={t('discoveryRelevantToYourArea')}
-                    className={`inline-flex shrink-0 items-center justify-center rounded-full border border-orange-500 bg-orange-500 text-orange-50 shadow-sm ${compact ? 'h-6 w-6' : 'h-7 w-7'}`}
+                    className="inline-flex shrink-0 items-center justify-center"
                 >
-                    <CircleStar size={compact ? 14 : 15} strokeWidth={2} />
+                    <GlossyAudienceStarIcon compact={compact} />
                 </span>
             ) : null}
             {recommendationKey ? (
