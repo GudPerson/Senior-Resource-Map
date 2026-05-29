@@ -39,6 +39,12 @@ function hasIntersection(left = [], right = []) {
     return uniqueSortedIntegers(left).some((value) => rightSet.has(value));
 }
 
+function excludeRegionIds(regionIds = [], ignoredRegionIds = []) {
+    const ignoredRegionIdSet = new Set(uniqueSortedIntegers(ignoredRegionIds));
+    if (ignoredRegionIdSet.size === 0) return uniqueSortedIntegers(regionIds);
+    return uniqueSortedIntegers(regionIds).filter((regionId) => !ignoredRegionIdSet.has(regionId));
+}
+
 function buildResourceKey(type, id) {
     return `${type}:${id}`;
 }
@@ -102,14 +108,17 @@ export async function resolveRegionIdsForPostal(db, rawPostalCode) {
 }
 
 export async function buildDiscoveryIndicatorContext(db, user, options = {}) {
-    const sessionRegionIds = getActorRegionIds(user);
+    const singaporeRegion = await loadSingaporeFallbackRegion(db);
+    const ignoredRegionIds = singaporeRegion?.id ? [singaporeRegion.id] : [];
+    const sessionRegionIds = excludeRegionIds(getActorRegionIds(user), ignoredRegionIds);
     const homeRegionIds = sessionRegionIds.length > 0
         ? sessionRegionIds
-        : await resolveRegionIdsForPostal(db, user?.postalCode);
+        : excludeRegionIds(await resolveRegionIdsForPostal(db, user?.postalCode), ignoredRegionIds);
     const [homeAudienceZoneIds, contextAudienceZoneIds, contextRegionIds] = await Promise.all([
         resolveStandardAudienceZoneIds(db, user).then((ids) => [...ids]),
         resolveMatchedAudienceZoneIds(db, options.contextPostalCode).then((ids) => [...ids]),
-        resolveRegionIdsForPostal(db, options.contextPostalCode),
+        resolveRegionIdsForPostal(db, options.contextPostalCode)
+            .then((regionIds) => excludeRegionIds(regionIds, ignoredRegionIds)),
     ]);
 
     return {

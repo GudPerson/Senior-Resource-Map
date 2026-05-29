@@ -19,7 +19,7 @@ export default function DiscoveryLocationIndicatorBadges({
                 <span
                     aria-label={t('discoveryRelevantToYourArea')}
                     title={t('discoveryRelevantToYourArea')}
-                    className={`inline-flex shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-600 ${compact ? 'h-6 w-6' : 'h-7 w-7'}`}
+                    className={`inline-flex shrink-0 items-center justify-center rounded-full border border-orange-500 bg-orange-500 text-orange-50 shadow-sm ${compact ? 'h-6 w-6' : 'h-7 w-7'}`}
                 >
                     <CircleStar size={compact ? 14 : 15} strokeWidth={2} />
                 </span>

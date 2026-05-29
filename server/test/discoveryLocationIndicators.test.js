@@ -117,3 +117,86 @@ test('buildDiscoveryIndicatorContext includes audience zones and regions from se
     assert.deepEqual(context.contextRegionIds, [12]);
     assert.deepEqual(context.homeRegionIds, []);
 });
+
+test('buildDiscoveryIndicatorContext ignores the national Singapore region for badge relevance', async () => {
+    const fakeDb = {
+        select(selection) {
+            const selectedKeys = Object.keys(selection);
+            const selectedKey = selectedKeys[0];
+            return {
+                from() {
+                    return {
+                        async where() {
+                            if (selectedKey === 'audienceZoneId') {
+                                return [];
+                            }
+                            if (selectedKeys.includes('subregionCode')) {
+                                return [{
+                                    id: 99,
+                                    subregionCode: 'SIN',
+                                    name: 'Singapore',
+                                    description: 'National fallback',
+                                }];
+                            }
+                            if (selectedKey === 'subregionId') {
+                                return [
+                                    { subregionId: 12 },
+                                    { subregionId: 99 },
+                                ];
+                            }
+                            return [];
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    const context = await buildDiscoveryIndicatorContext(fakeDb, {
+        subregionIds: [99, 24],
+    }, {
+        contextPostalCode: '681809',
+    });
+
+    assert.deepEqual(context.homeRegionIds, [24]);
+    assert.deepEqual(context.contextRegionIds, [12]);
+
+    const indicators = buildDiscoveryLocationIndicators([
+        {
+            type: 'hard',
+            id: 1,
+            audienceMode: 'public',
+            matchingRegionIds: [99],
+        },
+        {
+            type: 'hard',
+            id: 2,
+            audienceMode: 'public',
+            matchingRegionIds: [12, 99],
+        },
+        {
+            type: 'hard',
+            id: 3,
+            audienceMode: 'public',
+            matchingRegionIds: [24, 99],
+        },
+    ], context);
+
+    assert.deepEqual(indicators, {
+        'hard:1': {
+            withinAudienceZone: false,
+            withinHomeRegion: false,
+            withinContextRegion: false,
+        },
+        'hard:2': {
+            withinAudienceZone: false,
+            withinHomeRegion: false,
+            withinContextRegion: true,
+        },
+        'hard:3': {
+            withinAudienceZone: false,
+            withinHomeRegion: true,
+            withinContextRegion: false,
+        },
+    });
+});
