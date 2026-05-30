@@ -33,3 +33,5 @@ client/dist/
 # tooling artifacts
 .playwright-cli/
 .wrangler/
+.netlify/
+client/.netlify/

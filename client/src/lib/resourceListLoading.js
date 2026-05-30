@@ -3,9 +3,10 @@ export function shouldUseFullResourceDataset({
     boundaryChecksEnabled = false,
     boundaryFilter = 'all',
 } = {}) {
-    const hasSearchQuery = String(query || '').trim().length > 0;
+    const normalizedQuery = String(query || '').trim();
+    const hasClientOnlySearchOperators = /[,/]/.test(normalizedQuery);
     const hasClientBoundaryFilter = Boolean(boundaryChecksEnabled) && boundaryFilter !== 'all';
-    return hasSearchQuery || hasClientBoundaryFilter;
+    return hasClientOnlySearchOperators || hasClientBoundaryFilter;
 }
 
 export function buildManagedResourceListParams({

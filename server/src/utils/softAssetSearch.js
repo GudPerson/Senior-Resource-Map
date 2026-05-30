@@ -39,5 +39,13 @@ export function buildSoftAssetSearchWhere(query) {
                 OR search_location.postal_code ILIKE ${pattern}
               )
         )`,
+        sql`EXISTS (
+            SELECT 1
+            FROM soft_asset_tags search_soft_tag
+            INNER JOIN tags search_tag
+                ON search_tag.id = search_soft_tag.tag_id
+            WHERE search_soft_tag.soft_asset_id = ${softAssets.id}
+              AND search_tag.name ILIKE ${pattern}
+        )`,
     );
 }

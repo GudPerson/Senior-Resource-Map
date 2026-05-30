@@ -1,4 +1,5 @@
 import { hasHardAssetStaffAccess } from './hardAssetStaff.js';
+import { hasPartnerStaffAccess } from './partnerStaff.js';
 import { actorMatchesAnyRegion, filterSoftAssetsByRegionRelevance } from './regionScope.js';
 import { normalizeRole } from './roles.js';
 
@@ -36,9 +37,13 @@ export function paginateResourceList(items = [], input = {}) {
 }
 
 function canSeeManagedHardAsset(asset, actor, isVisible) {
-    if (isVisible(asset)) return true;
-    if (normalizeRole(actor?.role) === 'super_admin') return true;
-    return hasHardAssetStaffAccess(actor, asset?.id, ['owner', 'staff']);
+    const actorRole = normalizeRole(actor?.role);
+    if (actorRole === 'super_admin') return true;
+    if (hasHardAssetStaffAccess(actor, asset?.id, ['owner', 'staff'])) return true;
+    if (actorRole === 'regional_admin') return isVisible(asset);
+    if (actorRole === 'partner' && Number(asset?.partnerId) === Number(actor?.id)) return true;
+    if (hasPartnerStaffAccess(actor, asset?.partnerId, ['owner', 'editor'])) return true;
+    return false;
 }
 
 function canSeeRegionScopedManagedHardAsset(asset, actor) {

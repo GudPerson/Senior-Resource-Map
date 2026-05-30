@@ -31,3 +31,11 @@ test('soft asset search includes linked host place fields', () => {
     assert.match(queryText, /search_location\.address ILIKE/);
     assert.match(queryText, /search_location\.postal_code ILIKE/);
 });
+
+test('soft asset search includes tag names', () => {
+    const queryText = stringifyQuery(buildSoftAssetSearchWhere('health'));
+
+    assert.match(queryText, /soft_asset_tags/);
+    assert.match(queryText, /search_soft_tag\.soft_asset_id =/);
+    assert.match(queryText, /search_tag\.name ILIKE/);
+});
