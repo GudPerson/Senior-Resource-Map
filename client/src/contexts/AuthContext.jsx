@@ -4,6 +4,7 @@ import { getSessionApiBaseCandidates } from '../lib/apiBase.js';
 import {
     fetchSessionJsonWithTimeout,
     isDefinitiveSignedOutSessionResponse,
+    resolveImpersonationSessionFailure,
     resolveUserAfterSessionCheckFailure,
 } from '../lib/authSession.js';
 
@@ -52,6 +53,13 @@ export function AuthProvider({ children }) {
                     }
                     if (!response.ok) {
                         if (isDefinitiveSignedOutSessionResponse(response, data)) {
+                            if (hasImpersonationToken && allowImpersonationFallback) {
+                                const resolution = resolveImpersonationSessionFailure(userRef.current, { response, data });
+                                if (resolution.clearToken) clearImpersonationToken();
+                                if (resolution.retryNormalSession) return await checkSession(false);
+                                setCurrentUser(resolution.user);
+                                return resolution.user;
+                            }
                             setCurrentUser(null);
                             return null;
                         }
@@ -70,8 +78,11 @@ export function AuthProvider({ children }) {
             }
 
             if (hasImpersonationToken && allowImpersonationFallback) {
-                clearImpersonationToken();
-                return await checkSession(false);
+                const resolution = resolveImpersonationSessionFailure(userRef.current);
+                if (resolution.clearToken) clearImpersonationToken();
+                if (resolution.retryNormalSession) return await checkSession(false);
+                setCurrentUser(resolution.user);
+                return resolution.user;
             }
 
             setCurrentUser(null);
@@ -79,8 +90,11 @@ export function AuthProvider({ children }) {
         } catch (err) {
             console.error('Session check failed', err);
             if (hasImpersonationToken && allowImpersonationFallback) {
-                clearImpersonationToken();
-                return await checkSession(false);
+                const resolution = resolveImpersonationSessionFailure(userRef.current, { error: err });
+                if (resolution.clearToken) clearImpersonationToken();
+                if (resolution.retryNormalSession) return await checkSession(false);
+                setCurrentUser(resolution.user);
+                return resolution.user;
             }
             const preservedUser = resolveUserAfterSessionCheckFailure(userRef.current);
             setCurrentUser(preservedUser);
