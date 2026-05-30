@@ -27,6 +27,22 @@ export function resolveUserAfterSessionCheckFailure(currentUser, failure = {}) {
     return currentUser || null;
 }
 
+export function resolveImpersonationSessionFailure(currentUser, failure = {}) {
+    if (isDefinitiveSignedOutSessionResponse(failure.response, failure.data)) {
+        return {
+            clearToken: true,
+            retryNormalSession: true,
+            user: null,
+        };
+    }
+
+    return {
+        clearToken: false,
+        retryNormalSession: false,
+        user: currentUser || null,
+    };
+}
+
 export async function fetchSessionJsonWithTimeout(url, options = {}) {
     const {
         timeoutMs = SESSION_FETCH_TIMEOUT_MS,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     fetchSessionJsonWithTimeout,
+    resolveImpersonationSessionFailure,
     resolveUserAfterSessionCheckFailure,
     SessionRequestTimeoutError,
 } from '../src/lib/authSession.js';
@@ -62,5 +63,36 @@ test('server session check failures still preserve the current user', () => {
             data: { error: 'Database temporarily unavailable' },
         }),
         currentUser
+    );
+});
+
+test('transient user-view session failures do not fall back to the admin cookie', () => {
+    const selectedUser = { id: 77, name: 'Selected User', role: 'standard', isImpersonating: true };
+
+    assert.deepEqual(
+        resolveImpersonationSessionFailure(selectedUser, {
+            error: new SessionRequestTimeoutError(5),
+        }),
+        {
+            clearToken: false,
+            retryNormalSession: false,
+            user: selectedUser,
+        }
+    );
+});
+
+test('expired user-view tokens can exit back to the normal admin session', () => {
+    const selectedUser = { id: 77, name: 'Selected User', role: 'standard', isImpersonating: true };
+
+    assert.deepEqual(
+        resolveImpersonationSessionFailure(selectedUser, {
+            response: new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401 }),
+            data: { error: 'Invalid token' },
+        }),
+        {
+            clearToken: true,
+            retryNormalSession: true,
+            user: null,
+        }
     );
 });
