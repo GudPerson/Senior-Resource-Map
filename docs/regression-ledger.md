@@ -208,6 +208,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Acceptance criteria: the governance model remains unchanged; Archived/Paused organisations cannot receive new access, linked resources, or agreement records; controls for locked new-record actions visibly explain why they are disabled; the profile status selector and Save Organisation remain usable so admins can reopen the organisation; no auth, Gmail, email, GudAuth, Worker, or secret behavior changes.
 - Verification result: `node --test client/test/governanceOrganizationUi.test.js` passed 4/4, `node --test client/test/*.test.js client/src/lib/*.test.js` passed 97/97, `npm run build:client` passed with the existing large chunk warning, and `git diff --check` passed on 2026-05-30. PR #19 merged as `b7aa7a1a`; Cloudflare Pages deployed `https://eec03ae0.senior-resource-map.pages.dev`, and the production custom domain served bundle `assets/index-BQFrS5Iu.js`. Production health returned OK. A read-only production browser probe confirmed the Admin Organisations tab loaded for the smoke account; that account currently saw the selected organisation as open for new records, so archived-state live verification was limited to focused UI logic tests and build output rather than mutating production data.
 
+### 2026-05-30 Admin organisation status pills
+
+- Current behavior: Admin Tools organisation list cards show a compact status pill beside each organisation name. Active, Draft, Paused, and Archived statuses keep their existing governance meaning and now have distinct visual labels before the admin opens the profile form.
+- Known-good reference: 2026-05-30 production screenshot request where the selected organisation profile showed Archived status, but the organisation list cards did not show status at a glance.
+- Reproduction steps: sign in as Super Admin, open `/dashboard/admin`, switch to Organisations, and compare the organisation list cards against the selected Organisation profile status field.
+- Acceptance criteria: every organisation list card shows the normalized governance status; selecting cards and saving organisation status continue to work; status pills do not grant or remove access, do not change locked-control behavior, and do not touch auth, Gmail, email, GudAuth, Worker, or secret behavior.
+- Verification result: `node --test client/test/governanceOrganizationUi.test.js` passed 5/5, `node --test client/test/*.test.js client/src/lib/*.test.js` passed 98/98, `npm run build:client` passed with the existing large chunk warning, and `git diff --check` passed on 2026-05-30.
+
 ### 2026-05-16 Production database source reconciliation
 
 - Current behavior: repo-local database checks must use the same Neon database that serves `api.carearound.sg`; otherwise phone/login cleanup can appear correct locally while production still contains different users, attempts, and resource rows.

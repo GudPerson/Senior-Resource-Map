@@ -10,6 +10,30 @@ export function normalizeOrganizationStatus(value) {
     return ['active', 'draft', 'paused', 'archived'].includes(normalized) ? normalized : 'active';
 }
 
+export function getOrganizationStatusBadgeMeta(value) {
+    const status = normalizeOrganizationStatus(value);
+    const badgeMeta = {
+        active: {
+            label: 'Active',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        },
+        draft: {
+            label: 'Draft',
+            className: 'border-sky-200 bg-sky-50 text-sky-700',
+        },
+        paused: {
+            label: 'Paused',
+            className: 'border-amber-200 bg-amber-50 text-amber-700',
+        },
+        archived: {
+            label: 'Archived',
+            className: 'border-slate-200 bg-slate-100 text-slate-600',
+        },
+    };
+
+    return badgeMeta[status];
+}
+
 export function isOrganizationOpenForNewRecords(organization) {
     const status = normalizeOrganizationStatus(organization?.governanceStatus);
     return status === 'active' || status === 'draft';

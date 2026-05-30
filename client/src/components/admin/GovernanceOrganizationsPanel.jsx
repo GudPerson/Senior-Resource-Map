@@ -13,6 +13,7 @@ import {
     openPrintableAgreement,
 } from '../../lib/governanceAgreementUi.js';
 import {
+    getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
     getNewGovernanceRecordSubmitState,
     isOrganizationOpenForNewRecords,
@@ -599,19 +600,30 @@ export default function GovernanceOrganizationsPanel() {
                             <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">Loading organisations...</p>
                         ) : organizations.length === 0 ? (
                             <p className="rounded-xl border border-dashed border-slate-300 px-3 py-6 text-sm text-slate-500">No organisations yet.</p>
-                        ) : organizations.map((organization) => (
-                            <button
-                                key={organization.id}
-                                type="button"
-                                onClick={() => setSelectedId(organization.id)}
-                                className={`w-full rounded-xl border px-4 py-3 text-left transition ${Number(selectedId) === Number(organization.id) ? 'border-brand-300 bg-brand-50 text-brand-900' : 'border-slate-200 bg-white text-slate-700 hover:border-brand-200'}`}
-                            >
-                                <span className="block font-bold">{organization.name}</span>
-                                <span className="mt-1 block text-xs text-slate-500">
-                                    {organization.access?.length || 0} access · {organization.agreements?.length || 0} agreement · {organization.resourceLinks?.length || 0} linked
-                                </span>
-                            </button>
-                        ))}
+                        ) : organizations.map((organization) => {
+                            const statusBadge = getOrganizationStatusBadgeMeta(organization.governanceStatus);
+
+                            return (
+                                <button
+                                    key={organization.id}
+                                    type="button"
+                                    onClick={() => setSelectedId(organization.id)}
+                                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${Number(selectedId) === Number(organization.id) ? 'border-brand-300 bg-brand-50 text-brand-900' : 'border-slate-200 bg-white text-slate-700 hover:border-brand-200'}`}
+                                >
+                                    <span className="flex min-w-0 items-start justify-between gap-3">
+                                        <span className="min-w-0">
+                                            <span className="block truncate font-bold">{organization.name}</span>
+                                            <span className="mt-1 block text-xs text-slate-500">
+                                                {organization.access?.length || 0} access · {organization.agreements?.length || 0} agreement · {organization.resourceLinks?.length || 0} linked
+                                            </span>
+                                        </span>
+                                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black uppercase ${statusBadge.className}`}>
+                                            {statusBadge.label}
+                                        </span>
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
