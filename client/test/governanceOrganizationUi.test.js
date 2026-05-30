@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+    getNewGovernanceRecordLockMessage,
+    getNewGovernanceRecordSubmitState,
+    isOrganizationOpenForNewRecords,
+    normalizeOrganizationStatus,
+} from '../src/lib/governanceOrganizationUi.js';
+
+test('organisation status keeps active and draft open for new governance records only', () => {
+    assert.equal(normalizeOrganizationStatus('Active'), 'active');
+    assert.equal(normalizeOrganizationStatus(' Draft '), 'draft');
+    assert.equal(normalizeOrganizationStatus('paused'), 'paused');
+    assert.equal(normalizeOrganizationStatus('archived'), 'archived');
+    assert.equal(normalizeOrganizationStatus('unexpected'), 'active');
+
+    assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'active' }), true);
+    assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'draft' }), true);
+    assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'paused' }), false);
+    assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'archived' }), false);
+});
+
+test('closed organisations explain why new access, links, and agreements do not respond', () => {
+    assert.equal(getNewGovernanceRecordLockMessage({ governanceStatus: 'active' }, 'access'), '');
+
+    const archivedMessage = getNewGovernanceRecordLockMessage({ governanceStatus: 'archived' }, 'access');
+    assert.match(archivedMessage, /archived/i);
+    assert.match(archivedMessage, /Active or Draft/);
+    assert.match(archivedMessage, /Save Organisation/);
+
+    const pausedMessage = getNewGovernanceRecordLockMessage({ governanceStatus: 'paused' }, 'linked resources');
+    assert.match(pausedMessage, /paused/i);
+    assert.match(pausedMessage, /linked resources/);
+});
+
+test('new governance record submit state distinguishes missing selection from closed status', () => {
+    assert.deepEqual(getNewGovernanceRecordSubmitState({
+        organization: { governanceStatus: 'active' },
+        selectedCount: 0,
+    }), {
+        disabled: true,
+        reason: 'Choose at least one item first.',
+    });
+
+    const archivedState = getNewGovernanceRecordSubmitState({
+        organization: { governanceStatus: 'archived' },
+        selectedCount: 1,
+        recordLabel: 'access',
+    });
+    assert.equal(archivedState.disabled, true);
+    assert.match(archivedState.reason, /archived/i);
+
+    assert.deepEqual(getNewGovernanceRecordSubmitState({
+        organization: { governanceStatus: 'active' },
+        selectedCount: 1,
+    }), {
+        disabled: false,
+        reason: '',
+    });
+});
+
+test('editing existing agreements remains available while new archived records stay locked', () => {
+    assert.deepEqual(getNewGovernanceRecordSubmitState({
+        organization: { governanceStatus: 'archived' },
+        selectedCount: 0,
+        editingExistingRecord: true,
+    }), {
+        disabled: false,
+        reason: '',
+    });
+});
