@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
     getNewGovernanceRecordSubmitState,
     isOrganizationOpenForNewRecords,
@@ -19,6 +20,30 @@ test('organisation status keeps active and draft open for new governance records
     assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'draft' }), true);
     assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'paused' }), false);
     assert.equal(isOrganizationOpenForNewRecords({ governanceStatus: 'archived' }), false);
+});
+
+test('organisation status badge metadata gives each list card a clear status pill', () => {
+    assert.deepEqual(getOrganizationStatusBadgeMeta('active'), {
+        label: 'Active',
+        className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    });
+
+    assert.deepEqual(getOrganizationStatusBadgeMeta('draft'), {
+        label: 'Draft',
+        className: 'border-sky-200 bg-sky-50 text-sky-700',
+    });
+
+    assert.deepEqual(getOrganizationStatusBadgeMeta('paused'), {
+        label: 'Paused',
+        className: 'border-amber-200 bg-amber-50 text-amber-700',
+    });
+
+    assert.deepEqual(getOrganizationStatusBadgeMeta('archived'), {
+        label: 'Archived',
+        className: 'border-slate-200 bg-slate-100 text-slate-600',
+    });
+
+    assert.equal(getOrganizationStatusBadgeMeta('unexpected').label, 'Active');
 });
 
 test('closed organisations explain why new access, links, and agreements do not respond', () => {
