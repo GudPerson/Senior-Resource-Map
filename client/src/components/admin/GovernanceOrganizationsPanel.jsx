@@ -12,6 +12,13 @@ import {
     getAgreementTypeLabel,
     openPrintableAgreement,
 } from '../../lib/governanceAgreementUi.js';
+import {
+    getNewGovernanceRecordLockMessage,
+    getNewGovernanceRecordSubmitState,
+    isOrganizationOpenForNewRecords,
+    normalizeOrganizationStatus,
+    ORGANIZATION_STATUS_HELP,
+} from '../../lib/governanceOrganizationUi.js';
 
 const EMPTY_ORG_FORM = {
     name: '',
@@ -39,13 +46,6 @@ const EMPTY_AGREEMENT_FORM = {
     },
 };
 
-const ORGANIZATION_STATUS_HELP = {
-    draft: 'Profile is being prepared. Empty drafts can be deleted before they are used.',
-    active: 'Ready for agreement coverage, governance access, and resource linking.',
-    paused: 'Temporarily prevents new access, agreement records, and resource links.',
-    archived: 'Retained for records. Existing history remains, but new governance activity is closed.',
-};
-
 const SELECT_STYLES = {
     container: (base) => ({
         ...base,
@@ -59,6 +59,9 @@ const SELECT_STYLES = {
         borderColor: state.isFocused ? '#0f766e' : '#dbe4ef',
         borderRadius: '0.75rem',
         boxShadow: state.isFocused ? '0 0 0 2px rgba(15, 118, 110, 0.12)' : 'none',
+        backgroundColor: state.isDisabled ? '#f8fafc' : base.backgroundColor,
+        cursor: state.isDisabled ? 'not-allowed' : 'default',
+        opacity: state.isDisabled ? 0.74 : 1,
         '&:hover': { borderColor: '#99c7c1' },
     }),
     valueContainer: (base) => ({
@@ -124,16 +127,6 @@ const SELECT_STYLES = {
 
 function getSelectMenuPortalTarget() {
     return typeof document !== 'undefined' ? document.body : null;
-}
-
-function normalizeOrganizationStatus(value) {
-    const normalized = String(value || 'active').trim().toLowerCase();
-    return ['active', 'draft', 'paused', 'archived'].includes(normalized) ? normalized : 'active';
-}
-
-function isOrganizationOpenForNewRecords(organization) {
-    const status = normalizeOrganizationStatus(organization?.governanceStatus);
-    return status === 'active' || status === 'draft';
 }
 
 function isEmptyDraftOrganization(organization) {
@@ -264,6 +257,29 @@ export default function GovernanceOrganizationsPanel() {
     const selectedOrganizationStatus = normalizeOrganizationStatus(selectedOrganization?.governanceStatus || orgForm.governanceStatus);
     const organizationOpenForNewRecords = !selectedOrganization || isOrganizationOpenForNewRecords(selectedOrganization);
     const selectedOrganizationCanDelete = selectedOrganization ? isEmptyDraftOrganization(selectedOrganization) : false;
+    const accessLockMessage = getNewGovernanceRecordLockMessage(selectedOrganization, 'organisation access');
+    const resourceLockMessage = getNewGovernanceRecordLockMessage(selectedOrganization, 'linked resources');
+    const agreementLockMessage = getNewGovernanceRecordLockMessage(selectedOrganization, 'agreement records');
+    const accessSubmitState = getNewGovernanceRecordSubmitState({
+        organization: selectedOrganization,
+        selectedCount: selectedAccessUsers.length,
+        saving,
+        recordLabel: 'organisation access',
+    });
+    const resourceSubmitState = getNewGovernanceRecordSubmitState({
+        organization: selectedOrganization,
+        selectedCount: selectedResources.length,
+        saving,
+        recordLabel: 'linked resources',
+    });
+    const agreementSubmitState = getNewGovernanceRecordSubmitState({
+        organization: selectedOrganization,
+        selectedCount: 1,
+        saving,
+        recordLabel: 'agreement records',
+        editingExistingRecord: Boolean(editingAgreementId),
+    });
+    const agreementFormLockedForNewRecord = Boolean(agreementLockMessage && !editingAgreementId);
     const agreementCoverageItems = useMemo(() => (
         AGREEMENT_USE_ORDER.map((key) => ({
             key,
@@ -646,9 +662,10 @@ export default function GovernanceOrganizationsPanel() {
                             <div className="mt-3 grid gap-3 sm:grid-cols-2">
                                 <button
                                     type="button"
-                                    className="btn-secondary gap-2"
+                                    className="btn-secondary gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     onClick={handleArchiveOrganization}
                                     disabled={saving || selectedOrganizationStatus === 'archived'}
+                                    title={selectedOrganizationStatus === 'archived' ? 'This organisation is already archived.' : undefined}
                                 >
                                     <FileText className="h-4 w-4" />
                                     Archive Organisation
@@ -712,18 +729,23 @@ export default function GovernanceOrganizationsPanel() {
                                                 formatOptionLabel={renderSelectOption}
                                                 placeholder="Search eligible users..."
                                                 noOptionsMessage={() => 'No eligible users found'}
-                                                isDisabled={saving || !organizationOpenForNewRecords}
+                                                isDisabled={saving || Boolean(accessLockMessage)}
                                             />
+                                            {accessLockMessage ? (
+                                                <span className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+                                                    {accessLockMessage}
+                                                </span>
+                                            ) : null}
                                         </label>
                                         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                                             <label className="space-y-1">
                                                 <span className="text-sm font-bold text-slate-700">Access level</span>
-                                                <select className="input-field min-h-[48px]" value={accessForm.accessRole} onChange={(event) => setAccessForm({ ...accessForm, accessRole: event.target.value })} disabled={saving || !organizationOpenForNewRecords}>
+                                                <select className="input-field min-h-[48px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={accessForm.accessRole} onChange={(event) => setAccessForm({ ...accessForm, accessRole: event.target.value })} disabled={saving || Boolean(accessLockMessage)}>
                                                     <option value="staff">Staff</option>
                                                     <option value="admin">Admin</option>
                                                 </select>
                                             </label>
-                                            <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end sm:min-w-[9rem]" disabled={saving || selectedAccessUsers.length === 0 || !organizationOpenForNewRecords}>
+                                            <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[9rem]" disabled={accessSubmitState.disabled} title={accessSubmitState.reason || undefined}>
                                                 <UserPlus className="h-4 w-4" />
                                                 Add
                                             </button>
@@ -775,16 +797,21 @@ export default function GovernanceOrganizationsPanel() {
                                                 placeholder="Search resources to link..."
                                                 noOptionsMessage={() => (loadingResources ? 'Searching resources...' : 'No resources found')}
                                                 isLoading={loadingResources}
-                                                isDisabled={saving || !organizationOpenForNewRecords}
+                                                isDisabled={saving || Boolean(resourceLockMessage)}
                                             />
+                                            {resourceLockMessage ? (
+                                                <span className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+                                                    {resourceLockMessage}
+                                                </span>
+                                            ) : null}
                                         </label>
                                         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                                             <label className="space-y-1">
                                                 <span className="text-sm font-bold text-slate-700">Resource type</span>
                                                 <select
-                                                    className="input-field min-h-[48px]"
+                                                    className="input-field min-h-[48px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                                     value={resourceForm.resourceType}
-                                                    disabled={saving || !organizationOpenForNewRecords}
+                                                    disabled={saving || Boolean(resourceLockMessage)}
                                                     onChange={(event) => {
                                                         setResourceForm({ resourceType: event.target.value });
                                                         setSelectedResources([]);
@@ -796,7 +823,7 @@ export default function GovernanceOrganizationsPanel() {
                                                     <option value="template">Template</option>
                                                 </select>
                                             </label>
-                                            <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end sm:min-w-[9rem]" disabled={saving || selectedResources.length === 0 || !organizationOpenForNewRecords}>
+                                            <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[9rem]" disabled={resourceSubmitState.disabled} title={resourceSubmitState.reason || undefined}>
                                                 <Link2 className="h-4 w-4" />
                                                 Link
                                             </button>
@@ -846,15 +873,20 @@ export default function GovernanceOrganizationsPanel() {
                                     ))}
                                 </div>
                                 <form onSubmit={handleSaveAgreement} className="mt-5 space-y-4">
+                                    {agreementLockMessage && !editingAgreementId ? (
+                                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
+                                            {agreementLockMessage}
+                                        </div>
+                                    ) : null}
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <label className="space-y-1">
                                             <span className="text-sm font-bold text-slate-700">Reference/code</span>
-                                            <input className="input-field" placeholder="e.g. FY-DSA-2026-001" value={agreementForm.agreementReference} onChange={(event) => setAgreementForm({ ...agreementForm, agreementReference: event.target.value })} required />
+                                            <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" placeholder="e.g. FY-DSA-2026-001" value={agreementForm.agreementReference} onChange={(event) => setAgreementForm({ ...agreementForm, agreementReference: event.target.value })} required disabled={agreementFormLockedForNewRecord || saving} />
                                             <span className="block text-xs text-slate-500">Use the agreement number, MOU code, or your own tracking reference.</span>
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-bold text-slate-700">Type</span>
-                                            <select className="input-field" value={agreementForm.agreementType} onChange={(event) => setAgreementForm({ ...agreementForm, agreementType: event.target.value })}>
+                                            <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.agreementType} onChange={(event) => setAgreementForm({ ...agreementForm, agreementType: event.target.value })} disabled={agreementFormLockedForNewRecord || saving}>
                                                 {AGREEMENT_TYPE_OPTIONS.map((option) => (
                                                     <option key={option.value} value={option.value}>{option.label}</option>
                                                 ))}
@@ -863,7 +895,7 @@ export default function GovernanceOrganizationsPanel() {
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-bold text-slate-700">Status</span>
-                                            <select className="input-field" value={agreementForm.status} onChange={(event) => setAgreementForm({ ...agreementForm, status: event.target.value })}>
+                                            <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.status} onChange={(event) => setAgreementForm({ ...agreementForm, status: event.target.value })} disabled={agreementFormLockedForNewRecord || saving}>
                                                 <option value="draft">Draft</option>
                                                 <option value="active">Active</option>
                                                 <option value="expired">Expired</option>
@@ -873,16 +905,16 @@ export default function GovernanceOrganizationsPanel() {
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-bold text-slate-700">Signed copy link / storage reference</span>
-                                            <input className="input-field" placeholder="Paste Drive link, file path, or archive reference" value={agreementForm.fileUrl} onChange={(event) => setAgreementForm({ ...agreementForm, fileUrl: event.target.value })} />
+                                            <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" placeholder="Paste Drive link, file path, or archive reference" value={agreementForm.fileUrl} onChange={(event) => setAgreementForm({ ...agreementForm, fileUrl: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
                                             <span className="block text-xs text-slate-500">After printing or e-signing, store the signed-copy reference here.</span>
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-bold text-slate-700">Effective date</span>
-                                            <input type="date" className="input-field" value={agreementForm.effectiveAt} onChange={(event) => setAgreementForm({ ...agreementForm, effectiveAt: event.target.value })} />
+                                            <input type="date" className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.effectiveAt} onChange={(event) => setAgreementForm({ ...agreementForm, effectiveAt: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
                                         </label>
                                         <label className="space-y-1">
                                             <span className="text-sm font-bold text-slate-700">Expiry date</span>
-                                            <input type="date" className="input-field" value={agreementForm.expiresAt} onChange={(event) => setAgreementForm({ ...agreementForm, expiresAt: event.target.value })} />
+                                            <input type="date" className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.expiresAt} onChange={(event) => setAgreementForm({ ...agreementForm, expiresAt: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
                                         </label>
                                     </div>
                                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -894,6 +926,7 @@ export default function GovernanceOrganizationsPanel() {
                                                     className="mt-1 h-4 w-4 accent-brand-600"
                                                     type="checkbox"
                                                     checked={agreementForm.allowedUses[key]}
+                                                    disabled={agreementFormLockedForNewRecord || saving}
                                                     onChange={(event) => setAgreementForm({
                                                         ...agreementForm,
                                                         allowedUses: {
@@ -911,7 +944,7 @@ export default function GovernanceOrganizationsPanel() {
                                         })}
                                     </div>
                                     <div className="flex flex-col gap-3 sm:flex-row">
-                                        <button type="submit" className="btn-primary flex-1 gap-2" disabled={saving || (!editingAgreementId && !organizationOpenForNewRecords)}>
+                                        <button type="submit" className="btn-primary flex-1 gap-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={agreementSubmitState.disabled} title={agreementSubmitState.reason || undefined}>
                                             <ShieldCheck className="h-4 w-4" />
                                             {editingAgreementId ? 'Update Agreement' : 'Add Agreement'}
                                         </button>
