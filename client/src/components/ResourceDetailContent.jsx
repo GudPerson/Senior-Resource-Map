@@ -19,6 +19,11 @@ import { localizeResource } from '../lib/localization.js';
 import { getSocialLinkEntries, mergeSocialLinks, splitWebsiteAndSocialLinks } from '../lib/socialLinks.js';
 import { buildWhatsAppContactHref, formatWhatsAppContactLabel } from '../lib/whatsappContact.js';
 import { shareResourceLink } from '../lib/resourceShare.js';
+import {
+    getResourceDetailPhone,
+    getResourceHeroPresentation,
+    shouldShowLinkedPlaceDetails,
+} from '../lib/resourceDetailPresentation.js';
 
 function TagBadge({ tag }) {
     return (
@@ -145,7 +150,6 @@ export default function ResourceDetailContent({
     layoutMode = 'page',
     onNavigateToResource,
     sortOrigin = null,
-    sortOriginLabel = null,
     subCatColors = {},
     type,
 }) {
@@ -161,9 +165,10 @@ export default function ResourceDetailContent({
     const isEmbeddedPane = layoutMode === 'pane';
     const isCompact = isEmbeddedPane ? (containerWidth ?? 0) <= 560 : isPhone;
     const rootSpacingClass = isCompact ? 'space-y-5' : 'space-y-6';
-    const heroClass = asset.bannerUrl
-        ? (isCompact ? 'h-48' : 'h-64 sm:h-80')
-        : (isCompact ? 'h-28' : 'h-32 sm:h-48');
+    const heroPresentation = getResourceHeroPresentation({
+        hasBanner: Boolean(asset.bannerUrl),
+        isCompact,
+    });
     const detailCardClass = isCompact ? 'rounded-[24px] border p-5 shadow-sm' : 'rounded-[28px] border p-6 shadow-sm sm:p-8';
     const introLayoutClass = isCompact ? 'flex flex-col items-start gap-3 mb-4' : 'flex flex-col sm:flex-row items-start gap-4 mb-4';
     const introTitleClass = isCompact ? 'text-[2rem] font-bold text-slate-900 leading-tight' : 'text-3xl font-bold text-slate-900 leading-tight';
@@ -223,7 +228,7 @@ export default function ResourceDetailContent({
 
     const primaryLocation = isHard ? asset : (softLocations[0] || asset.location || null);
     const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
-    const phone = asset?.phone || primaryLocation?.phone;
+    const phone = getResourceDetailPhone({ asset, primaryLocation, isHard });
     const whatsappContact = String(asset?.whatsappContact || primaryLocation?.whatsappContact || '').trim();
     const whatsappHref = buildWhatsAppContactHref(whatsappContact);
     const whatsappLabel = formatWhatsAppContactLabel(whatsappContact);
@@ -234,6 +239,7 @@ export default function ResourceDetailContent({
     const externalCtaLabel = !isHard ? String(asset?.ctaLabel || '').trim() || t('openLink') : '';
     const externalCtaHref = !isHard ? normalizeExternalHref(asset?.ctaUrl) : '';
     const availablePlaceCount = isHard ? 0 : softLocations.length;
+    const hasLinkedPlaceDetails = shouldShowLinkedPlaceDetails({ isHard, softLocations });
     const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
@@ -287,13 +293,13 @@ export default function ResourceDetailContent({
         <div className={`${rootSpacingClass} ${className}`}>
             {(asset.bannerUrl || asset.logoUrl) && (
                 <div
-                    className={`w-full ${heroClass} ${isCompact ? 'rounded-[24px]' : 'rounded-[28px]'} border overflow-hidden flex items-center justify-center p-4 shadow-sm relative`}
+                    className={`w-full ${heroPresentation.frameClass} ${isCompact ? 'rounded-[24px]' : 'rounded-[28px]'} border overflow-hidden flex items-center justify-center shadow-sm relative`}
                     style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}
                 >
                     {asset.bannerUrl ? (
-                        <img src={asset.bannerUrl} alt={t('bannerImageAlt')} className="absolute inset-0 w-full h-full object-cover" />
+                        <img src={asset.bannerUrl} alt={t('bannerImageAlt')} className={heroPresentation.imageClass} />
                     ) : (
-                        <img src={asset.logoUrl} alt={t('logoImageAlt')} className="max-h-full max-w-full object-contain" />
+                        <img src={asset.logoUrl} alt={t('logoImageAlt')} className={heroPresentation.imageClass} />
                     )}
                 </div>
             )}
@@ -322,16 +328,18 @@ export default function ResourceDetailContent({
                         <h1 className={introTitleClass}>{asset.name}</h1>
                         {!isHard ? (
                             <div className="mt-3 flex flex-wrap gap-2">
-                                <span
-                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border"
-                                    style={{
-                                        backgroundColor: 'var(--color-brand-light)',
-                                        color: 'var(--color-brand-strong)',
-                                        borderColor: 'var(--color-border)',
-                                    }}
-                                >
-                                    {t('availableIn')} {availablePlaceCount} {availablePlaceCount === 1 ? t('placesSingular') : t('placesPlural')}
-                                </span>
+                                {hasLinkedPlaceDetails ? (
+                                    <span
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border"
+                                        style={{
+                                            backgroundColor: 'var(--color-brand-light)',
+                                            color: 'var(--color-brand-strong)',
+                                            borderColor: 'var(--color-border)',
+                                        }}
+                                    >
+                                        {t('availableIn')} {availablePlaceCount} {availablePlaceCount === 1 ? t('placesSingular') : t('placesPlural')}
+                                    </span>
+                                ) : null}
                                 {availabilityEnabled ? (
                                     <span
                                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border"
@@ -342,18 +350,6 @@ export default function ResourceDetailContent({
                                         }}
                                     >
                                         {formatAvailabilityLabel(availabilityCount, availabilityUnit)}
-                                    </span>
-                                ) : null}
-                                {sortOriginLabel ? (
-                                    <span
-                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"
-                                        style={{
-                                            backgroundColor: 'var(--color-badge-bg)',
-                                            color: 'var(--color-text-secondary)',
-                                            borderColor: 'var(--color-border)',
-                                        }}
-                                    >
-                                        {t('sortedNearestTo')} {sortOriginLabel}
                                     </span>
                                 ) : null}
                             </div>
@@ -388,7 +384,7 @@ export default function ResourceDetailContent({
                         </div>
                     ) : null}
 
-                    {!isHard && softLocations.length > 0 ? (
+                    {hasLinkedPlaceDetails ? (
                         softLocations.map((location, index) => (
                             <div key={location.id || index} className="flex items-start gap-3">
                                 <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><MapPin size={22} /></div>
@@ -424,16 +420,6 @@ export default function ResourceDetailContent({
                                 </div>
                             </div>
                         ))
-                    ) : null}
-
-                    {!isHard && softLocations.length === 0 ? (
-                        <div className="flex items-start gap-3">
-                            <div className="p-2.5 bg-slate-100 rounded-xl text-slate-500 shrink-0"><MapPin size={22} /></div>
-                            <div>
-                                <p className="font-bold text-slate-900 mb-1">{t('linkedPlaces')}</p>
-                                <p className="text-slate-700">{t('noLinkedPlaces')}</p>
-                            </div>
-                        </div>
                     ) : null}
 
                     {(asset.schedule || asset.hours) ? (

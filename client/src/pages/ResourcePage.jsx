@@ -15,7 +15,6 @@ import {
 } from '../lib/appNavigation.js';
 import {
     GEOLOCATION_OPTIONS,
-    getSearchLocationLabel,
     loadSearchLocation,
     saveSearchLocation,
 } from '../lib/searchLocation.js';
@@ -162,7 +161,6 @@ export default function ResourcePage() {
                     asset={asset}
                     onNavigateToResource={(resourceType, resourceId) => openResourceDetail(resourceType, resourceId, navigate)}
                     sortOrigin={sortOrigin}
-                    sortOriginLabel={sortOrigin ? getSearchLocationLabel(sortOrigin) : null}
                     subCatColors={subCatColors}
                     type={type}
                 />
