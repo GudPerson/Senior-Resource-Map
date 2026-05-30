@@ -27,6 +27,18 @@ test('shouldUseFullResourceDataset uses full data only for client-only filters',
         query: 'teck whye',
         boundaryChecksEnabled: true,
         boundaryFilter: 'all',
+    }), false);
+
+    assert.equal(shouldUseFullResourceDataset({
+        query: 'health, exercise',
+        boundaryChecksEnabled: true,
+        boundaryFilter: 'all',
+    }), true);
+
+    assert.equal(shouldUseFullResourceDataset({
+        query: 'health / exercise',
+        boundaryChecksEnabled: true,
+        boundaryFilter: 'all',
     }), true);
 
     assert.equal(shouldUseFullResourceDataset({

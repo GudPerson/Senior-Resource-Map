@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, or, ilike } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { hardAssets, hardAssetTags, subCategories, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
@@ -17,6 +17,7 @@ import {
     normalizeResourceListScope,
     paginateResourceList,
 } from '../utils/resourceListScope.js';
+import { buildHardAssetSearchWhere } from '../utils/hardAssetSearch.js';
 import { attachHardAssetRegionMatches } from '../utils/regionScope.js';
 import { formatHardAssetListSummary } from '../utils/hardAssetListSummary.js';
 import { syncAssetTags } from '../utils/tags.js';
@@ -1132,13 +1133,9 @@ export const getHardAssets = async (c) => {
 
         const whereClauses = [eq(hardAssets.isDeleted, false)];
 
-        if (query) {
-            whereClauses.push(or(
-                ilike(hardAssets.name, `%${query}%`),
-                ilike(hardAssets.address, `%${query}%`),
-                ilike(hardAssets.postalCode, `%${query}%`),
-                ilike(hardAssets.description, `%${query}%`)
-            ));
+        const searchWhere = buildHardAssetSearchWhere(query);
+        if (searchWhere) {
+            whereClauses.push(searchWhere);
         }
 
         // Geographic Radius Filtering (Haversine approximation for D1/SQLite)
