@@ -5,7 +5,6 @@ export const MOBILE_MAP_PANEL_STATES = {
 
 export const MOBILE_MAP_COLLAPSE_SCROLL_TOP = 32;
 export const MOBILE_MAP_EXPAND_SCROLL_TOP = 24;
-export const MOBILE_MAP_EXPAND_SCROLL_DELTA = 14;
 export const MOBILE_MAP_EXPAND_PULL_DELTA = 18;
 
 function isMobilePanelEnabled(isMobile) {
@@ -23,8 +22,7 @@ export function getMobileMapPanelActionForScroll({
     }
 
     if (mapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED) {
-        const scrolledBackToTop = previousScrollTop - nextScrollTop >= MOBILE_MAP_EXPAND_SCROLL_DELTA;
-        return nextScrollTop <= MOBILE_MAP_EXPAND_SCROLL_TOP && scrolledBackToTop ? 'expand' : 'none';
+        return 'none';
     }
 
     const scrolledIntoCards = nextScrollTop > previousScrollTop;
