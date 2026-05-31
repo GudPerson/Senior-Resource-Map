@@ -62,14 +62,14 @@ test('getClusterExpansionZoom jumps far enough to reveal the next visible cluste
     assert.equal(getClusterExpansionZoom({ currentZoom: 16, maxZoom: 16 }), 16);
 });
 
-test('compact mobile cluster activation fits child pins instead of centering the old cluster point', () => {
+test('compact mobile cluster activation zooms before fitting child pins', () => {
     assert.deepEqual(getClusterCameraPlan({
         currentZoom: 13,
         targetZoom: 16,
-        childCount: 3,
+        childCount: 8,
         mapHeight: 128,
     }), {
-        mode: 'fit-child-bounds',
+        mode: 'zoom-then-fit-child-bounds',
         maxZoom: 16,
     });
 });
