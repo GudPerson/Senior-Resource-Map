@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     buildClusterToken,
     getClusterActivationAction,
+    getClusterCameraPlan,
     getClusterExpansionZoom,
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
@@ -59,4 +60,16 @@ test('getClusterExpansionZoom jumps far enough to reveal the next visible cluste
     assert.equal(getClusterExpansionZoom({ currentZoom: 13, maxZoom: 16 }), 15);
     assert.equal(getClusterExpansionZoom({ currentZoom: 15.4, maxZoom: 16 }), 16);
     assert.equal(getClusterExpansionZoom({ currentZoom: 16, maxZoom: 16 }), 16);
+});
+
+test('compact mobile cluster activation fits child pins instead of centering the old cluster point', () => {
+    assert.deepEqual(getClusterCameraPlan({
+        currentZoom: 13,
+        targetZoom: 16,
+        childCount: 3,
+        mapHeight: 128,
+    }), {
+        mode: 'fit-child-bounds',
+        maxZoom: 16,
+    });
 });

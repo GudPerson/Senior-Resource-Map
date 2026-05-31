@@ -49,3 +49,36 @@ export function getClusterExpansionZoom({
         : Math.ceil(normalizedCurrent) + 1;
     return Math.min(desiredNextSplit, normalizedMax);
 }
+
+export function getClusterCameraPlan({
+    currentZoom = 0,
+    targetZoom = 16,
+    childCount = 0,
+    mapHeight = 0,
+    compactMapHeight = 380,
+} = {}) {
+    const normalizedCurrent = Number.isFinite(currentZoom) ? currentZoom : 0;
+    const normalizedTarget = Number.isFinite(targetZoom) ? targetZoom : 16;
+    const normalizedChildCount = Number.isFinite(childCount) ? childCount : 0;
+    const normalizedMapHeight = Number.isFinite(mapHeight) ? mapHeight : 0;
+    const normalizedCompactHeight = Number.isFinite(compactMapHeight) ? compactMapHeight : 380;
+
+    if (normalizedChildCount > 1 && normalizedMapHeight > 0 && normalizedMapHeight <= normalizedCompactHeight) {
+        return {
+            mode: 'fit-child-bounds',
+            maxZoom: normalizedTarget,
+        };
+    }
+
+    if (normalizedTarget > normalizedCurrent) {
+        return {
+            mode: 'center-cluster',
+            maxZoom: normalizedTarget,
+        };
+    }
+
+    return {
+        mode: 'fit-child-bounds',
+        maxZoom: normalizedTarget,
+    };
+}
