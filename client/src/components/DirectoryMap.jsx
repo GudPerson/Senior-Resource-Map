@@ -21,11 +21,13 @@ import {
 import {
     buildClusterToken,
     getClusterActivationAction,
+    getClusterCameraPlan,
     getClusterExpansionZoom,
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../lib/mapClusterInteraction.js';
 import { buildDirectoryMapClassNames } from '../lib/directoryMapPresentation.js';
+import { shouldRefitDirectoryCameraAfterResize } from '../lib/directoryMapCamera.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -394,20 +396,48 @@ function DirectoryClusterHoverSync({
                 childCount: placeKeys.length,
                 maxZoom: Math.min(mapMaxZoom, 16),
             });
+            const childPoints = typeof cluster.getAllChildMarkers === 'function'
+                ? cluster.getAllChildMarkers()
+                    .map((marker) => marker.getLatLng?.())
+                    .filter(Boolean)
+                : [];
+            const bounds = childPoints.length ? L.latLngBounds(childPoints) : null;
+            const mapSize = typeof mapInstance?.getSize === 'function' ? mapInstance.getSize() : null;
+            const compactMap = mapSize?.y && mapSize.y <= DIRECTORY_COMPACT_MAP_HEIGHT;
+            const cameraPlan = getClusterCameraPlan({
+                currentZoom,
+                targetZoom,
+                childCount: placeKeys.length,
+                mapHeight: mapSize?.y || 0,
+                compactMapHeight: DIRECTORY_COMPACT_MAP_HEIGHT,
+            });
+
+            if (
+                mapInstance
+                && cameraPlan.mode === 'fit-child-bounds'
+                && bounds?.isValid?.()
+                && typeof mapInstance.fitBounds === 'function'
+            ) {
+                mapInstance.fitBounds(bounds, compactMap
+                    ? {
+                        paddingTopLeft: DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT,
+                        paddingBottomRight: DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT,
+                        maxZoom: cameraPlan.maxZoom,
+                    }
+                    : {
+                        padding: DIRECTORY_CLUSTER_BOUNDS_PADDING,
+                        maxZoom: cameraPlan.maxZoom,
+                    });
+                return;
+            }
+
             const center = cluster.getLatLng?.();
             if (mapInstance && center && targetZoom > currentZoom && typeof mapInstance.setView === 'function') {
                 mapInstance.setView(center, targetZoom, { animate: true });
                 return;
             }
-            if (mapInstance && typeof mapInstance.fitBounds === 'function' && typeof cluster.getAllChildMarkers === 'function') {
-                const childPoints = cluster.getAllChildMarkers()
-                    .map((marker) => marker.getLatLng?.())
-                    .filter(Boolean);
-                const bounds = childPoints.length ? L.latLngBounds(childPoints) : null;
-                const mapSize = typeof mapInstance.getSize === 'function' ? mapInstance.getSize() : null;
-
+            if (mapInstance && typeof mapInstance.fitBounds === 'function') {
                 if (bounds?.isValid?.()) {
-                    const compactMap = mapSize?.y && mapSize.y <= DIRECTORY_COMPACT_MAP_HEIGHT;
                     mapInstance.fitBounds(bounds, compactMap
                         ? {
                             paddingTopLeft: DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT,
@@ -492,10 +522,22 @@ function DirectoryClusterStateSync({ onClusterChange }) {
     return null;
 }
 
-function DirectoryMapController({ activeAnchor, pins, focusedPlaceKey, interactive, layoutSignature = 'default', onMapSettled, onFocusHandled }) {
+function DirectoryMapController({
+    activeAnchor,
+    pins,
+    focusedPlaceKey,
+    activePlaceKey,
+    activePlaceKeys = [],
+    interactive,
+    layoutSignature = 'default',
+    onMapSettled,
+    onFocusHandled,
+}) {
     const map = useMap();
     const previousSignatureRef = useRef('');
+    const previousLayoutSignatureRef = useRef(layoutSignature);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
+    const hasActivePlaceKeys = Boolean(activePlaceKeys?.length);
 
     const signature = useMemo(
         () => buildDirectoryCameraSignature(pins, anchorPoint),
@@ -503,18 +545,30 @@ function DirectoryMapController({ activeAnchor, pins, focusedPlaceKey, interacti
     );
 
     useEffect(() => {
-        const immediateResize = window.setTimeout(() => {
+        const previousLayoutSignature = previousLayoutSignatureRef.current;
+        previousLayoutSignatureRef.current = layoutSignature;
+        const shouldRefitAfterResize = shouldRefitDirectoryCameraAfterResize({
+            previousLayoutSignature,
+            nextLayoutSignature: layoutSignature,
+            pointCount: getDirectoryCameraPoints(pins, anchorPoint).length,
+            focusedPlaceKey,
+            activePlaceKey,
+            hasActivePlaceKeys,
+        });
+        const resizeMap = () => {
             map.invalidateSize({ animate: false });
-        }, 0);
-        const settledResize = window.setTimeout(() => {
-            map.invalidateSize({ animate: false });
-        }, 330);
+            if (shouldRefitAfterResize) {
+                fitDirectoryCamera(map, pins, anchorPoint, { animate: false });
+            }
+        };
+        const immediateResize = window.setTimeout(resizeMap, 0);
+        const settledResize = window.setTimeout(resizeMap, 330);
 
         return () => {
             window.clearTimeout(immediateResize);
             window.clearTimeout(settledResize);
         };
-    }, [layoutSignature, map, signature]);
+    }, [activePlaceKey, anchorPoint, focusedPlaceKey, hasActivePlaceKeys, layoutSignature, map, pins, signature]);
 
     useEffect(() => {
         if (!pins.length && !anchorPoint) return;
@@ -789,6 +843,8 @@ export default function DirectoryMap({
                     activeAnchor={anchorPoint}
                     pins={pins}
                     focusedPlaceKey={focusedPlaceKey}
+                    activePlaceKey={activePlaceKey}
+                    activePlaceKeys={activePlaceKeys}
                     interactive={interactive}
                     layoutSignature={layoutSignature}
                     onFocusHandled={onFocusHandled}
