@@ -135,6 +135,74 @@ function buildAnchorNote(anchor) {
     return 'Distances shown from set location';
 }
 
+const DESKTOP_UNMAPPED_DOCK_GROUP_THRESHOLD = 7;
+const DESKTOP_UNMAPPED_DOCK_ROW_THRESHOLD = 9;
+
+function getGroupCardWeight(groups = []) {
+    return groups.reduce(
+        (total, group) => total + 1 + Math.max((group.rows || []).length - 1, 0) * 0.35,
+        0,
+    );
+}
+
+export function shouldDockDesktopUnmappedRows(mappedGroups = []) {
+    const visibleRowCount = mappedGroups.reduce(
+        (count, group) => count + (group.rows || []).length,
+        0,
+    );
+
+    return mappedGroups.length >= DESKTOP_UNMAPPED_DOCK_GROUP_THRESHOLD
+        || visibleRowCount >= DESKTOP_UNMAPPED_DOCK_ROW_THRESHOLD;
+}
+
+export function buildDesktopUnmappedLayout({
+    mappedGroups = [],
+    leftGroups = [],
+    rightGroups = [],
+    unmappedRows = [],
+} = {}) {
+    if (!unmappedRows.length) {
+        return {
+            placement: 'none',
+            leftUnmappedRows: [],
+            rightUnmappedRows: [],
+            dockedUnmappedRows: [],
+        };
+    }
+
+    if (shouldDockDesktopUnmappedRows(mappedGroups)) {
+        return {
+            placement: 'map-column',
+            leftUnmappedRows: [],
+            rightUnmappedRows: [],
+            dockedUnmappedRows: unmappedRows,
+        };
+    }
+
+    const leftUnmappedRows = [];
+    const rightUnmappedRows = [];
+    let leftWeight = getGroupCardWeight(leftGroups);
+    let rightWeight = getGroupCardWeight(rightGroups);
+
+    unmappedRows.forEach((row) => {
+        if (leftWeight <= rightWeight) {
+            leftUnmappedRows.push(row);
+            leftWeight += 1;
+            return;
+        }
+
+        rightUnmappedRows.push(row);
+        rightWeight += 1;
+    });
+
+    return {
+        placement: 'side-lanes',
+        leftUnmappedRows,
+        rightUnmappedRows,
+        dockedUnmappedRows: [],
+    };
+}
+
 function splitMappedGroupsIntoColumns(groups) {
     if (!groups.length) {
         return { leftGroups: [], rightGroups: [] };
@@ -344,7 +412,14 @@ export function buildDirectoryPresentation(directory, {
             number: placeNumberByKey[group.placeKey] || null,
         }))
         .sort((left, right) => left.number - right.number);
+    const orderedUnmappedRows = unmappedRows.sort((left, right) => (left.name || '').localeCompare(right.name || ''));
     const { leftGroups, rightGroups } = splitMappedGroupsIntoColumns(orderedMappedGroups);
+    const desktopUnmappedLayout = buildDesktopUnmappedLayout({
+        mappedGroups: orderedMappedGroups,
+        leftGroups,
+        rightGroups,
+        unmappedRows: orderedUnmappedRows,
+    });
     const visiblePlaceKeys = new Set(orderedMappedGroups.map((group) => group.placeKey));
     const pins = groupedPins
         .filter((pin) => visiblePlaceKeys.has(pin.placeKey))
@@ -358,7 +433,11 @@ export function buildDirectoryPresentation(directory, {
         mappedGroups: orderedMappedGroups,
         leftGroups,
         rightGroups,
-        unmappedRows: unmappedRows.sort((left, right) => (left.name || '').localeCompare(right.name || '')),
+        unmappedRows: orderedUnmappedRows,
+        desktopUnmappedPlacement: desktopUnmappedLayout.placement,
+        leftUnmappedRows: desktopUnmappedLayout.leftUnmappedRows,
+        rightUnmappedRows: desktopUnmappedLayout.rightUnmappedRows,
+        dockedUnmappedRows: desktopUnmappedLayout.dockedUnmappedRows,
         placeNumberByKey,
         groupKeyByPlaceKey,
         activeAnchor,

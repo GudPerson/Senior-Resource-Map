@@ -1268,7 +1268,7 @@ function DirectoryPlaceGroupCard({
     );
 }
 
-function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource, onOpenResourceNotes }) {
+function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource, onOpenResourceNotes, compact = false }) {
     const { t } = useLocale();
     const place = useMemo(() => ({
         address: row.locationLabel || row.contextLabel || row.placeName || '',
@@ -1302,7 +1302,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
     }
 
     return (
-        <div className="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className={`flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white shadow-sm ${compact ? 'p-3' : 'p-4'}`}>
             <ResourceRowIcon
                 resourceType={row.resourceType}
                 bucket={row.bucket}
@@ -1325,22 +1325,22 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         <div className="mt-1.5 flex items-start gap-2">
                             <div className="min-w-0 flex-1">
                                 {detailPath && row.status !== 'unavailable' ? (
-                                    <Link to={detailPath} reloadDocument className="block text-base font-bold leading-snug text-slate-900 transition hover:text-brand-700">
+                                    <Link to={detailPath} reloadDocument className={`block font-bold leading-snug text-slate-900 transition hover:text-brand-700 ${compact ? 'text-[15px]' : 'text-base'}`}>
                                         {row.name}
                                     </Link>
                                 ) : (
-                                    <p className="text-base font-bold leading-snug text-slate-900">{row.name}</p>
+                                    <p className={`font-bold leading-snug text-slate-900 ${compact ? 'text-[15px]' : 'text-base'}`}>{row.name}</p>
                                 )}
                             </div>
                             <MapNoteIconButton row={row} onOpenResourceNotes={onOpenResourceNotes} />
                         </div>
-                        {row.contextLabel ? (
+                        {!compact && row.contextLabel ? (
                             <p className="mt-1 text-sm text-slate-500">{row.contextLabel}</p>
                         ) : null}
                         {row.locationLabel ? (
-                            <p className="mt-1 text-sm text-slate-400">{row.locationLabel}</p>
+                            <p className={`mt-1 text-slate-400 ${compact ? 'line-clamp-1 text-xs' : 'text-sm'}`}>{row.locationLabel}</p>
                         ) : null}
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
                             <span>{row.resourceType === 'hard' ? t('placeType') : t('offeringType')}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
@@ -1352,7 +1352,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                                 </span>
                             ) : null}
                         </div>
-                        {row.descriptor ? (
+                        {row.descriptor && !compact ? (
                             <p className="mt-1.5 text-sm leading-6 text-slate-500">{row.descriptor}</p>
                         ) : null}
                     </div>
@@ -1374,7 +1374,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                     ) : null}
                 </div>
 
-                {interactive ? (
+                {interactive && !compact ? (
                     <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
                         {detailPath && row.status !== 'unavailable' ? (
                             <Link to={detailPath} reloadDocument className="text-brand-700 transition hover:text-brand-800">
@@ -1410,8 +1410,9 @@ function DirectoryGroupColumn({
     clusterMapping = {},
     showDesktopHoverLogo = false,
     logoRevealPlaceKeys = [],
+    afterContent = null,
 }) {
-    if (!groups.length) {
+    if (!groups.length && !afterContent) {
         return preserveSlot ? <div aria-hidden="true" className="min-h-px" /> : null;
     }
 
@@ -1443,6 +1444,7 @@ function DirectoryGroupColumn({
                     }}
                 />
             ))}
+            {afterContent}
         </div>
     );
 }
@@ -1454,14 +1456,41 @@ function DirectoryUnmappedSection({
     canSaveResources,
     onRemoveResource,
     onOpenResourceNotes,
+    compact = false,
+    className = '',
 }) {
     const { t } = useLocale();
     if (!rows.length) {
         return null;
     }
 
+    if (compact) {
+        return (
+            <section className={`space-y-3 ${className}`.trim()}>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{t('resourcesNotShownOnMap')}</p>
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                        {rows.length}
+                    </span>
+                </div>
+                {rows.map((row) => (
+                    <DirectoryUnmappedRow
+                        key={row.rowKey}
+                        row={row}
+                        interactive={interactive}
+                        mode={mode}
+                        canSaveResources={canSaveResources}
+                        onRemoveResource={onRemoveResource}
+                        onOpenResourceNotes={onOpenResourceNotes}
+                        compact
+                    />
+                ))}
+            </section>
+        );
+    }
+
     return (
-        <section className={`border border-slate-200 ${interactive ? 'rounded-[28px] bg-white p-5 shadow-sm sm:p-6' : 'rounded-[30px] bg-slate-50/70 p-5 shadow-none sm:p-6'}`}>
+        <section className={`border border-slate-200 ${interactive ? 'rounded-[28px] bg-white p-5 shadow-sm sm:p-6' : 'rounded-[30px] bg-slate-50/70 p-5 shadow-none sm:p-6'} ${className}`.trim()}>
             <div className={`border-b ${interactive ? 'border-slate-100 pb-4' : 'border-slate-200/80 pb-3'}`}>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('unmappedResources')}</p>
                 <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{t('resourcesNotShownOnMap')}</h2>
@@ -1480,6 +1509,7 @@ function DirectoryUnmappedSection({
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
                         onOpenResourceNotes={onOpenResourceNotes}
+                        compact={false}
                     />
                 ))}
             </div>
@@ -1529,10 +1559,15 @@ export default function SharedMapDirectoryList({
     const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
     const isMobileMapCollapsed = isMobileMapPanelEnabled
         && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED;
+    const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
+    const desktopUnmappedPlacement = presentation?.desktopUnmappedPlacement || 'none';
+    const leftUnmappedRows = presentation?.leftUnmappedRows || [];
+    const rightUnmappedRows = presentation?.rightUnmappedRows || [];
+    const dockedUnmappedRows = presentation?.dockedUnmappedRows || [];
     const noteResourceRows = useMemo(() => buildMapNoteResourceRows(presentation, {
         unmappedContextLabel: t('unmappedResources'),
     }), [presentation, t]);
@@ -1839,6 +1874,7 @@ export default function SharedMapDirectoryList({
                             canSaveResources={canSaveResources}
                             onRemoveResource={onRemoveResource}
                             onOpenResourceNotes={openResourceNotes}
+                            compact
                         />
                     </div>
                     <MapNotesOverlay
@@ -1880,6 +1916,17 @@ export default function SharedMapDirectoryList({
                         clusterMapping={clusterMapping}
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
+                        afterContent={useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
+                            <DirectoryUnmappedSection
+                                rows={leftUnmappedRows}
+                                interactive={interactive}
+                                mode={mode}
+                                canSaveResources={canSaveResources}
+                                onRemoveResource={onRemoveResource}
+                                onOpenResourceNotes={openResourceNotes}
+                                compact
+                            />
+                        ) : null}
                     />
 
                     <div
@@ -1893,6 +1940,18 @@ export default function SharedMapDirectoryList({
                                 rows={noteResourceRows}
                                 mode={mode}
                                 onOpen={openResourceNotes}
+                            />
+                        ) : null}
+                        {useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'map-column' && dockedUnmappedRows.length ? (
+                            <DirectoryUnmappedSection
+                                rows={dockedUnmappedRows}
+                                interactive={interactive}
+                                mode={mode}
+                                canSaveResources={canSaveResources}
+                                onRemoveResource={onRemoveResource}
+                                onOpenResourceNotes={openResourceNotes}
+                                compact
+                                className={resolvedLayout !== 'print' ? 'mt-4' : ''}
                             />
                         ) : null}
                     </div>
@@ -1917,17 +1976,30 @@ export default function SharedMapDirectoryList({
                         clusterMapping={clusterMapping}
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
+                        afterContent={useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
+                            <DirectoryUnmappedSection
+                                rows={rightUnmappedRows}
+                                interactive={interactive}
+                                mode={mode}
+                                canSaveResources={canSaveResources}
+                                onRemoveResource={onRemoveResource}
+                                onOpenResourceNotes={openResourceNotes}
+                                compact
+                            />
+                        ) : null}
                     />
                 </div>
 
-                <DirectoryUnmappedSection
-                    rows={unmappedRows}
-                    interactive={interactive}
-                    mode={mode}
-                    canSaveResources={canSaveResources}
-                    onRemoveResource={onRemoveResource}
-                    onOpenResourceNotes={openResourceNotes}
-                />
+                {!interactive ? (
+                    <DirectoryUnmappedSection
+                        rows={unmappedRows}
+                        interactive={interactive}
+                        mode={mode}
+                        canSaveResources={canSaveResources}
+                        onRemoveResource={onRemoveResource}
+                        onOpenResourceNotes={openResourceNotes}
+                    />
+                ) : null}
                 <MapNotesOverlay
                     open={notesPanel.open}
                     rows={noteResourceRows}
