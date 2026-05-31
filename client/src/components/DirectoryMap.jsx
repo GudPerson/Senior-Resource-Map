@@ -491,7 +491,7 @@ function DirectoryClusterStateSync({ onClusterChange }) {
     return null;
 }
 
-function DirectoryMapController({ activeAnchor, pins, focusedPlaceKey, interactive, onMapSettled, onFocusHandled }) {
+function DirectoryMapController({ activeAnchor, pins, focusedPlaceKey, interactive, layoutSignature = 'default', onMapSettled, onFocusHandled }) {
     const map = useMap();
     const previousSignatureRef = useRef('');
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
@@ -502,10 +502,18 @@ function DirectoryMapController({ activeAnchor, pins, focusedPlaceKey, interacti
     );
 
     useEffect(() => {
-        window.setTimeout(() => {
+        const immediateResize = window.setTimeout(() => {
             map.invalidateSize({ animate: false });
         }, 0);
-    }, [map, signature]);
+        const settledResize = window.setTimeout(() => {
+            map.invalidateSize({ animate: false });
+        }, 330);
+
+        return () => {
+            window.clearTimeout(immediateResize);
+            window.clearTimeout(settledResize);
+        };
+    }, [layoutSignature, map, signature]);
 
     useEffect(() => {
         if (!pins.length && !anchorPoint) return;
@@ -560,6 +568,7 @@ export default function DirectoryMap({
     showAttribution = true,
     showProviderBadgeLogo = true,
     mapHeightClassName = 'h-[340px]',
+    layoutSignature = 'default',
     onMapReadyForCapture,
     onMapCaptureError,
     onClusterChange,
@@ -774,6 +783,7 @@ export default function DirectoryMap({
                     pins={pins}
                     focusedPlaceKey={focusedPlaceKey}
                     interactive={interactive}
+                    layoutSignature={layoutSignature}
                     onFocusHandled={onFocusHandled}
                     onMapSettled={onMapReadyForCapture ? () => {
                         mapSettledRef.current = true;
