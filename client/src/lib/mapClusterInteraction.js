@@ -63,6 +63,18 @@ export function getClusterCameraPlan({
     const normalizedMapHeight = Number.isFinite(mapHeight) ? mapHeight : 0;
     const normalizedCompactHeight = Number.isFinite(compactMapHeight) ? compactMapHeight : 380;
 
+    if (
+        normalizedChildCount > 1
+        && normalizedMapHeight > 0
+        && normalizedMapHeight <= normalizedCompactHeight
+        && normalizedTarget > normalizedCurrent
+    ) {
+        return {
+            mode: 'zoom-then-fit-child-bounds',
+            maxZoom: normalizedTarget,
+        };
+    }
+
     if (normalizedChildCount > 1 && normalizedMapHeight > 0 && normalizedMapHeight <= normalizedCompactHeight) {
         return {
             mode: 'fit-child-bounds',

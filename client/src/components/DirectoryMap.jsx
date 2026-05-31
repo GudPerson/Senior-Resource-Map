@@ -412,6 +412,53 @@ function DirectoryClusterHoverSync({
                 compactMapHeight: DIRECTORY_COMPACT_MAP_HEIGHT,
             });
 
+            const reframeClusterChildren = () => {
+                if (!mapInstance || !bounds?.isValid?.()) return;
+                const nextMapSize = typeof mapInstance.getSize === 'function' ? mapInstance.getSize() : mapSize;
+                const nextCompactMap = nextMapSize?.y && nextMapSize.y <= DIRECTORY_COMPACT_MAP_HEIGHT;
+                if (nextCompactMap) {
+                    if (typeof mapInstance.panInsideBounds === 'function') {
+                        mapInstance.panInsideBounds(bounds, {
+                            paddingTopLeft: DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT,
+                            paddingBottomRight: DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT,
+                            animate: true,
+                        });
+                        return;
+                    }
+                    if (typeof mapInstance.panTo === 'function') {
+                        mapInstance.panTo(bounds.getCenter(), { animate: true });
+                    }
+                    return;
+                }
+                if (typeof mapInstance.fitBounds === 'function') {
+                    mapInstance.fitBounds(bounds, {
+                        padding: DIRECTORY_CLUSTER_BOUNDS_PADDING,
+                        maxZoom: cameraPlan.maxZoom,
+                    });
+                }
+            };
+
+            const center = cluster.getLatLng?.();
+            if (
+                mapInstance
+                && cameraPlan.mode === 'zoom-then-fit-child-bounds'
+                && center
+                && typeof mapInstance.setView === 'function'
+            ) {
+                let reframed = false;
+                const reframeOnce = () => {
+                    if (reframed) return;
+                    reframed = true;
+                    window.setTimeout(reframeClusterChildren, 80);
+                };
+                if (typeof mapInstance.once === 'function') {
+                    mapInstance.once('zoomend', reframeOnce);
+                }
+                window.setTimeout(reframeOnce, 450);
+                mapInstance.setView(center, cameraPlan.maxZoom, { animate: true });
+                return;
+            }
+
             if (
                 mapInstance
                 && cameraPlan.mode === 'fit-child-bounds'
@@ -431,7 +478,6 @@ function DirectoryClusterHoverSync({
                 return;
             }
 
-            const center = cluster.getLatLng?.();
             if (mapInstance && center && targetZoom > currentZoom && typeof mapInstance.setView === 'function') {
                 mapInstance.setView(center, targetZoom, { animate: true });
                 return;
