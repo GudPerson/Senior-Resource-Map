@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -28,6 +28,12 @@ import {
 } from '../lib/mapNotes.js';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
+import {
+    MOBILE_MAP_PANEL_STATES,
+    getMobileMapPanelActionForScroll,
+    getMobileMapPanelStateAfterBadgeActivation,
+    shouldExpandMobileMapPanelFromTopPull,
+} from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
 
@@ -1509,12 +1515,20 @@ export default function SharedMapDirectoryList({
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
     const mobileMapWrapperRef = useRef(null);
+    const mobileMapPullStartYRef = useRef(null);
+    const mobileMapScrollTopRef = useRef(0);
+    const mobileMapSuppressCollapseUntilRef = useRef(0);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
+    const [mobileMapPanelState, setMobileMapPanelState] = useState(MOBILE_MAP_PANEL_STATES.EXPANDED);
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
     const resolvedLayout = layout === 'responsive'
         ? (isDesktop ? 'desktop' : 'mobile')
         : layout;
+    const interactive = layout !== 'print';
+    const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
+    const isMobileMapCollapsed = isMobileMapPanelEnabled
+        && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED;
     const mappedGroups = presentation?.mappedGroups || [];
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
@@ -1523,7 +1537,6 @@ export default function SharedMapDirectoryList({
         unmappedContextLabel: t('unmappedResources'),
     }), [presentation, t]);
     const [notesPanel, setNotesPanel] = useState({ open: false, selectedKey: null });
-    const interactive = layout !== 'print';
     const detailReturnPath = useMemo(() => (
         interactive ? normalizeMapReturnPath(buildCurrentAppPath(location)) : ''
     ), [interactive, location.hash, location.pathname, location.search]);
@@ -1540,6 +1553,148 @@ export default function SharedMapDirectoryList({
         : (showDesktopHoverLogo
             ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
             : []);
+
+    const getMobileScrollTop = useCallback(() => {
+        if (typeof window === 'undefined') return 0;
+        return Math.max(0, Math.round(window.scrollY || document.documentElement?.scrollTop || 0));
+    }, []);
+
+    const getMobileMapPanelStateForAction = useCallback((current, action) => {
+        if (action === 'collapse' && Date.now() < mobileMapSuppressCollapseUntilRef.current) {
+            return current;
+        }
+
+        if (action === 'collapse') {
+            return MOBILE_MAP_PANEL_STATES.COLLAPSED;
+        }
+
+        if (action === 'expand') {
+            return MOBILE_MAP_PANEL_STATES.EXPANDED;
+        }
+
+        return current;
+    }, []);
+
+    const expandMobileMapForFocus = useCallback(() => {
+        if (!isMobileMapPanelEnabled) return;
+        mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
+        setMobileMapPanelState((current) => getMobileMapPanelStateAfterBadgeActivation({
+            isMobile: true,
+            mapPanelState: current,
+        }));
+    }, [isMobileMapPanelEnabled]);
+
+    const handleDirectoryViewOnMap = useCallback((placeKey) => {
+        expandMobileMapForFocus();
+        onViewOnMap?.(placeKey);
+    }, [expandMobileMapForFocus, onViewOnMap]);
+
+    const handleMobileMapViewSection = useCallback((placeKey) => {
+        expandMobileMapForFocus();
+        renderMobileMap?.().props?.onViewSection?.(placeKey);
+    }, [expandMobileMapForFocus, renderMobileMap]);
+
+    const handleMobileMapClusterSelect = useCallback((placeKeys) => {
+        expandMobileMapForFocus();
+        renderMobileMap?.().props?.onClusterSelect?.(placeKeys);
+    }, [expandMobileMapForFocus, renderMobileMap]);
+
+    const handleMobileCardsWheel = useCallback((event) => {
+        if (!isMobileMapPanelEnabled) return;
+
+        const scrollTop = getMobileScrollTop();
+        setMobileMapPanelState((current) => {
+            if (shouldExpandMobileMapPanelFromTopPull({
+                isMobile: true,
+                mapPanelState: current,
+                scrollTop,
+                deltaY: event.deltaY,
+            })) {
+                return MOBILE_MAP_PANEL_STATES.EXPANDED;
+            }
+
+            const action = getMobileMapPanelActionForScroll({
+                isMobile: true,
+                mapPanelState: current,
+                nextScrollTop: Math.max(0, scrollTop + event.deltaY),
+                previousScrollTop: scrollTop,
+            });
+            return getMobileMapPanelStateForAction(current, action);
+        });
+    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
+
+    const handleMobileCardsTouchStart = useCallback((event) => {
+        if (!isMobileMapPanelEnabled) return;
+        mobileMapPullStartYRef.current = event.touches?.[0]?.clientY ?? null;
+    }, [isMobileMapPanelEnabled]);
+
+    const handleMobileCardsTouchMove = useCallback((event) => {
+        if (!isMobileMapPanelEnabled) return;
+        const startY = mobileMapPullStartYRef.current;
+        const currentY = event.touches?.[0]?.clientY;
+        if (startY === null || currentY === undefined) return;
+
+        const scrollTop = getMobileScrollTop();
+        const pullDistance = currentY - startY;
+        const gestureScrollTop = Math.max(0, scrollTop + Math.max(0, startY - currentY));
+
+        setMobileMapPanelState((current) => {
+            if (shouldExpandMobileMapPanelFromTopPull({
+                isMobile: true,
+                mapPanelState: current,
+                scrollTop,
+                pullDistance,
+            })) {
+                mobileMapPullStartYRef.current = currentY;
+                return MOBILE_MAP_PANEL_STATES.EXPANDED;
+            }
+
+            const action = getMobileMapPanelActionForScroll({
+                isMobile: true,
+                mapPanelState: current,
+                nextScrollTop: gestureScrollTop,
+                previousScrollTop: scrollTop,
+            });
+            return getMobileMapPanelStateForAction(current, action);
+        });
+    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
+
+    const handleMobileCardsTouchEnd = useCallback(() => {
+        mobileMapPullStartYRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        if (resolvedLayout !== 'mobile') {
+            setMobileMapPanelState(MOBILE_MAP_PANEL_STATES.EXPANDED);
+        }
+    }, [resolvedLayout]);
+
+    useEffect(() => {
+        if (!isMobileMapPanelEnabled || typeof window === 'undefined') {
+            return undefined;
+        }
+
+        mobileMapScrollTopRef.current = getMobileScrollTop();
+
+        const handleWindowScroll = () => {
+            const nextScrollTop = getMobileScrollTop();
+            const previousScrollTop = mobileMapScrollTopRef.current;
+            mobileMapScrollTopRef.current = nextScrollTop;
+
+            setMobileMapPanelState((current) => {
+                const action = getMobileMapPanelActionForScroll({
+                    isMobile: true,
+                    mapPanelState: current,
+                    nextScrollTop,
+                    previousScrollTop,
+                });
+                return getMobileMapPanelStateForAction(current, action);
+            });
+        };
+
+        window.addEventListener('scroll', handleWindowScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleWindowScroll);
+    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
 
     function openResourceNotes(row = null) {
         if (!interactive || !noteResourceRows.length) return;
@@ -1625,12 +1780,23 @@ export default function SharedMapDirectoryList({
     }
 
     if (resolvedLayout === 'mobile') {
+        const mobileMapElement = renderMobileMap?.();
+        const mobileMapHeightClassName = isMobileMapCollapsed
+            ? 'h-[128px] min-h-[128px] max-h-[128px] transition-[height] duration-300 ease-out'
+            : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} transition-[height] duration-300 ease-out`;
+
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-4 ${className}`}>
-                    {renderMobileMap ? (
+                    {mobileMapElement ? (
                         <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
-                            {React.cloneElement(renderMobileMap(), { onClusterChange: setClusterMapping })}
+                            {React.cloneElement(mobileMapElement, {
+                                onClusterChange: setClusterMapping,
+                                onViewSection: handleMobileMapViewSection,
+                                onClusterSelect: handleMobileMapClusterSelect,
+                                mapHeightClassName: mobileMapHeightClassName,
+                                layoutSignature: `mobile-map-${mobileMapPanelState}`,
+                            })}
                             <MapLegend mobile />
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
@@ -1640,32 +1806,41 @@ export default function SharedMapDirectoryList({
                         </div>
                     ) : null}
 
-                    <DirectoryGroupColumn
-                        groups={mappedGroups}
-                        mode={mode}
-                        interactive
-                        fullCardLink={false}
-                        onViewOnMap={onViewOnMap}
-                        onRemoveResource={onRemoveResource}
-                        onUpdateResourceNotes={onUpdateResourceNotes}
-                        onOpenResourceNotes={openResourceNotes}
-                        canSaveResources={canSaveResources}
-                        highlightPlaceKey={flashPlaceKey}
-                        highlightPlaceKeys={highlightPlaceKeys}
-                        sectionRefs={sectionRefs}
-                        clusterMapping={clusterMapping}
-                        showDesktopHoverLogo={showDesktopHoverLogo}
-                        logoRevealPlaceKeys={logoRevealPlaceKeys}
-                    />
+                    <div
+                        className="space-y-4"
+                        onWheel={handleMobileCardsWheel}
+                        onTouchStart={handleMobileCardsTouchStart}
+                        onTouchMove={handleMobileCardsTouchMove}
+                        onTouchEnd={handleMobileCardsTouchEnd}
+                        onTouchCancel={handleMobileCardsTouchEnd}
+                    >
+                        <DirectoryGroupColumn
+                            groups={mappedGroups}
+                            mode={mode}
+                            interactive
+                            fullCardLink={false}
+                            onViewOnMap={handleDirectoryViewOnMap}
+                            onRemoveResource={onRemoveResource}
+                            onUpdateResourceNotes={onUpdateResourceNotes}
+                            onOpenResourceNotes={openResourceNotes}
+                            canSaveResources={canSaveResources}
+                            highlightPlaceKey={flashPlaceKey}
+                            highlightPlaceKeys={highlightPlaceKeys}
+                            sectionRefs={sectionRefs}
+                            clusterMapping={clusterMapping}
+                            showDesktopHoverLogo={showDesktopHoverLogo}
+                            logoRevealPlaceKeys={logoRevealPlaceKeys}
+                        />
 
-                    <DirectoryUnmappedSection
-                        rows={unmappedRows}
-                        interactive
-                        mode={mode}
-                        canSaveResources={canSaveResources}
-                        onRemoveResource={onRemoveResource}
-                        onOpenResourceNotes={openResourceNotes}
-                    />
+                        <DirectoryUnmappedSection
+                            rows={unmappedRows}
+                            interactive
+                            mode={mode}
+                            canSaveResources={canSaveResources}
+                            onRemoveResource={onRemoveResource}
+                            onOpenResourceNotes={openResourceNotes}
+                        />
+                    </div>
                     <MapNotesOverlay
                         open={notesPanel.open}
                         rows={noteResourceRows}
@@ -1691,7 +1866,7 @@ export default function SharedMapDirectoryList({
                         interactive={interactive}
                         compactInteractive={compactInteractiveDesktop}
                         fullCardLink={interactive && mode !== 'owner'}
-                        onViewOnMap={onViewOnMap}
+                        onViewOnMap={handleDirectoryViewOnMap}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}
@@ -1728,7 +1903,7 @@ export default function SharedMapDirectoryList({
                         interactive={interactive}
                         compactInteractive={compactInteractiveDesktop}
                         fullCardLink={interactive && mode !== 'owner'}
-                        onViewOnMap={onViewOnMap}
+                        onViewOnMap={handleDirectoryViewOnMap}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}
