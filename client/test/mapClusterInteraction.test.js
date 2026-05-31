@@ -6,6 +6,7 @@ import {
     getClusterActivationAction,
     getClusterCameraPlan,
     getClusterExpansionZoom,
+    getClusterReframeDelays,
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../src/lib/mapClusterInteraction.js';
@@ -72,4 +73,19 @@ test('compact mobile cluster activation zooms before fitting child pins', () => 
         mode: 'zoom-then-fit-child-bounds',
         maxZoom: 16,
     });
+});
+
+test('compact mobile cluster activation reframes again after the map panel settles', () => {
+    assert.deepEqual(getClusterReframeDelays({
+        mode: 'zoom-then-fit-child-bounds',
+        mapHeight: 128,
+        compactMapHeight: 380,
+        layoutTransitionMs: 300,
+    }), [80, 420]);
+
+    assert.deepEqual(getClusterReframeDelays({
+        mode: 'zoom-then-fit-child-bounds',
+        mapHeight: 420,
+        compactMapHeight: 380,
+    }), [80]);
 });

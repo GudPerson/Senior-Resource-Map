@@ -23,6 +23,7 @@ import {
     getClusterActivationAction,
     getClusterCameraPlan,
     getClusterExpansionZoom,
+    getClusterReframeDelays,
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../lib/mapClusterInteraction.js';
@@ -38,7 +39,10 @@ const DIRECTORY_FIT_PADDING_BOTTOM_RIGHT = [44, 52];
 const DIRECTORY_CLUSTER_BOUNDS_PADDING = [56, 56];
 const DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT = [72, 118];
 const DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT = [72, 84];
+const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_TOP_LEFT = [64, 54];
+const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_BOTTOM_RIGHT = [64, 56];
 const DIRECTORY_COMPACT_MAP_HEIGHT = 380;
+const DIRECTORY_MOBILE_MAP_LAYOUT_TRANSITION_MS = 300;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -417,6 +421,15 @@ function DirectoryClusterHoverSync({
                 const nextMapSize = typeof mapInstance.getSize === 'function' ? mapInstance.getSize() : mapSize;
                 const nextCompactMap = nextMapSize?.y && nextMapSize.y <= DIRECTORY_COMPACT_MAP_HEIGHT;
                 if (nextCompactMap) {
+                    if (typeof mapInstance.fitBounds === 'function') {
+                        mapInstance.fitBounds(bounds, {
+                            paddingTopLeft: DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_TOP_LEFT,
+                            paddingBottomRight: DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_BOTTOM_RIGHT,
+                            maxZoom: cameraPlan.maxZoom,
+                            animate: true,
+                        });
+                        return;
+                    }
                     if (typeof mapInstance.panInsideBounds === 'function') {
                         mapInstance.panInsideBounds(bounds, {
                             paddingTopLeft: DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT,
@@ -445,16 +458,24 @@ function DirectoryClusterHoverSync({
                 && center
                 && typeof mapInstance.setView === 'function'
             ) {
-                let reframed = false;
-                const reframeOnce = () => {
-                    if (reframed) return;
-                    reframed = true;
-                    window.setTimeout(reframeClusterChildren, 80);
+                const reframeDelays = getClusterReframeDelays({
+                    mode: cameraPlan.mode,
+                    mapHeight: mapSize?.y || 0,
+                    compactMapHeight: DIRECTORY_COMPACT_MAP_HEIGHT,
+                    layoutTransitionMs: DIRECTORY_MOBILE_MAP_LAYOUT_TRANSITION_MS,
+                });
+                let scheduledReframes = false;
+                const scheduleReframesOnce = () => {
+                    if (scheduledReframes) return;
+                    scheduledReframes = true;
+                    reframeDelays.forEach((delay) => {
+                        window.setTimeout(reframeClusterChildren, delay);
+                    });
                 };
                 if (typeof mapInstance.once === 'function') {
-                    mapInstance.once('zoomend', reframeOnce);
+                    mapInstance.once('zoomend', scheduleReframesOnce);
                 }
-                window.setTimeout(reframeOnce, 450);
+                window.setTimeout(scheduleReframesOnce, 450);
                 mapInstance.setView(center, cameraPlan.maxZoom, { animate: true });
                 return;
             }

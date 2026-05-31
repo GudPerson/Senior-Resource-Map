@@ -94,3 +94,23 @@ export function getClusterCameraPlan({
         maxZoom: normalizedTarget,
     };
 }
+
+export function getClusterReframeDelays({
+    mode = '',
+    mapHeight = 0,
+    compactMapHeight = 380,
+    layoutTransitionMs = 300,
+} = {}) {
+    if (mode !== 'zoom-then-fit-child-bounds') {
+        return [80];
+    }
+
+    const normalizedMapHeight = Number.isFinite(mapHeight) ? mapHeight : 0;
+    const normalizedCompactHeight = Number.isFinite(compactMapHeight) ? compactMapHeight : 380;
+    const normalizedTransition = Number.isFinite(layoutTransitionMs) ? layoutTransitionMs : 300;
+    if (normalizedMapHeight > 0 && normalizedMapHeight <= normalizedCompactHeight) {
+        return [80, Math.max(420, normalizedTransition + 120)];
+    }
+
+    return [80];
+}
