@@ -25,6 +25,7 @@ import {
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../lib/mapClusterInteraction.js';
+import { buildDirectoryMapClassNames } from '../lib/directoryMapPresentation.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -741,8 +742,14 @@ export default function DirectoryMap({
         });
     }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
+    const { frameClassName, containerClassName } = buildDirectoryMapClassNames({
+        mapHeightClassName,
+        className,
+        interactive,
+    });
+
     return (
-        <div className={`relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm ${className}`}>
+        <div className={frameClassName}>
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
@@ -755,7 +762,7 @@ export default function DirectoryMap({
                 boxZoom={interactive}
                 keyboard={interactive}
                 zoomControl={showZoomControl}
-                className={`carearound-map ${mapHeightClassName} w-full ${interactive ? '' : 'pointer-events-none cursor-default selection:bg-transparent'}`}
+                className={containerClassName}
                 attributionControl={showAttribution}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
             >
