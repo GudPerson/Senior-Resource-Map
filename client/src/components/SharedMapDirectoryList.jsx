@@ -689,7 +689,7 @@ function getSecondaryCategory(row, t) {
 function HiddenLogoSlot({ logoRow, revealed = false, compactInteractive = false }) {
     const { t } = useLocale();
     const [logoFitMode, setLogoFitMode] = useState('cover');
-    const slotClassName = compactInteractive ? 'h-[34px] w-[34px]' : 'h-[38px] w-[38px]';
+    const slotClassName = compactInteractive ? 'h-[2.125rem] w-[2.125rem]' : 'h-[2.375rem] w-[2.375rem]';
     const imageClassName = logoFitMode === 'contain'
         ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
         : 'h-full w-full rounded-[inherit] object-cover';
@@ -725,10 +725,10 @@ function DirectoryLocationMeta({ shortLocationLine, distanceLabel, compact = fal
     return (
         <div className={`flex flex-wrap items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
             {shortLocationLine ? (
-                <p className={`${compact ? 'text-[11px]' : 'text-[12px]'} font-medium text-slate-500`}>{shortLocationLine}</p>
+                <p className={`${compact ? 'text-[0.6875rem]' : 'text-[0.75rem]'} font-medium text-slate-500`}>{shortLocationLine}</p>
             ) : null}
             {distanceLabel ? (
-                <span className={`inline-flex rounded-full border border-brand-200 bg-brand-50 font-bold text-brand-700 ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}>
+                <span className={`inline-flex rounded-full border border-brand-200 bg-brand-50 font-bold text-brand-700 ${compact ? 'px-1.5 py-0.5 text-[0.5625rem]' : 'px-2 py-0.5 text-[0.625rem]'}`}>
                     {distanceLabel}
                 </span>
             ) : null}
@@ -754,8 +754,8 @@ function DirectoryResourceRow({
     const isAccessRestricted = row?.resourceType === 'soft' && access !== OFFERING_ACCESS.GRANTED;
     const sharedNotes = normalizeNoteItems(row?.notes);
     const rowTitleClassName = interactive
-        ? (compactInteractive ? 'text-[12px]' : 'text-[14px]')
-        : (compactPrint ? 'text-[11px]' : 'text-[12px]');
+        ? (compactInteractive ? 'text-[0.75rem]' : 'text-[0.875rem]')
+        : (compactPrint ? 'text-[0.6875rem]' : 'text-[0.75rem]');
 
     if (!interactive) {
         const printRowTitle = canOpenDetail && allowPrintLinks ? (
@@ -841,13 +841,13 @@ function DirectoryPlaceBadge({
     const { t } = useLocale();
     const [logoFitMode, setLogoFitMode] = useState('cover');
     const hasHoverLogo = Boolean(hoverLogoRow?.logoUrl);
-    const wrapperClassName = compactInteractive ? 'h-[42px] w-[42px]' : 'h-[46px] w-[46px]';
+    const wrapperClassName = compactInteractive ? 'h-[2.625rem] w-[2.625rem]' : 'h-[2.875rem] w-[2.875rem]';
     const numberBadgeClassName = compactInteractive
-        ? 'inset-[4px] rounded-[11px]'
-        : 'inset-[4px] rounded-[13px]';
+        ? 'inset-[0.25rem] rounded-[0.6875rem]'
+        : 'inset-[0.25rem] rounded-[0.8125rem]';
     const logoTileClassName = compactInteractive
-        ? 'rounded-[15px]'
-        : 'rounded-[17px]';
+        ? 'rounded-[0.9375rem]'
+        : 'rounded-[1.0625rem]';
     const numberBadgeVisibilityClassName = hasHoverLogo
         ? (logoRevealed
             ? 'opacity-0 scale-[0.82]'
@@ -876,7 +876,7 @@ function DirectoryPlaceBadge({
                 className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
                 style={{
                     backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                    fontSize: String(group.number).length > 2 ? '12px' : (compactInteractive ? '16px' : '18px'),
+                    fontSize: String(group.number).length > 2 ? '0.75rem' : (compactInteractive ? '1rem' : '1.125rem'),
                     fontFamily: 'var(--font-heading)',
                     lineHeight: 1,
                 }}
@@ -916,7 +916,7 @@ function DirectoryNestedPlaceSection({
 }) {
     const nestedPlaceDetailPath = useDirectoryDetailPath(getGroupDetailPath(nestedPlace));
     const visibleRows = getVisibleGroupRows(nestedPlace);
-    const titleClassName = compactInteractive ? 'text-[15px]' : 'text-[17px]';
+    const titleClassName = compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(nestedPlace);
 
     return (
@@ -999,7 +999,7 @@ function DirectoryPlaceGroupCard({
                             className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
                             style={{
                                 backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                                fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px'),
+                                fontSize: String(group.number).length > 2 ? '0.6875rem' : (compactPrint ? '0.9375rem' : '1.0625rem'),
                                 fontFamily: 'var(--font-heading)',
                                 lineHeight: 1,
                             }}
@@ -1011,11 +1011,11 @@ function DirectoryPlaceGroupCard({
                                 {group.nestedPlaces.map((nestedPlace) => {
                                     const nestedPlaceDetailPath = getGroupDetailPath(nestedPlace);
                                     const nestedPlaceTitle = nestedPlaceDetailPath && allowPrintLinks ? (
-                                        <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+                                        <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[0.9375rem]' : 'text-base'}`}>
                                             {nestedPlace.name}
                                         </Link>
                                     ) : (
-                                        <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+                                        <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[0.9375rem]' : 'text-base'}`}>
                                             {nestedPlace.name}
                                         </h3>
                                     );
@@ -1048,11 +1048,11 @@ function DirectoryPlaceGroupCard({
         }
 
         const printPlaceTitle = placeDetailPath && allowPrintLinks ? (
-            <Link to={placeDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>
+            <Link to={placeDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[0.9375rem]' : 'text-base'}`}>
                 {group.name}
             </Link>
         ) : (
-            <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[15px]' : 'text-base'}`}>{group.name}</h3>
+            <h3 className={`font-bold leading-tight text-slate-900 ${compactPrint ? 'text-[0.9375rem]' : 'text-base'}`}>{group.name}</h3>
         );
 
         return (
@@ -1067,7 +1067,7 @@ function DirectoryPlaceGroupCard({
                         className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
                         style={{ 
                             backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                            fontSize: String(group.number).length > 2 ? '11px' : (compactPrint ? '15px' : '17px'),
+                            fontSize: String(group.number).length > 2 ? '0.6875rem' : (compactPrint ? '0.9375rem' : '1.0625rem'),
                             fontFamily: 'var(--font-heading)',
                             lineHeight: 1,
                         }}
@@ -1078,10 +1078,10 @@ function DirectoryPlaceGroupCard({
                         {printPlaceTitle}
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                             {group.shortLocationLine ? (
-                                <p className={`${compactPrint ? 'text-[10px]' : 'text-[11px]'} text-slate-500`}>{group.shortLocationLine}</p>
+                                <p className={`${compactPrint ? 'text-[0.625rem]' : 'text-[0.6875rem]'} text-slate-500`}>{group.shortLocationLine}</p>
                             ) : null}
                             {group.distanceLabel ? (
-                                <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">
+                                <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[0.625rem] font-bold text-brand-700">
                                     {group.distanceLabel}
                                 </span>
                             ) : null}
@@ -1114,7 +1114,7 @@ function DirectoryPlaceGroupCard({
         const trailingNestedPlaces = group.nestedPlaces.slice(1);
         const primaryHoverLogoRow = getNestedPlaceLogoRow(primaryNestedPlace);
         const groupedCardContent = (
-            <div className={`grid ${compactInteractive ? 'grid-cols-[42px_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[46px_minmax(0,1fr)] gap-x-3'}`}>
+            <div className={`grid ${compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3'}`}>
                 <DirectoryPlaceBadge
                     group={group}
                     clusterColorData={clusterColorData}
@@ -1148,7 +1148,7 @@ function DirectoryPlaceGroupCard({
                         {trailingNestedPlaces.map((nestedPlace) => (
                             <div
                                 key={nestedPlace.placeKey}
-                                className={`grid items-start ${compactInteractive ? 'grid-cols-[42px_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[46px_minmax(0,1fr)] gap-x-3'}`}
+                                className={`grid items-start ${compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3'}`}
                             >
                                 <HiddenLogoSlot
                                     logoRow={getNestedPlaceLogoRow(nestedPlace)}
@@ -1183,11 +1183,11 @@ function DirectoryPlaceGroupCard({
     }
 
     const interactivePlaceTitle = placeDetailPath ? (
-        <Link to={placeDetailPath} reloadDocument className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
+        <Link to={placeDetailPath} reloadDocument className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
             {group.name}
         </Link>
     ) : (
-        <h3 className={`${compactInteractive ? 'text-[15px]' : 'text-[17px]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
+        <h3 className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
     const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
 
@@ -1284,16 +1284,16 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
         return (
             <div className="border-b border-slate-200/80 pb-2 last:border-b-0 last:pb-0">
                 <div className="flex items-start gap-2">
-                    <span className="mt-[5px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" />
+                    <span className="mt-[0.3125rem] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300" />
                     <div className="min-w-0 flex-1">
                         {canOpenDetail ? (
-                            <Link to={detailPath} reloadDocument className="text-[12px] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
+                            <Link to={detailPath} reloadDocument className="text-[0.75rem] font-semibold leading-snug text-slate-800 transition hover:text-brand-700">
                                 {row.name}
                             </Link>
                         ) : (
-                            <p className="text-[12px] font-semibold leading-snug text-slate-800">{row.name}</p>
+                            <p className="text-[0.75rem] font-semibold leading-snug text-slate-800">{row.name}</p>
                         )}
-                        {row.contextLabel ? <p className="mt-0.5 text-[10px] text-slate-500">{row.contextLabel}</p> : null}
+                        {row.contextLabel ? <p className="mt-0.5 text-[0.625rem] text-slate-500">{row.contextLabel}</p> : null}
                         {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}
                     </div>
                 </div>
@@ -1307,29 +1307,31 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                 resourceType={row.resourceType}
                 bucket={row.bucket}
                 subCategory={row.subCategory}
+                logoUrl={row.logoUrl}
+                alt={row.name ? `${row.name} logo` : ''}
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             {row.subCategory ? (
-                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-900">
+                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[0.6875rem] font-bold text-slate-900">
                                     {row.subCategory}
                                 </span>
                             ) : null}
                             <StatusBadge status={row.status || 'list_only'} />
-                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-900">
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[0.6875rem] font-bold text-slate-900">
                                 {t('listOnly')}
                             </span>
                         </div>
                         <div className="mt-1.5 flex items-start gap-2">
                             <div className="min-w-0 flex-1">
                                 {detailPath && row.status !== 'unavailable' ? (
-                                    <Link to={detailPath} reloadDocument className={`block font-bold leading-snug text-slate-900 transition hover:text-brand-700 ${compact ? 'text-[15px]' : 'text-base'}`}>
+                                    <Link to={detailPath} reloadDocument className={`block font-bold leading-snug text-slate-900 transition hover:text-brand-700 ${compact ? 'text-[0.9375rem]' : 'text-base'}`}>
                                         {row.name}
                                     </Link>
                                 ) : (
-                                    <p className={`font-bold leading-snug text-slate-900 ${compact ? 'text-[15px]' : 'text-base'}`}>{row.name}</p>
+                                    <p className={`font-bold leading-snug text-slate-900 ${compact ? 'text-[0.9375rem]' : 'text-base'}`}>{row.name}</p>
                                 )}
                             </div>
                             <MapNoteIconButton row={row} onOpenResourceNotes={onOpenResourceNotes} />
@@ -1340,7 +1342,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         {row.locationLabel ? (
                             <p className={`mt-1 text-slate-400 ${compact ? 'line-clamp-1 text-xs' : 'text-sm'}`}>{row.locationLabel}</p>
                         ) : null}
-                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+                        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}>
                             <span>{row.resourceType === 'hard' ? t('placeType') : t('offeringType')}</span>
                             {row.bucket ? <span>{row.bucket}</span> : null}
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
@@ -1468,8 +1470,8 @@ function DirectoryUnmappedSection({
         return (
             <section className={`space-y-3 ${className}`.trim()}>
                 <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{t('resourcesNotShownOnMap')}</p>
-                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-slate-500">{t('resourcesNotShownOnMap')}</p>
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[0.6875rem] font-bold text-slate-600">
                         {rows.length}
                     </span>
                 </div>
