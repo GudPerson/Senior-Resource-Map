@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
     BookOpen,
     Building2,
@@ -46,13 +47,41 @@ export default function ResourceRowIcon({
     resourceType,
     bucket = null,
     subCategory = null,
+    logoUrl = null,
+    alt = '',
     className = '',
 }) {
     const Icon = resolveIcon(resourceType, bucket, subCategory);
+    const [logoFitMode, setLogoFitMode] = useState('cover');
+    const [logoFailed, setLogoFailed] = useState(false);
+    const shouldShowLogo = Boolean(logoUrl) && !logoFailed;
+    const imageClassName = logoFitMode === 'contain'
+        ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
+        : 'h-full w-full rounded-[inherit] object-cover';
+
+    useEffect(() => {
+        setLogoFitMode('cover');
+        setLogoFailed(false);
+    }, [logoUrl]);
 
     return (
-        <div className={`inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-700 ${className}`}>
-            <Icon size={20} />
+        <div className={`inline-flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-brand-100 bg-brand-50 text-brand-700 ${className}`}>
+            {shouldShowLogo ? (
+                <img
+                    src={logoUrl}
+                    alt={alt}
+                    className={imageClassName}
+                    onError={() => setLogoFailed(true)}
+                    onLoad={(event) => {
+                        const { naturalWidth, naturalHeight } = event.currentTarget;
+                        if (!naturalWidth || !naturalHeight) return;
+                        const aspectRatio = naturalWidth / naturalHeight;
+                        setLogoFitMode(aspectRatio > 1.2 || aspectRatio < 0.84 ? 'contain' : 'cover');
+                    }}
+                />
+            ) : (
+                <Icon size={20} />
+            )}
         </div>
     );
 }
