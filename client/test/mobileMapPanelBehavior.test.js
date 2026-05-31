@@ -26,6 +26,15 @@ test('mobile map panel ignores small top-card jitter', () => {
     }), 'none');
 });
 
+test('mobile map panel collapses when slow scrolling crosses the card threshold', () => {
+    assert.equal(getMobileMapPanelActionForScroll({
+        isMobile: true,
+        mapPanelState: MOBILE_MAP_PANEL_STATES.EXPANDED,
+        nextScrollTop: 36,
+        previousScrollTop: 30,
+    }), 'collapse');
+});
+
 test('collapsed mobile map panel expands when pulling down at the top card', () => {
     assert.equal(shouldExpandMobileMapPanelFromTopPull({
         isMobile: true,

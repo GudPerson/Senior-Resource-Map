@@ -4,7 +4,6 @@ export const MOBILE_MAP_PANEL_STATES = {
 };
 
 export const MOBILE_MAP_COLLAPSE_SCROLL_TOP = 32;
-export const MOBILE_MAP_COLLAPSE_SCROLL_DELTA = 14;
 export const MOBILE_MAP_EXPAND_SCROLL_TOP = 24;
 export const MOBILE_MAP_EXPAND_SCROLL_DELTA = 14;
 export const MOBILE_MAP_EXPAND_PULL_DELTA = 18;
@@ -28,7 +27,7 @@ export function getMobileMapPanelActionForScroll({
         return nextScrollTop <= MOBILE_MAP_EXPAND_SCROLL_TOP && scrolledBackToTop ? 'expand' : 'none';
     }
 
-    const scrolledIntoCards = nextScrollTop - previousScrollTop >= MOBILE_MAP_COLLAPSE_SCROLL_DELTA;
+    const scrolledIntoCards = nextScrollTop > previousScrollTop;
     return nextScrollTop >= MOBILE_MAP_COLLAPSE_SCROLL_TOP && scrolledIntoCards ? 'collapse' : 'none';
 }
 
