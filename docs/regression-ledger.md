@@ -82,6 +82,7 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Reproduction steps: open a private map under `/my-directory/maps/:id` and a shared map under `/shared/maps/:token` at mobile width; scroll resource cards upward, pull down at the top card, tap numbered card badges, and tap map pins/clusters.
 - Acceptance criteria: the map collapses/expands only on mobile interactive map/list pages; desktop, print/export, map notes, copy/save, resource visibility, ranking, clustering, and detail navigation stay unchanged; card number badges still focus the matching map pin after expanding the map.
 - Verification result: `node --test client/test/mobileMapPanelBehavior.test.js client/test/mapClusterInteraction.test.js`, `node --test client/test/*.test.js`, and `npm run build:client` passed on 2026-05-31. The client build still reports the existing large chunk warning.
+- Deployment evidence: PR #22 merged to `main` as `c4a0aa1a`; Cloudflare Pages client deployment completed at `https://3f39b896.senior-resource-map.pages.dev`; production custom domain served `assets/index-BYtSSgPa.js`; `https://api.carearound.sg/api/health` returned `{"status":"ok"}` at `2026-05-31T01:57:38.371Z`. No Worker deploy, auth, Gmail/email, GudAuth, or secret changes were made.
 
 ### 2026-05-30 Dashboard resource managed-list scope and search stabilization
 
