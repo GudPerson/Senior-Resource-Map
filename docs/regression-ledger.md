@@ -75,6 +75,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 
 ## Recent stabilization notes
 
+### 2026-06-01 Dashboard resources failed-load recovery state
+
+- Current behavior: Dashboard Resources distinguishes a failed resource load from a successful zero-result load. If the first managed-resource request fails, the tabs show placeholder counts and the list area shows a recoverable load message with Retry instead of `No places found`. If the browser reports offline, the copy says the user seems offline; otherwise it says the connection or server may be briefly slow. If a refresh fails after rows are already visible, the existing rows remain visible and the warning banner explains the transient load problem.
+- Known-good reference: 2026-06-01 production screenshot showing `/dashboard/resources` with `Places (0)`, `Offerings (0)`, `Templates (0)`, and `No places found` after a random fetch failure even though resources normally load after a refresh.
+- Reproduction steps: open `/dashboard/resources` as an authorised resource manager; simulate a failed hard/soft resource request before any successful load; retry once connectivity/API is available; repeat after a successful load while rows are visible and while a search/filter leaves no visible rows.
+- Acceptance criteria: true successful zero-result searches still show the empty state; failed initial loads show a retryable load-error state instead of real zero-data copy; offline wording appears only when the browser reports offline; transient API/network failures use neutral retry wording; previously loaded rows are not replaced by a false empty state; search, sorting, pagination, export, create/edit actions, permissions, auth, Gmail/email, GudAuth, Worker, and secret behavior remain unchanged.
+- Verification result: `node --test client/test/resourceLoadState.test.js` failed before the helper existed, then a follow-up red test confirmed failed refreshes with zero visible rows would incorrectly show `empty` before the helper was tightened. `node --test client/test/resourceLoadState.test.js client/test/resourceListLoading.test.js client/test/paginatedResults.test.js` passed 14/14, `node --test client/test/*.test.js client/src/lib/*.test.js` passed 129/129, `npm run build:client` passed with the existing large chunk warning, and `git diff --check` passed on 2026-06-01.
+
 ### 2026-06-01 Discover mobile zero-place summary cleanup
 
 - Current behavior: mobile/narrow Discover result cards hide the location summary for soft resources with zero linked/display places instead of showing `Available at 0 places`. Soft resources with real display addresses or positive linked-place counts still show the existing location summary, and coordinate-backed direction targets keep the existing direction affordance.
