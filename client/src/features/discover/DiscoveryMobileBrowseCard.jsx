@@ -9,6 +9,10 @@ import { openResourceDetail } from '../../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { OFFERING_ACCESS } from '../../lib/eligibility.js';
 import { localizeResource } from '../../lib/localization.js';
+import {
+    buildDiscoveryMobileLocationSummary,
+    shouldShowDiscoveryMobileLocationSummary,
+} from './discoveryMobileCardPresentation.js';
 
 function formatDistance(distance) {
     if (!Number.isFinite(distance)) return null;
@@ -37,9 +41,6 @@ export function DiscoveryMobileBrowseCard({
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
     const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
     const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
-    const summaryAddress = isHard
-        ? asset.address
-        : (displayLocation?.address || `${t('availableIn')} ${asset._locationCount || 0} ${(asset._locationCount || 0) === 1 ? t('placesSingular') : t('placesPlural')}`);
     const handleOpenDetails = () => openResourceDetail(type, asset.id, navigate);
     const handleOpenDirections = () => {
         const target = isHard ? asset : displayLocation;
@@ -60,6 +61,16 @@ export function DiscoveryMobileBrowseCard({
         (displayLocation && (displayLocation.address || (Number.isFinite(Number.parseFloat(displayLocation.lat)) && Number.isFinite(Number.parseFloat(displayLocation.lng)))))
         || (isHard && (asset.address || (Number.isFinite(Number.parseFloat(asset.lat)) && Number.isFinite(Number.parseFloat(asset.lng)))))
     );
+    const locationSummary = buildDiscoveryMobileLocationSummary({
+        isHard,
+        asset,
+        displayLocation,
+        t,
+    });
+    const showLocationSummary = shouldShowDiscoveryMobileLocationSummary({
+        summary: locationSummary,
+        hasDirectionsTarget,
+    });
 
     return (
         <article
@@ -159,56 +170,58 @@ export function DiscoveryMobileBrowseCard({
                 />
             ) : null}
 
-            <button
-                type="button"
-                disabled={!hasDirectionsTarget}
-                onClick={(event) => {
-                    event.stopPropagation();
-                    if (onLocationClick) {
-                        onLocationClick();
-                        return;
-                    }
-                    if (hasDirectionsTarget) {
-                        handleOpenDirections();
-                    }
-                }}
-                className={`mt-3 flex w-full items-start gap-2 rounded-xl border text-left transition-all ${
-                    onLocationClick || hasDirectionsTarget ? 'cursor-pointer' : 'cursor-default'
-                } ${isCompact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm'}`}
-                style={{
-                    borderColor: 'var(--color-border)',
-                    backgroundColor: onLocationClick || hasDirectionsTarget ? 'rgba(231,248,244,0.65)' : 'rgba(248,250,252,0.72)',
-                    color: 'var(--color-text-secondary)',
-                }}
-            >
-                <MapPin size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
-                <div className="relative min-w-0 flex-1">
-                    {otherLocationCount > 0 && displayLocation?.address ? (
-                        <p
-                            className={`font-semibold tracking-[0.01em] ${isCompact ? 'mb-1 text-[11px] leading-relaxed' : 'mb-1 text-[12px] leading-relaxed'}`}
-                            style={{ color: 'var(--color-brand-strong)' }}
-                        >
-                            {t('discoveryAvailableAtOtherPlaces', {
-                                count: otherLocationCount,
-                                label: otherLocationCount === 1 ? t('placesSingular') : t('placesPlural'),
-                            })}
-                        </p>
-                    ) : null}
-                    <p className={`pr-10 ${isCompact ? 'line-clamp-2 text-[13px] leading-relaxed' : 'line-clamp-2 text-sm leading-relaxed'}`}>
-                        {summaryAddress || t('discoveryLocationUnavailable')}
-                    </p>
-                    {asset._distance !== undefined && asset._distance !== null ? (
-                        <div className="absolute bottom-0 right-0">
-                            <span
-                                className={`inline-flex rounded-full font-bold text-white shadow-sm ${isCompact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}
-                                style={{ backgroundColor: '#0fa39a' }}
+            {showLocationSummary ? (
+                <button
+                    type="button"
+                    disabled={!hasDirectionsTarget}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        if (onLocationClick) {
+                            onLocationClick();
+                            return;
+                        }
+                        if (hasDirectionsTarget) {
+                            handleOpenDirections();
+                        }
+                    }}
+                    className={`mt-3 flex w-full items-start gap-2 rounded-xl border text-left transition-all ${
+                        onLocationClick || hasDirectionsTarget ? 'cursor-pointer' : 'cursor-default'
+                    } ${isCompact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm'}`}
+                    style={{
+                        borderColor: 'var(--color-border)',
+                        backgroundColor: onLocationClick || hasDirectionsTarget ? 'rgba(231,248,244,0.65)' : 'rgba(248,250,252,0.72)',
+                        color: 'var(--color-text-secondary)',
+                    }}
+                >
+                    <MapPin size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
+                    <div className="relative min-w-0 flex-1">
+                        {otherLocationCount > 0 && displayLocation?.address ? (
+                            <p
+                                className={`font-semibold tracking-[0.01em] ${isCompact ? 'mb-1 text-[11px] leading-relaxed' : 'mb-1 text-[12px] leading-relaxed'}`}
+                                style={{ color: 'var(--color-brand-strong)' }}
                             >
-                                {formatDistance(asset._distance)}
-                            </span>
-                        </div>
-                    ) : null}
-                </div>
-            </button>
+                                {t('discoveryAvailableAtOtherPlaces', {
+                                    count: otherLocationCount,
+                                    label: otherLocationCount === 1 ? t('placesSingular') : t('placesPlural'),
+                                })}
+                            </p>
+                        ) : null}
+                        <p className={`pr-10 ${isCompact ? 'line-clamp-2 text-[13px] leading-relaxed' : 'line-clamp-2 text-sm leading-relaxed'}`}>
+                            {locationSummary || t('discoveryLocationUnavailable')}
+                        </p>
+                        {asset._distance !== undefined && asset._distance !== null ? (
+                            <div className="absolute bottom-0 right-0">
+                                <span
+                                    className={`inline-flex rounded-full font-bold text-white shadow-sm ${isCompact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'}`}
+                                    style={{ backgroundColor: '#0fa39a' }}
+                                >
+                                    {formatDistance(asset._distance)}
+                                </span>
+                            </div>
+                        ) : null}
+                    </div>
+                </button>
+            ) : null}
         </article>
     );
 }
