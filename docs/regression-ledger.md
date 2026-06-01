@@ -75,6 +75,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 
 ## Recent stabilization notes
 
+### 2026-06-01 Discover mobile zero-place summary cleanup
+
+- Current behavior: mobile/narrow Discover result cards hide the location summary for soft resources with zero linked/display places instead of showing `Available at 0 places`. Soft resources with real display addresses or positive linked-place counts still show the existing location summary, and coordinate-backed direction targets keep the existing direction affordance.
+- Known-good reference: 2026-06-01 user screenshot showing `THK Home Help Services (Meals-on-Wheels West)` displaying `Available at 0 places` in mobile Discover browse mode.
+- Reproduction steps: open `/discover` at mobile/narrow width with a standalone/list-only soft result that has no linked display location; compare it with soft results that have real addresses and soft results that have positive linked-place counts.
+- Acceptance criteria: no Discover result card shows `Available at 0 places`; zero-place soft results do not show an empty or broken location box; positive counts, real locations, and direction-capable coordinate targets remain unchanged; no ranking, filtering, sorting, visibility, eligibility, saved-resource, direction, map, Worker, auth, Gmail/email, GudAuth, or secret behavior changes.
+- Verification result: `node --test client/test/discoveryMobileCardPresentation.test.js` failed before the presentation helper existed and passed after the patch. `node --test client/test/discoveryMobileCardPresentation.test.js client/test/discoveryCache.test.js client/test/i18nCoverage.test.js` passed 9/9, `node --test client/test/*.test.js client/src/lib/*.test.js` passed 124/124, and `npm run build:client` passed with the existing large chunk warning on 2026-06-01.
+
 ### 2026-05-31 My Map and shared map mobile map/list collapse refinement
 
 - Current behavior: My Map and shared-map mobile views keep the existing map pins, number badges, clusters, notes, and resource-card ordering, while adding a presentation-only map panel state. Scrolling resource cards upward collapses the map to a compact height and refits the map camera so visible pins re-enter the smaller map. Pulling down while already at the top card expands the map again. Tapping a numbered card badge expands the map before using the existing view-on-map focus path, so the current zoom-to-pin behavior is preserved. Tapping a compact mobile cluster zooms first so the cluster splits, then performs a settled bounds fit after the mobile map panel transition so both close and wider-spread child pins stay framed inside the current map viewport.
