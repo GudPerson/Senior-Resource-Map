@@ -50,6 +50,10 @@ import {
     withResourceListSearchParam,
 } from '../../lib/resourceListLoading.js';
 import {
+    buildResourceLoadFailureMessage,
+    getManagedResourceListStatus,
+} from '../../lib/resourceLoadState.js';
+import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
     getHardAssetStaffRole,
@@ -288,6 +292,19 @@ const EmptyState = ({ icon: Icon, title, description, action }) => (
         <p className="text-lg font-medium text-slate-600">{title}</p>
         <p className="mt-1 text-sm text-slate-500">{description}</p>
         {action ? <div className="mt-5">{action}</div> : null}
+    </div>
+);
+
+const ResourceLoadFailureState = ({ failure, onRetry }) => (
+    <div className="card border-dashed border-amber-200 bg-amber-50/70 py-14 text-center">
+        <Info size={40} className="mx-auto mb-3 text-amber-500" />
+        <p className="text-lg font-bold text-slate-800">{failure?.title || 'We could not load your resources just now'}</p>
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">
+            {failure?.description || 'Check your connection and try again.'}
+        </p>
+        <button type="button" onClick={onRetry} className="btn-primary mx-auto mt-5">
+            <RefreshCw size={16} /> Retry
+        </button>
     </div>
 );
 
@@ -616,6 +633,8 @@ export default function ResourcesPage() {
     const [partnerBoundary, setPartnerBoundary] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
     const [loading, setLoading] = useState(true);
+    const [resourceLoadError, setResourceLoadError] = useState(null);
+    const [hasCompletedResourceLoad, setHasCompletedResourceLoad] = useState(false);
     const [activeTab, setActiveTab] = useState('hard');
     const [assetModal, setAssetModal] = useState(null);
     const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
@@ -837,10 +856,17 @@ export default function ResourcesPage() {
             if (normalizedRole === 'partner') {
                 setPartnerBoundary(fetchedPartnerBoundary);
             }
+            setResourceLoadError(null);
+            setHasCompletedResourceLoad(true);
         } catch (err) {
             if (requestId !== loadRequestIdRef.current) return;
             console.error(err);
-            setActionNotice({ type: 'warning', message: err.message || 'Failed to load assets.' });
+            const failure = buildResourceLoadFailureMessage({
+                isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
+                errorMessage: err?.message || '',
+            });
+            setResourceLoadError(failure);
+            setActionNotice({ type: 'warning', message: failure.notice });
         } finally {
             if (requestId === loadRequestIdRef.current) {
                 setLoading(false);
@@ -936,6 +962,28 @@ export default function ResourcesPage() {
     );
     const hardTabCount = hardUsesClientOnlyFilter ? filteredHardAssets.length : hardAssetsTotal;
     const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
+    const showInitialResourceLoadFailure = Boolean(resourceLoadError && !hasCompletedResourceLoad && !loading);
+    const hardTabLabel = showInitialResourceLoadFailure ? '-' : hardTabCount;
+    const softTabLabel = showInitialResourceLoadFailure ? '-' : softTabCount;
+    const templateTabLabel = showInitialResourceLoadFailure ? '-' : filteredTemplates.length;
+    const hardListStatus = getManagedResourceListStatus({
+        loading,
+        loadError: resourceLoadError,
+        visibleItemCount: filteredHardAssets.length,
+        hasCompletedResourceLoad,
+    });
+    const softListStatus = getManagedResourceListStatus({
+        loading,
+        loadError: resourceLoadError,
+        visibleItemCount: filteredSoftAssets.length,
+        hasCompletedResourceLoad,
+    });
+    const templateListStatus = getManagedResourceListStatus({
+        loading,
+        loadError: resourceLoadError,
+        visibleItemCount: filteredTemplates.length,
+        hasCompletedResourceLoad,
+    });
     const hardPageRange = getVisiblePageRange(hardAssetsPage, hardAssetsPageSize, hardTabCount, visibleHardAssets.length);
     const softPageRange = getVisiblePageRange(softAssetsPage, softAssetsPageSize, softTabCount, visibleSoftAssets.length);
     const canExportFilteredWorkbook = canManageResourceTools
@@ -1821,7 +1869,7 @@ export default function ResourcesPage() {
                         }`}
                     >
                         <Building2 size={18} strokeWidth={activeTab === 'hard' ? 2.5 : 2} />
-                        Places ({hardTabCount})
+                        Places ({hardTabLabel})
                     </button>
                     <button
                         onClick={() => setActiveTab('soft')}
@@ -1832,7 +1880,7 @@ export default function ResourcesPage() {
                         }`}
                     >
                         <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
-                        Offerings ({softTabCount})
+                        Offerings ({softTabLabel})
                     </button>
                     {canManageResourceTools && canCreateStandaloneResources ? (
                         <button
@@ -1844,7 +1892,7 @@ export default function ResourcesPage() {
                             }`}
                         >
                             <Files size={18} strokeWidth={activeTab === 'templates' ? 2.5 : 2} />
-                            Templates ({filteredTemplates.length})
+                            Templates ({templateTabLabel})
                         </button>
                     ) : null}
                 </div>
@@ -1855,7 +1903,9 @@ export default function ResourcesPage() {
                     {[...Array(3)].map((_, index) => <div key={index} className="card h-24 animate-pulse bg-slate-100" />)}
                 </div>
             ) : activeTab === 'hard' ? (
-                filteredHardAssets.length === 0 ? (
+                hardListStatus === 'load-error' ? (
+                    <ResourceLoadFailureState failure={resourceLoadError} onRetry={load} />
+                ) : filteredHardAssets.length === 0 ? (
                     <EmptyState
                         icon={Building2}
                         title="No places found"
@@ -2246,7 +2296,9 @@ export default function ResourcesPage() {
                     </div>
                 )
             ) : activeTab === 'soft' ? (
-                filteredSoftAssets.length === 0 ? (
+                softListStatus === 'load-error' ? (
+                    <ResourceLoadFailureState failure={resourceLoadError} onRetry={load} />
+                ) : filteredSoftAssets.length === 0 ? (
                     <EmptyState
                         icon={CalendarDays}
                         title="No offerings found"
@@ -2440,7 +2492,9 @@ export default function ResourcesPage() {
                     </div>
                 )
             ) : (
-                filteredTemplates.length === 0 ? (
+                templateListStatus === 'load-error' ? (
+                    <ResourceLoadFailureState failure={resourceLoadError} onRetry={load} />
+                ) : filteredTemplates.length === 0 ? (
                     <EmptyState
                         icon={Files}
                         title="No templates found"
