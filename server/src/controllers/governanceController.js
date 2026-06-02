@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, isNull, lt, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
@@ -18,6 +18,11 @@ import {
     users,
 } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import {
+    buildAuditAccessScope,
+    formatAuditLogForResponse,
+    normalizeAuditLogQuery,
+} from '../utils/auditTrail.js';
 import {
     buildAgreementCoverageSummary,
     canManageOrganizationGovernance,
@@ -452,6 +457,85 @@ async function loadResourceForLink(db, resourceType, resourceId) {
         .where(eq(softAssetParents.id, resourceId))
         .limit(1);
     return row || null;
+}
+
+function buildAuditCategoryCondition(category) {
+    switch (category) {
+        case 'resource':
+            return or(
+                ilike(sensitiveAuditLogs.actionType, 'resource_%'),
+                eq(sensitiveAuditLogs.entityType, 'resource'),
+            );
+        case 'organization':
+            return ilike(sensitiveAuditLogs.actionType, 'organization_%');
+        case 'access':
+            return or(
+                ilike(sensitiveAuditLogs.actionType, '%access%'),
+                ilike(sensitiveAuditLogs.actionType, 'user_view_%'),
+            );
+        case 'restricted':
+            return or(
+                ilike(sensitiveAuditLogs.actionType, 'restricted_%'),
+                ilike(sensitiveAuditLogs.actionType, 'private_file_%'),
+            );
+        case 'privacy':
+            return inArray(sensitiveAuditLogs.actionType, [
+                'consent_recorded',
+                'notification_preferences_updated',
+                'opt_out_recorded',
+                'opt_out_revoked',
+            ]);
+        case 'workbook':
+            return ilike(sensitiveAuditLogs.actionType, '%workbook%');
+        default:
+            return null;
+    }
+}
+
+function uniquePositiveIds(values = []) {
+    return [...new Set(values
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+async function loadUsersForAudit(db, ids = []) {
+    const uniqueIds = uniquePositiveIds(ids);
+    if (!uniqueIds.length) return [];
+    return db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+    })
+        .from(users)
+        .where(inArray(users.id, uniqueIds));
+}
+
+async function loadOrganizationsForAudit(db, ids = []) {
+    const uniqueIds = uniquePositiveIds(ids);
+    if (!uniqueIds.length) return [];
+    return db.select({
+        id: partnerOrganizations.id,
+        name: partnerOrganizations.name,
+        governanceStatus: partnerOrganizations.governanceStatus,
+    })
+        .from(partnerOrganizations)
+        .where(inArray(partnerOrganizations.id, uniqueIds));
+}
+
+async function loadResourcesForAudit(db, table, logs = [], resourceType) {
+    const uniqueIds = uniquePositiveIds(logs
+        .filter((row) => row.resourceType === resourceType)
+        .map((row) => row.resourceId));
+    if (!uniqueIds.length) return [];
+    const rows = await db.select({
+        id: table.id,
+        name: table.name,
+    })
+        .from(table)
+        .where(inArray(table.id, uniqueIds));
+    return rows.map((row) => ({ ...row, resourceType }));
 }
 
 export const listGovernanceOrganizations = async (c) => {
@@ -1176,13 +1260,96 @@ export const recordMyOptOut = async (c) => {
 
 export const listAuditLogs = async (c) => {
     try {
-        requireSuperAdmin(c.get('user'));
+        const actor = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        const logs = await db.select().from(sensitiveAuditLogs)
-            .orderBy(desc(sensitiveAuditLogs.createdAt))
-            .limit(200);
-        return c.json({ logs });
+
+        let accessRows = [];
+        if (normalizeRole(actor?.role) !== 'super_admin') {
+            accessRows = await db.select({
+                userId: organizationAccessMemberships.userId,
+                organizationId: organizationAccessMemberships.organizationId,
+                accessRole: organizationAccessMemberships.accessRole,
+                revokedAt: organizationAccessMemberships.revokedAt,
+            })
+                .from(organizationAccessMemberships)
+                .where(and(
+                    eq(organizationAccessMemberships.userId, actor.id),
+                    eq(organizationAccessMemberships.accessRole, 'admin'),
+                    isNull(organizationAccessMemberships.revokedAt),
+                ));
+        }
+
+        const scope = buildAuditAccessScope(actor, accessRows);
+        if (scope.mode === 'none') {
+            throw httpError('Audit trail access is outside your organisation access.', 403);
+        }
+
+        const query = normalizeAuditLogQuery(c.req.query());
+        if (scope.mode === 'organizations' && query.organizationId && !scope.organizationIds.includes(query.organizationId)) {
+            throw httpError('Audit trail access is outside your organisation access.', 403);
+        }
+
+        const conditions = [];
+        if (scope.mode === 'organizations') {
+            conditions.push(inArray(sensitiveAuditLogs.organizationId, query.organizationId ? [query.organizationId] : scope.organizationIds));
+        } else if (query.organizationId) {
+            conditions.push(eq(sensitiveAuditLogs.organizationId, query.organizationId));
+        }
+        if (query.actorUserId) conditions.push(eq(sensitiveAuditLogs.actorUserId, query.actorUserId));
+        if (query.targetUserId) conditions.push(eq(sensitiveAuditLogs.targetUserId, query.targetUserId));
+        if (query.resourceType) conditions.push(eq(sensitiveAuditLogs.resourceType, query.resourceType));
+        if (query.resourceId) conditions.push(eq(sensitiveAuditLogs.resourceId, query.resourceId));
+        if (query.actionType) conditions.push(eq(sensitiveAuditLogs.actionType, query.actionType));
+        if (query.category) {
+            const categoryCondition = buildAuditCategoryCondition(query.category);
+            if (categoryCondition) conditions.push(categoryCondition);
+        }
+        if (query.from) conditions.push(gte(sensitiveAuditLogs.createdAt, query.from));
+        if (query.to) conditions.push(lte(sensitiveAuditLogs.createdAt, query.to));
+        if (query.before && query.beforeId) {
+            conditions.push(or(
+                lt(sensitiveAuditLogs.createdAt, query.before),
+                and(eq(sensitiveAuditLogs.createdAt, query.before), lt(sensitiveAuditLogs.id, query.beforeId)),
+            ));
+        } else if (query.before) {
+            conditions.push(lt(sensitiveAuditLogs.createdAt, query.before));
+        }
+
+        const auditQuery = conditions.length
+            ? db.select().from(sensitiveAuditLogs).where(and(...conditions))
+            : db.select().from(sensitiveAuditLogs);
+        const rows = await auditQuery
+            .orderBy(desc(sensitiveAuditLogs.createdAt), desc(sensitiveAuditLogs.id))
+            .limit(query.limit + 1);
+
+        const logs = rows.slice(0, query.limit);
+        const [actorRows, targetRows, orgRows, hardRows, softRows, templateRows] = await Promise.all([
+            loadUsersForAudit(db, logs.map((row) => row.actorUserId)),
+            loadUsersForAudit(db, logs.map((row) => row.targetUserId)),
+            loadOrganizationsForAudit(db, logs.map((row) => row.organizationId)),
+            loadResourcesForAudit(db, hardAssets, logs, 'hard'),
+            loadResourcesForAudit(db, softAssets, logs, 'soft'),
+            loadResourcesForAudit(db, softAssetParents, logs, 'template'),
+        ]);
+        const resources = new Map([...hardRows, ...softRows, ...templateRows].map((row) => [`${row.resourceType}:${row.id}`, row]));
+        const nextRow = rows.length > query.limit ? logs[logs.length - 1] : null;
+
+        return c.json({
+            logs: logs.map((row) => formatAuditLogForResponse(row, {
+                actors: new Map(actorRows.map((row) => [Number(row.id), row])),
+                targets: new Map(targetRows.map((row) => [Number(row.id), row])),
+                organizations: new Map(orgRows.map((row) => [Number(row.id), row])),
+                resources,
+            })),
+            nextCursor: nextRow ? {
+                before: nextRow.createdAt instanceof Date ? nextRow.createdAt.toISOString() : nextRow.createdAt,
+                beforeId: nextRow.id,
+            } : null,
+            scope: scope.mode,
+            organizationIds: scope.mode === 'organizations' ? scope.organizationIds : [],
+            limit: query.limit,
+        });
     } catch (err) {
         console.error('listAuditLogs Error:', err);
         return c.json({ error: err.message || 'Failed to load audit logs.' }, err.status || 500);

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, BookOpen, Files, LayoutDashboard, LogOut, Map, Menu, Shield, User } from 'lucide-react';
+import { Activity, BookOpen, Files, LayoutDashboard, LogOut, Map, Menu, ScrollText, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { canAccessAdmin, canAccessManagedResources, getRoleMeta, hasHardAssetStaffAccess } from '../../lib/roles.js';
+import { canAccessAdmin, canAccessAuditTrail, canAccessManagedResources, getRoleMeta, hasHardAssetStaffAccess } from '../../lib/roles.js';
 
 function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
     return (
@@ -33,6 +33,7 @@ export function getDashboardSectionLabel(pathname, t) {
     if (pathname === '/dashboard' || pathname === '/dashboard/') return label(t, 'overview', 'Overview');
     if (pathname.startsWith('/dashboard/profile')) return label(t, 'profileTitle', 'Profile');
     if (pathname.startsWith('/dashboard/admin')) return label(t, 'overviewAdminTitle', 'Admin');
+    if (pathname.startsWith('/dashboard/audit')) return label(t, 'auditTrailTitle', 'Audit Trail');
     if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'My Maps');
     if (pathname.startsWith('/my-directory')) return label(t, 'myDirectory', 'My Directory');
     if (pathname.startsWith('/dashboard/resources')) return label(t, 'overviewResourcesTitle', 'My Resources');
@@ -49,6 +50,7 @@ export function DashboardSidebar({
     const roleMeta = getRoleMeta(user?.role);
     const canShowResources = canAccessManagedResources(user);
     const canShowAdmin = canAccessAdmin(user?.role);
+    const canShowAudit = canAccessAuditTrail(user);
     const isAssetStaff = hasHardAssetStaffAccess(user);
 
     return (
@@ -98,6 +100,9 @@ export function DashboardSidebar({
             <SidebarLink to="/dashboard/profile" icon={User} label={t('profileTitle')} id="dash-profile" onNavigate={onNavigate} />
             {canShowAdmin ? (
                 <SidebarLink to="/dashboard/admin" icon={Shield} label={t('overviewAdminTitle')} id="dash-admin" onNavigate={onNavigate} />
+            ) : null}
+            {canShowAudit ? (
+                <SidebarLink to="/dashboard/audit" icon={ScrollText} label={t('auditTrailTitle')} id="dash-audit" onNavigate={onNavigate} />
             ) : null}
 
             <div className="mt-auto">

@@ -68,6 +68,27 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import {
+    buildResourceAuditPayload,
+    diffAuditFieldNames,
+    isResourceVisibilityAction,
+    loadResourceAuditOrganizationId,
+    safelyRecordAuditLog,
+} from '../utils/auditTrail.js';
+
+async function recordSoftAssetAudit(db, actor, asset, action, changedFields = [], metadata = {}) {
+    if (!asset?.id) return;
+    const organizationId = await loadResourceAuditOrganizationId(db, 'soft', asset.id);
+    await safelyRecordAuditLog(db, actor, buildResourceAuditPayload({
+        action,
+        resourceType: 'soft',
+        resourceId: asset.id,
+        resourceName: asset.name,
+        organizationId,
+        changedFields,
+        metadata,
+    }));
+}
 import { buildSoftAssetSearchWhere } from '../utils/softAssetSearch.js';
 
 function clientError(message, status = 400) {
@@ -874,6 +895,10 @@ export const createSoftAsset = async (c) => {
 
         const translationStatus = await triggerSoftAssetTranslation(db, c.env, asset, user);
         await rebuildSoftAssetCaches([finalSubregionId, ...coverageRegionIds], c.env, user);
+        await recordSoftAssetAudit(db, user, asset, 'created', ['created'], {
+            assetMode: asset.assetMode || SOFT_ASSET_MODES.STANDALONE,
+            visibility: asset.isHidden ? 'hidden' : 'visible',
+        });
 
         return c.json({ ...asset, translationStatus }, 201);
     } catch (err) {
@@ -915,13 +940,14 @@ export const patchSoftAssetAvailability = async (c) => {
             return c.json({ error: 'Availability count must be a non-negative whole number.' }, 400);
         }
 
-        await db.update(softAssets).set({
+        const availabilityPatch = {
             availabilityEnabled: nextAvailabilityEnabled,
             availabilityCount: nextAvailabilityCount,
             availabilityUnit: nextAvailabilityUnit,
             eligibilityRules: nextEligibilityRules,
             updatedAt: new Date(),
-        }).where(eq(softAssets.id, id));
+        };
+        await db.update(softAssets).set(availabilityPatch).where(eq(softAssets.id, id));
 
         await rebuildSoftAssetCaches([existing.subregionId, ...(existingWithCoverage?.coverageRegionIds || [])], c.env, user);
 
@@ -946,6 +972,10 @@ export const patchSoftAssetAvailability = async (c) => {
                 eligibilityContext,
                 membershipHostIdMap,
         );
+        const changedFields = diffAuditFieldNames(existing, availabilityPatch);
+        if (changedFields.length) {
+            await recordSoftAssetAudit(db, user, refreshed, 'availability_updated', changedFields);
+        }
         return c.json({
             ...(await attachSoftAssetTranslations(db, formatted)),
             coverageRegionIds: refreshed.coverageRegionIds || [],
@@ -989,6 +1019,19 @@ export const updateSoftAsset = async (c) => {
                 ? await triggerSoftAssetTranslation(db, c.env, refreshedChild, user)
                 : { status: 'skipped', message: 'Offering was saved but could not be reloaded for translation.' };
             await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
+            const changedFields = diffAuditFieldNames(existing, patch);
+            if (changedFields.length) {
+                await recordSoftAssetAudit(
+                    db,
+                    user,
+                    refreshedChild || existing,
+                    isResourceVisibilityAction(existing, patch)
+                        ? (patch.isHidden ? 'hidden' : 'shown')
+                        : 'updated',
+                    changedFields,
+                    { assetMode: existing.assetMode || 'child' },
+                );
+            }
             return c.json({ success: true, id, assetMode: existing.assetMode, translationStatus });
         }
 
@@ -1064,7 +1107,7 @@ export const updateSoftAsset = async (c) => {
             await assertManageableAudienceZones(db, user, nextAudienceZoneIds, { hardAssetIds: nextLinkedIds });
         }
 
-        await db.update(softAssets).set({
+        const updatePatch = {
             partnerId: owner?.id || null,
             subregionId: finalSubregionId,
             name: body.name ?? existing.name,
@@ -1094,7 +1137,8 @@ export const updateSoftAsset = async (c) => {
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
             updatedAt: new Date(),
-        }).where(eq(softAssets.id, id));
+        };
+        await db.update(softAssets).set(updatePatch).where(eq(softAssets.id, id));
 
         if (body.locationIds !== undefined || body.locationId !== undefined) {
             await db.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, id));
@@ -1124,6 +1168,23 @@ export const updateSoftAsset = async (c) => {
             ...nextCoverageRegionIds,
             ...existingCoverageRegionIds,
         ], c.env, user);
+        const changedFields = diffAuditFieldNames(existing, updatePatch)
+            .concat(body.locationIds !== undefined || body.locationId !== undefined ? ['linkedPlaces'] : [])
+            .concat(body.newTags !== undefined ? ['tags'] : [])
+            .concat(coveragePatchRequested ? ['coverageRegions'] : [])
+            .concat(body.audienceZoneIds !== undefined || body.audienceMode !== undefined ? ['audienceZones'] : []);
+        if (changedFields.length) {
+            await recordSoftAssetAudit(
+                db,
+                user,
+                refreshed || { ...existing, ...updatePatch, id },
+                isResourceVisibilityAction(existing, updatePatch)
+                    ? (updatePatch.isHidden ? 'hidden' : 'shown')
+                    : 'updated',
+                changedFields,
+                { assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE },
+            );
+        }
 
         return c.json({ success: true, id, assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE, translationStatus });
     } catch (err) {
@@ -1156,6 +1217,10 @@ export const resetSoftAssetOverrides = async (c) => {
         const patch = buildChildOverrideResetPatch(existing.parent, existing, body.fields);
         await db.update(softAssets).set(patch).where(eq(softAssets.id, id));
         await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
+        await recordSoftAssetAudit(db, user, { ...existing, ...patch }, 'updated', diffAuditFieldNames(existing, patch), {
+            assetMode: existing.assetMode || 'child',
+            resetFields: body.fields,
+        });
 
         return c.json({ success: true, id, overriddenFields: patch.overriddenFields });
     } catch (err) {
@@ -1183,6 +1248,9 @@ export const deleteSoftAsset = async (c) => {
             updatedAt: new Date(),
         }).where(eq(softAssets.id, id));
         await rebuildSoftAssetCaches([existing.subregionId, ...(existing.coverageRegionIds || [])], c.env, user);
+        await recordSoftAssetAudit(db, user, existing, 'deleted', ['isDeleted'], {
+            assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE,
+        });
 
         return c.json({ success: true });
     } catch (err) {

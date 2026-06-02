@@ -14,6 +14,7 @@ import {
     hasAnySoftAssetStaffAccess,
     loadSoftAssetStaffAccessForUser,
 } from '../utils/softAssetAccess.js';
+import { loadOrganizationAccessForUser } from '../utils/organizationAccess.js';
 import { getRequestToken, SESSION_HEADER_NAME, verifySessionToken } from '../utils/sessionAuth.js';
 
 export async function hydrateLiveAccessForUser(user, options = {}) {
@@ -24,6 +25,7 @@ export async function hydrateLiveAccessForUser(user, options = {}) {
         loadPartnerStaffAccess = loadPartnerStaffAccessForUser,
         loadHardAssetStaffAccess = loadHardAssetStaffAccessForUser,
         loadSoftAssetStaffAccess = loadSoftAssetStaffAccessForUser,
+        loadOrganizationAccess = loadOrganizationAccessForUser,
     } = options;
 
     if (!db) return user;
@@ -32,10 +34,12 @@ export async function hydrateLiveAccessForUser(user, options = {}) {
         partnerStaffAccess,
         hardAssetStaffAccess,
         softAssetStaffAccess,
+        organizationAccess,
     ] = await Promise.all([
         loadPartnerStaffAccess(db, user.id),
         loadHardAssetStaffAccess(db, user.id),
         loadSoftAssetStaffAccess(db, user.id),
+        loadOrganizationAccess(db, user.id),
     ]);
 
     return {
@@ -43,6 +47,7 @@ export async function hydrateLiveAccessForUser(user, options = {}) {
         partnerStaffAccess,
         hardAssetStaffAccess,
         softAssetStaffAccess,
+        organizationAccess,
     };
 }
 

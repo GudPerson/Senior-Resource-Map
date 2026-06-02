@@ -153,6 +153,16 @@ async function request(method, path, body) {
     return requestWithBaseCandidates(method, path, body);
 }
 
+function withQuery(path, params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        query.set(key, String(value));
+    });
+    const text = query.toString();
+    return text ? `${path}?${text}` : path;
+}
+
 export async function requestFormDataWithBaseCandidates(path, formData, options = {}) {
     const {
         baseCandidates = BASE_CANDIDATES,
@@ -442,7 +452,7 @@ export const api = {
     getMyNotificationPreferences: () => request('GET', '/governance/me/notification-preferences'),
     updateMyNotificationPreferences: (body) => request('PUT', '/governance/me/notification-preferences', body),
     recordMyOptOut: (body) => request('POST', '/governance/me/opt-outs', body),
-    getGovernanceAuditLogs: () => request('GET', '/governance/audit-logs'),
+    getGovernanceAuditLogs: (params = {}) => request('GET', withQuery('/governance/audit-logs', params)),
     getGovernanceRetentionQueue: () => request('GET', '/governance/retention'),
     updateGovernanceRetentionRecord: (retentionId, body) => request('PATCH', `/governance/retention/${retentionId}`, body),
     updateResourceFreshness: (resourceType, resourceId, body) => request('PATCH', `/governance/resources/${resourceType}/${resourceId}/freshness`, body),

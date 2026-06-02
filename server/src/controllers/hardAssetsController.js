@@ -51,8 +51,29 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import {
+    buildResourceAuditPayload,
+    diffAuditFieldNames,
+    isResourceVisibilityAction,
+    loadResourceAuditOrganizationId,
+    safelyRecordAuditLog,
+} from '../utils/auditTrail.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
+
+async function recordHardAssetAudit(db, actor, asset, action, changedFields = [], metadata = {}) {
+    if (!asset?.id) return;
+    const organizationId = await loadResourceAuditOrganizationId(db, 'hard', asset.id);
+    await safelyRecordAuditLog(db, actor, buildResourceAuditPayload({
+        action,
+        resourceType: 'hard',
+        resourceId: asset.id,
+        resourceName: asset.name,
+        organizationId,
+        changedFields,
+        metadata,
+    }));
+}
 
 function isMissingSubregionBoundaryError(error) {
     return Number(error?.status || 0) === 400
@@ -1745,6 +1766,9 @@ export const createHardAsset = async (c) => {
 
         const translationStatus = await triggerHardAssetTranslation(db, c.env, asset, user);
         await rebuildMapCache(getCacheRegionId(derivedSubregion.id), c.env);
+        await recordHardAssetAudit(db, user, asset, 'created', ['created'], {
+            visibility: asset.isHidden ? 'hidden' : 'visible',
+        });
         return c.json({ ...asset, translationStatus }, 201);
     } catch (err) {
         console.error(err);
@@ -1848,7 +1872,7 @@ export const updateHardAsset = async (c) => {
             lng = coords.lng.toString();
         }
 
-        await db.update(hardAssets).set({
+        const updatePatch = {
             partnerId: owner?.id || null,
             subregionId: derivedSubregion.id,
             name: body.name ?? existing.name,
@@ -1874,7 +1898,8 @@ export const updateHardAsset = async (c) => {
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
             updatedAt: new Date(),
-        }).where(eq(hardAssets.id, id));
+        };
+        await db.update(hardAssets).set(updatePatch).where(eq(hardAssets.id, id));
 
         if (body.newTags) {
             await syncAssetTags(db, id, 'hard', body.newTags);
@@ -1888,6 +1913,19 @@ export const updateHardAsset = async (c) => {
             : { status: 'skipped', message: 'Asset was saved but could not be reloaded for translation.' };
 
         await rebuildMapCache(getCacheRegionId(existing.subregionId, derivedSubregion.id), c.env);
+        const changedFields = diffAuditFieldNames(existing, updatePatch)
+            .concat(body.newTags !== undefined ? ['tags'] : []);
+        if (changedFields.length) {
+            await recordHardAssetAudit(
+                db,
+                user,
+                refreshed || { ...existing, ...updatePatch, id },
+                isResourceVisibilityAction(existing, updatePatch)
+                    ? (updatePatch.isHidden ? 'hidden' : 'shown')
+                    : 'updated',
+                changedFields,
+            );
+        }
         return c.json({ success: true, id, translationStatus });
     } catch (err) {
         console.error(err);
@@ -1916,6 +1954,7 @@ export const deleteHardAsset = async (c) => {
 
         await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
         await rebuildMapCache(getCacheRegionId(existing.subregionId), c.env);
+        await recordHardAssetAudit(db, user, existing, 'deleted', ['isDeleted']);
         return c.json({ success: true });
     } catch (err) {
         console.error(err);

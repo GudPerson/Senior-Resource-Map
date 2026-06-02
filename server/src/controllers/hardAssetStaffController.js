@@ -24,6 +24,11 @@ import {
     filterAssetAccessCandidatesByOrganization,
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
+import {
+    buildResourceAuditPayload,
+    loadResourceAuditOrganizationId,
+    safelyRecordAuditLog,
+} from '../utils/auditTrail.js';
 
 const addStaffBodySchema = z.object({
     userId: positiveIntValueSchema('userId'),
@@ -118,6 +123,20 @@ async function loadUserById(db, userId) {
         .where(eq(users.id, userId))
         .limit(1);
     return row || null;
+}
+
+async function recordHardAssetAccessAudit(db, actor, hardAsset, targetUserId, action, staffRole) {
+    const organizationId = await loadResourceAuditOrganizationId(db, 'hard', hardAsset.id);
+    const payload = buildResourceAuditPayload({
+        action,
+        resourceType: 'hard',
+        resourceId: hardAsset.id,
+        resourceName: hardAsset.name,
+        organizationId,
+        changedFields: ['access'],
+        metadata: { staffRole },
+    });
+    await safelyRecordAuditLog(db, actor, { ...payload, targetUserId });
 }
 
 async function loadActiveStaffMembership(db, hardAssetId, membershipId) {
@@ -266,6 +285,7 @@ export const addHardAssetStaff = async (c) => {
         }).returning();
 
         const row = await loadActiveStaffMembership(db, hardAsset.id, membership.id);
+        await recordHardAssetAccessAudit(db, actor, hardAsset, targetUser.id, 'access_added', staffRole);
         return c.json({ staffMember: formatHardAssetStaffMember(row) }, 201);
     } catch (err) {
         return handleHardAssetStaffError(c, err, 'Failed to add asset access.');
@@ -298,6 +318,7 @@ export const updateHardAssetStaffRole = async (c) => {
             .where(eq(hardAssetStaffMemberships.id, membership.id));
 
         const row = await loadActiveStaffMembership(db, hardAsset.id, membership.id);
+        await recordHardAssetAccessAudit(db, actor, hardAsset, membership.userId, 'access_updated', staffRole);
         return c.json({ staffMember: formatHardAssetStaffMember(row) });
     } catch (err) {
         return handleHardAssetStaffError(c, err, 'Failed to update asset access role.');
@@ -324,6 +345,7 @@ export const revokeHardAssetStaff = async (c) => {
             .set({ revokedAt: new Date(), updatedByUserId: actor.id, updatedAt: new Date() })
             .where(eq(hardAssetStaffMemberships.id, membership.id));
 
+        await recordHardAssetAccessAudit(db, actor, hardAsset, membership.userId, 'access_revoked', membership.staffRole);
         return c.json({ success: true });
     } catch (err) {
         return handleHardAssetStaffError(c, err, 'Failed to revoke asset access.');

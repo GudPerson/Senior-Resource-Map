@@ -10,6 +10,7 @@ import { resolveSingleSubregionByPostal, syncUserDerivedSubregion } from './subr
 import { loadHardAssetStaffAccessForUser } from './hardAssetStaff.js';
 import { loadSoftAssetStaffAccessForUser } from './softAssetAccess.js';
 import { loadPartnerStaffAccessForUser } from './partnerStaff.js';
+import { loadOrganizationAccessForUser } from './organizationAccess.js';
 
 export const PHONE_LOGIN_ATTEMPT_STATUS = Object.freeze({
     pending: 'pending',
@@ -335,6 +336,7 @@ export function createPhoneLoginStore(db) {
                 partnerStaffAccess: await loadPartnerStaffAccessForUser(db, user.id),
                 hardAssetStaffAccess: await loadHardAssetStaffAccessForUser(db, user.id),
                 softAssetStaffAccess: await loadSoftAssetStaffAccessForUser(db, user.id),
+                organizationAccess: await loadOrganizationAccessForUser(db, user.id),
             };
         },
     };
