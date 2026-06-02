@@ -97,6 +97,57 @@ async function loadSoftAssetLocationIds(db, softAssetId) {
     return [...new Set(ids.filter(Boolean))];
 }
 
+export async function loadOfferingsCoveredByHardAssetLinks(db, hardAssetIds = []) {
+    const ids = [...new Set((hardAssetIds || []).map(Number).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const hostedRows = await db.select({
+        id: softAssets.id,
+        name: softAssets.name,
+        hostHardAssetId: softAssets.hostHardAssetId,
+    })
+        .from(softAssets)
+        .where(and(
+            inArray(softAssets.hostHardAssetId, ids),
+            eq(softAssets.isDeleted, false),
+        ));
+
+    const linkedRows = await db.select({
+        id: softAssets.id,
+        name: softAssets.name,
+        hardAssetId: softAssetLocations.hardAssetId,
+    })
+        .from(softAssetLocations)
+        .innerJoin(softAssets, eq(softAssetLocations.softAssetId, softAssets.id))
+        .where(and(
+            inArray(softAssetLocations.hardAssetId, ids),
+            eq(softAssets.isDeleted, false),
+        ));
+
+    const byId = new Map();
+    for (const row of hostedRows) {
+        byId.set(Number(row.id), {
+            id: row.id,
+            resourceType: 'soft',
+            resourceId: row.id,
+            resourceName: row.name,
+            coveredByHardAssetId: Number(row.hostHardAssetId),
+            coverageSource: 'linked_place',
+        });
+    }
+    for (const row of linkedRows) {
+        byId.set(Number(row.id), {
+            id: row.id,
+            resourceType: 'soft',
+            resourceId: row.id,
+            resourceName: row.name,
+            coveredByHardAssetId: Number(row.hardAssetId),
+            coverageSource: 'linked_place',
+        });
+    }
+    return [...byId.values()];
+}
+
 async function loadHardAssetOperators(db, hardAssetIds) {
     const ids = [...new Set(hardAssetIds.map(Number).filter(Boolean))];
     if (!ids.length) return [];

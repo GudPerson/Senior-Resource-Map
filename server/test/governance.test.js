@@ -21,6 +21,7 @@ import {
     evaluateResourceOrganizationLink,
 } from '../src/utils/governance.js';
 import { organizationResourceLinks } from '../src/db/schema.js';
+import { loadOfferingsCoveredByHardAssetLinks } from '../src/utils/organizationGuardrails.js';
 
 function createActor(overrides = {}) {
     return {
@@ -281,6 +282,67 @@ test('linking a resource to an organisation blocks conflicting links and operato
             },
         ],
     }), { allowed: true, reason: null });
+});
+
+test('linked places cover hosted and linked offerings once for organisation context', async () => {
+    const fakeDb = {
+        select(selection) {
+            return {
+                from() {
+                    const query = {
+                        innerJoin() {
+                            return query;
+                        },
+                        where() {
+                            if (selection.hostHardAssetId) {
+                                return Promise.resolve([
+                                    { id: 41, name: 'Hosted CHP', hostHardAssetId: 10 },
+                                    { id: 42, name: 'Duplicate Exercise', hostHardAssetId: 20 },
+                                ]);
+                            }
+                            if (selection.hardAssetId) {
+                                return Promise.resolve([
+                                    { id: 42, name: 'Duplicate Exercise', hardAssetId: 20 },
+                                    { id: 43, name: 'Linked Yoga', hardAssetId: 10 },
+                                ]);
+                            }
+                            return Promise.resolve([]);
+                        },
+                    };
+                    return query;
+                },
+            };
+        },
+    };
+
+    const rows = await loadOfferingsCoveredByHardAssetLinks(fakeDb, [10, 20, 10]);
+
+    assert.deepEqual(rows, [
+        {
+            id: 41,
+            resourceType: 'soft',
+            resourceId: 41,
+            resourceName: 'Hosted CHP',
+            coveredByHardAssetId: 10,
+            coverageSource: 'linked_place',
+        },
+        {
+            id: 42,
+            resourceType: 'soft',
+            resourceId: 42,
+            resourceName: 'Duplicate Exercise',
+            coveredByHardAssetId: 20,
+            coverageSource: 'linked_place',
+        },
+        {
+            id: 43,
+            resourceType: 'soft',
+            resourceId: 43,
+            resourceName: 'Linked Yoga',
+            coveredByHardAssetId: 10,
+            coverageSource: 'linked_place',
+        },
+    ]);
 });
 
 test('external notification channels remain disabled in V1 even when preferences are enabled', () => {

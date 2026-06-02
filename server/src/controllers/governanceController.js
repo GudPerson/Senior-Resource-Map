@@ -52,6 +52,7 @@ import {
     assertResourceOrganizationLinkEligibility,
     filterOrganizationAccessCandidates,
     filterOrganizationResourceLinkCandidates,
+    loadOfferingsCoveredByHardAssetLinks,
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
 
@@ -221,6 +222,8 @@ function formatResourceLink(row) {
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         resourceName: row.resourceName || null,
+        coveredByHardAssetId: row.coveredByHardAssetId || null,
+        coverageSource: row.coverageSource || null,
     };
 }
 
@@ -243,6 +246,7 @@ function formatOrganization(row, grouped = {}) {
     const agreements = grouped.agreements?.get(Number(row.id)) || [];
     const access = grouped.access?.get(Number(row.id)) || [];
     const resourceLinks = grouped.resourceLinks?.get(Number(row.id)) || [];
+    const coveredOfferings = grouped.coveredOfferings?.get(Number(row.id)) || [];
     return {
         id: row.id,
         legacyPartnerUserId: row.legacyPartnerUserId,
@@ -256,6 +260,7 @@ function formatOrganization(row, grouped = {}) {
         agreements: agreements.map(formatAgreement),
         access: access.map(formatAccessRow),
         resourceLinks: resourceLinks.map(formatResourceLink),
+        coveredOfferings: coveredOfferings.map(formatResourceLink),
         agreementCoverage: buildAgreementCoverageSummary(agreements, 'restrictedFiles'),
     };
 }
@@ -364,7 +369,12 @@ async function loadViewableOrganization(db, actor, organizationId) {
 async function listOrganizationDetails(db, organizations) {
     const ids = organizations.map((org) => Number(org.id)).filter(Boolean);
     if (!ids.length) {
-        return { access: new Map(), agreements: new Map(), resourceLinks: new Map() };
+        return {
+            access: new Map(),
+            agreements: new Map(),
+            resourceLinks: new Map(),
+            coveredOfferings: new Map(),
+        };
     }
     const [access, agreements, hardLinks, softLinks, templateLinks] = await Promise.all([
         db.select({
@@ -437,10 +447,28 @@ async function listOrganizationDetails(db, organizations) {
             )),
     ]);
 
+    const hardIdsByOrganization = new Map();
+    for (const link of hardLinks) {
+        const organizationKey = Number(link.organizationId);
+        if (!hardIdsByOrganization.has(organizationKey)) hardIdsByOrganization.set(organizationKey, []);
+        hardIdsByOrganization.get(organizationKey).push(Number(link.resourceId));
+    }
+
+    const directSoftKeys = new Set(softLinks.map((link) => `${Number(link.organizationId)}:${Number(link.resourceId)}`));
+    const coveredOfferingRows = [];
+    for (const [organizationId, hardAssetIds] of hardIdsByOrganization.entries()) {
+        const coveredOfferings = await loadOfferingsCoveredByHardAssetLinks(db, hardAssetIds);
+        for (const offering of coveredOfferings) {
+            if (directSoftKeys.has(`${Number(organizationId)}:${Number(offering.resourceId)}`)) continue;
+            coveredOfferingRows.push({ ...offering, organizationId });
+        }
+    }
+
     return {
         access: groupByOrganization(access),
         agreements: groupByOrganization(agreements),
         resourceLinks: groupByOrganization([...hardLinks, ...softLinks, ...templateLinks]),
+        coveredOfferings: groupByOrganization(coveredOfferingRows),
     };
 }
 
