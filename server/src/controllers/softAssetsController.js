@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import { softAssetRegionCoverages, softAssets, softAssetLocations, subregionPostalCodes } from '../db/schema.js';
@@ -22,6 +22,9 @@ import { isAssetVisible } from '../utils/visibility.js';
 import {
     buildResourceListPagination,
     filterSoftAssetsForResourceList,
+    getDirectManagedHardAssetIds,
+    getDirectManagedSoftAssetIds,
+    isStandardDirectResourceOperator,
     normalizeResourceListPagination,
     normalizeResourceListScope,
     paginateResourceList,
@@ -594,6 +597,37 @@ export const getSoftAssets = async (c) => {
         const query = c.req.query('q');
 
         const whereClauses = [eq(softAssets.isDeleted, false)];
+        const isDirectStaffManagedScope = listScope === 'managed' && isStandardDirectResourceOperator(user);
+
+        if (isDirectStaffManagedScope) {
+            const directManagedHardAssetIds = getDirectManagedHardAssetIds(user);
+            const directManagedSoftAssetIds = getDirectManagedSoftAssetIds(user);
+            const linkedRows = directManagedHardAssetIds.length > 0
+                ? await db.select({ softAssetId: softAssetLocations.softAssetId })
+                    .from(softAssetLocations)
+                    .where(inArray(softAssetLocations.hardAssetId, directManagedHardAssetIds))
+                : [];
+            const linkedSoftAssetIds = linkedRows
+                .map((row) => Number(row.softAssetId))
+                .filter((id) => Number.isInteger(id) && id > 0);
+            const directScopeSoftAssetIds = [...new Set([
+                ...directManagedSoftAssetIds,
+                ...linkedSoftAssetIds,
+            ])];
+            const directScopeWhere = [
+                directScopeSoftAssetIds.length > 0 ? inArray(softAssets.id, directScopeSoftAssetIds) : null,
+                directManagedHardAssetIds.length > 0 ? inArray(softAssets.hostHardAssetId, directManagedHardAssetIds) : null,
+            ].filter(Boolean);
+
+            if (directScopeWhere.length === 0) {
+                return c.json({
+                    data: [],
+                    pagination: buildResourceListPagination({ totalCount: 0, page, pageSize }),
+                });
+            }
+
+            whereClauses.push(directScopeWhere.length === 1 ? directScopeWhere[0] : or(...directScopeWhere));
+        }
 
         const searchWhere = buildSoftAssetSearchWhere(query);
         if (searchWhere) {

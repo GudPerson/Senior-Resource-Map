@@ -142,6 +142,27 @@ test('managed soft asset lists follow direct access to linked hard assets', () =
     assert.deepEqual(scoped.map((asset) => asset.id), [21]);
 });
 
+test('managed soft asset lists include directly assigned offerings', () => {
+    const user = actor({
+        softAssetStaffAccess: [{
+            softAssetId: 21,
+            staffRole: 'staff',
+        }],
+    });
+    const assets = [
+        { id: 21, partnerId: null, subregionId: 4, locations: [{ hardAssetId: 30 }] },
+        { id: 22, partnerId: null, subregionId: 4, locations: [{ hardAssetId: 30 }] },
+    ];
+
+    const scoped = filterSoftAssetsForResourceList(assets, user, {
+        scope: 'managed',
+        isVisible: () => true,
+        canExpose: () => true,
+    });
+
+    assert.deepEqual(scoped.map((asset) => asset.id), [21]);
+});
+
 test('managed standalone soft asset lists follow service coverage', () => {
     const user = actor({
         role: 'regional_admin',
@@ -171,6 +192,16 @@ test('super admin managed lists can use direct database pagination safely', () =
     assert.equal(shouldUseDirectManagedResourcePagination({
         scope: 'managed',
         actor: actor({ role: 'super_admin' }),
+    }), true);
+
+    assert.equal(shouldUseDirectManagedResourcePagination({
+        scope: 'managed',
+        actor: actor({
+            hardAssetStaffAccess: [{
+                hardAssetId: 10,
+                staffRole: 'staff',
+            }],
+        }),
     }), true);
 
     assert.equal(shouldUseDirectManagedResourcePagination({

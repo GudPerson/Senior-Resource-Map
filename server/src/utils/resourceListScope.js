@@ -1,7 +1,8 @@
-import { hasHardAssetStaffAccess } from './hardAssetStaff.js';
-import { hasPartnerStaffAccess } from './partnerStaff.js';
+import { getActiveHardAssetStaffAccess, hasHardAssetStaffAccess, hasAnyHardAssetStaffAccess } from './hardAssetStaff.js';
+import { hasAnyPartnerStaffAccess, hasPartnerStaffAccess } from './partnerStaff.js';
 import { actorMatchesAnyRegion, filterSoftAssetsByRegionRelevance } from './regionScope.js';
 import { normalizeRole } from './roles.js';
+import { getActiveSoftAssetStaffAccess, hasAnySoftAssetStaffAccess } from './softAssetAccess.js';
 
 export function normalizeResourceListScope(value) {
     return String(value || '').trim().toLowerCase() === 'managed' ? 'managed' : 'visible';
@@ -13,8 +14,29 @@ export function shouldRejectManagedResourceListRequest(scopeValue, actor) {
 }
 
 export function shouldUseDirectManagedResourcePagination({ scope, actor } = {}) {
-    return normalizeResourceListScope(scope) === 'managed'
-        && normalizeRole(actor?.role) === 'super_admin';
+    if (normalizeResourceListScope(scope) !== 'managed') return false;
+    if (normalizeRole(actor?.role) === 'super_admin') return true;
+    return isStandardDirectResourceOperator(actor);
+}
+
+export function isStandardDirectResourceOperator(actor) {
+    return normalizeRole(actor?.role) === 'standard'
+        && !hasAnyPartnerStaffAccess(actor)
+        && (hasAnyHardAssetStaffAccess(actor) || hasAnySoftAssetStaffAccess(actor));
+}
+
+export function getDirectManagedHardAssetIds(actor) {
+    if (!isStandardDirectResourceOperator(actor)) return [];
+    return getActiveHardAssetStaffAccess(actor)
+        .map((entry) => entry.hardAssetId)
+        .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+export function getDirectManagedSoftAssetIds(actor) {
+    if (!isStandardDirectResourceOperator(actor)) return [];
+    return getActiveSoftAssetStaffAccess(actor)
+        .map((entry) => entry.softAssetId)
+        .filter((id) => Number.isInteger(id) && id > 0);
 }
 
 export function normalizeResourceListPagination(input = {}) {

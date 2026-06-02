@@ -14,6 +14,8 @@ import { isAssetVisible } from '../utils/visibility.js';
 import {
     buildResourceListPagination,
     filterHardAssetsForResourceList,
+    getDirectManagedHardAssetIds,
+    isStandardDirectResourceOperator,
     normalizeResourceListPagination,
     normalizeResourceListScope,
     paginateResourceList,
@@ -1162,6 +1164,18 @@ export const getHardAssets = async (c) => {
         const radius = parseFloat(c.req.query('radius')); // in km
 
         const whereClauses = [eq(hardAssets.isDeleted, false)];
+        const isDirectStaffManagedScope = listScope === 'managed' && isStandardDirectResourceOperator(user);
+        const directManagedHardAssetIds = getDirectManagedHardAssetIds(user);
+
+        if (isDirectStaffManagedScope) {
+            if (directManagedHardAssetIds.length === 0) {
+                return c.json({
+                    data: [],
+                    pagination: buildResourceListPagination({ totalCount: 0, page, pageSize }),
+                });
+            }
+            whereClauses.push(inArray(hardAssets.id, directManagedHardAssetIds));
+        }
 
         const searchWhere = buildHardAssetSearchWhere(query);
         if (searchWhere) {
