@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 
 import {
     buildAgreementCoverageSummary,
+    canManageOrganizationAccessRole,
     canManageOrganizationGovernance,
+    canRevokeOrganizationAccessRole,
     canViewOrganizationGovernance,
     hasActiveOptOut,
     isNotificationDeliveryAllowed,
@@ -124,6 +126,39 @@ test('organisation governance access is independent from global role and asset e
     assert.equal(canViewOrganizationGovernance(createActor({ id: 34, role: 'standard' }), organization, memberships), false);
 
     assert.equal(organizationAccessGrantsResourceEditRights(), false);
+});
+
+test('organisation admins can manage org admins and staff without becoming global admins', () => {
+    const organization = { id: 7, name: 'Entrust Healthcare Group' };
+    const orgAdmin = createActor({ id: 31, role: 'standard' });
+    const orgStaff = createActor({ id: 32, role: 'standard' });
+    const regionAdmin = createActor({ id: 33, role: 'regional_admin' });
+    const accessRows = [
+        { organizationId: 7, userId: 31, accessRole: 'admin', revokedAt: null },
+        { organizationId: 7, userId: 32, accessRole: 'staff', revokedAt: null },
+    ];
+
+    assert.equal(canManageOrganizationAccessRole(orgAdmin, organization, accessRows, 'admin'), true);
+    assert.equal(canManageOrganizationAccessRole(orgAdmin, organization, accessRows, 'staff'), true);
+    assert.equal(canManageOrganizationAccessRole(orgStaff, organization, accessRows, 'admin'), false);
+    assert.equal(canManageOrganizationAccessRole(regionAdmin, organization, accessRows, 'admin'), false);
+});
+
+test('organisation access revocation protects the final active organisation admin', () => {
+    const organization = { id: 7, name: 'Entrust Healthcare Group' };
+    const actor = createActor({ id: 31, role: 'standard' });
+
+    assert.deepEqual(canRevokeOrganizationAccessRole(actor, organization, [
+        { organizationId: 7, userId: 31, accessRole: 'admin', revokedAt: null },
+        { organizationId: 7, userId: 32, accessRole: 'admin', revokedAt: null },
+    ], { userId: 32, accessRole: 'admin' }), { allowed: true, reason: null });
+
+    const finalAdminDecision = canRevokeOrganizationAccessRole(actor, organization, [
+        { organizationId: 7, userId: 31, accessRole: 'admin', revokedAt: null },
+    ], { userId: 31, accessRole: 'admin' });
+
+    assert.equal(finalAdminDecision.allowed, false);
+    assert.match(finalAdminDecision.reason, /at least one active Organisation Admin/);
 });
 
 test('organisation membership allows only one active organisation per user', () => {

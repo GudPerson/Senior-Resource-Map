@@ -189,10 +189,48 @@ export function findActiveOrganizationAccess(actor, organization, accessRows = [
     )) || null;
 }
 
+function countActiveOrganizationAdmins(accessRows = [], organizationId) {
+    const targetId = Number(organizationId);
+    if (!targetId) return 0;
+    return (accessRows || []).filter((row) => (
+        Number(row?.organizationId) === targetId
+        && isActiveRow(row)
+        && normalizeOrganizationAccessRole(row?.accessRole) === 'admin'
+    )).length;
+}
+
 export function canManageOrganizationGovernance(actor, organization, accessRows = []) {
     if (normalizeRole(actor?.role) === 'super_admin') return true;
     const access = findActiveOrganizationAccess(actor, organization, accessRows);
     return normalizeOrganizationAccessRole(access?.accessRole) === 'admin';
+}
+
+export function canManageOrganizationAccessRole(actor, organization, accessRows = [], targetRole) {
+    if (!normalizeOrganizationAccessRole(targetRole)) return false;
+    return canManageOrganizationGovernance(actor, organization, accessRows);
+}
+
+export function canRevokeOrganizationAccessRole(actor, organization, accessRows = [], membership) {
+    if (!canManageOrganizationGovernance(actor, organization, accessRows)) {
+        return { allowed: false, reason: 'Organisation governance is outside your access.' };
+    }
+
+    const membershipRole = normalizeOrganizationAccessRole(membership?.accessRole);
+    if (!membershipRole) {
+        return { allowed: false, reason: 'Organisation access role is invalid.' };
+    }
+
+    if (
+        membershipRole === 'admin'
+        && countActiveOrganizationAdmins(accessRows, organization?.id) <= 1
+    ) {
+        return {
+            allowed: false,
+            reason: 'Every organisation needs at least one active Organisation Admin.',
+        };
+    }
+
+    return { allowed: true, reason: null };
 }
 
 export function canViewOrganizationGovernance(actor, organization, accessRows = []) {
