@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { softAssetRegionCoverages, softAssets, softAssetLocations, subregionPostalCodes } from '../db/schema.js';
+import { softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
@@ -78,6 +78,7 @@ import {
     loadResourceAuditOrganizationId,
     safelyRecordAuditLog,
 } from '../utils/auditTrail.js';
+import { shouldGrantCreatorDefaultSoftAssetOwner } from '../utils/assetCreatorOwnership.js';
 
 async function recordSoftAssetAudit(db, actor, asset, action, changedFields = [], metadata = {}) {
     if (!asset?.id) return;
@@ -922,6 +923,15 @@ export const createSoftAsset = async (c) => {
             await syncSoftAssetRegionCoverages(db, asset.id, coverageRegionIds, user);
             await syncAssetTags(db, asset.id, 'soft', newTags);
             await syncSoftAssetAudienceZones(db, asset.id, audienceZoneIds);
+            if (shouldGrantCreatorDefaultSoftAssetOwner(user, { linkedHardAssetIds: linkedIds, hostHardAssetId: asset.hostHardAssetId })) {
+                await db.insert(softAssetStaffMemberships).values({
+                    softAssetId: asset.id,
+                    userId: user.id,
+                    staffRole: 'owner',
+                    createdByUserId: user.id,
+                    updatedByUserId: user.id,
+                }).onConflictDoNothing();
+            }
         } catch (syncError) {
             await db.delete(softAssets).where(eq(softAssets.id, asset.id));
             throw syncError;

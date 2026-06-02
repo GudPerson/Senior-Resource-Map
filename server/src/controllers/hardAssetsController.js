@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
-import { hardAssets, hardAssetTags, subCategories, subregionPostalCodes, users } from '../db/schema.js';
+import { hardAssets, hardAssetStaffMemberships, hardAssetTags, subCategories, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { getAssetAudienceZones, resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
 import { actorCanDeleteHardAsset, actorCanHideHardAsset, actorCanManageAsset, canAssignPartnerOwner } from '../utils/ownership.js';
@@ -60,6 +60,7 @@ import {
     loadResourceAuditOrganizationId,
     safelyRecordAuditLog,
 } from '../utils/auditTrail.js';
+import { shouldGrantCreatorDefaultHardAssetOwner } from '../utils/assetCreatorOwnership.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -1773,6 +1774,15 @@ export const createHardAsset = async (c) => {
 
         try {
             await syncAssetTags(db, asset.id, 'hard', newTags);
+            if (shouldGrantCreatorDefaultHardAssetOwner(user)) {
+                await db.insert(hardAssetStaffMemberships).values({
+                    hardAssetId: asset.id,
+                    userId: user.id,
+                    staffRole: 'owner',
+                    createdByUserId: user.id,
+                    updatedByUserId: user.id,
+                }).onConflictDoNothing();
+            }
         } catch (syncError) {
             await db.delete(hardAssets).where(eq(hardAssets.id, asset.id));
             throw syncError;
