@@ -222,15 +222,33 @@ export async function filterAssetAccessCandidatesByOrganization(db, resourceType
     }).allowed);
 }
 
-export async function assertResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId) {
+export async function evaluateResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId) {
     const [existingResourceLinks, activeOperators] = await Promise.all([
         loadRelatedResourceLinks(db, resourceType, resourceId),
         loadActiveOperatorsForResource(db, resourceType, resourceId),
     ]);
-    const result = evaluateResourceOrganizationLink({
+    return evaluateResourceOrganizationLink({
         targetOrganizationId: organizationId,
         existingResourceLinks,
         activeOperators,
     });
+}
+
+export async function filterOrganizationResourceLinkCandidates(db, organizationId, resourceType, candidates) {
+    const eligible = [];
+    for (const candidate of candidates || []) {
+        const result = await evaluateResourceOrganizationLinkEligibility(
+            db,
+            organizationId,
+            resourceType,
+            candidate.id,
+        );
+        if (result.allowed) eligible.push(candidate);
+    }
+    return eligible;
+}
+
+export async function assertResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId) {
+    const result = await evaluateResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId);
     if (!result.allowed) throw guardrailError(result.reason);
 }

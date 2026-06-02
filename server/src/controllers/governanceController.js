@@ -51,6 +51,7 @@ import {
     assertOrganizationUserAssignment,
     assertResourceOrganizationLinkEligibility,
     filterOrganizationAccessCandidates,
+    filterOrganizationResourceLinkCandidates,
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
 
@@ -801,8 +802,15 @@ export const getOrganizationResourceCandidates = async (c) => {
             throw httpError('Resource type must be hard, soft, or template.', 400);
         }
 
+        const eligibleRows = await filterOrganizationResourceLinkCandidates(
+            db,
+            organizationId,
+            resourceType,
+            rows,
+        );
+
         return c.json({
-            candidates: rows
+            candidates: eligibleRows
                 .map((row) => formatResourceCandidate(row, resourceType))
                 .filter(Boolean),
         });

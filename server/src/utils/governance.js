@@ -154,23 +154,40 @@ export function evaluateResourceOrganizationLink({
         };
     }
 
+    if (!Array.isArray(activeOperators) || activeOperators.length === 0) {
+        return {
+            allowed: false,
+            reason: 'This asset needs at least one active Owner or Staff before it can be linked to an organisation.',
+        };
+    }
+
+    const missingOperators = [];
+    const crossOrganizationOperators = [];
+
     for (const operator of activeOperators) {
         const activeMembership = (operator?.organizationMemberships || []).find((row) => (
             isActiveRow(row)
             && Number(row?.organizationId)
         ));
         if (!activeMembership) {
-            return {
-                allowed: false,
-                reason: `${userLabel(operator)} is not assigned to this organisation. Assign the operator to the organisation first, or remove their asset access before linking.`,
-            };
+            missingOperators.push(userLabel(operator));
+        } else if (Number(activeMembership.organizationId) !== targetId) {
+            crossOrganizationOperators.push(`${userLabel(operator)} is assigned to ${organizationLabel(activeMembership)}`);
         }
-        if (Number(activeMembership.organizationId) !== targetId) {
-            return {
-                allowed: false,
-                reason: `${userLabel(operator)} is assigned to ${organizationLabel(activeMembership)}. Remove the cross-organisation access before linking this resource.`,
-            };
-        }
+    }
+
+    if (missingOperators.length) {
+        return {
+            allowed: false,
+            reason: `Cannot link this asset yet. Add ${missingOperators.join(', ')} to this organisation first.`,
+        };
+    }
+
+    if (crossOrganizationOperators.length) {
+        return {
+            allowed: false,
+            reason: `${crossOrganizationOperators.join('; ')}. Remove the cross-organisation access before linking this resource.`,
+        };
     }
 
     return { allowed: true, reason: null };

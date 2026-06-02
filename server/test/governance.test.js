@@ -222,11 +222,13 @@ test('asset access requires the user organisation to match the linked resource o
 });
 
 test('linking a resource to an organisation blocks conflicting links and operators', () => {
-    assert.deepEqual(evaluateResourceOrganizationLink({
+    const noOperators = evaluateResourceOrganizationLink({
         targetOrganizationId: 7,
         existingResourceLinks: [],
         activeOperators: [],
-    }), { allowed: true, reason: null });
+    });
+    assert.equal(noOperators.allowed, false);
+    assert.match(noOperators.reason, /active Owner or Staff/);
 
     const linkedElsewhere = evaluateResourceOrganizationLink({
         targetOrganizationId: 7,
@@ -255,7 +257,30 @@ test('linking a resource to an organisation blocks conflicting links and operato
         activeOperators: [{ userName: 'Alex', organizationMemberships: [] }],
     });
     assert.equal(operatorUnassigned.allowed, false);
-    assert.match(operatorUnassigned.reason, /Alex is not assigned/);
+    assert.match(operatorUnassigned.reason, /Add Alex to this organisation/);
+
+    const multipleMissingOperators = evaluateResourceOrganizationLink({
+        targetOrganizationId: 7,
+        existingResourceLinks: [],
+        activeOperators: [
+            { userName: 'Hyqel Zainudin', organizationMemberships: [] },
+            { userName: 'Joshua Chua', organizationMemberships: [] },
+        ],
+    });
+    assert.equal(multipleMissingOperators.allowed, false);
+    assert.match(multipleMissingOperators.reason, /Hyqel Zainudin/);
+    assert.match(multipleMissingOperators.reason, /Joshua Chua/);
+
+    assert.deepEqual(evaluateResourceOrganizationLink({
+        targetOrganizationId: 7,
+        existingResourceLinks: [],
+        activeOperators: [
+            {
+                userName: 'Alex',
+                organizationMemberships: [{ organizationId: 7, organizationName: 'Fei Yue', revokedAt: null }],
+            },
+        ],
+    }), { allowed: true, reason: null });
 });
 
 test('external notification channels remain disabled in V1 even when preferences are enabled', () => {
