@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, BookOpen, Files, LayoutDashboard, LogOut, Map, Menu, ScrollText, Shield, User } from 'lucide-react';
+import { Activity, BookOpen, Building2, Files, LayoutDashboard, LogOut, Map, Menu, ScrollText, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { canAccessAdmin, canAccessAuditTrail, canAccessManagedResources, getRoleMeta, hasHardAssetStaffAccess } from '../../lib/roles.js';
+import {
+    canAccessAdmin,
+    canAccessAuditTrail,
+    canAccessManagedResources,
+    canAccessOrganizationWorkspace,
+    getRoleMeta,
+    hasHardAssetStaffAccess,
+} from '../../lib/roles.js';
 
 function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
     return (
@@ -34,6 +41,7 @@ export function getDashboardSectionLabel(pathname, t) {
     if (pathname.startsWith('/dashboard/profile')) return label(t, 'profileTitle', 'Profile');
     if (pathname.startsWith('/dashboard/admin')) return label(t, 'overviewAdminTitle', 'Admin');
     if (pathname.startsWith('/dashboard/audit')) return label(t, 'auditTrailTitle', 'Audit Trail');
+    if (pathname.startsWith('/dashboard/organization')) return label(t, 'organisationWorkspaceTitle', 'Organisation');
     if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'My Maps');
     if (pathname.startsWith('/my-directory')) return label(t, 'myDirectory', 'My Directory');
     if (pathname.startsWith('/dashboard/resources')) return label(t, 'overviewResourcesTitle', 'My Resources');
@@ -51,6 +59,7 @@ export function DashboardSidebar({
     const canShowResources = canAccessManagedResources(user);
     const canShowAdmin = canAccessAdmin(user?.role);
     const canShowAudit = canAccessAuditTrail(user);
+    const canShowOrganizationWorkspace = canAccessOrganizationWorkspace(user);
     const isAssetStaff = hasHardAssetStaffAccess(user);
 
     return (
@@ -103,6 +112,15 @@ export function DashboardSidebar({
             ) : null}
             {canShowAudit ? (
                 <SidebarLink to="/dashboard/audit" icon={ScrollText} label={t('auditTrailTitle')} id="dash-audit" onNavigate={onNavigate} />
+            ) : null}
+            {canShowOrganizationWorkspace ? (
+                <SidebarLink
+                    to="/dashboard/organization"
+                    icon={Building2}
+                    label={t('organisationWorkspaceTitle')}
+                    id="dash-organization"
+                    onNavigate={onNavigate}
+                />
             ) : null}
 
             <div className="mt-auto">
