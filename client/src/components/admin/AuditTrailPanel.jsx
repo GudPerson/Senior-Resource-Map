@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Clock, FileText, Filter, RefreshCw, ShieldCheck } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
+import {
+    auditTargetLabel,
+    buildAuditDetailChips,
+    buildAuditPlainSummary,
+    buildOrganizationFilterOptions,
+    userLabel,
+} from '../../lib/auditTrailPresentation.js';
 
 const CATEGORY_OPTIONS = [
     { value: '', label: 'All activity' },
@@ -23,33 +30,10 @@ function formatDateTime(value) {
     }).format(date);
 }
 
-function userLabel(user) {
-    if (!user) return 'System';
-    return user.name || user.email || `User ${user.id}`;
-}
-
-function targetLabel(log) {
-    if (log.resource?.name) return log.resource.name;
-    if (log.organization?.name) return log.organization.name;
-    if (log.target?.name) return userLabel(log.target);
-    return log.entityId ? `Record ${log.entityId}` : 'CareAround SG';
-}
-
-function metadataSummary(metadata = {}) {
-    const fields = Array.isArray(metadata.changedFields) ? metadata.changedFields : [];
-    const items = [];
-    if (fields.length) {
-        items.push(`${fields.length} field${fields.length === 1 ? '' : 's'}: ${fields.join(', ')}`);
-    }
-    if (metadata.resourceName && !fields.length) items.push(`Resource: ${metadata.resourceName}`);
-    if (metadata.reason) items.push(`Reason: ${metadata.reason}`);
-    if (metadata.actorRole) items.push(`Actor role: ${metadata.actorRole}`);
-    if (metadata.resourceType && !metadata.resourceName) items.push(`Type: ${metadata.resourceType}`);
-    return items;
-}
-
 function AuditLogCard({ log }) {
-    const summaries = metadataSummary(log.metadata);
+    const summaries = buildAuditDetailChips(log.metadata, log);
+    const plainSummary = buildAuditPlainSummary(log);
+    const target = auditTargetLabel(log);
     return (
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -60,10 +44,14 @@ function AuditLogCard({ log }) {
                         </span>
                         <h3 className="text-base font-black text-slate-950">{log.actionLabel || log.actionType}</h3>
                     </div>
-                    <p className="mt-2 text-sm font-semibold text-slate-700">{targetLabel(log)}</p>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-3 text-base font-semibold leading-6 text-slate-800">{plainSummary}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                        Record: {target}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
                         By {userLabel(log.actor)}
                         {log.organization?.name ? ` · ${log.organization.name}` : ''}
+                        {log.actionType ? ` · ${log.actionType}` : ''}
                     </p>
                 </div>
                 <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
@@ -86,9 +74,11 @@ function AuditLogCard({ log }) {
 
 export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Review sensitive operational changes and governance activity.' }) {
     const [logs, setLogs] = useState([]);
+    const [organizations, setOrganizations] = useState([]);
     const [category, setCategory] = useState('');
     const [actionType, setActionType] = useState('');
     const [organizationId, setOrganizationId] = useState('');
+    const [scopeOrganizationIds, setScopeOrganizationIds] = useState([]);
     const [nextCursor, setNextCursor] = useState(null);
     const [scope, setScope] = useState('');
     const [loading, setLoading] = useState(true);
@@ -101,6 +91,12 @@ export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Rev
         actionType,
         organizationId,
     }), [actionType, category, organizationId]);
+
+    const organizationOptions = useMemo(() => buildOrganizationFilterOptions({
+        organizations,
+        scope,
+        scopeOrganizationIds,
+    }), [organizations, scope, scopeOrganizationIds]);
 
     const loadLogs = useCallback(async ({ append = false, cursor = null } = {}) => {
         if (append) {
@@ -119,6 +115,7 @@ export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Rev
             setLogs((previous) => (append ? [...previous, ...nextLogs] : nextLogs));
             setNextCursor(result.nextCursor || null);
             setScope(result.scope || '');
+            setScopeOrganizationIds(Array.isArray(result.organizationIds) ? result.organizationIds : []);
         } catch (err) {
             setError(err.message || 'Audit logs could not be loaded.');
             if (!append) setLogs([]);
@@ -131,6 +128,23 @@ export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Rev
     useEffect(() => {
         loadLogs();
     }, [loadLogs]);
+
+    useEffect(() => {
+        let alive = true;
+        async function loadOrganizations() {
+            try {
+                const result = await api.getGovernanceOrganizations();
+                if (!alive) return;
+                setOrganizations(Array.isArray(result?.organizations) ? result.organizations : []);
+            } catch {
+                if (alive) setOrganizations([]);
+            }
+        }
+        loadOrganizations();
+        return () => {
+            alive = false;
+        };
+    }, []);
 
     return (
         <section className="space-y-5">
@@ -152,9 +166,9 @@ export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Rev
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px]">
-                    <label className="space-y-1">
-                        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.9fr)_minmax(260px,1fr)_minmax(240px,0.85fr)]">
+                    <label className="flex min-w-0 flex-col gap-2">
+                        <span className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                             <Filter size={13} /> Category
                         </span>
                         <select value={category} onChange={(event) => setCategory(event.target.value)} className="input-field">
@@ -163,8 +177,8 @@ export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Rev
                             ))}
                         </select>
                     </label>
-                    <label className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Action type</span>
+                    <label className="flex min-w-0 flex-col gap-2">
+                        <span className="flex min-h-5 items-center text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Action type</span>
                         <input
                             value={actionType}
                             onChange={(event) => setActionType(event.target.value)}
@@ -172,15 +186,18 @@ export default function AuditTrailPanel({ title = 'Audit Trail', subtitle = 'Rev
                             className="input-field"
                         />
                     </label>
-                    <label className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Org ID</span>
-                        <input
+                    <label className="flex min-w-0 flex-col gap-2">
+                        <span className="flex min-h-5 items-center text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Organisation</span>
+                        <select
                             value={organizationId}
-                            onChange={(event) => setOrganizationId(event.target.value.replace(/\D/g, ''))}
-                            inputMode="numeric"
-                            placeholder={scope === 'organizations' ? 'Scoped' : 'Optional'}
+                            onChange={(event) => setOrganizationId(event.target.value)}
                             className="input-field"
-                        />
+                        >
+                            <option value="">{scope === 'organizations' ? 'All my organisations' : 'All organisations'}</option>
+                            {organizationOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
                     </label>
                 </div>
             </div>
