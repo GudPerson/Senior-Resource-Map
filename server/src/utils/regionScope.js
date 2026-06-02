@@ -103,6 +103,7 @@ export function isStandaloneSoftAsset(offering) {
 export function filterSoftAssetsByRegionRelevance(offerings = [], actor) {
     if (normalizeRole(actor?.role) === 'super_admin') return offerings;
     return offerings.filter((offering) => {
+        if (hasSoftAssetStaffAccess(actor, offering?.id, ['owner', 'staff'])) return true;
         if (isStandaloneSoftAsset(offering)) {
             return standaloneSoftAssetMatchesActorRegions(actor, offering);
         }
