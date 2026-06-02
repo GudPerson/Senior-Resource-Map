@@ -162,6 +162,16 @@ Audit rows should be written for:
 - Organisation profile/status updates.
 - Agreement create/update/revoke.
 - Organisation resource link/unlink.
+- Edits and operational changes to resources covered by the organisation.
+
+Organisation resource edit/change logs include:
+
+- Directly linked place updates.
+- Directly linked standalone offering updates.
+- Hosted/linked offering updates when the offering is covered through a linked place.
+- Visibility changes, availability/freshness changes, and direct asset access changes for covered resources.
+
+Resource-change audit rows should store plain-language summaries such as changed field names, resource type, resource name, and action type. They should not store raw request bodies, secrets, private public-user activity, or unnecessary internal IDs in the user-facing presentation.
 
 Organisation Admin audit visibility remains scoped:
 
@@ -195,14 +205,19 @@ Organisation Admin audit visibility remains scoped:
 - Assets with missing organisation-covered operators are blocked with clear user details.
 - Linking a place covers hosted/linked offerings in the organisation workspace.
 - Linked assets do not become editable through organisation access alone.
+- Organisation Admin audit view includes edit/change logs for resources directly linked to, or covered through, their organisation.
+- Organisation resource change logs explain what changed in plain language without exposing raw request bodies, secrets, or unrelated private user activity.
 
 ## Verification Plan
 
 - Add server tests for Organisation Admin add/remove Admin/Staff, including final-admin protection.
 - Add server tests for organisation asset-link eligibility with no operators, all covered operators, missing operators, and conflicting organisation links.
 - Add server tests that place links produce effective coverage for hosted/linked offerings.
+- Add server tests that resource edit/change audit rows are associated with directly linked resources and offerings covered through linked places.
+- Add server tests that Organisation Admin audit queries include covered-resource change logs and exclude unrelated resource change logs.
 - Add server tests for Region Admin creator default Owner grants on places and standalone offerings.
 - Add client tests for Organisation Workspace visibility and read-only Staff behavior.
+- Add client tests for plain-language resource-change audit presentation in organisation scope.
 - Run focused governance/access tests first.
 - Run `npm run test:server`.
 - Run relevant client tests.
