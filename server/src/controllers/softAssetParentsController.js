@@ -47,6 +47,12 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import {
+    buildResourceAuditPayload,
+    diffAuditFieldNames,
+    loadResourceAuditOrganizationId,
+    safelyRecordAuditLog,
+} from '../utils/auditTrail.js';
 
 const baseParentColumns = {
     id: true,
@@ -72,6 +78,20 @@ const baseParentColumns = {
 
 function canManageSoftAssetParent(actor, parent, ownerUser) {
     return actorCanManagePartnerOwnedEntity(actor, parent, ownerUser);
+}
+
+async function recordTemplateAudit(db, actor, parent, action, changedFields = [], metadata = {}) {
+    if (!parent?.id) return;
+    const organizationId = await loadResourceAuditOrganizationId(db, 'template', parent.id);
+    await safelyRecordAuditLog(db, actor, buildResourceAuditPayload({
+        action,
+        resourceType: 'template',
+        resourceId: parent.id,
+        resourceName: parent.name,
+        organizationId,
+        changedFields,
+        metadata,
+    }));
 }
 
 function formatSoftAssetParent(parent, options = {}) {
@@ -386,6 +406,7 @@ export const createSoftAssetParent = async (c) => {
         const created = await loadParentDetail(db, parent.id);
         const translationStatus = await triggerSoftAssetParentTranslation(db, c.env, created, user);
         const formatted = await attachSoftAssetParentTranslations(db, formatSoftAssetParent(created, { includeChildren: true }));
+        await recordTemplateAudit(db, user, created, 'created', ['created']);
         return c.json({ ...formatted, translationStatus }, 201);
     } catch (err) {
         console.error('createSoftAssetParent Error:', err);
@@ -468,6 +489,13 @@ export const updateSoftAssetParent = async (c) => {
         const updated = await loadParentDetail(db, id);
         const translationStatus = await triggerSoftAssetParentTranslation(db, c.env, updated, user);
         const formatted = await attachSoftAssetParentTranslations(db, formatSoftAssetParent(updated, { includeChildren: true }));
+        const changedFields = diffAuditFieldNames(existing, patch)
+            .concat(body.audienceZoneIds !== undefined || body.audienceMode !== undefined ? ['audienceZones'] : []);
+        if (changedFields.length) {
+            await recordTemplateAudit(db, user, updated, 'updated', changedFields, {
+                propagatedChildCount: affectedSubregions.size ? (existing.children || []).filter((child) => !child.isDeleted).length : 0,
+            });
+        }
         return c.json({ ...formatted, translationStatus });
     } catch (err) {
         console.error('updateSoftAssetParent Error:', err);
@@ -515,6 +543,7 @@ export const deleteSoftAssetParent = async (c) => {
             }
         }
 
+        await recordTemplateAudit(db, user, existing, 'deleted', ['isDeleted']);
         return c.json({ success: true });
     } catch (err) {
         console.error('deleteSoftAssetParent Error:', err);

@@ -5,7 +5,7 @@ import Navbar from './components/layout/Navbar.jsx';
 import DiscoverPage from './pages/DiscoverPage.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 
-import { canAccessAdmin, normalizeRole } from './lib/roles.js';
+import { canAccessAdmin, canAccessAuditTrail, normalizeRole } from './lib/roles.js';
 import { SavedAssetsProvider } from './contexts/SavedAssetsContext.jsx';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
@@ -15,6 +15,7 @@ const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview
 const ResourcesPage = lazy(() => import('./pages/dashboard/ResourcesPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/dashboard/ProfilePage.jsx'));
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage.jsx'));
+const AuditTrailPage = lazy(() => import('./pages/dashboard/AuditTrailPage.jsx'));
 const ResourcePage = lazy(() => import('./pages/ResourcePage.jsx'));
 const AuthTransitionPage = lazy(() => import('./pages/AuthTransitionPage.jsx'));
 const MyDirectoryPage = lazy(() => import('./pages/MyDirectoryPage.jsx'));
@@ -35,7 +36,7 @@ function isRouteChunkLoadError(error) {
     return /ChunkLoadError|Loading chunk|dynamically imported module|Failed to fetch module script|Importing a module script failed|error loading dynamically imported module/i.test(text);
 }
 
-function ProtectedRoute({ children, requireAdmin, requireDirectoryAccess }) {
+function ProtectedRoute({ children, requireAdmin, requireAuditAccess, requireDirectoryAccess }) {
     const { user, isAuth } = useAuth();
     const location = useLocation();
     if (!isAuth) {
@@ -46,6 +47,7 @@ function ProtectedRoute({ children, requireAdmin, requireDirectoryAccess }) {
         return <Navigate to="/login" replace />;
     }
     if (requireAdmin && !canAccessAdmin(user?.role)) return <Navigate to="/dashboard" replace />;
+    if (requireAuditAccess && !canAccessAuditTrail(user)) return <Navigate to="/dashboard" replace />;
     if (requireDirectoryAccess && normalizeRole(user?.role) === 'guest') return <Navigate to="/discover" replace />;
     return children;
 }
@@ -189,6 +191,7 @@ function AppShell() {
                             <Route path="resources" element={<ResourcesPage />} />
                             <Route path="profile" element={<ProfilePage />} />
                             <Route path="admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />
+                            <Route path="audit" element={<ProtectedRoute requireAuditAccess><AuditTrailPage /></ProtectedRoute>} />
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

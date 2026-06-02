@@ -65,6 +65,7 @@ export function buildSessionPayload(user, extraClaims = {}) {
         ...(Array.isArray(user.partnerStaffAccess) ? { partnerStaffAccess: user.partnerStaffAccess } : {}),
         ...(Array.isArray(user.hardAssetStaffAccess) ? { hardAssetStaffAccess: user.hardAssetStaffAccess } : {}),
         ...(Array.isArray(user.softAssetStaffAccess) ? { softAssetStaffAccess: user.softAssetStaffAccess } : {}),
+        ...(Array.isArray(user.organizationAccess) ? { organizationAccess: user.organizationAccess } : {}),
         ...extraClaims,
     };
 }

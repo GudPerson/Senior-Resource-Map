@@ -25,6 +25,11 @@ import {
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
 import { SOFT_ASSET_MODES } from '../utils/softAssetHierarchy.js';
+import {
+    buildResourceAuditPayload,
+    loadResourceAuditOrganizationId,
+    safelyRecordAuditLog,
+} from '../utils/auditTrail.js';
 
 const addStaffBodySchema = z.object({
     userId: positiveIntValueSchema('userId'),
@@ -112,6 +117,20 @@ async function loadUserById(db, userId) {
         .where(eq(users.id, userId))
         .limit(1);
     return row || null;
+}
+
+async function recordSoftAssetAccessAudit(db, actor, softAsset, targetUserId, action, staffRole) {
+    const organizationId = await loadResourceAuditOrganizationId(db, 'soft', softAsset.id);
+    const payload = buildResourceAuditPayload({
+        action,
+        resourceType: 'soft',
+        resourceId: softAsset.id,
+        resourceName: softAsset.name,
+        organizationId,
+        changedFields: ['access'],
+        metadata: { staffRole },
+    });
+    await safelyRecordAuditLog(db, actor, { ...payload, targetUserId });
 }
 
 async function loadActiveStaffMembership(db, softAssetId, membershipId) {
@@ -258,6 +277,7 @@ export const addSoftAssetStaff = async (c) => {
         }).returning();
 
         const row = await loadActiveStaffMembership(db, softAsset.id, membership.id);
+        await recordSoftAssetAccessAudit(db, actor, softAsset, targetUser.id, 'access_added', staffRole);
         return c.json({ staffMember: formatSoftAssetStaffMember(row) }, 201);
     } catch (err) {
         return handleSoftAssetStaffError(c, err, 'Failed to add offering access.');
@@ -284,6 +304,7 @@ export const revokeSoftAssetStaff = async (c) => {
             .set({ revokedAt: new Date(), updatedByUserId: actor.id, updatedAt: new Date() })
             .where(eq(softAssetStaffMemberships.id, membership.id));
 
+        await recordSoftAssetAccessAudit(db, actor, softAsset, membership.userId, 'access_revoked', membership.staffRole);
         return c.json({ success: true });
     } catch (err) {
         return handleSoftAssetStaffError(c, err, 'Failed to revoke offering access.');

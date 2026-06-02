@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
-import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2 } from 'lucide-react';
+import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2, ScrollText } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from '@e965/xlsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -15,6 +15,7 @@ import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../li
 import { buildManagedHardResourceListParams, buildManagedResourceListParams } from '../../lib/resourceListLoading.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
+import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
 
 const ASSET_WORKBOOKS = [
     {
@@ -2257,6 +2258,7 @@ export default function AdminPage() {
                     { key: 'resources', label: 'Resources', Icon: BookOpen },
                     { key: 'users', label: 'Users', Icon: Users },
                     { key: 'organizations', label: 'Organisations', Icon: Building2 },
+                    { key: 'audit', label: 'Audit Trail', Icon: ScrollText },
                     { key: 'subregions', label: 'Regions', Icon: MapPin },
                     { key: 'audiencezones', label: 'Audience Zones', Icon: MapPin },
                     { key: 'subcats', label: 'Categories', Icon: BookOpen },
@@ -2472,6 +2474,11 @@ export default function AdminPage() {
                 </div>
             ) : tab === 'organizations' ? (
                 <GovernanceOrganizationsPanel />
+            ) : tab === 'audit' ? (
+                <AuditTrailPanel
+                    title="Audit Trail"
+                    subtitle="Review sensitive operational changes across CareAround SG."
+                />
             ) : tab === 'subregions' ? (
                 /* ======== Regions Table ======== */
                 <div className="space-y-6">

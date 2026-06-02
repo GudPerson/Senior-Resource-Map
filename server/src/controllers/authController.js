@@ -8,6 +8,7 @@ import { canDirectlyManageUser } from '../utils/ownership.js';
 import { loadHardAssetStaffAccessForUser } from '../utils/hardAssetStaff.js';
 import { loadSoftAssetStaffAccessForUser } from '../utils/softAssetAccess.js';
 import { hasAnyPartnerStaffAccess, loadPartnerStaffAccessForUser } from '../utils/partnerStaff.js';
+import { loadOrganizationAccessForUser } from '../utils/organizationAccess.js';
 import { buildSessionPayload, clearAuthCookie, createSessionToken, getRequestToken, setAuthCookie, verifySessionToken } from '../utils/sessionAuth.js';
 import { ensureBoundarySchema, ensureUserPreferenceColumns } from '../utils/boundarySchema.js';
 import { normalizePostalCode } from '../utils/postalBoundaries.js';
@@ -287,6 +288,7 @@ export const login = async (c) => {
         user.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, user.id);
         user.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, user.id);
         user.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, user.id);
+        user.organizationAccess = await loadOrganizationAccessForUser(db, user.id);
 
         if (isPartnerLogin === true) {
             const adminRoles = ['super_admin', 'regional_admin', 'partner'];
@@ -328,6 +330,7 @@ export const me = async (c) => {
         liveUser.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, liveUser.id);
         liveUser.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, liveUser.id);
         liveUser.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, liveUser.id);
+        liveUser.organizationAccess = await loadOrganizationAccessForUser(db, liveUser.id);
 
         const extraClaims = {};
         if (sessionUser?.isImpersonating) {
@@ -418,6 +421,7 @@ export const googleAuth = async (c) => {
         user.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, user.id);
         user.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, user.id);
         user.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, user.id);
+        user.organizationAccess = await loadOrganizationAccessForUser(db, user.id);
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);
@@ -466,6 +470,7 @@ export const impersonate = async (c) => {
         targetUser.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, targetUser.id);
         targetUser.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, targetUser.id);
         targetUser.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, targetUser.id);
+        targetUser.organizationAccess = await loadOrganizationAccessForUser(db, targetUser.id);
 
         const token = await createSessionToken(targetUser, c, {
             expiresInSeconds: IMPERSONATION_SESSION_TTL_SECONDS,

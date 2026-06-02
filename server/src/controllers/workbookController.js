@@ -49,7 +49,7 @@ async function recordExportAudit(db, actor, resourceType, exportKind, metadata =
         await db.insert(sensitiveAuditLogs).values({
             actorUserId: actor?.id || null,
             actionType: exportKind,
-            entityType: 'workbook_export',
+            entityType: exportKind === 'resource_imported' ? 'workbook_import' : 'workbook_export',
             resourceType,
             metadata,
         });
@@ -1743,6 +1743,13 @@ export async function importWorkbookData(c) {
             return c.json({ error: `Import for ${resourceType} is not implemented yet.` }, 501);
         }
 
+        await recordExportAudit(db, actor, resourceType, 'resource_imported', {
+            rowCount: rows.length,
+            createdCount: report.createdCount || 0,
+            updatedCount: report.updatedCount || 0,
+            skippedCount: report.skippedCount || 0,
+            errorCount: Array.isArray(report.errors) ? report.errors.length : 0,
+        });
         return c.json(report);
     } catch (error) {
         console.error('importWorkbookData error:', error);

@@ -133,11 +133,26 @@ export function getPartnerStaffLegacyPartnerIds(user) {
         .filter((id) => Number.isInteger(id) && id > 0);
 }
 
+export function getOrganizationAccess(user) {
+    return Array.isArray(user?.organizationAccess)
+        ? user.organizationAccess.filter((entry) => !entry?.revokedAt)
+        : [];
+}
+
+export function hasOrganizationAdminAccess(user) {
+    return getOrganizationAccess(user)
+        .some((entry) => String(entry?.accessRole || '').trim().toLowerCase() === 'admin');
+}
+
 export function canAccessManagedResources(user) {
     return !isStandardUserRole(user?.role)
         || hasPartnerStaffAccess(user)
         || hasHardAssetStaffAccess(user)
         || hasSoftAssetStaffAccess(user);
+}
+
+export function canAccessAuditTrail(user) {
+    return normalizeRole(user?.role) === 'super_admin' || hasOrganizationAdminAccess(user);
 }
 
 export function canChangeUserRoles(role) {
@@ -186,7 +201,7 @@ export function getRequiredManagerRole(targetRole) {
 export function getAdminTabs(role) {
     switch (normalizeRole(role)) {
         case 'super_admin':
-            return ['resources', 'users', 'organizations', 'subregions', 'audiencezones', 'subcats', 'datatools'];
+            return ['resources', 'users', 'organizations', 'audit', 'subregions', 'audiencezones', 'subcats', 'datatools'];
         case 'regional_admin':
             return ['resources', 'users', 'subregions', 'audiencezones'];
         default:
