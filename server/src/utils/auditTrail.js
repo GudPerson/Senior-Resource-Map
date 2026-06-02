@@ -1,6 +1,6 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 
-import { organizationResourceLinks, sensitiveAuditLogs } from '../db/schema.js';
+import { organizationResourceLinks, sensitiveAuditLogs, softAssetLocations, softAssets } from '../db/schema.js';
 import { normalizeOrganizationAccessRole } from './governance.js';
 import { normalizeRole } from './roles.js';
 
@@ -180,6 +180,19 @@ export function buildAuditAccessScope(actor, organizationAccessRows = []) {
         : { mode: 'none', organizationIds: [] };
 }
 
+export function resolveEffectiveAuditOrganizationIds({
+    directOrganizationId = null,
+    directOrganizationIds = [],
+    inheritedOrganizationIds = [],
+} = {}) {
+    const ids = [
+        toPositiveInt(directOrganizationId),
+        ...(directOrganizationIds || []).map(toPositiveInt),
+        ...(inheritedOrganizationIds || []).map(toPositiveInt),
+    ].filter(Boolean);
+    return [...new Set(ids)].sort((left, right) => left - right);
+}
+
 export function buildResourceAuditPayload({
     action,
     resourceType,
@@ -265,16 +278,45 @@ export async function loadResourceAuditOrganizationId(db, resourceType, resource
     const id = toPositiveInt(resourceId);
     if (!db || !type || !id) return null;
 
-    const rows = await db.select({ organizationId: organizationResourceLinks.organizationId })
+    const directRows = await db.select({ organizationId: organizationResourceLinks.organizationId })
         .from(organizationResourceLinks)
         .where(and(
             eq(organizationResourceLinks.resourceType, type),
             eq(organizationResourceLinks.resourceId, id),
             isNull(organizationResourceLinks.unlinkedAt),
-        ))
-        .limit(2);
+        ));
 
-    return rows.length === 1 ? rows[0].organizationId : null;
+    let inheritedOrganizationIds = [];
+    if (type === 'soft') {
+        const [asset] = await db.select({ hostHardAssetId: softAssets.hostHardAssetId })
+            .from(softAssets)
+            .where(eq(softAssets.id, id))
+            .limit(1);
+        const locations = await db.select({ hardAssetId: softAssetLocations.hardAssetId })
+            .from(softAssetLocations)
+            .where(eq(softAssetLocations.softAssetId, id));
+        const hardAssetIds = [...new Set([
+            toPositiveInt(asset?.hostHardAssetId),
+            ...locations.map((row) => toPositiveInt(row.hardAssetId)),
+        ].filter(Boolean))];
+
+        if (hardAssetIds.length) {
+            const inheritedRows = await db.select({ organizationId: organizationResourceLinks.organizationId })
+                .from(organizationResourceLinks)
+                .where(and(
+                    eq(organizationResourceLinks.resourceType, 'hard'),
+                    inArray(organizationResourceLinks.resourceId, hardAssetIds),
+                    isNull(organizationResourceLinks.unlinkedAt),
+                ));
+            inheritedOrganizationIds = inheritedRows.map((row) => row.organizationId);
+        }
+    }
+
+    const organizationIds = resolveEffectiveAuditOrganizationIds({
+        directOrganizationIds: directRows.map((row) => row.organizationId),
+        inheritedOrganizationIds,
+    });
+    return organizationIds.length === 1 ? organizationIds[0] : null;
 }
 
 export function formatAuditLogForResponse(row, lookups = {}) {

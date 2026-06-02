@@ -87,6 +87,21 @@ test('audit summaries describe resource visibility without code-style wording', 
     );
 });
 
+test('resource change audit summaries show resource name and changed fields', () => {
+    const log = {
+        actionType: 'resource_updated',
+        resource: { name: 'Precious Active Ageing Centre (Sunshine Gardens)', type: 'Place' },
+        actor: { name: 'GudPerson' },
+        metadata: { changedFields: ['phone', 'hours'] },
+    };
+
+    assert.match(buildAuditPlainSummary(log), /GudPerson/);
+    assert.match(buildAuditPlainSummary(log), /Precious Active Ageing Centre/);
+    assert.deepEqual(buildAuditDetailChips(log.metadata, log), [
+        'Changed: phone, hours',
+    ]);
+});
+
 test('audit legacy note explains older update rows that lack detail metadata', () => {
     assert.equal(buildAuditLegacyDetailNote({
         actionType: 'organization_updated',
