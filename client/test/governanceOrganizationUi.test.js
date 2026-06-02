@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    formatCoveredOfferingExplanation,
     getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
     getNewGovernanceRecordSubmitState,
+    isGovernanceControlVisible,
     isOrganizationOpenForNewRecords,
     normalizeOrganizationStatus,
 } from '../src/lib/governanceOrganizationUi.js';
@@ -94,4 +96,23 @@ test('editing existing agreements remains available while new archived records s
         disabled: false,
         reason: '',
     });
+});
+
+test('read-only organisation workspace hides management controls', () => {
+    assert.equal(isGovernanceControlVisible({ readOnly: true, control: 'addAccess' }), false);
+    assert.equal(isGovernanceControlVisible({ readOnly: true, control: 'saveProfile' }), false);
+    assert.equal(isGovernanceControlVisible({ readOnly: true, control: 'viewAgreement' }), true);
+    assert.equal(isGovernanceControlVisible({ readOnly: false, control: 'addAccess' }), true);
+});
+
+test('covered offering explanation is plain language', () => {
+    assert.equal(formatCoveredOfferingExplanation(0), '');
+    assert.equal(
+        formatCoveredOfferingExplanation(1),
+        '1 programme or service is covered because its place is linked.',
+    );
+    assert.equal(
+        formatCoveredOfferingExplanation(2),
+        '2 programmes and services are covered because their places are linked.',
+    );
 });
