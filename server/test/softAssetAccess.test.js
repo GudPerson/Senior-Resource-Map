@@ -7,6 +7,7 @@ import {
     canRevokeSoftAssetStaffMembership,
     hasSoftAssetStaffAccess,
 } from '../src/utils/softAssetAccess.js';
+import { shouldGrantCreatorDefaultSoftAssetOwner } from '../src/utils/assetCreatorOwnership.js';
 
 function actor(overrides = {}) {
     return {
@@ -44,6 +45,25 @@ test('soft asset staff payload stays compact and skips revoked memberships', () 
 
 test('super admin can assign first standalone soft asset owner', () => {
     assert.equal(canAssignSoftAssetStaffRole(actor({ role: 'super_admin' }), { id: 50, activeOwnerCount: 0 }, 'owner'), true);
+});
+
+test('region admin creator default owner applies only to standalone offerings', () => {
+    assert.equal(shouldGrantCreatorDefaultSoftAssetOwner(
+        { role: 'regional_admin' },
+        { linkedHardAssetIds: [], hostHardAssetId: null },
+    ), true);
+    assert.equal(shouldGrantCreatorDefaultSoftAssetOwner(
+        { role: 'regional_admin' },
+        { linkedHardAssetIds: [10], hostHardAssetId: null },
+    ), false);
+    assert.equal(shouldGrantCreatorDefaultSoftAssetOwner(
+        { role: 'regional_admin' },
+        { linkedHardAssetIds: [], hostHardAssetId: 10 },
+    ), false);
+    assert.equal(shouldGrantCreatorDefaultSoftAssetOwner(
+        { role: 'super_admin' },
+        { linkedHardAssetIds: [], hostHardAssetId: null },
+    ), false);
 });
 
 test('existing standalone soft asset owner can add owners and staff', () => {

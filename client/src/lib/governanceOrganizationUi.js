@@ -5,6 +5,18 @@ export const ORGANIZATION_STATUS_HELP = {
     archived: 'Retained for records. Existing history remains, but new governance activity is closed.',
 };
 
+const READ_ONLY_HIDDEN_CONTROLS = new Set([
+    'saveProfile',
+    'archiveOrganization',
+    'deleteEmptyDraft',
+    'addAccess',
+    'revokeAccess',
+    'linkResource',
+    'unlinkResource',
+    'saveAgreement',
+    'revokeAgreement',
+]);
+
 export function normalizeOrganizationStatus(value) {
     const normalized = String(value || 'active').trim().toLowerCase();
     return ['active', 'draft', 'paused', 'archived'].includes(normalized) ? normalized : 'active';
@@ -80,4 +92,15 @@ export function getNewGovernanceRecordSubmitState({
         disabled: false,
         reason: '',
     };
+}
+
+export function isGovernanceControlVisible({ readOnly = false, control = '' } = {}) {
+    return !(readOnly && READ_ONLY_HIDDEN_CONTROLS.has(control));
+}
+
+export function formatCoveredOfferingExplanation(count = 0) {
+    const total = Number(count) || 0;
+    if (total <= 0) return '';
+    if (total === 1) return '1 programme or service is covered because its place is linked.';
+    return `${total} programmes and services are covered because their places are linked.`;
 }

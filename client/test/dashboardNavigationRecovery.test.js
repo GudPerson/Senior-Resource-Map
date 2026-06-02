@@ -16,6 +16,15 @@ test('dashboard sidebar links use document navigation for deploy-stale recovery'
     assert.match(source, /<NavLink[\s\S]*?reloadDocument[\s\S]*?>/);
 });
 
+test('organisation workspace sidebar link uses document navigation and section label', () => {
+    const source = readClientSource('components/dashboard/DashboardNavigation.jsx');
+
+    assert.match(source, /to="\/dashboard\/organization"/);
+    assert.match(source, /<NavLink[\s\S]*?reloadDocument[\s\S]*?>/);
+    assert.match(source, /pathname\.startsWith\('\/dashboard\/organization'\)/);
+    assert.match(source, /organisationWorkspaceTitle/);
+});
+
 test('dashboard overview launchpad uses document links, not JS-only buttons', () => {
     const source = readClientSource('pages/dashboard/DashboardOverview.jsx');
 

@@ -154,23 +154,40 @@ export function evaluateResourceOrganizationLink({
         };
     }
 
+    if (!Array.isArray(activeOperators) || activeOperators.length === 0) {
+        return {
+            allowed: false,
+            reason: 'This asset needs at least one active Owner or Staff before it can be linked to an organisation.',
+        };
+    }
+
+    const missingOperators = [];
+    const crossOrganizationOperators = [];
+
     for (const operator of activeOperators) {
         const activeMembership = (operator?.organizationMemberships || []).find((row) => (
             isActiveRow(row)
             && Number(row?.organizationId)
         ));
         if (!activeMembership) {
-            return {
-                allowed: false,
-                reason: `${userLabel(operator)} is not assigned to this organisation. Assign the operator to the organisation first, or remove their asset access before linking.`,
-            };
+            missingOperators.push(userLabel(operator));
+        } else if (Number(activeMembership.organizationId) !== targetId) {
+            crossOrganizationOperators.push(`${userLabel(operator)} is assigned to ${organizationLabel(activeMembership)}`);
         }
-        if (Number(activeMembership.organizationId) !== targetId) {
-            return {
-                allowed: false,
-                reason: `${userLabel(operator)} is assigned to ${organizationLabel(activeMembership)}. Remove the cross-organisation access before linking this resource.`,
-            };
-        }
+    }
+
+    if (missingOperators.length) {
+        return {
+            allowed: false,
+            reason: `Cannot link this asset yet. Add ${missingOperators.join(', ')} to this organisation first.`,
+        };
+    }
+
+    if (crossOrganizationOperators.length) {
+        return {
+            allowed: false,
+            reason: `${crossOrganizationOperators.join('; ')}. Remove the cross-organisation access before linking this resource.`,
+        };
     }
 
     return { allowed: true, reason: null };
@@ -189,10 +206,48 @@ export function findActiveOrganizationAccess(actor, organization, accessRows = [
     )) || null;
 }
 
+function countActiveOrganizationAdmins(accessRows = [], organizationId) {
+    const targetId = Number(organizationId);
+    if (!targetId) return 0;
+    return (accessRows || []).filter((row) => (
+        Number(row?.organizationId) === targetId
+        && isActiveRow(row)
+        && normalizeOrganizationAccessRole(row?.accessRole) === 'admin'
+    )).length;
+}
+
 export function canManageOrganizationGovernance(actor, organization, accessRows = []) {
     if (normalizeRole(actor?.role) === 'super_admin') return true;
     const access = findActiveOrganizationAccess(actor, organization, accessRows);
     return normalizeOrganizationAccessRole(access?.accessRole) === 'admin';
+}
+
+export function canManageOrganizationAccessRole(actor, organization, accessRows = [], targetRole) {
+    if (!normalizeOrganizationAccessRole(targetRole)) return false;
+    return canManageOrganizationGovernance(actor, organization, accessRows);
+}
+
+export function canRevokeOrganizationAccessRole(actor, organization, accessRows = [], membership) {
+    if (!canManageOrganizationGovernance(actor, organization, accessRows)) {
+        return { allowed: false, reason: 'Organisation governance is outside your access.' };
+    }
+
+    const membershipRole = normalizeOrganizationAccessRole(membership?.accessRole);
+    if (!membershipRole) {
+        return { allowed: false, reason: 'Organisation access role is invalid.' };
+    }
+
+    if (
+        membershipRole === 'admin'
+        && countActiveOrganizationAdmins(accessRows, organization?.id) <= 1
+    ) {
+        return {
+            allowed: false,
+            reason: 'Every organisation needs at least one active Organisation Admin.',
+        };
+    }
+
+    return { allowed: true, reason: null };
 }
 
 export function canViewOrganizationGovernance(actor, organization, accessRows = []) {

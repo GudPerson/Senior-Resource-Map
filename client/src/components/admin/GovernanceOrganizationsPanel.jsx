@@ -13,9 +13,11 @@ import {
     openPrintableAgreement,
 } from '../../lib/governanceAgreementUi.js';
 import {
+    formatCoveredOfferingExplanation,
     getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
     getNewGovernanceRecordSubmitState,
+    isGovernanceControlVisible,
     isOrganizationOpenForNewRecords,
     normalizeOrganizationStatus,
     ORGANIZATION_STATUS_HELP,
@@ -233,7 +235,11 @@ function Feedback({ feedback }) {
     );
 }
 
-export default function GovernanceOrganizationsPanel() {
+export default function GovernanceOrganizationsPanel({
+    workspaceMode = 'admin',
+    readOnly = false,
+    showCreateControls = true,
+} = {}) {
     const [organizations, setOrganizations] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [orgForm, setOrgForm] = useState(EMPTY_ORG_FORM);
@@ -251,6 +257,20 @@ export default function GovernanceOrganizationsPanel() {
     const [loadingResources, setLoadingResources] = useState(false);
     const [saving, setSaving] = useState(false);
     const [feedback, setFeedback] = useState(null);
+
+    const isOrganizationWorkspace = workspaceMode === 'organization';
+    const canCreateOrganization = showCreateControls && !readOnly;
+    const canManageOrganization = !readOnly;
+    const canSaveProfile = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'saveProfile' });
+    const canArchiveOrganization = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'archiveOrganization' });
+    const canDeleteEmptyDraft = canCreateOrganization
+        && isGovernanceControlVisible({ readOnly, control: 'deleteEmptyDraft' });
+    const canAddAccess = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'addAccess' });
+    const canRevokeAccess = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'revokeAccess' });
+    const canLinkResource = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'linkResource' });
+    const canUnlinkResource = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'unlinkResource' });
+    const canSaveAgreement = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'saveAgreement' });
+    const canRevokeAgreement = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'revokeAgreement' });
 
     const selectedOrganization = useMemo(() => (
         organizations.find((organization) => Number(organization.id) === Number(selectedId)) || null
@@ -288,6 +308,8 @@ export default function GovernanceOrganizationsPanel() {
             summary: getAgreementCoverageSummary(selectedOrganization?.agreements || [], key),
         }))
     ), [selectedOrganization?.agreements]);
+    const coveredOfferings = selectedOrganization?.coveredOfferings || [];
+    const coveredOfferingExplanation = formatCoveredOfferingExplanation(coveredOfferings.length);
 
     async function loadOrganizations(nextSelectedId = selectedId) {
         setLoading(true);
@@ -315,7 +337,7 @@ export default function GovernanceOrganizationsPanel() {
     ), [resourceCandidates]);
 
     async function loadAccessCandidates(organizationId = selectedId, query = accessQuery) {
-        if (!organizationId) {
+        if (!organizationId || !canAddAccess) {
             setAccessCandidates([]);
             return;
         }
@@ -328,7 +350,7 @@ export default function GovernanceOrganizationsPanel() {
     }
 
     async function loadResourceCandidates(organizationId = selectedId, resourceType = resourceForm.resourceType, query = resourceQuery) {
-        if (!organizationId) {
+        if (!organizationId || !canLinkResource) {
             setResourceCandidates([]);
             return;
         }
@@ -379,6 +401,7 @@ export default function GovernanceOrganizationsPanel() {
 
     async function handleSaveOrganization(event) {
         event.preventDefault();
+        if (!canSaveProfile || (!selectedOrganization && !canCreateOrganization)) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -399,7 +422,7 @@ export default function GovernanceOrganizationsPanel() {
     }
 
     async function handleArchiveOrganization() {
-        if (!selectedOrganization) return;
+        if (!selectedOrganization || !canArchiveOrganization) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -417,7 +440,7 @@ export default function GovernanceOrganizationsPanel() {
     }
 
     async function handleDeleteOrganization() {
-        if (!selectedOrganization || !selectedOrganizationCanDelete) return;
+        if (!selectedOrganization || !selectedOrganizationCanDelete || !canDeleteEmptyDraft) return;
         const confirmed = window.confirm('Delete this empty draft organisation? This is only for unused draft records.');
         if (!confirmed) return;
         setSaving(true);
@@ -437,7 +460,7 @@ export default function GovernanceOrganizationsPanel() {
 
     async function handleAddAccess(event) {
         event.preventDefault();
-        if (!selectedOrganization || selectedAccessUsers.length === 0 || !organizationOpenForNewRecords) return;
+        if (!selectedOrganization || !canAddAccess || selectedAccessUsers.length === 0 || !organizationOpenForNewRecords) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -459,7 +482,7 @@ export default function GovernanceOrganizationsPanel() {
     }
 
     async function handleRevokeAccess(membershipId) {
-        if (!selectedOrganization || !membershipId) return;
+        if (!selectedOrganization || !membershipId || !canRevokeAccess) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -476,7 +499,7 @@ export default function GovernanceOrganizationsPanel() {
 
     async function handleSaveAgreement(event) {
         event.preventDefault();
-        if (!selectedOrganization || (!editingAgreementId && !organizationOpenForNewRecords)) return;
+        if (!selectedOrganization || !canSaveAgreement || (!editingAgreementId && !organizationOpenForNewRecords)) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -498,7 +521,7 @@ export default function GovernanceOrganizationsPanel() {
     }
 
     async function handleRevokeAgreement(agreementId) {
-        if (!selectedOrganization || !agreementId) return;
+        if (!selectedOrganization || !agreementId || !canRevokeAgreement) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -526,7 +549,7 @@ export default function GovernanceOrganizationsPanel() {
 
     async function handleLinkResource(event) {
         event.preventDefault();
-        if (!selectedOrganization || selectedResources.length === 0 || !organizationOpenForNewRecords) return;
+        if (!selectedOrganization || !canLinkResource || selectedResources.length === 0 || !organizationOpenForNewRecords) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -548,7 +571,7 @@ export default function GovernanceOrganizationsPanel() {
     }
 
     async function handleUnlinkResource(linkId) {
-        if (!selectedOrganization || !linkId) return;
+        if (!selectedOrganization || !linkId || !canUnlinkResource) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -569,7 +592,9 @@ export default function GovernanceOrganizationsPanel() {
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-700">Governance</p>
                     <h2 className="mt-1 text-3xl font-black text-slate-900">Organisations</h2>
                     <p className="mt-2 max-w-3xl text-sm text-slate-500">
-                        Track legal counterparty context, agreement coverage, and governance access without granting resource edit rights.
+                        {isOrganizationWorkspace
+                            ? 'Review organisation access, agreement coverage, and linked resource context.'
+                            : 'Track legal counterparty context, agreement coverage, and governance access without granting resource edit rights.'}
                     </p>
                 </div>
                 <button type="button" onClick={() => loadOrganizations(selectedOrganization?.id || null)} className="btn-secondary w-fit gap-2" disabled={loading}>
@@ -584,16 +609,18 @@ export default function GovernanceOrganizationsPanel() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                         <h3 className="text-lg font-black text-slate-900">Organisation list</h3>
-                        <button
-                            type="button"
-                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
-                            onClick={() => {
-                                setSelectedId(null);
-                                setOrgForm(EMPTY_ORG_FORM);
-                            }}
-                        >
-                            New
-                        </button>
+                        {canCreateOrganization ? (
+                            <button
+                                type="button"
+                                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
+                                onClick={() => {
+                                    setSelectedId(null);
+                                    setOrgForm(EMPTY_ORG_FORM);
+                                }}
+                            >
+                                New
+                            </button>
+                        ) : null}
                     </div>
                     <div className="mt-4 space-y-2">
                         {loading ? (
@@ -628,6 +655,7 @@ export default function GovernanceOrganizationsPanel() {
                 </div>
 
                 <div className="space-y-5">
+                    {selectedOrganization || canCreateOrganization ? (
                     <form onSubmit={handleSaveOrganization} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex items-center gap-3">
                             <span className="rounded-xl bg-brand-50 p-3 text-brand-700"><Building2 className="h-5 w-5" /></span>
@@ -639,11 +667,11 @@ export default function GovernanceOrganizationsPanel() {
                         <div className="mt-5 grid gap-4 md:grid-cols-2">
                             <label className="space-y-1 md:col-span-2">
                                 <span className="text-sm font-bold text-slate-700">Organisation name</span>
-                                <input className="input-field" value={orgForm.name} onChange={(event) => setOrgForm({ ...orgForm, name: event.target.value })} required />
+                                <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={orgForm.name} onChange={(event) => setOrgForm({ ...orgForm, name: event.target.value })} required disabled={!canManageOrganization || saving} />
                             </label>
                             <label className="space-y-1">
                                 <span className="text-sm font-bold text-slate-700">Status</span>
-                                <select className="input-field" value={orgForm.governanceStatus} onChange={(event) => setOrgForm({ ...orgForm, governanceStatus: event.target.value })}>
+                                <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={orgForm.governanceStatus} onChange={(event) => setOrgForm({ ...orgForm, governanceStatus: event.target.value })} disabled={!canManageOrganization || saving}>
                                     <option value="active">Active</option>
                                     <option value="draft">Draft</option>
                                     <option value="paused">Paused</option>
@@ -655,48 +683,59 @@ export default function GovernanceOrganizationsPanel() {
                             </label>
                             <label className="space-y-1">
                                 <span className="text-sm font-bold text-slate-700">Data contact email</span>
-                                <input className="input-field" value={orgForm.dataContactEmail} onChange={(event) => setOrgForm({ ...orgForm, dataContactEmail: event.target.value })} />
+                                <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={orgForm.dataContactEmail} onChange={(event) => setOrgForm({ ...orgForm, dataContactEmail: event.target.value })} disabled={!canManageOrganization || saving} />
                             </label>
                             <label className="space-y-1 md:col-span-2">
                                 <span className="text-sm font-bold text-slate-700">Data contact name</span>
-                                <input className="input-field" value={orgForm.dataContactName} onChange={(event) => setOrgForm({ ...orgForm, dataContactName: event.target.value })} />
+                                <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={orgForm.dataContactName} onChange={(event) => setOrgForm({ ...orgForm, dataContactName: event.target.value })} disabled={!canManageOrganization || saving} />
                             </label>
                             <label className="space-y-1 md:col-span-2">
                                 <span className="text-sm font-bold text-slate-700">Notes</span>
-                                <textarea className="input-field min-h-[110px]" value={orgForm.description} onChange={(event) => setOrgForm({ ...orgForm, description: event.target.value })} />
+                                <textarea className="input-field min-h-[110px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={orgForm.description} onChange={(event) => setOrgForm({ ...orgForm, description: event.target.value })} disabled={!canManageOrganization || saving} />
                             </label>
                         </div>
-                        <button type="submit" className="btn-primary mt-5 w-full gap-2" disabled={saving}>
-                            <Save className="h-4 w-4" />
-                            {selectedOrganization ? 'Save Organisation' : 'Create Organisation'}
-                        </button>
-                        {selectedOrganization ? (
+                        {canSaveProfile ? (
+                            <button type="submit" className="btn-primary mt-5 w-full gap-2" disabled={saving}>
+                                <Save className="h-4 w-4" />
+                                {selectedOrganization ? 'Save Organisation' : 'Create Organisation'}
+                            </button>
+                        ) : null}
+                        {selectedOrganization && (canArchiveOrganization || canDeleteEmptyDraft) ? (
                             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                <button
-                                    type="button"
-                                    className="btn-secondary gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    onClick={handleArchiveOrganization}
-                                    disabled={saving || selectedOrganizationStatus === 'archived'}
-                                    title={selectedOrganizationStatus === 'archived' ? 'This organisation is already archived.' : undefined}
-                                >
-                                    <FileText className="h-4 w-4" />
-                                    Archive Organisation
-                                </button>
-                                <button
-                                    type="button"
-                                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                    onClick={handleDeleteOrganization}
-                                    disabled={saving || !selectedOrganizationCanDelete}
-                                    title={selectedOrganizationCanDelete ? 'Delete this unused draft organisation' : 'Only empty draft organisations can be deleted'}
-                                >
-                                    <span className="inline-flex items-center justify-center gap-2">
-                                        <Trash2 className="h-4 w-4" />
-                                        Delete Empty Draft
-                                    </span>
-                                </button>
+                                {canArchiveOrganization ? (
+                                    <button
+                                        type="button"
+                                        className="btn-secondary gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        onClick={handleArchiveOrganization}
+                                        disabled={saving || selectedOrganizationStatus === 'archived'}
+                                        title={selectedOrganizationStatus === 'archived' ? 'This organisation is already archived.' : undefined}
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        Archive Organisation
+                                    </button>
+                                ) : null}
+                                {canDeleteEmptyDraft ? (
+                                    <button
+                                        type="button"
+                                        className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                        onClick={handleDeleteOrganization}
+                                        disabled={saving || !selectedOrganizationCanDelete}
+                                        title={selectedOrganizationCanDelete ? 'Delete this unused draft organisation' : 'Only empty draft organisations can be deleted'}
+                                    >
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <Trash2 className="h-4 w-4" />
+                                            Delete Empty Draft
+                                        </span>
+                                    </button>
+                                ) : null}
                             </div>
                         ) : null}
                     </form>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 shadow-sm">
+                            No organisation context is available for this account.
+                        </div>
+                    )}
 
                     {selectedOrganization ? (
                         <>
@@ -721,48 +760,50 @@ export default function GovernanceOrganizationsPanel() {
                                             <p className="text-sm text-slate-500">Admin manages this organisation. Staff can view context.</p>
                                         </div>
                                     </div>
-                                    <form onSubmit={handleAddAccess} className="mt-4 space-y-3">
-                                        <label className="block space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Eligible users</span>
-                                            <Select
-                                                isMulti
-                                                className="react-select-container"
-                                                classNamePrefix="react-select"
-                                                styles={SELECT_STYLES}
-                                                menuPortalTarget={getSelectMenuPortalTarget()}
-                                                menuPosition="fixed"
-                                                maxMenuHeight={260}
-                                                options={accessOptions}
-                                                value={selectedAccessUsers}
-                                                onChange={(value) => setSelectedAccessUsers(Array.isArray(value) ? value : [])}
-                                                onInputChange={(value, action) => {
-                                                    if (action.action === 'input-change') setAccessQuery(value);
-                                                }}
-                                                formatOptionLabel={renderSelectOption}
-                                                placeholder="Search eligible users..."
-                                                noOptionsMessage={() => 'No eligible users found'}
-                                                isDisabled={saving || Boolean(accessLockMessage)}
-                                            />
-                                            {accessLockMessage ? (
-                                                <span className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
-                                                    {accessLockMessage}
-                                                </span>
-                                            ) : null}
-                                        </label>
-                                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                                            <label className="space-y-1">
-                                                <span className="text-sm font-bold text-slate-700">Access level</span>
-                                                <select className="input-field min-h-[48px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={accessForm.accessRole} onChange={(event) => setAccessForm({ ...accessForm, accessRole: event.target.value })} disabled={saving || Boolean(accessLockMessage)}>
-                                                    <option value="staff">Staff</option>
-                                                    <option value="admin">Admin</option>
-                                                </select>
+                                    {canAddAccess ? (
+                                        <form onSubmit={handleAddAccess} className="mt-4 space-y-3">
+                                            <label className="block space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Eligible users</span>
+                                                <Select
+                                                    isMulti
+                                                    className="react-select-container"
+                                                    classNamePrefix="react-select"
+                                                    styles={SELECT_STYLES}
+                                                    menuPortalTarget={getSelectMenuPortalTarget()}
+                                                    menuPosition="fixed"
+                                                    maxMenuHeight={260}
+                                                    options={accessOptions}
+                                                    value={selectedAccessUsers}
+                                                    onChange={(value) => setSelectedAccessUsers(Array.isArray(value) ? value : [])}
+                                                    onInputChange={(value, action) => {
+                                                        if (action.action === 'input-change') setAccessQuery(value);
+                                                    }}
+                                                    formatOptionLabel={renderSelectOption}
+                                                    placeholder="Search eligible users..."
+                                                    noOptionsMessage={() => 'No eligible users found'}
+                                                    isDisabled={saving || Boolean(accessLockMessage)}
+                                                />
+                                                {accessLockMessage ? (
+                                                    <span className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+                                                        {accessLockMessage}
+                                                    </span>
+                                                ) : null}
                                             </label>
-                                            <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[9rem]" disabled={accessSubmitState.disabled} title={accessSubmitState.reason || undefined}>
-                                                <UserPlus className="h-4 w-4" />
-                                                Add
-                                            </button>
-                                        </div>
-                                    </form>
+                                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                                <label className="space-y-1">
+                                                    <span className="text-sm font-bold text-slate-700">Access level</span>
+                                                    <select className="input-field min-h-[48px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={accessForm.accessRole} onChange={(event) => setAccessForm({ ...accessForm, accessRole: event.target.value })} disabled={saving || Boolean(accessLockMessage)}>
+                                                        <option value="staff">Staff</option>
+                                                        <option value="admin">Admin</option>
+                                                    </select>
+                                                </label>
+                                                <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[9rem]" disabled={accessSubmitState.disabled} title={accessSubmitState.reason || undefined}>
+                                                    <UserPlus className="h-4 w-4" />
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </form>
+                                    ) : null}
                                     <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
                                         {(selectedOrganization.access || []).length === 0 ? (
                                             <p className="p-4 text-sm text-slate-500">No organisation access assigned.</p>
@@ -772,9 +813,11 @@ export default function GovernanceOrganizationsPanel() {
                                                     <p className="font-bold text-slate-800">{entry.user?.name || entry.user?.username}</p>
                                                     <p className="text-xs text-slate-500">{entry.user?.email} · {entry.accessRole}</p>
                                                 </div>
-                                                <button type="button" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => handleRevokeAccess(entry.id)} disabled={saving}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                {canRevokeAccess ? (
+                                                    <button type="button" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => handleRevokeAccess(entry.id)} disabled={saving}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         ))}
                                     </div>
@@ -788,59 +831,61 @@ export default function GovernanceOrganizationsPanel() {
                                             <p className="text-sm text-slate-500">Agreement coverage and reporting context only.</p>
                                         </div>
                                     </div>
-                                    <form onSubmit={handleLinkResource} className="mt-4 space-y-3">
-                                        <label className="block space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Resources</span>
-                                            <Select
-                                                isMulti
-                                                className="react-select-container"
-                                                classNamePrefix="react-select"
-                                                styles={SELECT_STYLES}
-                                                menuPortalTarget={getSelectMenuPortalTarget()}
-                                                menuPosition="fixed"
-                                                maxMenuHeight={260}
-                                                options={resourceOptions}
-                                                value={selectedResources}
-                                                onChange={(value) => setSelectedResources(Array.isArray(value) ? value : [])}
-                                                onInputChange={(value, action) => {
-                                                    if (action.action === 'input-change') setResourceQuery(value);
-                                                }}
-                                                formatOptionLabel={renderSelectOption}
-                                                placeholder="Search resources to link..."
-                                                noOptionsMessage={() => (loadingResources ? 'Searching resources...' : 'No resources found')}
-                                                isLoading={loadingResources}
-                                                isDisabled={saving || Boolean(resourceLockMessage)}
-                                            />
-                                            {resourceLockMessage ? (
-                                                <span className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
-                                                    {resourceLockMessage}
-                                                </span>
-                                            ) : null}
-                                        </label>
-                                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                                            <label className="space-y-1">
-                                                <span className="text-sm font-bold text-slate-700">Resource type</span>
-                                                <select
-                                                    className="input-field min-h-[48px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                                    value={resourceForm.resourceType}
-                                                    disabled={saving || Boolean(resourceLockMessage)}
-                                                    onChange={(event) => {
-                                                        setResourceForm({ resourceType: event.target.value });
-                                                        setSelectedResources([]);
-                                                        setResourceQuery('');
+                                    {canLinkResource ? (
+                                        <form onSubmit={handleLinkResource} className="mt-4 space-y-3">
+                                            <label className="block space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Resources</span>
+                                                <Select
+                                                    isMulti
+                                                    className="react-select-container"
+                                                    classNamePrefix="react-select"
+                                                    styles={SELECT_STYLES}
+                                                    menuPortalTarget={getSelectMenuPortalTarget()}
+                                                    menuPosition="fixed"
+                                                    maxMenuHeight={260}
+                                                    options={resourceOptions}
+                                                    value={selectedResources}
+                                                    onChange={(value) => setSelectedResources(Array.isArray(value) ? value : [])}
+                                                    onInputChange={(value, action) => {
+                                                        if (action.action === 'input-change') setResourceQuery(value);
                                                     }}
-                                                >
-                                                    <option value="hard">Place</option>
-                                                    <option value="soft">Offering</option>
-                                                    <option value="template">Template</option>
-                                                </select>
+                                                    formatOptionLabel={renderSelectOption}
+                                                    placeholder="Search resources to link..."
+                                                    noOptionsMessage={() => (loadingResources ? 'Searching resources...' : 'No resources found')}
+                                                    isLoading={loadingResources}
+                                                    isDisabled={saving || Boolean(resourceLockMessage)}
+                                                />
+                                                {resourceLockMessage ? (
+                                                    <span className="block rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+                                                        {resourceLockMessage}
+                                                    </span>
+                                                ) : null}
                                             </label>
-                                            <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[9rem]" disabled={resourceSubmitState.disabled} title={resourceSubmitState.reason || undefined}>
-                                                <Link2 className="h-4 w-4" />
-                                                Link
-                                            </button>
-                                        </div>
-                                    </form>
+                                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                                <label className="space-y-1">
+                                                    <span className="text-sm font-bold text-slate-700">Resource type</span>
+                                                    <select
+                                                        className="input-field min-h-[48px] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                                        value={resourceForm.resourceType}
+                                                        disabled={saving || Boolean(resourceLockMessage)}
+                                                        onChange={(event) => {
+                                                            setResourceForm({ resourceType: event.target.value });
+                                                            setSelectedResources([]);
+                                                            setResourceQuery('');
+                                                        }}
+                                                    >
+                                                        <option value="hard">Place</option>
+                                                        <option value="soft">Offering</option>
+                                                        <option value="template">Template</option>
+                                                    </select>
+                                                </label>
+                                                <button type="submit" className="btn-primary min-h-[48px] gap-2 self-end disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[9rem]" disabled={resourceSubmitState.disabled} title={resourceSubmitState.reason || undefined}>
+                                                    <Link2 className="h-4 w-4" />
+                                                    Link
+                                                </button>
+                                            </div>
+                                        </form>
+                                    ) : null}
                                     <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
                                         {(selectedOrganization.resourceLinks || []).length === 0 ? (
                                             <p className="p-4 text-sm text-slate-500">No linked resources yet.</p>
@@ -850,12 +895,28 @@ export default function GovernanceOrganizationsPanel() {
                                                     <p className="font-bold text-slate-800">{link.resourceName || `Resource ${link.resourceId}`}</p>
                                                     <p className="text-xs text-slate-500">{link.resourceType} #{link.resourceId}</p>
                                                 </div>
-                                                <button type="button" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => handleUnlinkResource(link.id)} disabled={saving}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                {canUnlinkResource ? (
+                                                    <button type="button" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => handleUnlinkResource(link.id)} disabled={saving}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         ))}
                                     </div>
+                                    {coveredOfferings.length ? (
+                                        <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 p-4">
+                                            <h4 className="text-sm font-black text-brand-900">Programmes and services covered through linked places</h4>
+                                            <p className="mt-1 text-xs font-semibold leading-5 text-brand-700">{coveredOfferingExplanation}</p>
+                                            <div className="mt-3 divide-y divide-brand-100 rounded-xl border border-brand-100 bg-white">
+                                                {coveredOfferings.map((resource) => (
+                                                    <div key={`covered-${resource.resourceType}-${resource.resourceId}`} className="p-3">
+                                                        <p className="font-bold text-slate-800">{resource.resourceName || `Resource ${resource.resourceId}`}</p>
+                                                        <p className="text-xs text-slate-500">Covered through linked place</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </section>
                             </div>
 
@@ -884,96 +945,98 @@ export default function GovernanceOrganizationsPanel() {
                                         </div>
                                     ))}
                                 </div>
-                                <form onSubmit={handleSaveAgreement} className="mt-5 space-y-4">
-                                    {agreementLockMessage && !editingAgreementId ? (
-                                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-                                            {agreementLockMessage}
-                                        </div>
-                                    ) : null}
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <label className="space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Reference/code</span>
-                                            <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" placeholder="e.g. FY-DSA-2026-001" value={agreementForm.agreementReference} onChange={(event) => setAgreementForm({ ...agreementForm, agreementReference: event.target.value })} required disabled={agreementFormLockedForNewRecord || saving} />
-                                            <span className="block text-xs text-slate-500">Use the agreement number, MOU code, or your own tracking reference.</span>
-                                        </label>
-                                        <label className="space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Type</span>
-                                            <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.agreementType} onChange={(event) => setAgreementForm({ ...agreementForm, agreementType: event.target.value })} disabled={agreementFormLockedForNewRecord || saving}>
-                                                {AGREEMENT_TYPE_OPTIONS.map((option) => (
-                                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                                ))}
-                                            </select>
-                                            <span className="block text-xs text-slate-500">Choose the closest plain-language category. This does not change asset edit rights.</span>
-                                        </label>
-                                        <label className="space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Status</span>
-                                            <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.status} onChange={(event) => setAgreementForm({ ...agreementForm, status: event.target.value })} disabled={agreementFormLockedForNewRecord || saving}>
-                                                <option value="draft">Draft</option>
-                                                <option value="active">Active</option>
-                                                <option value="expired">Expired</option>
-                                                <option value="revoked">Revoked</option>
-                                            </select>
-                                            <span className="block text-xs text-slate-500">{AGREEMENT_STATUS_HELP[agreementForm.status] || AGREEMENT_STATUS_HELP.draft}</span>
-                                        </label>
-                                        <label className="space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Signed copy link / storage reference</span>
-                                            <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" placeholder="Paste Drive link, file path, or archive reference" value={agreementForm.fileUrl} onChange={(event) => setAgreementForm({ ...agreementForm, fileUrl: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
-                                            <span className="block text-xs text-slate-500">After printing or e-signing, store the signed-copy reference here.</span>
-                                        </label>
-                                        <label className="space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Effective date</span>
-                                            <input type="date" className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.effectiveAt} onChange={(event) => setAgreementForm({ ...agreementForm, effectiveAt: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
-                                        </label>
-                                        <label className="space-y-1">
-                                            <span className="text-sm font-bold text-slate-700">Expiry date</span>
-                                            <input type="date" className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.expiresAt} onChange={(event) => setAgreementForm({ ...agreementForm, expiresAt: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
-                                        </label>
-                                    </div>
-                                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                                        {AGREEMENT_USE_ORDER.map((key) => {
-                                            const item = AGREEMENT_USE_DETAILS[key];
-                                            return (
-                                                <label key={key} className="flex min-h-[96px] items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 transition hover:border-brand-200 hover:bg-brand-50/40">
-                                                <input
-                                                    className="mt-1 h-4 w-4 accent-brand-600"
-                                                    type="checkbox"
-                                                    checked={agreementForm.allowedUses[key]}
-                                                    disabled={agreementFormLockedForNewRecord || saving}
-                                                    onChange={(event) => setAgreementForm({
-                                                        ...agreementForm,
-                                                        allowedUses: {
-                                                            ...agreementForm.allowedUses,
-                                                            [key]: event.target.checked,
-                                                        },
-                                                    })}
-                                                />
-                                                <span>
-                                                    <span className="block font-black text-slate-800">{item.label}</span>
-                                                    <span className="mt-1 block text-xs leading-5 text-slate-500">{item.description}</span>
-                                                </span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="flex flex-col gap-3 sm:flex-row">
-                                        <button type="submit" className="btn-primary flex-1 gap-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={agreementSubmitState.disabled} title={agreementSubmitState.reason || undefined}>
-                                            <ShieldCheck className="h-4 w-4" />
-                                            {editingAgreementId ? 'Update Agreement' : 'Add Agreement'}
-                                        </button>
-                                        <button type="button" className="btn-secondary flex-1 gap-2" onClick={() => handlePrintAgreementDraft()} disabled={!selectedOrganization}>
-                                            <Printer className="h-4 w-4" />
-                                            Print / Save PDF
-                                        </button>
-                                        {editingAgreementId ? (
-                                            <button type="button" className="btn-secondary flex-1" onClick={() => {
-                                                setEditingAgreementId(null);
-                                                setAgreementForm(EMPTY_AGREEMENT_FORM);
-                                            }}>
-                                                Cancel edit
-                                            </button>
+                                {canSaveAgreement ? (
+                                    <form onSubmit={handleSaveAgreement} className="mt-5 space-y-4">
+                                        {agreementLockMessage && !editingAgreementId ? (
+                                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
+                                                {agreementLockMessage}
+                                            </div>
                                         ) : null}
-                                    </div>
-                                </form>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <label className="space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Reference/code</span>
+                                                <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" placeholder="e.g. FY-DSA-2026-001" value={agreementForm.agreementReference} onChange={(event) => setAgreementForm({ ...agreementForm, agreementReference: event.target.value })} required disabled={agreementFormLockedForNewRecord || saving} />
+                                                <span className="block text-xs text-slate-500">Use the agreement number, MOU code, or your own tracking reference.</span>
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Type</span>
+                                                <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.agreementType} onChange={(event) => setAgreementForm({ ...agreementForm, agreementType: event.target.value })} disabled={agreementFormLockedForNewRecord || saving}>
+                                                    {AGREEMENT_TYPE_OPTIONS.map((option) => (
+                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="block text-xs text-slate-500">Choose the closest plain-language category. This does not change asset edit rights.</span>
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Status</span>
+                                                <select className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.status} onChange={(event) => setAgreementForm({ ...agreementForm, status: event.target.value })} disabled={agreementFormLockedForNewRecord || saving}>
+                                                    <option value="draft">Draft</option>
+                                                    <option value="active">Active</option>
+                                                    <option value="expired">Expired</option>
+                                                    <option value="revoked">Revoked</option>
+                                                </select>
+                                                <span className="block text-xs text-slate-500">{AGREEMENT_STATUS_HELP[agreementForm.status] || AGREEMENT_STATUS_HELP.draft}</span>
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Signed copy link / storage reference</span>
+                                                <input className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" placeholder="Paste Drive link, file path, or archive reference" value={agreementForm.fileUrl} onChange={(event) => setAgreementForm({ ...agreementForm, fileUrl: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
+                                                <span className="block text-xs text-slate-500">After printing or e-signing, store the signed-copy reference here.</span>
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Effective date</span>
+                                                <input type="date" className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.effectiveAt} onChange={(event) => setAgreementForm({ ...agreementForm, effectiveAt: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
+                                            </label>
+                                            <label className="space-y-1">
+                                                <span className="text-sm font-bold text-slate-700">Expiry date</span>
+                                                <input type="date" className="input-field disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" value={agreementForm.expiresAt} onChange={(event) => setAgreementForm({ ...agreementForm, expiresAt: event.target.value })} disabled={agreementFormLockedForNewRecord || saving} />
+                                            </label>
+                                        </div>
+                                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                            {AGREEMENT_USE_ORDER.map((key) => {
+                                                const item = AGREEMENT_USE_DETAILS[key];
+                                                return (
+                                                    <label key={key} className="flex min-h-[96px] items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 transition hover:border-brand-200 hover:bg-brand-50/40">
+                                                    <input
+                                                        className="mt-1 h-4 w-4 accent-brand-600"
+                                                        type="checkbox"
+                                                        checked={agreementForm.allowedUses[key]}
+                                                        disabled={agreementFormLockedForNewRecord || saving}
+                                                        onChange={(event) => setAgreementForm({
+                                                            ...agreementForm,
+                                                            allowedUses: {
+                                                                ...agreementForm.allowedUses,
+                                                                [key]: event.target.checked,
+                                                            },
+                                                        })}
+                                                    />
+                                                    <span>
+                                                        <span className="block font-black text-slate-800">{item.label}</span>
+                                                        <span className="mt-1 block text-xs leading-5 text-slate-500">{item.description}</span>
+                                                    </span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                            <button type="submit" className="btn-primary flex-1 gap-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={agreementSubmitState.disabled} title={agreementSubmitState.reason || undefined}>
+                                                <ShieldCheck className="h-4 w-4" />
+                                                {editingAgreementId ? 'Update Agreement' : 'Add Agreement'}
+                                            </button>
+                                            <button type="button" className="btn-secondary flex-1 gap-2" onClick={() => handlePrintAgreementDraft()} disabled={!selectedOrganization}>
+                                                <Printer className="h-4 w-4" />
+                                                Print / Save PDF
+                                            </button>
+                                            {editingAgreementId ? (
+                                                <button type="button" className="btn-secondary flex-1" onClick={() => {
+                                                    setEditingAgreementId(null);
+                                                    setAgreementForm(EMPTY_AGREEMENT_FORM);
+                                                }}>
+                                                    Cancel edit
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </form>
+                                ) : null}
                                 <div className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200">
                                     {(selectedOrganization.agreements || []).length === 0 ? (
                                         <p className="p-4 text-sm text-slate-500">No agreement records yet.</p>
@@ -998,15 +1061,19 @@ export default function GovernanceOrganizationsPanel() {
                                                     <Printer className="h-4 w-4" />
                                                     Print
                                                 </button>
-                                                <button type="button" className="btn-secondary py-2 text-sm" onClick={() => {
-                                                    setEditingAgreementId(agreement.id);
-                                                    setAgreementForm(normalizeAgreementForm(agreement));
-                                                }}>
-                                                    Edit
-                                                </button>
-                                                <button type="button" className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50" onClick={() => handleRevokeAgreement(agreement.id)} disabled={saving}>
-                                                    Revoke
-                                                </button>
+                                                {canSaveAgreement ? (
+                                                    <button type="button" className="btn-secondary py-2 text-sm" onClick={() => {
+                                                        setEditingAgreementId(agreement.id);
+                                                        setAgreementForm(normalizeAgreementForm(agreement));
+                                                    }}>
+                                                        Edit
+                                                    </button>
+                                                ) : null}
+                                                {canRevokeAgreement ? (
+                                                    <button type="button" className="rounded-xl border border-red-200 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50" onClick={() => handleRevokeAgreement(agreement.id)} disabled={saving}>
+                                                        Revoke
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         </div>
                                     ))}

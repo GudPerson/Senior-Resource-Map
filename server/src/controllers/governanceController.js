@@ -26,7 +26,9 @@ import {
 } from '../utils/auditTrail.js';
 import {
     buildAgreementCoverageSummary,
+    canManageOrganizationAccessRole,
     canManageOrganizationGovernance,
+    canRevokeOrganizationAccessRole,
     canViewOrganizationGovernance,
     isOrganizationDeletableDraft,
     isOrganizationOpenForNewRecords,
@@ -49,6 +51,8 @@ import {
     assertOrganizationUserAssignment,
     assertResourceOrganizationLinkEligibility,
     filterOrganizationAccessCandidates,
+    filterOrganizationResourceLinkCandidates,
+    loadOfferingsCoveredByHardAssetLinks,
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
 
@@ -218,6 +222,8 @@ function formatResourceLink(row) {
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         resourceName: row.resourceName || null,
+        coveredByHardAssetId: row.coveredByHardAssetId || null,
+        coverageSource: row.coverageSource || null,
     };
 }
 
@@ -240,6 +246,7 @@ function formatOrganization(row, grouped = {}) {
     const agreements = grouped.agreements?.get(Number(row.id)) || [];
     const access = grouped.access?.get(Number(row.id)) || [];
     const resourceLinks = grouped.resourceLinks?.get(Number(row.id)) || [];
+    const coveredOfferings = grouped.coveredOfferings?.get(Number(row.id)) || [];
     return {
         id: row.id,
         legacyPartnerUserId: row.legacyPartnerUserId,
@@ -253,6 +260,7 @@ function formatOrganization(row, grouped = {}) {
         agreements: agreements.map(formatAgreement),
         access: access.map(formatAccessRow),
         resourceLinks: resourceLinks.map(formatResourceLink),
+        coveredOfferings: coveredOfferings.map(formatResourceLink),
         agreementCoverage: buildAgreementCoverageSummary(agreements, 'restrictedFiles'),
     };
 }
@@ -361,7 +369,12 @@ async function loadViewableOrganization(db, actor, organizationId) {
 async function listOrganizationDetails(db, organizations) {
     const ids = organizations.map((org) => Number(org.id)).filter(Boolean);
     if (!ids.length) {
-        return { access: new Map(), agreements: new Map(), resourceLinks: new Map() };
+        return {
+            access: new Map(),
+            agreements: new Map(),
+            resourceLinks: new Map(),
+            coveredOfferings: new Map(),
+        };
     }
     const [access, agreements, hardLinks, softLinks, templateLinks] = await Promise.all([
         db.select({
@@ -434,10 +447,28 @@ async function listOrganizationDetails(db, organizations) {
             )),
     ]);
 
+    const hardIdsByOrganization = new Map();
+    for (const link of hardLinks) {
+        const organizationKey = Number(link.organizationId);
+        if (!hardIdsByOrganization.has(organizationKey)) hardIdsByOrganization.set(organizationKey, []);
+        hardIdsByOrganization.get(organizationKey).push(Number(link.resourceId));
+    }
+
+    const directSoftKeys = new Set(softLinks.map((link) => `${Number(link.organizationId)}:${Number(link.resourceId)}`));
+    const coveredOfferingRows = [];
+    for (const [organizationId, hardAssetIds] of hardIdsByOrganization.entries()) {
+        const coveredOfferings = await loadOfferingsCoveredByHardAssetLinks(db, hardAssetIds);
+        for (const offering of coveredOfferings) {
+            if (directSoftKeys.has(`${Number(organizationId)}:${Number(offering.resourceId)}`)) continue;
+            coveredOfferingRows.push({ ...offering, organizationId });
+        }
+    }
+
     return {
         access: groupByOrganization(access),
         agreements: groupByOrganization(agreements),
         resourceLinks: groupByOrganization([...hardLinks, ...softLinks, ...templateLinks]),
+        coveredOfferings: groupByOrganization(coveredOfferingRows),
     };
 }
 
@@ -799,8 +830,15 @@ export const getOrganizationResourceCandidates = async (c) => {
             throw httpError('Resource type must be hard, soft, or template.', 400);
         }
 
+        const eligibleRows = await filterOrganizationResourceLinkCandidates(
+            db,
+            organizationId,
+            resourceType,
+            rows,
+        );
+
         return c.json({
-            candidates: rows
+            candidates: eligibleRows
                 .map((row) => formatResourceCandidate(row, resourceType))
                 .filter(Boolean),
         });
@@ -820,10 +858,10 @@ export const addOrganizationAccess = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        const { organization } = await loadManageableOrganization(db, actor, organizationId);
+        const { organization, accessRows } = await loadManageableOrganization(db, actor, organizationId);
         assertOrganizationOpenForNewRecords(organization, 'Adding organisation access');
-        if (accessRole === 'admin' && normalizeRole(actor?.role) !== 'super_admin') {
-            throw httpError('Only Super Admin can assign organisation admin access.', 403);
+        if (!canManageOrganizationAccessRole(actor, organization, accessRows, accessRole)) {
+            throw httpError('Only Organisation Admins and Super Admins can manage organisation access.', 403);
         }
         await assertOrganizationUserAssignment(db, organizationId, body.userId);
 
@@ -861,7 +899,7 @@ export const revokeOrganizationAccess = async (c) => {
         const membershipId = parsePositiveInt(c.req.param('membershipId'), 'membershipId');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await loadManageableOrganization(db, actor, organizationId);
+        const { organization, accessRows } = await loadManageableOrganization(db, actor, organizationId);
 
         const [membership] = await db.select().from(organizationAccessMemberships)
             .where(and(
@@ -871,8 +909,9 @@ export const revokeOrganizationAccess = async (c) => {
             ))
             .limit(1);
         if (!membership) throw httpError('Organisation access membership was not found.', 404);
-        if (membership.accessRole === 'admin' && normalizeRole(actor?.role) !== 'super_admin') {
-            throw httpError('Only Super Admin can revoke organisation admin access.', 403);
+        const revokeDecision = canRevokeOrganizationAccessRole(actor, organization, accessRows, membership);
+        if (!revokeDecision.allowed) {
+            throw httpError(revokeDecision.reason, 403);
         }
 
         const [updated] = await db.update(organizationAccessMemberships)

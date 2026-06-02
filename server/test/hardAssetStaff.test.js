@@ -8,6 +8,7 @@ import {
     getActiveHardAssetStaffAccess,
     hasHardAssetStaffAccess,
 } from '../src/utils/hardAssetStaff.js';
+import { shouldGrantCreatorDefaultHardAssetOwner } from '../src/utils/assetCreatorOwnership.js';
 
 function actor(overrides = {}) {
     return {
@@ -92,6 +93,12 @@ test('region admins do not receive edit authority from region scope alone', () =
     assert.equal(canAssignHardAssetStaffRole(regionAdmin, asset, 'owner'), false);
     assert.equal(canAssignHardAssetStaffRole(regionAdmin, asset, 'staff'), false);
     assert.equal(canRevokeHardAssetStaffMembership(regionAdmin, asset, { staffRole: 'staff' }), false);
+});
+
+test('region admin creator default owner applies to new places', () => {
+    assert.equal(shouldGrantCreatorDefaultHardAssetOwner({ role: 'regional_admin' }), true);
+    assert.equal(shouldGrantCreatorDefaultHardAssetOwner({ role: 'super_admin' }), false);
+    assert.equal(shouldGrantCreatorDefaultHardAssetOwner({ role: 'standard' }), false);
 });
 
 test('asset owners can manage owners and staff after the first owner exists', () => {

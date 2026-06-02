@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 
 import {
     buildAgreementCoverageSummary,
+    canManageOrganizationAccessRole,
     canManageOrganizationGovernance,
+    canRevokeOrganizationAccessRole,
     canViewOrganizationGovernance,
     hasActiveOptOut,
     isNotificationDeliveryAllowed,
@@ -19,6 +21,7 @@ import {
     evaluateResourceOrganizationLink,
 } from '../src/utils/governance.js';
 import { organizationResourceLinks } from '../src/db/schema.js';
+import { loadOfferingsCoveredByHardAssetLinks } from '../src/utils/organizationGuardrails.js';
 
 function createActor(overrides = {}) {
     return {
@@ -126,6 +129,39 @@ test('organisation governance access is independent from global role and asset e
     assert.equal(organizationAccessGrantsResourceEditRights(), false);
 });
 
+test('organisation admins can manage org admins and staff without becoming global admins', () => {
+    const organization = { id: 7, name: 'Entrust Healthcare Group' };
+    const orgAdmin = createActor({ id: 31, role: 'standard' });
+    const orgStaff = createActor({ id: 32, role: 'standard' });
+    const regionAdmin = createActor({ id: 33, role: 'regional_admin' });
+    const accessRows = [
+        { organizationId: 7, userId: 31, accessRole: 'admin', revokedAt: null },
+        { organizationId: 7, userId: 32, accessRole: 'staff', revokedAt: null },
+    ];
+
+    assert.equal(canManageOrganizationAccessRole(orgAdmin, organization, accessRows, 'admin'), true);
+    assert.equal(canManageOrganizationAccessRole(orgAdmin, organization, accessRows, 'staff'), true);
+    assert.equal(canManageOrganizationAccessRole(orgStaff, organization, accessRows, 'admin'), false);
+    assert.equal(canManageOrganizationAccessRole(regionAdmin, organization, accessRows, 'admin'), false);
+});
+
+test('organisation access revocation protects the final active organisation admin', () => {
+    const organization = { id: 7, name: 'Entrust Healthcare Group' };
+    const actor = createActor({ id: 31, role: 'standard' });
+
+    assert.deepEqual(canRevokeOrganizationAccessRole(actor, organization, [
+        { organizationId: 7, userId: 31, accessRole: 'admin', revokedAt: null },
+        { organizationId: 7, userId: 32, accessRole: 'admin', revokedAt: null },
+    ], { userId: 32, accessRole: 'admin' }), { allowed: true, reason: null });
+
+    const finalAdminDecision = canRevokeOrganizationAccessRole(actor, organization, [
+        { organizationId: 7, userId: 31, accessRole: 'admin', revokedAt: null },
+    ], { userId: 31, accessRole: 'admin' });
+
+    assert.equal(finalAdminDecision.allowed, false);
+    assert.match(finalAdminDecision.reason, /at least one active Organisation Admin/);
+});
+
 test('organisation membership allows only one active organisation per user', () => {
     assert.deepEqual(evaluateOrganizationUserAssignment({
         targetOrganizationId: 7,
@@ -187,11 +223,13 @@ test('asset access requires the user organisation to match the linked resource o
 });
 
 test('linking a resource to an organisation blocks conflicting links and operators', () => {
-    assert.deepEqual(evaluateResourceOrganizationLink({
+    const noOperators = evaluateResourceOrganizationLink({
         targetOrganizationId: 7,
         existingResourceLinks: [],
         activeOperators: [],
-    }), { allowed: true, reason: null });
+    });
+    assert.equal(noOperators.allowed, false);
+    assert.match(noOperators.reason, /active Owner or Staff/);
 
     const linkedElsewhere = evaluateResourceOrganizationLink({
         targetOrganizationId: 7,
@@ -220,7 +258,91 @@ test('linking a resource to an organisation blocks conflicting links and operato
         activeOperators: [{ userName: 'Alex', organizationMemberships: [] }],
     });
     assert.equal(operatorUnassigned.allowed, false);
-    assert.match(operatorUnassigned.reason, /Alex is not assigned/);
+    assert.match(operatorUnassigned.reason, /Add Alex to this organisation/);
+
+    const multipleMissingOperators = evaluateResourceOrganizationLink({
+        targetOrganizationId: 7,
+        existingResourceLinks: [],
+        activeOperators: [
+            { userName: 'Hyqel Zainudin', organizationMemberships: [] },
+            { userName: 'Joshua Chua', organizationMemberships: [] },
+        ],
+    });
+    assert.equal(multipleMissingOperators.allowed, false);
+    assert.match(multipleMissingOperators.reason, /Hyqel Zainudin/);
+    assert.match(multipleMissingOperators.reason, /Joshua Chua/);
+
+    assert.deepEqual(evaluateResourceOrganizationLink({
+        targetOrganizationId: 7,
+        existingResourceLinks: [],
+        activeOperators: [
+            {
+                userName: 'Alex',
+                organizationMemberships: [{ organizationId: 7, organizationName: 'Fei Yue', revokedAt: null }],
+            },
+        ],
+    }), { allowed: true, reason: null });
+});
+
+test('linked places cover hosted and linked offerings once for organisation context', async () => {
+    const fakeDb = {
+        select(selection) {
+            return {
+                from() {
+                    const query = {
+                        innerJoin() {
+                            return query;
+                        },
+                        where() {
+                            if (selection.hostHardAssetId) {
+                                return Promise.resolve([
+                                    { id: 41, name: 'Hosted CHP', hostHardAssetId: 10 },
+                                    { id: 42, name: 'Duplicate Exercise', hostHardAssetId: 20 },
+                                ]);
+                            }
+                            if (selection.hardAssetId) {
+                                return Promise.resolve([
+                                    { id: 42, name: 'Duplicate Exercise', hardAssetId: 20 },
+                                    { id: 43, name: 'Linked Yoga', hardAssetId: 10 },
+                                ]);
+                            }
+                            return Promise.resolve([]);
+                        },
+                    };
+                    return query;
+                },
+            };
+        },
+    };
+
+    const rows = await loadOfferingsCoveredByHardAssetLinks(fakeDb, [10, 20, 10]);
+
+    assert.deepEqual(rows, [
+        {
+            id: 41,
+            resourceType: 'soft',
+            resourceId: 41,
+            resourceName: 'Hosted CHP',
+            coveredByHardAssetId: 10,
+            coverageSource: 'linked_place',
+        },
+        {
+            id: 42,
+            resourceType: 'soft',
+            resourceId: 42,
+            resourceName: 'Duplicate Exercise',
+            coveredByHardAssetId: 20,
+            coverageSource: 'linked_place',
+        },
+        {
+            id: 43,
+            resourceType: 'soft',
+            resourceId: 43,
+            resourceName: 'Linked Yoga',
+            coveredByHardAssetId: 10,
+            coverageSource: 'linked_place',
+        },
+    ]);
 });
 
 test('external notification channels remain disabled in V1 even when preferences are enabled', () => {

@@ -144,6 +144,10 @@ export function hasOrganizationAdminAccess(user) {
         .some((entry) => String(entry?.accessRole || '').trim().toLowerCase() === 'admin');
 }
 
+export function canAccessOrganizationWorkspace(user) {
+    return getOrganizationAccess(user).length > 0;
+}
+
 export function canAccessManagedResources(user) {
     return !isStandardUserRole(user?.role)
         || hasPartnerStaffAccess(user)

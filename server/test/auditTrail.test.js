@@ -7,6 +7,7 @@ import {
     buildResourceAuditPayload,
     formatAuditLogForResponse,
     normalizeAuditLogQuery,
+    resolveEffectiveAuditOrganizationIds,
     sanitizeAuditMetadata,
 } from '../src/utils/auditTrail.js';
 
@@ -56,6 +57,25 @@ test('audit query normalization caps limits and keeps explicit filters typed', (
     assert.equal(query.category, 'resource');
     assert.equal(query.from.toISOString(), '2026-06-01T00:00:00.000Z');
     assert.equal(query.to.toISOString(), '2026-06-02T00:00:00.000Z');
+});
+
+test('audit organisation ids dedupe direct and inherited resource coverage', () => {
+    assert.deepEqual(resolveEffectiveAuditOrganizationIds({
+        directOrganizationId: 7,
+        inheritedOrganizationIds: [],
+    }), [7]);
+    assert.deepEqual(resolveEffectiveAuditOrganizationIds({
+        directOrganizationId: null,
+        inheritedOrganizationIds: [8, 8, null],
+    }), [8]);
+    assert.deepEqual(resolveEffectiveAuditOrganizationIds({
+        directOrganizationId: 7,
+        inheritedOrganizationIds: [8],
+    }), [7, 8]);
+    assert.deepEqual(resolveEffectiveAuditOrganizationIds({
+        directOrganizationIds: [7, 8],
+        inheritedOrganizationIds: [8],
+    }), [7, 8]);
 });
 
 test('audit metadata sanitizer removes secret-like keys and long text bodies', () => {

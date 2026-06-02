@@ -97,6 +97,57 @@ async function loadSoftAssetLocationIds(db, softAssetId) {
     return [...new Set(ids.filter(Boolean))];
 }
 
+export async function loadOfferingsCoveredByHardAssetLinks(db, hardAssetIds = []) {
+    const ids = [...new Set((hardAssetIds || []).map(Number).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const hostedRows = await db.select({
+        id: softAssets.id,
+        name: softAssets.name,
+        hostHardAssetId: softAssets.hostHardAssetId,
+    })
+        .from(softAssets)
+        .where(and(
+            inArray(softAssets.hostHardAssetId, ids),
+            eq(softAssets.isDeleted, false),
+        ));
+
+    const linkedRows = await db.select({
+        id: softAssets.id,
+        name: softAssets.name,
+        hardAssetId: softAssetLocations.hardAssetId,
+    })
+        .from(softAssetLocations)
+        .innerJoin(softAssets, eq(softAssetLocations.softAssetId, softAssets.id))
+        .where(and(
+            inArray(softAssetLocations.hardAssetId, ids),
+            eq(softAssets.isDeleted, false),
+        ));
+
+    const byId = new Map();
+    for (const row of hostedRows) {
+        byId.set(Number(row.id), {
+            id: row.id,
+            resourceType: 'soft',
+            resourceId: row.id,
+            resourceName: row.name,
+            coveredByHardAssetId: Number(row.hostHardAssetId),
+            coverageSource: 'linked_place',
+        });
+    }
+    for (const row of linkedRows) {
+        byId.set(Number(row.id), {
+            id: row.id,
+            resourceType: 'soft',
+            resourceId: row.id,
+            resourceName: row.name,
+            coveredByHardAssetId: Number(row.hardAssetId),
+            coverageSource: 'linked_place',
+        });
+    }
+    return [...byId.values()];
+}
+
 async function loadHardAssetOperators(db, hardAssetIds) {
     const ids = [...new Set(hardAssetIds.map(Number).filter(Boolean))];
     if (!ids.length) return [];
@@ -222,15 +273,33 @@ export async function filterAssetAccessCandidatesByOrganization(db, resourceType
     }).allowed);
 }
 
-export async function assertResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId) {
+export async function evaluateResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId) {
     const [existingResourceLinks, activeOperators] = await Promise.all([
         loadRelatedResourceLinks(db, resourceType, resourceId),
         loadActiveOperatorsForResource(db, resourceType, resourceId),
     ]);
-    const result = evaluateResourceOrganizationLink({
+    return evaluateResourceOrganizationLink({
         targetOrganizationId: organizationId,
         existingResourceLinks,
         activeOperators,
     });
+}
+
+export async function filterOrganizationResourceLinkCandidates(db, organizationId, resourceType, candidates) {
+    const eligible = [];
+    for (const candidate of candidates || []) {
+        const result = await evaluateResourceOrganizationLinkEligibility(
+            db,
+            organizationId,
+            resourceType,
+            candidate.id,
+        );
+        if (result.allowed) eligible.push(candidate);
+    }
+    return eligible;
+}
+
+export async function assertResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId) {
+    const result = await evaluateResourceOrganizationLinkEligibility(db, organizationId, resourceType, resourceId);
     if (!result.allowed) throw guardrailError(result.reason);
 }
