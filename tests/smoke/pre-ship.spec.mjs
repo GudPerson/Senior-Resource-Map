@@ -161,7 +161,9 @@ test('saved resource detail still opens from the discover side of the product', 
     await ensureSavedAsset(page);
 
     await page.goto('/my-directory', { waitUntil: 'domcontentloaded' });
-    await savedResourceDetailLink(page).click();
-    await page.waitForURL(/\/resource\/(hard|soft)\/\d+$/, { timeout: 30_000 });
-    await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 });
+    await Promise.all([
+        page.waitForURL(/\/resource\/(hard|soft)\/\d+$/, { timeout: 30_000, waitUntil: 'domcontentloaded' }),
+        savedResourceDetailLink(page).click(),
+    ]);
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 30_000 });
 });

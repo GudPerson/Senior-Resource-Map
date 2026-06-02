@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import { softAssetRegionCoverages, softAssets, softAssetLocations, subregionPostalCodes } from '../db/schema.js';
@@ -20,10 +20,12 @@ import { normalizeRole } from '../utils/roles.js';
 import { loadSingaporeFallbackRegion } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
+    buildResourceListPagination,
     filterSoftAssetsForResourceList,
     normalizeResourceListPagination,
     normalizeResourceListScope,
     paginateResourceList,
+    shouldUseDirectManagedResourcePagination,
 } from '../utils/resourceListScope.js';
 import { loadOrganizationContextsForResources } from '../utils/organizationResourceContext.js';
 import {
@@ -528,6 +530,13 @@ function canExposeFormattedSoftAsset(asset, formatted) {
     return allLocations.length === 0 || formatted.locations.length > 0;
 }
 
+async function countSoftAssetRows(db, where) {
+    const [row] = await db.select({
+        totalCount: sql`count(*)`.mapWith(Number),
+    }).from(softAssets).where(where);
+    return Number(row?.totalCount || 0);
+}
+
 async function loadSoftAssetById(db, id) {
     return db.query.softAssets.findFirst({
         where: eq(softAssets.id, id),
@@ -578,7 +587,20 @@ export const getSoftAssets = async (c) => {
             orderBy: [desc(softAssets.updatedAt), desc(softAssets.id)],
         };
 
-        const assets = await db.query.softAssets.findMany(options);
+        const canUseDirectPagination = shouldUseDirectManagedResourcePagination({
+            scope: listScope,
+            actor: user,
+        });
+        const [directTotalCount, assets] = canUseDirectPagination
+            ? await Promise.all([
+                countSoftAssetRows(db, finalWhere),
+                db.query.softAssets.findMany({
+                    ...options,
+                    limit: pageSize,
+                    offset: (page - 1) * pageSize,
+                }),
+            ])
+            : [null, await db.query.softAssets.findMany(options)];
         const assetsWithRegionMetadata = await attachSoftAssetRegionMetadata(db, assets);
         const scopedAssets = filterSoftAssetsForResourceList(assetsWithRegionMetadata, user, {
             scope: listScope,
@@ -625,7 +647,12 @@ export const getSoftAssets = async (c) => {
                 primaryRegionId: raw.subregionId || null,
                 permissions: buildSoftAssetPermissionSummary(user, raw),
             }));
-        const { data: pagedFormatted, pagination } = paginateResourceList(formatted, { page, pageSize });
+        const { data: pagedFormatted, pagination } = canUseDirectPagination
+            ? {
+                data: formatted,
+                pagination: buildResourceListPagination({ totalCount: directTotalCount, page, pageSize }),
+            }
+            : paginateResourceList(formatted, { page, pageSize });
         const organizationContextsByResource = await loadOrganizationContextsForResources(
             db,
             pagedFormatted.map((asset) => ({ resourceType: 'soft', resourceId: asset.id })),

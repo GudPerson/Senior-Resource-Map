@@ -12,27 +12,38 @@ export function shouldRejectManagedResourceListRequest(scopeValue, actor) {
         && normalizeRole(actor?.role) === 'guest';
 }
 
+export function shouldUseDirectManagedResourcePagination({ scope, actor } = {}) {
+    return normalizeResourceListScope(scope) === 'managed'
+        && normalizeRole(actor?.role) === 'super_admin';
+}
+
 export function normalizeResourceListPagination(input = {}) {
     const page = Math.max(1, Number.parseInt(input.page || '1', 10) || 1);
     const pageSize = Math.min(500, Math.max(1, Number.parseInt(input.pageSize || '50', 10) || 50));
     return { page, pageSize };
 }
 
+export function buildResourceListPagination(input = {}) {
+    const { page, pageSize } = normalizeResourceListPagination(input);
+    const totalCount = Math.max(0, Number.parseInt(String(input.totalCount || 0), 10) || 0);
+
+    return {
+        totalCount,
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalCount / pageSize),
+    };
+}
+
 export function paginateResourceList(items = [], input = {}) {
     const { page, pageSize } = normalizeResourceListPagination(input);
     const data = Array.isArray(items) ? items : [];
-    const totalCount = data.length;
-    const totalPages = Math.ceil(totalCount / pageSize);
+    const pagination = buildResourceListPagination({ totalCount: data.length, page, pageSize });
     const start = (page - 1) * pageSize;
 
     return {
         data: data.slice(start, start + pageSize),
-        pagination: {
-            totalCount,
-            page,
-            pageSize,
-            totalPages,
-        },
+        pagination,
     };
 }
 
