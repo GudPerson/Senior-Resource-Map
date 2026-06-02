@@ -80,6 +80,25 @@ export function humanizeAuditFieldName(field) {
     return FIELD_LABELS[key] || splitCamelCase(key);
 }
 
+function titleCase(value) {
+    return String(value || '')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function displayFieldName(field) {
+    const label = humanizeAuditFieldName(field);
+    return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : '';
+}
+
+function displayAuditValue(value) {
+    if (value === null || value === undefined || value === '') return 'Blank';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number') return String(value);
+    if (Array.isArray(value)) return value.length ? value.map(displayAuditValue).join(', ') : 'None';
+    if (typeof value === 'object') return 'Updated details';
+    return titleCase(humanizeAuditFieldName(value) || value);
+}
+
 export function userLabel(user, fallback = 'System') {
     if (!user) return fallback;
     return user.name || user.email || `User ${user.id}`;
@@ -130,6 +149,47 @@ export function buildAuditDetailChips(metadata = {}, log = {}) {
     if (metadata.reason) chips.push(`Reason: ${metadata.reason}`);
 
     return [...new Set(chips.filter(Boolean))];
+}
+
+export function buildAuditChangeLines(metadata = {}) {
+    const details = Array.isArray(metadata.changeDetails) ? metadata.changeDetails : [];
+    if (!details.length) return [];
+
+    return details
+        .map((detail) => {
+            const field = displayFieldName(detail.field);
+            if (!field) return null;
+            if (detail.valuePolicy !== 'visible') {
+                return {
+                    field,
+                    summary: 'Changed. Values hidden for privacy.',
+                    previous: '',
+                    next: '',
+                    isValueHidden: true,
+                };
+            }
+            const previous = displayAuditValue(detail.previous);
+            const next = displayAuditValue(detail.next);
+            return {
+                field,
+                summary: `Changed from ${previous} to ${next}.`,
+                previous,
+                next,
+                isValueHidden: false,
+            };
+        })
+        .filter(Boolean);
+}
+
+export function buildAuditLegacyDetailNote(log = {}) {
+    const action = String(log.actionType || '');
+    const metadata = log.metadata || {};
+    const hasDetails = Array.isArray(metadata.changeDetails) && metadata.changeDetails.length > 0;
+    const hasChangedFields = Array.isArray(metadata.changedFields) && metadata.changedFields.length > 0;
+    if (hasDetails || hasChangedFields) return '';
+    return action.endsWith('_updated')
+        ? 'Detailed field changes were not recorded for this older entry.'
+        : '';
 }
 
 function statusLabel(value) {

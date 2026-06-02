@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     buildAuditAccessScope,
+    buildAuditChangeMetadata,
     buildResourceAuditPayload,
     formatAuditLogForResponse,
     normalizeAuditLogQuery,
@@ -97,6 +98,36 @@ test('resource audit payloads describe operational changes without private body 
         changedFields: ['contactPhone', 'description', 'name'],
         changedFieldCount: 3,
     });
+});
+
+test('audit change metadata records useful safe details without exposing sensitive values', () => {
+    const metadata = buildAuditChangeMetadata(
+        {
+            name: 'Entrust Healthcare Group',
+            governanceStatus: 'active',
+            dataContactEmail: 'old-contact@example.org',
+            notes: 'Internal note before',
+        },
+        {
+            name: 'Entrust Healthcare Group Ltd',
+            governanceStatus: 'archived',
+            dataContactEmail: 'new-contact@example.org',
+            notes: 'Internal note after',
+            updatedAt: new Date('2026-06-02T00:00:00.000Z'),
+        },
+    );
+
+    assert.deepEqual(metadata.changedFields, ['dataContactEmail', 'governanceStatus', 'name', 'notes']);
+    assert.equal(metadata.changedFieldCount, 4);
+    assert.deepEqual(metadata.changeDetails, [
+        { field: 'dataContactEmail', valuePolicy: 'redacted' },
+        { field: 'governanceStatus', previous: 'active', next: 'archived', valuePolicy: 'visible' },
+        { field: 'name', previous: 'Entrust Healthcare Group', next: 'Entrust Healthcare Group Ltd', valuePolicy: 'visible' },
+        { field: 'notes', valuePolicy: 'redacted' },
+    ]);
+    assert.equal(JSON.stringify(metadata).includes('old-contact@example.org'), false);
+    assert.equal(JSON.stringify(metadata).includes('new-contact@example.org'), false);
+    assert.equal(JSON.stringify(metadata).includes('Internal note'), false);
 });
 
 test('formatted audit logs include readable labels and sanitized metadata', () => {

@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    buildAuditChangeLines,
     buildAuditDetailChips,
+    buildAuditLegacyDetailNote,
     buildAuditPlainSummary,
     buildOrganizationFilterOptions,
     humanizeAuditFieldName,
@@ -28,6 +30,49 @@ test('audit summaries explain organisation profile changes in plain language', (
     ]);
 });
 
+test('audit change lines explain safe before-and-after details and redact sensitive values', () => {
+    const metadata = {
+        changedFields: ['dataContactEmail', 'governanceStatus', 'name', 'notes'],
+        changeDetails: [
+            { field: 'dataContactEmail', valuePolicy: 'redacted' },
+            { field: 'governanceStatus', previous: 'active', next: 'archived', valuePolicy: 'visible' },
+            { field: 'name', previous: 'Entrust Healthcare Group', next: 'Entrust Healthcare Group Ltd', valuePolicy: 'visible' },
+            { field: 'notes', valuePolicy: 'redacted' },
+        ],
+    };
+
+    assert.deepEqual(buildAuditChangeLines(metadata), [
+        {
+            field: 'Data contact email',
+            summary: 'Changed. Values hidden for privacy.',
+            previous: '',
+            next: '',
+            isValueHidden: true,
+        },
+        {
+            field: 'Status',
+            summary: 'Changed from Active to Archived.',
+            previous: 'Active',
+            next: 'Archived',
+            isValueHidden: false,
+        },
+        {
+            field: 'Name',
+            summary: 'Changed from Entrust Healthcare Group to Entrust Healthcare Group Ltd.',
+            previous: 'Entrust Healthcare Group',
+            next: 'Entrust Healthcare Group Ltd',
+            isValueHidden: false,
+        },
+        {
+            field: 'Notes',
+            summary: 'Changed. Values hidden for privacy.',
+            previous: '',
+            next: '',
+            isValueHidden: true,
+        },
+    ]);
+});
+
 test('audit summaries describe resource visibility without code-style wording', () => {
     const log = {
         actionType: 'resource_hidden',
@@ -40,6 +85,18 @@ test('audit summaries describe resource visibility without code-style wording', 
         buildAuditPlainSummary(log),
         'GudPerson hid programme or service "Meals-on-Wheels West" from the app.'
     );
+});
+
+test('audit legacy note explains older update rows that lack detail metadata', () => {
+    assert.equal(buildAuditLegacyDetailNote({
+        actionType: 'organization_updated',
+        metadata: {},
+    }), 'Detailed field changes were not recorded for this older entry.');
+
+    assert.equal(buildAuditLegacyDetailNote({
+        actionType: 'organization_updated',
+        metadata: { changeDetails: [{ field: 'name', previous: 'Old', next: 'New', valuePolicy: 'visible' }] },
+    }), '');
 });
 
 test('audit field labels convert common camelCase and unknown names for layman chips', () => {

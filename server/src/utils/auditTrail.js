@@ -44,6 +44,22 @@ const RESOURCE_TYPE_LABELS = {
     template: 'template',
 };
 
+const VISIBLE_AUDIT_VALUE_FIELDS = new Set([
+    'accessRole',
+    'agreementType',
+    'deletionEligible',
+    'deletionStatus',
+    'governanceStatus',
+    'isHidden',
+    'linkStatus',
+    'name',
+    'resourceType',
+    'staffRole',
+    'status',
+    'verificationConfidence',
+    'verificationStatus',
+]);
+
 function toPositiveInt(value) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -193,6 +209,31 @@ export function buildResourceAuditPayload({
             ...metadata,
         }),
     };
+}
+
+export function buildAuditChangeMetadata(existing = {}, patch = {}, options = {}) {
+    const visibleFields = new Set([
+        ...VISIBLE_AUDIT_VALUE_FIELDS,
+        ...((options.visibleValueFields || []).map((field) => cleanText(field, 80)).filter(Boolean)),
+    ]);
+    const fields = diffAuditFieldNames(existing, patch)
+        .sort((left, right) => left.localeCompare(right));
+    const changeDetails = fields.map((field) => {
+        if (!visibleFields.has(field)) {
+            return { field, valuePolicy: 'redacted' };
+        }
+        return {
+            field,
+            previous: sanitizeValue(existing?.[field]),
+            next: sanitizeValue(patch?.[field]),
+            valuePolicy: 'visible',
+        };
+    });
+
+    return sanitizeAuditMetadata({
+        ...(fields.length ? { changedFields: fields, changedFieldCount: fields.length } : {}),
+        ...(changeDetails.length ? { changeDetails } : {}),
+    });
 }
 
 export async function recordAuditLog(db, actor, payload = {}) {
