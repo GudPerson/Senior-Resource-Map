@@ -20,6 +20,7 @@ import {
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     buildAuditAccessScope,
+    buildAuditChangeMetadata,
     formatAuditLogForResponse,
     normalizeAuditLogQuery,
 } from '../utils/auditTrail.js';
@@ -609,15 +610,18 @@ export const updateGovernanceOrganization = async (c) => {
         const body = validateRequestBody(await c.req.json(), orgBodySchema, 'Organisation');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await loadManageableOrganization(db, actor, organizationId);
+        const { organization: existingOrganization } = await loadManageableOrganization(db, actor, organizationId);
+        const updatePatch = {
+            name: body.name,
+            description: body.description || null,
+            governanceStatus: normalizeOrganizationGovernanceStatus(body.governanceStatus),
+            dataContactName: body.dataContactName || null,
+            dataContactEmail: body.dataContactEmail || null,
+        };
 
         const [organization] = await db.update(partnerOrganizations)
             .set({
-                name: body.name,
-                description: body.description || null,
-                governanceStatus: normalizeOrganizationGovernanceStatus(body.governanceStatus),
-                dataContactName: body.dataContactName || null,
-                dataContactEmail: body.dataContactEmail || null,
+                ...updatePatch,
                 updatedByUserId: actor.id,
                 updatedAt: new Date(),
             })
@@ -629,6 +633,7 @@ export const updateGovernanceOrganization = async (c) => {
             entityType: 'organization',
             entityId: organization.id,
             organizationId: organization.id,
+            metadata: buildAuditChangeMetadata(existingOrganization, updatePatch),
         });
 
         return c.json(formatOrganization(organization));
