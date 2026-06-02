@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    buildResourceListPagination,
     filterHardAssetsForResourceList,
     filterSoftAssetsForResourceList,
     paginateResourceList,
+    shouldUseDirectManagedResourcePagination,
     shouldRejectManagedResourceListRequest,
 } from '../src/utils/resourceListScope.js';
 
@@ -163,4 +165,50 @@ test('managed resource list scope rejects guest access instead of returning sile
     assert.equal(shouldRejectManagedResourceListRequest('managed', { role: 'guest' }), true);
     assert.equal(shouldRejectManagedResourceListRequest('visible', { role: 'guest' }), false);
     assert.equal(shouldRejectManagedResourceListRequest('managed', { role: 'super_admin' }), false);
+});
+
+test('super admin managed lists can use direct database pagination safely', () => {
+    assert.equal(shouldUseDirectManagedResourcePagination({
+        scope: 'managed',
+        actor: actor({ role: 'super_admin' }),
+    }), true);
+
+    assert.equal(shouldUseDirectManagedResourcePagination({
+        scope: 'visible',
+        actor: actor({ role: 'super_admin' }),
+    }), false);
+
+    assert.equal(shouldUseDirectManagedResourcePagination({
+        scope: 'managed',
+        actor: actor({ role: 'regional_admin' }),
+    }), false);
+
+    assert.equal(shouldUseDirectManagedResourcePagination({
+        scope: 'managed',
+        actor: actor({ role: 'standard' }),
+    }), false);
+});
+
+test('resource list pagination can be built from a database total count', () => {
+    assert.deepEqual(buildResourceListPagination({
+        totalCount: 123,
+        page: 3,
+        pageSize: 50,
+    }), {
+        totalCount: 123,
+        page: 3,
+        pageSize: 50,
+        totalPages: 3,
+    });
+
+    assert.deepEqual(buildResourceListPagination({
+        totalCount: 0,
+        page: 1,
+        pageSize: 50,
+    }), {
+        totalCount: 0,
+        page: 1,
+        pageSize: 50,
+        totalPages: 0,
+    });
 });

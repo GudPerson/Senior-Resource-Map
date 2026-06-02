@@ -12,10 +12,12 @@ import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
 import { loadSingaporeFallbackRegion, resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
+    buildResourceListPagination,
     filterHardAssetsForResourceList,
     normalizeResourceListPagination,
     normalizeResourceListScope,
     paginateResourceList,
+    shouldUseDirectManagedResourcePagination,
 } from '../utils/resourceListScope.js';
 import { buildHardAssetSearchWhere } from '../utils/hardAssetSearch.js';
 import { attachHardAssetRegionMatches } from '../utils/regionScope.js';
@@ -1053,6 +1055,13 @@ async function triggerHardAssetTranslation(db, env, asset, user) {
     }
 }
 
+async function countHardAssetRows(db, where) {
+    const [row] = await db.select({
+        totalCount: sql`count(*)`.mapWith(Number),
+    }).from(hardAssets).where(where);
+    return Number(row?.totalCount || 0);
+}
+
 function sanitizeHardAssetPayload(body = {}) {
     return {
         ...body,
@@ -1153,6 +1162,66 @@ export const getHardAssets = async (c) => {
         const finalWhere = and(...whereClauses);
 
         const listOrder = [desc(hardAssets.updatedAt), desc(hardAssets.id)];
+        if (
+            summaryOnly
+            && shouldUseDirectManagedResourcePagination({ scope: listScope, actor: user })
+        ) {
+            const [totalCount, pagedAssetSummaries] = await Promise.all([
+                countHardAssetRows(db, finalWhere),
+                db.query.hardAssets.findMany({
+                    where: finalWhere,
+                    with: {
+                        partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                    },
+                    orderBy: listOrder,
+                    limit: pageSize,
+                    offset: (page - 1) * pageSize,
+                }),
+            ]);
+            const pagedAssetIds = pagedAssetSummaries.map((asset) => asset.id);
+            const candidatePostalCodes = [...new Set(pagedAssetSummaries.map((asset) => asset.postalCode).filter(Boolean))];
+            const regionRows = candidatePostalCodes.length > 0
+                ? await db.select({
+                    postalCode: subregionPostalCodes.postalCode,
+                    subregionId: subregionPostalCodes.subregionId,
+                })
+                    .from(subregionPostalCodes)
+                    .where(inArray(subregionPostalCodes.postalCode, candidatePostalCodes))
+                : [];
+            const pagedAssetsWithRegions = attachHardAssetRegionMatches(pagedAssetSummaries, regionRows, {
+                singaporeRegionId: singaporeRegion?.id,
+            });
+            const tagRows = pagedAssetIds.length > 0
+                ? await db.query.hardAssetTags.findMany({
+                    where: inArray(hardAssetTags.hardAssetId, pagedAssetIds),
+                    with: { tag: true },
+                })
+                : [];
+            const tagsByAssetId = new Map();
+            for (const row of tagRows) {
+                if (!tagsByAssetId.has(row.hardAssetId)) tagsByAssetId.set(row.hardAssetId, []);
+                if (row.tag?.name) tagsByAssetId.get(row.hardAssetId).push(row.tag.name);
+            }
+
+            const organizationContextsByResource = await loadOrganizationContextsForResources(
+                db,
+                pagedAssetIds.map((id) => ({ resourceType: 'hard', resourceId: id })),
+            );
+            const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, pagedAssetIds);
+            const formatted = pagedAssetsWithRegions.map((asset) => formatHardAssetListSummary(asset, {
+                boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
+                tags: tagsByAssetId.get(asset.id) || [],
+                organizationLinks: organizationContextsByResource.get(`hard:${asset.id}`) || [],
+                permissions: buildHardAssetPermissionSummary(user, asset),
+                membershipSummary: membershipSummariesByAssetId.get(asset.id) || null,
+            }));
+
+            return c.json({
+                data: formatted,
+                pagination: buildResourceListPagination({ totalCount, page, pageSize }),
+            });
+        }
+
         const candidateAssets = await db.query.hardAssets.findMany({
             where: finalWhere,
             with: {
