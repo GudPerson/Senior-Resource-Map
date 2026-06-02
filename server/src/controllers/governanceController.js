@@ -26,7 +26,9 @@ import {
 } from '../utils/auditTrail.js';
 import {
     buildAgreementCoverageSummary,
+    canManageOrganizationAccessRole,
     canManageOrganizationGovernance,
+    canRevokeOrganizationAccessRole,
     canViewOrganizationGovernance,
     isOrganizationDeletableDraft,
     isOrganizationOpenForNewRecords,
@@ -820,10 +822,10 @@ export const addOrganizationAccess = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        const { organization } = await loadManageableOrganization(db, actor, organizationId);
+        const { organization, accessRows } = await loadManageableOrganization(db, actor, organizationId);
         assertOrganizationOpenForNewRecords(organization, 'Adding organisation access');
-        if (accessRole === 'admin' && normalizeRole(actor?.role) !== 'super_admin') {
-            throw httpError('Only Super Admin can assign organisation admin access.', 403);
+        if (!canManageOrganizationAccessRole(actor, organization, accessRows, accessRole)) {
+            throw httpError('Only Organisation Admins and Super Admins can manage organisation access.', 403);
         }
         await assertOrganizationUserAssignment(db, organizationId, body.userId);
 
@@ -861,7 +863,7 @@ export const revokeOrganizationAccess = async (c) => {
         const membershipId = parsePositiveInt(c.req.param('membershipId'), 'membershipId');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await loadManageableOrganization(db, actor, organizationId);
+        const { organization, accessRows } = await loadManageableOrganization(db, actor, organizationId);
 
         const [membership] = await db.select().from(organizationAccessMemberships)
             .where(and(
@@ -871,8 +873,9 @@ export const revokeOrganizationAccess = async (c) => {
             ))
             .limit(1);
         if (!membership) throw httpError('Organisation access membership was not found.', 404);
-        if (membership.accessRole === 'admin' && normalizeRole(actor?.role) !== 'super_admin') {
-            throw httpError('Only Super Admin can revoke organisation admin access.', 403);
+        const revokeDecision = canRevokeOrganizationAccessRole(actor, organization, accessRows, membership);
+        if (!revokeDecision.allowed) {
+            throw httpError(revokeDecision.reason, 403);
         }
 
         const [updated] = await db.update(organizationAccessMemberships)
