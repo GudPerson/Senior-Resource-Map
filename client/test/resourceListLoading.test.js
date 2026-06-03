@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
+    fetchResourceListPageWithResilience,
     shouldHydrateAllAdminResourcePages,
     shouldUseFullResourceDataset,
     withResourceListSearchParam,
@@ -112,4 +113,33 @@ test('withResourceListSearchParam scopes full dataset loads to the active search
         scope: 'managed',
         regionScoped: true,
     });
+});
+
+test('fetchResourceListPageWithResilience retries a transient first-page failure', async () => {
+    let attempts = 0;
+    const result = await fetchResourceListPageWithResilience(async ({ page, pageSize }) => {
+        attempts += 1;
+        if (attempts === 1) {
+            throw new Error('temporary production resource page failure');
+        }
+
+        return {
+            data: [{ id: 18161, name: 'FRCS Active Ageing Centre' }],
+            pagination: {
+                page,
+                pageSize,
+                totalCount: 1,
+                totalPages: 1,
+            },
+        };
+    }, { scope: 'managed' }, {
+        page: 1,
+        pageSize: 50,
+        pageTimeoutMs: 100,
+        waitMs: async () => {},
+    });
+
+    assert.equal(attempts, 2);
+    assert.equal(result.pagination.totalCount, 1);
+    assert.deepEqual(result.data.map((asset) => asset.name), ['FRCS Active Ageing Centre']);
 });

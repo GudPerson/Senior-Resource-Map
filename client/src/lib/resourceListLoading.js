@@ -1,3 +1,7 @@
+import { fetchPaginatedResultPage } from './paginatedResults.js';
+
+export const RESOURCE_LIST_PAGE_LOAD_ATTEMPTS = 3;
+
 export function shouldUseFullResourceDataset({
     query = '',
     boundaryChecksEnabled = false,
@@ -34,4 +38,12 @@ export function shouldHydrateAllAdminResourcePages({
 export function withResourceListSearchParam(params = {}, query = '') {
     const normalizedQuery = String(query || '').trim();
     return normalizedQuery ? { ...params, q: normalizedQuery } : params;
+}
+
+export async function fetchResourceListPageWithResilience(fetchPage, params = {}, options = {}) {
+    const settings = typeof options === 'number' ? { pageSize: options } : options;
+    return fetchPaginatedResultPage(fetchPage, params, {
+        maxAttempts: RESOURCE_LIST_PAGE_LOAD_ATTEMPTS,
+        ...settings,
+    });
 }

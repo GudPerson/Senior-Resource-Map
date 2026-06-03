@@ -46,6 +46,7 @@ import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
+    fetchResourceListPageWithResilience,
     shouldUseFullResourceDataset,
     withResourceListSearchParam,
 } from '../../lib/resourceListLoading.js';
@@ -762,10 +763,18 @@ export default function ResourcesPage() {
             const requests = [
                 needsFullAssetDataset
                     ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
-                    : api.getHardAssets({ ...hardResourceListParams, page: hardAssetsPage, pageSize: hardAssetsPageSize, q: normalizedQuery }),
+                    : fetchResourceListPageWithResilience(
+                        api.getHardAssets,
+                        { ...hardResourceListParams, q: normalizedQuery },
+                        { page: hardAssetsPage, pageSize: hardAssetsPageSize },
+                    ),
                 needsFullAssetDataset
                     ? fetchAllPaginatedResults(api.getSoftAssets, fullResourceListParams)
-                    : api.getSoftAssets({ ...resourceListParams, page: softAssetsPage, pageSize: softAssetsPageSize, q: normalizedQuery }),
+                    : fetchResourceListPageWithResilience(
+                        api.getSoftAssets,
+                        { ...resourceListParams, q: normalizedQuery },
+                        { page: softAssetsPage, pageSize: softAssetsPageSize },
+                    ),
             ];
 
             if (canManageResourceTools) {
