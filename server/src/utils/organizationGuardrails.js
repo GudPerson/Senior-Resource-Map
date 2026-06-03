@@ -148,6 +148,71 @@ export async function loadOfferingsCoveredByHardAssetLinks(db, hardAssetIds = []
     return [...byId.values()];
 }
 
+export async function loadOfferingsCoveredByHardAssetLinksForOrganizations(db, hardIdsByOrganization = new Map()) {
+    const hardIdToOrganizationIds = new Map();
+    for (const [organizationId, hardAssetIds] of hardIdsByOrganization.entries()) {
+        const organizationKey = Number(organizationId);
+        if (!organizationKey) continue;
+        for (const hardAssetId of hardAssetIds || []) {
+            const hardKey = Number(hardAssetId);
+            if (!hardKey) continue;
+            if (!hardIdToOrganizationIds.has(hardKey)) hardIdToOrganizationIds.set(hardKey, []);
+            hardIdToOrganizationIds.get(hardKey).push(organizationKey);
+        }
+    }
+
+    const hardAssetIds = [...hardIdToOrganizationIds.keys()];
+    if (!hardAssetIds.length) return [];
+
+    const hostedRows = await db.select({
+        id: softAssets.id,
+        name: softAssets.name,
+        hostHardAssetId: softAssets.hostHardAssetId,
+    })
+        .from(softAssets)
+        .where(and(
+            inArray(softAssets.hostHardAssetId, hardAssetIds),
+            eq(softAssets.isDeleted, false),
+        ));
+
+    const linkedRows = await db.select({
+        id: softAssets.id,
+        name: softAssets.name,
+        hardAssetId: softAssetLocations.hardAssetId,
+    })
+        .from(softAssetLocations)
+        .innerJoin(softAssets, eq(softAssetLocations.softAssetId, softAssets.id))
+        .where(and(
+            inArray(softAssetLocations.hardAssetId, hardAssetIds),
+            eq(softAssets.isDeleted, false),
+        ));
+
+    const rows = [];
+    const seenKeys = new Set();
+    const addRow = (row, hardAssetId) => {
+        const hardKey = Number(hardAssetId);
+        const organizationIds = hardIdToOrganizationIds.get(hardKey) || [];
+        for (const organizationId of organizationIds) {
+            const key = `${organizationId}:${Number(row.id)}`;
+            if (seenKeys.has(key)) continue;
+            seenKeys.add(key);
+            rows.push({
+                id: row.id,
+                organizationId,
+                resourceType: 'soft',
+                resourceId: row.id,
+                resourceName: row.name,
+                coveredByHardAssetId: hardKey,
+                coverageSource: 'linked_place',
+            });
+        }
+    };
+
+    for (const row of hostedRows) addRow(row, row.hostHardAssetId);
+    for (const row of linkedRows) addRow(row, row.hardAssetId);
+    return rows;
+}
+
 async function loadHardAssetOperators(db, hardAssetIds) {
     const ids = [...new Set(hardAssetIds.map(Number).filter(Boolean))];
     if (!ids.length) return [];
@@ -163,6 +228,73 @@ async function loadHardAssetOperators(db, hardAssetIds) {
             inArray(hardAssetStaffMemberships.hardAssetId, ids),
             isNull(hardAssetStaffMemberships.revokedAt),
         ));
+}
+
+async function filterHardOrganizationResourceLinkCandidates(db, organizationId, candidates) {
+    const ids = [...new Set((candidates || []).map((candidate) => Number(candidate.id)).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const [resourceLinks, operators] = await Promise.all([
+        db.select({
+            id: organizationResourceLinks.id,
+            organizationId: organizationResourceLinks.organizationId,
+            organizationName: partnerOrganizations.name,
+            resourceType: organizationResourceLinks.resourceType,
+            resourceId: organizationResourceLinks.resourceId,
+            linkStatus: organizationResourceLinks.linkStatus,
+            unlinkedAt: organizationResourceLinks.unlinkedAt,
+        })
+            .from(organizationResourceLinks)
+            .innerJoin(partnerOrganizations, eq(organizationResourceLinks.organizationId, partnerOrganizations.id))
+            .where(and(
+                eq(organizationResourceLinks.resourceType, 'hard'),
+                inArray(organizationResourceLinks.resourceId, ids),
+                isNull(organizationResourceLinks.unlinkedAt),
+            )),
+        db.select({
+            hardAssetId: hardAssetStaffMemberships.hardAssetId,
+            userId: hardAssetStaffMemberships.userId,
+            userName: users.name,
+            username: users.username,
+            email: users.email,
+        })
+            .from(hardAssetStaffMemberships)
+            .innerJoin(users, eq(hardAssetStaffMemberships.userId, users.id))
+            .where(and(
+                inArray(hardAssetStaffMemberships.hardAssetId, ids),
+                isNull(hardAssetStaffMemberships.revokedAt),
+            )),
+    ]);
+
+    const membershipsByUserId = await loadOrganizationMembershipsForUserIds(
+        db,
+        operators.map((row) => row.userId),
+    );
+
+    const linksByResourceId = new Map();
+    for (const link of resourceLinks) {
+        const key = Number(link.resourceId);
+        if (!linksByResourceId.has(key)) linksByResourceId.set(key, []);
+        linksByResourceId.get(key).push(link);
+    }
+
+    const operatorsByHardAssetId = new Map();
+    for (const operator of operators) {
+        const key = Number(operator.hardAssetId);
+        if (!operatorsByHardAssetId.has(key)) operatorsByHardAssetId.set(key, []);
+        operatorsByHardAssetId.get(key).push(operator);
+    }
+
+    return (candidates || []).filter((candidate) => {
+        const resourceId = Number(candidate.id);
+        const result = evaluateResourceOrganizationLink({
+            targetOrganizationId: organizationId,
+            existingResourceLinks: linksByResourceId.get(resourceId) || [],
+            activeOperators: (operatorsByHardAssetId.get(resourceId) || [])
+                .map((row) => formatOperator(row, membershipsByUserId)),
+        });
+        return result.allowed;
+    });
 }
 
 async function loadSoftAssetOperators(db, softAssetId) {
@@ -286,6 +418,10 @@ export async function evaluateResourceOrganizationLinkEligibility(db, organizati
 }
 
 export async function filterOrganizationResourceLinkCandidates(db, organizationId, resourceType, candidates) {
+    if (resourceType === 'hard') {
+        return filterHardOrganizationResourceLinkCandidates(db, organizationId, candidates);
+    }
+
     const eligible = [];
     for (const candidate of candidates || []) {
         const result = await evaluateResourceOrganizationLinkEligibility(

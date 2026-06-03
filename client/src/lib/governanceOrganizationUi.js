@@ -104,3 +104,15 @@ export function formatCoveredOfferingExplanation(count = 0) {
     if (total === 1) return '1 programme or service is covered because its place is linked.';
     return `${total} programmes and services are covered because their places are linked.`;
 }
+
+export function formatGovernanceActionError(error, fallbackMessage = 'This action could not be completed.') {
+    const message = String(error?.message || '').trim();
+    const fallback = String(fallbackMessage || 'This action could not be completed.').trim();
+    if (!message) return fallback;
+
+    if (/too many subrequests|error connecting to database|failed to fetch|networkerror|network error/i.test(message)) {
+        return `${fallback} Refresh or try again in a moment.`;
+    }
+
+    return message;
+}

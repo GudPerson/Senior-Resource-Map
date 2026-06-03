@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     formatCoveredOfferingExplanation,
+    formatGovernanceActionError,
     getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
     getNewGovernanceRecordSubmitState,
@@ -114,5 +115,31 @@ test('covered offering explanation is plain language', () => {
     assert.equal(
         formatCoveredOfferingExplanation(2),
         '2 programmes and services are covered because their places are linked.',
+    );
+});
+
+test('governance action errors keep rule messages but hide infrastructure wording', () => {
+    assert.equal(
+        formatGovernanceActionError(
+            new Error('Every organisation needs at least one active Organisation Admin.'),
+            'Organisation access could not be changed.',
+        ),
+        'Every organisation needs at least one active Organisation Admin.',
+    );
+
+    assert.equal(
+        formatGovernanceActionError(
+            new Error('Error connecting to database: Too many subrequests by single Worker invocation.'),
+            'Organisation data could not be loaded.',
+        ),
+        'Organisation data could not be loaded. Refresh or try again in a moment.',
+    );
+
+    assert.equal(
+        formatGovernanceActionError(
+            new Error('Failed to fetch'),
+            'Linked resources could not be searched.',
+        ),
+        'Linked resources could not be searched. Refresh or try again in a moment.',
     );
 });

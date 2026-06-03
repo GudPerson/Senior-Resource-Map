@@ -14,6 +14,7 @@ import {
 } from '../../lib/governanceAgreementUi.js';
 import {
     formatCoveredOfferingExplanation,
+    formatGovernanceActionError,
     getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
     getNewGovernanceRecordSubmitState,
@@ -257,6 +258,33 @@ export default function GovernanceOrganizationsPanel({
     const [loadingResources, setLoadingResources] = useState(false);
     const [saving, setSaving] = useState(false);
     const [feedback, setFeedback] = useState(null);
+    const [sectionFeedback, setSectionFeedback] = useState({});
+
+    function showSectionFeedback(scope, nextFeedback) {
+        setFeedback(null);
+        setSectionFeedback((current) => ({
+            ...current,
+            [scope]: nextFeedback,
+        }));
+    }
+
+    function clearSectionFeedback(scope) {
+        setSectionFeedback((current) => {
+            if (!current[scope]) return current;
+            const next = { ...current };
+            delete next[scope];
+            return next;
+        });
+    }
+
+    function clearSectionErrorFeedback(scope) {
+        setSectionFeedback((current) => {
+            if (current[scope]?.type !== 'error') return current;
+            const next = { ...current };
+            delete next[scope];
+            return next;
+        });
+    }
 
     const isOrganizationWorkspace = workspaceMode === 'organization';
     const canCreateOrganization = showCreateControls && !readOnly;
@@ -321,8 +349,12 @@ export default function GovernanceOrganizationsPanel({
             const resolvedSelectedId = stillSelected ? nextSelectedId : items[0]?.id || null;
             setSelectedId(resolvedSelectedId);
             setOrgForm(normalizeOrgForm(items.find((organization) => Number(organization.id) === Number(resolvedSelectedId))));
+            setFeedback(null);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Organisations failed to load.' });
+            setFeedback({
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Organisations failed to load.'),
+            });
         } finally {
             setLoading(false);
         }
@@ -344,8 +376,12 @@ export default function GovernanceOrganizationsPanel({
         try {
             const data = await api.getGovernanceOrganizationAccessCandidates(organizationId, query);
             setAccessCandidates(Array.isArray(data?.candidates) ? data.candidates : []);
+            clearSectionErrorFeedback('access');
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Access candidates failed to load.' });
+            showSectionFeedback('access', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Access candidates failed to load.'),
+            });
         }
     }
 
@@ -358,8 +394,12 @@ export default function GovernanceOrganizationsPanel({
         try {
             const data = await api.getGovernanceOrganizationResourceCandidates(organizationId, resourceType, query);
             setResourceCandidates(Array.isArray(data?.candidates) ? data.candidates : []);
+            clearSectionErrorFeedback('resource');
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Resource candidates failed to load.' });
+            showSectionFeedback('resource', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Resource candidates failed to load.'),
+            });
         } finally {
             setLoadingResources(false);
         }
@@ -379,6 +419,7 @@ export default function GovernanceOrganizationsPanel({
         setResourceForm({ resourceType: 'hard' });
         setSelectedResources([]);
         setResourceQuery('');
+        setSectionFeedback({});
         loadAccessCandidates(selectedOrganization?.id || null, '');
         loadResourceCandidates(selectedOrganization?.id || null, 'hard', '');
     }, [selectedOrganization?.id]);
@@ -403,19 +444,22 @@ export default function GovernanceOrganizationsPanel({
         event.preventDefault();
         if (!canSaveProfile || (!selectedOrganization && !canCreateOrganization)) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('profile');
         try {
             if (selectedOrganization) {
                 await api.updateGovernanceOrganization(selectedOrganization.id, orgForm);
-                setFeedback({ type: 'success', message: 'Organisation profile updated.' });
+                showSectionFeedback('profile', { type: 'success', message: 'Organisation profile updated.' });
                 await loadOrganizations(selectedOrganization.id);
             } else {
                 const created = await api.createGovernanceOrganization(orgForm);
-                setFeedback({ type: 'success', message: 'Organisation created.' });
+                showSectionFeedback('profile', { type: 'success', message: 'Organisation created.' });
                 await loadOrganizations(created.id);
             }
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Organisation could not be saved.' });
+            showSectionFeedback('profile', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Organisation could not be saved.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -424,16 +468,19 @@ export default function GovernanceOrganizationsPanel({
     async function handleArchiveOrganization() {
         if (!selectedOrganization || !canArchiveOrganization) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('profile');
         try {
             await api.updateGovernanceOrganization(selectedOrganization.id, {
                 ...orgForm,
                 governanceStatus: 'archived',
             });
-            setFeedback({ type: 'success', message: 'Organisation archived. Existing history is retained.' });
+            showSectionFeedback('profile', { type: 'success', message: 'Organisation archived. Existing history is retained.' });
             await loadOrganizations(selectedOrganization.id);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Organisation could not be archived.' });
+            showSectionFeedback('profile', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Organisation could not be archived.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -444,15 +491,18 @@ export default function GovernanceOrganizationsPanel({
         const confirmed = window.confirm('Delete this empty draft organisation? This is only for unused draft records.');
         if (!confirmed) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('profile');
         try {
             await api.deleteGovernanceOrganization(selectedOrganization.id);
-            setFeedback({ type: 'success', message: 'Empty draft organisation deleted.' });
+            showSectionFeedback('profile', { type: 'success', message: 'Empty draft organisation deleted.' });
             setSelectedId(null);
             setOrgForm(EMPTY_ORG_FORM);
             await loadOrganizations(null);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Organisation could not be deleted.' });
+            showSectionFeedback('profile', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Organisation could not be deleted.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -462,7 +512,7 @@ export default function GovernanceOrganizationsPanel({
         event.preventDefault();
         if (!selectedOrganization || !canAddAccess || selectedAccessUsers.length === 0 || !organizationOpenForNewRecords) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('access');
         try {
             for (const option of selectedAccessUsers) {
                 await api.addGovernanceOrganizationAccess(selectedOrganization.id, {
@@ -470,12 +520,15 @@ export default function GovernanceOrganizationsPanel({
                     accessRole: accessForm.accessRole,
                 });
             }
-            setFeedback({ type: 'success', message: selectedAccessUsers.length === 1 ? 'Organisation access added.' : `${selectedAccessUsers.length} organisation access records added.` });
+            showSectionFeedback('access', { type: 'success', message: selectedAccessUsers.length === 1 ? 'Organisation access added.' : `${selectedAccessUsers.length} organisation access records added.` });
             setSelectedAccessUsers([]);
             await loadOrganizations(selectedOrganization.id);
             await loadAccessCandidates(selectedOrganization.id, accessQuery);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Organisation access could not be added.' });
+            showSectionFeedback('access', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Organisation access could not be added.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -484,14 +537,17 @@ export default function GovernanceOrganizationsPanel({
     async function handleRevokeAccess(membershipId) {
         if (!selectedOrganization || !membershipId || !canRevokeAccess) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('access');
         try {
             await api.revokeGovernanceOrganizationAccess(selectedOrganization.id, membershipId);
-            setFeedback({ type: 'success', message: 'Organisation access revoked.' });
+            showSectionFeedback('access', { type: 'success', message: 'Organisation access revoked.' });
             await loadOrganizations(selectedOrganization.id);
             await loadAccessCandidates(selectedOrganization.id);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Organisation access could not be revoked.' });
+            showSectionFeedback('access', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Organisation access could not be revoked.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -501,20 +557,23 @@ export default function GovernanceOrganizationsPanel({
         event.preventDefault();
         if (!selectedOrganization || !canSaveAgreement || (!editingAgreementId && !organizationOpenForNewRecords)) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('agreement');
         try {
             if (editingAgreementId) {
                 await api.updateGovernanceAgreement(selectedOrganization.id, editingAgreementId, buildAgreementPayload(agreementForm));
-                setFeedback({ type: 'success', message: 'Agreement reference updated.' });
+                showSectionFeedback('agreement', { type: 'success', message: 'Agreement reference updated.' });
             } else {
                 await api.createGovernanceAgreement(selectedOrganization.id, buildAgreementPayload(agreementForm));
-                setFeedback({ type: 'success', message: 'Agreement reference added.' });
+                showSectionFeedback('agreement', { type: 'success', message: 'Agreement reference added.' });
             }
             setAgreementForm(EMPTY_AGREEMENT_FORM);
             setEditingAgreementId(null);
             await loadOrganizations(selectedOrganization.id);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Agreement could not be saved.' });
+            showSectionFeedback('agreement', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Agreement could not be saved.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -523,13 +582,16 @@ export default function GovernanceOrganizationsPanel({
     async function handleRevokeAgreement(agreementId) {
         if (!selectedOrganization || !agreementId || !canRevokeAgreement) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('agreement');
         try {
             await api.revokeGovernanceAgreement(selectedOrganization.id, agreementId);
-            setFeedback({ type: 'success', message: 'Agreement reference revoked.' });
+            showSectionFeedback('agreement', { type: 'success', message: 'Agreement reference revoked.' });
             await loadOrganizations(selectedOrganization.id);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Agreement could not be revoked.' });
+            showSectionFeedback('agreement', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Agreement could not be revoked.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -543,7 +605,7 @@ export default function GovernanceOrganizationsPanel({
             resourceLinks: selectedOrganization.resourceLinks || [],
         });
         if (!opened) {
-            setFeedback({ type: 'error', message: 'The printable agreement window was blocked. Allow pop-ups for this site and try again.' });
+            showSectionFeedback('agreement', { type: 'error', message: 'The printable agreement window was blocked. Allow pop-ups for this site and try again.' });
         }
     }
 
@@ -551,7 +613,7 @@ export default function GovernanceOrganizationsPanel({
         event.preventDefault();
         if (!selectedOrganization || !canLinkResource || selectedResources.length === 0 || !organizationOpenForNewRecords) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('resource');
         try {
             for (const option of selectedResources) {
                 await api.linkGovernanceResource(selectedOrganization.id, {
@@ -559,12 +621,15 @@ export default function GovernanceOrganizationsPanel({
                     resourceId: option.value,
                 });
             }
-            setFeedback({ type: 'success', message: selectedResources.length === 1 ? 'Resource linked for agreement coverage.' : `${selectedResources.length} resources linked for agreement coverage.` });
+            showSectionFeedback('resource', { type: 'success', message: selectedResources.length === 1 ? 'Resource linked for agreement coverage.' : `${selectedResources.length} resources linked for agreement coverage.` });
             setSelectedResources([]);
             await loadOrganizations(selectedOrganization.id);
             await loadResourceCandidates(selectedOrganization.id, resourceForm.resourceType, resourceQuery);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Resource could not be linked.' });
+            showSectionFeedback('resource', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Resource could not be linked.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -573,13 +638,16 @@ export default function GovernanceOrganizationsPanel({
     async function handleUnlinkResource(linkId) {
         if (!selectedOrganization || !linkId || !canUnlinkResource) return;
         setSaving(true);
-        setFeedback(null);
+        clearSectionFeedback('resource');
         try {
             await api.unlinkGovernanceResource(selectedOrganization.id, linkId);
-            setFeedback({ type: 'success', message: 'Resource link removed.' });
+            showSectionFeedback('resource', { type: 'success', message: 'Resource link removed.' });
             await loadOrganizations(selectedOrganization.id);
         } catch (err) {
-            setFeedback({ type: 'error', message: err.message || 'Resource link could not be removed.' });
+            showSectionFeedback('resource', {
+                type: 'error',
+                message: formatGovernanceActionError(err, 'Resource link could not be removed.'),
+            });
         } finally {
             setSaving(false);
         }
@@ -664,6 +732,11 @@ export default function GovernanceOrganizationsPanel({
                                 <p className="text-sm text-slate-500">Governance metadata only. Asset editing still needs Asset Owner/Staff access.</p>
                             </div>
                         </div>
+                        {sectionFeedback.profile ? (
+                            <div className="mt-4">
+                                <Feedback feedback={sectionFeedback.profile} />
+                            </div>
+                        ) : null}
                         <div className="mt-5 grid gap-4 md:grid-cols-2">
                             <label className="space-y-1 md:col-span-2">
                                 <span className="text-sm font-bold text-slate-700">Organisation name</span>
@@ -760,6 +833,11 @@ export default function GovernanceOrganizationsPanel({
                                             <p className="text-sm text-slate-500">Admin manages this organisation. Staff can view context.</p>
                                         </div>
                                     </div>
+                                    {sectionFeedback.access ? (
+                                        <div className="mt-4">
+                                            <Feedback feedback={sectionFeedback.access} />
+                                        </div>
+                                    ) : null}
                                     {canAddAccess ? (
                                         <form onSubmit={handleAddAccess} className="mt-4 space-y-3">
                                             <label className="block space-y-1">
@@ -831,6 +909,11 @@ export default function GovernanceOrganizationsPanel({
                                             <p className="text-sm text-slate-500">Agreement coverage and reporting context only.</p>
                                         </div>
                                     </div>
+                                    {sectionFeedback.resource ? (
+                                        <div className="mt-4">
+                                            <Feedback feedback={sectionFeedback.resource} />
+                                        </div>
+                                    ) : null}
                                     {canLinkResource ? (
                                         <form onSubmit={handleLinkResource} className="mt-4 space-y-3">
                                             <label className="block space-y-1">
@@ -851,7 +934,7 @@ export default function GovernanceOrganizationsPanel({
                                                     }}
                                                     formatOptionLabel={renderSelectOption}
                                                     placeholder="Search resources to link..."
-                                                    noOptionsMessage={() => (loadingResources ? 'Searching resources...' : 'No resources found')}
+                                                    noOptionsMessage={() => (loadingResources ? 'Searching resources...' : 'No eligible resources found')}
                                                     isLoading={loadingResources}
                                                     isDisabled={saving || Boolean(resourceLockMessage)}
                                                 />
@@ -928,6 +1011,11 @@ export default function GovernanceOrganizationsPanel({
                                         <p className="text-sm text-slate-500">Create a printable agreement summary, then store the signed-copy link or file reference here.</p>
                                     </div>
                                 </div>
+                                {sectionFeedback.agreement ? (
+                                    <div className="mt-4">
+                                        <Feedback feedback={sectionFeedback.agreement} />
+                                    </div>
+                                ) : null}
                                 <div className="mt-5 rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
                                     <p className="text-sm font-black text-sky-900">How this works</p>
                                     <p className="mt-1 text-sm text-sky-800">

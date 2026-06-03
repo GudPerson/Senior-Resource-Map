@@ -52,7 +52,7 @@ import {
     assertResourceOrganizationLinkEligibility,
     filterOrganizationAccessCandidates,
     filterOrganizationResourceLinkCandidates,
-    loadOfferingsCoveredByHardAssetLinks,
+    loadOfferingsCoveredByHardAssetLinksForOrganizations,
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
 
@@ -455,14 +455,8 @@ async function listOrganizationDetails(db, organizations) {
     }
 
     const directSoftKeys = new Set(softLinks.map((link) => `${Number(link.organizationId)}:${Number(link.resourceId)}`));
-    const coveredOfferingRows = [];
-    for (const [organizationId, hardAssetIds] of hardIdsByOrganization.entries()) {
-        const coveredOfferings = await loadOfferingsCoveredByHardAssetLinks(db, hardAssetIds);
-        for (const offering of coveredOfferings) {
-            if (directSoftKeys.has(`${Number(organizationId)}:${Number(offering.resourceId)}`)) continue;
-            coveredOfferingRows.push({ ...offering, organizationId });
-        }
-    }
+    const coveredOfferingRows = (await loadOfferingsCoveredByHardAssetLinksForOrganizations(db, hardIdsByOrganization))
+        .filter((offering) => !directSoftKeys.has(`${Number(offering.organizationId)}:${Number(offering.resourceId)}`));
 
     return {
         access: groupByOrganization(access),
@@ -771,6 +765,7 @@ export const getOrganizationResourceCandidates = async (c) => {
 
         let rows = [];
         if (resourceType === 'hard') {
+            const hardCandidateScanLimit = query ? 250 : 1000;
             rows = await db.select({
                 id: hardAssets.id,
                 name: hardAssets.name,
@@ -789,7 +784,7 @@ export const getOrganizationResourceCandidates = async (c) => {
                         : undefined,
                 ))
                 .orderBy(hardAssets.name)
-                .limit(80);
+                .limit(hardCandidateScanLimit);
         } else if (resourceType === 'soft') {
             rows = await db.select({
                 id: softAssets.id,
@@ -839,6 +834,7 @@ export const getOrganizationResourceCandidates = async (c) => {
 
         return c.json({
             candidates: eligibleRows
+                .slice(0, 80)
                 .map((row) => formatResourceCandidate(row, resourceType))
                 .filter(Boolean),
         });

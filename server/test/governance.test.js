@@ -21,7 +21,11 @@ import {
     evaluateResourceOrganizationLink,
 } from '../src/utils/governance.js';
 import { organizationResourceLinks } from '../src/db/schema.js';
-import { loadOfferingsCoveredByHardAssetLinks } from '../src/utils/organizationGuardrails.js';
+import {
+    filterOrganizationResourceLinkCandidates,
+    loadOfferingsCoveredByHardAssetLinks,
+    loadOfferingsCoveredByHardAssetLinksForOrganizations,
+} from '../src/utils/organizationGuardrails.js';
 
 function createActor(overrides = {}) {
     return {
@@ -343,6 +347,132 @@ test('linked places cover hosted and linked offerings once for organisation cont
             coverageSource: 'linked_place',
         },
     ]);
+});
+
+test('linked place coverage can be loaded for multiple organisations in one batched pass', async () => {
+    let whereCalls = 0;
+    const fakeDb = {
+        select(selection) {
+            return {
+                from() {
+                    const query = {
+                        innerJoin() {
+                            return query;
+                        },
+                        where() {
+                            whereCalls += 1;
+                            if (selection.hostHardAssetId) {
+                                return Promise.resolve([
+                                    { id: 41, name: 'Hosted CHP', hostHardAssetId: 10 },
+                                    { id: 42, name: 'Duplicate Exercise', hostHardAssetId: 20 },
+                                ]);
+                            }
+                            if (selection.hardAssetId) {
+                                return Promise.resolve([
+                                    { id: 42, name: 'Duplicate Exercise', hardAssetId: 20 },
+                                    { id: 43, name: 'Linked Yoga', hardAssetId: 30 },
+                                ]);
+                            }
+                            return Promise.resolve([]);
+                        },
+                    };
+                    return query;
+                },
+            };
+        },
+    };
+
+    const rows = await loadOfferingsCoveredByHardAssetLinksForOrganizations(fakeDb, new Map([
+        [7, [10, 20]],
+        [8, [30]],
+    ]));
+
+    assert.equal(whereCalls, 2);
+    assert.deepEqual(rows, [
+        {
+            id: 41,
+            organizationId: 7,
+            resourceType: 'soft',
+            resourceId: 41,
+            resourceName: 'Hosted CHP',
+            coveredByHardAssetId: 10,
+            coverageSource: 'linked_place',
+        },
+        {
+            id: 42,
+            organizationId: 7,
+            resourceType: 'soft',
+            resourceId: 42,
+            resourceName: 'Duplicate Exercise',
+            coveredByHardAssetId: 20,
+            coverageSource: 'linked_place',
+        },
+        {
+            id: 43,
+            organizationId: 8,
+            resourceType: 'soft',
+            resourceId: 43,
+            resourceName: 'Linked Yoga',
+            coveredByHardAssetId: 30,
+            coverageSource: 'linked_place',
+        },
+    ]);
+});
+
+test('hard resource link candidates are evaluated from batched operator context', async () => {
+    let whereCalls = 0;
+    const fakeDb = {
+        select(selection) {
+            return {
+                from() {
+                    const query = {
+                        innerJoin() {
+                            return query;
+                        },
+                        where() {
+                            whereCalls += 1;
+                            if (selection.resourceType && selection.organizationName && selection.resourceId) {
+                                return Promise.resolve([]);
+                            }
+                            if (selection.hardAssetId && selection.userId && selection.userName) {
+                                return Promise.resolve([
+                                    {
+                                        hardAssetId: 2,
+                                        userId: 31,
+                                        userName: 'Alex',
+                                        username: 'alex',
+                                        email: 'alex@example.test',
+                                    },
+                                ]);
+                            }
+                            if (selection.organizationId && selection.organizationName && selection.accessRole) {
+                                return Promise.resolve([
+                                    {
+                                        organizationId: 7,
+                                        organizationName: 'Entrust',
+                                        userId: 31,
+                                        accessRole: 'staff',
+                                        revokedAt: null,
+                                    },
+                                ]);
+                            }
+                            return Promise.resolve([]);
+                        },
+                    };
+                    return query;
+                },
+            };
+        },
+    };
+
+    const rows = await filterOrganizationResourceLinkCandidates(fakeDb, 7, 'hard', [
+        { id: 1, name: 'No active operator' },
+        { id: 2, name: 'Eligible place' },
+        { id: 3, name: 'No active operator either' },
+    ]);
+
+    assert.equal(whereCalls, 3);
+    assert.deepEqual(rows.map((row) => row.id), [2]);
 });
 
 test('external notification channels remain disabled in V1 even when preferences are enabled', () => {
