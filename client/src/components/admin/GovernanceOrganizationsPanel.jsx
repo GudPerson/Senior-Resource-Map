@@ -13,6 +13,7 @@ import {
     openPrintableAgreement,
 } from '../../lib/governanceAgreementUi.js';
 import {
+    clearSectionFeedbackBySource,
     formatCoveredOfferingExplanation,
     formatGovernanceActionError,
     getOrganizationStatusBadgeMeta,
@@ -277,13 +278,8 @@ export default function GovernanceOrganizationsPanel({
         });
     }
 
-    function clearSectionErrorFeedback(scope) {
-        setSectionFeedback((current) => {
-            if (current[scope]?.type !== 'error') return current;
-            const next = { ...current };
-            delete next[scope];
-            return next;
-        });
+    function clearSectionErrorFeedback(scope, source) {
+        setSectionFeedback((current) => clearSectionFeedbackBySource(current, scope, source));
     }
 
     const isOrganizationWorkspace = workspaceMode === 'organization';
@@ -376,10 +372,11 @@ export default function GovernanceOrganizationsPanel({
         try {
             const data = await api.getGovernanceOrganizationAccessCandidates(organizationId, query);
             setAccessCandidates(Array.isArray(data?.candidates) ? data.candidates : []);
-            clearSectionErrorFeedback('access');
+            clearSectionErrorFeedback('access', 'candidates');
         } catch (err) {
             showSectionFeedback('access', {
                 type: 'error',
+                source: 'candidates',
                 message: formatGovernanceActionError(err, 'Access candidates failed to load.'),
             });
         }
@@ -394,10 +391,11 @@ export default function GovernanceOrganizationsPanel({
         try {
             const data = await api.getGovernanceOrganizationResourceCandidates(organizationId, resourceType, query);
             setResourceCandidates(Array.isArray(data?.candidates) ? data.candidates : []);
-            clearSectionErrorFeedback('resource');
+            clearSectionErrorFeedback('resource', 'candidates');
         } catch (err) {
             showSectionFeedback('resource', {
                 type: 'error',
+                source: 'candidates',
                 message: formatGovernanceActionError(err, 'Resource candidates failed to load.'),
             });
         } finally {

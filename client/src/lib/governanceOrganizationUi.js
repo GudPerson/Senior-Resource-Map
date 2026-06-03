@@ -98,6 +98,17 @@ export function isGovernanceControlVisible({ readOnly = false, control = '' } = 
     return !(readOnly && READ_ONLY_HIDDEN_CONTROLS.has(control));
 }
 
+export function clearSectionFeedbackBySource(currentFeedback = {}, scope = '', source = '') {
+    const feedback = currentFeedback?.[scope];
+    if (!feedback || feedback.type !== 'error' || feedback.source !== source) {
+        return currentFeedback;
+    }
+
+    const nextFeedback = { ...currentFeedback };
+    delete nextFeedback[scope];
+    return nextFeedback;
+}
+
 export function formatCoveredOfferingExplanation(count = 0) {
     const total = Number(count) || 0;
     if (total <= 0) return '';

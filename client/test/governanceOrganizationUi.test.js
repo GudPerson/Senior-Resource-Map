@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    clearSectionFeedbackBySource,
     formatCoveredOfferingExplanation,
     formatGovernanceActionError,
     getOrganizationStatusBadgeMeta,
@@ -141,5 +142,29 @@ test('governance action errors keep rule messages but hide infrastructure wordin
             'Linked resources could not be searched.',
         ),
         'Linked resources could not be searched. Refresh or try again in a moment.',
+    );
+});
+
+test('candidate refreshes do not clear organisation action errors', () => {
+    const finalAdminFeedback = {
+        access: {
+            type: 'error',
+            message: 'Every organisation needs at least one active Organisation Admin.',
+        },
+    };
+    assert.equal(
+        clearSectionFeedbackBySource(finalAdminFeedback, 'access', 'candidates'),
+        finalAdminFeedback,
+    );
+
+    assert.deepEqual(
+        clearSectionFeedbackBySource({
+            access: {
+                type: 'error',
+                source: 'candidates',
+                message: 'Access candidates failed to load.',
+            },
+        }, 'access', 'candidates'),
+        {},
     );
 });
