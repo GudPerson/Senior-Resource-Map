@@ -33,3 +33,15 @@ test('dashboard overview launchpad uses document links, not JS-only buttons', ()
     assert.equal(source.includes('useNavigate'), false);
     assert.equal(source.includes('onClick={() => navigate(item.to)}'), false);
 });
+
+test('dashboard overview includes audit trail card for users with audit access', () => {
+    const source = readClientSource('pages/dashboard/DashboardOverview.jsx');
+
+    assert.match(source, /canAccessAuditTrail/);
+    assert.match(source, /const canShowAudit = canAccessAuditTrail\(user\);/);
+    assert.match(source, /id: 'dash-audit'/);
+    assert.match(source, /to: '\/dashboard\/audit'/);
+    assert.match(source, /icon: ScrollText/);
+    assert.match(source, /title: t\('auditTrailTitle'\)/);
+    assert.match(source, /description: t\('overviewAuditDescription'\)/);
+});
