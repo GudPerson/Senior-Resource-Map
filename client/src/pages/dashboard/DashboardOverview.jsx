@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Files, User, Shield, Map, ArrowRight } from 'lucide-react';
+import { BookOpen, Files, User, Shield, Map, ArrowRight, ScrollText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { canAccessAdmin, canAccessManagedResources, getRoleMeta } from '../../lib/roles.js';
+import { canAccessAdmin, canAccessAuditTrail, canAccessManagedResources, getRoleMeta } from '../../lib/roles.js';
 
 export default function DashboardOverview() {
     const { user } = useAuth();
     const { t } = useLocale();
     const roleMeta = getRoleMeta(user?.role);
     const canShowAdmin = canAccessAdmin(user?.role);
+    const canShowAudit = canAccessAuditTrail(user);
     const canShowResources = canAccessManagedResources(user);
     
     const launchpadItems = [
@@ -56,6 +57,15 @@ export default function DashboardOverview() {
             description: t('overviewAdminDescription'),
             color: '#b91c1c',
             bg: 'rgba(185, 28, 28, 0.08)',
+        }] : []),
+        ...(canShowAudit ? [{
+            id: 'dash-audit',
+            to: '/dashboard/audit',
+            icon: ScrollText,
+            title: t('auditTrailTitle'),
+            description: t('overviewAuditDescription'),
+            color: '#0f766e',
+            bg: 'rgba(15, 118, 110, 0.08)',
         }] : [])
     ];
 

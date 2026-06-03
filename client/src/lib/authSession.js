@@ -1,4 +1,6 @@
 export const SESSION_FETCH_TIMEOUT_MS = 5_000;
+export const EMPTY_SESSION_RECHECK_ATTEMPTS = 2;
+export const EMPTY_SESSION_RECHECK_DELAY_MS = 350;
 
 export class SessionRequestTimeoutError extends Error {
     constructor(timeoutMs) {
@@ -18,6 +20,16 @@ export function isDefinitiveSignedOutSessionResponse(response, data = null) {
         || error === 'invalid token'
         || error.includes('session expired')
         || error.includes('token is invalid');
+}
+
+export function isAmbiguousEmptySessionResponse(response, data = null) {
+    const status = Number(response?.status);
+    return status >= 200
+        && status < 300
+        && data
+        && typeof data === 'object'
+        && data.user === null
+        && !data.error;
 }
 
 export function resolveUserAfterSessionCheckFailure(currentUser, failure = {}) {

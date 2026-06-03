@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    EMPTY_SESSION_RECHECK_ATTEMPTS,
     fetchSessionJsonWithTimeout,
+    isAmbiguousEmptySessionResponse,
     resolveImpersonationSessionFailure,
     resolveUserAfterSessionCheckFailure,
     SessionRequestTimeoutError,
@@ -26,6 +28,31 @@ test('session fetch returns parsed JSON when auth endpoint responds in time', as
 
     assert.equal(result.isJson, true);
     assert.deepEqual(result.data, { user: null });
+});
+
+test('successful empty session responses are ambiguous and should be rechecked', () => {
+    assert.equal(
+        isAmbiguousEmptySessionResponse(
+            new Response(JSON.stringify({ user: null }), { status: 200 }),
+            { user: null },
+        ),
+        true,
+    );
+    assert.equal(
+        isAmbiguousEmptySessionResponse(
+            new Response(JSON.stringify({ error: 'No token provided' }), { status: 401 }),
+            { error: 'No token provided' },
+        ),
+        false,
+    );
+    assert.equal(
+        isAmbiguousEmptySessionResponse(
+            new Response(JSON.stringify({ user: { id: 42 } }), { status: 200 }),
+            { user: { id: 42 } },
+        ),
+        false,
+    );
+    assert.ok(EMPTY_SESSION_RECHECK_ATTEMPTS >= 1);
 });
 
 test('background session check failures preserve the current signed-in user', () => {

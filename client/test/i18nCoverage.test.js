@@ -35,6 +35,7 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'discoveryRecommendedForYou',
         'discoveryRecommendedForThisLocation',
         'overviewResourcesTitle',
+        'overviewAuditDescription',
         'profileTitle',
         'organisationWorkspaceTitle',
         'getDirectionsShort',

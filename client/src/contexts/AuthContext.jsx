@@ -2,7 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
 import { getSessionApiBaseCandidates } from '../lib/apiBase.js';
 import {
+    EMPTY_SESSION_RECHECK_ATTEMPTS,
+    EMPTY_SESSION_RECHECK_DELAY_MS,
     fetchSessionJsonWithTimeout,
+    isAmbiguousEmptySessionResponse,
     isDefinitiveSignedOutSessionResponse,
     resolveImpersonationSessionFailure,
     resolveUserAfterSessionCheckFailure,
@@ -24,6 +27,12 @@ function AuthLoadingFallback() {
     );
 }
 
+function sleep(ms) {
+    return new Promise((resolve) => {
+        globalThis.setTimeout(resolve, ms);
+    });
+}
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -38,43 +47,54 @@ export function AuthProvider({ children }) {
         const hasImpersonationToken = Boolean(getImpersonationToken());
 
         try {
-            for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
-                try {
-                    const { response, data, isJson } = await fetchSessionJsonWithTimeout(`${BASE_CANDIDATES[i]}/auth/me`, {
-                        headers: getSessionAuthHeaders(),
-                        credentials: 'include'
-                    });
-                    if (!isJson) {
-                        if (i < BASE_CANDIDATES.length - 1) continue;
-                        console.error('Auth session endpoint returned non-JSON response.');
-                        const preservedUser = resolveUserAfterSessionCheckFailure(userRef.current);
-                        setCurrentUser(preservedUser);
-                        return preservedUser;
-                    }
-                    if (!response.ok) {
-                        if (isDefinitiveSignedOutSessionResponse(response, data)) {
-                            if (hasImpersonationToken && allowImpersonationFallback) {
-                                const resolution = resolveImpersonationSessionFailure(userRef.current, { response, data });
-                                if (resolution.clearToken) clearImpersonationToken();
-                                if (resolution.retryNormalSession) return await checkSession(false);
-                                setCurrentUser(resolution.user);
-                                return resolution.user;
-                            }
-                            setCurrentUser(null);
-                            return null;
+            sessionCheck:
+            for (let sessionAttempt = 0; sessionAttempt <= EMPTY_SESSION_RECHECK_ATTEMPTS; sessionAttempt += 1) {
+                for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
+                    try {
+                        const { response, data, isJson } = await fetchSessionJsonWithTimeout(`${BASE_CANDIDATES[i]}/auth/me`, {
+                            headers: getSessionAuthHeaders(),
+                            credentials: 'include'
+                        });
+                        if (!isJson) {
+                            if (i < BASE_CANDIDATES.length - 1) continue;
+                            console.error('Auth session endpoint returned non-JSON response.');
+                            const preservedUser = resolveUserAfterSessionCheckFailure(userRef.current);
+                            setCurrentUser(preservedUser);
+                            return preservedUser;
                         }
+                        if (!response.ok) {
+                            if (isDefinitiveSignedOutSessionResponse(response, data)) {
+                                if (hasImpersonationToken && allowImpersonationFallback) {
+                                    const resolution = resolveImpersonationSessionFailure(userRef.current, { response, data });
+                                    if (resolution.clearToken) clearImpersonationToken();
+                                    if (resolution.retryNormalSession) return await checkSession(false);
+                                    setCurrentUser(resolution.user);
+                                    return resolution.user;
+                                }
+                                setCurrentUser(null);
+                                return null;
+                            }
+                            if (i < BASE_CANDIDATES.length - 1) continue;
+                            throw new Error(data?.error || 'Session check failed');
+                        }
+                        if (data.user) {
+                            setCurrentUser(data.user);
+                            return data.user;
+                        }
+                        if (
+                            isAmbiguousEmptySessionResponse(response, data)
+                            && sessionAttempt < EMPTY_SESSION_RECHECK_ATTEMPTS
+                        ) {
+                            await sleep(EMPTY_SESSION_RECHECK_DELAY_MS * (sessionAttempt + 1));
+                            continue sessionCheck;
+                        }
+                        break;
+                    } catch (err) {
                         if (i < BASE_CANDIDATES.length - 1) continue;
-                        throw new Error(data?.error || 'Session check failed');
+                        throw err;
                     }
-                    if (data.user) {
-                        setCurrentUser(data.user);
-                        return data.user;
-                    }
-                    break;
-                } catch (err) {
-                    if (i < BASE_CANDIDATES.length - 1) continue;
-                    throw err;
                 }
+                break;
             }
 
             if (hasImpersonationToken && allowImpersonationFallback) {
