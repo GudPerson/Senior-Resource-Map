@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
+    shouldHydrateAllAdminResourcePages,
     shouldUseFullResourceDataset,
     withResourceListSearchParam,
 } from '../src/lib/resourceListLoading.js';
@@ -86,6 +87,12 @@ test('buildManagedHardResourceListParams requests lean summaries for managed har
         canManageResourceTools: false,
         role: 'regional_admin',
     }), {});
+});
+
+test('regional admin admin-resource loads do not eagerly hydrate every resource page', () => {
+    assert.equal(shouldHydrateAllAdminResourcePages({ role: 'regional_admin' }), false);
+    assert.equal(shouldHydrateAllAdminResourcePages({ role: 'super_admin' }), true);
+    assert.equal(shouldHydrateAllAdminResourcePages({ role: 'standard' }), true);
 });
 
 test('withResourceListSearchParam scopes full dataset loads to the active search query', () => {

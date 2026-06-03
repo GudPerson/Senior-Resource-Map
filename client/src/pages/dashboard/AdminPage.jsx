@@ -12,7 +12,7 @@ import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.j
 import Pagination from '../../components/Pagination.jsx';
 import { buildBoundaryStatusFilterOptions, normalizeBoundaryStatusFilterValue } from '../../lib/adminBoundaryFilters.js';
 import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../lib/paginatedResults.js';
-import { buildManagedHardResourceListParams, buildManagedResourceListParams } from '../../lib/resourceListLoading.js';
+import { buildManagedHardResourceListParams, buildManagedResourceListParams, shouldHydrateAllAdminResourcePages } from '../../lib/resourceListLoading.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
@@ -394,6 +394,7 @@ async function fetchAllAdminResources(options = {}) {
     ]);
     const hardFirst = hardFirstResult.status === 'fulfilled' ? hardFirstResult.value : null;
     const softFirst = softFirstResult.status === 'fulfilled' ? softFirstResult.value : null;
+    const shouldHydrateAllPages = shouldHydrateAllAdminResourcePages({ role });
 
     if (!hardFirst && !softFirst) {
         throw createAdminResourceInitialLoadError([hardFirstResult, softFirstResult]);
@@ -407,6 +408,18 @@ async function fetchAllAdminResources(options = {}) {
             items: formatAdminResources(hardFirst?.data || [], softFirst?.data || []),
             totalCount: partialTotalCount,
         });
+    }
+
+    if (!shouldHydrateAllPages) {
+        const partialTotalCount = hardFirst && softFirst
+            ? (hardFirst.pagination.totalCount || 0) + (softFirst.pagination.totalCount || 0)
+            : null;
+        return {
+            items: formatAdminResources(hardFirst?.data || [], softFirst?.data || []),
+            totalCount: partialTotalCount,
+            isPartial: false,
+            failedPageCount: 0,
+        };
     }
 
     const [hard, soft] = await Promise.all([
