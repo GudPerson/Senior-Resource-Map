@@ -23,6 +23,7 @@ import {
 import { organizationResourceLinks } from '../src/db/schema.js';
 import {
     filterOrganizationResourceLinkCandidates,
+    loadHardOrganizationResourceLinkCandidateSeeds,
     loadOfferingsCoveredByHardAssetLinks,
     loadOfferingsCoveredByHardAssetLinksForOrganizations,
 } from '../src/utils/organizationGuardrails.js';
@@ -473,6 +474,64 @@ test('hard resource link candidates are evaluated from batched operator context'
 
     assert.equal(whereCalls, 3);
     assert.deepEqual(rows.map((row) => row.id), [2]);
+});
+
+test('blank hard resource dropdown seeds candidates from organisation access users', async () => {
+    const queriedUserIds = [];
+    const fakeDb = {
+        select(selection) {
+            return {
+                from() {
+                    const query = {
+                        innerJoin() {
+                            return query;
+                        },
+                        where(condition) {
+                            queriedUserIds.push(condition);
+                            return query;
+                        },
+                        orderBy() {
+                            return query;
+                        },
+                        limit() {
+                            if (selection.id && selection.name && selection.address && selection.postalCode) {
+                                return Promise.resolve([
+                                    {
+                                        id: 18959,
+                                        name: 'Precious Active Ageing Centre (Punggol Emerald)',
+                                        address: 'Blk 264A Punggol Way #01-306 Singapore 821264',
+                                        postalCode: '821264',
+                                    },
+                                    {
+                                        id: 18959,
+                                        name: 'Precious Active Ageing Centre (Punggol Emerald)',
+                                        address: 'Duplicate active membership should not duplicate the candidate',
+                                        postalCode: '821264',
+                                    },
+                                    {
+                                        id: 33556,
+                                        name: 'Precious Active Ageing Centre (Sunshine Gardens)',
+                                        address: 'Blk 488B Choa Chu Kang Avenue 5 #01-145 Singapore 682488',
+                                        postalCode: '682488',
+                                    },
+                                ]);
+                            }
+                            return Promise.resolve([]);
+                        },
+                    };
+                    return query;
+                },
+            };
+        },
+    };
+
+    const rows = await loadHardOrganizationResourceLinkCandidateSeeds(fakeDb, [
+        { userId: 124, accessRole: 'staff' },
+        { userId: 126, accessRole: 'admin' },
+    ]);
+
+    assert.equal(queriedUserIds.length, 1);
+    assert.deepEqual(rows.map((row) => row.id), [18959, 33556]);
 });
 
 test('external notification channels remain disabled in V1 even when preferences are enabled', () => {

@@ -52,6 +52,7 @@ import {
     assertResourceOrganizationLinkEligibility,
     filterOrganizationAccessCandidates,
     filterOrganizationResourceLinkCandidates,
+    loadHardOrganizationResourceLinkCandidateSeeds,
     loadOfferingsCoveredByHardAssetLinksForOrganizations,
 } from '../utils/organizationGuardrails.js';
 import { normalizeRole } from '../utils/roles.js';
@@ -761,30 +762,31 @@ export const getOrganizationResourceCandidates = async (c) => {
         const query = cleanOneLineText(c.req.query('q') || '', 100);
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await loadManageableOrganization(db, actor, organizationId);
+        const { accessRows } = await loadManageableOrganization(db, actor, organizationId);
 
         let rows = [];
         if (resourceType === 'hard') {
-            const hardCandidateScanLimit = query ? 250 : 1000;
-            rows = await db.select({
-                id: hardAssets.id,
-                name: hardAssets.name,
-                address: hardAssets.address,
-                postalCode: hardAssets.postalCode,
-            })
-                .from(hardAssets)
-                .where(and(
-                    eq(hardAssets.isDeleted, false),
-                    query
-                        ? or(
+            if (!query) {
+                rows = await loadHardOrganizationResourceLinkCandidateSeeds(db, accessRows);
+            } else {
+                rows = await db.select({
+                    id: hardAssets.id,
+                    name: hardAssets.name,
+                    address: hardAssets.address,
+                    postalCode: hardAssets.postalCode,
+                })
+                    .from(hardAssets)
+                    .where(and(
+                        eq(hardAssets.isDeleted, false),
+                        or(
                             ilike(hardAssets.name, `%${query}%`),
                             ilike(hardAssets.address, `%${query}%`),
                             ilike(hardAssets.postalCode, `%${query}%`),
-                        )
-                        : undefined,
-                ))
-                .orderBy(hardAssets.name)
-                .limit(hardCandidateScanLimit);
+                        ),
+                    ))
+                    .orderBy(hardAssets.name)
+                    .limit(250);
+            }
         } else if (resourceType === 'soft') {
             rows = await db.select({
                 id: softAssets.id,

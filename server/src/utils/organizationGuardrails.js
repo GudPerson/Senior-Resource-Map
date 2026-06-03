@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import {
+    hardAssets,
     hardAssetStaffMemberships,
     organizationAccessMemberships,
     organizationResourceLinks,
@@ -211,6 +212,37 @@ export async function loadOfferingsCoveredByHardAssetLinksForOrganizations(db, h
     for (const row of hostedRows) addRow(row, row.hostHardAssetId);
     for (const row of linkedRows) addRow(row, row.hardAssetId);
     return rows;
+}
+
+export async function loadHardOrganizationResourceLinkCandidateSeeds(db, accessRows = [], options = {}) {
+    const accessUserIds = [...new Set((accessRows || [])
+        .map((row) => Number(row?.userId))
+        .filter(Boolean))];
+    if (!accessUserIds.length) return [];
+
+    const rows = await db.select({
+        id: hardAssets.id,
+        name: hardAssets.name,
+        address: hardAssets.address,
+        postalCode: hardAssets.postalCode,
+    })
+        .from(hardAssetStaffMemberships)
+        .innerJoin(hardAssets, eq(hardAssetStaffMemberships.hardAssetId, hardAssets.id))
+        .where(and(
+            inArray(hardAssetStaffMemberships.userId, accessUserIds),
+            isNull(hardAssetStaffMemberships.revokedAt),
+            eq(hardAssets.isDeleted, false),
+        ))
+        .orderBy(hardAssets.name)
+        .limit(options.limit || 240);
+
+    const byId = new Map();
+    for (const row of rows) {
+        const key = Number(row.id);
+        if (!key || byId.has(key)) continue;
+        byId.set(key, row);
+    }
+    return [...byId.values()];
 }
 
 async function loadHardAssetOperators(db, hardAssetIds) {
