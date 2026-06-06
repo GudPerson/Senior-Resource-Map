@@ -419,6 +419,7 @@ export const api = {
     bulkCreateUsers: (body) => request('POST', '/users/bulk', body),
     updateRole: (id, role) => request('PUT', `/users/${id}/role`, { role }),
     updateUserManager: (id, managerUserId) => request('PUT', `/users/${id}/manager`, { managerUserId }),
+    updateUserRegionScope: (id, subregionIds) => request('PUT', `/users/${id}/region-scope`, { subregionIds }),
 
     deleteUser: (id) => request('DELETE', `/users/${id}`),
     updateMe: (body) => request('PUT', '/users/me', body),

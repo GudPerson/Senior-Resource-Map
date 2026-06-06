@@ -36,6 +36,12 @@ router.put('/:id/manager',
     userController.updateUserManager
 );
 
+router.put('/:id/region-scope',
+    authenticateToken,
+    authorize('super_admin'),
+    userController.updateUserRegionScope
+);
+
 router.delete('/:id',
     authenticateToken,
     authorize('super_admin', 'regional_admin', 'partner'),

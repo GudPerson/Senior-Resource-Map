@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { subregions, users, userSubregions } from '../db/schema.js';
@@ -15,6 +15,7 @@ import { loadSoftAssetStaffAccessForUser } from '../utils/softAssetAccess.js';
 import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizePropertyType, normalizeYesNo } from '../utils/profileAttributes.js';
 import { ensurePartnerOrganizationForLegacyPartner } from '../utils/partnerOrganizations.js';
 import { isPhoneOnlyPlaceholderEmail } from '../utils/phoneLogin.js';
+import { normalizeAdminRegionScopeIds, validateAdminRegionScopeUpdate } from '../utils/adminRegionScope.js';
 import {
     optionalOneLineTextSchema,
     validateRequestBody,
@@ -286,6 +287,78 @@ async function loadUserByReference(db, { userId, username }) {
     const [row] = await db.select({ id: users.id }).from(users).where(eq(users.username, normalizedUsername));
     if (!row) return null;
     return await loadUserWithSubregions(db, row.id);
+}
+
+async function loadDirectlyManagedUsersForRegionScope(db, managerUserId) {
+    const rows = await db.query.users.findMany({
+        where: eq(users.managerUserId, managerUserId),
+        columns: {
+            id: true,
+            username: true,
+            name: true,
+            role: true,
+            managerUserId: true,
+        },
+        with: {
+            subregions: {
+                columns: {
+                    subregionId: true,
+                },
+                with: {
+                    subregion: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            subregionCode: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    return rows.map((row) => ({
+        ...row,
+        subregionIds: row.subregions.map((item) => item.subregionId),
+        derivedSubregionId: row.subregions[0]?.subregion?.id || null,
+        derivedSubregionCode: row.subregions[0]?.subregion?.subregionCode || null,
+        derivedSubregionName: row.subregions[0]?.subregion?.name || null,
+    }));
+}
+
+async function ensureRegionScopeIdsExist(db, subregionIds) {
+    const normalizedIds = normalizeAdminRegionScopeIds(subregionIds);
+    if (normalizedIds.length === 0) return normalizedIds;
+
+    const rows = await db.select({ id: subregions.id })
+        .from(subregions)
+        .where(inArray(subregions.id, normalizedIds));
+    const found = new Set(rows.map((row) => Number(row.id)));
+    const missing = normalizedIds.filter((id) => !found.has(id));
+
+    if (missing.length > 0) {
+        throw accessError(`Unknown region scope id: ${missing.join(', ')}`, 400);
+    }
+
+    return normalizedIds;
+}
+
+async function replaceUserRegionScope(db, userId, subregionIds) {
+    const writeScope = async (runner) => {
+        await runner.delete(userSubregions).where(eq(userSubregions.userId, userId));
+        if (subregionIds.length > 0) {
+            await runner.insert(userSubregions).values(
+                subregionIds.map((subregionId) => ({ userId, subregionId })),
+            );
+        }
+    };
+
+    if (typeof db.transaction === 'function') {
+        await db.transaction(writeScope);
+        return;
+    }
+
+    await writeScope(db);
 }
 
 function ensureSubregionWithinManagerScope(managerUser, derivedSubregionId) {
@@ -831,6 +904,45 @@ export const updateUserManager = async (c) => {
     } catch (err) {
         console.error('updateUserManager Error:', err);
         return c.json({ error: err.message || 'Failed to update ownership.' }, err.status || 500);
+    }
+};
+
+export const updateUserRegionScope = async (c) => {
+    try {
+        const creator = c.get('user');
+        if (normalizeRole(creator.role) !== 'super_admin') {
+            return c.json({ error: 'Only Super Admins can manage Admin region scope.' }, 403);
+        }
+
+        const id = Number.parseInt(c.req.param('id'), 10);
+        if (!Number.isInteger(id)) {
+            return c.json({ error: 'Invalid user id.' }, 400);
+        }
+
+        const body = await c.req.json();
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db);
+
+        const targetUser = await loadUserWithSubregions(db, id);
+        if (!targetUser) return c.json({ error: 'User not found.' }, 404);
+
+        const requestedSubregionIds = await ensureRegionScopeIdsExist(db, body.subregionIds);
+        const managedUsers = await loadDirectlyManagedUsersForRegionScope(db, id);
+        const { subregionIds } = validateAdminRegionScopeUpdate({
+            actor: creator,
+            targetUser,
+            subregionIds: requestedSubregionIds,
+            managedUsers,
+        });
+
+        await replaceUserRegionScope(db, id, subregionIds);
+
+        const updated = await loadUserWithSubregions(db, id);
+        return c.json(buildUserResponse(updated, await loadScopedBoundaryContext(db, creator)));
+    } catch (err) {
+        console.error('updateUserRegionScope Error:', err);
+        return c.json({ error: err.message || 'Failed to update Admin region scope.' }, err.status || 500);
     }
 };
 

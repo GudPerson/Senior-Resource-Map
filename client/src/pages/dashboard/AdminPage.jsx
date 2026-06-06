@@ -323,6 +323,25 @@ function getRegionScopeSummary(userRecord) {
     };
 }
 
+function normalizeRegionScopeIdList(ids) {
+    if (!Array.isArray(ids)) return [];
+    const seen = new Set();
+    const normalized = [];
+    ids.forEach((value) => {
+        const id = Number.parseInt(String(value), 10);
+        if (Number.isInteger(id) && id > 0 && !seen.has(id)) {
+            seen.add(id);
+            normalized.push(id);
+        }
+    });
+    return normalized;
+}
+
+function getSubregionDisplayLabel(subregion) {
+    const name = subregion?.name || 'Unnamed region';
+    return subregion?.subregionCode ? `${name} (${subregion.subregionCode})` : name;
+}
+
 function sanitizeCsvCell(value) {
     if (value === undefined || value === null) return '';
     const text = String(value).trim();
@@ -587,6 +606,10 @@ export default function AdminPage() {
     const [partnerBoundaryModalUser, setPartnerBoundaryModalUser] = useState(null);
     const [partnerBoundaryData, setPartnerBoundaryData] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
+    const [regionScopeModalUser, setRegionScopeModalUser] = useState(null);
+    const [regionScopeSelection, setRegionScopeSelection] = useState([]);
+    const [regionScopeFeedback, setRegionScopeFeedback] = useState(null);
+    const [regionScopeSaving, setRegionScopeSaving] = useState(false);
     const [resourcePage, setResourcePage] = useState(1);
     const [resourcePageSize] = useState(50);
     const canEditUserRoles = canChangeUserRoles(currentRole);
@@ -886,6 +909,67 @@ export default function AdminPage() {
                 message: err.message || 'Unable to open the selected account.',
                 details: []
             });
+        }
+    }
+
+    function canManageRegionScope(targetUser) {
+        return currentRole === 'super_admin'
+            && normalizeRole(targetUser?.role) === 'regional_admin'
+            && targetUser?.id !== currentUser?.id;
+    }
+
+    function openRegionScopeManager(targetUser) {
+        if (!canManageRegionScope(targetUser)) return;
+        setRegionScopeModalUser(targetUser);
+        setRegionScopeSelection(normalizeRegionScopeIdList(targetUser.subregionIds));
+        setRegionScopeFeedback(null);
+    }
+
+    function closeRegionScopeManager() {
+        if (regionScopeSaving) return;
+        setRegionScopeModalUser(null);
+        setRegionScopeSelection([]);
+        setRegionScopeFeedback(null);
+    }
+
+    function toggleRegionScopeSelection(subregionId) {
+        const id = Number.parseInt(String(subregionId), 10);
+        if (!Number.isInteger(id) || id <= 0) return;
+        setRegionScopeSelection((prev) => (
+            prev.includes(id)
+                ? prev.filter((item) => item !== id)
+                : [...prev, id]
+        ));
+    }
+
+    function selectAllRegionScope() {
+        setRegionScopeSelection(normalizeRegionScopeIdList(subregions.map((subregion) => subregion.id)));
+    }
+
+    function clearRegionScope() {
+        setRegionScopeSelection([]);
+    }
+
+    async function handleSaveRegionScope() {
+        if (!regionScopeModalUser || !canManageRegionScope(regionScopeModalUser)) return;
+        setRegionScopeSaving(true);
+        setRegionScopeFeedback(null);
+        try {
+            const updated = await api.updateUserRegionScope(regionScopeModalUser.id, regionScopeSelection);
+            setUsers((prev) => prev.map((candidate) => candidate.id === updated.id ? updated : candidate));
+            setRegionScopeModalUser(updated);
+            setRegionScopeSelection(normalizeRegionScopeIdList(updated.subregionIds));
+            setRegionScopeFeedback({
+                type: 'success',
+                message: 'Region scope updated.',
+            });
+        } catch (err) {
+            setRegionScopeFeedback({
+                type: 'error',
+                message: err.message || 'Unable to update Region Scope.',
+            });
+        } finally {
+            setRegionScopeSaving(false);
         }
     }
 
@@ -3652,6 +3736,16 @@ export default function AdminPage() {
                                                                 <LogIn size={16} />
                                                             </button>
                                                         ) : null}
+                                                        {canManageRegionScope(u) ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openRegionScopeManager(u)}
+                                                                className="p-2 text-sky-700 hover:bg-sky-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                title="Manage Region Scope"
+                                                            >
+                                                                <MapPin size={16} />
+                                                            </button>
+                                                        ) : null}
                                                         {(normalizeRole(u.role) === 'partner' && (currentRole === 'super_admin' || currentRole === 'regional_admin')) ? (
                                                             <button
                                                                 type="button"
@@ -3831,6 +3925,120 @@ export default function AdminPage() {
                 </div>
             )
             }
+
+            {regionScopeModalUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">Manage Region Scope</h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {regionScopeModalUser.name} (@{regionScopeModalUser.username})
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeRegionScopeManager}
+                                disabled={regionScopeSaving}
+                                className="btn-ghost py-1.5 text-xs disabled:opacity-50"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="mt-4 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                            Region Scope controls where this Admin can perform scoped admin work. It does not grant resource editing, organisation access, or group access.
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Profile postal code</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{regionScopeModalUser.postalCode || 'Not recorded'}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Account Assignment</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{getAccountAssignmentSummary(regionScopeModalUser).label}</div>
+                                <div className="text-xs text-slate-500">{getAccountAssignmentSummary(regionScopeModalUser).detail}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Selected regions</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{regionScopeSelection.length}</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-900">Assigned Region Scope</h4>
+                                <p className="text-xs text-slate-500">Choose one or more region boundaries for this Admin.</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={selectAllRegionScope} className="btn-secondary py-1.5 text-xs" disabled={regionScopeSaving || subregions.length === 0}>
+                                    Select all
+                                </button>
+                                <button type="button" onClick={clearRegionScope} className="btn-ghost py-1.5 text-xs" disabled={regionScopeSaving || regionScopeSelection.length === 0}>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+                            {subregions.length > 0 ? (
+                                <div className="divide-y divide-slate-100">
+                                    {subregions.map((subregion) => {
+                                        const id = Number(subregion.id);
+                                        const checked = regionScopeSelection.includes(id);
+                                        return (
+                                            <label key={subregion.id} className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-slate-50">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleRegionScopeSelection(id)}
+                                                    disabled={regionScopeSaving}
+                                                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                                />
+                                                <span className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-slate-800">{getSubregionDisplayLabel(subregion)}</span>
+                                                    <span className="text-xs text-slate-500">{subregion.description || 'No description recorded'}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="px-4 py-6 text-sm text-slate-500">No regions are available to assign.</p>
+                            )}
+                        </div>
+
+                        {regionScopeFeedback ? (
+                            <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${regionScopeFeedback.type === 'error'
+                                ? 'border-red-200 bg-red-50 text-red-700'
+                                : 'border-green-200 bg-green-50 text-green-700'
+                                }`}>
+                                {regionScopeFeedback.message}
+                            </div>
+                        ) : null}
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeRegionScopeManager}
+                                disabled={regionScopeSaving}
+                                className="btn-secondary disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveRegionScope}
+                                disabled={regionScopeSaving}
+                                className="btn-primary disabled:opacity-50"
+                            >
+                                {regionScopeSaving ? 'Saving...' : 'Save Region Scope'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {partnerBoundaryModalUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
