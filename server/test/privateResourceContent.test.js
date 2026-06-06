@@ -119,6 +119,36 @@ test('restricted content view accepts direct hard-asset owner and staff access',
     assert.equal(canManagePrivateResource(unrelatedStaff, resource), false);
 });
 
+test('governance group roles do not grant restricted content access', () => {
+    const resource = createResource({
+        partnerId: null,
+        partner: null,
+    });
+    const orgGroupAdmin = {
+        id: 92,
+        role: 'standard',
+        governanceGroupMemberships: [{
+            groupId: 4,
+            groupRole: 'admin',
+            groupType: 'org',
+        }],
+    };
+    const regionGroupAdmin = {
+        id: 93,
+        role: 'standard',
+        governanceGroupMemberships: [{
+            groupId: 5,
+            groupRole: 'admin',
+            groupType: 'region',
+        }],
+    };
+
+    assert.equal(canViewPrivateResource(orgGroupAdmin, resource, []), false);
+    assert.equal(canManagePrivateResource(orgGroupAdmin, resource), false);
+    assert.equal(canViewPrivateResource(regionGroupAdmin, resource, [{ userId: 93 }]), false);
+    assert.equal(canManagePrivateResource(regionGroupAdmin, resource), false);
+});
+
 test('restricted content view accepts direct standalone soft-asset owner and staff access', () => {
     const resource = {
         id: 90,

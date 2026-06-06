@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import {
     clearSectionFeedbackBySource,
     formatCoveredOfferingExplanation,
+    formatGovernanceGroupScopeLabel,
+    getGovernanceGroupRoleOptionLabel,
+    getGovernanceGroupTypeMeta,
     formatGovernanceActionError,
     getOrganizationStatusBadgeMeta,
     getNewGovernanceRecordLockMessage,
@@ -12,6 +15,7 @@ import {
     isOrganizationOpenForNewRecords,
     normalizeOrganizationStatus,
 } from '../src/lib/governanceOrganizationUi.js';
+import { getAdminTabs } from '../src/lib/roles.js';
 
 test('organisation status keeps active and draft open for new governance records only', () => {
     assert.equal(normalizeOrganizationStatus('Active'), 'active');
@@ -119,6 +123,34 @@ test('covered offering explanation is plain language', () => {
     );
 });
 
+test('group display helpers keep coordination-only wording', () => {
+    assert.deepEqual(getGovernanceGroupTypeMeta('org'), {
+        label: 'Org Group',
+        description: 'Internal coordination inside one organisation.',
+    });
+    assert.deepEqual(getGovernanceGroupTypeMeta('region'), {
+        label: 'Region Group',
+        description: 'Cross-organisation coordination context.',
+    });
+    assert.equal(getGovernanceGroupRoleOptionLabel('admin'), 'Group Admin');
+    assert.equal(getGovernanceGroupRoleOptionLabel('staff'), 'Group Staff');
+    assert.equal(formatGovernanceGroupScopeLabel({ groupType: 'org', organizationName: 'Healthcare Group' }), 'Healthcare Group');
+    assert.equal(formatGovernanceGroupScopeLabel({ groupType: 'region', subregionName: 'Bukit Batok' }), 'Bukit Batok');
+});
+
+test('group helper copy avoids approval and internal public labels', () => {
+    const combined = [
+        getGovernanceGroupTypeMeta('org').description,
+        getGovernanceGroupTypeMeta('region').description,
+        getGovernanceGroupRoleOptionLabel('admin'),
+        getGovernanceGroupRoleOptionLabel('staff'),
+        formatGovernanceGroupScopeLabel({ groupType: 'region', subregionName: 'Bukit Batok' }),
+    ].join(' ');
+
+    assert.match(combined, /coordination/i);
+    assert.doesNotMatch(combined, /approve publishing|pending approval|ICCP SR Group Admin/i);
+});
+
 test('governance action errors keep rule messages but hide infrastructure wording', () => {
     assert.equal(
         formatGovernanceActionError(
@@ -167,4 +199,19 @@ test('candidate refreshes do not clear organisation action errors', () => {
         }, 'access', 'candidates'),
         {},
     );
+});
+
+test('super admin gets region group coordination tab without expanding regional admin tabs', () => {
+    assert.equal(getAdminTabs('super_admin').includes('groups'), true);
+    assert.equal(getAdminTabs('regional_admin').includes('groups'), false);
+});
+
+test('governance group panel source keeps groups as coordination-only', async () => {
+    const fs = await import('node:fs/promises');
+    const source = await fs.readFile(new URL('../src/components/admin/GovernanceGroupsPanel.jsx', import.meta.url), 'utf8');
+
+    assert.match(source, /coordination-only/i);
+    assert.match(source, /Group roles do not grant resource editing/i);
+    assert.doesNotMatch(source, /approve publishing/i);
+    assert.doesNotMatch(source, /pending approval/i);
 });

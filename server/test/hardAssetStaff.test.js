@@ -95,6 +95,32 @@ test('region admins do not receive edit authority from region scope alone', () =
     assert.equal(canRevokeHardAssetStaffMembership(regionAdmin, asset, { staffRole: 'staff' }), false);
 });
 
+test('governance group roles do not grant place access management', () => {
+    const orgGroupAdmin = actor({
+        id: 92,
+        governanceGroupMemberships: [{
+            groupId: 4,
+            groupRole: 'admin',
+            groupType: 'org',
+        }],
+    });
+    const regionGroupAdmin = actor({
+        id: 93,
+        governanceGroupMemberships: [{
+            groupId: 5,
+            groupRole: 'admin',
+            groupType: 'region',
+        }],
+    });
+
+    assert.equal(hasHardAssetStaffAccess(orgGroupAdmin, 12), false);
+    assert.equal(canAssignHardAssetStaffRole(orgGroupAdmin, asset, 'staff'), false);
+    assert.equal(canRevokeHardAssetStaffMembership(orgGroupAdmin, asset, { staffRole: 'staff' }), false);
+    assert.equal(hasHardAssetStaffAccess(regionGroupAdmin, 12), false);
+    assert.equal(canAssignHardAssetStaffRole(regionGroupAdmin, asset, 'owner'), false);
+    assert.equal(canRevokeHardAssetStaffMembership(regionGroupAdmin, asset, { staffRole: 'owner' }), false);
+});
+
 test('region admin creator default owner applies to new places', () => {
     assert.equal(shouldGrantCreatorDefaultHardAssetOwner({ role: 'regional_admin' }), true);
     assert.equal(shouldGrantCreatorDefaultHardAssetOwner({ role: 'super_admin' }), false);

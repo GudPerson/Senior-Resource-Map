@@ -83,6 +83,32 @@ test('standalone soft asset staff cannot manage access', () => {
     assert.equal(canAssignSoftAssetStaffRole(staff, { id: 50, activeOwnerCount: 1 }, 'staff'), false);
 });
 
+test('governance group roles do not grant offering access management', () => {
+    const orgGroupAdmin = actor({
+        id: 92,
+        governanceGroupMemberships: [{
+            groupId: 4,
+            groupRole: 'admin',
+            groupType: 'org',
+        }],
+    });
+    const regionGroupAdmin = actor({
+        id: 93,
+        governanceGroupMemberships: [{
+            groupId: 5,
+            groupRole: 'admin',
+            groupType: 'region',
+        }],
+    });
+
+    assert.equal(hasSoftAssetStaffAccess(orgGroupAdmin, 50), false);
+    assert.equal(canAssignSoftAssetStaffRole(orgGroupAdmin, { id: 50, activeOwnerCount: 1 }, 'staff'), false);
+    assert.equal(canRevokeSoftAssetStaffMembership(orgGroupAdmin, { id: 50, activeOwnerCount: 2 }, { staffRole: 'staff' }), false);
+    assert.equal(hasSoftAssetStaffAccess(regionGroupAdmin, 50), false);
+    assert.equal(canAssignSoftAssetStaffRole(regionGroupAdmin, { id: 50, activeOwnerCount: 1 }, 'owner'), false);
+    assert.equal(canRevokeSoftAssetStaffMembership(regionGroupAdmin, { id: 50, activeOwnerCount: 2 }, { staffRole: 'owner' }), false);
+});
+
 test('standalone soft asset cannot lose final owner', () => {
     const owner = actor({
         softAssetStaffAccess: [{ softAssetId: 50, staffRole: 'owner' }],

@@ -15,6 +15,7 @@ import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../li
 import { buildManagedHardResourceListParams, buildManagedResourceListParams, shouldHydrateAllAdminResourcePages } from '../../lib/resourceListLoading.js';
 import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
+import GovernanceGroupsPanel from '../../components/admin/GovernanceGroupsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
 
 const ASSET_WORKBOOKS = [
@@ -2271,6 +2272,7 @@ export default function AdminPage() {
                     { key: 'resources', label: 'Resources', Icon: BookOpen },
                     { key: 'users', label: 'Users', Icon: Users },
                     { key: 'organizations', label: 'Organisations', Icon: Building2 },
+                    { key: 'groups', label: 'Region Groups', Icon: Building2 },
                     { key: 'audit', label: 'Audit Trail', Icon: ScrollText },
                     { key: 'subregions', label: 'Regions', Icon: MapPin },
                     { key: 'audiencezones', label: 'Audience Zones', Icon: MapPin },
@@ -2487,6 +2489,8 @@ export default function AdminPage() {
                 </div>
             ) : tab === 'organizations' ? (
                 <GovernanceOrganizationsPanel />
+            ) : tab === 'groups' ? (
+                <GovernanceGroupsPanel mode="region" />
             ) : tab === 'audit' ? (
                 <AuditTrailPanel
                     title="Audit Trail"

@@ -293,3 +293,36 @@ test('runtime schema bootstrap includes organisation governance link coverage st
         'expected coverage status lookup index',
     );
 });
+
+test('runtime schema bootstrap includes governance group coordination tables', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    const combined = statements.join('\n');
+    assert.match(combined, /create table if not exists governance_groups/i);
+    assert.match(combined, /create table if not exists governance_group_memberships/i);
+    assert.match(combined, /create table if not exists governance_group_organizations/i);
+    assert.match(combined, /create table if not exists governance_group_resource_links/i);
+    assert.match(combined, /governance_groups_type_idx/i);
+    assert.match(combined, /governance_groups_organization_idx/i);
+    assert.match(combined, /governance_groups_subregion_idx/i);
+    assert.match(combined, /governance_groups_status_idx/i);
+    assert.match(combined, /governance_group_memberships_active_user_unique/i);
+    assert.match(combined, /governance_group_memberships_group_idx/i);
+    assert.match(combined, /governance_group_memberships_user_idx/i);
+    assert.match(combined, /governance_group_memberships_role_idx/i);
+    assert.match(combined, /governance_group_organizations_active_unique/i);
+    assert.match(combined, /governance_group_organizations_group_idx/i);
+    assert.match(combined, /governance_group_organizations_organization_idx/i);
+    assert.match(combined, /governance_group_resource_links_active_resource_unique/i);
+    assert.match(combined, /governance_group_resource_links_group_idx/i);
+    assert.match(combined, /governance_group_resource_links_resource_idx/i);
+});

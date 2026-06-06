@@ -205,7 +205,7 @@ export function getRequiredManagerRole(targetRole) {
 export function getAdminTabs(role) {
     switch (normalizeRole(role)) {
         case 'super_admin':
-            return ['resources', 'users', 'organizations', 'audit', 'subregions', 'audiencezones', 'subcats', 'datatools'];
+            return ['resources', 'users', 'organizations', 'groups', 'audit', 'subregions', 'audiencezones', 'subcats', 'datatools'];
         case 'regional_admin':
             return ['resources', 'users', 'subregions', 'audiencezones'];
         default:

@@ -116,6 +116,33 @@ export function formatCoveredOfferingExplanation(count = 0) {
     return `${total} programmes and services are covered because their places are linked.`;
 }
 
+export function getGovernanceGroupTypeMeta(value = '') {
+    const type = String(value || '').trim().toLowerCase() === 'region' ? 'region' : 'org';
+    if (type === 'region') {
+        return {
+            label: 'Region Group',
+            description: 'Cross-organisation coordination context.',
+        };
+    }
+
+    return {
+        label: 'Org Group',
+        description: 'Internal coordination inside one organisation.',
+    };
+}
+
+export function getGovernanceGroupRoleOptionLabel(value = '') {
+    const role = String(value || '').trim().toLowerCase() === 'admin' ? 'admin' : 'staff';
+    return role === 'admin' ? 'Group Admin' : 'Group Staff';
+}
+
+export function formatGovernanceGroupScopeLabel(group = {}) {
+    if (String(group?.groupType || '').trim().toLowerCase() === 'region') {
+        return group?.subregionName || 'Regional coordination';
+    }
+    return group?.organizationName || 'Organisation coordination';
+}
+
 export function formatGovernanceActionError(error, fallbackMessage = 'This action could not be completed.') {
     const message = String(error?.message || '').trim();
     const fallback = String(fallbackMessage || 'This action could not be completed.').trim();

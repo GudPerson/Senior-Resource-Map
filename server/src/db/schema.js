@@ -160,6 +160,84 @@ export const organizationResourceLinks = pgTable('organization_resource_links', 
   coverageStatusIdx: index('organization_resource_links_coverage_status_idx').on(table.agreementCoverageStatus),
 }));
 
+export const governanceGroups = pgTable('governance_groups', {
+  id: serial('id').primaryKey(),
+  groupType: varchar('group_type', { length: 20 }).notNull(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  coordinationStatus: varchar('coordination_status', { length: 40 }).notNull().default('active'),
+  publicLabel: varchar('public_label', { length: 255 }),
+  publicSummary: text('public_summary'),
+  archivedAt: timestamp('archived_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  typeIdx: index('governance_groups_type_idx').on(table.groupType),
+  organizationIdx: index('governance_groups_organization_idx').on(table.organizationId),
+  subregionIdx: index('governance_groups_subregion_idx').on(table.subregionId),
+  statusIdx: index('governance_groups_status_idx').on(table.coordinationStatus),
+}));
+
+export const governanceGroupMemberships = pgTable('governance_group_memberships', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => governanceGroups.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  groupRole: varchar('group_role', { length: 40 }).notNull().default('staff'),
+  revokedAt: timestamp('revoked_at'),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeUserUnique: uniqueIndex('governance_group_memberships_active_user_unique')
+    .on(table.groupId, table.userId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  groupIdx: index('governance_group_memberships_group_idx').on(table.groupId),
+  userIdx: index('governance_group_memberships_user_idx').on(table.userId),
+  roleIdx: index('governance_group_memberships_role_idx').on(table.groupRole),
+}));
+
+export const governanceGroupOrganizations = pgTable('governance_group_organizations', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => governanceGroups.id, { onDelete: 'cascade' }).notNull(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }).notNull(),
+  linkStatus: varchar('link_status', { length: 40 }).notNull().default('active'),
+  unlinkedAt: timestamp('unlinked_at'),
+  linkedByUserId: integer('linked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  unlinkedByUserId: integer('unlinked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeOrganizationUnique: uniqueIndex('governance_group_organizations_active_unique')
+    .on(table.groupId, table.organizationId)
+    .where(sql`${table.unlinkedAt} IS NULL`),
+  groupIdx: index('governance_group_organizations_group_idx').on(table.groupId),
+  organizationIdx: index('governance_group_organizations_organization_idx').on(table.organizationId),
+}));
+
+export const governanceGroupResourceLinks = pgTable('governance_group_resource_links', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => governanceGroups.id, { onDelete: 'cascade' }).notNull(),
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  linkStatus: varchar('link_status', { length: 40 }).notNull().default('active'),
+  unlinkedAt: timestamp('unlinked_at'),
+  linkedByUserId: integer('linked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  unlinkedByUserId: integer('unlinked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  activeResourceUnique: uniqueIndex('governance_group_resource_links_active_resource_unique')
+    .on(table.groupId, table.resourceType, table.resourceId)
+    .where(sql`${table.unlinkedAt} IS NULL`),
+  groupIdx: index('governance_group_resource_links_group_idx').on(table.groupId),
+  resourceIdx: index('governance_group_resource_links_resource_idx').on(table.resourceType, table.resourceId),
+}));
+
 export const audienceZones = pgTable('audience_zones', {
   id: serial('id').primaryKey(),
   zoneCode: varchar('zone_code', { length: 80 }).unique(),
@@ -760,6 +838,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   hardAssetStaffMemberships: many(hardAssetStaffMemberships),
   softAssetStaffMemberships: many(softAssetStaffMemberships),
   organizationAccessMemberships: many(organizationAccessMemberships),
+  governanceGroupMemberships: many(governanceGroupMemberships),
   consentRecords: many(userConsentRecords),
   notificationPreferences: many(notificationPreferences),
   optOutRecords: many(userOptOutRecords),
@@ -777,6 +856,8 @@ export const partnerOrganizationsRelations = relations(partnerOrganizations, ({ 
   governanceAccess: many(organizationAccessMemberships),
   agreements: many(organizationAgreements),
   resourceLinks: many(organizationResourceLinks),
+  governanceGroups: many(governanceGroups),
+  groupLinks: many(governanceGroupOrganizations),
 }));
 
 export const organizationAccessMembershipsRelations = relations(organizationAccessMemberships, ({ one }) => ({
@@ -806,6 +887,49 @@ export const organizationResourceLinksRelations = relations(organizationResource
   organization: one(partnerOrganizations, {
     fields: [organizationResourceLinks.organizationId],
     references: [partnerOrganizations.id],
+  }),
+}));
+
+export const governanceGroupsRelations = relations(governanceGroups, ({ one, many }) => ({
+  organization: one(partnerOrganizations, {
+    fields: [governanceGroups.organizationId],
+    references: [partnerOrganizations.id],
+  }),
+  subregion: one(subregions, {
+    fields: [governanceGroups.subregionId],
+    references: [subregions.id],
+  }),
+  memberships: many(governanceGroupMemberships),
+  organizations: many(governanceGroupOrganizations),
+  resources: many(governanceGroupResourceLinks),
+}));
+
+export const governanceGroupMembershipsRelations = relations(governanceGroupMemberships, ({ one }) => ({
+  group: one(governanceGroups, {
+    fields: [governanceGroupMemberships.groupId],
+    references: [governanceGroups.id],
+  }),
+  user: one(users, {
+    fields: [governanceGroupMemberships.userId],
+    references: [users.id],
+  }),
+}));
+
+export const governanceGroupOrganizationsRelations = relations(governanceGroupOrganizations, ({ one }) => ({
+  group: one(governanceGroups, {
+    fields: [governanceGroupOrganizations.groupId],
+    references: [governanceGroups.id],
+  }),
+  organization: one(partnerOrganizations, {
+    fields: [governanceGroupOrganizations.organizationId],
+    references: [partnerOrganizations.id],
+  }),
+}));
+
+export const governanceGroupResourceLinksRelations = relations(governanceGroupResourceLinks, ({ one }) => ({
+  group: one(governanceGroups, {
+    fields: [governanceGroupResourceLinks.groupId],
+    references: [governanceGroups.id],
   }),
 }));
 

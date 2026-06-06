@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 
 import {
     addOrganizationAccess,
+    addGovernanceGroupMember,
+    createGovernanceGroup,
     createGovernanceOrganization,
     createOrganizationAgreement,
     deleteGovernanceOrganization,
@@ -11,14 +13,21 @@ import {
     getOrganizationAccessCandidates,
     getOrganizationResourceCandidates,
     linkOrganizationResource,
+    linkGovernanceGroupOrganization,
+    linkGovernanceGroupResource,
     listAuditLogs,
+    listGovernanceGroups,
     listGovernanceOrganizations,
     listRetentionQueue,
     recordMyConsent,
     recordMyOptOut,
+    revokeGovernanceGroupMember,
     revokeOrganizationAccess,
     revokeOrganizationAgreement,
+    unlinkGovernanceGroupOrganization,
+    unlinkGovernanceGroupResource,
     unlinkOrganizationResource,
+    updateGovernanceGroup,
     updateGovernanceOrganization,
     updateMyNotificationPreferences,
     updateOrganizationAgreement,
@@ -45,6 +54,16 @@ router.put('/organizations/:id/agreements/:agreementId', updateOrganizationAgree
 router.delete('/organizations/:id/agreements/:agreementId', revokeOrganizationAgreement);
 router.post('/organizations/:id/resources', linkOrganizationResource);
 router.delete('/organizations/:id/resources/:linkId', unlinkOrganizationResource);
+
+router.get('/groups', listGovernanceGroups);
+router.post('/groups', createGovernanceGroup);
+router.put('/groups/:id', updateGovernanceGroup);
+router.post('/groups/:id/members', addGovernanceGroupMember);
+router.delete('/groups/:id/members/:membershipId', revokeGovernanceGroupMember);
+router.post('/groups/:id/organizations', linkGovernanceGroupOrganization);
+router.delete('/groups/:id/organizations/:linkId', unlinkGovernanceGroupOrganization);
+router.post('/groups/:id/resources', linkGovernanceGroupResource);
+router.delete('/groups/:id/resources/:linkId', unlinkGovernanceGroupResource);
 
 router.get('/me/consents', getMyConsentStatus);
 router.post('/me/consents', recordMyConsent);

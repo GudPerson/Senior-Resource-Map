@@ -24,6 +24,7 @@ import {
     normalizeOrganizationStatus,
     ORGANIZATION_STATUS_HELP,
 } from '../../lib/governanceOrganizationUi.js';
+import GovernanceGroupsPanel from './GovernanceGroupsPanel.jsx';
 
 const EMPTY_ORG_FORM = {
     name: '',
@@ -1000,6 +1001,13 @@ export default function GovernanceOrganizationsPanel({
                                     ) : null}
                                 </section>
                             </div>
+
+                            <GovernanceGroupsPanel
+                                organization={selectedOrganization}
+                                organizationId={selectedOrganization.id}
+                                mode="organization"
+                                readOnly={readOnly}
+                            />
 
                             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                 <div className="flex items-center gap-3">

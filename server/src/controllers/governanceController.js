@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import {
     hardAssets,
+    governanceGroupMemberships,
+    governanceGroupOrganizations,
+    governanceGroupResourceLinks,
+    governanceGroups,
     notificationPreferences,
     organizationAccessMemberships,
     organizationAgreements,
@@ -13,6 +17,7 @@ import {
     sensitiveAuditLogs,
     softAssetParents,
     softAssets,
+    subregions,
     userConsentRecords,
     userOptOutRecords,
     users,
@@ -47,6 +52,14 @@ import {
     requiredOneLineTextSchema,
     validateRequestBody,
 } from '../utils/inputValidation.js';
+import {
+    canCreateGovernanceGroup,
+    canManageGovernanceGroup,
+    canManageGovernanceGroupMemberRole,
+    filterExistingOrganizationUsersForOrgGroup,
+    normalizeGovernanceGroupRole,
+    normalizeGovernanceGroupType,
+} from '../utils/governanceGroups.js';
 import {
     assertOrganizationUserAssignment,
     assertResourceOrganizationLinkEligibility,
@@ -91,6 +104,31 @@ const agreementBodySchema = z.object({
 });
 
 const resourceLinkBodySchema = z.object({
+    resourceType: z.enum(['hard', 'soft', 'template']),
+    resourceId: positiveIntValueSchema('resourceId'),
+});
+
+const governanceGroupBodySchema = z.object({
+    groupType: optionalOneLineTextSchema(20).default('org'),
+    organizationId: positiveIntValueSchema('organizationId').optional(),
+    subregionId: positiveIntValueSchema('subregionId').optional(),
+    name: requiredOneLineTextSchema('Group name', 255),
+    description: optionalTextSchema(2000),
+    coordinationStatus: optionalOneLineTextSchema(40).default('active'),
+    publicLabel: optionalOneLineTextSchema(255),
+    publicSummary: optionalTextSchema(1000),
+});
+
+const governanceGroupMemberBodySchema = z.object({
+    userId: positiveIntValueSchema('userId'),
+    groupRole: optionalOneLineTextSchema(40).default('staff'),
+});
+
+const governanceGroupOrganizationBodySchema = z.object({
+    organizationId: positiveIntValueSchema('organizationId'),
+});
+
+const governanceGroupResourceBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft', 'template']),
     resourceId: positiveIntValueSchema('resourceId'),
 });
@@ -146,6 +184,11 @@ function parseOptionalDate(value, label) {
         throw httpError(`${label} must be a valid date.`, 400);
     }
     return date;
+}
+
+function parseOptionalPositiveInt(value, label = 'id') {
+    if (value === undefined || value === null || String(value).trim() === '') return null;
+    return parsePositiveInt(value, label);
 }
 
 function requireSuperAdmin(actor) {
@@ -266,6 +309,79 @@ function formatOrganization(row, grouped = {}) {
     };
 }
 
+function normalizeGovernanceGroupStatus(value) {
+    const status = cleanOneLineText(value || 'active', 40).toLowerCase();
+    return ['active', 'draft', 'paused', 'archived'].includes(status) ? status : 'active';
+}
+
+function formatGovernanceGroupMember(row) {
+    return {
+        id: row.id,
+        groupId: row.groupId,
+        userId: row.userId,
+        groupRole: normalizeGovernanceGroupRole(row.groupRole) || 'staff',
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        user: {
+            id: row.userId,
+            username: row.username,
+            email: row.email,
+            name: row.userName,
+            role: row.userRole,
+        },
+    };
+}
+
+function formatGovernanceGroupOrganization(row) {
+    return {
+        id: row.id,
+        groupId: row.groupId,
+        organizationId: row.organizationId,
+        organizationName: row.organizationName || null,
+        linkStatus: row.linkStatus,
+        unlinkedAt: row.unlinkedAt,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+    };
+}
+
+function formatGovernanceGroupResource(row) {
+    return {
+        id: row.id,
+        groupId: row.groupId,
+        resourceType: row.resourceType,
+        resourceId: row.resourceId,
+        resourceName: row.resourceName || null,
+        linkStatus: row.linkStatus,
+        unlinkedAt: row.unlinkedAt,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+    };
+}
+
+function formatGovernanceGroup(row, grouped = {}) {
+    const groupId = Number(row.id);
+    return {
+        id: row.id,
+        groupType: normalizeGovernanceGroupType(row.groupType),
+        organizationId: row.organizationId || null,
+        organizationName: row.organizationName || null,
+        subregionId: row.subregionId || null,
+        subregionName: row.subregionName || null,
+        name: row.name,
+        description: row.description || '',
+        coordinationStatus: normalizeGovernanceGroupStatus(row.coordinationStatus),
+        publicLabel: row.publicLabel || '',
+        publicSummary: row.publicSummary || '',
+        archivedAt: row.archivedAt || null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        members: (grouped.members?.get(groupId) || []).map(formatGovernanceGroupMember),
+        organizations: (grouped.organizations?.get(groupId) || []).map(formatGovernanceGroupOrganization),
+        resources: (grouped.resources?.get(groupId) || []).map(formatGovernanceGroupResource),
+    };
+}
+
 function assertOrganizationOpenForNewRecords(organization, actionLabel = 'This action') {
     if (isOrganizationOpenForNewRecords(organization)) return;
     const status = normalizeOrganizationGovernanceStatus(organization?.governanceStatus);
@@ -298,6 +414,16 @@ function groupByOrganization(rows) {
     const grouped = new Map();
     for (const row of rows) {
         const key = Number(row.organizationId);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(row);
+    }
+    return grouped;
+}
+
+function groupByGroupId(rows) {
+    const grouped = new Map();
+    for (const row of rows) {
+        const key = Number(row.groupId);
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key).push(row);
     }
@@ -365,6 +491,176 @@ async function loadViewableOrganization(db, actor, organizationId) {
         throw httpError('Organisation governance is outside your access.', 403);
     }
     return { organization, accessRows };
+}
+
+function governanceGroupSelectColumns() {
+    return {
+        id: governanceGroups.id,
+        groupType: governanceGroups.groupType,
+        organizationId: governanceGroups.organizationId,
+        organizationName: partnerOrganizations.name,
+        subregionId: governanceGroups.subregionId,
+        subregionName: subregions.name,
+        name: governanceGroups.name,
+        description: governanceGroups.description,
+        coordinationStatus: governanceGroups.coordinationStatus,
+        publicLabel: governanceGroups.publicLabel,
+        publicSummary: governanceGroups.publicSummary,
+        archivedAt: governanceGroups.archivedAt,
+        createdAt: governanceGroups.createdAt,
+        updatedAt: governanceGroups.updatedAt,
+    };
+}
+
+async function loadGovernanceGroupRow(db, groupId) {
+    const [group] = await db.select(governanceGroupSelectColumns())
+        .from(governanceGroups)
+        .leftJoin(partnerOrganizations, eq(governanceGroups.organizationId, partnerOrganizations.id))
+        .leftJoin(subregions, eq(governanceGroups.subregionId, subregions.id))
+        .where(eq(governanceGroups.id, groupId))
+        .limit(1);
+    return group || null;
+}
+
+async function loadActiveGovernanceGroupMembershipRows(db, groupIds) {
+    const ids = uniquePositiveIds(groupIds);
+    if (!ids.length) return [];
+    return db.select({
+        id: governanceGroupMemberships.id,
+        groupId: governanceGroupMemberships.groupId,
+        userId: governanceGroupMemberships.userId,
+        groupRole: governanceGroupMemberships.groupRole,
+        revokedAt: governanceGroupMemberships.revokedAt,
+        createdAt: governanceGroupMemberships.createdAt,
+        updatedAt: governanceGroupMemberships.updatedAt,
+        username: users.username,
+        email: users.email,
+        userName: users.name,
+        userRole: users.role,
+    })
+        .from(governanceGroupMemberships)
+        .innerJoin(users, eq(governanceGroupMemberships.userId, users.id))
+        .where(and(
+            inArray(governanceGroupMemberships.groupId, ids),
+            isNull(governanceGroupMemberships.revokedAt),
+        ));
+}
+
+async function loadGovernanceGroupOrganizations(db, groupIds) {
+    const ids = uniquePositiveIds(groupIds);
+    if (!ids.length) return [];
+    return db.select({
+        id: governanceGroupOrganizations.id,
+        groupId: governanceGroupOrganizations.groupId,
+        organizationId: governanceGroupOrganizations.organizationId,
+        organizationName: partnerOrganizations.name,
+        linkStatus: governanceGroupOrganizations.linkStatus,
+        unlinkedAt: governanceGroupOrganizations.unlinkedAt,
+        createdAt: governanceGroupOrganizations.createdAt,
+        updatedAt: governanceGroupOrganizations.updatedAt,
+    })
+        .from(governanceGroupOrganizations)
+        .innerJoin(partnerOrganizations, eq(governanceGroupOrganizations.organizationId, partnerOrganizations.id))
+        .where(and(
+            inArray(governanceGroupOrganizations.groupId, ids),
+            isNull(governanceGroupOrganizations.unlinkedAt),
+        ));
+}
+
+async function loadGovernanceGroupResources(db, groupIds) {
+    const ids = uniquePositiveIds(groupIds);
+    if (!ids.length) return [];
+
+    const [hardRows, softRows, templateRows] = await Promise.all([
+        db.select({
+            id: governanceGroupResourceLinks.id,
+            groupId: governanceGroupResourceLinks.groupId,
+            resourceType: governanceGroupResourceLinks.resourceType,
+            resourceId: governanceGroupResourceLinks.resourceId,
+            resourceName: hardAssets.name,
+            linkStatus: governanceGroupResourceLinks.linkStatus,
+            unlinkedAt: governanceGroupResourceLinks.unlinkedAt,
+            createdAt: governanceGroupResourceLinks.createdAt,
+            updatedAt: governanceGroupResourceLinks.updatedAt,
+        }).from(governanceGroupResourceLinks)
+            .innerJoin(hardAssets, eq(governanceGroupResourceLinks.resourceId, hardAssets.id))
+            .where(and(
+                inArray(governanceGroupResourceLinks.groupId, ids),
+                eq(governanceGroupResourceLinks.resourceType, 'hard'),
+                isNull(governanceGroupResourceLinks.unlinkedAt),
+            )),
+        db.select({
+            id: governanceGroupResourceLinks.id,
+            groupId: governanceGroupResourceLinks.groupId,
+            resourceType: governanceGroupResourceLinks.resourceType,
+            resourceId: governanceGroupResourceLinks.resourceId,
+            resourceName: softAssets.name,
+            linkStatus: governanceGroupResourceLinks.linkStatus,
+            unlinkedAt: governanceGroupResourceLinks.unlinkedAt,
+            createdAt: governanceGroupResourceLinks.createdAt,
+            updatedAt: governanceGroupResourceLinks.updatedAt,
+        }).from(governanceGroupResourceLinks)
+            .innerJoin(softAssets, eq(governanceGroupResourceLinks.resourceId, softAssets.id))
+            .where(and(
+                inArray(governanceGroupResourceLinks.groupId, ids),
+                eq(governanceGroupResourceLinks.resourceType, 'soft'),
+                isNull(governanceGroupResourceLinks.unlinkedAt),
+            )),
+        db.select({
+            id: governanceGroupResourceLinks.id,
+            groupId: governanceGroupResourceLinks.groupId,
+            resourceType: governanceGroupResourceLinks.resourceType,
+            resourceId: governanceGroupResourceLinks.resourceId,
+            resourceName: softAssetParents.name,
+            linkStatus: governanceGroupResourceLinks.linkStatus,
+            unlinkedAt: governanceGroupResourceLinks.unlinkedAt,
+            createdAt: governanceGroupResourceLinks.createdAt,
+            updatedAt: governanceGroupResourceLinks.updatedAt,
+        }).from(governanceGroupResourceLinks)
+            .innerJoin(softAssetParents, eq(governanceGroupResourceLinks.resourceId, softAssetParents.id))
+            .where(and(
+                inArray(governanceGroupResourceLinks.groupId, ids),
+                eq(governanceGroupResourceLinks.resourceType, 'template'),
+                isNull(governanceGroupResourceLinks.unlinkedAt),
+            )),
+    ]);
+
+    return [...hardRows, ...softRows, ...templateRows];
+}
+
+async function loadGovernanceGroupDetails(db, groups) {
+    const groupIds = uniquePositiveIds(groups.map((group) => group.id));
+    if (!groupIds.length) {
+        return {
+            members: new Map(),
+            organizations: new Map(),
+            resources: new Map(),
+        };
+    }
+
+    const [members, organizations, resources] = await Promise.all([
+        loadActiveGovernanceGroupMembershipRows(db, groupIds),
+        loadGovernanceGroupOrganizations(db, groupIds),
+        loadGovernanceGroupResources(db, groupIds),
+    ]);
+
+    return {
+        members: groupByGroupId(members),
+        organizations: groupByGroupId(organizations),
+        resources: groupByGroupId(resources),
+    };
+}
+
+async function loadManageableGovernanceGroup(db, actor, groupId) {
+    const group = await loadGovernanceGroupRow(db, groupId);
+    if (!group) throw httpError('Group was not found.', 404);
+    const [memberships, organizationAccessRows] = await Promise.all([
+        loadActiveGovernanceGroupMembershipRows(db, [groupId]),
+        group.organizationId ? loadActiveOrganizationAccessRows(db, group.organizationId) : Promise.resolve([]),
+    ]);
+    const decision = canManageGovernanceGroup(actor, group, memberships, organizationAccessRows);
+    if (!decision.allowed) throw httpError(decision.reason, 403);
+    return { group, memberships, organizationAccessRows };
 }
 
 async function listOrganizationDetails(db, organizations) {
@@ -716,6 +1012,466 @@ export const getGovernanceOrganization = async (c) => {
     } catch (err) {
         console.error('getGovernanceOrganization Error:', err);
         return c.json({ error: err.message || 'Failed to load organisation.' }, err.status || 500);
+    }
+};
+
+export const listGovernanceGroups = async (c) => {
+    try {
+        const actor = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const type = normalizeGovernanceGroupType(c.req.query('type') || '');
+        const organizationId = parseOptionalPositiveInt(c.req.query('organizationId'), 'organizationId');
+        const baseConditions = [
+            isNull(governanceGroups.archivedAt),
+            type ? eq(governanceGroups.groupType, type) : undefined,
+            organizationId ? eq(governanceGroups.organizationId, organizationId) : undefined,
+        ].filter(Boolean);
+
+        let groups = [];
+        if (normalizeRole(actor?.role) === 'super_admin') {
+            groups = await db.select(governanceGroupSelectColumns())
+                .from(governanceGroups)
+                .leftJoin(partnerOrganizations, eq(governanceGroups.organizationId, partnerOrganizations.id))
+                .leftJoin(subregions, eq(governanceGroups.subregionId, subregions.id))
+                .where(and(...baseConditions))
+                .orderBy(governanceGroups.name);
+        } else {
+            const [memberships, orgAccessRows] = await Promise.all([
+                db.select({ groupId: governanceGroupMemberships.groupId })
+                    .from(governanceGroupMemberships)
+                    .where(and(
+                        eq(governanceGroupMemberships.userId, actor.id),
+                        isNull(governanceGroupMemberships.revokedAt),
+                    )),
+                db.select({ organizationId: organizationAccessMemberships.organizationId })
+                    .from(organizationAccessMemberships)
+                    .where(and(
+                        eq(organizationAccessMemberships.userId, actor.id),
+                        isNull(organizationAccessMemberships.revokedAt),
+                    )),
+            ]);
+            const groupIds = uniquePositiveIds(memberships.map((row) => row.groupId));
+            const organizationIds = uniquePositiveIds(orgAccessRows.map((row) => row.organizationId));
+            const visibleConditions = [];
+            if (groupIds.length) visibleConditions.push(inArray(governanceGroups.id, groupIds));
+            if (organizationIds.length) visibleConditions.push(inArray(governanceGroups.organizationId, organizationIds));
+
+            groups = visibleConditions.length
+                ? await db.select(governanceGroupSelectColumns())
+                    .from(governanceGroups)
+                    .leftJoin(partnerOrganizations, eq(governanceGroups.organizationId, partnerOrganizations.id))
+                    .leftJoin(subregions, eq(governanceGroups.subregionId, subregions.id))
+                    .where(and(
+                        ...baseConditions,
+                        visibleConditions.length === 1 ? visibleConditions[0] : or(...visibleConditions),
+                    ))
+                    .orderBy(governanceGroups.name)
+                : [];
+        }
+
+        const grouped = await loadGovernanceGroupDetails(db, groups);
+        return c.json({ groups: groups.map((group) => formatGovernanceGroup(group, grouped)) });
+    } catch (err) {
+        console.error('listGovernanceGroups Error:', err);
+        return c.json({ error: err.message || 'Failed to load groups.' }, err.status || 500);
+    }
+};
+
+export const createGovernanceGroup = async (c) => {
+    try {
+        const actor = c.get('user');
+        const body = validateRequestBody(await c.req.json(), governanceGroupBodySchema, 'Group');
+        const groupType = normalizeGovernanceGroupType(body.groupType);
+        if (!groupType) throw httpError('Choose Org Group or Region Group.', 400);
+
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const organization = body.organizationId ? await loadOrganization(db, body.organizationId) : null;
+        if (groupType === 'org' && !organization) throw httpError('Org Groups must belong to one organisation.', 400);
+        if (groupType === 'region' && body.organizationId) throw httpError('Region Groups do not belong to a single organisation.', 400);
+        if (organization) assertOrganizationOpenForNewRecords(organization, 'Creating groups');
+        if (body.subregionId) {
+            const [subregion] = await db.select({ id: subregions.id }).from(subregions)
+                .where(eq(subregions.id, body.subregionId))
+                .limit(1);
+            if (!subregion) throw httpError('Region was not found.', 404);
+        }
+
+        const organizationAccessRows = body.organizationId
+            ? await loadActiveOrganizationAccessRows(db, body.organizationId)
+            : [];
+        const decision = canCreateGovernanceGroup(actor, { groupType, organization, organizationAccessRows });
+        if (!decision.allowed) throw httpError(decision.reason, 403);
+
+        const coordinationStatus = normalizeGovernanceGroupStatus(body.coordinationStatus);
+        const [created] = await db.insert(governanceGroups).values({
+            groupType,
+            organizationId: groupType === 'org' ? body.organizationId : null,
+            subregionId: groupType === 'region' ? body.subregionId || null : null,
+            name: body.name,
+            description: body.description || null,
+            coordinationStatus,
+            publicLabel: body.publicLabel || null,
+            publicSummary: body.publicSummary || null,
+            archivedAt: coordinationStatus === 'archived' ? new Date() : null,
+            createdByUserId: actor.id,
+            updatedByUserId: actor.id,
+        }).returning();
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_created',
+            entityType: 'governance_group',
+            entityId: created.id,
+            organizationId: created.organizationId || null,
+            metadata: { groupType: created.groupType, name: created.name },
+        });
+
+        const group = await loadGovernanceGroupRow(db, created.id);
+        return c.json(formatGovernanceGroup(group || created), 201);
+    } catch (err) {
+        console.error('createGovernanceGroup Error:', err);
+        return c.json({ error: err.message || 'Group could not be created.' }, err.status || 500);
+    }
+};
+
+export const updateGovernanceGroup = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const body = validateRequestBody(await c.req.json(), governanceGroupBodySchema, 'Group');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const { group } = await loadManageableGovernanceGroup(db, actor, groupId);
+
+        const coordinationStatus = normalizeGovernanceGroupStatus(body.coordinationStatus);
+        const [updated] = await db.update(governanceGroups)
+            .set({
+                name: body.name,
+                description: body.description || null,
+                coordinationStatus,
+                publicLabel: body.publicLabel || null,
+                publicSummary: body.publicSummary || null,
+                subregionId: normalizeGovernanceGroupType(group.groupType) === 'region' ? body.subregionId || null : group.subregionId || null,
+                archivedAt: coordinationStatus === 'archived' ? (group.archivedAt || new Date()) : null,
+                updatedByUserId: actor.id,
+                updatedAt: new Date(),
+            })
+            .where(eq(governanceGroups.id, groupId))
+            .returning();
+        if (!updated) throw httpError('Group was not found.', 404);
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_updated',
+            entityType: 'governance_group',
+            entityId: groupId,
+            organizationId: group.organizationId || null,
+            metadata: { groupType: group.groupType, coordinationStatus },
+        });
+
+        const hydrated = await loadGovernanceGroupRow(db, groupId);
+        const grouped = await loadGovernanceGroupDetails(db, [hydrated || updated]);
+        return c.json(formatGovernanceGroup(hydrated || updated, grouped));
+    } catch (err) {
+        console.error('updateGovernanceGroup Error:', err);
+        return c.json({ error: err.message || 'Group could not be updated.' }, err.status || 500);
+    }
+};
+
+export const addGovernanceGroupMember = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const body = validateRequestBody(await c.req.json(), governanceGroupMemberBodySchema, 'Group member');
+        const groupRole = normalizeGovernanceGroupRole(body.groupRole);
+        if (!groupRole) throw httpError('Group member role must be admin or staff.', 400);
+
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const { group, memberships, organizationAccessRows } = await loadManageableGovernanceGroup(db, actor, groupId);
+        const roleDecision = canManageGovernanceGroupMemberRole(actor, group, memberships, organizationAccessRows, groupRole);
+        if (!roleDecision.allowed) throw httpError(roleDecision.reason, 403);
+
+        const [targetUser] = await db.select({
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            name: users.name,
+            role: users.role,
+        }).from(users)
+            .where(eq(users.id, body.userId))
+            .limit(1);
+        if (!targetUser || normalizeRole(targetUser.role) === 'guest') throw httpError('Choose an active platform user.', 400);
+
+        if (normalizeGovernanceGroupType(group.groupType) === 'org') {
+            const eligible = filterExistingOrganizationUsersForOrgGroup([targetUser], organizationAccessRows);
+            if (!eligible.length) throw httpError('Org Group members must already belong to this organisation.', 403);
+        }
+
+        const [membership] = await db.insert(governanceGroupMemberships).values({
+            groupId,
+            userId: body.userId,
+            groupRole,
+            createdByUserId: actor.id,
+            updatedByUserId: actor.id,
+        }).returning();
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_member_added',
+            entityType: 'governance_group_membership',
+            entityId: membership.id,
+            organizationId: group.organizationId || null,
+            targetUserId: body.userId,
+            metadata: { groupId, groupRole },
+        });
+
+        const members = await loadActiveGovernanceGroupMembershipRows(db, [groupId]);
+        const formatted = members.find((row) => Number(row.id) === Number(membership.id)) || {
+            ...membership,
+            username: targetUser.username,
+            email: targetUser.email,
+            userName: targetUser.name,
+            userRole: targetUser.role,
+        };
+        return c.json(formatGovernanceGroupMember(formatted), 201);
+    } catch (err) {
+        console.error('addGovernanceGroupMember Error:', err);
+        if (err?.code === '23505') {
+            return c.json({ error: 'This user already has active group access.' }, 409);
+        }
+        return c.json({ error: err.message || 'Group member could not be added.' }, err.status || 500);
+    }
+};
+
+export const revokeGovernanceGroupMember = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const membershipId = parsePositiveInt(c.req.param('membershipId'), 'membershipId');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const { group, memberships, organizationAccessRows } = await loadManageableGovernanceGroup(db, actor, groupId);
+        const membership = memberships.find((row) => Number(row.id) === membershipId);
+        if (!membership) throw httpError('Group membership was not found.', 404);
+
+        const roleDecision = canManageGovernanceGroupMemberRole(actor, group, memberships, organizationAccessRows, membership.groupRole);
+        if (!roleDecision.allowed) throw httpError(roleDecision.reason, 403);
+
+        const [updated] = await db.update(governanceGroupMemberships)
+            .set({ revokedAt: new Date(), updatedByUserId: actor.id, updatedAt: new Date() })
+            .where(and(
+                eq(governanceGroupMemberships.id, membershipId),
+                eq(governanceGroupMemberships.groupId, groupId),
+                isNull(governanceGroupMemberships.revokedAt),
+            ))
+            .returning();
+        if (!updated) throw httpError('Group membership was not found.', 404);
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_member_revoked',
+            entityType: 'governance_group_membership',
+            entityId: membershipId,
+            organizationId: group.organizationId || null,
+            targetUserId: membership.userId,
+            metadata: { groupId, groupRole: membership.groupRole },
+        });
+
+        return c.json(updated);
+    } catch (err) {
+        console.error('revokeGovernanceGroupMember Error:', err);
+        return c.json({ error: err.message || 'Group member could not be removed.' }, err.status || 500);
+    }
+};
+
+export const linkGovernanceGroupOrganization = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const body = validateRequestBody(await c.req.json(), governanceGroupOrganizationBodySchema, 'Group organisation');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const { group } = await loadManageableGovernanceGroup(db, actor, groupId);
+        if (normalizeGovernanceGroupType(group.groupType) !== 'region') {
+            throw httpError('Only Region Groups can link multiple organisations.', 400);
+        }
+
+        const organization = await loadOrganization(db, body.organizationId);
+        if (!organization) throw httpError('Organisation was not found.', 404);
+
+        const [link] = await db.insert(governanceGroupOrganizations).values({
+            groupId,
+            organizationId: body.organizationId,
+            linkedByUserId: actor.id,
+        }).returning();
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_organization_linked',
+            entityType: 'governance_group_organization',
+            entityId: link.id,
+            organizationId: body.organizationId,
+            metadata: { groupId },
+        });
+
+        return c.json(formatGovernanceGroupOrganization({ ...link, organizationName: organization.name }), 201);
+    } catch (err) {
+        console.error('linkGovernanceGroupOrganization Error:', err);
+        if (err?.code === '23505') {
+            return c.json({ error: 'This organisation is already linked to the group.' }, 409);
+        }
+        return c.json({ error: err.message || 'Organisation could not be linked to the group.' }, err.status || 500);
+    }
+};
+
+export const unlinkGovernanceGroupOrganization = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const linkId = parsePositiveInt(c.req.param('linkId'), 'linkId');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        await loadManageableGovernanceGroup(db, actor, groupId);
+
+        const [link] = await db.update(governanceGroupOrganizations)
+            .set({
+                linkStatus: 'unlinked',
+                unlinkedByUserId: actor.id,
+                unlinkedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(and(
+                eq(governanceGroupOrganizations.id, linkId),
+                eq(governanceGroupOrganizations.groupId, groupId),
+                isNull(governanceGroupOrganizations.unlinkedAt),
+            ))
+            .returning();
+        if (!link) throw httpError('Group organisation link was not found.', 404);
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_organization_unlinked',
+            entityType: 'governance_group_organization',
+            entityId: link.id,
+            organizationId: link.organizationId,
+            metadata: { groupId },
+        });
+
+        return c.json(link);
+    } catch (err) {
+        console.error('unlinkGovernanceGroupOrganization Error:', err);
+        return c.json({ error: err.message || 'Organisation could not be unlinked from the group.' }, err.status || 500);
+    }
+};
+
+export const linkGovernanceGroupResource = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const body = validateRequestBody(await c.req.json(), governanceGroupResourceBodySchema, 'Group resource');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const { group } = await loadManageableGovernanceGroup(db, actor, groupId);
+        const resource = await loadResourceForLink(db, body.resourceType, body.resourceId);
+        if (!resource) throw httpError('Resource was not found.', 404);
+
+        if (normalizeGovernanceGroupType(group.groupType) === 'org') {
+            const [existingOrgLink] = await db.select({ id: organizationResourceLinks.id })
+                .from(organizationResourceLinks)
+                .where(and(
+                    eq(organizationResourceLinks.organizationId, group.organizationId),
+                    eq(organizationResourceLinks.resourceType, body.resourceType),
+                    eq(organizationResourceLinks.resourceId, body.resourceId),
+                    isNull(organizationResourceLinks.unlinkedAt),
+                ))
+                .limit(1);
+            if (!existingOrgLink) {
+                throw httpError('Link the resource to this organisation before adding it to an Org Group.', 403);
+            }
+        } else if (normalizeGovernanceGroupType(group.groupType) === 'region') {
+            const linkedOrganizations = await loadGovernanceGroupOrganizations(db, [groupId]);
+            const linkedOrganizationIds = uniquePositiveIds(linkedOrganizations.map((entry) => entry.organizationId));
+            if (!linkedOrganizationIds.length) {
+                throw httpError('Link at least one organisation to this Region Group before adding resources.', 403);
+            }
+            const [existingGroupOrgResourceLink] = await db.select({ id: organizationResourceLinks.id })
+                .from(organizationResourceLinks)
+                .where(and(
+                    inArray(organizationResourceLinks.organizationId, linkedOrganizationIds),
+                    eq(organizationResourceLinks.resourceType, body.resourceType),
+                    eq(organizationResourceLinks.resourceId, body.resourceId),
+                    isNull(organizationResourceLinks.unlinkedAt),
+                ))
+                .limit(1);
+            if (!existingGroupOrgResourceLink) {
+                throw httpError('Link the resource organisation to this Region Group before adding that resource.', 403);
+            }
+        }
+
+        const [link] = await db.insert(governanceGroupResourceLinks).values({
+            groupId,
+            resourceType: body.resourceType,
+            resourceId: body.resourceId,
+            linkedByUserId: actor.id,
+        }).returning();
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_resource_linked',
+            entityType: 'governance_group_resource_link',
+            entityId: link.id,
+            organizationId: group.organizationId || null,
+            resourceType: body.resourceType,
+            resourceId: body.resourceId,
+            metadata: { groupId },
+        });
+
+        return c.json(formatGovernanceGroupResource({ ...link, resourceName: resource.name }), 201);
+    } catch (err) {
+        console.error('linkGovernanceGroupResource Error:', err);
+        if (err?.code === '23505') {
+            return c.json({ error: 'This resource is already linked to the group.' }, 409);
+        }
+        return c.json({ error: err.message || 'Resource could not be linked to the group.' }, err.status || 500);
+    }
+};
+
+export const unlinkGovernanceGroupResource = async (c) => {
+    try {
+        const actor = c.get('user');
+        const groupId = parsePositiveInt(c.req.param('id'), 'groupId');
+        const linkId = parsePositiveInt(c.req.param('linkId'), 'linkId');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const { group } = await loadManageableGovernanceGroup(db, actor, groupId);
+
+        const [link] = await db.update(governanceGroupResourceLinks)
+            .set({
+                linkStatus: 'unlinked',
+                unlinkedByUserId: actor.id,
+                unlinkedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(and(
+                eq(governanceGroupResourceLinks.id, linkId),
+                eq(governanceGroupResourceLinks.groupId, groupId),
+                isNull(governanceGroupResourceLinks.unlinkedAt),
+            ))
+            .returning();
+        if (!link) throw httpError('Group resource link was not found.', 404);
+
+        await recordSensitiveAuditLog(db, actor, {
+            actionType: 'governance_group_resource_unlinked',
+            entityType: 'governance_group_resource_link',
+            entityId: link.id,
+            organizationId: group.organizationId || null,
+            resourceType: link.resourceType,
+            resourceId: link.resourceId,
+            metadata: { groupId },
+        });
+
+        return c.json(link);
+    } catch (err) {
+        console.error('unlinkGovernanceGroupResource Error:', err);
+        return c.json({ error: err.message || 'Resource could not be unlinked from the group.' }, err.status || 500);
     }
 };
 

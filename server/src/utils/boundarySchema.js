@@ -507,6 +507,64 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             `);
             await db.execute(sql`ALTER TABLE organization_resource_links ADD COLUMN IF NOT EXISTS agreement_coverage_status VARCHAR(40) NOT NULL DEFAULT 'unknown'`);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS governance_groups (
+                    id SERIAL PRIMARY KEY,
+                    group_type VARCHAR(20) NOT NULL,
+                    organization_id INTEGER REFERENCES partner_organizations(id) ON DELETE CASCADE,
+                    subregion_id INTEGER REFERENCES subregions(id) ON DELETE SET NULL,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    coordination_status VARCHAR(40) NOT NULL DEFAULT 'active',
+                    public_label VARCHAR(255),
+                    public_summary TEXT,
+                    archived_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS governance_group_memberships (
+                    id SERIAL PRIMARY KEY,
+                    group_id INTEGER NOT NULL REFERENCES governance_groups(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    group_role VARCHAR(40) NOT NULL DEFAULT 'staff',
+                    revoked_at TIMESTAMP,
+                    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS governance_group_organizations (
+                    id SERIAL PRIMARY KEY,
+                    group_id INTEGER NOT NULL REFERENCES governance_groups(id) ON DELETE CASCADE,
+                    organization_id INTEGER NOT NULL REFERENCES partner_organizations(id) ON DELETE CASCADE,
+                    link_status VARCHAR(40) NOT NULL DEFAULT 'active',
+                    unlinked_at TIMESTAMP,
+                    linked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    unlinked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS governance_group_resource_links (
+                    id SERIAL PRIMARY KEY,
+                    group_id INTEGER NOT NULL REFERENCES governance_groups(id) ON DELETE CASCADE,
+                    resource_type VARCHAR(20) NOT NULL,
+                    resource_id INTEGER NOT NULL,
+                    link_status VARCHAR(40) NOT NULL DEFAULT 'active',
+                    unlinked_at TIMESTAMP,
+                    linked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    unlinked_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS sensitive_audit_logs (
                     id SERIAL PRIMARY KEY,
                     actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -665,6 +723,20 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_resource_idx ON organization_resource_links (resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_status_idx ON organization_resource_links (link_status)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS organization_resource_links_coverage_status_idx ON organization_resource_links (agreement_coverage_status)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_groups_type_idx ON governance_groups (group_type)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_groups_organization_idx ON governance_groups (organization_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_groups_subregion_idx ON governance_groups (subregion_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_groups_status_idx ON governance_groups (coordination_status)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS governance_group_memberships_active_user_unique ON governance_group_memberships (group_id, user_id) WHERE revoked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_memberships_group_idx ON governance_group_memberships (group_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_memberships_user_idx ON governance_group_memberships (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_memberships_role_idx ON governance_group_memberships (group_role)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS governance_group_organizations_active_unique ON governance_group_organizations (group_id, organization_id) WHERE unlinked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_organizations_group_idx ON governance_group_organizations (group_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_organizations_organization_idx ON governance_group_organizations (organization_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS governance_group_resource_links_active_resource_unique ON governance_group_resource_links (group_id, resource_type, resource_id) WHERE unlinked_at IS NULL`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_resource_links_group_idx ON governance_group_resource_links (group_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS governance_group_resource_links_resource_idx ON governance_group_resource_links (resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_actor_idx ON sensitive_audit_logs (actor_user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_action_idx ON sensitive_audit_logs (action_type)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS sensitive_audit_logs_entity_idx ON sensitive_audit_logs (entity_type, entity_id)`);
