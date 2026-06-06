@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
-import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2, ScrollText } from 'lucide-react';
+import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2, ScrollText, Info } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from '@e965/xlsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -341,6 +341,26 @@ function getRegionScopeSummary(userRecord) {
     };
 }
 
+function getProfileRegionSummary(userRecord) {
+    if (userRecord?.derivedSubregionName) {
+        return userRecord.derivedSubregionCode
+            ? `${userRecord.derivedSubregionName} (${userRecord.derivedSubregionCode})`
+            : userRecord.derivedSubregionName;
+    }
+
+    if (userRecord?.postalCode) {
+        return 'Not resolved from postal code';
+    }
+
+    return 'No postal code recorded';
+}
+
+function getSupportCoverageAdmins(userRecord) {
+    return Array.isArray(userRecord?.supportCoverage?.admins)
+        ? userRecord.supportCoverage.admins.filter((admin) => admin?.id)
+        : [];
+}
+
 function normalizeRegionScopeIdList(ids) {
     if (!Array.isArray(ids)) return [];
     const seen = new Set();
@@ -627,6 +647,7 @@ export default function AdminPage() {
     const [regionScopeSelection, setRegionScopeSelection] = useState([]);
     const [regionScopeFeedback, setRegionScopeFeedback] = useState(null);
     const [regionScopeSaving, setRegionScopeSaving] = useState(false);
+    const [supportContextUser, setSupportContextUser] = useState(null);
     const [resourcePage, setResourcePage] = useState(1);
     const [resourcePageSize] = useState(50);
     const canEditUserRoles = canChangeUserRoles(currentRole);
@@ -786,6 +807,15 @@ export default function AdminPage() {
 
     function canOpenUserSpace(targetUser) {
         return !currentUser?.isImpersonating && canManageUserRecord(targetUser);
+    }
+
+    function openSupportContext(targetUser) {
+        if (!targetUser) return;
+        setSupportContextUser(targetUser);
+    }
+
+    function closeSupportContext() {
+        setSupportContextUser(null);
     }
 
     const boundaryChecksEnabled = currentRole === 'regional_admin' || currentRole === 'partner';
@@ -3720,50 +3750,58 @@ export default function AdminPage() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3">
-                                                {canManageUserRecord(u) ? (
-                                                    <div className="flex items-center gap-1">
-                                                        {canOpenUserSpace(u) ? (
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openSupportContext(u)}
+                                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                        title="View support context"
+                                                    >
+                                                        <Info size={16} />
+                                                    </button>
+                                                    {canManageUserRecord(u) ? (
+                                                        <>
+                                                            {canOpenUserSpace(u) ? (
+                                                                <button
+                                                                    id={`admin-open-user-space-${u.id}`}
+                                                                    onClick={() => handleOpenUserSpace(u)}
+                                                                    className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                    title="Open user space"
+                                                                >
+                                                                    <LogIn size={16} />
+                                                                </button>
+                                                            ) : null}
+                                                            {canManageRegionScope(u) ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openRegionScopeManager(u)}
+                                                                    className="p-2 text-sky-700 hover:bg-sky-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                    title="Manage Region Scope"
+                                                                >
+                                                                    <MapPin size={16} />
+                                                                </button>
+                                                            ) : null}
+                                                            {(normalizeRole(u.role) === 'partner' && (currentRole === 'super_admin' || currentRole === 'regional_admin')) ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openPartnerBoundaryManager(u)}
+                                                                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                    title="Manage legacy boundary"
+                                                                >
+                                                                    <MapPin size={16} />
+                                                                </button>
+                                                            ) : null}
                                                             <button
-                                                                id={`admin-open-user-space-${u.id}`}
-                                                                onClick={() => handleOpenUserSpace(u)}
-                                                                className="p-2 text-brand-700 hover:bg-brand-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                                title="Open user space"
+                                                                id={`admin-delete-user-${u.id}`}
+                                                                onClick={() => handleDeleteUser(u.id)}
+                                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                title="Delete user"
                                                             >
-                                                                <LogIn size={16} />
+                                                                <Trash2 size={16} />
                                                             </button>
-                                                        ) : null}
-                                                        {canManageRegionScope(u) ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openRegionScopeManager(u)}
-                                                                className="p-2 text-sky-700 hover:bg-sky-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                                title="Manage Region Scope"
-                                                            >
-                                                                <MapPin size={16} />
-                                                            </button>
-                                                        ) : null}
-                                                        {(normalizeRole(u.role) === 'partner' && (currentRole === 'super_admin' || currentRole === 'regional_admin')) ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openPartnerBoundaryManager(u)}
-                                                                className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                                title="Manage legacy boundary"
-                                                            >
-                                                                <MapPin size={16} />
-                                                            </button>
-                                                        ) : null}
-                                                        <button
-                                                            id={`admin-delete-user-${u.id}`}
-                                                            onClick={() => handleDeleteUser(u.id)}
-                                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                            title="Delete user"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-slate-300">—</span>
-                                                )}
+                                                        </>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -3921,6 +3959,85 @@ export default function AdminPage() {
                 </div>
             )
             }
+
+            {supportContextUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">Support Context</h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {supportContextUser.name} (@{supportContextUser.username})
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeSupportContext}
+                                className="btn-ghost py-1.5 text-xs"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+                            Support Coverage explains why this account appears in the user list. This view is read-only and does not grant profile edits, role changes, account deletion, user-view access, resource ownership, organisation access, group access, or private notes/files access.
+                        </div>
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Account role</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{getRoleMeta(supportContextUser.role).label}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Profile postal code</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{supportContextUser.postalCode || 'Not recorded'}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Profile region</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{getProfileRegionSummary(supportContextUser)}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Support coverage</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{getSupportCoverageSummary(supportContextUser).label}</div>
+                                {getSupportCoverageSummary(supportContextUser).detail ? (
+                                    <div className="text-xs text-slate-500">{getSupportCoverageSummary(supportContextUser).detail}</div>
+                                ) : null}
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Region Scope</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{getRegionScopeSummary(supportContextUser).label}</div>
+                                {getRegionScopeSummary(supportContextUser).detail ? (
+                                    <div className="text-xs text-slate-500">{getRegionScopeSummary(supportContextUser).detail}</div>
+                                ) : null}
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Covered by</div>
+                                {getSupportCoverageAdmins(supportContextUser).length > 0 ? (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {getSupportCoverageAdmins(supportContextUser).map((admin) => (
+                                            <span key={admin.id} className="inline-flex rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
+                                                {admin.name || admin.username || `Admin ${admin.id}`}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="mt-1 text-sm font-semibold text-slate-800">Not assigned through Support Coverage</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={closeSupportContext}
+                                className="btn-secondary"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {regionScopeModalUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
