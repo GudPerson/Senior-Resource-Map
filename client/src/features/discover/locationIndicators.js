@@ -14,6 +14,16 @@ function normalizeIndicator(indicators) {
     };
 }
 
+function normalizePostalCode(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits.length === 6 ? digits : '';
+}
+
+function normalizeCoordinate(value) {
+    const parsed = Number.parseFloat(String(value ?? ''));
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function getLocationIndicatorKey(resource) {
     const type = String(resource?._type || resource?.type || resource?.resourceType || resource?.asset_type || '').trim().toLowerCase();
     const id = Number.parseInt(String(resource?.id ?? resource?.resourceId ?? ''), 10);
@@ -59,4 +69,37 @@ export function getDiscoveryLocationIndicatorPresentation(indicators = {}) {
             ? 'discoveryRecommendedForThisLocation'
             : (normalized.withinHomeRegion ? 'discoveryRecommendedForYou' : ''),
     };
+}
+
+export function buildLocationIndicatorContextRequest(searchOrigin) {
+    if (!searchOrigin) {
+        return { payload: {}, key: '' };
+    }
+
+    if (searchOrigin.source === 'postal') {
+        const contextPostalCode = normalizePostalCode(searchOrigin.postalCode);
+        return contextPostalCode
+            ? {
+                payload: { contextPostalCode },
+                key: `postal:${contextPostalCode}`,
+            }
+            : { payload: {}, key: '' };
+    }
+
+    if (searchOrigin.source === 'geolocation') {
+        const lat = normalizeCoordinate(searchOrigin.lat);
+        const lng = normalizeCoordinate(searchOrigin.lng);
+        if (lat === null || lng === null) {
+            return { payload: {}, key: '' };
+        }
+
+        return {
+            payload: {
+                contextLocation: { lat, lng },
+            },
+            key: `geo:${lat.toFixed(5)},${lng.toFixed(5)}`,
+        };
+    }
+
+    return { payload: {}, key: '' };
 }

@@ -25,6 +25,7 @@ import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import {
     applyLocationIndicators,
+    buildLocationIndicatorContextRequest,
     buildLocationIndicatorResourceRefs,
 } from '../features/discover/locationIndicators.js';
 import {
@@ -898,16 +899,20 @@ export default function DiscoverPage() {
         () => buildLocationIndicatorResourceRefs(displayedResources),
         [displayedResources]
     );
-    const indicatorContextPostalCode = searchOrigin?.source === 'postal' ? searchOrigin.postalCode : '';
+    const indicatorContextRequest = useMemo(
+        () => buildLocationIndicatorContextRequest(searchOrigin),
+        [searchOrigin]
+    );
+    const indicatorContextKey = indicatorContextRequest.key;
     const userRegionKey = Array.isArray(user?.subregionIds) ? user.subregionIds.join(',') : '';
 
     useEffect(() => {
         let isActive = true;
         const hasSignedInContext = Boolean(isAuth && user);
-        const hasPostalContext = Boolean(indicatorContextPostalCode);
+        const hasLocationContext = Boolean(indicatorContextKey);
 
         async function loadLocationIndicators() {
-            if (loading || locationIndicatorResourceRefs.length === 0 || (!hasSignedInContext && !hasPostalContext)) {
+            if (loading || locationIndicatorResourceRefs.length === 0 || (!hasSignedInContext && !hasLocationContext)) {
                 setLocationIndicatorsByResourceKey({});
                 return;
             }
@@ -915,7 +920,7 @@ export default function DiscoverPage() {
             try {
                 const data = await api.getDiscoveryLocationIndicators({
                     resources: locationIndicatorResourceRefs,
-                    contextPostalCode: indicatorContextPostalCode,
+                    ...indicatorContextRequest.payload,
                 });
                 if (isActive) {
                     setLocationIndicatorsByResourceKey(data?.indicators || {});
@@ -934,7 +939,8 @@ export default function DiscoverPage() {
             isActive = false;
         };
     }, [
-        indicatorContextPostalCode,
+        indicatorContextKey,
+        indicatorContextRequest,
         isAuth,
         loading,
         locationIndicatorResourceRefs,

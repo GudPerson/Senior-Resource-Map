@@ -119,6 +119,53 @@ test('buildDiscoveryIndicatorContext includes audience zones and regions from se
     assert.deepEqual(context.homeRegionIds, []);
 });
 
+test('buildDiscoveryIndicatorContext can derive context from a temporary Locate Me coordinate', async () => {
+    const fakeDb = {
+        select(selection) {
+            const selectedKey = Object.keys(selection)[0];
+            return {
+                from() {
+                    return {
+                        async where() {
+                            if (selectedKey === 'audienceZoneId') {
+                                return [{ audienceZoneId: 3 }];
+                            }
+                            if (selectedKey === 'subregionId') {
+                                return [{ subregionId: 12 }];
+                            }
+                            return [];
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    const context = await buildDiscoveryIndicatorContext(fakeDb, null, {
+        contextLocation: { lat: 1.3791, lng: 103.7449 },
+        env: { GOOGLE_MAPS_API_KEY: 'test-key' },
+        cacheTtlMs: 0,
+        fetchImpl: async () => ({
+            ok: true,
+            async json() {
+                return {
+                    status: 'OK',
+                    results: [{
+                        address_components: [
+                            { long_name: 'Singapore', short_name: 'SG', types: ['country'] },
+                            { long_name: '681809', types: ['postal_code'] },
+                        ],
+                    }],
+                };
+            },
+        }),
+    });
+
+    assert.deepEqual(context.audienceZoneIds, [3]);
+    assert.deepEqual(context.contextRegionIds, [12]);
+    assert.deepEqual(context.homeRegionIds, []);
+});
+
 test('buildDiscoveryIndicatorContext ignores the national Singapore region for badge relevance', async () => {
     const fakeDb = {
         select(selection) {

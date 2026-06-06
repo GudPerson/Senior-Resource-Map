@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     applyLocationIndicators,
+    buildLocationIndicatorContextRequest,
     buildLocationIndicatorResourceRefs,
     getDiscoveryLocationIndicatorPresentation,
 } from '../src/features/discover/locationIndicators.js';
@@ -41,6 +42,44 @@ test('getDiscoveryLocationIndicatorPresentation falls back to home-region text',
     }), {
         showAudienceStar: false,
         recommendationKey: 'discoveryRecommendedForYou',
+    });
+});
+
+test('buildLocationIndicatorContextRequest sends searched postal context only for postal search', () => {
+    assert.deepEqual(buildLocationIndicatorContextRequest({
+        source: 'postal',
+        postalCode: '681809',
+        lat: 1.37,
+        lng: 103.74,
+    }), {
+        payload: { contextPostalCode: '681809' },
+        key: 'postal:681809',
+    });
+
+    assert.deepEqual(buildLocationIndicatorContextRequest({
+        source: 'home',
+        postalCode: '680153',
+        lat: 1.38,
+        lng: 103.74,
+    }), {
+        payload: {},
+        key: '',
+    });
+});
+
+test('buildLocationIndicatorContextRequest sends temporary coordinate context for Locate Me', () => {
+    assert.deepEqual(buildLocationIndicatorContextRequest({
+        source: 'geolocation',
+        lat: '1.3791',
+        lng: '103.7449',
+    }), {
+        payload: {
+            contextLocation: {
+                lat: 1.3791,
+                lng: 103.7449,
+            },
+        },
+        key: 'geo:1.37910,103.74490',
     });
 });
 

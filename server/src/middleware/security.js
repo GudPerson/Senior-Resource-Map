@@ -228,3 +228,10 @@ export const translationRateLimit = createRateLimiter({
     windowMs: 60 * 60 * 1000,
     methods: ['POST', 'PUT'],
 });
+
+export const discoveryIndicatorRateLimit = createRateLimiter({
+    name: 'discovery-indicators',
+    limit: 300,
+    windowMs: 10 * 60 * 1000,
+    methods: ['POST'],
+});

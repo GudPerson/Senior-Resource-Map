@@ -28,6 +28,7 @@ import {
     aiRateLimit,
     authPollingRateLimit,
     authRateLimit,
+    discoveryIndicatorRateLimit,
     requestBodyGuard,
     securityHeaders,
     translationRateLimit,
@@ -93,6 +94,7 @@ app.use('/api/private-resource-content/*/files/*', uploadRateLimit);
 app.use('/api/hard-assets/import/*', aiRateLimit);
 app.use('/api/soft-assets/import/*', aiRateLimit);
 app.use('/api/resource-translations/*', translationRateLimit);
+app.use('/api/discovery/location-indicators', discoveryIndicatorRateLimit);
 
 app.route('/api/auth', authRoutes);
 app.route('/api/hard-assets', hardAssetsRoutes);

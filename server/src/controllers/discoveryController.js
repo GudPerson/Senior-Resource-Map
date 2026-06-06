@@ -20,6 +20,12 @@ const discoveryIndicatorBodySchema = z.object({
         id: positiveIntValueSchema('resource id'),
     })).max(1000).optional().default([]),
     contextPostalCode: optionalOneLineTextSchema(20),
+    contextLocation: z.object({
+        lat: z.union([z.number(), z.string()]).optional(),
+        lng: z.union([z.number(), z.string()]).optional(),
+        latitude: z.union([z.number(), z.string()]).optional(),
+        longitude: z.union([z.number(), z.string()]).optional(),
+    }).optional(),
 });
 
 export const getDiscoveryLocationIndicators = async (c) => {
@@ -41,6 +47,8 @@ export const getDiscoveryLocationIndicators = async (c) => {
         const [context, resourceMetadata] = await Promise.all([
             buildDiscoveryIndicatorContext(db, user, {
                 contextPostalCode: body.contextPostalCode,
+                contextLocation: body.contextLocation,
+                env: c.env,
             }),
             loadDiscoveryIndicatorResourceMetadata(db, resources),
         ]);

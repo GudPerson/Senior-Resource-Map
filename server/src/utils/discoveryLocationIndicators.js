@@ -16,6 +16,7 @@ import {
     attachHardAssetRegionMatches,
     getActorRegionIds,
 } from './regionScope.js';
+import { resolveContextPostalCodeFromLocation } from './discoveryLocationContext.js';
 import { loadSingaporeFallbackRegion } from './singaporePostalFallback.js';
 
 const RESOURCE_TYPES = new Set(['hard', 'soft']);
@@ -136,14 +137,20 @@ export async function resolveRegionIdsForPostal(db, rawPostalCode) {
 export async function buildDiscoveryIndicatorContext(db, user, options = {}) {
     const singaporeRegion = await loadSingaporeFallbackRegion(db);
     const ignoredRegionIds = singaporeRegion?.id ? [singaporeRegion.id] : [];
+    const contextPostalCode = normalizePostalCode(options.contextPostalCode)
+        || await resolveContextPostalCodeFromLocation(options.contextLocation, {
+            env: options.env,
+            fetchImpl: options.fetchImpl,
+            cacheTtlMs: options.cacheTtlMs,
+        });
     const sessionRegionIds = excludeRegionIds(getActorRegionIds(user), ignoredRegionIds);
     const homeRegionIds = sessionRegionIds.length > 0
         ? sessionRegionIds
         : excludeRegionIds(await resolveRegionIdsForPostal(db, user?.postalCode), ignoredRegionIds);
     const [homeAudienceZoneIds, contextAudienceZoneIds, contextRegionIds] = await Promise.all([
         resolveStandardAudienceZoneIds(db, user).then((ids) => [...ids]),
-        resolveMatchedAudienceZoneIds(db, options.contextPostalCode).then((ids) => [...ids]),
-        resolveRegionIdsForPostal(db, options.contextPostalCode)
+        resolveMatchedAudienceZoneIds(db, contextPostalCode).then((ids) => [...ids]),
+        resolveRegionIdsForPostal(db, contextPostalCode)
             .then((regionIds) => excludeRegionIds(regionIds, ignoredRegionIds)),
     ]);
 
