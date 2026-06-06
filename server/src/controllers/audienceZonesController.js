@@ -94,7 +94,7 @@ function resolveAssetZoneSharingStatus(actor, requestedStatus, currentStatus = n
     const normalized = normalizeAudienceZoneSharingStatus(requestedStatus || currentStatus || 'local');
     if (isRegionOrSuperAdmin(actor)) return normalized;
     if (normalized === 'approved') {
-        throw createClientError('Global audience-zone sharing requires Region Admin approval.', 403);
+        throw createClientError('Global audience-zone sharing requires Admin approval.', 403);
     }
     return normalized;
 }
@@ -343,7 +343,7 @@ export const createAudienceZone = async (c) => {
                 return c.json({ error: 'Selected asset owner was not found.' }, 404);
             }
             if (!canManageAudienceZone(actor, { hardAssetId, hardAsset })) {
-                return c.json({ error: 'Only asset Owners and Region Admins can create zones for this asset.' }, 403);
+                return c.json({ error: 'Only asset Owners and Admins can create zones for this asset.' }, 403);
             }
             sharingStatus = resolveAssetZoneSharingStatus(actor, body.sharingStatus || 'local');
         } else {
@@ -408,7 +408,7 @@ export const updateAudienceZone = async (c) => {
         const role = normalizeRole(actor?.role);
         const existingSharingStatus = normalizeAudienceZoneSharingStatus(existing.sharingStatus || (existing.hardAssetId ? 'local' : 'approved'));
         if (existing.hardAssetId && existingSharingStatus === 'approved' && !isRegionOrSuperAdmin(actor)) {
-            return c.json({ error: 'Approved shared zones can only be edited by Region Admins.' }, 403);
+            return c.json({ error: 'Approved shared zones can only be edited by Admins.' }, 403);
         }
 
         let nextHardAssetId = body.hardAssetId !== undefined ? (body.hardAssetId || null) : (existing.hardAssetId || null);
@@ -419,7 +419,7 @@ export const updateAudienceZone = async (c) => {
                 return c.json({ error: 'Selected asset owner was not found.' }, 404);
             }
             if (!isRegionOrSuperAdmin(actor)) {
-                return c.json({ error: 'Only Region Admins can move an audience zone between assets.' }, 403);
+                return c.json({ error: 'Only Admins can move an audience zone between assets.' }, 403);
             }
             if (!canManageAudienceZone(actor, { hardAssetId: nextHardAssetId, hardAsset: nextHardAsset })) {
                 return c.json({ error: 'Selected asset owner is outside your allowed scope.' }, 403);
@@ -582,7 +582,7 @@ export const deleteAudienceZone = async (c) => {
         }
         const sharingStatus = normalizeAudienceZoneSharingStatus(existing.sharingStatus || (existing.hardAssetId ? 'local' : 'approved'));
         if (existing.hardAssetId && sharingStatus === 'approved' && !isRegionOrSuperAdmin(actor)) {
-            return c.json({ error: 'Approved shared zones can only be deleted by Region Admins.' }, 403);
+            return c.json({ error: 'Approved shared zones can only be deleted by Admins.' }, 403);
         }
         if (sharingStatus === 'approved' && await countApprovedZoneHardAssetUsage(db, id) > 1) {
             return c.json({ error: 'This shared audience zone is reused across multiple assets and cannot be deleted safely.' }, 409);

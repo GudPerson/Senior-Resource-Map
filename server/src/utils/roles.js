@@ -4,6 +4,7 @@ const LEGACY_ROLE_MAP = {
     standard: 'standard',
     guest: 'guest',
     admin: 'regional_admin',
+    region_admin: 'regional_admin',
     regional_admin: 'regional_admin',
     regionaladmin: 'regional_admin',
     super_admin: 'super_admin',

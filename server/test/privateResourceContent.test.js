@@ -246,7 +246,7 @@ test('restricted viewer grants require an active admin or operator status', () =
     ), false);
 });
 
-test('restricted access candidates include region admins and unrelated active operators only', async () => {
+test('restricted access candidates include admins and unrelated active operators only', async () => {
     const resource = createResource({
         partnerId: null,
         partner: null,
@@ -255,7 +255,7 @@ test('restricted access candidates include region admins and unrelated active op
         {
             id: 31,
             username: 'region-admin',
-            name: 'Region Admin',
+            name: 'Admin',
             role: 'regional_admin',
             managerUserId: null,
             subregionId: 4,
@@ -269,7 +269,7 @@ test('restricted access candidates include region admins and unrelated active op
         {
             id: 32,
             username: 'other-region-admin',
-            name: 'Another Region Admin',
+            name: 'Another Admin',
             role: 'regional_admin',
             managerUserId: null,
             subregionId: 99,
@@ -341,8 +341,8 @@ test('restricted access candidates include region admins and unrelated active op
     const candidates = await loadPrivateAccessCandidates(db, resource);
 
     assert.deepEqual(
-        candidates.map((candidate) => candidate.id),
-        [32, 82, 31],
+        candidates.map((candidate) => candidate.id).sort((left, right) => left - right),
+        [31, 32, 82],
     );
 });
 

@@ -186,10 +186,10 @@ export default function PrivateResourceContentEditor({ resourceType, resourceId 
                         onChange={handleAccessUsersChange}
                         className="react-select-container"
                         classNamePrefix="react-select"
-                        placeholder={accessOptions.length ? 'Select All, Region Admins, or asset operators...' : 'No eligible read-only viewer accounts available'}
+                        placeholder={accessOptions.length ? 'Select All, Admins, or asset operators...' : 'No eligible read-only viewer accounts available'}
                     />
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Resource editors already have access. Choose All to add every currently eligible Region Admin or active asset Owner/Staff as explicit read-only viewers.
+                        Resource editors already have access. Choose All to add every currently eligible Admin or active asset Owner/Staff as explicit read-only viewers.
                     </p>
                 </div>
 

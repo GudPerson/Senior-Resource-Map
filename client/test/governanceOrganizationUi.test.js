@@ -15,7 +15,7 @@ import {
     isOrganizationOpenForNewRecords,
     normalizeOrganizationStatus,
 } from '../src/lib/governanceOrganizationUi.js';
-import { getAdminTabs } from '../src/lib/roles.js';
+import { getAdminTabs, getRoleMeta, normalizeRole } from '../src/lib/roles.js';
 
 test('organisation status keeps active and draft open for new governance records only', () => {
     assert.equal(normalizeOrganizationStatus('Active'), 'active');
@@ -201,9 +201,17 @@ test('candidate refreshes do not clear organisation action errors', () => {
     );
 });
 
-test('super admin gets region group coordination tab without expanding regional admin tabs', () => {
+test('super admin gets region group coordination tab without expanding admin tabs', () => {
     assert.equal(getAdminTabs('super_admin').includes('groups'), true);
     assert.equal(getAdminTabs('regional_admin').includes('groups'), false);
+});
+
+test('admin platform role label hides the old region-admin wording', () => {
+    assert.equal(getRoleMeta('regional_admin').label, 'Admin');
+    assert.equal(getRoleMeta('regional_admin').shortLabel, 'Admin');
+    assert.equal(normalizeRole('Admin'), 'regional_admin');
+    assert.equal(normalizeRole('Region Admin'), 'regional_admin');
+    assert.equal(normalizeRole('Regional Admin'), 'regional_admin');
 });
 
 test('governance group panel source keeps groups as coordination-only', async () => {

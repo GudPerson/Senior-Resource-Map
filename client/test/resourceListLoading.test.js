@@ -56,7 +56,7 @@ test('shouldUseFullResourceDataset uses full data only for client-only filters',
     }), false);
 });
 
-test('buildManagedResourceListParams scopes region admin management lists to their region', () => {
+test('buildManagedResourceListParams scopes admin management lists to their region', () => {
     assert.deepEqual(buildManagedResourceListParams({
         canManageResourceTools: true,
         role: 'regional_admin',
@@ -90,7 +90,7 @@ test('buildManagedHardResourceListParams requests lean summaries for managed har
     }), {});
 });
 
-test('regional admin admin-resource loads do not eagerly hydrate every resource page', () => {
+test('admin resource loads do not eagerly hydrate every resource page', () => {
     assert.equal(shouldHydrateAllAdminResourcePages({ role: 'regional_admin' }), false);
     assert.equal(shouldHydrateAllAdminResourcePages({ role: 'super_admin' }), true);
     assert.equal(shouldHydrateAllAdminResourcePages({ role: 'standard' }), true);

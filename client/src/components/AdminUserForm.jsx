@@ -6,7 +6,7 @@ import { Shield, MapPin, Database } from 'lucide-react';
 
 const ROLE_LABELS = {
     super_admin: 'Super Admin',
-    regional_admin: 'Region Admin',
+    regional_admin: 'Admin',
     standard: 'User',
 };
 
@@ -289,7 +289,7 @@ export default function AdminUserForm({ currentUser, onCreated }) {
                     <div className="bg-brand-50/50 p-4 rounded-2xl text-sm border border-brand-100/50">
                         <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">Ownership Context</span>
                         <div className="mt-2 font-medium text-slate-700 leading-relaxed">
-                            {isRegionalAdmin ? 'This User account will be managed directly by your Region Admin account.' : null}
+                            {isRegionalAdmin ? 'This User account will be managed directly by your Admin account.' : null}
                         </div>
                     </div>
                 ) : null}

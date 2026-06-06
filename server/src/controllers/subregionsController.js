@@ -571,7 +571,7 @@ export const bulkUploadSubregionBoundaries = async (c) => {
         const user = c.get('user');
         const role = normalizeRole(user?.role);
         if (!['super_admin', 'regional_admin'].includes(role)) {
-            return c.json({ error: 'Only Super Admins and Regional Admins can manage subregion boundaries.' }, 403);
+            return c.json({ error: 'Only Super Admins and Admins can manage subregion boundaries.' }, 403);
         }
 
         const body = validateRequestBody(await c.req.json(), subregionBoundaryUploadBodySchema, 'Subregion boundary upload');

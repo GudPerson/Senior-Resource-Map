@@ -47,7 +47,7 @@ test('super admin can assign first standalone soft asset owner', () => {
     assert.equal(canAssignSoftAssetStaffRole(actor({ role: 'super_admin' }), { id: 50, activeOwnerCount: 0 }, 'owner'), true);
 });
 
-test('region admin creator default owner applies only to standalone offerings', () => {
+test('admin creator default owner applies only to standalone offerings', () => {
     assert.equal(shouldGrantCreatorDefaultSoftAssetOwner(
         { role: 'regional_admin' },
         { linkedHardAssetIds: [], hostHardAssetId: null },

@@ -194,8 +194,8 @@ function resolveRequestedRole(requestedRole, creatorRole) {
     }
 
     if (!allowedRoles.includes(normalizedRole)) {
-        const managerLabel = normalizeRole(creatorRole) === 'regional_admin' ? 'Region Admins' : 'This account';
-        throw accessError(`${managerLabel} can only create ${allowedRoles[0] === 'regional_admin' ? 'Region Admin' : 'User'} accounts.`);
+        const managerLabel = normalizeRole(creatorRole) === 'regional_admin' ? 'Admins' : 'This account';
+        throw accessError(`${managerLabel} can only create ${allowedRoles[0] === 'regional_admin' ? 'Admin' : 'User'} accounts.`);
     }
 
     return normalizedRole;
@@ -363,14 +363,14 @@ function validateManagerForTarget(managerUser, targetRole, derivedSubregionId) {
     if (normalizedTargetRole === 'regional_admin') {
         if (!managerUser) return;
         if (normalizeRole(managerUser.role) !== 'super_admin') {
-            throw accessError('Regional Admin accounts may only be assigned to a Super Admin.', 400);
+            throw accessError('Admin accounts may only be assigned to a Super Admin.', 400);
         }
         return;
     }
 
     if (normalizedTargetRole === 'partner') {
         if (!managerUser || normalizeRole(managerUser.role) !== 'regional_admin') {
-            throw accessError('Legacy accounts must be assigned to a Region Admin.', 400);
+            throw accessError('Legacy accounts must be assigned to an Admin.', 400);
         }
         ensureSubregionWithinManagerScope(managerUser, derivedSubregionId);
         return;
@@ -379,7 +379,7 @@ function validateManagerForTarget(managerUser, targetRole, derivedSubregionId) {
     if (normalizedTargetRole === 'standard') {
         if (!managerUser) return;
         if (normalizeRole(managerUser.role) !== 'regional_admin') {
-            throw accessError('User accounts may only be assigned to a Region Admin.', 400);
+            throw accessError('User accounts may only be assigned to an Admin.', 400);
         }
         ensureSubregionWithinManagerScope(managerUser, derivedSubregionId);
     }

@@ -4,6 +4,7 @@ const LEGACY_ROLE_MAP = {
     standard: 'standard',
     guest: 'guest',
     admin: 'regional_admin',
+    region_admin: 'regional_admin',
     regional_admin: 'regional_admin',
     regionaladmin: 'regional_admin',
     super_admin: 'super_admin',
@@ -21,8 +22,8 @@ const ROLE_META = {
         controlClassName: 'bg-red-50 text-red-700 border-red-200',
     },
     regional_admin: {
-        label: 'Region Admin',
-        shortLabel: '🛡️ Region',
+        label: 'Admin',
+        shortLabel: 'Admin',
         pillClassName: 'bg-orange-100 text-orange-700',
         controlClassName: 'bg-orange-50 text-orange-700 border-orange-200',
     },

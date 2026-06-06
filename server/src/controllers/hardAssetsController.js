@@ -1866,7 +1866,7 @@ export const updateHardAsset = async (c) => {
         const body = sanitizeHardAssetPatch(await c.req.json());
         const changesVisibility = body.isHidden !== undefined || body.hideFrom !== undefined || body.hideUntil !== undefined;
         if (changesVisibility && !actorCanHideHardAsset(user, existing, existing.partner)) {
-            return c.json({ error: 'Only asset Owners and Region Admins can hide or show this place.' }, 403);
+            return c.json({ error: 'Only asset Owners and Admins can hide or show this place.' }, 403);
         }
         const nextPostalCode = body.postalCode ?? existing.postalCode;
         const nextCountry = body.country ?? existing.country;

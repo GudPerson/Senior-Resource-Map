@@ -87,7 +87,7 @@ const RESOURCE_SORT_OPTIONS = [
 const USER_ROLE_FILTER_OPTIONS = [
     { value: 'all', label: 'All roles' },
     { value: 'super_admin', label: 'Super Admin' },
-    { value: 'regional_admin', label: 'Region Admin' },
+    { value: 'regional_admin', label: 'Admin' },
     { value: 'standard', label: 'User' },
 ];
 
@@ -3364,9 +3364,9 @@ export default function AdminPage() {
                                     <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code> for all non-super-admin rows</li>
                                     <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
                                     <li>• Role: <code className="bg-slate-200 px-1 rounded">role</code></li>
-                                    <li>• Manager: <code className="bg-slate-200 px-1 rounded">managerUsername</code> is required for super-admin creation of Region Admins and Users</li>
+                                    <li>• Manager: <code className="bg-slate-200 px-1 rounded">managerUsername</code> is required for super-admin creation of Admins and Users</li>
                                     <li>• Legacy <code className="bg-slate-200 px-1 rounded">subregionIds</code> is optional and must match the postal-code-derived region if supplied</li>
-                                    <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Region Admin</code>, <code className="bg-slate-200 px-1 rounded">User</code>, or <code className="bg-slate-200 px-1 rounded">Super Admin</code></li>
+                                    <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Admin</code>, <code className="bg-slate-200 px-1 rounded">User</code>, or <code className="bg-slate-200 px-1 rounded">Super Admin</code></li>
                                     <li>• Subregion refs can be DB IDs, codes, or names, for example <code className="bg-slate-200 px-1 rounded">SR-CLW1</code></li>
                                 </ul>
                             </div>
@@ -3389,7 +3389,7 @@ export default function AdminPage() {
                                 {currentRole === 'super_admin'
                                     ? 'Super admins can bulk-upload any account tier.'
                                     : currentRole === 'regional_admin'
-                                        ? 'Region admins can bulk-upload users in their region.'
+                                        ? 'Admins can bulk-upload users in their region.'
                                         : 'This account cannot bulk-upload users.'}
                             </p>
                         </div>
