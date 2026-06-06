@@ -13,7 +13,7 @@ import Pagination from '../../components/Pagination.jsx';
 import { buildBoundaryStatusFilterOptions, normalizeBoundaryStatusFilterValue } from '../../lib/adminBoundaryFilters.js';
 import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../lib/paginatedResults.js';
 import { buildManagedHardResourceListParams, buildManagedResourceListParams, shouldHydrateAllAdminResourcePages } from '../../lib/resourceListLoading.js';
-import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRequiredManagerRole, getRoleMeta, normalizeRole } from '../../lib/roles.js';
+import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 import GovernanceGroupsPanel from '../../components/admin/GovernanceGroupsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
@@ -257,6 +257,72 @@ function compareListText(left, right) {
     return normalizeListText(left).localeCompare(normalizeListText(right));
 }
 
+function getUserAssignmentStatusMeta(status) {
+    if (status === 'assigned') {
+        return {
+            label: 'Assigned',
+            className: 'border-green-200 bg-green-50 text-green-700',
+        };
+    }
+
+    if (status === 'invalid') {
+        return {
+            label: 'Needs review',
+            className: 'border-red-200 bg-red-50 text-red-700',
+        };
+    }
+
+    return {
+        label: 'Unassigned',
+        className: 'border-amber-200 bg-amber-50 text-amber-700',
+    };
+}
+
+function getAccountAssignmentSummary(userRecord) {
+    if (userRecord?.managerName) {
+        return {
+            label: userRecord.managerName,
+            detail: userRecord.managerUsername ? `@${userRecord.managerUsername}` : 'Assigned account manager',
+        };
+    }
+
+    return {
+        label: 'Unassigned',
+        detail: 'No account manager assigned',
+    };
+}
+
+function getRegionScopeSummary(userRecord) {
+    if (normalizeRole(userRecord?.role) !== 'regional_admin') {
+        return {
+            label: 'Not applicable',
+            detail: 'Only Admin accounts carry region scope',
+        };
+    }
+
+    const assignedCount = Array.isArray(userRecord?.subregionIds) ? userRecord.subregionIds.length : 0;
+    if (assignedCount > 1) {
+        return {
+            label: `${assignedCount} regions assigned`,
+            detail: userRecord.derivedSubregionName
+                ? `Includes ${userRecord.derivedSubregionName}`
+                : 'Multiple region boundaries',
+        };
+    }
+
+    if (userRecord?.derivedSubregionName) {
+        return {
+            label: userRecord.derivedSubregionName,
+            detail: userRecord.derivedSubregionCode || 'Assigned region boundary',
+        };
+    }
+
+    return {
+        label: 'No region scope',
+        detail: 'Assign regions from the Admin scope workflow',
+    };
+}
+
 function sanitizeCsvCell(value) {
     if (value === undefined || value === null) return '';
     const text = String(value).trim();
@@ -274,6 +340,10 @@ function formatRoleForExport(role) {
     return getRoleMeta(role).label;
 }
 
+function formatAssignmentStatusForExport(status) {
+    return getUserAssignmentStatusMeta(status).label;
+}
+
 function buildUserExportRows(userRows) {
     return userRows.map((userRow) => [
         userRow.id,
@@ -288,7 +358,7 @@ function buildUserExportRows(userRows) {
         userRow.managerUsername,
         userRow.managerName,
         userRow.managerRole ? formatRoleForExport(userRow.managerRole) : '',
-        userRow.ownershipStatus,
+        formatAssignmentStatusForExport(userRow.ownershipStatus),
         userRow.boundaryStatus,
         userRow.dateOfBirth,
         userRow.chasCard,
@@ -771,22 +841,6 @@ export default function AdminPage() {
             await loadAll();
         } catch (err) {
             alert(err.message);
-        }
-    }
-
-    function getManagerOptionsForUser(targetUser) {
-        const requiredManagerRole = getRequiredManagerRole(targetUser?.role);
-        if (!requiredManagerRole) return [];
-        return users.filter((candidate) => normalizeRole(candidate.role) === requiredManagerRole);
-    }
-
-    async function handleManagerChange(userId, nextManagerId) {
-        try {
-            const payload = nextManagerId ? Number.parseInt(String(nextManagerId), 10) : null;
-            await api.updateUserManager(userId, payload);
-            await loadAll();
-        } catch (err) {
-            alert(err.message || 'Failed to update user ownership.');
         }
     }
 
@@ -1332,12 +1386,12 @@ export default function AdminPage() {
             'Role',
             'Phone',
             'Postal Code',
-            'Derived Region Code',
-            'Derived Region Name',
+            'Profile Region Code',
+            'Profile Region Name',
             'Manager Username',
             'Manager Name',
             'Manager Role',
-            'Ownership Status',
+            'Assignment Status',
             'Boundary Status',
             'Date of Birth',
             'CHAS Card',
@@ -3485,9 +3539,10 @@ export default function AdminPage() {
                                         </th>
                                         <th className="px-4 py-3 font-semibold">User</th>
                                         <th className="px-4 py-3 font-semibold hidden md:table-cell">Postal Code</th>
-                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Derived Region</th>
-                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Managed By</th>
-                                        <th className="px-4 py-3 font-semibold hidden lg:table-cell">Ownership</th>
+                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Profile Region</th>
+                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Account Assignment</th>
+                                        <th className="px-4 py-3 font-semibold hidden lg:table-cell">Assignment Status</th>
+                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Region Scope</th>
                                         {boundaryChecksEnabled ? (
                                             <th className="px-4 py-3 font-semibold hidden lg:table-cell">Boundary</th>
                                         ) : null}
@@ -3531,41 +3586,28 @@ export default function AdminPage() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 hidden xl:table-cell">
-                                                {canEditUserRoles && getRequiredManagerRole(u.role) ? (
-                                                    <select
-                                                        value={u.managerUserId || ''}
-                                                        onChange={(e) => handleManagerChange(u.id, e.target.value)}
-                                                        className="input-field min-w-[220px] py-2 text-sm"
-                                                    >
-                                                        <option value="">Unassigned</option>
-                                                        {getManagerOptionsForUser(u).map((candidate) => (
-                                                            <option key={candidate.id} value={candidate.id}>
-                                                                {candidate.name} (@{candidate.username})
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                ) : u.managerName ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-medium text-slate-700">{u.managerName}</span>
-                                                        <span className="text-xs text-slate-400">@{u.managerUsername}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-sm text-slate-400">—</span>
-                                                )}
+                                                <div
+                                                    className="flex flex-col"
+                                                    title="Account assignment is read-only here. Use the dedicated assignment workflow for changes."
+                                                >
+                                                    <span className={`text-sm font-medium ${u.managerName ? 'text-slate-700' : 'text-slate-500'}`}>
+                                                        {getAccountAssignmentSummary(u).label}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400">{getAccountAssignmentSummary(u).detail}</span>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 hidden lg:table-cell">
-                                                <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${u.ownershipStatus === 'assigned'
-                                                    ? 'border-green-200 bg-green-50 text-green-700'
-                                                    : u.ownershipStatus === 'invalid'
-                                                        ? 'border-red-200 bg-red-50 text-red-700'
-                                                        : 'border-amber-200 bg-amber-50 text-amber-700'
-                                                    }`}>
-                                                    {u.ownershipStatus === 'assigned'
-                                                        ? 'Assigned'
-                                                        : u.ownershipStatus === 'invalid'
-                                                            ? 'Invalid'
-                                                            : 'Unassigned'}
+                                                <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${getUserAssignmentStatusMeta(u.ownershipStatus).className}`}>
+                                                    {getUserAssignmentStatusMeta(u.ownershipStatus).label}
                                                 </span>
+                                            </td>
+                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                <div className="flex flex-col">
+                                                    <span className={`text-sm font-medium ${normalizeRole(u.role) === 'regional_admin' ? 'text-slate-700' : 'text-slate-500'}`}>
+                                                        {getRegionScopeSummary(u).label}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400">{getRegionScopeSummary(u).detail}</span>
+                                                </div>
                                             </td>
                                             {boundaryChecksEnabled ? (
                                                 <td className="px-4 py-3 hidden lg:table-cell">
