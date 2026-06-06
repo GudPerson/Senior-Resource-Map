@@ -13,7 +13,7 @@ test('partner login role is no longer offered for new assignment flows', () => {
     assert.deepEqual(getManageableRoles('regional_admin'), ['standard']);
 });
 
-test('standard user ownership now hangs from Admins instead of legacy login accounts', () => {
+test('legacy direct manager safeguards still accept Admin-to-User links', () => {
     assert.equal(getDirectManagerRole('standard'), 'regional_admin');
     assert.equal(canRoleOwnUser('regional_admin', 'standard'), true);
     assert.equal(canRoleOwnUser('partner', 'standard'), false);

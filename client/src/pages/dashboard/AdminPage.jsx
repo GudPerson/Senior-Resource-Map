@@ -13,7 +13,7 @@ import Pagination from '../../components/Pagination.jsx';
 import { buildBoundaryStatusFilterOptions, normalizeBoundaryStatusFilterValue } from '../../lib/adminBoundaryFilters.js';
 import { fetchPaginatedResultPage, fetchPaginatedResultsPartial } from '../../lib/paginatedResults.js';
 import { buildManagedHardResourceListParams, buildManagedResourceListParams, shouldHydrateAllAdminResourcePages } from '../../lib/resourceListLoading.js';
-import { canChangeUserRoles, canManageUser, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
+import { canChangeUserRoles, canManageUserRecord as canManageUserRecordByOwnership, getAdminTabs, getCreatableUserRoles, getRoleMeta, normalizeRole } from '../../lib/roles.js';
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 import GovernanceGroupsPanel from '../../components/admin/GovernanceGroupsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
@@ -257,46 +257,64 @@ function compareListText(left, right) {
     return normalizeListText(left).localeCompare(normalizeListText(right));
 }
 
-function getUserAssignmentStatusMeta(status) {
-    if (status === 'assigned') {
+function getSupportCoverageBadgeMeta(status) {
+    if (status === 'covered') {
         return {
-            label: 'Assigned',
+            label: 'Covered',
             className: 'border-green-200 bg-green-50 text-green-700',
         };
     }
 
-    if (status === 'invalid') {
+    if (status === 'missing_postal' || status === 'missing_location') {
         return {
-            label: 'Needs review',
+            label: status === 'missing_location' ? 'Needs location review' : 'Needs postal code',
+            className: 'border-amber-200 bg-amber-50 text-amber-700',
+        };
+    }
+
+    if (status === 'uncovered') {
+        return {
+            label: 'No coverage',
             className: 'border-red-200 bg-red-50 text-red-700',
         };
     }
 
     return {
-        label: 'Unassigned',
-        className: 'border-amber-200 bg-amber-50 text-amber-700',
+        label: 'Reference',
+        className: 'border-slate-200 bg-slate-50 text-slate-600',
     };
 }
 
-function getAccountAssignmentSummary(userRecord) {
-    if (userRecord?.managerName) {
+function getSupportCoverageSummary(userRecord) {
+    const coverage = userRecord?.supportCoverage || {};
+    if (coverage.label) {
         return {
-            label: userRecord.managerName,
-            detail: userRecord.managerUsername ? `@${userRecord.managerUsername}` : 'Assigned account manager',
+            label: coverage.label,
+            detail: coverage.detail || '',
+            status: coverage.status || 'reference',
+        };
+    }
+
+    if (normalizeRole(userRecord?.role) === 'standard' && !userRecord?.postalCode) {
+        return {
+            label: 'Needs postal code',
+            detail: 'Visible to Super Admin until location details are completed',
+            status: 'missing_postal',
         };
     }
 
     return {
-        label: 'Unassigned',
-        detail: 'No account manager assigned',
+        label: 'Coverage not calculated',
+        detail: '',
+        status: 'reference',
     };
 }
 
 function getRegionScopeSummary(userRecord) {
     if (normalizeRole(userRecord?.role) !== 'regional_admin') {
         return {
-            label: 'Not applicable',
-            detail: 'Only Admin accounts carry region scope',
+            label: '—',
+            detail: '',
         };
     }
 
@@ -359,8 +377,8 @@ function formatRoleForExport(role) {
     return getRoleMeta(role).label;
 }
 
-function formatAssignmentStatusForExport(status) {
-    return getUserAssignmentStatusMeta(status).label;
+function formatSupportCoverageForExport(userRow) {
+    return getSupportCoverageSummary(userRow).label;
 }
 
 function buildUserExportRows(userRows) {
@@ -374,10 +392,9 @@ function buildUserExportRows(userRows) {
         userRow.postalCode,
         userRow.derivedSubregionCode,
         userRow.derivedSubregionName,
-        userRow.managerUsername,
-        userRow.managerName,
-        userRow.managerRole ? formatRoleForExport(userRow.managerRole) : '',
-        formatAssignmentStatusForExport(userRow.ownershipStatus),
+        formatSupportCoverageForExport(userRow),
+        userRow.supportCoverage?.detail || '',
+        userRow.supportCoverage?.adminCount ?? '',
         userRow.boundaryStatus,
         userRow.dateOfBirth,
         userRow.chasCard,
@@ -1439,16 +1456,13 @@ export default function AdminPage() {
     }
 
     function handleDownloadUserTemplate() {
-        const headers = ['username', 'email', 'name', 'password', 'phone', 'postalCode', 'role', 'managerUsername', 'subregionIds'];
+        const headers = ['username', 'email', 'name', 'password', 'phone', 'postalCode', 'role', 'subregionIds'];
         const templateRole = creatableRoles[0] || 'standard';
         const templateRoleLabel = getRoleMeta(templateRole).label;
-        const managerHint = currentRole === 'super_admin'
-            ? (templateRole === 'regional_admin' ? currentUser?.username || '' : '')
-            : '';
         const demoSubregionRef = currentRole === 'super_admin'
             ? 'SR-CLW1'
             : (currentUser?.subregionIds || []).join(',');
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, managerHint, demoSubregionRef];
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, demoSubregionRef];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
@@ -1472,10 +1486,9 @@ export default function AdminPage() {
             'Postal Code',
             'Profile Region Code',
             'Profile Region Name',
-            'Manager Username',
-            'Manager Name',
-            'Manager Role',
-            'Assignment Status',
+            'Support Coverage',
+            'Support Coverage Detail',
+            'Support Coverage Admin Count',
             'Boundary Status',
             'Date of Birth',
             'CHAS Card',
@@ -2179,6 +2192,8 @@ export default function AdminPage() {
                 candidate.email,
                 candidate.phone,
                 candidate.postalCode,
+                getSupportCoverageSummary(candidate).label,
+                getSupportCoverageSummary(candidate).detail,
             ]
                 .filter(Boolean)
                 .join(' ')
@@ -3502,7 +3517,7 @@ export default function AdminPage() {
                                     <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code> for all non-super-admin rows</li>
                                     <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
                                     <li>• Role: <code className="bg-slate-200 px-1 rounded">role</code></li>
-                                    <li>• Manager: <code className="bg-slate-200 px-1 rounded">managerUsername</code> is required for super-admin creation of Admins and Users</li>
+                                    <li>• Support coverage is derived from each user's postal-code region and the active Admin Region Scope</li>
                                     <li>• Legacy <code className="bg-slate-200 px-1 rounded">subregionIds</code> is optional and must match the postal-code-derived region if supplied</li>
                                     <li>• Role accepts labels like <code className="bg-slate-200 px-1 rounded">Admin</code>, <code className="bg-slate-200 px-1 rounded">User</code>, or <code className="bg-slate-200 px-1 rounded">Super Admin</code></li>
                                     <li>• Subregion refs can be DB IDs, codes, or names, for example <code className="bg-slate-200 px-1 rounded">SR-CLW1</code></li>
@@ -3622,10 +3637,7 @@ export default function AdminPage() {
                                             />
                                         </th>
                                         <th className="px-4 py-3 font-semibold">User</th>
-                                        <th className="px-4 py-3 font-semibold hidden md:table-cell">Postal Code</th>
-                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Profile Region</th>
-                                        <th className="px-4 py-3 font-semibold hidden xl:table-cell">Account Assignment</th>
-                                        <th className="px-4 py-3 font-semibold hidden lg:table-cell">Assignment Status</th>
+                                        <th className="px-4 py-3 font-semibold hidden lg:table-cell">Support Coverage</th>
                                         <th className="px-4 py-3 font-semibold hidden xl:table-cell">Region Scope</th>
                                         {boundaryChecksEnabled ? (
                                             <th className="px-4 py-3 font-semibold hidden lg:table-cell">Boundary</th>
@@ -3650,47 +3662,31 @@ export default function AdminPage() {
                                                 <div className="flex flex-col">
                                                     <span className="font-semibold text-slate-900">{u.name}</span>
                                                     <span className="text-xs text-slate-400">@{u.username} • {u.email}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 hidden md:table-cell">
-                                                {u.postalCode ? (
-                                                    <span className="font-mono text-xs text-slate-600">{u.postalCode}</span>
-                                                ) : (
-                                                    <span className="text-sm text-slate-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell">
-                                                {u.derivedSubregionName ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-medium text-slate-700">{u.derivedSubregionName}</span>
-                                                        <span className="text-xs text-slate-400">{u.derivedSubregionCode || 'No code'}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-sm text-slate-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell">
-                                                <div
-                                                    className="flex flex-col"
-                                                    title="Account assignment is read-only here. Use the dedicated assignment workflow for changes."
-                                                >
-                                                    <span className={`text-sm font-medium ${u.managerName ? 'text-slate-700' : 'text-slate-500'}`}>
-                                                        {getAccountAssignmentSummary(u).label}
+                                                    <span className="mt-1 text-xs text-slate-500">
+                                                        {u.postalCode ? `Postal ${u.postalCode}` : 'No postal code'}
+                                                        {u.derivedSubregionName ? ` · ${u.derivedSubregionName}` : ''}
                                                     </span>
-                                                    <span className="text-xs text-slate-400">{getAccountAssignmentSummary(u).detail}</span>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 hidden lg:table-cell">
-                                                <span className={`inline-flex rounded-lg border px-3 py-1.5 text-xs font-bold ${getUserAssignmentStatusMeta(u.ownershipStatus).className}`}>
-                                                    {getUserAssignmentStatusMeta(u.ownershipStatus).label}
-                                                </span>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className={`inline-flex w-fit rounded-lg border px-3 py-1.5 text-xs font-bold ${getSupportCoverageBadgeMeta(getSupportCoverageSummary(u).status).className}`}>
+                                                        {getSupportCoverageBadgeMeta(getSupportCoverageSummary(u).status).label}
+                                                    </span>
+                                                    <span className="text-sm font-medium text-slate-700">{getSupportCoverageSummary(u).label}</span>
+                                                    {getSupportCoverageSummary(u).detail ? (
+                                                        <span className="text-xs text-slate-400">{getSupportCoverageSummary(u).detail}</span>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 hidden xl:table-cell">
                                                 <div className="flex flex-col">
                                                     <span className={`text-sm font-medium ${normalizeRole(u.role) === 'regional_admin' ? 'text-slate-700' : 'text-slate-500'}`}>
                                                         {getRegionScopeSummary(u).label}
                                                     </span>
-                                                    <span className="text-xs text-slate-400">{getRegionScopeSummary(u).detail}</span>
+                                                    {getRegionScopeSummary(u).detail ? (
+                                                        <span className="text-xs text-slate-400">{getRegionScopeSummary(u).detail}</span>
+                                                    ) : null}
                                                 </div>
                                             </td>
                                             {boundaryChecksEnabled ? (
@@ -3956,9 +3952,9 @@ export default function AdminPage() {
                                 <div className="mt-1 text-sm font-semibold text-slate-800">{regionScopeModalUser.postalCode || 'Not recorded'}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Account Assignment</div>
-                                <div className="mt-1 text-sm font-semibold text-slate-800">{getAccountAssignmentSummary(regionScopeModalUser).label}</div>
-                                <div className="text-xs text-slate-500">{getAccountAssignmentSummary(regionScopeModalUser).detail}</div>
+                                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Support Coverage</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-800">{getSupportCoverageSummary(regionScopeModalUser).label}</div>
+                                <div className="text-xs text-slate-500">{getSupportCoverageSummary(regionScopeModalUser).detail || 'Admin coverage comes from selected regions'}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Selected regions</div>

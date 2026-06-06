@@ -16,6 +16,7 @@ import { normalizeChasCard, normalizeDateOfBirth, normalizeGender, normalizeProp
 import { ensurePartnerOrganizationForLegacyPartner } from '../utils/partnerOrganizations.js';
 import { isPhoneOnlyPlaceholderEmail } from '../utils/phoneLogin.js';
 import { normalizeAdminRegionScopeIds, validateAdminRegionScopeUpdate } from '../utils/adminRegionScope.js';
+import { buildUserSupportCoverage, canViewUserThroughSupportCoverage } from '../utils/adminSupportCoverage.js';
 import {
     optionalOneLineTextSchema,
     validateRequestBody,
@@ -403,6 +404,8 @@ async function resolveManagerForCreate(db, creator, targetRole, body) {
         if (!hasRequestedManagerId && !hasRequestedManagerUsername) {
             return creator;
         }
+    } else if (targetRole === 'standard' && !hasRequestedManagerId && !hasRequestedManagerUsername) {
+        return null;
     } else if (!hasRequestedManagerId && !hasRequestedManagerUsername) {
         throw accessError('managerUserId or managerUsername is required for this role.', 400);
     }
@@ -490,7 +493,7 @@ async function findUserByEmail(db, email) {
     return allUsers.find((candidate) => String(candidate.email || '').toLowerCase() === email) || null;
 }
 
-function buildUserResponse(userRow, boundaryContext) {
+function buildUserResponse(userRow, boundaryContext, supportCoverage = null) {
     return {
         id: userRow.id,
         username: userRow.username,
@@ -516,6 +519,7 @@ function buildUserResponse(userRow, boundaryContext) {
         derivedSubregionName: userRow.derivedSubregionName || null,
         needsPostalCode: needsPostalCodeCompletion(userRow),
         ownershipStatus: getOwnershipStatus(userRow),
+        supportCoverage: supportCoverage || userRow.supportCoverage || buildUserSupportCoverage(userRow, []),
         boundaryStatus: resolvePostalBoundaryStatus(userRow.postalCode, boundaryContext),
     };
 }
@@ -716,12 +720,7 @@ export const getUsers = async (c) => {
             },
         });
 
-        usersData = usersData.filter((candidate) => {
-            if (creatorRole === 'super_admin') return true;
-            return canDirectlyManageUser(creator, candidate);
-        });
-
-        const rows = usersData.map((userRow) => buildUserResponse({
+        const normalizedRows = usersData.map((userRow) => ({
             ...userRow,
             managerName: userRow.manager?.name || null,
             managerRole: normalizeRole(userRow.manager?.role),
@@ -730,7 +729,24 @@ export const getUsers = async (c) => {
             derivedSubregionId: userRow.subregions[0]?.subregion?.id || null,
             derivedSubregionCode: userRow.subregions[0]?.subregion?.subregionCode || null,
             derivedSubregionName: userRow.subregions[0]?.subregion?.name || null,
-        }, boundaryContext));
+        }));
+
+        const adminCoverageUsers = normalizedRows.filter((candidate) => normalizeRole(candidate.role) === 'regional_admin');
+        const rows = normalizedRows
+            .filter((candidate) => {
+                if (creatorRole === 'super_admin') return true;
+                const supportCoverage = buildUserSupportCoverage(candidate, adminCoverageUsers);
+                if (normalizeRole(candidate.role) === 'standard' && ['missing_postal', 'missing_location'].includes(supportCoverage.status)) {
+                    return false;
+                }
+                return canDirectlyManageUser(creator, candidate)
+                    || canViewUserThroughSupportCoverage(creator, candidate);
+            })
+            .map((userRow) => buildUserResponse(
+                userRow,
+                boundaryContext,
+                buildUserSupportCoverage(userRow, adminCoverageUsers),
+            ));
 
         return c.json(rows);
     } catch (err) {
