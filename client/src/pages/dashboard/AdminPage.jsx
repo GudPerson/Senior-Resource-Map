@@ -380,6 +380,20 @@ function getSubregionDisplayLabel(subregion) {
     return subregion?.subregionCode ? `${name} (${subregion.subregionCode})` : name;
 }
 
+function getAssignedAdminLabel(admin) {
+    return admin?.name || admin?.username || `Admin ${admin?.id}`;
+}
+
+function getAssignedAdminsForRegion(subregion, userRows = []) {
+    const regionId = Number.parseInt(String(subregion?.id ?? ''), 10);
+    if (!Number.isInteger(regionId) || regionId <= 0) return [];
+
+    return (Array.isArray(userRows) ? userRows : [])
+        .filter((candidate) => normalizeRole(candidate?.role) === 'regional_admin')
+        .filter((candidate) => normalizeRegionScopeIdList(candidate?.subregionIds).includes(regionId))
+        .sort((left, right) => compareListText(getAssignedAdminLabel(left), getAssignedAdminLabel(right)));
+}
+
 function sanitizeCsvCell(value) {
     if (value === undefined || value === null) return '';
     const text = String(value).trim();
@@ -2046,11 +2060,12 @@ export default function AdminPage() {
             Name: s.name,
             SubregionID: s.subregionCode || '',
             Description: s.description || '',
+            AssignedAdmins: getAssignedAdminsForRegion(s, adminScopeUsers).map(getAssignedAdminLabel).join('; '),
         }));
 
         const csv = Papa.unparse({
-            fields: ['ID', 'Name', 'SubregionID', 'Description'],
-            data: toExport.map(s => [s.ID, s.Name, s.SubregionID, s.Description])
+            fields: ['ID', 'Name', 'SubregionID', 'Description', 'AssignedAdmins'],
+            data: toExport.map(s => [s.ID, s.Name, s.SubregionID, s.Description, s.AssignedAdmins])
         });
 
         const fileName = `subregions_export_${new Date().toISOString().split('T')[0]}.csv`;
@@ -2253,6 +2268,18 @@ export default function AdminPage() {
         buildBoundaryStatusFilterOptions(users, getUserBoundaryStatus)
     ), [users]);
     const showUserBoundaryFilter = boundaryChecksEnabled && userBoundaryFilterOptions.length > 2;
+    const adminScopeUsers = useMemo(() => {
+        const rows = Array.isArray(users) ? [...users] : [];
+        const currentUserId = Number(currentUser?.id);
+        if (
+            normalizeRole(currentUser?.role) === 'regional_admin'
+            && Number.isInteger(currentUserId)
+            && !rows.some((candidate) => Number(candidate?.id) === currentUserId)
+        ) {
+            rows.push(currentUser);
+        }
+        return rows;
+    }, [currentUser, users]);
 
     useEffect(() => {
         if (!boundaryChecksEnabled) return;
@@ -2268,11 +2295,14 @@ export default function AdminPage() {
         const query = subregionSearch.trim().toLowerCase();
         const filteredItems = subregions.filter((subregion) => {
             if (!query) return true;
+            const assignedAdminNames = getAssignedAdminsForRegion(subregion, adminScopeUsers)
+                .map(getAssignedAdminLabel);
 
             return [
                 subregion.name,
                 subregion.subregionCode,
                 subregion.description,
+                ...assignedAdminNames,
                 ...(Array.isArray(subregion.postalCodesPreview) ? subregion.postalCodesPreview : []),
             ]
                 .filter(Boolean)
@@ -2295,7 +2325,7 @@ export default function AdminPage() {
         }
 
         return filteredItems;
-    }, [subregionSearch, subregionSort, subregions]);
+    }, [adminScopeUsers, subregionSearch, subregionSort, subregions]);
 
     const filteredAudienceZones = useMemo(() => {
         const query = audienceZoneSearch.trim().toLowerCase();
@@ -2882,7 +2912,8 @@ export default function AdminPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="mt-2 flex justify-end text-xs text-slate-500">
+                        <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                            <p>Assigned Admins are derived from Admin Region Scope and do not grant resource editing.</p>
                             <p>{filteredSubregions.length} matching region{filteredSubregions.length === 1 ? '' : 's'}</p>
                         </div>
                     </div>
@@ -2905,12 +2936,15 @@ export default function AdminPage() {
                                     <th className="px-4 py-3 font-semibold w-24">Region ID</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
                                     <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
+                                    <th className="px-4 py-3 font-semibold">Assigned Admins</th>
                                     <th className="px-4 py-3 font-semibold w-28 text-center">{canManageSubregionMetadata ? 'Actions' : 'Scope'}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredSubregions.map(reg => (
-                                    <tr key={reg.id} className={`hover:bg-slate-50 transition-colors ${selectedSubregions.includes(reg.id) ? 'bg-brand-50/30' : ''}`}>
+                                {filteredSubregions.map((reg) => {
+                                    const assignedAdmins = getAssignedAdminsForRegion(reg, adminScopeUsers);
+                                    return (
+                                        <tr key={reg.id} className={`hover:bg-slate-50 transition-colors ${selectedSubregions.includes(reg.id) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
@@ -2946,6 +2980,24 @@ export default function AdminPage() {
                                                 </div>
                                             ) : 'No boundary uploaded'}
                                         </td>
+                                        <td className="px-4 py-3 text-sm text-slate-600 max-w-[260px]">
+                                            {assignedAdmins.length > 0 ? (
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="text-xs font-semibold text-slate-700">
+                                                        {assignedAdmins.length} Admin{assignedAdmins.length === 1 ? '' : 's'} assigned
+                                                    </span>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {assignedAdmins.map((admin) => (
+                                                            <span key={`${reg.id}-${admin.id}`} className="inline-flex rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">
+                                                                {getAssignedAdminLabel(admin)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs font-semibold text-slate-400">No Admins assigned</span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3">
                                             {canManageSubregionMetadata ? (
                                                 <div className="flex justify-center gap-1">
@@ -2976,7 +3028,8 @@ export default function AdminPage() {
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                         {filteredSubregions.length === 0 && (

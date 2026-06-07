@@ -13,6 +13,10 @@ test('admin user table copy uses support coverage instead of account assignment 
     assert.match(source, /Support Context/);
     assert.match(source, /View support context/);
     assert.match(source, /does not grant profile edits, role changes, account deletion, user-view access, resource ownership, organisation access, group access, or private notes\/files access/);
+    assert.match(source, /Assigned Admins/);
+    assert.match(source, /getAssignedAdminsForRegion/);
+    assert.match(source, /No Admins assigned/);
+    assert.match(source, /Assigned Admins are derived from Admin Region Scope/);
     assert.match(source, /api\.updateUserRegionScope/);
     assert.match(apiSource, /updateUserRegionScope/);
     assert.match(apiSource, /\/region-scope/);
