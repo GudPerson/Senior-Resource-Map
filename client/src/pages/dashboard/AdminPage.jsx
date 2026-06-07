@@ -684,6 +684,21 @@ export default function AdminPage() {
         return getRoleMeta(role).label;
     }
 
+    function showAdminNotice(type, message, details = []) {
+        setAdminFeedback({
+            type,
+            message,
+            details: Array.isArray(details)
+                ? details.filter(Boolean)
+                : [details].filter(Boolean),
+        });
+    }
+
+    function showAdminError(message, err) {
+        const detail = err?.message || '';
+        showAdminNotice('error', detail ? `${message}: ${detail}` : message);
+    }
+
     useEffect(() => {
         if (!availableTabs.includes(tab)) {
             setTab(defaultTab);
@@ -734,7 +749,7 @@ export default function AdminPage() {
             if (rejected.length > 0 && rejected.length < results.length) {
                 console.warn('Some admin modules failed to load (likely permissions):', rejected);
             } else if (rejected.length === results.length) {
-                alert('Admin data load failed entirely. Please check your login session.');
+                showAdminNotice('error', 'Admin data load failed entirely. Please check your login session.');
             }
         } catch (err) {
             console.error('Core load error:', err);
@@ -907,7 +922,7 @@ export default function AdminPage() {
         const resourceKey = target ? getResourceSelectionKey(target) : `${category === 'Places' ? 'hard' : 'soft'}:${id}`;
         if (deletingResourceKeys.includes(resourceKey)) return;
         if (!canDeleteResourceRecord(target)) {
-            alert('You do not have permission to delete this resource.');
+            setResourcesError('You do not have permission to delete this resource.');
             return;
         }
         const confirmed = await requestConfirmation({
@@ -929,7 +944,7 @@ export default function AdminPage() {
             }
             await loadAdminResources();
         } catch (err) {
-            alert('Delete failed: ' + err.message);
+            setResourcesError(`Delete failed: ${err.message}`);
         } finally {
             setDeletingResourceKeys((prev) => prev.filter((key) => key !== resourceKey));
         }
@@ -941,7 +956,7 @@ export default function AdminPage() {
             await api.updateRole(userId, newRole);
             await loadAll();
         } catch (err) {
-            alert(err.message);
+            showAdminNotice('error', err.message || 'Unable to update this user role.');
         }
     }
 
@@ -960,7 +975,7 @@ export default function AdminPage() {
             await api.deleteUser(id);
             await loadAll();
         } catch (err) {
-            alert(err.message);
+            showAdminNotice('error', err.message || 'Unable to delete this user.');
         }
     }
 
@@ -1136,7 +1151,7 @@ export default function AdminPage() {
             setNewSubCat(createEmptySubCategoryDraft());
             await loadAll();
         } catch (err) {
-            alert(err.message);
+            showAdminNotice('error', err.message || 'Unable to save this category.');
         }
     }
 
@@ -1167,7 +1182,7 @@ export default function AdminPage() {
             await api.deleteSubCategory(id);
             await loadAll();
         } catch (err) {
-            alert(err.message);
+            showAdminNotice('error', err.message || 'Unable to delete this category.');
         }
     }
 
@@ -1469,7 +1484,7 @@ export default function AdminPage() {
         );
 
         if (rows.length === 0) {
-            alert('No boundary postal codes to export.');
+            setAudienceZoneFeedback({ type: 'error', message: 'No boundary postal codes to export.' });
             return;
         }
 
@@ -1554,7 +1569,7 @@ export default function AdminPage() {
             : filteredUsers;
 
         if (rowsToExport.length === 0) {
-            alert(scope === 'selected' ? 'Select at least one user to export.' : 'No users match the current filters.');
+            showAdminNotice('warning', scope === 'selected' ? 'Select at least one user to export.' : 'No users match the current filters.');
             return;
         }
 
@@ -1615,10 +1630,10 @@ export default function AdminPage() {
                 window.URL.revokeObjectURL(url);
             }, 5000);
 
-            alert(`Export initiated: ${fileName}`);
+            showAdminNotice('success', `Export initiated: ${fileName}`);
         } catch (err) {
             console.error('Download failed:', err);
-            alert('Export failed. Please check browser console for details.');
+            showAdminNotice('error', 'Export failed. Please try again.');
         }
     }
 
@@ -1629,7 +1644,7 @@ export default function AdminPage() {
             const { blob, fileName, contentType } = await action(resourceType, format);
             downloadFile(blob, fileName || `${resourceType}_${kind}.${format}`, contentType);
         } catch (err) {
-            alert(`${kind === 'template' ? 'Template download' : 'Export'} failed: ${err.message}`);
+            showAdminError(`${kind === 'template' ? 'Template download' : 'Export'} failed`, err);
         } finally {
             setLoading(false);
         }
@@ -1898,26 +1913,28 @@ export default function AdminPage() {
             complete: async (results) => {
                 try {
                     const res = await api.bulkCreateUsers({ rows: results.data });
-                    const summary = [
+                    showAdminNotice(
+                        res.failed > 0 ? 'warning' : 'success',
                         `Import processed: ${res.successful || 0} created, ${res.skipped || 0} skipped, ${res.failed || 0} failed.`,
-                    ];
-                    if (Array.isArray(res.skippedItems) && res.skippedItems.length > 0) {
-                        summary.push(`\nSkipped:\n${res.skippedItems.join('\n')}`);
-                    }
-                    if (Array.isArray(res.errors) && res.errors.length > 0) {
-                        summary.push(`\nErrors:\n${res.errors.join('\n')}`);
-                    }
-                    alert(summary.join(''));
+                        [
+                            ...(Array.isArray(res.skippedItems) && res.skippedItems.length > 0
+                                ? ['Skipped:', ...res.skippedItems]
+                                : []),
+                            ...(Array.isArray(res.errors) && res.errors.length > 0
+                                ? ['Errors:', ...res.errors]
+                                : []),
+                        ],
+                    );
                     await loadAll();
                 } catch (err) {
-                    alert('Bulk upload failed: ' + err.message);
+                    showAdminError('Bulk upload failed', err);
                 } finally {
                     setLoading(false);
                     e.target.value = null;
                 }
             },
             error: (err) => {
-                alert('File parsing error: ' + err.message);
+                showAdminError('File parsing error', err);
                 setLoading(false);
             }
         });
@@ -1957,14 +1974,20 @@ export default function AdminPage() {
                         description: row.Description || row.description
                     }));
                     const res = await api.bulkCreateSubregions({ rows });
-                    alert(`Import processed: ${res.successful} successful, ${res.failed} failed.${res.errors.length > 0 ? '\n\nErrors:\n' + res.errors.join('\n') : ''}`);
+                    setSubregionFeedback({
+                        type: res.failed > 0 ? 'error' : 'success',
+                        message: `Import processed: ${res.successful} successful, ${res.failed} failed.`,
+                    });
+                    if (Array.isArray(res.errors) && res.errors.length > 0) {
+                        showAdminNotice('warning', 'Some region import rows failed.', res.errors);
+                    }
                     await loadAll();
                 } catch (err) {
-                    alert('Bulk upload failed: ' + err.message);
+                    setSubregionFeedback({ type: 'error', message: `Bulk upload failed: ${err.message}` });
                 }
             })
             .catch((err) => {
-                alert('File parsing error: ' + err.message);
+                setSubregionFeedback({ type: 'error', message: `File parsing error: ${err.message}` });
             })
             .finally(() => {
                 setLoading(false);
@@ -2032,14 +2055,22 @@ export default function AdminPage() {
                     if (lastRes?.updatedSubregions) extra.push(`${lastRes.updatedSubregions} subregion(s) updated`);
                     extra.push(`${totalSuccessful} postal code(s) assigned`);
 
-                    alert(`Boundary import complete!\n\nMode: ${uploadMode === 'replace' ? 'Replace existing boundaries' : 'Add to existing boundaries'}\nBatches: ${totalBatches}\nProcessed: ${totalSuccessful + totalFailed} rows\nSuccessful: ${totalSuccessful}\nFailed: ${totalFailed}\n\n${extra.join('\n')}${errors.length > 0 ? '\n\nLast Errors:\n' + errors.join('\n') : ''}`);
+                    setSubregionFeedback({
+                        type: totalFailed > 0 ? 'error' : 'success',
+                        message: `Boundary import complete. Mode: ${uploadMode === 'replace' ? 'Replace existing boundaries' : 'Add to existing boundaries'}; ${totalSuccessful} successful, ${totalFailed} failed across ${totalBatches} batch(es).`,
+                    });
+                    showAdminNotice(
+                        totalFailed > 0 ? 'warning' : 'success',
+                        `Boundary import processed ${totalSuccessful + totalFailed} row(s).`,
+                        [...extra, ...(errors.length > 0 ? ['Last Errors:', ...errors] : [])],
+                    );
                     await loadAll();
                 } catch (err) {
-                    alert('Boundary upload failed: ' + err.message);
+                    setSubregionFeedback({ type: 'error', message: `Boundary upload failed: ${err.message}` });
                 }
             })
             .catch((err) => {
-                alert('File parsing error: ' + err.message);
+                setSubregionFeedback({ type: 'error', message: `File parsing error: ${err.message}` });
             })
             .finally(() => {
                 setLoading(false);
@@ -2094,7 +2125,7 @@ export default function AdminPage() {
             : subregions;
 
         if (selectedData.length === 0) {
-            alert('No subregions to export');
+            setSubregionFeedback({ type: 'error', message: 'No regions to export.' });
             return;
         }
 
@@ -2129,7 +2160,7 @@ export default function AdminPage() {
         );
 
         if (rows.length === 0) {
-            alert('No boundary postal codes to export.');
+            setSubregionFeedback({ type: 'error', message: 'No boundary postal codes to export.' });
             return;
         }
 
