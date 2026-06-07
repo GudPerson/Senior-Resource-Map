@@ -10,6 +10,7 @@ import {
     mergePhoneVerificationChallenge,
 } from '../lib/phoneVerificationState.js';
 import { getPhoneVerificationActions } from '../lib/phoneVerificationPanelState.js';
+import { useConfirmDialog } from './ConfirmDialog.jsx';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120000;
@@ -359,6 +360,7 @@ function translateReason(t, reason) {
 }
 
 export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('loading');
     const [displayPhone, setDisplayPhone] = useState('');
@@ -575,7 +577,14 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
 
     async function unlinkVerification() {
         if (!hasLinkedIdentity || actionBusy) return;
-        if (typeof window !== 'undefined' && !window.confirm(t('phoneVerificationRemoveConfirm'))) return;
+        const confirmed = await requestConfirmation({
+            title: t('phoneVerificationRemoveButton'),
+            message: t('phoneVerificationRemoveConfirm'),
+            confirmLabel: t('phoneVerificationRemoveButton'),
+            loadingLabel: 'Removing...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
 
         setActionBusy(true);
         setError('');
@@ -764,7 +773,10 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
             : t('phoneVerificationLinkedPhone', { phone: displayPhone });
 
     return (
-        <section className="rounded-2xl border border-brand-100 bg-brand-50/40 px-4 py-4">
+        <>
+            {confirmDialog}
+
+            <section className="rounded-2xl border border-brand-100 bg-brand-50/40 px-4 py-4">
             <div className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
                     <Icon size={20} className={view.iconClass} />
@@ -867,6 +879,7 @@ export default function PhoneVerificationPanel({ savedPhone, draftPhone, t }) {
                     </div>
                 </div>
             </div>
-        </section>
+            </section>
+        </>
     );
 }

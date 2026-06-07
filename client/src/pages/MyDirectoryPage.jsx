@@ -9,6 +9,7 @@ import RenameMapModal from '../components/RenameMapModal.jsx';
 import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
 import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
+import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -158,6 +159,7 @@ export default function MyDirectoryPage() {
     const { t } = useLocale();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const {
         savedAssets,
         savedAssetsLoading,
@@ -328,7 +330,13 @@ export default function MyDirectoryPage() {
     }
 
     async function handleDeleteMap(map) {
-        const confirmed = window.confirm(t('deleteMapConfirm', { name: map.name }));
+        const confirmed = await requestConfirmation({
+            title: t('delete'),
+            message: t('deleteMapConfirm', { name: map.name }),
+            confirmLabel: t('delete'),
+            loadingLabel: `${t('delete')}...`,
+            tone: 'danger',
+        });
         if (!confirmed) return;
 
         setDeletingMapId(map.id);
@@ -354,6 +362,8 @@ export default function MyDirectoryPage() {
 
     return (
         <>
+            {confirmDialog}
+
             <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
                 <aside className="hidden w-64 flex-shrink-0 flex-col gap-2 border-r border-slate-100 bg-white px-4 py-6 lg:flex">
                     <DashboardSidebar

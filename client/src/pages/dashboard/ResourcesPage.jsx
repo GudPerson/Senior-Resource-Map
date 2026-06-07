@@ -1234,9 +1234,9 @@ export default function ResourcesPage() {
         setAssetModal({ mode: 'create', assetType: 'hard', data: null });
     }
 
-    function closePlaceImportWizard({ force = false } = {}) {
+    async function closePlaceImportWizard({ force = false } = {}) {
         if (!force && typeof placeImportCloseGuard === 'function') {
-            const shouldClose = placeImportCloseGuard();
+            const shouldClose = await placeImportCloseGuard();
             if (!shouldClose) return false;
         }
         setPlaceImportWizardOpen(false);
@@ -1254,7 +1254,7 @@ export default function ResourcesPage() {
         try {
             const existing = hardAssets.find((asset) => Number(asset.id) === Number(assetId))
                 || await api.getHardAsset(assetId);
-            closePlaceImportWizard({ force: true });
+            await closePlaceImportWizard({ force: true });
             openEdit(existing, 'hard');
         } catch (err) {
             setActionNotice({ type: 'warning', message: err.message || 'Failed to load the existing place.' });

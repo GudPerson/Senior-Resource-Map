@@ -11,12 +11,13 @@ import {
     Sparkles,
     X,
 } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 
 import { api } from '../lib/api.js';
 import { collectSubregionPostalCodes } from '../lib/postalBoundaries.js';
 import { createEmptySocialLinks, mergeSocialLinks } from '../lib/socialLinks.js';
 import AssetForm from './AssetForm.jsx';
+import { useConfirmDialog } from './ConfirmDialog.jsx';
 
 function dedupeTags(values) {
     return [...new Set((values || []).map((value) => String(value || '').trim()).filter(Boolean))];
@@ -594,6 +595,7 @@ export default function HardAssetImportWizard({
     onEditExisting,
     onRegisterCloseHandler,
 }) {
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [postalCodes, setPostalCodes] = useState([]);
     const [postalInput, setPostalInput] = useState('');
     const [searchProgressMsg, setSearchProgressMsg] = useState('');
@@ -618,10 +620,16 @@ export default function HardAssetImportWizard({
     const unsavedDraftCount = draftQueue.filter((draft) => draft.loadStatus !== 'saved').length;
     const hasUnsavedDrafts = unsavedDraftCount > 0;
 
-    function confirmDiscardQueuedDrafts(actionLabel) {
+    const confirmDiscardQueuedDrafts = useCallback(async (actionLabel) => {
         if (!hasUnsavedDrafts) return true;
-        return window.confirm(buildDiscardMessage(unsavedDraftCount, actionLabel));
-    }
+        return requestConfirmation({
+            title: 'Discard unsaved drafts?',
+            message: buildDiscardMessage(unsavedDraftCount, actionLabel),
+            confirmLabel: 'Discard',
+            loadingLabel: 'Discarding...',
+            tone: 'warning',
+        });
+    }, [hasUnsavedDrafts, requestConfirmation, unsavedDraftCount]);
 
     function resetDraftSession({ preserveResults = false } = {}) {
         setDraftQueue([]);
@@ -636,22 +644,19 @@ export default function HardAssetImportWizard({
 
     useEffect(() => {
         if (!onRegisterCloseHandler) return undefined;
-        onRegisterCloseHandler(() => {
-            if (!hasUnsavedDrafts) return true;
-            return window.confirm(buildDiscardMessage(unsavedDraftCount, 'Closing this wizard'));
-        });
+        onRegisterCloseHandler(() => confirmDiscardQueuedDrafts('Closing this wizard'));
         return () => onRegisterCloseHandler(null);
-    }, [hasUnsavedDrafts, onRegisterCloseHandler, unsavedDraftCount]);
+    }, [confirmDiscardQueuedDrafts, onRegisterCloseHandler]);
 
-    function handleRequestClose() {
-        if (!confirmDiscardQueuedDrafts('Closing this wizard')) return;
+    async function handleRequestClose() {
+        if (!(await confirmDiscardQueuedDrafts('Closing this wizard'))) return;
         onCancel();
     }
 
     async function handlePostalCandidateSearch(event) {
         event.preventDefault();
 
-        if ((postalResults || draftQueue.length > 0) && !confirmDiscardQueuedDrafts('Starting a new postal search')) {
+        if ((postalResults || draftQueue.length > 0) && !(await confirmDiscardQueuedDrafts('Starting a new postal search'))) {
             return;
         }
 
@@ -859,8 +864,8 @@ export default function HardAssetImportWizard({
         setViewMode('results');
     }
 
-    function handleClearQueue() {
-        if (!confirmDiscardQueuedDrafts('Clearing this queue')) return;
+    async function handleClearQueue() {
+        if (!(await confirmDiscardQueuedDrafts('Clearing this queue'))) return;
         setDraftQueue([]);
         setActiveDraftId('');
         setViewMode('results');
@@ -868,14 +873,14 @@ export default function HardAssetImportWizard({
         setLoadingDraftId('');
     }
 
-    function handleResetSession() {
-        if (!confirmDiscardQueuedDrafts('Resetting this postal search')) return;
+    async function handleResetSession() {
+        if (!(await confirmDiscardQueuedDrafts('Resetting this postal search'))) return;
         resetDraftSession();
     }
 
-    function handleEditExisting(existingAssetId) {
+    async function handleEditExisting(existingAssetId) {
         if (!existingAssetId) return;
-        if (!confirmDiscardQueuedDrafts('Leaving this import session to edit an existing asset')) return;
+        if (!(await confirmDiscardQueuedDrafts('Leaving this import session to edit an existing asset'))) return;
         onEditExisting?.(existingAssetId);
     }
 
@@ -944,7 +949,10 @@ export default function HardAssetImportWizard({
     }
 
     return (
-        <div className="space-y-5">
+        <>
+            {confirmDialog}
+
+            <div className="space-y-5">
             <div className="space-y-4">
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4">
                     <div className="flex items-start gap-3">
@@ -1348,6 +1356,7 @@ export default function HardAssetImportWizard({
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

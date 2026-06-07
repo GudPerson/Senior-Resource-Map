@@ -24,6 +24,7 @@ import {
     normalizeOrganizationStatus,
     ORGANIZATION_STATUS_HELP,
 } from '../../lib/governanceOrganizationUi.js';
+import { useConfirmDialog } from '../ConfirmDialog.jsx';
 import GovernanceGroupsPanel from './GovernanceGroupsPanel.jsx';
 
 const EMPTY_ORG_FORM = {
@@ -243,6 +244,7 @@ export default function GovernanceOrganizationsPanel({
     readOnly = false,
     showCreateControls = true,
 } = {}) {
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [organizations, setOrganizations] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [orgForm, setOrgForm] = useState(EMPTY_ORG_FORM);
@@ -487,7 +489,13 @@ export default function GovernanceOrganizationsPanel({
 
     async function handleDeleteOrganization() {
         if (!selectedOrganization || !selectedOrganizationCanDelete || !canDeleteEmptyDraft) return;
-        const confirmed = window.confirm('Delete this empty draft organisation? This is only for unused draft records.');
+        const confirmed = await requestConfirmation({
+            title: 'Delete draft organisation?',
+            message: 'Delete this empty draft organisation? This is only for unused draft records.',
+            confirmLabel: 'Delete',
+            loadingLabel: 'Deleting...',
+            tone: 'danger',
+        });
         if (!confirmed) return;
         setSaving(true);
         clearSectionFeedback('profile');
@@ -653,7 +661,10 @@ export default function GovernanceOrganizationsPanel({
     }
 
     return (
-        <section className="space-y-6">
+        <>
+            {confirmDialog}
+
+            <section className="space-y-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-700">Governance</p>
@@ -1177,6 +1188,7 @@ export default function GovernanceOrganizationsPanel({
                     ) : null}
                 </div>
             </div>
-        </section>
+            </section>
+        </>
     );
 }

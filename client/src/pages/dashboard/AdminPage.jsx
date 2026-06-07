@@ -17,6 +17,7 @@ import { canChangeUserRoles, canManageUserRecord as canManageUserRecordByOwnersh
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 import GovernanceGroupsPanel from '../../components/admin/GovernanceGroupsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
+import { useConfirmDialog } from '../../components/ConfirmDialog.jsx';
 
 const ASSET_WORKBOOKS = [
     {
@@ -596,6 +597,7 @@ async function fetchAllAdminResources(options = {}) {
 
 export default function AdminPage() {
     const { user: currentUser } = useAuth();
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const currentRole = normalizeRole(currentUser?.role);
     const availableTabs = getAdminTabs(currentRole);
     const defaultTab = availableTabs[0] || 'users';
@@ -908,7 +910,16 @@ export default function AdminPage() {
             alert('You do not have permission to delete this resource.');
             return;
         }
-        if (!confirm('Delete this resource permanently?')) return;
+        const confirmed = await requestConfirmation({
+            title: 'Delete resource?',
+            message: target?.name
+                ? `Delete "${target.name}" permanently?`
+                : 'Delete this resource permanently?',
+            confirmLabel: 'Delete',
+            loadingLabel: 'Deleting...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
         setDeletingResourceKeys((prev) => [...prev, resourceKey]);
         try {
             if (category === 'Places') {
@@ -937,7 +948,14 @@ export default function AdminPage() {
     async function handleDeleteUser(id) {
         const targetUser = users.find((candidate) => candidate.id === id);
         if (!canManageUserRecord(targetUser)) return;
-        if (!confirm('Delete this user and all their resources?')) return;
+        const confirmed = await requestConfirmation({
+            title: 'Delete user?',
+            message: 'Delete this user and all their resources?',
+            confirmLabel: 'Delete',
+            loadingLabel: 'Deleting...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
         try {
             await api.deleteUser(id);
             await loadAll();
@@ -1137,7 +1155,14 @@ export default function AdminPage() {
     }
 
     async function handleDeleteSubCategory(id) {
-        if (!confirm('Delete this sub-category? (Assets using it will fall back to Defaults)')) return;
+        const confirmed = await requestConfirmation({
+            title: 'Delete sub-category?',
+            message: 'Assets using it will fall back to Defaults.',
+            confirmLabel: 'Delete',
+            loadingLabel: 'Deleting...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
         try {
             await api.deleteSubCategory(id);
             await loadAll();
@@ -1368,7 +1393,14 @@ export default function AdminPage() {
             ? `Delete ${zone.count} selected audience zone(s)? Offerings using them will lose those eligibility rules.`
             : `Delete audience zone "${zone.name || zone.id}"? Offerings using it will lose that eligibility rule.`;
             
-        if (!confirm(msg)) return;
+        const confirmed = await requestConfirmation({
+            title: isBulk ? 'Delete audience zones?' : 'Delete audience zone?',
+            message: msg,
+            confirmLabel: 'Delete',
+            loadingLabel: 'Deleting...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
         setLoading(true);
         setAudienceZoneFeedback(null);
         try {
@@ -1953,12 +1985,17 @@ export default function AdminPage() {
                     const uploadMode = subregionBoundaryUploadMode === 'replace' ? 'replace' : 'append';
                     if (uploadMode === 'replace') {
                         const warning = [
-                            'Replace existing boundaries?',
-                            '',
                             'This will delete existing boundary postal codes for the subregions in this upload before importing the file.',
                             'Use this only for a planned full rebuild. To add one or more postal codes safely, choose "Add to existing boundaries".',
-                        ].join('\n');
-                        if (!window.confirm(warning)) {
+                        ];
+                        const confirmed = await requestConfirmation({
+                            title: 'Replace existing boundaries?',
+                            message: warning,
+                            confirmLabel: 'Replace',
+                            loadingLabel: 'Replacing...',
+                            tone: 'warning',
+                        });
+                        if (!confirmed) {
                             return;
                         }
                         if (totalBatches > 1) {
@@ -4283,6 +4320,8 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
+
+            {confirmDialog}
 
             {pendingBulkDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">

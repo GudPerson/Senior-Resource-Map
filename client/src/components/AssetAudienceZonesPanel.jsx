@@ -3,6 +3,7 @@ import { MapPin, Plus, RefreshCw, Trash2 } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import { normalizeRole } from '../lib/roles.js';
+import { useConfirmDialog } from './ConfirmDialog.jsx';
 
 function normalizePostalText(value) {
     return String(value || '')
@@ -19,6 +20,7 @@ function formatSharingStatus(status) {
 }
 
 export default function AssetAudienceZonesPanel({ asset, currentUser }) {
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -79,7 +81,14 @@ export default function AssetAudienceZonesPanel({ asset, currentUser }) {
 
     async function handleDelete(zone) {
         if (!zone?.id) return;
-        if (!window.confirm(`Delete audience zone "${zone.name}"?`)) return;
+        const confirmed = await requestConfirmation({
+            title: 'Delete audience zone?',
+            message: `Delete audience zone "${zone.name}"?`,
+            confirmLabel: 'Delete',
+            loadingLabel: 'Deleting...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -98,7 +107,10 @@ export default function AssetAudienceZonesPanel({ asset, currentUser }) {
         : 'border-green-200 bg-green-50 text-green-700';
 
     return (
-        <div className="space-y-5">
+        <>
+            {confirmDialog}
+
+            <div className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
@@ -240,6 +252,7 @@ export default function AssetAudienceZonesPanel({ asset, currentUser }) {
                     </div>
                 </form>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

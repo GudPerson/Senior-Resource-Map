@@ -3,6 +3,7 @@ import { RefreshCw, Search, ShieldCheck, UserMinus, UserPlus, Users } from 'luci
 
 import { api } from '../lib/api.js';
 import { getRoleMeta, normalizeRole } from '../lib/roles.js';
+import { useConfirmDialog } from './ConfirmDialog.jsx';
 
 function resolveUserId(row) {
     const id = row?.user?.id ?? row?.userId ?? row?.id;
@@ -36,6 +37,7 @@ function assetRoleBadgeClass(role) {
 }
 
 export default function AssetAccessPanel({ asset, assetType = 'hard', onChanged }) {
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [staff, setStaff] = useState([]);
     const [permissions, setPermissions] = useState({});
     const [candidates, setCandidates] = useState([]);
@@ -143,7 +145,14 @@ export default function AssetAccessPanel({ asset, assetType = 'hard', onChanged 
 
     async function handleRemove(member) {
         if (!asset?.id || !member?.id) return;
-        if (!window.confirm(`Remove ${assetRoleLabel(member.staffRole)} access for ${displayUserName(member)}? Their account will not be deleted.`)) return;
+        const confirmed = await requestConfirmation({
+            title: 'Remove access?',
+            message: `Remove ${assetRoleLabel(member.staffRole)} access for ${displayUserName(member)}? Their account will not be deleted.`,
+            confirmLabel: 'Remove',
+            loadingLabel: 'Removing...',
+            tone: 'danger',
+        });
+        if (!confirmed) return;
         setSaving(true);
         setFeedback(null);
         try {
@@ -163,7 +172,10 @@ export default function AssetAccessPanel({ asset, assetType = 'hard', onChanged 
         : 'border-green-200 bg-green-50 text-green-700';
 
     return (
-        <div className="space-y-5">
+        <>
+            {confirmDialog}
+
+            <div className="space-y-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <div className="flex items-center gap-3">
@@ -327,6 +339,7 @@ export default function AssetAccessPanel({ asset, assetType = 'hard', onChanged 
                     </div>
                 </form>
             </div>
-        </div>
+            </div>
+        </>
     );
 }
