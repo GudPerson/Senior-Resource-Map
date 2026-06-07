@@ -647,6 +647,7 @@ export default function ResourcesPage() {
     const [generateModal, setGenerateModal] = useState(null);
     // membershipQrModal consolidated into inlineAction
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('default');
@@ -1293,6 +1294,8 @@ export default function ResourcesPage() {
     }
 
     async function handleDelete(target) {
+        if (deleteSubmitting) return;
+        setDeleteSubmitting(true);
         try {
             if (target.assetType === 'hard') {
                 await api.deleteHardAsset(target.id);
@@ -1316,6 +1319,8 @@ export default function ResourcesPage() {
             setActionNotice({ type: 'success', message: `${target.label} deleted.` });
         } catch (err) {
             setActionNotice({ type: 'warning', message: err.message || `Failed to delete ${target.label.toLowerCase()}.` });
+        } finally {
+            setDeleteSubmitting(false);
         }
     }
 
@@ -2963,8 +2968,20 @@ export default function ResourcesPage() {
                                     : 'This action cannot be undone. It will be permanently removed from the directory.'}
                         </p>
                         <div className="flex gap-3">
-                            <button onClick={() => setDeleteTarget(null)} className="btn-ghost flex-1 justify-center">Cancel</button>
-                            <button onClick={() => handleDelete(deleteTarget)} className="btn-danger flex-1 justify-center">Delete</button>
+                            <button
+                                onClick={() => !deleteSubmitting && setDeleteTarget(null)}
+                                disabled={deleteSubmitting}
+                                className="btn-ghost flex-1 justify-center disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDelete(deleteTarget)}
+                                disabled={deleteSubmitting}
+                                className="btn-danger flex-1 justify-center disabled:opacity-50"
+                            >
+                                {deleteSubmitting ? 'Deleting...' : 'Delete'}
+                            </button>
                         </div>
                     </div>
                 </div>

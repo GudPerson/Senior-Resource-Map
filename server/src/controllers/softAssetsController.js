@@ -1287,10 +1287,21 @@ export const deleteSoftAsset = async (c) => {
             return c.json({ error: 'Insufficient permissions to delete this asset' }, 403);
         }
 
-        await db.update(softAssets).set({
-            isDeleted: true,
-            updatedAt: new Date(),
-        }).where(eq(softAssets.id, id));
+        const [deletedRow] = await db.update(softAssets)
+            .set({
+                isDeleted: true,
+                updatedAt: new Date(),
+            })
+            .where(and(
+                eq(softAssets.id, id),
+                eq(softAssets.isDeleted, false),
+            ))
+            .returning({ id: softAssets.id });
+
+        if (!deletedRow) {
+            return c.json({ success: true, alreadyDeleted: true });
+        }
+
         await rebuildSoftAssetCaches([existing.subregionId, ...(existing.coverageRegionIds || [])], c.env, user);
         await recordSoftAssetAudit(db, user, existing, 'deleted', ['isDeleted'], {
             assetMode: existing.assetMode || SOFT_ASSET_MODES.STANDALONE,

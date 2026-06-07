@@ -511,17 +511,27 @@ export const deleteSoftAssetParent = async (c) => {
         await ensureBoundarySchema(db, c.env);
 
         const existing = await loadParentDetail(db, id);
-        if (!existing || existing.isDeleted) {
+        if (!existing) {
             return c.json({ error: 'Not found' }, 404);
         }
         if (!canManageSoftAssetParent(user, existing, existing.partner)) {
             return c.json({ error: 'Insufficient permissions to delete this template' }, 403);
         }
 
-        await db.update(softAssetParents).set({
-            isDeleted: true,
-            updatedAt: new Date(),
-        }).where(eq(softAssetParents.id, id));
+        const [deletedRow] = await db.update(softAssetParents)
+            .set({
+                isDeleted: true,
+                updatedAt: new Date(),
+            })
+            .where(and(
+                eq(softAssetParents.id, id),
+                eq(softAssetParents.isDeleted, false),
+            ))
+            .returning({ id: softAssetParents.id });
+
+        if (!deletedRow) {
+            return c.json({ success: true, alreadyDeleted: true });
+        }
 
         const affectedSubregions = new Set();
         for (const child of existing.children || []) {

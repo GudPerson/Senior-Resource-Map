@@ -609,6 +609,7 @@ export default function AdminPage() {
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [selectedSubCategories, setSelectedSubCategories] = useState([]);
     const [selectedAudienceZones, setSelectedAudienceZones] = useState([]);
+    const [deletingResourceKeys, setDeletingResourceKeys] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [resourcesLoading, setResourcesLoading] = useState(false);
@@ -901,11 +902,14 @@ export default function AdminPage() {
 
     async function handleDeleteResource(id, category) {
         const target = resources.find((resource) => resource.id === id && resource.category === category);
+        const resourceKey = target ? getResourceSelectionKey(target) : `${category === 'Places' ? 'hard' : 'soft'}:${id}`;
+        if (deletingResourceKeys.includes(resourceKey)) return;
         if (!canDeleteResourceRecord(target)) {
             alert('You do not have permission to delete this resource.');
             return;
         }
         if (!confirm('Delete this resource permanently?')) return;
+        setDeletingResourceKeys((prev) => [...prev, resourceKey]);
         try {
             if (category === 'Places') {
                 await api.deleteHardAsset(id);
@@ -915,6 +919,8 @@ export default function AdminPage() {
             await loadAdminResources();
         } catch (err) {
             alert('Delete failed: ' + err.message);
+        } finally {
+            setDeletingResourceKeys((prev) => prev.filter((key) => key !== resourceKey));
         }
     }
 
@@ -2638,14 +2644,17 @@ export default function AdminPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {paginatedResources.map(r => (
-                                    <tr key={getResourceSelectionKey(r)} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(getResourceSelectionKey(r)) ? 'bg-brand-50/30' : ''}`}>
+                                {paginatedResources.map((r) => {
+                                    const resourceKey = getResourceSelectionKey(r);
+                                    const isDeletingResource = deletingResourceKeys.includes(resourceKey);
+                                    return (
+                                    <tr key={resourceKey} className={`hover:bg-slate-50 transition-colors ${selectedResources.includes(resourceKey) ? 'bg-brand-50/30' : ''}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
-                                                checked={selectedResources.includes(getResourceSelectionKey(r))}
+                                                checked={selectedResources.includes(resourceKey)}
                                                 onChange={() => toggleResourceSelection(r)}
-                                                disabled={!canDeleteResourceRecord(r)}
+                                                disabled={!canDeleteResourceRecord(r) || isDeletingResource}
                                                 title={canDeleteResourceRecord(r) ? 'Select for deletion' : 'You do not have delete access for this resource'}
                                                 className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                             />
@@ -2672,10 +2681,15 @@ export default function AdminPage() {
                                                 <button
                                                     id={`admin-delete-resource-${r.id}`}
                                                     onClick={() => handleDeleteResource(r.id, r.category)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                    title="Delete"
+                                                    disabled={isDeletingResource}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-50"
+                                                    title={isDeletingResource ? 'Deleting...' : 'Delete'}
                                                 >
-                                                    <Trash2 size={16} />
+                                                    {isDeletingResource ? (
+                                                        <div className="h-4 w-4 rounded-full border-2 border-red-200 border-t-red-500 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 size={16} />
+                                                    )}
                                                 </button>
                                             ) : (
                                                 <span className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs font-semibold text-slate-400" title="No delete access">
@@ -2684,7 +2698,8 @@ export default function AdminPage() {
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

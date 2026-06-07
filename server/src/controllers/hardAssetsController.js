@@ -1976,7 +1976,18 @@ export const deleteHardAsset = async (c) => {
             return c.json({ error: 'Insufficient permissions to delete this asset' }, 403);
         }
 
-        await db.update(hardAssets).set({ isDeleted: true }).where(eq(hardAssets.id, id));
+        const [deletedRow] = await db.update(hardAssets)
+            .set({ isDeleted: true })
+            .where(and(
+                eq(hardAssets.id, id),
+                eq(hardAssets.isDeleted, false),
+            ))
+            .returning({ id: hardAssets.id });
+
+        if (!deletedRow) {
+            return c.json({ success: true, alreadyDeleted: true });
+        }
+
         await rebuildMapCache(getCacheRegionId(existing.subregionId), c.env);
         await recordHardAssetAudit(db, user, existing, 'deleted', ['isDeleted']);
         return c.json({ success: true });
