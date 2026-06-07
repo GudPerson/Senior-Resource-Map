@@ -26,7 +26,7 @@ import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import {
     applyLocationIndicators,
     buildLocationIndicatorContextRequest,
-    buildLocationIndicatorResourceRefs,
+    buildLocationIndicatorPrefetchResourceRefs,
 } from '../features/discover/locationIndicators.js';
 import {
     getSearchPanelActionForResultsScroll,
@@ -67,6 +67,48 @@ const DISCOVERY_DESKTOP_BASE_PANE_WIDTH = 430;
 const DISCOVERY_DESKTOP_MAX_ACCESSIBLE_PANE_WIDTH = 620;
 const DISCOVERY_DESKTOP_MAX_ACCESSIBLE_FONT_SCALE = 1.5;
 const TOUCH_DESKTOP_PANE_PRESET_WIDTHS = [450, 676, 992];
+const LOCATION_INDICATOR_PREFETCH_BATCH_SIZE = 1000;
+
+function getLocationIndicatorRefKey(ref) {
+    const type = String(ref?.type || '').trim().toLowerCase();
+    const id = Number.parseInt(String(ref?.id ?? ''), 10);
+    return type && Number.isInteger(id) && id > 0 ? `${type}:${id}` : '';
+}
+
+function getLocationIndicatorRefSet(map, contextKey) {
+    if (!map.has(contextKey)) {
+        map.set(contextKey, new Set());
+    }
+    return map.get(contextKey);
+}
+
+function markLocationIndicatorRefs(map, contextKey, refs = []) {
+    const refSet = getLocationIndicatorRefSet(map, contextKey);
+    refs.forEach((ref) => {
+        const key = getLocationIndicatorRefKey(ref);
+        if (key) refSet.add(key);
+    });
+}
+
+function unmarkLocationIndicatorRefs(map, contextKey, refs = []) {
+    const refSet = map.get(contextKey);
+    if (!refSet) return;
+    refs.forEach((ref) => {
+        const key = getLocationIndicatorRefKey(ref);
+        if (key) refSet.delete(key);
+    });
+    if (refSet.size === 0) map.delete(contextKey);
+}
+
+function selectUnrequestedLocationIndicatorRefs(refs = [], contextKey, fetchedRefsByContext, inFlightRefsByContext, options = {}) {
+    const fetchedRefs = fetchedRefsByContext.get(contextKey) || new Set();
+    const inFlightRefs = options.ignoreInFlight ? new Set() : (inFlightRefsByContext.get(contextKey) || new Set());
+
+    return refs.filter((ref) => {
+        const key = getLocationIndicatorRefKey(ref);
+        return key && !fetchedRefs.has(key) && !inFlightRefs.has(key);
+    });
+}
 
 function normalizeSubCategoryLookupKey(value) {
     if (value === undefined || value === null) return '';
@@ -449,9 +491,14 @@ export default function DiscoverPage() {
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
     const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
-    const [locationIndicatorsByResourceKey, setLocationIndicatorsByResourceKey] = useState({});
+    const [locationIndicatorState, setLocationIndicatorState] = useState({ contextKey: '', indicators: {} });
 
     const resultsListRef = useRef(null);
+    const locationIndicatorCacheRef = useRef(new Map());
+    const locationIndicatorFetchedRefsRef = useRef(new Map());
+    const locationIndicatorInFlightRefsRef = useRef(new Map());
+    const locationIndicatorDisplayKeyRef = useRef('');
+    const locationIndicatorMountedRef = useRef(false);
     const resultsPullStartYRef = useRef(null);
     const lastBrowseScrollTopRef = useRef(0);
     const autoCollapseScrollTopRef = useRef(0);
@@ -508,6 +555,7 @@ export default function DiscoverPage() {
         hasHomePostalCode,
         isGeocoding,
         locationNotice,
+        pendingLocationSearchOrigin,
         postalInput,
         searchOrigin,
         searchRadius,
@@ -520,6 +568,13 @@ export default function DiscoverPage() {
     const hasLocationAnchor = Boolean(searchOrigin);
     const hasUserSelectedLocationFilter = Boolean(searchOrigin && searchOrigin.source !== 'home');
     const searchGroups = useMemo(() => parseDiscoverySearchGroups(search), [search]);
+
+    useEffect(() => {
+        locationIndicatorMountedRef.current = true;
+        return () => {
+            locationIndicatorMountedRef.current = false;
+        };
+    }, []);
 
     // Sync state to URL
     useEffect(() => {
@@ -895,63 +950,154 @@ export default function DiscoverPage() {
         () => filtered.slice(0, visibleCount),
         [filtered, visibleCount]
     );
-    const locationIndicatorResourceRefs = useMemo(
-        () => buildLocationIndicatorResourceRefs(displayedResources),
+    const activeLocationIndicatorResourceRefs = useMemo(
+        () => buildLocationIndicatorPrefetchResourceRefs({
+            visibleResources: displayedResources,
+            limit: LOCATION_INDICATOR_PREFETCH_BATCH_SIZE,
+        }),
         [displayedResources]
+    );
+    const pendingLocationIndicatorResourceRefs = useMemo(
+        () => buildLocationIndicatorPrefetchResourceRefs({
+            visibleResources: displayedResources,
+            prefetchResources: allDiscoveryItems,
+            limit: LOCATION_INDICATOR_PREFETCH_BATCH_SIZE,
+        }),
+        [allDiscoveryItems, displayedResources]
     );
     const indicatorContextRequest = useMemo(
         () => buildLocationIndicatorContextRequest(searchOrigin),
         [searchOrigin]
     );
+    const pendingIndicatorContextRequest = useMemo(
+        () => buildLocationIndicatorContextRequest(pendingLocationSearchOrigin),
+        [pendingLocationSearchOrigin]
+    );
     const indicatorContextKey = indicatorContextRequest.key;
+    const pendingIndicatorContextKey = pendingIndicatorContextRequest.key;
     const userRegionKey = Array.isArray(user?.subregionIds) ? user.subregionIds.join(',') : '';
+    const hasSignedInIndicatorContext = Boolean(isAuth && user);
+    const locationIndicatorActorKey = hasSignedInIndicatorContext
+        ? `user:${user?.id || ''}:${user?.postalCode || ''}:${userRegionKey}`
+        : 'guest';
+    const activeLocationIndicatorBaseKey = indicatorContextKey || (hasSignedInIndicatorContext ? 'signed-in' : '');
+    const locationIndicatorDisplayKey = activeLocationIndicatorBaseKey
+        ? `${activeLocationIndicatorBaseKey}|${locationIndicatorActorKey}`
+        : '';
+    const pendingLocationIndicatorFetchKey = pendingIndicatorContextKey
+        ? `${pendingIndicatorContextKey}|${locationIndicatorActorKey}`
+        : '';
+    const shouldPrefetchPendingLocationIndicators = Boolean(
+        pendingLocationIndicatorFetchKey
+        && pendingLocationIndicatorFetchKey !== locationIndicatorDisplayKey
+    );
+    const locationIndicatorFetchPlan = useMemo(() => (
+        shouldPrefetchPendingLocationIndicators
+            ? {
+                contextKey: pendingLocationIndicatorFetchKey,
+                contextRequest: pendingIndicatorContextRequest,
+                resourceRefs: pendingLocationIndicatorResourceRefs,
+            }
+            : {
+                contextKey: locationIndicatorDisplayKey,
+                contextRequest: indicatorContextRequest,
+                resourceRefs: activeLocationIndicatorResourceRefs,
+            }
+    ), [
+        activeLocationIndicatorResourceRefs,
+        indicatorContextRequest,
+        locationIndicatorDisplayKey,
+        pendingIndicatorContextRequest,
+        pendingLocationIndicatorFetchKey,
+        pendingLocationIndicatorResourceRefs,
+        shouldPrefetchPendingLocationIndicators,
+    ]);
 
     useEffect(() => {
-        let isActive = true;
-        const hasSignedInContext = Boolean(isAuth && user);
-        const hasLocationContext = Boolean(indicatorContextKey);
+        locationIndicatorDisplayKeyRef.current = locationIndicatorDisplayKey;
+
+        if (!locationIndicatorDisplayKey) {
+            setLocationIndicatorState({ contextKey: '', indicators: {} });
+            return;
+        }
+
+        const cachedIndicators = locationIndicatorCacheRef.current.get(locationIndicatorDisplayKey) || {};
+        setLocationIndicatorState({
+            contextKey: locationIndicatorDisplayKey,
+            indicators: cachedIndicators,
+        });
+    }, [locationIndicatorDisplayKey]);
+
+    useEffect(() => {
+        const { contextKey, contextRequest, resourceRefs } = locationIndicatorFetchPlan;
 
         async function loadLocationIndicators() {
-            if (loading || locationIndicatorResourceRefs.length === 0 || (!hasSignedInContext && !hasLocationContext)) {
-                setLocationIndicatorsByResourceKey({});
+            if (loading || !contextKey || resourceRefs.length === 0) {
                 return;
             }
 
+            const missingResourceRefs = selectUnrequestedLocationIndicatorRefs(
+                resourceRefs,
+                contextKey,
+                locationIndicatorFetchedRefsRef.current,
+                locationIndicatorInFlightRefsRef.current,
+                { ignoreInFlight: contextKey === locationIndicatorDisplayKeyRef.current },
+            );
+
+            if (missingResourceRefs.length === 0) {
+                const cachedIndicators = locationIndicatorCacheRef.current.get(contextKey) || {};
+                if (locationIndicatorMountedRef.current && contextKey === locationIndicatorDisplayKeyRef.current) {
+                    setLocationIndicatorState({
+                        contextKey,
+                        indicators: cachedIndicators,
+                    });
+                }
+                return;
+            }
+
+            markLocationIndicatorRefs(locationIndicatorInFlightRefsRef.current, contextKey, missingResourceRefs);
             try {
                 const data = await api.getDiscoveryLocationIndicators({
-                    resources: locationIndicatorResourceRefs,
-                    ...indicatorContextRequest.payload,
+                    resources: missingResourceRefs,
+                    ...contextRequest.payload,
                 });
-                if (isActive) {
-                    setLocationIndicatorsByResourceKey(data?.indicators || {});
+                const nextIndicators = {
+                    ...(locationIndicatorCacheRef.current.get(contextKey) || {}),
+                    ...(data?.indicators || {}),
+                };
+                locationIndicatorCacheRef.current.set(contextKey, nextIndicators);
+                markLocationIndicatorRefs(locationIndicatorFetchedRefsRef.current, contextKey, missingResourceRefs);
+
+                if (locationIndicatorMountedRef.current && contextKey === locationIndicatorDisplayKeyRef.current) {
+                    setLocationIndicatorState({
+                        contextKey,
+                        indicators: nextIndicators,
+                    });
                 }
             } catch (err) {
                 console.error('Discovery location indicators failed', err);
-                if (isActive) {
-                    setLocationIndicatorsByResourceKey({});
+                if (locationIndicatorMountedRef.current && contextKey === locationIndicatorDisplayKeyRef.current) {
+                    setLocationIndicatorState({
+                        contextKey,
+                        indicators: locationIndicatorCacheRef.current.get(contextKey) || {},
+                    });
                 }
+            } finally {
+                unmarkLocationIndicatorRefs(locationIndicatorInFlightRefsRef.current, contextKey, missingResourceRefs);
             }
         }
 
-        loadLocationIndicators();
-
-        return () => {
-            isActive = false;
-        };
+        void loadLocationIndicators();
     }, [
-        indicatorContextKey,
-        indicatorContextRequest,
-        isAuth,
+        locationIndicatorFetchPlan,
         loading,
-        locationIndicatorResourceRefs,
-        user?.id,
-        user?.postalCode,
-        userRegionKey,
     ]);
 
+    const currentLocationIndicatorsByResourceKey = locationIndicatorCacheRef.current.get(locationIndicatorDisplayKey)
+        || (locationIndicatorState.contextKey === locationIndicatorDisplayKey ? locationIndicatorState.indicators : {});
     const displayedResourcesWithIndicators = useMemo(
-        () => applyLocationIndicators(displayedResources, locationIndicatorsByResourceKey),
-        [displayedResources, locationIndicatorsByResourceKey]
+        () => applyLocationIndicators(displayedResources, currentLocationIndicatorsByResourceKey),
+        [currentLocationIndicatorsByResourceKey, displayedResources]
     );
 
     const saveAllTargetItems = useMemo(() => (

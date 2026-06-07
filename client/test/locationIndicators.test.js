@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     applyLocationIndicators,
     buildLocationIndicatorContextRequest,
+    buildLocationIndicatorPrefetchResourceRefs,
     buildLocationIndicatorResourceRefs,
     getDiscoveryLocationIndicatorPresentation,
 } from '../src/features/discover/locationIndicators.js';
@@ -20,6 +21,27 @@ test('buildLocationIndicatorResourceRefs keeps only compact hard and soft refs',
     assert.deepEqual(refs, [
         { type: 'hard', id: 1 },
         { type: 'soft', id: 2 },
+    ]);
+});
+
+test('buildLocationIndicatorPrefetchResourceRefs keeps visible resources first and caps the batch', () => {
+    const refs = buildLocationIndicatorPrefetchResourceRefs({
+        visibleResources: [
+            { _type: 'hard', id: 1 },
+            { _type: 'soft', id: 2 },
+        ],
+        prefetchResources: [
+            { _type: 'soft', id: 2 },
+            { _type: 'hard', id: 3 },
+            { _type: 'soft', id: 4 },
+        ],
+        limit: 3,
+    });
+
+    assert.deepEqual(refs, [
+        { type: 'hard', id: 1 },
+        { type: 'soft', id: 2 },
+        { type: 'hard', id: 3 },
     ]);
 });
 

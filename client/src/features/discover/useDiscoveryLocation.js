@@ -61,6 +61,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [flyTarget, setFlyTarget] = useState(null);
     const [searchOrigin, setSearchOrigin] = useState(null);
+    const [pendingLocationSearchOrigin, setPendingLocationSearchOrigin] = useState(null);
     const [locationNotice, setLocationNotice] = useState(null);
     const geolocationRequestRef = useRef(0);
     const initializedUrlPostalRef = useRef('');
@@ -82,6 +83,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         geolocationRequestRef.current = Date.now();
         setUserLocation(null);
         setSearchOrigin(null);
+        setPendingLocationSearchOrigin(null);
         setPostalInput('');
         setLocationNotice(null);
         setFlyTarget(null);
@@ -94,6 +96,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
 
         setIsGeocoding(true);
         setLocationNotice(null);
+        setPendingLocationSearchOrigin(null);
 
         try {
             const result = await resolvePostalLocation(homePostalCode);
@@ -116,6 +119,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
 
             setUserLocation(loc);
             setSearchOrigin(nextOrigin);
+            setPendingLocationSearchOrigin(null);
             setLocationNotice(null);
             setPostalInput('');
             latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
@@ -199,6 +203,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         if (!silent) {
             setLocationNotice(null);
         }
+        setPendingLocationSearchOrigin(null);
         const requestId = Date.now();
         geolocationRequestRef.current = requestId;
         let resolved = false;
@@ -211,6 +216,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
                 const nextOrigin = { ...loc, source: 'geolocation', updatedAt: Date.now(), restored: false };
                 setUserLocation(loc);
                 setSearchOrigin(nextOrigin);
+                setPendingLocationSearchOrigin(null);
                 setPostalInput('');
                 setLocationNotice(null);
                 latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
@@ -258,6 +264,10 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         }
 
         setIsGeocoding(true);
+        setPendingLocationSearchOrigin({
+            source: 'postal',
+            postalCode: val,
+        });
         setLocationNotice(null);
         try {
             const result = await resolvePostalLocation(val);
@@ -277,6 +287,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
 
             setUserLocation(loc);
             setSearchOrigin(nextOrigin);
+            setPendingLocationSearchOrigin(null);
             setLocationNotice(null);
             latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
             saveSearchLocation(nextOrigin);
@@ -285,6 +296,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
             setFlyTarget({ lat: nextOrigin.lat, lng: nextOrigin.lng, zoom, source: 'postal' });
             return true;
         } finally {
+            setPendingLocationSearchOrigin(null);
             setIsGeocoding(false);
         }
     }, [postalInput, resolvePostalLocation, searchRadius]);
@@ -307,6 +319,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         homePostalCode,
         isGeocoding,
         locationNotice,
+        pendingLocationSearchOrigin,
         postalInput,
         searchOrigin,
         searchRadius,

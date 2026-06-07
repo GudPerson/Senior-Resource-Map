@@ -24,6 +24,8 @@ function normalizeCoordinate(value) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+export const LOCATION_INDICATOR_RESOURCE_LIMIT = 1000;
+
 export function getLocationIndicatorKey(resource) {
     const type = String(resource?._type || resource?.type || resource?.resourceType || resource?.asset_type || '').trim().toLowerCase();
     const id = Number.parseInt(String(resource?.id ?? resource?.resourceId ?? ''), 10);
@@ -45,6 +47,17 @@ export function buildLocationIndicatorResourceRefs(resources = []) {
     }
 
     return refs;
+}
+
+export function buildLocationIndicatorPrefetchResourceRefs(options = {}) {
+    const limit = Number.isInteger(options.limit) && options.limit > 0
+        ? Math.min(options.limit, LOCATION_INDICATOR_RESOURCE_LIMIT)
+        : LOCATION_INDICATOR_RESOURCE_LIMIT;
+
+    return buildLocationIndicatorResourceRefs([
+        ...(Array.isArray(options.visibleResources) ? options.visibleResources : []),
+        ...(Array.isArray(options.prefetchResources) ? options.prefetchResources : []),
+    ]).slice(0, limit);
 }
 
 export function applyLocationIndicators(resources = [], indicatorsByKey = {}) {
