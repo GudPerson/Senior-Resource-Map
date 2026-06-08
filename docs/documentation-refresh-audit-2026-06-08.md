@@ -10,9 +10,9 @@ Purpose: identify which CareAround SG documents need refresh before wider demo, 
 | --- | --- | --- | --- | --- | --- |
 | `docs/user-guide.md` | Public users, caregivers, demo viewers | Partially stale, safe to refresh first | Screenshot paths pointed to the old `/Users/sweetbuns/Documents/Senior-Resource-Map` checkout; Discover guide did not explain current location badges. | Update active-repo image paths, add plain-language location badge explanation, and keep guide public-user only. | Demo viewers may see broken images or misunderstand location badges as official endorsement. |
 | `docs/CAREAROUND_SG_PROJECT_DOSSIER.md` | Founder, advisors, funders, pilot partners | Stale in high-visibility claims | Header was generated from a May 10 worktree; dossier still referenced active/uncommitted partner organisation handover work and older `regional admin` wording. | Refresh current-state summary, role language, organisation governance/Admin Region Scope wording, alert/feedback status, and roadmap. | Stakeholders may think the product is on an old branch, understate recent stability work, or misunderstand permissions. |
-| `docs/user-guide-foundation.md` | Internal training and future guide planning | Mostly useful, terminology needs later pass | Still uses `Regional admin` in audience planning and has older guide structure. | Refresh after the public guide and dossier settle; align with `Admin`, `Admin Region Scope`, Organisation governance, and Resource Owner/Staff language. | Future partner/admin guides may inherit old role names. |
-| `docs/AIC_DISCLOSURE_PACK.md` | External disclosure review | Needs verification before external sharing | Not reviewed in this first batch; likely depends on current dossier claims and relationship wording. | Refresh after dossier wording is stable. Keep all endorsement/relationship claims conservative. | External readers may infer endorsement or relationship status that has not been confirmed. |
-| `docs/PILOT_CONCEPT_NOTE.md` | Pilot partners, advisors | Needs verification before pilot use | Not reviewed in this first batch; likely affected by current governance, support coverage, and security KIV state. | Refresh after dossier; ensure pilot scope does not imply parked security fixes are complete. | Pilot commitments may be made using outdated feature/readiness assumptions. |
+| `docs/user-guide-foundation.md` | Internal training and future guide planning | Second-batch refresh started | Previously used `Regional admin` in audience planning and said the handoff was historical. | Refreshed terminology for Resource Owner/Staff, Organisation Admin/Staff, Admin, Admin Region Scope, Support Coverage, Audit Trail, and after-demo security KIV separation. Later work can turn sections into actual guide pages. | Remaining risk is guide depth, not stale role terminology. |
+| `docs/AIC_DISCLOSURE_PACK.md` | External disclosure review | Second-batch refresh started | Previously referenced current branch work for partner organisation staff handover and did not mention current Organisation governance/Admin support coverage/security KIV state. | Refreshed current-state wording, endorsement disclaimer, Organisation access limits, Admin Region Scope limits, and after-demo security KIV caveat. Still needs human compliance review before use. | External readers still need confirmed relationship/COI facts outside the repo. |
+| `docs/PILOT_CONCEPT_NOTE.md` | Pilot partners, advisors | Second-batch refresh started | Previously did not include Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, or parked security remediation caveats. | Refreshed pilot scope, data, governance outcomes, risks, and decisions-needed sections. Still requires partner/scope confirmation before use. | Pilot commitments still depend on confirmed partner, data-sharing, consent, and remediation decisions. |
 | `docs/FUNDER_PITCH_BRIEF.md` | Funders, sponsors | Needs verification before sending | Not reviewed in this first batch; depends on current dossier and pilot concept. | Refresh after dossier and pilot note. Keep seniors/caregivers free and avoid overclaiming AI readiness. | Funders may receive an outdated product maturity or impact story. |
 | `docs/PITCH_DECK_OUTLINE.md` | Presentation planning | Needs verification before deck work | Not reviewed in this first batch; likely depends on updated guide/dossier narrative. | Refresh after funder/pilot docs. | Deck may tell a story that no longer matches the live product. |
 | `docs/COI_RISK_MANAGEMENT_PLAN.md` | Governance/advisor review | Needs dedicated review | Not reviewed in this first batch; depends on partner/funder relationship facts outside the repo. | Review separately with current partner/sponsor assumptions. | COI language may be either too vague for review or too strong for current facts. |
@@ -23,11 +23,20 @@ Purpose: identify which CareAround SG documents need refresh before wider demo, 
 
 ## First Batch Scope
 
-Updated in this documentation-refresh pass:
+Updated in the first documentation-refresh pass:
 
 - `docs/user-guide.md`
 - `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`
 - `docs/documentation-refresh-audit-2026-06-08.md`
+
+## Second Batch Scope
+
+Updated in the second documentation-refresh pass:
+
+- `docs/user-guide-foundation.md`
+- `docs/AIC_DISCLOSURE_PACK.md`
+- `docs/PILOT_CONCEPT_NOTE.md`
+- `docs/session-handoff.md`
 
 Not changed in this pass:
 
@@ -39,4 +48,4 @@ Not changed in this pass:
 
 ## Recommended Next Batch
 
-Refresh `docs/user-guide-foundation.md`, then `docs/AIC_DISCLOSURE_PACK.md` and `docs/PILOT_CONCEPT_NOTE.md`. The foundation should settle internal role/permission terminology before external disclosure and pilot language are updated.
+Refresh `docs/FUNDER_PITCH_BRIEF.md`, `docs/PITCH_DECK_OUTLINE.md`, and `docs/COI_RISK_MANAGEMENT_PLAN.md`. Use the refreshed dossier, disclosure pack, and pilot note as the source so external-facing claims stay aligned.

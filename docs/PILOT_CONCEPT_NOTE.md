@@ -1,6 +1,6 @@
 # CareAround SG Pilot Concept Note
 
-Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, generated from the current repository working tree.
+Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, refreshed from the active repository state on 2026-06-08.
 
 ## Pilot Title
 
@@ -18,6 +18,7 @@ CareAround SG aims to make community-resource navigation more practical by helpi
 - Caregivers or family members preparing options for someone else.
 - AAC staff or community partner staff supporting service navigation.
 - Administrators maintaining resource listings and visibility/access rules.
+- Organisation Admin/Staff users reviewing governance context where the pilot includes organisation records.
 
 `Assumption`: caregiver-mediated use may be a primary early pilot pattern, even if seniors can use the product directly.
 
@@ -44,6 +45,7 @@ Pilot shape:
 - Use a controlled set of public/demo-safe resource listings.
 - Let users discover, save, organise, print, export, and share maps.
 - Let partner/admin staff maintain selected listings and review content.
+- Use Organisation governance, Admin Region Scope, support coverage, and audit trail only where pilot roles are confirmed.
 - Use AI-assisted import/data-improvement only as staff-reviewed internal tooling.
 - Use aggregate metrics for pilot evaluation.
 
@@ -57,6 +59,9 @@ Pilot shape:
 - Standard user registration and sign-in.
 - Profile postal-code and optional relevance fields, if consent wording is ready.
 - Partner/admin resource management for selected listings.
+- Organisation governance and agreements where partner records are ready.
+- Admin Region Scope and Support Coverage for controlled support/admin workflows.
+- Audit Trail review for meaningful governance/resource changes.
 - Workbook import/export for controlled updates.
 - Translation review for selected public-facing resources.
 - Membership links only where partner rules are clear.
@@ -71,6 +76,7 @@ Pilot shape:
 - Autonomous AI social prescribing.
 - AI analytics narratives shared without human review.
 - External notifications by SMS, WhatsApp, or email unless consent, templates, and provider rules are approved.
+- The 5 parked after-demo security remediations, unless reopened and completed as separate narrow fixes before pilot launch.
 - Collection of national identification details, senior case files, clinical diagnosis details, private contact rosters, unnecessary personal addresses, or confidential partner information.
 - AIC endorsement, official agency status, or agency-operated service claims.
 - Paid resource ranking or sponsor-preferred placement.
@@ -88,6 +94,7 @@ Expected data:
 - Resource listing edits and review status.
 - Translation review status for selected resources.
 - Partner staff access events where enabled.
+- Organisation governance and audit rows where enabled.
 - Aggregate pilot activity metrics such as resource views, saves, map creation, sharing, and listing freshness.
 
 ## Data Not Collected
@@ -133,6 +140,8 @@ Governance outcomes:
 - No AIC endorsement or official-agency claim is made.
 - AI-assisted content remains human-reviewed.
 - Partner access is limited to authorised users.
+- Organisation access remains governance-only and does not grant resource editing by itself.
+- Admin Region Scope remains support coverage and does not grant resource ownership or Discover relevance.
 
 ## Risks And Mitigations
 
@@ -142,7 +151,10 @@ Governance outcomes:
 | Resource data is stale | Add review ownership, review dates, and partner update workflow. |
 | Shared maps reveal sensitive planning context | Add sharing warnings and keep private fields out of public snapshots. |
 | Partner staff access is misconfigured | Use role-based access, owner handover controls, tests, and audit logs. |
+| Organisation access is misunderstood as resource-edit access | Keep Organisation access guidance explicit and require direct Resource Owner/Staff permissions for resource editing. |
+| Admin Region Scope is misunderstood as Discover relevance or ownership | Keep Admin Region Scope language tied to support coverage only. |
 | AI suggestions are inaccurate | Keep AI as draft support only; require human review before publishing. |
+| Parked security fixes are assumed complete | Track the 5 fixes separately and avoid including them in pilot readiness claims until remediated and verified. |
 | Pilot metrics over-collect personal data | Use aggregate metrics, consent, retention limits, and small-count suppression. |
 | COI or endorsement concerns arise | Maintain disclosure pack, recusal rules, independent wording, and no AIC endorsement claims. |
 | Sponsor or partner expects preferential visibility | Use a sponsor/visibility policy that separates funding from resource ranking. |
@@ -153,5 +165,7 @@ Governance outcomes:
 - Confirm pilot partner and staff roles.
 - Confirm data source and data-sharing permissions.
 - Confirm whether profile fields, memberships, private notes/files, and translation review are in scope.
+- Confirm whether Organisation governance, Admin Region Scope, Support Coverage, and Audit Trail are in scope.
 - Confirm whether any AI-assisted workflow is allowed in the pilot.
+- Confirm whether the parked after-demo security fixes must be completed before pilot launch.
 - Confirm who approves screenshots, pitch materials, partner communications, and disclosure wording.

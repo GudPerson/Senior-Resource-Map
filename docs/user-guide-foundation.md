@@ -1,5 +1,7 @@
 # CareAround SG User Guide Foundation
 
+Last reviewed: 2026-06-08
+
 This document is the working base for a future CareAround SG user guide, live tutorial, help hints, and training material.
 
 It is written for product planning first. It is not final user-facing copy yet.
@@ -24,9 +26,11 @@ The guide should avoid technical labels where possible. When a technical or oper
 | Guest | Find and understand public resources quickly. | Simple, reassuring, low commitment. |
 | Standard user | Save resources, create maps, personalise results, and share with family or helpers. | Practical and step-by-step. |
 | Caregiver or family member | Prepare resource options for someone else. | Scenario-based and action-oriented. |
-| Partner staff | Manage resources, private notes, memberships, translations, and safe exports. | Clear operating instructions with cautions. |
-| Regional admin | Manage service areas, users, partners, resources, and data quality. | Structured, checklist-based. |
-| Super admin | Maintain the full system safely. | Control-focused with regression and privacy reminders. |
+| Resource Owner/Staff | Maintain assigned places, offerings, local rollout details, private notes/files, translations, and membership links where allowed. | Clear operating instructions with cautions. |
+| Organisation Admin | Manage organisation access, linked-resource context, covered offerings, and agreement records without implying resource edit rights. | Governance-focused and explicit about limits. |
+| Organisation Staff | Review organisation context in read-only mode. | Clear, reassuring, and read-only. |
+| Admin | Manage Admin Region Scope, support coverage, Regions, users, resources, and data quality according to permission. | Structured, checklist-based. |
+| Super Admin | Maintain the full system safely. | Control-focused with regression and privacy reminders. |
 
 ## Core Terms To Teach
 
@@ -41,8 +45,12 @@ The guide should avoid technical labels where possible. When a technical or oper
 | Shared Map | A view-only map link that others can open. |
 | Member link | A QR or link that connects your account to a place. |
 | Partner-only | Information only authorised partner/admin accounts can see. |
+| Location badge | A card marker such as "Recommended for this location" or a star-style marker. It means the resource matches the current postal-code or target-area context; it is not endorsement or guaranteed eligibility. |
+| Resource Owner/Staff | A user with direct permission to maintain a specific place or offering. |
+| Organisation access | Governance context for an organisation. It does not grant resource editing by itself. |
+| Admin Region Scope | A Super Admin-assigned support coverage area for Admins. It helps decide which standard users an Admin can support, but it does not grant resource ownership. |
 
-Avoid teaching "asset", "hard asset", "soft asset", "CTA", or "boundary" to normal users.
+Avoid teaching "asset", "hard asset", "soft asset", "CTA", internal IDs, or "boundary" to normal users.
 
 ## Suggested Guide Structure
 
@@ -63,6 +71,7 @@ Avoid teaching "asset", "hard asset", "soft asset", "CTA", or "boundary" to norm
    - Open Discover.
    - Search by name, category, service, or postal code.
    - Use current location or a postal code to see what is nearby.
+   - Explain location badges in plain language as relevance signals, not official approval.
    - Switch between list and map views where available.
 
 4. **Reading A Resource Detail Page**
@@ -116,12 +125,13 @@ Avoid teaching "asset", "hard asset", "soft asset", "CTA", or "boundary" to norm
    - Explain that non-essential analytics/marketing cookies are not currently used.
    - Explain that privacy contact details must be confirmed before wider launch.
 
-### Part 3: For Partners
+### Part 3: For Resource Owners/Staff And Organisations
 
-12. **Partner Dashboard Basics**
-   - Sign in through partner sign-in.
-   - Understand the difference between public content and partner/admin tools.
-   - Know which resources and users the partner is allowed to manage.
+12. **Resource Dashboard Basics**
+   - Sign in through the dashboard path for authorised staff.
+   - Understand the difference between public content and operational tools.
+   - Know which places and offerings the user is allowed to maintain.
+   - Explain that Organisation access does not automatically grant resource editing.
 
 13. **Managing Places And Offerings**
    - Create or edit places.
@@ -154,21 +164,31 @@ Avoid teaching "asset", "hard asset", "soft asset", "CTA", or "boundary" to norm
    - Help users link their account to the correct place.
    - Explain what membership linking does and does not do.
 
-18. **Safe User Export**
-   - Export only when needed for legitimate operations.
+18. **Organisation Workspace**
+   - Explain Organisation Admin and Organisation Staff access.
+   - Explain linked resources, covered offerings, agreements, and read-only staff context.
+   - Repeat that Organisation access is governance-only and does not grant Resource Owner/Staff editing rights.
+
+19. **Safe Export Habits**
+   - Export only when the role and workflow allow it.
    - Use filters or selected rows where possible.
    - Store downloaded files carefully.
    - Do not forward exported data outside authorised channels.
 
 ### Part 4: For Admins
 
-19. **Service Areas And Audience Rules**
-   - Explain subregions as management service areas.
+20. **Support Coverage And Region Scope**
+   - Explain Regions as management/support areas.
+   - Explain Admin Region Scope as support coverage for Admins.
+   - Explain Support Coverage as derived from a user's profile location and Admin Region Scope.
+   - Explain that Admin Region Scope does not grant resource ownership, organisation access, private notes/files access, or Discover relevance.
+
+21. **Audience Rules**
    - Explain audience zones as selected postal-code areas.
-   - Explain partner areas and restricted offerings.
+   - Explain restricted offerings and target-area context.
    - Provide examples of who sees what.
 
-20. **Visibility And Access Controls**
+22. **Visibility And Access Controls**
    - Public.
    - Hidden.
    - Scheduled hiding.
@@ -177,24 +197,34 @@ Avoid teaching "asset", "hard asset", "soft asset", "CTA", or "boundary" to norm
    - Audience-zone restricted.
    - Eligibility-based.
 
-21. **Templates And Local Versions**
+23. **Templates And Local Versions**
    - Explain reusable template offerings.
    - Explain child/local offerings.
    - Explain local overrides.
    - Provide examples of when to use standalone versus template.
 
-22. **Workbook Import And Export**
+24. **Organisation And Group Governance**
+   - Explain Organisation Admin and Organisation Staff access.
+   - Explain Org Groups and Region Groups as coordination metadata only.
+   - Explain that group roles do not grant resource ownership or publishing control.
+
+25. **Workbook Import And Export**
    - Download the right workbook.
    - Fill only expected fields.
    - Use reports to fix row errors.
    - Avoid importing public data without review.
 
-23. **Security And Data Protection Habits**
+26. **Audit Trail And Feedback**
+   - Explain the operational Audit Trail for meaningful governance/resource changes.
+   - Explain that everyday browsing, personal map actions, and AI chat/querying are intentionally excluded.
+   - Teach in-page feedback and shared confirmation dialogs instead of browser-message-box language.
+
+27. **Security And Data Protection Habits**
    - Use strong account practices.
    - Keep exports scoped.
    - Avoid uploading sensitive data into public fields.
    - Report suspected access issues.
-   - Treat privacy contact replacement as a launch blocker.
+   - Keep the after-demo security fixes separate from guide/demo wording until they are completed.
 
 ## Live Tutorial And Hint Ideas
 
@@ -210,6 +240,7 @@ Use short hints inside the app only where they help the next action. Avoid large
 | Profile eligibility card | "These optional details help personalise recommendations and restricted offerings." |
 | Translation review panel | "Start with languages that need attention. Ready translations can be left alone." |
 | Partner-only editor | "Only authorised partner/admin accounts can see this content." |
+| Organisation workspace | "Organisation access helps with governance context. Resource editing still needs direct Owner/Staff access." |
 | User export | "Export only the users you need, and handle the file carefully." |
 
 ## Training Prompts
@@ -243,11 +274,12 @@ These prompts can become live demo scripts or onboarding exercises.
 
 ### Admin Demo
 
-1. Review users in a service area.
-2. Check audience zones.
-3. Import a small workbook or programme material.
-4. Review warnings before saving.
-5. Export a scoped user list and discuss safe handling.
+1. Review users by Support Coverage.
+2. Manage Admin Region Scope for an Admin.
+3. Check Regions, audience zones, and Organisation governance.
+4. Import a small workbook or programme material.
+5. Review warnings before saving.
+6. Export a scoped user list and discuss safe handling.
 
 ## Copy And Language Rules For Guide Material
 
@@ -255,6 +287,9 @@ These prompts can become live demo scripts or onboarding exercises.
 - Prefer "place" over "hard asset".
 - Prefer "offering", "programme", or "service" over "soft asset".
 - Prefer "My Maps" over "Private Maps".
+- Prefer "Admin" for the user-facing platform role; mention `regional_admin` only in technical docs.
+- Explain "Admin Region Scope" as support coverage, not resource ownership.
+- Explain "Organisation access" as governance context, not resource editing.
 - Explain profile details as optional personalisation where possible.
 - Avoid making users feel blocked or blamed.
 - Use "restricted" instead of "locked" for access rules.
@@ -271,12 +306,12 @@ These items should be resolved before a wider public launch guide is treated as 
 - Confirm the safe-handling policy for user exports.
 - Confirm who reviews Mandarin, Malay, and Tamil resource translations.
 - Decide whether partner-only notes/files need content rules or prohibited-content examples.
-- Refresh `docs/session-handoff.md`, which is currently historical.
+- Decide when to resume the parked after-demo security fixes and how much of that work should appear in user-facing docs.
 
 ## Suggested Next Documentation Steps
 
 1. Convert each guide part into a short page with screenshots.
-2. Add a glossary page for public users and a separate operations glossary for partners/admins.
+2. Add a glossary page for public users and a separate operations glossary for Resource Owners/Staff, Organisation users, Admins, and Super Admins.
 3. Turn training prompts into a checklist that can be followed during onboarding.
 4. Review `docs/layman-language-review.md` and fold approved wording into app hints.
-5. Add screenshots only after the current UI is stable enough to avoid constant image churn.
+5. Refresh screenshots only from a demo-safe account after the current UI is stable enough to avoid constant image churn.

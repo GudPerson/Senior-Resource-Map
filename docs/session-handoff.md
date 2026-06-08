@@ -129,6 +129,12 @@ Documentation refresh first batch:
 - `docs/user-guide.md`
 - `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`
 
+Documentation refresh second batch:
+
+- `docs/user-guide-foundation.md`
+- `docs/AIC_DISCLOSURE_PACK.md`
+- `docs/PILOT_CONCEPT_NOTE.md`
+
 ## Failed Attempts / Known Traps
 
 - The previous `docs/session-handoff.md` was stale and pointed to the wrong working context. Use this refreshed file as the canonical handoff.
@@ -179,6 +185,12 @@ First batch started on 2026-06-08:
 - Refreshed `docs/user-guide.md` image paths and public Discover location-badge explanation.
 - Refreshed `docs/CAREAROUND_SG_PROJECT_DOSSIER.md` current-state, Organisation governance, Admin Region Scope, and notification/feedback wording.
 
+Second batch started on 2026-06-08:
+
+- Refreshed `docs/user-guide-foundation.md` role, permission, Organisation workspace, Admin Region Scope, Support Coverage, Audit Trail, and security KIV terminology.
+- Refreshed `docs/AIC_DISCLOSURE_PACK.md` current-state, endorsement disclaimer, Organisation/Admin Region Scope limits, and after-demo security KIV caveat.
+- Refreshed `docs/PILOT_CONCEPT_NOTE.md` pilot scope, data, governance outcomes, risks, and decisions needed for Organisation governance, Admin Region Scope, Audit Trail, and after-demo security remediation.
+
 ## Security And Bug Review Targets
 
 When the security review resumes after the demo, run it as report-only first. Do not patch during the first pass.
@@ -206,7 +218,7 @@ Suggested code-review focus:
 
 ## Recommended Next Step
 
-Continue the documentation refresh with `docs/user-guide-foundation.md`, then `docs/AIC_DISCLOSURE_PACK.md` and `docs/PILOT_CONCEPT_NOTE.md`. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
+Continue the documentation refresh with `docs/FUNDER_PITCH_BRIEF.md`, `docs/PITCH_DECK_OUTLINE.md`, and `docs/COI_RISK_MANAGEMENT_PLAN.md`. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
 
 ## Fresh Chat Starter Prompt
 

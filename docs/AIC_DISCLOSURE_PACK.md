@@ -1,6 +1,6 @@
 # CareAround SG AIC Disclosure Pack
 
-Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, generated from the current repository working tree.
+Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, refreshed from the active repository state on 2026-06-08.
 
 Purpose: provide a practical disclosure pack for AIC, HR, compliance, or an advisor review. This is not legal advice and should be reviewed by the appropriate compliance owner before use.
 
@@ -8,9 +8,9 @@ Purpose: provide a practical disclosure pack for AIC, HR, compliance, or an advi
 
 CareAround SG is an independently developed web application that helps people in Singapore discover senior-related community resources, save useful options, and organise those options into practical directories and maps for planning, sharing, printing, or follow-up.
 
-The public-facing product serves guests, seniors, caregivers, and family members. It includes resource discovery, resource detail pages, saved resources, My Directory, My Maps, shared maps, language/accessibility foundations, and profile context. The operational product serves partner staff and administrators. It includes dashboard resource management, workbook import/export, service-area and audience-zone controls, translation review, membership links, partner-only notes/files, AI-assisted data preparation, and current branch work for partner organisation staff handover.
+The public-facing product serves guests, seniors, caregivers, and family members. It includes resource discovery, resource detail pages, saved resources, My Directory, My Maps, shared maps, language/accessibility foundations, location relevance cues, and profile context. The operational product serves Resource Owners/Staff, Organisation Admin/Staff, Admins, and Super Admins. It includes dashboard resource management, workbook import/export, Admin Region Scope, support coverage, Organisation governance, audience-zone controls, audit trail, translation review, membership links, partner-only notes/files, and AI-assisted data preparation with human review.
 
-CareAround SG is best described as a community-care navigation and planning tool. It is not an emergency service, medical advice platform, clinical triage system, official government directory, or AIC-endorsed product unless formal approval is obtained.
+CareAround SG is best described as a community-care navigation and planning tool. It is not an emergency service, medical advice platform, clinical triage system, official government directory, or AIC-endorsed product; no endorsement is claimed unless formal written approval exists.
 
 ## Why It Was Built
 
@@ -27,18 +27,19 @@ Evidence from the repository:
 - Working public discovery and resource detail flows.
 - Saved resources, My Directory, My Maps, print/export, and shared maps.
 - Authentication, Google sign-in, and phone-login/phone-identity foundations.
-- Partner/admin dashboard and resource management.
+- Partner/admin dashboard, resource management, Organisation governance, Admin support coverage, and Audit Trail foundations.
 - Workbook import/export and Google place import.
 - AI-assisted data preparation for places and programme material, with human review.
 - Translation and multilingual review foundation.
 - Partner-only notes/files and privacy/access-control foundations.
-- Current branch work for partner organisation staff access and handover.
+- Discover location badges that surface existing postal-code or target-area relevance cues more quickly.
 
 Important maturity caveats:
 
 - `Needs input`: live pilot status, production user count, confirmed partners, deployment readiness, data governance approvals, support model, and operational ownership.
 - AI service matching, AI analytics, and alerts are planned/partial rather than fully implemented.
 - The product should undergo privacy, security, COI, and pilot-governance review before wider rollout.
+- The 5 security fixes identified before the demo remain parked for after-demo remediation and should not be represented as complete until handled separately.
 
 ## What It Does Not Claim
 
@@ -51,6 +52,8 @@ CareAround SG does not claim that:
 - Resource information is guaranteed complete, current, or suitable for every user.
 - AI suggestions are final recommendations.
 - Partner-funded or sponsor-funded resources deserve preferential visibility.
+- Organisation access grants resource editing rights by itself.
+- Admin Region Scope grants resource ownership, private notes/files access, or public Discover relevance.
 
 ## Conflict-Of-Interest Risks
 
@@ -76,6 +79,7 @@ CareAround SG does not claim that:
 - Use public/demo-safe data for screenshots, decks, and pilots unless a data-sharing agreement permits otherwise.
 - Keep AI support review-first, explainable, and clearly non-clinical.
 - Add audit logs and consent records before analytics, external notifications, or AI-assisted support matching.
+- Keep after-demo security remediation separate from disclosure and pilot claims until each fix is completed and verified.
 
 ## Questions For AIC/HR/Compliance
 
@@ -89,6 +93,7 @@ CareAround SG does not claim that:
 8. What procurement, grant, or pilot conversations would require prior approval?
 9. What documentation should be kept to show separation between employment duties and CareAround SG work?
 10. Who should review future pitch decks, partner proposals, or funding applications before they are shared?
+11. Should the parked after-demo security fixes be disclosed as internal remediation work before any pilot or external partner review?
 
 ## Disclosure-Friendly Wording
 
