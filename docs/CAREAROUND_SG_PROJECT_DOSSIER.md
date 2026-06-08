@@ -1,6 +1,6 @@
 # CareAround SG Project Dossier
 
-Generated from the current repository working tree on May 10, 2026.
+Refreshed from the active repository state on June 8, 2026.
 
 This dossier is intended for funding preparation, pilot planning, stakeholder review, roadmap planning, AI feature planning, and conflict-of-interest review. It uses only what can be inferred from the current repository and labels uncertain points as `Assumption` or `Needs input`.
 
@@ -14,7 +14,7 @@ It serves guests, seniors, caregivers, family members, partner staff, administra
 
 The problem it solves is service navigation friction: people may know support exists, but still struggle to find nearby, relevant, understandable, current, and shareable information. CareAround SG brings together places, programmes, services, events, promotions, profile context, eligibility hints, maps, shared directories, and partner-admin maintenance workflows.
 
-Current maturity level: the codebase shows an advanced working prototype or pre-pilot product rather than a slide-only concept. Core user journeys such as Discover, resource details, saved resources, My Directory, My Maps, shared maps, dashboard resource management, workbook import/export, multilingual foundations, AI-assisted import/data-improvement tools, partner-only notes/files, and phone-login foundations are present. The regression ledger marks several surfaces as recovered and locked. The repository also contains current uncommitted work for partner organisation/staff handover. `Needs input`: live pilot status, production user count, partner commitments, formal data governance approval, support model, and deployment readiness should be confirmed outside the codebase.
+Current maturity level: the codebase shows an advanced working prototype or pre-pilot product rather than a slide-only concept. Core user journeys such as Discover, resource details, saved resources, My Directory, My Maps, shared maps, dashboard resource management, workbook import/export, multilingual foundations, AI-assisted import/data-improvement tools, partner-only notes/files, phone-login foundations, Organisation governance, Admin support coverage, audit trail, and location-badge relevance cues are present. The regression ledger marks the major user and operations surfaces as recovered or locked, with recent production work focused on safer Admin support coverage, shared confirmation dialogs, inline Admin feedback, idempotent resource delete audit logging, and snappier Discover location badges. `Needs input`: live pilot status, production user count, partner commitments, formal data governance approval, support model, and launch readiness should be confirmed outside the codebase.
 
 Why it matters:
 
@@ -57,7 +57,7 @@ What CareAround SG should not become:
 | Caregivers | Public guide, My Directory, My Maps, shared maps, profile context | Compare resources, prepare family discussions, share view-only maps | Sharing needs clear privacy warnings because maps can reflect a care situation. |
 | AAC staff | Partner/admin dashboard, resources, memberships, private content, translations | Maintain resources, support member access, review content, handle operational notes | `Needs input`: specific AAC workflows, staff roles, and pilot boundaries. |
 | Community service partners | Partner resources, boundaries, audience zones, partner-only content | Keep listings current; manage visibility; support restricted offerings | Partner trust depends on permission clarity and data handling rules. |
-| Administrators | Admin page, users, service areas, audience zones, workbooks, imports, tests | Operate the system safely, manage access, maintain data quality | Roles include super admin, regional admin, partner, standard, and guest. |
+| Administrators | Admin page, users, service areas, audience zones, workbooks, imports, tests | Operate the system safely, manage access, maintain data quality | Current UI language uses `Admin` for the platform admin role while the internal role key remains `regional_admin` for compatibility. |
 | Potential funders or sponsors | Product maturity, roadmap, impact metrics, funding logic | Understand problem, readiness, impact, governance, and sustainability | Funding narrative should keep seniors/caregivers free and avoid early monetisation of sensitive access. |
 
 ## 4. Current Features Found in the Codebase
@@ -73,19 +73,19 @@ What CareAround SG should not become:
 | WhatsApp/GudAuth phone login and signup | Starts a phone verification login, resumes attempts after return, signs in existing verified identities, and guides unknown verified phones into standard-user signup. | Standard users, seniors, caregivers | `client/src/components/PhoneLoginPanel.jsx`, `client/src/components/PhoneVerificationPanel.jsx`, `client/src/lib/phoneVerificationState.js`, `server/src/routes/auth.js`, `server/src/controllers/phoneLoginController.js`, `server/src/utils/phoneLogin.js`, `server/src/utils/gudAuthClient.js`, `server/src/db/schema.js` (`phone_login_attempts`, `user_phone_identities`) | Working or recently added in current branch history | Provider availability and production configuration need operational confirmation. Raw profile phone fields should not be trusted for login. |
 | Phone identity verification and linking | Maintains separate active verified phone identities and supports current-user linking/unlinking attempts. | Standard users, admins reviewing identity model | `server/src/routes/phoneIdentities.js`, `server/src/controllers/phoneIdentitiesController.js`, `server/src/utils/phoneIdentity.js`, `server/src/utils/phoneIdentityLinking.js`, `server/src/utils/phoneIdentityAudit.js`, `server/test/phoneIdentitySchema.test.js` | Working | Good foundation for identity uniqueness. `Needs input`: legacy backfill and user-support process for disputed phone ownership. |
 | Profile and eligibility fields | Captures optional profile fields such as postal code, birth date, CHAS card status, caregiver status, gender, property type, and volunteer interest. | Standard users, caregivers, partners/admins using access rules | `client/src/pages/dashboard/ProfilePage.jsx`, `client/src/lib/profileAttributes.js`, `server/src/controllers/userController.js`, `server/src/utils/profileAttributes.js`, `server/src/utils/eligibility.js`, `server/src/db/schema.js` (`users`) | Working | Sensitive optional data needs clear purpose, consent, retention, and minimisation rules before pilot scale. |
-| Postal-code and service-area logic | Uses postal codes to assign service areas, partner boundaries, subregions, audience zones, and distance/search context. | Users, partners, regional admins, super admins | `server/src/utils/postalBoundaries.js`, `server/src/utils/subregionRouting.js`, `server/src/utils/partnerBoundaries.js`, `server/src/utils/audienceZones.js`, `server/src/routes/subregions.js`, `server/src/routes/partners.js`, `server/src/routes/audienceZones.js` | Working or partial depending on schema setup | Operational terms are complex. Public copy should say service area or target area rather than boundary/subregion where possible. |
+| Postal-code and service-area logic | Uses postal codes to support search distance, Region boundaries, Admin Region Scope, audience zones, and target-area context. | Users, partners, Admins, Super Admins | `server/src/utils/postalBoundaries.js`, `server/src/utils/subregionRouting.js`, `server/src/utils/partnerBoundaries.js`, `server/src/utils/audienceZones.js`, `server/src/routes/subregions.js`, `server/src/routes/partners.js`, `server/src/routes/audienceZones.js` | Working | Operational terms are complex. Public copy should say service area, target area, or location context rather than boundary/subregion where possible. |
 | Membership links | Lets users link their account to a place via a QR/link flow, enabling member-related access recognition. | Standard users, AACs, partners | `client/src/pages/MembershipLinkPage.jsx`, `server/src/routes/memberships.js`, `server/src/controllers/membershipsController.js`, `server/src/utils/membershipTokens.js`, `server/src/utils/memberships.js`, `server/src/db/schema.js` (`user_asset_memberships`) | Working | Linking a membership is not the same as programme registration. Partner/member policy needs confirmation. |
-| Partner/admin dashboard | Provides dashboard navigation and pages for overview, resources, profile, admin functions, resource management, and operational tools. | Partners, regional admins, super admins | `client/src/pages/dashboard/*`, `client/src/components/dashboard/DashboardNavigation.jsx`, `client/src/lib/roles.js`, `server/src/routes/users.js`, `server/src/routes/admin.js` | Working | Several admin files are large and should be refactored only in small verified slices. |
-| Resource management | Lets authorised users create/edit/delete places, standalone offerings, template offerings, child offerings, images, tags, categories, locations, availability, visibility, and linked places. | Partners, regional admins, super admins | `client/src/pages/dashboard/ResourcesPage.jsx`, `client/src/components/AssetForm.jsx`, `client/src/components/SoftAssetTemplateForm.jsx`, `client/src/components/SoftAssetChildForm.jsx`, `server/src/routes/hardAssets.js`, `server/src/routes/softAssets.js`, `server/src/routes/softAssetParents.js` | Working | Complex content model. Human review is needed before public publishing, especially for imported or AI-assisted content. |
-| Partner organisations and staff handover | Adds an organisation/staff bridge so real staff accounts can manage partner organisation resources without password sharing, including owner/editor roles and handover. | Partners, regional admins, super admins | `client/src/components/PartnerStaffPanel.jsx`, `server/src/routes/partnerOrganizations.js`, `server/src/controllers/partnerOrganizationsController.js`, `server/src/utils/partnerOrganizations.js`, `server/src/utils/partnerStaff.js`, `server/src/db/schema.js` (`partner_organizations`, `partner_staff_memberships`, `partner_staff_events`) | Partial or in active working tree | Current branch includes uncommitted files and tests. Some paths return setup-required messaging if bridge tables are not ready. |
-| Audience zones and restricted offerings | Supports targeted postal-code zones and links them to offerings or templates for visibility/access rules. | Partners, regional admins, super admins, eligible users | `server/src/routes/audienceZones.js`, `server/src/controllers/audienceZonesController.js`, `server/src/utils/audienceZones.js`, `server/src/db/schema.js` (`audience_zones`, `soft_asset_audience_zones`, `soft_asset_parent_audience_zones`) | Working | Needs careful explanation so users understand why some resources appear or remain restricted. |
-| Partner boundaries and subregions | Defines which partner/admin users can manage or view resources and users within allowed areas. | Partners, regional admins, super admins | `server/src/routes/partners.js`, `server/src/controllers/partnerBoundariesController.js`, `server/src/routes/subregions.js`, `server/src/controllers/subregionsController.js`, `server/src/utils/boundarySchema.js`, `server/src/db/schema.js` (`subregions`, `subregion_postal_codes`, `partner_postal_codes`) | Working or partial depending on schema setup | `Needs input`: final operational model for partner catchments and regional ownership. |
-| Workbook import/export | Downloads templates, exports data, imports resources, validates rows, and produces import reports for operational maintenance. | Admins, partners, regional admins | `server/src/routes/admin.js`, `server/src/controllers/workbookController.js`, `server/src/utils/inputValidation.js`, `server/src/db/schema.js`, `client/src/pages/dashboard/AdminPage.jsx` | Working | Workbook handling has important validation limits. Exported files require careful data handling. |
+| Partner/admin dashboard | Provides dashboard navigation and pages for overview, resources, profile, admin functions, resource management, audit trail, Organisation governance, and operational tools. | Resource Owners/Staff, Organisation Admin/Staff, Admins, Super Admins | `client/src/pages/dashboard/*`, `client/src/components/dashboard/DashboardNavigation.jsx`, `client/src/lib/roles.js`, `server/src/routes/users.js`, `server/src/routes/admin.js` | Working | Several admin files are large and should be refactored only in small verified slices. |
+| Resource management | Lets authorised Resource Owners/Staff, Admins, and Super Admins create/edit/delete places, standalone offerings, template offerings, child offerings, images, tags, categories, locations, availability, visibility, and linked places according to their permission lane. | Resource Owners/Staff, Admins, Super Admins | `client/src/pages/dashboard/ResourcesPage.jsx`, `client/src/components/AssetForm.jsx`, `client/src/components/SoftAssetTemplateForm.jsx`, `client/src/components/SoftAssetChildForm.jsx`, `server/src/routes/hardAssets.js`, `server/src/routes/softAssets.js`, `server/src/routes/softAssetParents.js` | Working | Complex content model. Human review is needed before public publishing, especially for imported or AI-assisted content. Organisation access alone does not grant resource editing. |
+| Organisation governance and access | Lets Super Admins create Organisation governance records, seed Organisation Admin access, link eligible assets, review covered offerings and agreements, and let Organisation Staff view governance context read-only. | Organisations, Organisation Admin/Staff, Super Admins | `client/src/components/admin/GovernanceOrganizationsPanel.jsx`, `server/src/routes/partnerOrganizations.js`, `server/src/controllers/partnerOrganizationsController.js`, `server/src/db/schema.js` (`partner_organizations`, `partner_staff_memberships`, `partner_staff_events`) | Working foundation | Organisation access is governance-only. It does not grant resource Owner/Staff editing rights by itself. |
+| Audience zones and restricted offerings | Supports targeted postal-code zones and links them to offerings or templates for visibility/access rules. | Partners, Admins, Super Admins, eligible users | `server/src/routes/audienceZones.js`, `server/src/controllers/audienceZonesController.js`, `server/src/utils/audienceZones.js`, `server/src/db/schema.js` (`audience_zones`, `soft_asset_audience_zones`, `soft_asset_parent_audience_zones`) | Working | Needs careful explanation so users understand why some resources appear or remain restricted. |
+| Admin Region Scope and service areas | Defines support coverage for standard users through profile location and Admin Region Scope, while keeping resource edit permissions separate from service-area visibility. | Admins, Super Admins, standard users | `server/src/routes/partners.js`, `server/src/controllers/partnerBoundariesController.js`, `server/src/routes/subregions.js`, `server/src/controllers/subregionsController.js`, `server/src/utils/adminRegionScope.js`, `server/src/utils/adminSupportCoverage.js`, `server/src/db/schema.js` (`subregions`, `subregion_postal_codes`, `user_subregions`, `partner_postal_codes`) | Working | Admin Region Scope supports user coverage and review. It does not grant resource ownership, organisation access, group access, private notes/files access, or Discover relevance. |
+| Workbook import/export | Downloads templates, exports data, imports resources, validates rows, and produces import reports for operational maintenance. | Admins, partners, Super Admins | `server/src/routes/admin.js`, `server/src/controllers/workbookController.js`, `server/src/utils/inputValidation.js`, `server/src/db/schema.js`, `client/src/pages/dashboard/AdminPage.jsx` | Working | Workbook handling has important validation limits. Exported files require careful data handling. |
 | Google place import and AI data improvement | Searches Google place candidates by postal context, previews candidate details, imports places, and can augment drafts with additional grounded descriptions or logo suggestions. | Partners, admins | `client/src/components/HardAssetImportWizard.jsx`, `server/src/routes/hardAssets.js`, `server/src/utils/googlePlaceImport.js`, `server/src/utils/vertexGroundedPlaceSearch.js`, `server/src/utils/websiteMetadata.js` | Working/partial AI-assisted admin tool | This is AI-assisted import/data improvement, not AI social prescribing. Suggestions require staff review before saving. |
 | AI collateral import for offerings | Uses uploaded programme material to propose structured offering drafts, matches, descriptions, tags, buckets, and possible updates for staff review. | Partners, admins | `client/src/components/SoftAssetCollateralImportWizard.jsx`, `server/src/controllers/softAssetCollateralImportController.js`, `server/src/utils/vertexCollateralImport.js`, `server/src/routes/softAssets.js` | Partial or working admin-assist feature | Must remain review-first. Source material may contain sensitive or outdated content, so upload rules and review workflow matter. |
 | Translation and multilingual foundation | Provides locale switching, UI strings, resource translation persistence, translation review status, regenerate hooks, fallback behavior, and admin review panels. | Public users, partners, admins | `client/src/contexts/LocaleContext.jsx`, `client/src/lib/i18n.js`, `client/src/components/TranslationReviewPanel.jsx`, `server/src/routes/resourceTranslations.js`, `server/src/controllers/resourceTranslationsController.js`, `server/src/utils/resourceTranslations.js`, `server/src/db/schema.js` (`resource_translations`) | Working foundation | English remains canonical. Mandarin, Malay, and Tamil resource content requires review. Legal/admin content may remain English until reviewed. |
 | Partner-only notes and files | Lets authorised staff add private notes, access grants, and files to resource detail content outside public snapshots. | Partners, admins | `client/src/components/PrivateResourceContentEditor.jsx`, `client/src/components/PartnerPrivatePanel.jsx`, `client/src/components/PrivateFileViewer.jsx`, `server/src/routes/privateResourceContent.js`, `server/src/controllers/privateResourceContentController.js`, `server/src/utils/privateResourceContent.js`, `server/src/db/schema.js` (`private_resource_contents`, `private_resource_content_access`, `private_resource_content_files`) | Working | Should not store unnecessary personal data, confidential case notes, or unapproved partner-confidential material. |
-| Public guide and guide foundation | Provides a public/standard-user guide draft and a broader guide foundation for future partner/admin/training content. | Public users, caregivers, partners, admins | `docs/user-guide.md`, `docs/user-guide-foundation.md`, `docs/layman-language-review.md`, `docs/images/user-guide/*` | Partial documentation | Public guide exists first. Partner/admin guide and screenshot checklist are intentionally later work. Some local image rendering may depend on absolute path support in the viewer. |
+| Public guide and guide foundation | Provides a public/standard-user guide draft and a broader guide foundation for future partner/admin/training content. | Public users, caregivers, partners, admins | `docs/user-guide.md`, `docs/user-guide-foundation.md`, `docs/layman-language-review.md`, `docs/images/user-guide/*` | Partial documentation | Public guide exists first. Partner/admin guide and screenshot checklist are intentionally later work. Screenshot freshness should be checked before external sharing. |
 | Security and privacy hardening | Adds security headers, CORS constraints, JSON/body guards, rate limits, validation, privacy/terms pages, and access-control tests. | All users, operators, partners | `server/src/app.js`, `server/src/middleware/security.js`, `server/src/utils/inputValidation.js`, `client/src/pages/LegalPage.jsx`, `server/test/accessControlPrivacy.test.js`, `docs/regression-ledger.md` | Working foundation | Not a formal security certification. Dependency advisories and audit-log depth remain technical/governance follow-ups. |
 | Client route recovery | Adds route-level error handling for failed lazy chunks and stale app tabs. | All browser users | `client/src/App.jsx`, `docs/regression-ledger.md` | Working | Helps avoid blank screens during app updates, but does not replace release smoke testing. |
 | Public map cache | Provides a public map-cache API family backed by Worker/KV binding where configured. | Public users, performance-sensitive map views | `server/src/routes/public.js`, `server/src/utils/cacheBuilder.js`, `server/wrangler.toml` | Partial or deployment-dependent | `Needs input`: cache refresh process, cache contents, and production operating rules. |
@@ -208,7 +208,7 @@ Suggested future version:
 - Partner-facing task queues and digest emails.
 - AI-assisted alert prioritisation only after rules and opt-outs are stable.
 
-Current code support: limited. The repository contains browser `alert()` calls and status messages, but no dedicated notification table, job runner, or external notification service.
+Current code support: limited. The repository contains in-page status and feedback messages, but no dedicated notification table, job runner, external delivery service, or notification preference workflow beyond the governance foundations noted elsewhere.
 
 ## 6. User Journey
 
@@ -227,7 +227,7 @@ Current code support: limited. The repository contains browser `alert()` calls a
 ### AAC/community partner using the platform
 
 1. Signs in through partner/admin access.
-2. Opens the dashboard and navigates to resources, profile, or admin areas depending on role.
+2. Opens the dashboard and navigates to resources, profile, organisation workspace, or admin areas depending on role.
 3. Creates or edits places and offerings.
 4. Uses images, tags, categories, schedules, eligibility rules, availability, and visibility settings.
 5. Reviews restricted/member-only settings and partner-only notes/files.
@@ -237,8 +237,8 @@ Current code support: limited. The repository contains browser `alert()` calls a
 
 ### Admin maintaining service listings
 
-1. Signs in as regional admin or super admin.
-2. Manages users, roles, managers, subregions, partner boundaries, audience zones, and categories.
+1. Signs in as an Admin or Super Admin.
+2. Manages users, Admin Region Scope, support coverage, Regions, audience zones, Organisation governance, and categories according to permission.
 3. Imports or exports workbook data for places and offerings.
 4. Reviews import reports and validation errors.
 5. Checks visibility/access rules and translation review state.
@@ -268,9 +268,9 @@ Main entities/tables/collections inferred from `server/src/db/schema.js`:
 
 | Area | Entities | What they represent |
 | --- | --- | --- |
-| Users and roles | `users`, role enum | Accounts, roles, profile fields, managers, optional eligibility/profile context. |
-| Service areas | `subregions`, `subregion_postal_codes`, `user_subregions`, `partner_postal_codes` | Service area definitions, postal-code routing, user/partner area assignments. |
-| Partner organisations | `partner_organizations`, `partner_staff_memberships`, `partner_staff_events` | Organisation bridge, staff roles, owner handover, and staff events. |
+| Users and roles | `users`, role enum | Accounts, roles, profile fields, legacy manager compatibility, optional eligibility/profile context, and platform Admin identity through the internal `regional_admin` key. |
+| Service areas | `subregions`, `subregion_postal_codes`, `user_subregions`, `partner_postal_codes` | Region/service-area definitions, postal-code routing, Admin Region Scope, and partner area metadata. |
+| Partner organisations | `partner_organizations`, `partner_staff_memberships`, `partner_staff_events` | Organisation governance records, Admin/Staff access, staff events, and linked-resource governance context. |
 | Places | `hard_assets` | Physical locations with address, coordinates, media, source identifiers, visibility, and partner ownership fields. |
 | Offerings | `soft_assets`, `soft_asset_parents`, `soft_asset_locations` | Standalone offerings, reusable templates, child/local offerings, linked places, availability, eligibility, and visibility. |
 | Tags/categories | `tags`, `sub_categories`, `hard_asset_tags`, `soft_asset_tags` | Resource classification and filtering. |
@@ -305,7 +305,7 @@ Referral or recommendation data:
 Alert/notification data:
 
 - No dedicated alerts, notification preferences, notification logs, delivery attempts, or message-template tables are evident.
-- Existing UI status messages and browser alerts are not a notification system.
+- Existing in-page status and feedback messages are not a notification system.
 
 Analytics data:
 
@@ -353,7 +353,7 @@ Authentication:
 - Email/password login/register.
 - Google sign-in support.
 - Session token carried by HTTP-only cookie and optional session header.
-- Role-based authorization for partner, regional admin, and super admin functions.
+- Role-based authorization for partner, Admin, and Super Admin functions. The platform Admin role still uses the `regional_admin` internal key for backward compatibility.
 - User-view/impersonation route for authorised admin workflows.
 - Phone login/signup and phone identity linking using GudAuth/WhatsApp verification flows.
 
@@ -392,7 +392,7 @@ AI-related code:
 Notification-related code:
 
 - No dedicated notification service, notification queue, notification preferences, or notification log is evident.
-- Existing browser alerts/status messages are UI feedback, not a notification architecture.
+- Existing in-page alerts and status messages are UI feedback, not a notification architecture.
 
 Analytics-related code:
 
@@ -684,10 +684,10 @@ CareAround SG is an independently developed community-care navigation and planni
 - Review this dossier with the product owner and advisor.
 - Confirm pilot scope, partner assumptions, and conflict-of-interest disclosures.
 - Lock documentation set: public guide, partner/admin guide outline, screenshot checklist, pitch inputs, pilot plan, AI feature spec, risk register, and roadmap.
-- Verify current branch work for partner organisation/staff handover and schema setup.
+- Review current Organisation governance, Admin Region Scope, and documentation terminology against the locked handoff before external sharing.
 - Add or confirm sensitive-action audit-log requirements.
 - Identify demo-safe data and screenshot-ready screens.
-- Resolve user-guide image rendering issue in the document viewer or adjust guide references.
+- Refresh user-guide screenshots from a demo-safe account when the UI is stable enough to avoid churn.
 
 ### 90-day roadmap
 

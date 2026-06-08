@@ -1,6 +1,6 @@
 # CareAround SG User Guide
 
-Last drafted: 2026-05-07
+Last reviewed: 2026-06-08
 
 This guide is for guests, standard users, caregivers, and family members using CareAround SG to find senior-related support in Singapore.
 
@@ -51,13 +51,13 @@ You can also use the accessibility controls in the top navigation to:
 
 These settings are meant to make the app easier to read across cards, maps, and page surfaces.
 
-![Display settings panel](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/display-settings.png)
+![Display settings panel](images/user-guide/display-settings.png)
 
 ## 3. Finding Resources In Discover
 
 Open **Discover** to start browsing.
 
-![Discover browse screen](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/discover-home.png)
+![Discover browse screen](images/user-guide/discover-home.png)
 
 You can search by:
 
@@ -74,19 +74,21 @@ You can also choose what to show:
 - **Programmes & services only** to focus on activities, support, and services.
 - **Saved only** to show resources you already saved.
 
-![Discover filter panel](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/discover-filter-panel.png)
+![Discover filter panel](images/user-guide/discover-filter-panel.png)
 
 If you add a home postal code to your profile, CareAround SG can use it to show nearby resources and distance context. You may also search from a temporary postal code or use current location when your browser allows it.
 
+Some cards may show location badges such as **Recommended for this location** or a star-style marker. These mean the resource matches the postal-code or target-area context being used for the current search. They are helpful signals, not official endorsement, guaranteed eligibility, or registration approval.
+
 On smaller screens, start with the browse list. Open the map when it is available and you want to compare where resources are located. If the map button is unavailable, continue browsing the list or adjust your location/search context first.
 
-![Discover search results](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/discover-search-results.png)
+![Discover search results](images/user-guide/discover-search-results.png)
 
 ## 4. Reading A Resource Page
 
 Open a resource when you want to check details before saving, sharing, or visiting.
 
-![Resource detail page](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/resource-detail.png)
+![Resource detail page](images/user-guide/resource-detail.png)
 
 A place page may show:
 
@@ -115,7 +117,7 @@ Before relying on a resource, check important details with the provider. This is
 
 Saving a resource keeps it in My Directory so you can return to it later.
 
-![Sign in page](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/sign-in.png)
+![Sign in page](images/user-guide/sign-in.png)
 
 To save resources:
 
@@ -124,7 +126,7 @@ To save resources:
 3. Select the save button for the resource.
 4. Open My Directory to see what you saved.
 
-![Register tab](/Users/sweetbuns/Documents/Senior-Resource-Map/docs/images/user-guide/register.png)
+![Register tab](images/user-guide/register.png)
 
 Saving a resource does not register you for a programme or service. It only keeps the resource in your CareAround SG account.
 

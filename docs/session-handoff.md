@@ -123,6 +123,12 @@ Session lock-down before documentation refresh:
 
 - `docs/session-handoff.md`
 
+Documentation refresh first batch:
+
+- `docs/documentation-refresh-audit-2026-06-08.md`
+- `docs/user-guide.md`
+- `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`
+
 ## Failed Attempts / Known Traps
 
 - The previous `docs/session-handoff.md` was stale and pointed to the wrong working context. Use this refreshed file as the canonical handoff.
@@ -167,6 +173,12 @@ Suggested documentation order:
 3. Update the dossier and external packs after the user guide terminology is stable.
 4. Keep security fixes KIV unless the user explicitly reopens them.
 
+First batch started on 2026-06-08:
+
+- Added a documentation refresh audit table.
+- Refreshed `docs/user-guide.md` image paths and public Discover location-badge explanation.
+- Refreshed `docs/CAREAROUND_SG_PROJECT_DOSSIER.md` current-state, Organisation governance, Admin Region Scope, and notification/feedback wording.
+
 ## Security And Bug Review Targets
 
 When the security review resumes after the demo, run it as report-only first. Do not patch during the first pass.
@@ -194,7 +206,7 @@ Suggested code-review focus:
 
 ## Recommended Next Step
 
-Start the documentation refresh with a report-style audit table, then update `docs/user-guide.md` and `docs/CAREAROUND_SG_PROJECT_DOSSIER.md` first. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
+Continue the documentation refresh with `docs/user-guide-foundation.md`, then `docs/AIC_DISCLOSURE_PACK.md` and `docs/PILOT_CONCEPT_NOTE.md`. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
 
 ## Fresh Chat Starter Prompt
 
