@@ -135,6 +135,12 @@ Documentation refresh second batch:
 - `docs/AIC_DISCLOSURE_PACK.md`
 - `docs/PILOT_CONCEPT_NOTE.md`
 
+Documentation refresh third batch:
+
+- `docs/FUNDER_PITCH_BRIEF.md`
+- `docs/PITCH_DECK_OUTLINE.md`
+- `docs/COI_RISK_MANAGEMENT_PLAN.md`
+
 ## Failed Attempts / Known Traps
 
 - The previous `docs/session-handoff.md` was stale and pointed to the wrong working context. Use this refreshed file as the canonical handoff.
@@ -191,6 +197,12 @@ Second batch started on 2026-06-08:
 - Refreshed `docs/AIC_DISCLOSURE_PACK.md` current-state, endorsement disclaimer, Organisation/Admin Region Scope limits, and after-demo security KIV caveat.
 - Refreshed `docs/PILOT_CONCEPT_NOTE.md` pilot scope, data, governance outcomes, risks, and decisions needed for Organisation governance, Admin Region Scope, Audit Trail, and after-demo security remediation.
 
+Third batch started on 2026-06-08:
+
+- Refreshed `docs/FUNDER_PITCH_BRIEF.md` current maturity, pilot ask, governance outcomes, sustainability value, AI roadmap caveats, and security-remediation caveat.
+- Refreshed `docs/PITCH_DECK_OUTLINE.md` Operations Layer, Trust/Safety, Pilot Concept, and risk wording so deck claims match current permissions and security KIV state.
+- Refreshed `docs/COI_RISK_MANAGEMENT_PLAN.md` governance-scope confusion, security-readiness perception, sponsor/visibility, and operating-checklist safeguards.
+
 ## Security And Bug Review Targets
 
 When the security review resumes after the demo, run it as report-only first. Do not patch during the first pass.
@@ -218,7 +230,7 @@ Suggested code-review focus:
 
 ## Recommended Next Step
 
-Continue the documentation refresh with `docs/FUNDER_PITCH_BRIEF.md`, `docs/PITCH_DECK_OUTLINE.md`, and `docs/COI_RISK_MANAGEMENT_PLAN.md`. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
+Continue the documentation refresh with `docs/next-stage-roadmap-2026-05-16.md`, `docs/layman-language-review.md`, and `docs/carearound-ai-orchestrator.md`. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
 
 ## Fresh Chat Starter Prompt
 

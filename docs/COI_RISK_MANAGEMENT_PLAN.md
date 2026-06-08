@@ -1,6 +1,6 @@
 # CareAround SG COI Risk Management Plan
 
-Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, generated from the current repository working tree.
+Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, refreshed from the active repository state on 2026-06-08.
 
 Purpose: manage actual, potential, and perceived conflict-of-interest risks before CareAround SG is shared with AIC, AACs, partners, funders, sponsors, or advisors. This is a working plan, not legal advice.
 
@@ -15,6 +15,8 @@ Purpose: manage actual, potential, and perceived conflict-of-interest risks befo
 | Procurement/funding COI | A pilot, grant, or sponsorship may overlap with procurement or funding decisions connected to the product owner's role. | `Needs input` | Recuse from decisions and seek written guidance. |
 | Partner influence COI | A partner or sponsor may expect favourable ranking, visibility, access, or product direction. | Future risk | Adopt sponsor/visibility policy and disclose funding relationships. |
 | AI/recommendation COI | Future matching could favour better-funded or better-connected resources over user need. | Planned-feature risk | Keep matching explainable, rule-based first, human-reviewed, and fair. |
+| Governance-scope confusion | Organisation access or Admin Region Scope could be misunderstood as resource ownership, private-content access, or public Discover relevance. | Current communication risk | Use explicit wording: Organisation access is governance-only; Admin Region Scope is support coverage only. |
+| Security-readiness perception | The parked after-demo security fixes could be mistaken as complete if pitch materials do not separate them from current product maturity. | Current communication risk | Track the 5 fixes separately and avoid pilot-readiness claims until remediation decisions are made. |
 
 ## Specific Safeguards
 
@@ -29,6 +31,9 @@ Purpose: manage actual, potential, and perceived conflict-of-interest risks befo
 - Do not monetise resource ranking or placement unless a formal sponsor/visibility policy is reviewed and disclosed.
 - Keep AI support review-first and non-clinical.
 - Add consent, audit logs, and reporting thresholds before analytics, alerts, or AI-assisted matching pilots.
+- State clearly that Organisation access does not grant resource editing by itself.
+- State clearly that Admin Region Scope does not grant resource ownership, private notes/files access, or public Discover relevance.
+- Keep after-demo security remediation separate from funder, pilot, and disclosure claims until each fix is completed and verified.
 
 ## Recusal Approach
 
@@ -60,6 +65,7 @@ Recommended recusal steps:
 - Do not present partner interest as partnership, endorsement, funding, or approval until confirmed.
 - Keep pilot scope small and documented.
 - Require staff review for imported, AI-assisted, or partner-submitted content before public use.
+- Document whether Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, and the parked security fixes are inside or outside the pilot scope.
 
 ## Funding/Procurement Restrictions
 
@@ -79,6 +85,7 @@ Funding conversations should:
 - Separate public-access funding from resource visibility decisions.
 - Identify any sponsor, partner, or funder relationship that could affect perception.
 - Preserve user data minimisation and privacy requirements.
+- State whether any parked security remediation is expected before pilot launch or only after demo.
 
 ## AIC Endorsement Disclaimer
 
@@ -100,6 +107,7 @@ Principles:
 - Any sponsor relationship that affects content, scope, or visibility must be disclosed.
 - Sponsored resources should be labelled if sponsorship creates a reasonable perception of influence.
 - AI-assisted matching must not favour sponsors unless the rule is explicit, reviewed, and user-safe.
+- Organisation governance, Admin support coverage, and Audit Trail workflows must not be used to imply sponsor control over public resource ranking.
 
 Allowed sponsorship examples:
 
@@ -126,3 +134,5 @@ Restricted sponsorship examples:
 - Sponsor/visibility policy included in funder discussions.
 - AI described as review-first and planned carefully.
 - Pilot scope avoids clinical advice, official endorsement, and unnecessary personal data.
+- Pilot materials do not imply Organisation access grants resource editing or Admin Region Scope grants ownership/relevance.
+- Parked after-demo security fixes are tracked separately and not described as complete until remediated and verified.

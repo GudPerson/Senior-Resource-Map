@@ -1,18 +1,18 @@
 # CareAround SG Funder Pitch Brief
 
-Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, generated from the current repository working tree.
+Source: `docs/CAREAROUND_SG_PROJECT_DOSSIER.md`, refreshed from the active repository state on 2026-06-08.
 
 ## 30-Second Pitch
 
-CareAround SG helps seniors, caregivers, and community partners find and organise senior-related support in Singapore. It is already more than an idea: the current product includes discovery, resource detail pages, saved resources, personal maps, shared maps, partner/admin resource management, imports, translations, and privacy-aware access controls. The next step is a focused pilot that proves CareAround SG can reduce service-navigation friction while keeping users, partners, and data safe.
+CareAround SG helps seniors, caregivers, and community partners find and organise senior-related support in Singapore. It is already more than an idea: the current product includes discovery, resource detail pages, saved resources, personal maps, shared maps, partner/admin resource management, Organisation governance, Admin support coverage, imports, translations, Audit Trail foundations, and privacy-aware access controls. The next step is a focused pilot that tests whether CareAround SG can reduce service-navigation friction while keeping users, partners, and data safe.
 
 ## 2-Minute Pitch
 
 Finding senior-related support is often not a single search. Families need to compare nearby places, check programme details, understand eligibility, save useful options, and share those options with someone else. Partners and AAC staff also need a practical way to keep listings current without turning every update into a manual spreadsheet exercise.
 
-CareAround SG addresses this by combining a public discovery experience with a partner/admin maintenance layer. Users can browse places and programmes, save resources, build My Maps, print or export them, and share view-only map links. Partners and administrators can manage resources, service areas, audience zones, memberships, imports, translations, and partner-only notes/files.
+CareAround SG addresses this by combining a public discovery experience with an operations layer for Resource Owners/Staff, Organisation Admin/Staff, Admins, and Super Admins. Users can browse places and programmes, save resources, build My Maps, print or export them, and share view-only map links. Authorised operators can manage resources, Organisation governance context, Admin Region Scope, support coverage, audience zones, memberships, imports, translations, Audit Trail review, and partner-only notes/files.
 
-The product is a working pre-pilot platform, not a concept deck. The responsible next step is a small pilot with clear scope, privacy safeguards, partner review, and aggregate impact metrics. AI should be introduced carefully: rule-based matching first, human review, clear explanations, audit logs, consent, and only then AI assistance for summaries, data quality, and support-matching explanations.
+The product is a working pre-pilot platform, not a concept deck. The responsible next step is a small pilot with clear scope, privacy safeguards, partner review, aggregate impact metrics, and explicit remediation decisions for the parked after-demo security fixes. AI should be introduced carefully: rule-based matching first, human review, clear explanations, audit logs, consent, and only then AI assistance for summaries, data quality, and support-matching explanations.
 
 ## Problem
 
@@ -30,6 +30,7 @@ CareAround SG provides:
 - My Maps for planning, printing, image export, and sharing.
 - Shared map links for family or helper collaboration.
 - Partner/admin resource management.
+- Organisation governance, Admin Region Scope, support coverage, and Audit Trail foundations.
 - Workbook import/export and Google place import.
 - Translation and multilingual review foundation.
 - Partner-only notes/files.
@@ -61,11 +62,13 @@ Working or foundational areas include:
 - Discover, resource details, saved resources, My Directory, My Maps, and shared maps.
 - Authentication, Google sign-in, phone-login/phone-identity foundations.
 - Partner/admin dashboard and resource management.
+- Organisation governance, Admin support coverage, and Audit Trail foundations.
 - Workbook import/export.
 - AI-assisted import/data preparation.
 - Translation review.
 - Partner-only notes/files.
 - Security headers, rate limits, validation guardrails, and access-control tests.
+- Discover location badges that surface existing postal-code or target-area relevance cues more quickly.
 
 Not yet fully built:
 
@@ -74,6 +77,7 @@ Not yet fully built:
 - Dedicated notification system.
 - Formal referral/recommendation model.
 - Full consent, audit, sponsor/COI, and pilot operating framework.
+- The 5 parked after-demo security remediations.
 
 ## Pilot Ask
 
@@ -83,6 +87,7 @@ Suggested ask:
 
 - Fund an 8-12 week pilot with one service area or partner cluster.
 - Support product hardening, partner onboarding, documentation, data quality, privacy/governance, and evaluation.
+- Decide whether the parked after-demo security fixes must be completed before pilot launch.
 - Keep senior, caregiver, guest, and standard-user access free.
 - Use funding for pilot operations and measurable learning, not paid ranking or sensitive data monetisation.
 
@@ -115,6 +120,9 @@ Governance outcomes:
 - No sensitive-data leakage through public snapshots, shared maps, or exports.
 - AI suggestions remain human-reviewed.
 - No AIC endorsement or official-agency claim is made.
+- Organisation access remains governance-only and does not grant resource editing by itself.
+- Admin Region Scope remains support coverage and does not grant resource ownership or Discover relevance.
+- Parked security remediations are tracked separately and not claimed as complete until verified.
 
 ## Sustainability Model
 
@@ -129,6 +137,7 @@ Possible partner/funder value:
 
 - Partner dashboard access and onboarding.
 - Resource-maintenance workflows.
+- Organisation governance setup and Admin support coverage workflows.
 - Translation review support.
 - Aggregate reporting and pilot evaluation.
 - Sponsored public-access pilots.
@@ -150,6 +159,7 @@ Near term:
 - Keep AI as review-first data preparation for imports and draft resource content.
 - Improve rule-based matching using location, category, tags, eligibility, member status, and visibility rules.
 - Add transparent "why this appears" explanations.
+- Keep Organisation governance, Admin Region Scope, and security-remediation claims explicit and conservative.
 
 Pilot term:
 
