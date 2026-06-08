@@ -16,10 +16,11 @@ Purpose: identify which CareAround SG documents need refresh before wider demo, 
 | `docs/FUNDER_PITCH_BRIEF.md` | Funders, sponsors | Third-batch refresh started | Previously omitted Organisation governance, Admin support coverage, Audit Trail, location badge relevance cues, and parked security remediation caveat. | Refreshed current maturity, pilot ask, governance outcomes, sustainability value, and AI roadmap caveats. Still needs budget/partner specifics before sending. | Remaining risk is missing confirmed ask amount, partner commitments, and launch prerequisites. |
 | `docs/PITCH_DECK_OUTLINE.md` | Presentation planning | Third-batch refresh started | Previously used older partner/admin framing and did not separate parked security fixes from pilot-readiness claims. | Refreshed Operations Layer, Trust/Safety, Pilot Concept, and risk wording. Still needs demo-safe screenshots and final audience-specific slide choices. | Deck still should not be used externally until screenshots and claims are approved. |
 | `docs/COI_RISK_MANAGEMENT_PLAN.md` | Governance/advisor review | Third-batch refresh started | Previously did not include Organisation/Admin Region Scope confusion risk or parked security-remediation perception risk. | Refreshed safeguards, partner approach, funding/procurement restrictions, sponsor/visibility policy, and checklist. Still needs real relationship facts and compliance review. | COI language remains a working plan, not legal/compliance advice. |
-| `docs/next-stage-roadmap-2026-05-16.md` | Product planning | Stale by date and recent releases | Created before Organisation governance, Admin Region Scope, confirmation dialog, inline feedback, audit, and Discover badge releases. | Refresh after user-facing/stakeholder docs; split demo-safe near-term items from after-demo security KIV work. | Roadmap may point the team toward already-completed or wrongly-sequenced work. |
-| `docs/carearound-ai-orchestrator.md` | Agent/workflow operations | Needs light alignment later | Current AGENTS references it; not reviewed in this first batch. | Check after documentation refresh to keep workflow guidance aligned with current docs process. | Future agent sessions may apply stale labels or broad-work habits. |
-| `docs/layman-language-review.md` | Copy/product clarity | Needs later reconciliation | Not reviewed in this first batch; likely still useful as source material. | Reconcile after user guide refresh. | Plain-language improvements may stay disconnected from current docs. |
+| `docs/next-stage-roadmap-2026-05-16.md` | Product planning | Fourth-batch refresh started | Created before Organisation governance, Admin Region Scope, confirmation dialog, inline feedback, audit, and Discover badge releases. | Refreshed baseline, recommended order, after-demo security sequence, analytics scope, and AI guardrails. Still needs product prioritisation after the demo. | Remaining risk is roadmap choice, not stale feature state. |
+| `docs/carearound-ai-orchestrator.md` | Agent/workflow operations | Fourth-batch refresh started | Current AGENTS references it; older version did not separate documentation refresh, demo window, and after-demo security remediation. | Refreshed routing rules, documentation-refresh workflow, README/project-knowledge guidance, and after-demo security remediation path. | Future agent sessions should be less likely to bundle docs, security, and deploy work accidentally. |
+| `docs/layman-language-review.md` | Copy/product clarity | Fourth-batch refresh started | Older review predated Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, and Discover location badges. | Refreshed review note, glossary, Discover badge copy guidance, admin/governance terminology, implementation sequence, and verification notes. Still needs code-level copy batches before UI wording changes. | Plain-language improvements remain planned work, but are now connected to current product terms. |
 | `docs/release-checklist.md` | Engineering/release operations | Needs later date/current-scope refresh | It is still operationally useful but last refreshed 2026-05-15. | Refresh separately; do not bundle with public docs unless a release process change is needed. | Release operators may miss recent smoke/deploy caveats unless they read the handoff too. |
+| `AGENTS.md` | Repo-level operating guardrails | Needs engineering-ops alignment | Still says the active root is `/Users/sweetbuns/Documents/Senior-Resource-Map`, while current work is locked to `/Users/sweetbuns/CareAroundSG`. | Refresh in a separate guardrail pass with `docs/release-checklist.md` so repo-root, branch, docs-only, deploy, and demo-window instructions are aligned. | Future sessions may start from the old checkout path if they read AGENTS without the handoff/memory context. |
 
 ## First Batch Scope
 
@@ -56,6 +57,24 @@ Not changed in this pass:
 - parked security fixes
 - external partner/funder claims that require user confirmation
 
+## Fourth Batch Scope
+
+Updated in the fourth documentation-refresh pass:
+
+- `docs/next-stage-roadmap-2026-05-16.md`
+- `docs/layman-language-review.md`
+- `docs/carearound-ai-orchestrator.md`
+- `docs/documentation-refresh-audit-2026-06-08.md`
+- `docs/session-handoff.md`
+
+Not changed in this pass:
+
+- production code
+- UI copy in React components
+- release/deploy configuration
+- `AGENTS.md` and `docs/release-checklist.md`
+- parked security fixes
+
 ## Recommended Next Batch
 
-Refresh `docs/next-stage-roadmap-2026-05-16.md`, `docs/layman-language-review.md`, and `docs/carearound-ai-orchestrator.md`. Keep `docs/release-checklist.md` as a separate engineering-operations pass unless release process wording becomes urgent.
+Refresh the engineering-operations guardrails next: `AGENTS.md` and `docs/release-checklist.md`. Keep that as a separate pass from public/stakeholder docs because it affects how future agents interpret repo root, branch discipline, validation gates, docs-only work, and production deploy behavior.

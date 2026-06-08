@@ -1,37 +1,81 @@
 # CareAround SG Next-Stage Roadmap
 
-Date: 2026-05-16
+Date: 2026-06-08
 
-Purpose: capture the next practical development sequence after the Region, Asset Access, phone-auth, and Orchestrator work.
+Purpose: capture the next practical development sequence after the Region, Asset Access, Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, shared confirmation dialog, inline feedback, and Discover location badge work.
+
+## Current Baseline To Preserve
+
+- Public Discover is live with display-only location relevance cues: `Recommended for you`, `Recommended for this location`, and the audience-zone star badge. These cues must not change ranking, sorting, filtering, visibility, saved-map behavior, or the distance pill.
+- Resource Owner/Staff access remains the operational editing lane. Organisation access, Org Groups, Region Groups, and Admin Region Scope do not grant resource edit rights by themselves.
+- Organisation governance covers access lists, linked assets, covered offerings, and agreements. It is not an approval workflow for every partner collaboration.
+- Admin support coverage uses Admin Region Scope and user profile location to help route support. It does not create Discover relevance or resource ownership.
+- Audit Trail records meaningful governance/resource changes and excludes everyday browsing, personal map actions, and AI chat/querying.
+- The 5 security review findings are intentionally KIV until after the live production demo unless the user explicitly reopens them.
 
 ## Recommended Order
 
-1. **Documentation foundation**
-   - Lock in the CareAround Orchestrator.
-   - Refresh the README so the product map reflects Region, Asset Access, Audience Zones, phone auth, and current staff-access direction.
-   - Keep this work docs-only, with no deploy required.
+1. **Demo stability window**
+   - Keep pre-demo work to documentation, rehearsals, and low-risk performance polish that is already scoped.
+   - Do not mix parked security fixes, schema work, broad IAM changes, or new product surfaces into the demo window.
+   - Keep docs-only work local unless the user asks to push.
 
-2. **Personal Resource Notes for My Map**
+2. **After-demo security remediation**
+   - Fix the 5 parked security findings one at a time.
+   - Start with the auth rate-limit bypass, then CSRF/origin protection for cookie-authenticated share creation, public payload minimisation, session JWT slimming, and dependency triage/upgrades.
+   - Add tests and a regression-ledger row for each fix before deployment.
+
+3. **Personal Resource Notes for My Map**
    - Lowest-risk user-facing feature from the current list.
    - Adds immediate value to caregivers and users who already build My Maps.
    - Should start as private owner-only notes, not shared-map notes.
 
-3. **User Alerts / Notifications V1**
+4. **User Alerts / Notifications V1**
    - Start with in-app alerts only.
    - Use low-risk events first: resource changed, saved resource hidden, map share status, profile reminder, staff review task.
    - Defer WhatsApp, SMS, and email notifications until consent, templates, audit, and retention are designed.
 
-4. **Partner Analytics V1**
+5. **Partner / Organisation Analytics V1**
    - Start with aggregate, privacy-safe reporting.
    - Define metrics before implementing dashboards.
    - Use small-count suppression and clear reporting boundaries before showing partner-facing insights.
 
-5. **AI Social Prescribing**
+6. **AI Social Prescribing**
    - Start with rule-based, explainable matching before generative recommendations.
    - Treat suggestions as planning aids, not medical, clinical, financial, legal, or official advice.
    - Require human review for staff-assisted shortlist workflows.
 
 ## Feature Briefs
+
+### After-Demo Security Remediation
+
+Orchestrator lenses: System Architect, Backend Platform Engineer, Frontend Product Engineer where UI/session flows are touched, Privacy/Governance Reviewer, QA/Regression Lead.
+
+V1 goal:
+
+- Reduce the known post-review security risks without destabilising the demo-tested product surface.
+- Fix one security finding per narrow branch/release wherever possible.
+- Keep each fix tied to tests, regression-ledger evidence, and a clear release note.
+
+Recommended sequence:
+
+1. Harden auth rate limiting so arbitrary rotated `X-Session-Token` values cannot bypass limits.
+2. Add CSRF/origin protection for cookie-authenticated My Maps share creation.
+3. Minimise public resource payloads so public users receive only fields needed for display.
+4. Slim session JWTs so they carry less personal/access data.
+5. Triage dependency advisories and upgrade or mitigate with targeted testing.
+
+Out of scope before the live demo:
+
+- Security refactors mixed into documentation refresh work.
+- Broad auth/session rewrites.
+- Schema or deploy configuration changes without a dedicated release gate.
+
+First acceptance criteria:
+
+- Each fix has a focused regression test proving the risky path is closed.
+- Existing sign-in, Discover, My Directory, My Maps, Shared Maps, dashboard resources, and admin support flows still pass the relevant checks.
+- Public UI wording does not claim security work is complete until the specific remediation has shipped and been verified.
 
 ### Personal Resource Notes For My Map
 
@@ -97,13 +141,13 @@ First acceptance criteria:
 - No external message is sent.
 - Privacy/terms text is reviewed before notifications collect new behavioral data.
 
-### Partner Analytics V1
+### Partner / Organisation Analytics V1
 
 Orchestrator lenses: Data/Analytics Engineer, Backend Platform Engineer, UI/UX Product Designer, Privacy/Governance Reviewer, QA/Regression Lead.
 
 V1 goal:
 
-- Define and show aggregate, privacy-safe metrics that help partners understand resource engagement and data quality.
+- Define and show aggregate, privacy-safe metrics that help partners or organisation operators understand resource engagement and data quality.
 - Start with operational metrics before user-behavior-heavy analytics.
 
 Candidate metrics:
@@ -113,6 +157,8 @@ Candidate metrics:
 - Recently updated resources.
 - Member-only offering count.
 - Shared map/resource save counts only after aggregation rules are in place.
+- Organisation coverage summaries for linked assets and covered offerings, without implying edit rights.
+- Admin support workload summaries only after scope and small-count rules are agreed.
 
 Out of scope for V1:
 
@@ -124,7 +170,7 @@ Out of scope for V1:
 First acceptance criteria:
 
 - Metrics have plain-English definitions.
-- Partner-visible reports use only allowed asset scope.
+- Partner/organisation-visible reports use only allowed asset and governance scope.
 - Small groups are suppressed or withheld where privacy risk exists.
 - Reports do not imply service impact or outcome without evidence.
 
@@ -144,6 +190,7 @@ Safe first matching inputs:
 - Eligibility fields that the user has intentionally provided.
 - Membership and visibility rules.
 - Availability and resource freshness where available.
+- Existing display-only location relevance cues, only as explanations for already-visible resources.
 
 Out of scope for V1:
 
@@ -159,12 +206,14 @@ First acceptance criteria:
 - Results explain why they appear.
 - Users and staff can distinguish "planning aid" from official advice.
 - Staff-assisted recommendations can be reviewed before sharing.
-- AI output does not bypass visibility, eligibility, membership, or Region/Audience Zone rules.
+- AI output does not bypass visibility, eligibility, membership, resource ownership, Organisation access, Admin Region Scope, or Region/Audience Zone rules.
 
 ## Operating Notes
 
 - Use the CareAround Orchestrator for every next-stage feature.
+- Keep the live-demo window focused on stability and documentation unless the user explicitly reopens higher-risk work.
 - Keep each feature in its own design, implementation, verification, commit, push, and deploy cycle.
 - Prefer small production deploys during beta so production-only regressions are caught early.
 - Update `docs/regression-ledger.md` when a new behavior becomes locked.
 - Review privacy/terms copy before adding notifications, analytics, AI matching, or new user-generated notes.
+- Do not claim the 5 parked security fixes are complete until each one is implemented, verified, and recorded.

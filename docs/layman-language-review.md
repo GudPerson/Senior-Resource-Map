@@ -1,10 +1,12 @@
 # CareAround SG Layman Language Review
 
-Last reviewed: 2026-04-28
+Last reviewed: 2026-06-08
 
 This document reviews the words, phrases, helper text, warnings, instructions, and guide language used across CareAround SG. The goal is to make the app easier for a non-technical user, caregiver, partner staff member, or admin to understand.
 
 This is a content review, not a code-change list. Because wording appears across many stable screens, the safest path is to update language in small batches and verify each affected flow after every batch.
+
+Current review note: this document has been reconciled with the Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, shared confirmation dialog, inline feedback, and Discover location badge releases. It still records some older observed wording as source material so future copy batches can replace those phrases safely.
 
 ## Copy Principles
 
@@ -14,11 +16,12 @@ Use these principles when editing app text.
 | --- | --- |
 | Prefer everyday words | Use "resource", "place", "service", "programme", "map", and "saved" before technical terms like "asset", "boundary", or "rollout". |
 | Explain the benefit | Tell users what a setting helps them do, not only what the setting is called. |
-| Avoid internal labels | Terms such as "asset", "subregion", "audience zone", "CTA", "collateral", and "governance" should be hidden or explained. |
+| Avoid internal labels | Terms such as "asset", "subregion", "audience zone", "CTA", "collateral", "governance", "Admin Region Scope", and "Org Group" should be hidden from public users or explained for trained staff. |
 | Be gentle with personal data | Profile and eligibility copy should explain why details are asked for, without sounding judgmental or transactional. |
 | Use one name per idea | Avoid switching between "Private Maps", "My Maps", "directory", and "map" unless the distinction is deliberate. |
 | Make errors actionable | Error messages should say what happened and what the user can do next. |
 | Keep mobile labels short | Some labels sit inside compact cards, tabs, drawers, and buttons. Longer wording needs layout checks. |
+| Keep badges factual | Location badges should say why a visible resource may be relevant, not imply endorsement, eligibility, official advice, or a guaranteed match. |
 
 ## Recommended Product Glossary
 
@@ -45,6 +48,14 @@ These should become the preferred user-facing terms.
 | Rollout | Local version / place version | "Rollout" may be acceptable for admins, but it needs help text. |
 | List only | Not shown on map | Clearer, especially for saved resources. |
 | User View / impersonation | View as this user | More human and more transparent. |
+| Organisation governance | Organisation access | For staff/admin docs, explain that it manages organisation context, not resource editing. |
+| Organisation Admin / Organisation Staff | Organisation admin / Organisation staff | Use title case only when matching UI labels. Clarify that staff view organisation context read-only. |
+| Admin Region Scope | Admin support area | For non-technical explanations, describe it as the area an admin helps support. Do not imply ownership or public Discover relevance. |
+| Support Coverage | Support coverage | Explain as "which admin team can help this user based on profile location". |
+| Audit Trail | Change history | For public/non-technical docs, "change history" is easier. Admin docs can keep "Audit Trail" with a short explanation. |
+| Recommended for you | Recommended for you | Keep short; explain elsewhere that it is based on saved/profile context and does not guarantee eligibility. |
+| Recommended for this location | Recommended for this location | Keep short; explain elsewhere that it is based on the searched or temporary location context. |
+| Audience-zone star badge | Star badge | Do not expose "Audience Zone" publicly. Explain as "this resource is also relevant to the selected area" when help text is needed. |
 
 ## Highest-Priority Wording Fixes
 
@@ -62,6 +73,9 @@ These are the changes most likely to improve layman understanding.
 | Collateral import | "collateral", "confidence", "CTA", "governance fields" | "flyer/programme material", "AI confidence", "action button", "access and visibility settings" | Makes AI/import review safer for non-technical staff. |
 | Delete confirmations | "asset list", "resources permanently" | Be specific: "resources in this map", "delete from the system" | Prevents accidental destructive actions. |
 | Shared maps | Mixed "shared directory" and "shared map" | Choose "Shared Map" as the main label, explain it contains a directory list | Reduces naming friction. |
+| Discover badges | Internal Region/Audience Zone mechanics | Use "Recommended for you", "Recommended for this location", and an unlabeled star badge with plain help text | Keeps public copy useful without exposing targeting internals. |
+| Organisation and admin scope | Mixed "governance", "scope", "coverage", and "access" | Explain what the role lets a person do and what it does not let them do | Prevents staff from assuming organisation/admin scope grants resource editing. |
+| Confirmation and feedback | Browser alerts/technical status language | Use the shared confirmation pattern and in-page feedback wording | Keeps demo flows calm and consistent. |
 
 ## Suggested Copy Changes By Flow
 
@@ -118,6 +132,16 @@ Notes:
 
 - Discover should avoid "asset", "scope", "subregion", and "boundary" where possible.
 - "Card density" may be fine for a design tool, but "view size" or "card size" is more natural.
+- Location badges should be described as helpful relevance cues, not official recommendations, eligibility approval, or sponsor placement.
+
+Current Discover badge copy guidance:
+
+| Badge / cue | Recommended explanation |
+| --- | --- |
+| Recommended for you | This resource may be relevant based on your saved/profile location context. |
+| Recommended for this location | This resource may be relevant to the location you searched or selected. |
+| Star badge | This resource also matches the selected area. |
+| Internal Audience Zone / Region boundary match | Do not show the internal reason publicly. Use the badge wording above. |
 
 ### Resource Cards and Details
 
@@ -305,6 +329,12 @@ Observed copy includes:
 - "Template rollouts"
 - "Child offerings keyed by templateExternalKey + hostExternalKey"
 - "Places derive subregion from postcode on the server."
+- "Organisation access"
+- "Admin Region Scope"
+- "Support Coverage"
+- "Audit Trail"
+- "Org Group"
+- "Region Group"
 
 Suggested edits:
 
@@ -320,11 +350,18 @@ Suggested edits:
 | Template rollouts | Local versions from templates |
 | Child offerings keyed by templateExternalKey + hostExternalKey | Local versions are matched by template ID and host place ID. |
 | Places derive subregion from postcode on the server. | A place's service area is chosen automatically from its postal code. |
+| Organisation access | Organisation context access (admins manage; staff view) |
+| Admin Region Scope | Admin support area |
+| Support Coverage | Admin support coverage |
+| Audit Trail | Change history |
+| Org Group | Organisation coordination group |
+| Region Group | Cross-organisation coordination group |
 
 Notes:
 
 - Admin screens can keep some operational terms if staff are trained on them, but every technical term should have a plain-English helper.
 - "Ownership" is legally loaded. "Managed by" is often clearer.
+- Organisation access, group roles, and Admin Region Scope need explicit "does not grant resource editing" helper text anywhere operators may confuse them with Resource Owner/Staff access.
 
 ### Resource Forms
 
@@ -436,6 +473,8 @@ These decisions should be settled before large-scale copy edits.
 4. Should "Offering" remain the public term, or should it become "Service/programme" in some areas?
 5. Should admin-only terms like "subregion", "audience zone", and "rollout" stay visible for trained staff, with helper text, or be renamed too?
 6. Should British/Singapore spelling be standardized across the app, for example "personalise" versus "personalize", "programme" versus "program"?
+7. Should Discover include a small badge legend, or should badge explanations stay in the user guide/help text only?
+8. Should Organisation/Admin governance screens keep formal labels, or pair every formal label with a short "what this does not allow" explanation?
 
 Recommended defaults:
 
@@ -445,6 +484,8 @@ Recommended defaults:
 - Keep "Offering" for now, but define it clearly in onboarding/help text.
 - Keep admin terms where they map to operational workflows, but add plain-English helper text.
 - Use Singapore/British spelling in user-facing copy: "personalise", "programme", "recognise".
+- Keep Discover badge labels short and put detailed explanations in guide/help copy, not on every card.
+- Keep Organisation/Admin labels formal in admin screens, but add helper text that separates organisation access, group coordination, admin support area, and Resource Owner/Staff editing rights.
 
 ## Safe Implementation Sequence
 
@@ -467,6 +508,7 @@ Because the app has locked/stabilized flows, update copy in small batches:
    - Empty states.
    - Saved-map notes.
    - Location/distance helper text.
+   - Badge legend/help text for `Recommended for you`, `Recommended for this location`, and the star badge.
 
 4. My Maps wording batch:
    - Map detail controls.
@@ -479,6 +521,7 @@ Because the app has locked/stabilized flows, update copy in small batches:
    - Workbook import/export guide text.
    - Audience-zone/subregion helper text.
    - Collateral import review language.
+   - Organisation governance, Admin Region Scope, Support Coverage, and Audit Trail helper text.
 
 ## Verification After Copy Changes
 
@@ -490,6 +533,8 @@ For each batch, verify:
 - No technical term remains unexplained in the affected screen.
 - No destructive action becomes less clear.
 - Smoke-test the touched surface manually before broader release checks.
+- For badge wording, confirm the text remains display-only and does not imply ranking, eligibility, official advice, or sponsorship.
+- For organisation/admin wording, confirm the copy does not imply Organisation access, Org Groups, Region Groups, or Admin Region Scope grant resource edit rights.
 
 Suggested manual checks:
 

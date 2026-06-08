@@ -47,8 +47,8 @@ The current product pillars are:
 
 - Repo: `/Users/sweetbuns/CareAroundSG`
 - Remote: `https://github.com/GudPerson/Senior-Resource-Map.git`
-- Branch at handoff refresh: `main...origin/main`
-- Worktree before this lock-down update: only `docs/session-handoff.md` was modified.
+- Branch during latest documentation refresh: `main...origin/main [ahead 4]` before the fourth documentation batch commit.
+- Local documentation refresh commits are intentionally not pushed before the live demo unless the user asks, because a push to `main` may trigger a Cloudflare Pages production deploy.
 - Latest product/release commits at handoff refresh:
   - `ff30a18d` Record Discover badge deploy
   - `7bc98feb` Improve Discover location badge responsiveness
@@ -56,6 +56,11 @@ The current product pillars are:
   - `127dba91` Replace admin alerts with inline feedback
   - `9e208013` Record confirmation dialog deploy
   - `4d6c16df` Standardize destructive confirmation dialogs
+- Latest local documentation commits before the fourth batch:
+  - `517031e5` Align CareAround external pitch docs
+  - `5279476e` Refresh CareAround pilot documentation
+  - `3b9f1ad4` Start CareAround documentation refresh
+  - `c5783fcf` Lock CareAround progress handoff
 - Latest explicit Cloudflare Pages deploy recorded in the ledger: `https://da6235bc.senior-resource-map.pages.dev` for the Discover badge responsiveness release.
 - Production custom domain observed at lock-down: `https://app.carearound.sg` serving `assets/index-BxOjXZRA.js`.
 - Current production bundle string check found the Discover badge fast-path markers: `pendingLocationSearchOrigin` and `Recommended for this location`.
@@ -141,6 +146,14 @@ Documentation refresh third batch:
 - `docs/PITCH_DECK_OUTLINE.md`
 - `docs/COI_RISK_MANAGEMENT_PLAN.md`
 
+Documentation refresh fourth batch:
+
+- `docs/next-stage-roadmap-2026-05-16.md`
+- `docs/layman-language-review.md`
+- `docs/carearound-ai-orchestrator.md`
+- `docs/documentation-refresh-audit-2026-06-08.md`
+- `docs/session-handoff.md`
+
 ## Failed Attempts / Known Traps
 
 - The previous `docs/session-handoff.md` was stale and pointed to the wrong working context. Use this refreshed file as the canonical handoff.
@@ -203,6 +216,13 @@ Third batch started on 2026-06-08:
 - Refreshed `docs/PITCH_DECK_OUTLINE.md` Operations Layer, Trust/Safety, Pilot Concept, and risk wording so deck claims match current permissions and security KIV state.
 - Refreshed `docs/COI_RISK_MANAGEMENT_PLAN.md` governance-scope confusion, security-readiness perception, sponsor/visibility, and operating-checklist safeguards.
 
+Fourth batch started on 2026-06-08:
+
+- Refreshed `docs/next-stage-roadmap-2026-05-16.md` to separate demo stability, after-demo security remediation, personal notes, notifications, analytics, and AI sequencing.
+- Refreshed `docs/layman-language-review.md` for current Organisation/Admin terminology, Discover badge wording, support coverage, audit/change-history wording, and copy-batch verification notes.
+- Refreshed `docs/carearound-ai-orchestrator.md` so future sessions keep documentation refresh, demo-window work, and after-demo security remediation separate.
+- Updated `docs/documentation-refresh-audit-2026-06-08.md` to mark the fourth batch and identify `AGENTS.md` plus `docs/release-checklist.md` as the next engineering-operations guardrail pass.
+
 ## Security And Bug Review Targets
 
 When the security review resumes after the demo, run it as report-only first. Do not patch during the first pass.
@@ -230,7 +250,7 @@ Suggested code-review focus:
 
 ## Recommended Next Step
 
-Continue the documentation refresh with `docs/next-stage-roadmap-2026-05-16.md`, `docs/layman-language-review.md`, and `docs/carearound-ai-orchestrator.md`. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
+Continue with an engineering-operations guardrail refresh of `AGENTS.md` and `docs/release-checklist.md`. Keep this separate from public/stakeholder docs because it affects future agent behavior, repo-root assumptions, validation gates, docs-only work, and production deploy discipline. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
 
 ## Fresh Chat Starter Prompt
 

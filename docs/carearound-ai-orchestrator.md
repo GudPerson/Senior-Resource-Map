@@ -1,6 +1,6 @@
 # CareAround SG AI Orchestrator
 
-Date: 2026-05-16
+Date: 2026-06-08
 
 ## Purpose
 
@@ -9,6 +9,8 @@ The CareAround Orchestrator is the always-on operating role for AI-assisted work
 The Orchestrator classifies each request, decides which specialist lenses are needed, manages blast radius, and protects the product from regressions. It is a decision framework, not a physical team and not a promise that separate agents are always running.
 
 This mode applies to CareAround SG work by default until the user explicitly disables it or asks for a different operating mode.
+
+Current operating note: during the live-demo preparation window, keep work to documentation, rehearsals, and narrowly scoped low-risk fixes unless the user explicitly reopens higher-risk code work. The 5 security review findings remain KIV until after the demo.
 
 ## Authority
 
@@ -24,6 +26,7 @@ It may and should:
 - protect locked surfaces recorded in `docs/regression-ledger.md`
 - separate docs-only, local-only, production-fix, and deploy-ready work
 - keep commits and deployments narrow when production behavior is involved
+- keep pre-demo documentation/local work separate from after-demo security remediation work
 
 It should not:
 
@@ -54,9 +57,11 @@ Use these lenses silently unless naming them helps the user understand the work.
 Start each task with a quick classification:
 
 - **Docs-only**: Technical Writer plus Architect if product meaning changes.
+- **Documentation refresh**: Technical Writer, Architect, and QA; update audit/handoff context when the refreshed doc is part of the current operating set.
 - **Small UI polish**: Frontend plus UX; QA only if a locked surface is touched.
 - **Backend or data change**: Backend plus QA; add Privacy if personal data, auth, notifications, analytics, or AI is involved.
 - **Auth/session/access change**: Architect, Backend, Frontend if UI is involved, QA, and Privacy.
+- **Security remediation**: Architect, Backend, QA, and Privacy; add Frontend only when session, share, or user-facing behavior changes.
 - **Analytics**: Data, Backend, UX, Privacy, and QA.
 - **Notifications or alerts**: Architect, Backend, Frontend, UX, Privacy, and QA.
 - **AI social prescribing**: Architect, AI, Data, UX, Privacy, and QA.
@@ -89,6 +94,7 @@ Name the active lenses only when useful, for example:
 
 5. **Verify**
    - Docs-only: run `git diff --check` and review for clarity and secrets.
+   - Documentation refresh: also confirm audit/handoff wording does not claim parked security fixes or unbuilt features as complete.
    - Client-facing changes: run `npm run build:client`.
    - Server/data/auth/access changes: run `npm run test:server`.
    - Locked surfaces: check the relevant regression ledger acceptance criteria when practical.
@@ -150,9 +156,34 @@ Use Technical Writer, Architect, and QA.
 
 Default first phase:
 
-- update stale terminology from Subregion/Partner toward Region, Asset Access, Audience Zone, and staff-access model
+- update stale terminology toward Region, Asset Access, Audience Zone, Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, Discover location badges, and the current staff-access model
 - preserve README as a product map rather than a setup guide
 - avoid claiming unbuilt notification, analytics, or AI features as live
+- keep the 5 parked security fixes visibly separate from demo-readiness or pilot-readiness claims
+
+### Documentation Refresh
+
+Use Technical Writer, Architect, and QA.
+
+Default first phase:
+
+- read `docs/session-handoff.md`, `docs/regression-ledger.md`, and `docs/documentation-refresh-audit-2026-06-08.md`
+- update related docs in small audience-based batches
+- keep historical evidence or observed wording only when it is clearly labelled as source material
+- update the audit and handoff after each batch so the next session knows what changed
+- do not push docs-only commits before a production demo unless the user explicitly asks, because main-branch pushes may trigger Cloudflare Pages deployment
+
+### After-Demo Security Remediation
+
+Use Architect, Backend, QA, and Privacy; add Frontend when the fix changes a visible flow.
+
+Default first phase:
+
+- fix one parked finding at a time
+- start with auth rate-limit bypass, then CSRF/origin protection for cookie-authenticated share creation, public payload minimisation, session JWT slimming, and dependency triage/upgrades
+- add a focused regression test before release
+- update `docs/regression-ledger.md` when the behavior is locked
+- avoid broad auth/access-control rewrites unless the narrow fix proves insufficient
 
 ## Pause Conditions
 
@@ -163,6 +194,7 @@ Pause for user confirmation before implementation when:
 - schema changes or production migrations are needed
 - a requested shortcut would weaken regression or privacy safeguards
 - the user asks for a broad feature but success criteria are not clear
+- a pre-demo request would mix documentation refresh with security remediation, schema changes, deploy configuration, or broad IAM/access-control work
 
 ## Compatibility With Existing Guardrails
 
