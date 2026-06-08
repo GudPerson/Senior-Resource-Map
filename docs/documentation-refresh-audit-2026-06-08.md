@@ -19,8 +19,8 @@ Purpose: identify which CareAround SG documents need refresh before wider demo, 
 | `docs/next-stage-roadmap-2026-05-16.md` | Product planning | Fourth-batch refresh started | Created before Organisation governance, Admin Region Scope, confirmation dialog, inline feedback, audit, and Discover badge releases. | Refreshed baseline, recommended order, after-demo security sequence, analytics scope, and AI guardrails. Still needs product prioritisation after the demo. | Remaining risk is roadmap choice, not stale feature state. |
 | `docs/carearound-ai-orchestrator.md` | Agent/workflow operations | Fourth-batch refresh started | Current AGENTS references it; older version did not separate documentation refresh, demo window, and after-demo security remediation. | Refreshed routing rules, documentation-refresh workflow, README/project-knowledge guidance, and after-demo security remediation path. | Future agent sessions should be less likely to bundle docs, security, and deploy work accidentally. |
 | `docs/layman-language-review.md` | Copy/product clarity | Fourth-batch refresh started | Older review predated Organisation governance, Admin Region Scope, Support Coverage, Audit Trail, and Discover location badges. | Refreshed review note, glossary, Discover badge copy guidance, admin/governance terminology, implementation sequence, and verification notes. Still needs code-level copy batches before UI wording changes. | Plain-language improvements remain planned work, but are now connected to current product terms. |
-| `docs/release-checklist.md` | Engineering/release operations | Needs later date/current-scope refresh | It is still operationally useful but last refreshed 2026-05-15. | Refresh separately; do not bundle with public docs unless a release process change is needed. | Release operators may miss recent smoke/deploy caveats unless they read the handoff too. |
-| `AGENTS.md` | Repo-level operating guardrails | Needs engineering-ops alignment | Still says the active root is `/Users/sweetbuns/Documents/Senior-Resource-Map`, while current work is locked to `/Users/sweetbuns/CareAroundSG`. | Refresh in a separate guardrail pass with `docs/release-checklist.md` so repo-root, branch, docs-only, deploy, and demo-window instructions are aligned. | Future sessions may start from the old checkout path if they read AGENTS without the handoff/memory context. |
+| `docs/release-checklist.md` | Engineering/release operations | Fifth-batch refresh started | It was still operationally useful but last refreshed 2026-05-15 and did not fully reflect current Cloudflare API domain, docs-only demo-prep behavior, or parked security caveat. | Refreshed current locked surfaces, docs-only rule, Cloudflare Pages `VITE_API_URL` requirement, production smoke env, deploy commands, health check, and parked-security sequence. | Remaining risk is normal release execution discipline, not stale checklist wording. |
+| `AGENTS.md` | Repo-level operating guardrails | Fifth-batch refresh started | Previously said the active root was `/Users/sweetbuns/Documents/Senior-Resource-Map`, while current work is locked to `/Users/sweetbuns/CareAroundSG`. | Refreshed active root, required grounding docs, docs-only demo-prep branch behavior, release-checklist gate, Cloudflare/Netlify distinction, and no-push-before-demo caveat. | Future sessions now have the correct active clone guardrail in the repo-level instructions. |
 
 ## First Batch Scope
 
@@ -75,6 +75,22 @@ Not changed in this pass:
 - `AGENTS.md` and `docs/release-checklist.md`
 - parked security fixes
 
+## Fifth Batch Scope
+
+Updated in the fifth documentation-refresh pass:
+
+- `AGENTS.md`
+- `docs/release-checklist.md`
+- `docs/documentation-refresh-audit-2026-06-08.md`
+- `docs/session-handoff.md`
+
+Not changed in this pass:
+
+- production code
+- release/deploy configuration
+- smoke credentials or `.env` files
+- parked security fixes
+
 ## Recommended Next Batch
 
-Refresh the engineering-operations guardrails next: `AGENTS.md` and `docs/release-checklist.md`. Keep that as a separate pass from public/stakeholder docs because it affects how future agents interpret repo root, branch discipline, validation gates, docs-only work, and production deploy behavior.
+Pause broad documentation refresh before the live demo and prepare a short demo-readiness runbook/checklist if needed. Keep local documentation commits unpushed unless the user explicitly asks to publish, because pushing `main` may trigger Cloudflare Pages production deployment.

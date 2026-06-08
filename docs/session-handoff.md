@@ -47,7 +47,7 @@ The current product pillars are:
 
 - Repo: `/Users/sweetbuns/CareAroundSG`
 - Remote: `https://github.com/GudPerson/Senior-Resource-Map.git`
-- Branch during latest documentation refresh: `main...origin/main [ahead 4]` before the fourth documentation batch commit.
+- Branch during latest documentation refresh: `main...origin/main [ahead 5]` before the fifth documentation batch commit.
 - Local documentation refresh commits are intentionally not pushed before the live demo unless the user asks, because a push to `main` may trigger a Cloudflare Pages production deploy.
 - Latest product/release commits at handoff refresh:
   - `ff30a18d` Record Discover badge deploy
@@ -56,7 +56,8 @@ The current product pillars are:
   - `127dba91` Replace admin alerts with inline feedback
   - `9e208013` Record confirmation dialog deploy
   - `4d6c16df` Standardize destructive confirmation dialogs
-- Latest local documentation commits before the fourth batch:
+- Latest local documentation commits before the fifth batch:
+  - `0c0fab2a` Refresh CareAround planning guardrails
   - `517031e5` Align CareAround external pitch docs
   - `5279476e` Refresh CareAround pilot documentation
   - `3b9f1ad4` Start CareAround documentation refresh
@@ -154,6 +155,13 @@ Documentation refresh fourth batch:
 - `docs/documentation-refresh-audit-2026-06-08.md`
 - `docs/session-handoff.md`
 
+Documentation refresh fifth batch:
+
+- `AGENTS.md`
+- `docs/release-checklist.md`
+- `docs/documentation-refresh-audit-2026-06-08.md`
+- `docs/session-handoff.md`
+
 ## Failed Attempts / Known Traps
 
 - The previous `docs/session-handoff.md` was stale and pointed to the wrong working context. Use this refreshed file as the canonical handoff.
@@ -223,6 +231,12 @@ Fourth batch started on 2026-06-08:
 - Refreshed `docs/carearound-ai-orchestrator.md` so future sessions keep documentation refresh, demo-window work, and after-demo security remediation separate.
 - Updated `docs/documentation-refresh-audit-2026-06-08.md` to mark the fourth batch and identify `AGENTS.md` plus `docs/release-checklist.md` as the next engineering-operations guardrail pass.
 
+Fifth batch started on 2026-06-08:
+
+- Refreshed `AGENTS.md` to point future work at `/Users/sweetbuns/CareAroundSG`, require `docs/regression-ledger.md` plus this handoff for grounding, and keep docs-only demo-prep commits local unless explicitly pushed.
+- Refreshed `docs/release-checklist.md` for current locked surfaces, docs-only demo-prep checks, Cloudflare Pages `VITE_API_URL=https://api.carearound.sg/api`, production smoke environment, deploy commands, health check, and parked security findings.
+- Updated `docs/documentation-refresh-audit-2026-06-08.md` to mark the fifth batch and recommend pausing broad doc refresh before the live demo unless a demo-readiness runbook is needed.
+
 ## Security And Bug Review Targets
 
 When the security review resumes after the demo, run it as report-only first. Do not patch during the first pass.
@@ -250,7 +264,7 @@ Suggested code-review focus:
 
 ## Recommended Next Step
 
-Continue with an engineering-operations guardrail refresh of `AGENTS.md` and `docs/release-checklist.md`. Keep this separate from public/stakeholder docs because it affects future agent behavior, repo-root assumptions, validation gates, docs-only work, and production deploy discipline. Keep the 5 security fixes KIV until after the live demo unless the user explicitly reopens them.
+Pause broad documentation refresh before the live demo. If one more support artifact is useful, prepare a short demo-readiness runbook/checklist without touching production, secrets, or the parked security fixes. Keep local documentation commits unpushed unless the user explicitly asks to publish them.
 
 ## Fresh Chat Starter Prompt
 
