@@ -29,6 +29,7 @@ import { shareResourceLink } from '../lib/resourceShare.js';
 import {
     getResourceDetailPhone,
     getResourceHeroPresentation,
+    shouldShowMobileGrabAction,
     shouldShowLinkedPlaceDetails,
 } from '../lib/resourceDetailPresentation.js';
 
@@ -305,12 +306,19 @@ export default function ResourceDetailContent({
             lng: isHard ? asset?.lng : primaryLocation?.lng,
         }))
         : '';
+    const showGrabAction = shouldShowMobileGrabAction({ isPhone, grabRideHref });
 
     useEffect(() => {
         if (!isHard) return;
         const nextBucket = SOFT_ASSET_BUCKETS.find((bucket) => relatedSoftAssetCounts[bucket] > 0) || 'Programmes';
         setActiveSoftBucket(nextBucket);
     }, [isHard, relatedSoftAssetCounts]);
+
+    useEffect(() => {
+        if (!showGrabAction && grabGuideOpen) {
+            setGrabGuideOpen(false);
+        }
+    }, [grabGuideOpen, showGrabAction]);
 
     const handleDirections = useCallback((customLocation = null) => {
         const target = customLocation || (isHard ? asset : primaryLocation);
@@ -704,7 +712,7 @@ export default function ResourceDetailContent({
                             {isHard ? t('getDirections') : t('getDirectionsNearest')}
                         </button>
                     ) : null}
-                    {grabRideHref ? (
+                    {showGrabAction ? (
                         grabAddress ? (
                             <button
                                 type="button"

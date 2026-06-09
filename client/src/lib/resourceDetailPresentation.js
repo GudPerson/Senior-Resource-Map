@@ -13,6 +13,10 @@ export function shouldShowLinkedPlaceDetails({ isHard, softLocations } = {}) {
     return !isHard && Array.isArray(softLocations) && softLocations.length > 0;
 }
 
+export function shouldShowMobileGrabAction({ isPhone, grabRideHref } = {}) {
+    return Boolean(isPhone && grabRideHref);
+}
+
 export function getResourceHeroPresentation({ hasBanner, isCompact } = {}) {
     if (hasBanner) {
         return {

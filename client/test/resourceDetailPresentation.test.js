@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     getResourceDetailPhone,
     getResourceHeroPresentation,
+    shouldShowMobileGrabAction,
     shouldShowLinkedPlaceDetails,
 } from '../src/lib/resourceDetailPresentation.js';
 
@@ -33,6 +34,14 @@ test('standalone offerings hide linked-place copy when no linked places are avai
     assert.equal(shouldShowLinkedPlaceDetails({ isHard: false, softLocations: [] }), false);
     assert.equal(shouldShowLinkedPlaceDetails({ isHard: false, softLocations: [{ id: 1 }] }), true);
     assert.equal(shouldShowLinkedPlaceDetails({ isHard: true, softLocations: [{ id: 1 }] }), false);
+});
+
+test('Grab action is limited to phone-sized resource detail views', () => {
+    const href = 'https://grab.onelink.me/2695613898?af_dp=grab%3A%2F%2Fopen%3FscreenType%3DBOOKING';
+
+    assert.equal(shouldShowMobileGrabAction({ isPhone: true, grabRideHref: href }), true);
+    assert.equal(shouldShowMobileGrabAction({ isPhone: false, grabRideHref: href }), false);
+    assert.equal(shouldShowMobileGrabAction({ isPhone: true, grabRideHref: '' }), false);
 });
 
 test('banner hero presentation adapts to the image instead of using a cropped fixed-height strip', () => {
