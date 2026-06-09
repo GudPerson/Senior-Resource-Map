@@ -67,6 +67,11 @@ export function appendMapReturnTo(path, returnTo) {
     return `${pathAndSearch}${separator}returnTo=${encodeURIComponent(safeReturnTo)}${hash}`;
 }
 
+export function buildLoginPathWithMapReturn(returnTo) {
+    const safeReturnTo = normalizeMapReturnPath(returnTo);
+    return safeReturnTo ? `/login?returnTo=${encodeURIComponent(safeReturnTo)}` : '/login';
+}
+
 export function hardNavigate(path, navigate = null) {
     if (typeof window !== 'undefined') {
         window.location.assign(path);

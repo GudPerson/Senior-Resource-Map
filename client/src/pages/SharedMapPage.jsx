@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import { ArrowLeft, ArrowRight, CopyPlus, Languages, LogIn, Menu, Printer, Search, Sparkles, X } from 'lucide-react';
 
@@ -17,6 +17,7 @@ import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/direc
 import { DEFAULT_LOCALE } from '../lib/i18n.js';
 import { applySharedNoteTranslationsToDirectory } from '../lib/mapNotes.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
+import { buildCurrentAppPath, buildLoginPathWithMapReturn } from '../lib/appNavigation.js';
 
 function UnavailableState({ message }) {
     const { t } = useLocale();
@@ -72,7 +73,7 @@ function SharedMapLanguageSelect({ compact = false, translatingNotes = false }) 
     );
 }
 
-function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView, noteTranslationLoading }) {
+function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView, noteTranslationLoading, loginPath = '/login' }) {
     const { t } = useLocale();
     return (
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -136,7 +137,7 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                         <p className="text-sm font-semibold text-brand-800">{t('signInToSaveSharedTitle')}</p>
                         <p className="mt-1 text-sm text-brand-700">{t('signInToSaveSharedDescription')}</p>
                     </div>
-                    <Link to="/login" className="btn-primary justify-center">
+                    <Link to={loginPath} className="btn-primary justify-center">
                         <LogIn size={16} />
                         {t('signIn')}
                     </Link>
@@ -168,6 +169,7 @@ function SharedMapMobileControls({
     onCopyToMyMaps,
     onOpenPrintView,
     noteTranslationLoading,
+    loginPath = '/login',
 }) {
     const [open, setOpen] = useState(false);
     const { t } = useLocale();
@@ -256,16 +258,16 @@ function SharedMapMobileControls({
                                             <CopyPlus size={16} />
                                             {copying ? t('copying') : t('copyToMyMaps')}
                                         </button>
-                                    ) : (
+                                    ) : !isAuth ? (
                                         <Link
-                                            to="/login"
+                                            to={loginPath}
                                             onClick={() => setOpen(false)}
                                             className="btn-primary h-12 w-full justify-center px-4 text-sm"
                                         >
                                             <LogIn size={16} />
                                             {t('signUpOrLogIn')}
                                         </Link>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 {copyError ? (
@@ -318,6 +320,7 @@ function SharedMapMobileControls({
 
 export default function SharedMapPage() {
     const { token } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuth, user } = useAuth();
@@ -336,6 +339,7 @@ export default function SharedMapPage() {
     const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
     const [selectedClusterPlaceKeys, setSelectedClusterPlaceKeys] = useState([]);
     const [selectionScrollRequest, setSelectionScrollRequest] = useState(0);
+    const viewerRefreshKeyRef = useRef('');
     const isPrintView = searchParams.get('view') === 'print';
     const useDesktopLayout = useMediaQuery('(min-width: 1024px)');
     const anchorState = useDirectoryDistanceAnchor({
@@ -343,9 +347,9 @@ export default function SharedMapPage() {
         userPostalCode: user?.postalCode || '',
     });
 
-    const loadDirectory = useCallback(async () => {
+    const loadDirectory = useCallback(async ({ keepCurrent = false } = {}) => {
         if (!token) return;
-        setLoading(true);
+        if (!keepCurrent) setLoading(true);
         setError('');
         try {
             const nextDirectory = await api.getSharedMap(token);
@@ -362,6 +366,20 @@ export default function SharedMapPage() {
     useEffect(() => {
         loadDirectory();
     }, [loadDirectory]);
+
+    useEffect(() => {
+        if (!token || loading || !directory) return;
+
+        const expectedAuthenticated = Boolean(isAuth);
+        const directoryAuthenticated = Boolean(directory.viewer?.isAuthenticated);
+        if (expectedAuthenticated === directoryAuthenticated) return;
+
+        const refreshKey = `${token}:${expectedAuthenticated ? (user?.id || 'auth') : 'guest'}`;
+        if (viewerRefreshKeyRef.current === refreshKey) return;
+
+        viewerRefreshKeyRef.current = refreshKey;
+        loadDirectory({ keepCurrent: true });
+    }, [directory, isAuth, loadDirectory, loading, token, user?.id]);
 
     useEffect(() => {
         if (!token || !directory || locale === DEFAULT_LOCALE) {
@@ -420,6 +438,13 @@ export default function SharedMapPage() {
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(translatedDirectory?.share?.sharePath || (token ? `/shared/maps/${token}` : ''))
     ), [translatedDirectory?.share?.sharePath, token]);
+    const sharedMapReturnPath = useMemo(() => (
+        buildCurrentAppPath(location)
+    ), [location.hash, location.pathname, location.search]);
+    const loginPath = useMemo(() => (
+        buildLoginPathWithMapReturn(sharedMapReturnPath)
+    ), [sharedMapReturnPath]);
+    const canSaveSharedResources = Boolean(isAuth && !isOwner);
 
     function handleViewSection(placeKey) {
         const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
@@ -584,7 +609,7 @@ export default function SharedMapPage() {
                     <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
                         <BrandLockup />
                         {!isAuth ? (
-                            <Link to="/login" className="btn-ghost justify-center border border-slate-200 text-slate-700">
+                            <Link to={loginPath} className="btn-ghost justify-center border border-slate-200 text-slate-700">
                                 {t('signIn')}
                             </Link>
                         ) : null}
@@ -605,6 +630,7 @@ export default function SharedMapPage() {
                     onCopyToMyMaps={handleCopyToMyMaps}
                     onOpenPrintView={openPrintView}
                     noteTranslationLoading={noteTranslationLoading}
+                    loginPath={loginPath}
                 />
             ) : null}
 
@@ -620,6 +646,7 @@ export default function SharedMapPage() {
                             onCopyToMyMaps={handleCopyToMyMaps}
                             onOpenPrintView={openPrintView}
                             noteTranslationLoading={noteTranslationLoading}
+                            loginPath={loginPath}
                         />
 
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
@@ -639,7 +666,7 @@ export default function SharedMapPage() {
                             highlightPlaceKeys={activePlaceKeys}
                             selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
                             selectionScrollRequest={selectionScrollRequest}
-                            canSaveResources={Boolean(translatedDirectory.viewer?.canSaveResources)}
+                            canSaveResources={canSaveSharedResources}
                             showDesktopHoverLogo
                             renderDesktopMap={() => (
                                 <DirectoryMap
@@ -691,7 +718,7 @@ export default function SharedMapPage() {
                         highlightPlaceKeys={activePlaceKeys}
                         selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
                         selectionScrollRequest={selectionScrollRequest}
-                        canSaveResources={Boolean(translatedDirectory.viewer?.canSaveResources)}
+                        canSaveResources={canSaveSharedResources}
                         showDesktopHoverLogo
                         renderDesktopMap={() => (
                             <DirectoryMap

@@ -752,14 +752,6 @@ export default function DirectoryMap({
         };
     }, [anchorPoint, markerMode, onMapCaptureError, onMapReadyForCapture, pins, placeNumberByKey]);
 
-    if (!pins.length && !anchorPoint) {
-        return (
-            <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
-                {emptyLabel}
-            </div>
-        );
-    }
-
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
 
@@ -829,9 +821,9 @@ export default function DirectoryMap({
 
         return displayPins.map((pin) => {
             const activeKey = activePlaceKey ?? focusedPlaceKey;
-                        const isDeepZoom = String(activeKey).endsWith(':zoom');
-                        const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
-                        const isMatched = String(cleanKey) === String(pin.placeKey);
+            const isDeepZoom = String(activeKey).endsWith(':zoom');
+            const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
+            const isMatched = String(cleanKey) === String(pin.placeKey);
 
             const icon = markerMode === 'number'
                 ? createDirectoryNumberMarker(
@@ -862,6 +854,14 @@ export default function DirectoryMap({
             );
         });
     }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+
+    if (!pins.length && !anchorPoint) {
+        return (
+            <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
+                {emptyLabel}
+            </div>
+        );
+    }
 
     const { frameClassName, containerClassName } = buildDirectoryMapClassNames({
         mapHeightClassName,
