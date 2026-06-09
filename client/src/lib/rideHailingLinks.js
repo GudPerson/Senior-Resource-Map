@@ -1,7 +1,6 @@
 const GRAB_ONELINK_BASE_URL = 'https://grab.onelink.me/2695613898';
 const GRAB_DIRECT_BOOKING_URL = 'grab://open';
 export const GRAB_GUIDE_DISMISSED_STORAGE_KEY = 'carearound:grab-guide-dismissed';
-const GRAB_SEARCH_NAME_LIMIT = 23;
 
 function normalizeText(value) {
     return String(value || '').trim();
@@ -10,15 +9,6 @@ function normalizeText(value) {
 function normalizeCoordinate(value) {
     const number = Number.parseFloat(value);
     return Number.isFinite(number) ? String(number) : '';
-}
-
-function extractSingaporePostalCode(address) {
-    const matches = normalizeText(address).match(/\b\d{6}\b/g);
-    return matches?.length ? matches[matches.length - 1] : '';
-}
-
-function trimDisplayName(value, limit = GRAB_SEARCH_NAME_LIMIT) {
-    return Array.from(normalizeText(value)).slice(0, limit).join('').trim();
 }
 
 function getBrowserLocalStorage() {
@@ -32,15 +22,7 @@ export function buildGrabClipboardDestination(destination) {
     if (!destination) return '';
 
     const address = normalizeText(destination.address);
-    const name = trimDisplayName(destination.name);
-    const postalCode = extractSingaporePostalCode(address);
-
-    if (postalCode && name) {
-        return `Singapore ${postalCode}\n${name}`;
-    }
-    if (postalCode) {
-        return `Singapore ${postalCode}`;
-    }
+    const name = normalizeText(destination.name);
     return address || name;
 }
 

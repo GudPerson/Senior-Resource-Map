@@ -291,8 +291,9 @@ export default function ResourceDetailContent({
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
     const grabAddress = String(primaryAddress || '').trim();
+    const grabPlaceName = String(((isHard ? asset?.name : primaryLocation?.name) || asset?.name || '')).trim();
     const grabClipboardText = buildGrabClipboardDestination({
-        name: (isHard ? asset?.name : primaryLocation?.name) || asset?.name,
+        name: grabPlaceName,
         address: primaryAddress,
     });
     const grabBookingHref = buildGrabBookingDeepLink();
@@ -394,9 +395,11 @@ export default function ResourceDetailContent({
                             </button>
                         </div>
 
-                        <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                            {t('grabGuideIntro')}
-                        </p>
+                        {grabPlaceName ? (
+                            <p className="mt-3 text-base font-bold leading-relaxed text-slate-950">
+                                {grabPlaceName}
+                            </p>
+                        ) : null}
 
                         <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50 p-4">
                             <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-800">

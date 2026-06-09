@@ -43,7 +43,6 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'copyAddressForGrab',
         'addressCopiedForGrab',
         'grabGuideTitle',
-        'grabGuideIntro',
         'grabGuideCopiedLabel',
         'grabGuideStepWhereTo',
         'grabGuideStepPaste',

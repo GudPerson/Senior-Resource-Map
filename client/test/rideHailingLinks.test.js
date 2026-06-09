@@ -91,29 +91,29 @@ test('buildGrabBookingDeepLink opens Grab booking without a prefilled destinatio
     assert.equal(direct.searchParams.has('dropOffLongitude'), false);
 });
 
-test('buildGrabClipboardDestination formats postal code and short resource name for Grab search', () => {
+test('buildGrabClipboardDestination copies the full address for Grab search', () => {
     assert.equal(
         buildGrabClipboardDestination({
             name: 'PCF Sparkle Care Active Ageing Centre (Care) @ Yew',
             address: '625 Choa Chu Kang Street 62 #01-206 Singapore 680625',
         }),
-        'Singapore 680625\nPCF Sparkle Care Active',
+        '625 Choa Chu Kang Street 62 #01-206 Singapore 680625',
     );
 });
 
-test('buildGrabClipboardDestination falls back when postal or name is missing', () => {
+test('buildGrabClipboardDestination falls back when address is missing', () => {
     assert.equal(
         buildGrabClipboardDestination({
             name: 'THK AAC @ Beo Crescent',
             address: 'Blk 44 Beo Crescent #01-67 Singapore 160044',
         }),
-        'Singapore 160044\nTHK AAC @ Beo Crescent',
+        'Blk 44 Beo Crescent #01-67 Singapore 160044',
     );
     assert.equal(
         buildGrabClipboardDestination({
-            address: 'Blk 44 Beo Crescent #01-67 Singapore 160044',
+            name: 'THK AAC @ Beo Crescent',
         }),
-        'Singapore 160044',
+        'THK AAC @ Beo Crescent',
     );
     assert.equal(
         buildGrabClipboardDestination({
