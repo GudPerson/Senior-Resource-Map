@@ -29,7 +29,7 @@ export function buildGrabRideDeepLink(destination) {
     } else if (title) {
         directUrl.searchParams.set('dropOffTitle', title);
     }
-    if (!address && hasCoordinates) {
+    if (hasCoordinates) {
         directUrl.searchParams.set('dropOffLatitude', lat);
         directUrl.searchParams.set('dropOffLongitude', lng);
     }

@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { buildGrabRideDeepLink } from '../src/lib/rideHailingLinks.js';
 
-test('buildGrabRideDeepLink prefers address-only drop-off when an address is available', () => {
+test('buildGrabRideDeepLink uses coordinates to set destination and address as the display label', () => {
     const href = buildGrabRideDeepLink({
         name: 'THK AAC @ Beo Crescent',
         address: 'Blk 44 Beo Crescent #01-67 Singapore 160044',
@@ -19,8 +19,8 @@ test('buildGrabRideDeepLink prefers address-only drop-off when an address is ava
     assert.equal(direct.protocol, 'grab:');
     assert.equal(direct.hostname, 'open');
     assert.equal(direct.searchParams.get('screenType'), 'BOOKING');
-    assert.equal(direct.searchParams.has('dropOffLatitude'), false);
-    assert.equal(direct.searchParams.has('dropOffLongitude'), false);
+    assert.equal(direct.searchParams.get('dropOffLatitude'), '1.287123');
+    assert.equal(direct.searchParams.get('dropOffLongitude'), '103.827456');
     assert.equal(direct.searchParams.get('dropOffAddress'), 'Blk 44 Beo Crescent #01-67 Singapore 160044');
     assert.equal(direct.searchParams.get('dropOffTitle'), 'Blk 44 Beo Crescent #01-67 Singapore 160044');
 });
