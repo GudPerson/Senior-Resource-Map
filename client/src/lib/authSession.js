@@ -1,6 +1,8 @@
 export const SESSION_FETCH_TIMEOUT_MS = 5_000;
 export const EMPTY_SESSION_RECHECK_ATTEMPTS = 2;
+export const ACTIVE_SESSION_EMPTY_RECHECK_ATTEMPTS = 4;
 export const EMPTY_SESSION_RECHECK_DELAY_MS = 350;
+export const SESSION_CONTINUITY_MARKER_KEY = 'carearound:session-continuity';
 
 export class SessionRequestTimeoutError extends Error {
     constructor(timeoutMs) {
@@ -37,6 +39,50 @@ export function resolveUserAfterSessionCheckFailure(currentUser, failure = {}) {
         return null;
     }
     return currentUser || null;
+}
+
+export function resolveUserAfterAmbiguousEmptySession(currentUser) {
+    return currentUser || null;
+}
+
+export function getAmbiguousEmptySessionRecheckAttempts({
+    currentUser = null,
+    hasSessionContinuityMarker: hasMarker = false,
+} = {}) {
+    return currentUser || hasMarker
+        ? ACTIVE_SESSION_EMPTY_RECHECK_ATTEMPTS
+        : EMPTY_SESSION_RECHECK_ATTEMPTS;
+}
+
+function getBrowserSessionStorage() {
+    if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
+        return null;
+    }
+    return window.sessionStorage;
+}
+
+export function hasSessionContinuityMarker(storage = getBrowserSessionStorage()) {
+    try {
+        return Boolean(storage?.getItem(SESSION_CONTINUITY_MARKER_KEY));
+    } catch {
+        return false;
+    }
+}
+
+export function markSessionContinuity(storage = getBrowserSessionStorage()) {
+    try {
+        storage?.setItem(SESSION_CONTINUITY_MARKER_KEY, String(Date.now()));
+    } catch {
+        // Session continuity is a convenience guard only; auth still relies on the API.
+    }
+}
+
+export function clearSessionContinuityMarker(storage = getBrowserSessionStorage()) {
+    try {
+        storage?.removeItem(SESSION_CONTINUITY_MARKER_KEY);
+    } catch {
+        // Ignore storage failures so logout and auth checks can continue normally.
+    }
 }
 
 export function resolveImpersonationSessionFailure(currentUser, failure = {}) {

@@ -2,12 +2,16 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { clearImpersonationToken, consumeImpersonationTokenFromHash, getImpersonationToken, getSessionAuthHeaders } from '../lib/sessionAuth.js';
 import { getSessionApiBaseCandidates } from '../lib/apiBase.js';
 import {
-    EMPTY_SESSION_RECHECK_ATTEMPTS,
     EMPTY_SESSION_RECHECK_DELAY_MS,
+    clearSessionContinuityMarker,
     fetchSessionJsonWithTimeout,
+    getAmbiguousEmptySessionRecheckAttempts,
+    hasSessionContinuityMarker,
     isAmbiguousEmptySessionResponse,
     isDefinitiveSignedOutSessionResponse,
+    markSessionContinuity,
     resolveImpersonationSessionFailure,
+    resolveUserAfterAmbiguousEmptySession,
     resolveUserAfterSessionCheckFailure,
 } from '../lib/authSession.js';
 
@@ -41,14 +45,23 @@ export function AuthProvider({ children }) {
     const setCurrentUser = useCallback((nextUser) => {
         userRef.current = nextUser;
         setUser(nextUser);
+        if (nextUser) {
+            markSessionContinuity();
+        } else {
+            clearSessionContinuityMarker();
+        }
     }, []);
 
     const checkSession = useCallback(async (allowImpersonationFallback = true) => {
         const hasImpersonationToken = Boolean(getImpersonationToken());
+        const emptySessionRecheckAttempts = getAmbiguousEmptySessionRecheckAttempts({
+            currentUser: userRef.current,
+            hasSessionContinuityMarker: hasSessionContinuityMarker(),
+        });
 
         try {
             sessionCheck:
-            for (let sessionAttempt = 0; sessionAttempt <= EMPTY_SESSION_RECHECK_ATTEMPTS; sessionAttempt += 1) {
+            for (let sessionAttempt = 0; sessionAttempt <= emptySessionRecheckAttempts; sessionAttempt += 1) {
                 for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
                     try {
                         const { response, data, isJson } = await fetchSessionJsonWithTimeout(`${BASE_CANDIDATES[i]}/auth/me`, {
@@ -83,7 +96,7 @@ export function AuthProvider({ children }) {
                         }
                         if (
                             isAmbiguousEmptySessionResponse(response, data)
-                            && sessionAttempt < EMPTY_SESSION_RECHECK_ATTEMPTS
+                            && sessionAttempt < emptySessionRecheckAttempts
                         ) {
                             await sleep(EMPTY_SESSION_RECHECK_DELAY_MS * (sessionAttempt + 1));
                             continue sessionCheck;
@@ -105,8 +118,9 @@ export function AuthProvider({ children }) {
                 return resolution.user;
             }
 
-            setCurrentUser(null);
-            return null;
+            const resolvedUser = resolveUserAfterAmbiguousEmptySession(userRef.current);
+            setCurrentUser(resolvedUser);
+            return resolvedUser;
         } catch (err) {
             console.error('Session check failed', err);
             if (hasImpersonationToken && allowImpersonationFallback) {

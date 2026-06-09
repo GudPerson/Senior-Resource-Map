@@ -77,6 +77,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 
 ## Recent stabilization notes
 
+### 2026-06-09 Mobile session navigation continuity
+
+- Current behavior: active or recently active tabs give ambiguous empty `/auth/me` responses a longer retry window before clearing auth during mobile navigation/refocus, and an already signed-in in-memory user is preserved when the session response remains ambiguous after retries. The continuity marker is tab-local and stores only a presence signal, not user profile data. Cold loads with no active/recent session marker still use the normal shorter retry window; definitive signed-out responses still clear the session immediately.
+- Known-good reference: 2026-06-09 mobile report that navigation could inconsistently return the user to Login, plus the locked auth-session behavior that `/auth/me` stays on the cookie-owning API origin and selected-user views survive transient session-check failures.
+- Reproduction steps: sign in on a mobile device, navigate between dashboard/sidebar routes that can perform document navigation, leave the tab idle or backgrounded briefly, refocus, and continue between `/dashboard`, `/dashboard/resources`, `/dashboard/profile`, `/dashboard/admin`, `/my-directory`, and `/discover`.
+- Acceptance criteria: temporary or ambiguous empty session checks during mobile navigation/refocus do not bounce an active user back to Login; mobile full-page route recovery gets a longer chance to re-confirm the cookie-backed session; direct logout and definitive invalid/missing-token responses still clear auth; no navigation recovery, route permission, resource visibility, Discover, My Maps, Shared Maps, GudAuth, Gmail/email, Worker secret, or schema behavior is changed.
+- Verification result: `node --test client/test/authSession.test.js`, `node --test client/test/*.test.js client/src/lib/*.test.js`, `npm run test:server`, and `VITE_API_URL=https://api.carearound.sg/api npm run build:client` passed on 2026-06-09. The build kept the existing large chunk warning. Full mobile authenticated production UAT is still recommended after deployment because the original symptom was intermittent on a real mobile browser.
+
 ### 2026-06-09 Resource detail Open in Grab prototype
 
 - Current behavior: resource detail pages now show a separate `Open in Grab` action when the primary place has an address or coordinates. The existing `Get directions (Google Maps)` action remains unchanged. The Grab action uses the public Grab OneLink wrapper with a `grab://open` booking deep link and only passes the resource destination title/address/coordinates; no backend API, saved profile data, pickup point, auth state, sharing, Discover card, My Map, or shared-map behavior is changed.

@@ -2,13 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    ACTIVE_SESSION_EMPTY_RECHECK_ATTEMPTS,
+    clearSessionContinuityMarker,
     EMPTY_SESSION_RECHECK_ATTEMPTS,
     fetchSessionJsonWithTimeout,
+    getAmbiguousEmptySessionRecheckAttempts,
+    hasSessionContinuityMarker,
     isAmbiguousEmptySessionResponse,
+    markSessionContinuity,
     resolveImpersonationSessionFailure,
+    resolveUserAfterAmbiguousEmptySession,
     resolveUserAfterSessionCheckFailure,
     SessionRequestTimeoutError,
 } from '../src/lib/authSession.js';
+
+function createMemoryStorage() {
+    const values = new Map();
+    return {
+        getItem(key) {
+            return values.has(key) ? values.get(key) : null;
+        },
+        setItem(key, value) {
+            values.set(key, String(value));
+        },
+        removeItem(key) {
+            values.delete(key);
+        },
+    };
+}
 
 test('session fetch rejects instead of waiting forever when auth endpoint stalls', async () => {
     const stalledFetch = () => new Promise(() => {});
@@ -60,6 +81,41 @@ test('background session check failures preserve the current signed-in user', ()
 
     assert.equal(resolveUserAfterSessionCheckFailure(currentUser), currentUser);
     assert.equal(resolveUserAfterSessionCheckFailure(null), null);
+});
+
+test('exhausted ambiguous empty session responses preserve the current signed-in user', () => {
+    const currentUser = { id: 42, name: 'GudPerson', role: 'super_admin' };
+
+    assert.equal(resolveUserAfterAmbiguousEmptySession(currentUser), currentUser);
+    assert.equal(resolveUserAfterAmbiguousEmptySession(null), null);
+});
+
+test('active or recently active sessions get a longer ambiguous empty retry window', () => {
+    const currentUser = { id: 42, name: 'GudPerson', role: 'super_admin' };
+
+    assert.equal(
+        getAmbiguousEmptySessionRecheckAttempts({ currentUser }),
+        ACTIVE_SESSION_EMPTY_RECHECK_ATTEMPTS,
+    );
+    assert.equal(
+        getAmbiguousEmptySessionRecheckAttempts({ hasSessionContinuityMarker: true }),
+        ACTIVE_SESSION_EMPTY_RECHECK_ATTEMPTS,
+    );
+    assert.equal(
+        getAmbiguousEmptySessionRecheckAttempts(),
+        EMPTY_SESSION_RECHECK_ATTEMPTS,
+    );
+    assert.ok(ACTIVE_SESSION_EMPTY_RECHECK_ATTEMPTS > EMPTY_SESSION_RECHECK_ATTEMPTS);
+});
+
+test('session continuity marker stores only a tab-local presence signal', () => {
+    const storage = createMemoryStorage();
+
+    assert.equal(hasSessionContinuityMarker(storage), false);
+    markSessionContinuity(storage);
+    assert.equal(hasSessionContinuityMarker(storage), true);
+    clearSessionContinuityMarker(storage);
+    assert.equal(hasSessionContinuityMarker(storage), false);
 });
 
 test('definitive signed-out session responses clear the current user', () => {
