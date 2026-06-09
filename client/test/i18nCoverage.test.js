@@ -39,6 +39,7 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'profileTitle',
         'organisationWorkspaceTitle',
         'getDirectionsShort',
+        'openInGrab',
         'softAssetBucketProgrammes',
         'softAssetBucketServices',
         'softAssetBucketPromotions',

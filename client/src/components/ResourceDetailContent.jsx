@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Mail, MapPin, MessageCircle, Navigation, Phone, Share2 } from 'lucide-react';
 
 import { getDistance } from '../lib/geo.js';
+import { buildGrabRideDeepLink } from '../lib/rideHailingLinks.js';
 import {
     SOFT_ASSET_BUCKETS,
     getSoftAssetBucketLabel,
@@ -254,6 +255,14 @@ export default function ResourceDetailContent({
     const hasDirectionsTarget = isHard
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
+    const grabRideHref = hasDirectionsTarget
+        ? buildGrabRideDeepLink({
+            name: (isHard ? asset?.name : primaryLocation?.name) || asset?.name,
+            address: primaryAddress,
+            lat: isHard ? asset?.lat : primaryLocation?.lat,
+            lng: isHard ? asset?.lng : primaryLocation?.lng,
+        })
+        : '';
 
     useEffect(() => {
         if (!isHard) return;
@@ -538,6 +547,18 @@ export default function ResourceDetailContent({
                             <Navigation size={20} />
                             {isHard ? t('getDirections') : t('getDirectionsNearest')}
                         </button>
+                    ) : null}
+                    {grabRideHref ? (
+                        <a
+                            href={grabRideHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className={secondaryActionButtonClass}
+                        >
+                            <Navigation size={20} />
+                            {t('openInGrab')}
+                        </a>
                     ) : null}
                     <button
                         type="button"

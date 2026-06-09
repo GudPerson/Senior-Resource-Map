@@ -77,6 +77,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 
 ## Recent stabilization notes
 
+### 2026-06-09 Resource detail Open in Grab prototype
+
+- Current behavior: resource detail pages now show a separate `Open in Grab` action when the primary place has an address or coordinates. The existing `Get directions (Google Maps)` action remains unchanged. The Grab action uses the public Grab OneLink wrapper with a `grab://open` booking deep link and only passes the resource destination title/address/coordinates; no backend API, saved profile data, pickup point, auth state, sharing, Discover card, My Map, or shared-map behavior is changed.
+- Known-good reference: resource detail Google Maps and Share actions on the current branch before this prototype, plus Grab Partner Farefeed documentation showing `deepLink`, `directDeepLink`, `screenType=BOOKING`, and drop-off address/latitude/longitude parameters.
+- Reproduction steps: open a hard-asset resource detail page with an address and coordinates; confirm both `Get directions (Google Maps)` and `Open in Grab` appear; open a detail page with no destination data and confirm neither destination action is added; switch supported UI languages and confirm the Grab label translates.
+- Acceptance criteria: Google Maps continues to open exactly as before; `Open in Grab` is resource-detail-only and does not appear in Discover cards, mobile browse cards, My Maps, or shared maps; the generated href uses the documented OneLink/Grab deep-link shape; missing destination data returns no Grab link; translated locales do not fall back to English.
+- Verification result: `node --test client/test/rideHailingLinks.test.js`, `node --test client/test/i18nCoverage.test.js`, `node --test client/test/resourceDetailPresentation.test.js`, `node --test client/test/*.test.js client/src/lib/*.test.js`, and `npm run build:client` passed on 2026-06-09. The build kept the existing large chunk warning. Preview/mobile UAT deployment is allowed before production release; phone-level Grab app behavior still needs manual iOS/Android UAT because this is a frontend-only prototype, not the official authenticated Farefeed API path.
+
 ### 2026-06-03 Auth session empty-check and Audit Trail overview card
 
 - Current behavior: successful empty `/auth/me` responses are treated as ambiguous during a cold dashboard session check and are rechecked briefly before clearing the user. Definitive signed-out responses still clear the session immediately. Users who already have Audit Trail access through the sidebar also see an Audit Trail card on the dashboard overview.
