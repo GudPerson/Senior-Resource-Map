@@ -72,6 +72,16 @@ export function buildLoginPathWithMapReturn(returnTo) {
     return safeReturnTo ? `/login?returnTo=${encodeURIComponent(safeReturnTo)}` : '/login';
 }
 
+export function buildOwnerMyMapPathFromSharedDirectory(directory) {
+    const viewer = directory?.viewer || {};
+    if (!viewer.isAuthenticated || !viewer.isOwner) return '';
+
+    const mapId = Number(directory?.id);
+    if (!Number.isSafeInteger(mapId) || mapId <= 0) return '';
+
+    return `/my-directory/maps/${mapId}`;
+}
+
 export function hardNavigate(path, navigate = null) {
     if (typeof window !== 'undefined') {
         window.location.assign(path);

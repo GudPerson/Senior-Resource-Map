@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { buildLoginPathWithMapReturn } from '../src/lib/appNavigation.js';
+import { buildLoginPathWithMapReturn, buildOwnerMyMapPathFromSharedDirectory } from '../src/lib/appNavigation.js';
 
 const sharedMapPageSource = readFileSync(
     new URL('../src/pages/SharedMapPage.jsx', import.meta.url),
@@ -23,6 +23,37 @@ test('shared map sign-in links ignore unsafe or unrelated return targets', () =>
     assert.equal(buildLoginPathWithMapReturn(''), '/login');
 });
 
+test('shared map owners continue to their private My Map route', () => {
+    assert.equal(
+        buildOwnerMyMapPathFromSharedDirectory({
+            id: 87,
+            viewer: { isAuthenticated: true, isOwner: true },
+        }),
+        '/my-directory/maps/87',
+    );
+    assert.equal(
+        buildOwnerMyMapPathFromSharedDirectory({
+            id: 87,
+            viewer: { isAuthenticated: true, isOwner: false },
+        }),
+        '',
+    );
+    assert.equal(
+        buildOwnerMyMapPathFromSharedDirectory({
+            id: 87,
+            viewer: { isAuthenticated: false, isOwner: true },
+        }),
+        '',
+    );
+    assert.equal(
+        buildOwnerMyMapPathFromSharedDirectory({
+            id: 'not-a-map-id',
+            viewer: { isAuthenticated: true, isOwner: true },
+        }),
+        '',
+    );
+});
+
 test('shared map page wires continuation through all sign-in entry points', () => {
     assert.match(sharedMapPageSource, /buildLoginPathWithMapReturn\(sharedMapReturnPath\)/);
     assert.ok(
@@ -30,5 +61,7 @@ test('shared map page wires continuation through all sign-in entry points', () =
         'desktop header, shared prompt, and mobile drawer sign-in links should use the continuation path',
     );
     assert.match(sharedMapPageSource, /loadDirectory\(\{ keepCurrent: true \}\)/);
+    assert.match(sharedMapPageSource, /buildOwnerMyMapPathFromSharedDirectory\(translatedDirectory\)/);
+    assert.match(sharedMapPageSource, /navigate\(ownerMyMapPath, \{ replace: true \}\)/);
     assert.match(sharedMapPageSource, /const canSaveSharedResources = Boolean\(isAuth && !isOwner\);/);
 });

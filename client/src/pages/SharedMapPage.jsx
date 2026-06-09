@@ -17,7 +17,7 @@ import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/direc
 import { DEFAULT_LOCALE } from '../lib/i18n.js';
 import { applySharedNoteTranslationsToDirectory } from '../lib/mapNotes.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
-import { buildCurrentAppPath, buildLoginPathWithMapReturn } from '../lib/appNavigation.js';
+import { buildCurrentAppPath, buildLoginPathWithMapReturn, buildOwnerMyMapPathFromSharedDirectory } from '../lib/appNavigation.js';
 
 function UnavailableState({ message }) {
     const { t } = useLocale();
@@ -444,7 +444,16 @@ export default function SharedMapPage() {
     const loginPath = useMemo(() => (
         buildLoginPathWithMapReturn(sharedMapReturnPath)
     ), [sharedMapReturnPath]);
+    const ownerMyMapPath = useMemo(() => (
+        isAuth && isOwner ? buildOwnerMyMapPathFromSharedDirectory(translatedDirectory) : ''
+    ), [isAuth, isOwner, translatedDirectory]);
     const canSaveSharedResources = Boolean(isAuth && !isOwner);
+
+    useEffect(() => {
+        if (loading || !ownerMyMapPath) return;
+        // Personal notes and owner controls live only on the private My Map route.
+        navigate(ownerMyMapPath, { replace: true });
+    }, [loading, navigate, ownerMyMapPath]);
 
     function handleViewSection(placeKey) {
         const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
@@ -542,7 +551,7 @@ export default function SharedMapPage() {
         setSearchParams(nextParams);
     }
 
-    if (loading) {
+    if (loading || ownerMyMapPath) {
         return (
             <div className="min-h-screen bg-slate-50">
                 {useDesktopLayout ? (
