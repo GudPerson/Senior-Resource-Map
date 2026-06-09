@@ -2,7 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Mail, MapPin, MessageCircle, Navigation, Phone, Share2 } from 'lucide-react';
 
 import { getDistance } from '../lib/geo.js';
-import { buildGrabBookingDeepLink, buildGrabRideDeepLink } from '../lib/rideHailingLinks.js';
+import {
+    buildGrabBookingDeepLink,
+    buildGrabClipboardDestination,
+    buildGrabRideDeepLink,
+    hasDismissedGrabGuide,
+    setDismissedGrabGuide,
+} from '../lib/rideHailingLinks.js';
 import {
     SOFT_ASSET_BUCKETS,
     getSoftAssetBucketLabel,
@@ -183,6 +189,8 @@ export default function ResourceDetailContent({
     const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
     const [shareStatus, setShareStatus] = useState('idle');
     const [grabStatus, setGrabStatus] = useState('idle');
+    const [grabGuideOpen, setGrabGuideOpen] = useState(false);
+    const [skipGrabGuide, setSkipGrabGuide] = useState(false);
     const isPhone = useMediaQuery('(max-width: 639px)');
     const { locale, t } = useLocale();
     const asset = useMemo(() => localizeResource(rawAsset, locale), [rawAsset, locale]);
@@ -283,6 +291,10 @@ export default function ResourceDetailContent({
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
     const grabAddress = String(primaryAddress || '').trim();
+    const grabClipboardText = buildGrabClipboardDestination({
+        name: (isHard ? asset?.name : primaryLocation?.name) || asset?.name,
+        address: primaryAddress,
+    });
     const grabBookingHref = buildGrabBookingDeepLink();
     const grabRideHref = hasDirectionsTarget
         ? (grabAddress ? grabBookingHref : buildGrabRideDeepLink({
@@ -328,10 +340,15 @@ export default function ResourceDetailContent({
     }, [asset.id, asset.name, type]);
 
     const handleGrabAddressAction = useCallback(async () => {
-        if (!grabAddress || !grabBookingHref) return;
+        if (!grabClipboardText || !grabBookingHref) return;
 
-        const copyPromise = copyTextToClipboard(grabAddress);
-        window.open(grabBookingHref, '_blank', 'noopener,noreferrer');
+        const copyPromise = copyTextToClipboard(grabClipboardText);
+        if (hasDismissedGrabGuide()) {
+            window.open(grabBookingHref, '_blank', 'noopener,noreferrer');
+        } else {
+            setSkipGrabGuide(false);
+            setGrabGuideOpen(true);
+        }
 
         try {
             await copyPromise;
@@ -341,10 +358,101 @@ export default function ResourceDetailContent({
             setGrabStatus('failed');
             window.setTimeout(() => setGrabStatus('idle'), 2600);
         }
-    }, [grabAddress, grabBookingHref]);
+    }, [grabBookingHref, grabClipboardText]);
+
+    const handleOpenGrabFromGuide = useCallback(() => {
+        if (skipGrabGuide) {
+            setDismissedGrabGuide(true);
+        }
+        setGrabGuideOpen(false);
+        window.open(grabBookingHref, '_blank', 'noopener,noreferrer');
+    }, [grabBookingHref, skipGrabGuide]);
 
     return (
         <div className={`${rootSpacingClass} ${className}`}>
+            {grabGuideOpen ? (
+                <div
+                    className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 px-4 py-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="grab-guide-title"
+                >
+                    <div className="w-full max-w-md rounded-[24px] border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">Grab</p>
+                                <h2 id="grab-guide-title" className="mt-1 text-xl font-bold text-slate-950">
+                                    {t('grabGuideTitle')}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setGrabGuideOpen(false)}
+                                className="rounded-full border border-slate-200 px-3 py-1 text-sm font-bold text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+                            >
+                                {t('close')}
+                            </button>
+                        </div>
+
+                        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                            {t('grabGuideIntro')}
+                        </p>
+
+                        <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50 p-4">
+                            <p className="text-xs font-bold uppercase tracking-[0.12em] text-brand-800">
+                                {t('grabGuideCopiedLabel')}
+                            </p>
+                            <p className="mt-2 whitespace-pre-line break-words text-base font-bold leading-relaxed text-slate-950">
+                                {grabClipboardText}
+                            </p>
+                        </div>
+
+                        <div className="mt-4 grid gap-3">
+                            <div className="flex gap-3">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">1</span>
+                                <p className="pt-0.5 text-sm font-semibold leading-relaxed text-slate-700">
+                                    {t('grabGuideStepWhereTo')}
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">2</span>
+                                <p className="pt-0.5 text-sm font-semibold leading-relaxed text-slate-700">
+                                    {t('grabGuideStepPaste')}
+                                </p>
+                            </div>
+                        </div>
+
+                        <label className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={skipGrabGuide}
+                                onChange={(event) => setSkipGrabGuide(event.target.checked)}
+                                className="mt-1 h-4 w-4 accent-brand-600"
+                            />
+                            <span>{t('grabGuideSkipLabel')}</span>
+                        </label>
+
+                        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={handleOpenGrabFromGuide}
+                                className="btn-primary justify-center"
+                            >
+                                <Navigation size={18} />
+                                {t('grabGuideOpenGrab')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setGrabGuideOpen(false)}
+                                className="btn-secondary justify-center"
+                            >
+                                {t('cancel')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             {(asset.bannerUrl || asset.logoUrl) && (
                 <div
                     className={`w-full ${heroPresentation.frameClass} ${isCompact ? 'rounded-[24px]' : 'rounded-[28px]'} border overflow-hidden flex items-center justify-center shadow-sm relative`}

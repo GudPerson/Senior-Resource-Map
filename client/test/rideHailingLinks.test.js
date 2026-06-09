@@ -1,7 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildGrabBookingDeepLink, buildGrabRideDeepLink } from '../src/lib/rideHailingLinks.js';
+import {
+    buildGrabBookingDeepLink,
+    buildGrabClipboardDestination,
+    buildGrabRideDeepLink,
+    hasDismissedGrabGuide,
+    setDismissedGrabGuide,
+} from '../src/lib/rideHailingLinks.js';
+
+function createMemoryStorage() {
+    const values = new Map();
+    return {
+        getItem(key) {
+            return values.has(key) ? values.get(key) : null;
+        },
+        removeItem(key) {
+            values.delete(key);
+        },
+        setItem(key, value) {
+            values.set(key, String(value));
+        },
+    };
+}
 
 test('buildGrabRideDeepLink uses coordinates to set destination and address as the display label', () => {
     const href = buildGrabRideDeepLink({
@@ -68,4 +89,47 @@ test('buildGrabBookingDeepLink opens Grab booking without a prefilled destinatio
     assert.equal(direct.searchParams.has('dropOffAddress'), false);
     assert.equal(direct.searchParams.has('dropOffLatitude'), false);
     assert.equal(direct.searchParams.has('dropOffLongitude'), false);
+});
+
+test('buildGrabClipboardDestination formats postal code and short resource name for Grab search', () => {
+    assert.equal(
+        buildGrabClipboardDestination({
+            name: 'PCF Sparkle Care Active Ageing Centre (Care) @ Yew',
+            address: '625 Choa Chu Kang Street 62 #01-206 Singapore 680625',
+        }),
+        'Singapore 680625\nPCF Sparkle Care Active',
+    );
+});
+
+test('buildGrabClipboardDestination falls back when postal or name is missing', () => {
+    assert.equal(
+        buildGrabClipboardDestination({
+            name: 'THK AAC @ Beo Crescent',
+            address: 'Blk 44 Beo Crescent #01-67 Singapore 160044',
+        }),
+        'Singapore 160044\nTHK AAC @ Beo Crescent',
+    );
+    assert.equal(
+        buildGrabClipboardDestination({
+            address: 'Blk 44 Beo Crescent #01-67 Singapore 160044',
+        }),
+        'Singapore 160044',
+    );
+    assert.equal(
+        buildGrabClipboardDestination({
+            name: 'No Postal Centre',
+            address: 'No postal address',
+        }),
+        'No postal address',
+    );
+});
+
+test('Grab guide dismissed preference uses a small local storage marker', () => {
+    const storage = createMemoryStorage();
+
+    assert.equal(hasDismissedGrabGuide(storage), false);
+    setDismissedGrabGuide(true, storage);
+    assert.equal(hasDismissedGrabGuide(storage), true);
+    setDismissedGrabGuide(false, storage);
+    assert.equal(hasDismissedGrabGuide(storage), false);
 });
