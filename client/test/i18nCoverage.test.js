@@ -40,6 +40,8 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'organisationWorkspaceTitle',
         'getDirectionsShort',
         'openInGrab',
+        'copyAddressForGrab',
+        'addressCopiedForGrab',
         'softAssetBucketProgrammes',
         'softAssetBucketServices',
         'softAssetBucketPromotions',

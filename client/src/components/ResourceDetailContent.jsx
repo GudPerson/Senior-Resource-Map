@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Mail, MapPin, MessageCircle, Navigation, Phone, Share2 } from 'lucide-react';
 
 import { getDistance } from '../lib/geo.js';
-import { buildGrabRideDeepLink } from '../lib/rideHailingLinks.js';
+import { buildGrabBookingDeepLink, buildGrabRideDeepLink } from '../lib/rideHailingLinks.js';
 import {
     SOFT_ASSET_BUCKETS,
     getSoftAssetBucketLabel,
@@ -53,6 +53,32 @@ function normalizeExternalHref(value) {
         return new URL(candidate).toString();
     } catch {
         return '';
+    }
+}
+
+function copyTextToClipboard(text) {
+    if (!text) return Promise.reject(new Error('Nothing to copy'));
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    if (typeof document === 'undefined') {
+        return Promise.reject(new Error('Clipboard is unavailable'));
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+        const copied = document.execCommand('copy');
+        return copied ? Promise.resolve() : Promise.reject(new Error('Copy failed'));
+    } finally {
+        document.body.removeChild(textarea);
     }
 }
 
@@ -156,6 +182,7 @@ export default function ResourceDetailContent({
 }) {
     const [activeSoftBucket, setActiveSoftBucket] = useState('Programmes');
     const [shareStatus, setShareStatus] = useState('idle');
+    const [grabStatus, setGrabStatus] = useState('idle');
     const isPhone = useMediaQuery('(max-width: 639px)');
     const { locale, t } = useLocale();
     const asset = useMemo(() => localizeResource(rawAsset, locale), [rawAsset, locale]);
@@ -255,13 +282,15 @@ export default function ResourceDetailContent({
     const hasDirectionsTarget = isHard
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
+    const grabAddress = String(primaryAddress || '').trim();
+    const grabBookingHref = buildGrabBookingDeepLink();
     const grabRideHref = hasDirectionsTarget
-        ? buildGrabRideDeepLink({
+        ? (grabAddress ? grabBookingHref : buildGrabRideDeepLink({
             name: (isHard ? asset?.name : primaryLocation?.name) || asset?.name,
             address: primaryAddress,
             lat: isHard ? asset?.lat : primaryLocation?.lat,
             lng: isHard ? asset?.lng : primaryLocation?.lng,
-        })
+        }))
         : '';
 
     useEffect(() => {
@@ -297,6 +326,22 @@ export default function ResourceDetailContent({
             window.setTimeout(() => setShareStatus('idle'), 2200);
         }
     }, [asset.id, asset.name, type]);
+
+    const handleGrabAddressAction = useCallback(async () => {
+        if (!grabAddress || !grabBookingHref) return;
+
+        const copyPromise = copyTextToClipboard(grabAddress);
+        window.open(grabBookingHref, '_blank', 'noopener,noreferrer');
+
+        try {
+            await copyPromise;
+            setGrabStatus('copied');
+            window.setTimeout(() => setGrabStatus('idle'), 2200);
+        } catch {
+            setGrabStatus('failed');
+            window.setTimeout(() => setGrabStatus('idle'), 2600);
+        }
+    }, [grabAddress, grabBookingHref]);
 
     return (
         <div className={`${rootSpacingClass} ${className}`}>
@@ -549,16 +594,31 @@ export default function ResourceDetailContent({
                         </button>
                     ) : null}
                     {grabRideHref ? (
-                        <a
-                            href={grabRideHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(event) => event.stopPropagation()}
-                            className={secondaryActionButtonClass}
-                        >
-                            <Navigation size={20} />
-                            {t('openInGrab')}
-                        </a>
+                        grabAddress ? (
+                            <button
+                                type="button"
+                                onClick={handleGrabAddressAction}
+                                className={secondaryActionButtonClass}
+                            >
+                                {grabStatus === 'copied' ? <Check size={20} /> : <Navigation size={20} />}
+                                {grabStatus === 'copied'
+                                    ? t('addressCopiedForGrab')
+                                    : grabStatus === 'failed'
+                                        ? t('copyFailed')
+                                        : t('copyAddressForGrab')}
+                            </button>
+                        ) : (
+                            <a
+                                href={grabRideHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(event) => event.stopPropagation()}
+                                className={secondaryActionButtonClass}
+                            >
+                                <Navigation size={20} />
+                                {t('openInGrab')}
+                            </a>
+                        )
                     ) : null}
                     <button
                         type="button"

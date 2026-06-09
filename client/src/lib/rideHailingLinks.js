@@ -38,3 +38,12 @@ export function buildGrabRideDeepLink(destination) {
     linkUrl.searchParams.set('af_dp', directUrl.toString());
     return linkUrl.toString();
 }
+
+export function buildGrabBookingDeepLink() {
+    const directUrl = new URL(GRAB_DIRECT_BOOKING_URL);
+    directUrl.searchParams.set('screenType', 'BOOKING');
+
+    const linkUrl = new URL(GRAB_ONELINK_BASE_URL);
+    linkUrl.searchParams.set('af_dp', directUrl.toString());
+    return linkUrl.toString();
+}

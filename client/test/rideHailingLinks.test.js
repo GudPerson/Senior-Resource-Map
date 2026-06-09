@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildGrabRideDeepLink } from '../src/lib/rideHailingLinks.js';
+import { buildGrabBookingDeepLink, buildGrabRideDeepLink } from '../src/lib/rideHailingLinks.js';
 
 test('buildGrabRideDeepLink uses coordinates to set destination and address as the display label', () => {
     const href = buildGrabRideDeepLink({
@@ -55,4 +55,17 @@ test('buildGrabRideDeepLink falls back to coordinates only when no address is av
 test('buildGrabRideDeepLink returns an empty href when no destination is available', () => {
     assert.equal(buildGrabRideDeepLink(null), '');
     assert.equal(buildGrabRideDeepLink({}), '');
+});
+
+test('buildGrabBookingDeepLink opens Grab booking without a prefilled destination', () => {
+    const href = buildGrabBookingDeepLink();
+    const direct = new URL(new URL(href).searchParams.get('af_dp'));
+
+    assert.equal(direct.protocol, 'grab:');
+    assert.equal(direct.hostname, 'open');
+    assert.equal(direct.searchParams.get('screenType'), 'BOOKING');
+    assert.equal(direct.searchParams.has('dropOffTitle'), false);
+    assert.equal(direct.searchParams.has('dropOffAddress'), false);
+    assert.equal(direct.searchParams.has('dropOffLatitude'), false);
+    assert.equal(direct.searchParams.has('dropOffLongitude'), false);
 });
