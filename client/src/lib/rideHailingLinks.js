@@ -23,9 +23,13 @@ export function buildGrabRideDeepLink(destination) {
 
     const directUrl = new URL(GRAB_DIRECT_BOOKING_URL);
     directUrl.searchParams.set('screenType', 'BOOKING');
-    if (title) directUrl.searchParams.set('dropOffTitle', title);
-    if (address) directUrl.searchParams.set('dropOffAddress', address);
-    if (hasCoordinates) {
+    if (address) {
+        directUrl.searchParams.set('dropOffTitle', address);
+        directUrl.searchParams.set('dropOffAddress', address);
+    } else if (title) {
+        directUrl.searchParams.set('dropOffTitle', title);
+    }
+    if (!address && hasCoordinates) {
         directUrl.searchParams.set('dropOffLatitude', lat);
         directUrl.searchParams.set('dropOffLongitude', lng);
     }

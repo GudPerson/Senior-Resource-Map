@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { buildGrabRideDeepLink } from '../src/lib/rideHailingLinks.js';
 
-test('buildGrabRideDeepLink wraps a destination in a Grab OneLink deep link', () => {
+test('buildGrabRideDeepLink prefers address-only drop-off when an address is available', () => {
     const href = buildGrabRideDeepLink({
         name: 'THK AAC @ Beo Crescent',
         address: 'Blk 44 Beo Crescent #01-67 Singapore 160044',
@@ -19,10 +19,10 @@ test('buildGrabRideDeepLink wraps a destination in a Grab OneLink deep link', ()
     assert.equal(direct.protocol, 'grab:');
     assert.equal(direct.hostname, 'open');
     assert.equal(direct.searchParams.get('screenType'), 'BOOKING');
-    assert.equal(direct.searchParams.get('dropOffLatitude'), '1.287123');
-    assert.equal(direct.searchParams.get('dropOffLongitude'), '103.827456');
+    assert.equal(direct.searchParams.has('dropOffLatitude'), false);
+    assert.equal(direct.searchParams.has('dropOffLongitude'), false);
     assert.equal(direct.searchParams.get('dropOffAddress'), 'Blk 44 Beo Crescent #01-67 Singapore 160044');
-    assert.equal(direct.searchParams.get('dropOffTitle'), 'THK AAC @ Beo Crescent');
+    assert.equal(direct.searchParams.get('dropOffTitle'), 'Blk 44 Beo Crescent #01-67 Singapore 160044');
 });
 
 test('buildGrabRideDeepLink supports address-only destinations', () => {
@@ -35,6 +35,20 @@ test('buildGrabRideDeepLink supports address-only destinations', () => {
     assert.equal(direct.searchParams.has('dropOffLatitude'), false);
     assert.equal(direct.searchParams.has('dropOffLongitude'), false);
     assert.equal(direct.searchParams.get('dropOffAddress'), 'Blk 44 Beo Crescent #01-67 Singapore 160044');
+    assert.equal(direct.searchParams.get('dropOffTitle'), 'Blk 44 Beo Crescent #01-67 Singapore 160044');
+});
+
+test('buildGrabRideDeepLink falls back to coordinates only when no address is available', () => {
+    const href = buildGrabRideDeepLink({
+        name: 'THK AAC @ Beo Crescent',
+        lat: '1.287123',
+        lng: '103.827456',
+    });
+
+    const direct = new URL(new URL(href).searchParams.get('af_dp'));
+    assert.equal(direct.searchParams.get('dropOffLatitude'), '1.287123');
+    assert.equal(direct.searchParams.get('dropOffLongitude'), '103.827456');
+    assert.equal(direct.searchParams.has('dropOffAddress'), false);
     assert.equal(direct.searchParams.get('dropOffTitle'), 'THK AAC @ Beo Crescent');
 });
 
