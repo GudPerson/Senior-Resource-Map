@@ -11,42 +11,62 @@ const BRAND = {
 
 const PAGE = {
     width: 595.28,
+    height: 841.89,
     margin: 48,
+};
+
+const TYPE = {
+    coverTitle: 16,
+    coverMeta: 9,
+    summaryLabel: 9,
+    summaryValue: 15,
+    sectionTitle: 12,
+    summaryTable: 9.5,
+    ledgerTable: 9.5,
+    footer: 8,
 };
 
 function resolveAutoTable(module) {
     return module?.default || module?.autoTable || module;
 }
 
-function writeHeader(doc, ledger) {
+function writeCoverHeader(doc, ledger) {
     doc.setFillColor(...BRAND.teal);
-    doc.rect(0, 0, PAGE.width, 72, 'F');
+    doc.rect(0, 0, PAGE.width, 64, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(ledger.mapName, PAGE.margin, 32, { maxWidth: PAGE.width - (PAGE.margin * 2) });
+    doc.setFontSize(TYPE.coverTitle);
+    doc.text(ledger.mapName, PAGE.margin, 28, { maxWidth: PAGE.width - (PAGE.margin * 2) });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Generated ${ledger.generatedLabel}`, PAGE.margin, 54);
+    doc.setFontSize(TYPE.coverMeta);
+    doc.text(`Generated ${ledger.generatedLabel}`, PAGE.margin, 48);
+    doc.setTextColor(...BRAND.ink);
+}
+
+function writeLedgerFooter(doc, pageNumber) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(TYPE.footer);
+    doc.setTextColor(...BRAND.muted);
+    doc.text(`Page ${pageNumber}`, PAGE.margin, PAGE.height - 32);
     doc.setTextColor(...BRAND.ink);
 }
 
 function writeLabelValue(doc, label, value, x, y) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(TYPE.summaryLabel);
     doc.setTextColor(...BRAND.muted);
     doc.text(label, x, y);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
+    doc.setFontSize(TYPE.summaryValue);
     doc.setTextColor(...BRAND.ink);
     doc.text(String(value), x, y + 22);
 }
 
 function writeSummary(doc, autoTable, ledger) {
-    writeHeader(doc, ledger);
+    writeCoverHeader(doc, ledger);
 
     const { summary } = ledger;
-    const top = 104;
+    const top = 96;
     const columnWidth = (PAGE.width - (PAGE.margin * 2)) / 4;
     writeLabelValue(doc, 'Total resources', summary.resourceCount, PAGE.margin, top);
     writeLabelValue(doc, 'Categories', summary.categoryCount, PAGE.margin + columnWidth, top);
@@ -54,12 +74,12 @@ function writeSummary(doc, autoTable, ledger) {
     writeLabelValue(doc, 'Total notes', summary.noteCount, PAGE.margin + (columnWidth * 3), top);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
+    doc.setFontSize(TYPE.sectionTitle);
     doc.setTextColor(...BRAND.tealDark);
-    doc.text('Category summary', PAGE.margin, 172);
+    doc.text('Category summary', PAGE.margin, 164);
 
     autoTable(doc, {
-        startY: 192,
+        startY: 184,
         head: [['Category', 'Resources', 'Resources with notes', 'Notes']],
         body: ledger.categories.map((category) => [
             category.name,
@@ -70,7 +90,7 @@ function writeSummary(doc, autoTable, ledger) {
         theme: 'grid',
         styles: {
             font: 'helvetica',
-            fontSize: 9,
+            fontSize: TYPE.summaryTable,
             cellPadding: 6,
             textColor: BRAND.ink,
             lineColor: BRAND.line,
@@ -105,15 +125,14 @@ function buildResourceRows(category) {
 function writeLedger(doc, autoTable, ledger) {
     for (const category of ledger.categories) {
         doc.addPage();
-        writeHeader(doc, ledger);
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(14);
+        doc.setFontSize(TYPE.sectionTitle);
         doc.setTextColor(...BRAND.tealDark);
-        doc.text(category.name, PAGE.margin, 108, { maxWidth: PAGE.width - (PAGE.margin * 2) });
+        doc.text(category.name, PAGE.margin, 72, { maxWidth: PAGE.width - (PAGE.margin * 2) });
 
         autoTable(doc, {
-            startY: 128,
+            startY: 92,
             head: [['Resource', 'Address', 'Notes']],
             body: buildResourceRows(category),
             theme: 'grid',
@@ -124,8 +143,8 @@ function writeLedger(doc, autoTable, ledger) {
             ],
             styles: {
                 font: 'helvetica',
-                fontSize: 8.5,
-                cellPadding: 5,
+                fontSize: TYPE.ledgerTable,
+                cellPadding: 6,
                 overflow: 'linebreak',
                 valign: 'top',
                 textColor: BRAND.ink,
@@ -145,8 +164,8 @@ function writeLedger(doc, autoTable, ledger) {
                 1: { cellWidth: 150 },
                 2: { cellWidth: PAGE.width - (PAGE.margin * 2) - 300 },
             },
-            margin: { left: PAGE.margin, right: PAGE.margin, top: 96 },
-            didDrawPage: () => writeHeader(doc, ledger),
+            margin: { left: PAGE.margin, right: PAGE.margin, top: 60 },
+            didDrawPage: () => writeLedgerFooter(doc, doc.internal.getNumberOfPages()),
         });
     }
 }
@@ -164,6 +183,10 @@ export async function downloadMyMapPdf({
     const autoTable = resolveAutoTable(autoTableModule);
     const ledger = buildMyMapPdfLedger({ directory, presentation, generatedAt, locale });
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    doc.setProperties({
+        title: ledger.mapName,
+        subject: 'CareAround SG My Map PDF ledger',
+    });
 
     writeSummary(doc, autoTable, ledger);
     writeLedger(doc, autoTable, ledger);

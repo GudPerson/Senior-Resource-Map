@@ -25,3 +25,14 @@ test('My Map PDF generator keeps the report layout focused on extractable ledger
     assert.doesNotMatch(source, /sourceMapNumber/);
     assert.doesNotMatch(source, /head: \[\['#'/);
 });
+
+test('My Map PDF generator uses a mobile-friendly hierarchy without repeated map titles on category pages', () => {
+    assert.match(source, /function writeCoverHeader/);
+    assert.match(source, /function writeLedgerFooter/);
+    assert.match(source, /coverTitle: 16/);
+    assert.match(source, /ledgerTable: 9\.5/);
+    assert.match(source, /doc\.setProperties\(\{\s*title: ledger\.mapName/s);
+    assert.match(source, /writeLedgerFooter\(doc, doc\.internal\.getNumberOfPages\(\)\)/);
+    assert.doesNotMatch(source, /didDrawPage: \(\) => writeHeader\(doc, ledger\)/);
+    assert.doesNotMatch(source, /function writeHeader/);
+});
