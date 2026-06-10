@@ -37,6 +37,9 @@ const LEDGER_LAYOUT = {
     titleY: 58,
     titleLineHeight: 14,
     titleTableGap: 10,
+    summaryToLedgerGap: 28,
+    categoryGap: 26,
+    minimumTableRoom: 112,
 };
 
 function resolveAutoTable(module) {
@@ -118,6 +121,8 @@ function writeSummary(doc, autoTable, ledger) {
         },
         margin: { left: PAGE.margin, right: PAGE.margin },
     });
+
+    return doc.lastAutoTable?.finalY || SUMMARY_LAYOUT.tableStartY;
 }
 
 function formatNote(note) {
@@ -133,16 +138,33 @@ function buildResourceRows(category) {
     ]);
 }
 
-function writeLedger(doc, autoTable, ledger) {
-    for (const category of ledger.categories) {
-        doc.addPage();
+function needsFreshPage(currentY, titleLines) {
+    const headingHeight = TYPE.sectionTitle
+        + ((titleLines.length - 1) * LEDGER_LAYOUT.titleLineHeight);
+    return currentY
+        + headingHeight
+        + LEDGER_LAYOUT.titleTableGap
+        + LEDGER_LAYOUT.minimumTableRoom
+        > PAGE.height - 72;
+}
 
+function writeLedger(doc, autoTable, ledger) {
+    let currentY = (doc.lastAutoTable?.finalY || SUMMARY_LAYOUT.tableStartY)
+        + LEDGER_LAYOUT.summaryToLedgerGap;
+
+    for (const category of ledger.categories) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(TYPE.sectionTitle);
         doc.setTextColor(...BRAND.tealDark);
         const categoryTitleLines = doc.splitTextToSize(category.name, PAGE.width - (PAGE.margin * 2));
-        doc.text(categoryTitleLines, PAGE.margin, LEDGER_LAYOUT.titleY);
-        const tableStartY = LEDGER_LAYOUT.titleY
+
+        if (needsFreshPage(currentY, categoryTitleLines)) {
+            doc.addPage();
+            currentY = LEDGER_LAYOUT.titleY;
+        }
+
+        doc.text(categoryTitleLines, PAGE.margin, currentY);
+        const tableStartY = currentY
             + ((categoryTitleLines.length - 1) * LEDGER_LAYOUT.titleLineHeight)
             + LEDGER_LAYOUT.titleTableGap
             + TYPE.sectionTitle;
@@ -183,6 +205,8 @@ function writeLedger(doc, autoTable, ledger) {
             margin: { left: PAGE.margin, right: PAGE.margin, top: 60 },
             didDrawPage: () => writeLedgerFooter(doc, doc.internal.getNumberOfPages()),
         });
+
+        currentY = (doc.lastAutoTable?.finalY || tableStartY) + LEDGER_LAYOUT.categoryGap;
     }
 }
 
