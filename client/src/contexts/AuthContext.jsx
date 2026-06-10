@@ -137,7 +137,7 @@ export function AuthProvider({ children }) {
         if (typeof window === 'undefined') return undefined;
 
         const handleAuthExpired = () => {
-            setCurrentUser(null);
+            void checkSession(false);
         };
 
         const handleFocus = () => {
@@ -159,7 +159,7 @@ export function AuthProvider({ children }) {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [checkSession, setCurrentUser]);
+    }, [checkSession]);
 
 
     function login(userData) {

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
     EMPTY_SESSION_RECHECK_ATTEMPTS,
@@ -9,6 +10,11 @@ import {
     resolveUserAfterSessionCheckFailure,
     SessionRequestTimeoutError,
 } from '../src/lib/authSession.js';
+
+const authContextSource = readFileSync(
+    new URL('../src/contexts/AuthContext.jsx', import.meta.url),
+    'utf8',
+);
 
 test('session fetch rejects instead of waiting forever when auth endpoint stalls', async () => {
     const stalledFetch = () => new Promise(() => {});
@@ -90,6 +96,17 @@ test('server session check failures still preserve the current user', () => {
             data: { error: 'Database temporarily unavailable' },
         }),
         currentUser
+    );
+});
+
+test('API auth-expired events confirm the session before clearing the user', () => {
+    assert.match(
+        authContextSource,
+        /const handleAuthExpired = \(\) => \{\s*void checkSession\(false\);\s*\}/s,
+    );
+    assert.doesNotMatch(
+        authContextSource,
+        /const handleAuthExpired = \(\) => \{\s*setCurrentUser\(null\);\s*\}/s,
     );
 });
 
