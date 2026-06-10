@@ -10,6 +10,7 @@ import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import MapImageExportButton from '../components/MapImageExportButton.jsx';
+import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -41,6 +42,7 @@ function OwnerHeader({
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
+    renderPdfExportButton,
 }) {
     const { t } = useLocale();
     const compactActionClassName = 'h-12 justify-center px-3.5 text-sm sm:w-auto sm:px-4';
@@ -74,6 +76,7 @@ function OwnerHeader({
                             <Printer size={16} />
                             {t('print')}
                         </button>
+                        {renderPdfExportButton?.(`h-12 justify-center px-3.5 text-sm sm:w-auto sm:px-4`)}
                         <button type="button" onClick={onOpenShare} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Link2 size={16} />
                             {t('share')}
@@ -120,6 +123,7 @@ function MyMapMobileControls({
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
+    renderPdfExportButton,
 }) {
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
@@ -203,6 +207,7 @@ function MyMapMobileControls({
                                     <Printer size={16} />
                                     {t('printFriendlyView')}
                                 </button>
+                                {renderPdfExportButton?.('h-12 w-full justify-center px-4 text-sm')}
                                 <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Link2 size={16} />
                                     {t('share')}
@@ -326,9 +331,20 @@ export default function MyMapDetailPage() {
     const interactivePresentation = useMemo(() => (
         buildDirectoryPresentation(directory, { query, activeAnchor })
     ), [activeAnchor, directory, query]);
+    const pdfPresentation = useMemo(() => (
+        buildDirectoryPresentation(directory, { activeAnchor })
+    ), [activeAnchor, directory]);
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
+    const renderPdfExportButton = useCallback((className = '') => (
+        <MyMapPdfExportButton
+            directory={directory}
+            presentation={pdfPresentation}
+            activeAnchor={activeAnchor}
+            className={className}
+        />
+    ), [activeAnchor, directory, pdfPresentation]);
 
     const clearMapSelection = useCallback(() => {
         if (pendingFocusFrameRef.current !== null) {
@@ -613,6 +629,7 @@ export default function MyMapDetailPage() {
                             setShareError('');
                             setShareOpen(true);
                         }}
+                        renderPdfExportButton={renderPdfExportButton}
                     />
                 ) : null}
 
@@ -635,6 +652,7 @@ export default function MyMapDetailPage() {
                                     setShareError('');
                                     setShareOpen(true);
                                 }}
+                                renderPdfExportButton={renderPdfExportButton}
                             />
                         </div>
                     ) : null}
