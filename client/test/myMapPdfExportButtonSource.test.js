@@ -16,5 +16,7 @@ test('My Map PDF export button captures a map snapshot but still downloads witho
     assert.match(source, /failedDownloadPdf/);
     assert.match(source, /exportRoot && snapshotSurfaceVisible \? createPortal/);
     assert.match(source, /mountedRef/);
+    assert.match(source, /captureActiveRef/);
+    assert.match(source, /resetCaptureSessionState/);
     assert.match(source, /return \(\) =>/);
 });
