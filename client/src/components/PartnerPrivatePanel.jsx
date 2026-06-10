@@ -31,7 +31,11 @@ export default function PartnerPrivatePanel({ resourceType, resourceId, compact 
             setLoading(true);
             setError('');
             try {
-                const data = await api.getPrivateResourceContent(resourceType, resourceId);
+                const data = await api.getPrivateResourceContent(
+                    resourceType,
+                    resourceId,
+                    { suppressAuthExpired: true },
+                );
                 if (!cancelled) setContent(data);
             } catch (err) {
                 if (!cancelled) {

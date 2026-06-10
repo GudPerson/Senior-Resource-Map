@@ -80,3 +80,50 @@ test('form upload network failures use a user-safe error message', async () => {
         /Upload request could not reach the API/,
     );
 });
+
+test('suppressAuthExpired option prevents auth-expired event dispatch', async () => {
+    const originalWindow = globalThis.window;
+    const originalCustomEvent = globalThis.CustomEvent;
+    let authExpiredDispatchCount = 0;
+
+    globalThis.window = {
+        dispatchEvent: () => {
+            authExpiredDispatchCount += 1;
+        },
+    };
+    globalThis.CustomEvent = class {
+        constructor(type) {
+            this.type = type;
+        }
+    };
+
+    try {
+        const fetchImpl = async () => new Response(
+            JSON.stringify({ error: 'Invalid token' }),
+            {
+                status: 401,
+                headers: {
+                    'content-type': 'application/json',
+                },
+            },
+        );
+
+        await assert.rejects(
+            () => requestWithBaseCandidates(
+                'GET',
+                '/hard-assets/999',
+                undefined,
+                {
+                    baseCandidates: ['https://api.example/api'],
+                    fetchImpl,
+                    suppressAuthExpired: true,
+                },
+            ),
+            /Invalid token/,
+        );
+        assert.equal(authExpiredDispatchCount, 0);
+    } finally {
+        globalThis.window = originalWindow;
+        globalThis.CustomEvent = originalCustomEvent;
+    }
+});

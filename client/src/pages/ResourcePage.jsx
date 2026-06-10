@@ -41,7 +41,10 @@ export default function ResourcePage() {
         const fetchAsset = async () => {
             setLoading(true);
             try {
-                const data = await (type === 'hard' ? api.getHardAsset(id) : api.getSoftAsset(id));
+                const requestOptions = { suppressAuthExpired: true };
+                const data = await (type === 'hard'
+                    ? api.getHardAsset(id, requestOptions)
+                    : api.getSoftAsset(id, requestOptions));
                 if (cancelled) return;
                 setAsset(data);
             } catch (err) {
@@ -55,7 +58,7 @@ export default function ResourcePage() {
 
         const fetchSubCategoryColors = async () => {
             try {
-                const subcats = await api.getSubCategories().catch(() => []);
+                const subcats = await api.getSubCategories({ suppressAuthExpired: true }).catch(() => []);
                 if (cancelled) return;
                 const colors = {};
                 subcats.forEach((sc) => {

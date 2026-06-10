@@ -62,7 +62,7 @@ function parseContentDispositionFilename(value) {
     return basicMatch?.[1] ? basicMatch[1].trim() : null;
 }
 
-function handleAuthJsonError(data) {
+function handleAuthJsonError(data, options = {}) {
     const isImpersonating = Boolean(getImpersonationToken());
     if (
         isImpersonating &&
@@ -70,7 +70,10 @@ function handleAuthJsonError(data) {
     ) {
         throw new Error('User view session expired. Exit User View and reopen the account.');
     }
-    if (data?.error === 'Invalid token' || data?.error === 'No token provided') {
+    if (
+        !options.suppressAuthExpired
+        && (data?.error === 'Invalid token' || data?.error === 'No token provided')
+    ) {
         notifyAuthExpired();
         throw new Error('Session expired. Please log in again.');
     }
@@ -82,6 +85,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
         fetchImpl = globalThis.fetch,
         retryDelayMs = 250,
         networkAttemptsPerBase = 2,
+        suppressAuthExpired = false,
     } = options;
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     const canUseFallbackBase = canRetryAcrossBases && canRetryAcrossBasesForPath(path);
@@ -124,7 +128,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
 
         if (!res.ok) {
             if (isJson && data?.error) {
-                handleAuthJsonError(data);
+                handleAuthJsonError(data, { suppressAuthExpired });
                 const error = new Error(data.error);
                 if (data.code) error.code = data.code;
                 throw error;
@@ -149,8 +153,8 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
     throw new Error('API request failed.');
 }
 
-async function request(method, path, body) {
-    return requestWithBaseCandidates(method, path, body);
+async function request(method, path, body, options = {}) {
+    return requestWithBaseCandidates(method, path, body, options);
 }
 
 function withQuery(path, params = {}) {
@@ -167,6 +171,7 @@ export async function requestFormDataWithBaseCandidates(path, formData, options 
     const {
         baseCandidates = BASE_CANDIDATES,
         fetchImpl = globalThis.fetch,
+        suppressAuthExpired = false,
     } = options;
     const canUseFallbackBase = canRetryAcrossBasesForPath(path);
     let lastNetworkError = null;
@@ -196,7 +201,7 @@ export async function requestFormDataWithBaseCandidates(path, formData, options 
 
         if (!res.ok) {
             if (isJson && data?.error) {
-                handleAuthJsonError(data);
+                handleAuthJsonError(data, { suppressAuthExpired });
                 throw new Error(data.error);
             }
             if (!isJson && canUseFallbackBase && i < baseCandidates.length - 1) continue;
@@ -233,6 +238,7 @@ async function requestBlob(path, options = {}) {
             ...getSessionAuthHeaders(),
             ...(options.headers || {}),
         };
+    const { suppressAuthExpired = false } = options;
 
     for (let i = 0; i < BASE_CANDIDATES.length; i += 1) {
         const base = BASE_CANDIDATES[i];
@@ -249,7 +255,7 @@ async function requestBlob(path, options = {}) {
         if (!res.ok) {
             const data = isJson ? await res.json() : await res.text();
             if (isJson && data?.error) {
-                handleAuthJsonError(data);
+                handleAuthJsonError(data, { suppressAuthExpired });
                 throw new Error(data.error);
             }
             if ((!isJson || isHtml) && i < BASE_CANDIDATES.length - 1) continue;
@@ -259,7 +265,7 @@ async function requestBlob(path, options = {}) {
         if (isJson) {
             const data = await res.json();
             if (data?.error) {
-                handleAuthJsonError(data);
+                handleAuthJsonError(data, { suppressAuthExpired });
                 throw new Error(data.error);
             }
             if (i < BASE_CANDIDATES.length - 1) continue;
@@ -300,7 +306,7 @@ export const api = {
         const qs = searchParams.toString();
         return request('GET', `/hard-assets${qs ? `?${qs}` : ''}`);
     },
-    getHardAsset: (id) => request('GET', `/hard-assets/${id}`),
+    getHardAsset: (id, options = {}) => request('GET', `/hard-assets/${id}`, undefined, options),
     createHardAsset: (body) => request('POST', '/hard-assets', body),
     searchGoogleHardAssetCandidatesByPostal: (body) => request('POST', '/hard-assets/import/google-candidates', body),
     previewGoogleHardAssetImport: (body) => request('POST', '/hard-assets/import/google-preview', body),
@@ -323,7 +329,7 @@ export const api = {
         const qs = searchParams.toString();
         return request('GET', `/soft-assets${qs ? `?${qs}` : ''}`);
     },
-    getSoftAsset: (id) => request('GET', `/soft-assets/${id}`),
+    getSoftAsset: (id, options = {}) => request('GET', `/soft-assets/${id}`, undefined, options),
     createSoftAsset: (body) => request('POST', '/soft-assets', body),
     previewSoftAssetCollateralImport: (formData) => requestFormData('/soft-assets/import/collateral/preview', formData),
     commitSoftAssetCollateralImport: (body) => request('POST', '/soft-assets/import/collateral/commit', body),
@@ -347,7 +353,7 @@ export const api = {
 
     // Tags & Categories
     searchTags: (query) => request('GET', `/tags?q=${encodeURIComponent(query)}`),
-    getSubCategories: () => request('GET', '/sub-categories'),
+    getSubCategories: (options = {}) => request('GET', '/sub-categories', undefined, options),
     createSubCategory: (body) => request('POST', '/sub-categories', body),
     updateSubCategory: (id, body) => request('PUT', `/sub-categories/${id}`, body),
     deleteSubCategory: (id) => request('DELETE', `/sub-categories/${id}`),
@@ -397,7 +403,12 @@ export const api = {
     },
 
     // Restricted resource content
-    getPrivateResourceContent: (resourceType, resourceId) => request('GET', `/private-resource-content/${resourceType}/${resourceId}`),
+    getPrivateResourceContent: (resourceType, resourceId, options = {}) => request(
+        'GET',
+        `/private-resource-content/${resourceType}/${resourceId}`,
+        undefined,
+        options,
+    ),
     updatePrivateResourceContent: (resourceType, resourceId, body) => request('PUT', `/private-resource-content/${resourceType}/${resourceId}`, body),
     getPrivateResourceAccessCandidates: (resourceType, resourceId) => request('GET', `/private-resource-content/${resourceType}/${resourceId}/access-candidates`),
     uploadPrivateResourceFile: (resourceType, resourceId, file) => {
@@ -409,7 +420,12 @@ export const api = {
     deletePrivateResourceFile: (resourceType, resourceId, fileId) => request('DELETE', `/private-resource-content/${resourceType}/${resourceId}/files/${fileId}`),
 
     // Resource translations
-    getResourceTranslations: (resourceType, resourceId) => request('GET', `/resource-translations/${resourceType}/${resourceId}`),
+    getResourceTranslations: (resourceType, resourceId, options = {}) => request(
+        'GET',
+        `/resource-translations/${resourceType}/${resourceId}`,
+        undefined,
+        options,
+    ),
     updateResourceTranslation: (resourceType, resourceId, locale, body) => request('PUT', `/resource-translations/${resourceType}/${resourceId}/${encodeURIComponent(locale)}`, body),
     regenerateResourceTranslations: (resourceType, resourceId, body = {}) => request('POST', `/resource-translations/${resourceType}/${resourceId}/regenerate`, body),
 
@@ -485,11 +501,11 @@ export const api = {
     exportPartnerBoundaries: (partnerId) => request('GET', `/partners/${partnerId}/boundaries/export`),
 
     // Saved assets / favorites
-    getSavedAssets: () => request('GET', '/favorites'),
+    getSavedAssets: (options = {}) => request('GET', '/favorites', undefined, options),
     toggleSavedAsset: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
 
     // Favorites (compatibility aliases)
-    getFavorites: () => request('GET', '/favorites'),
+    getFavorites: (options = {}) => request('GET', '/favorites', undefined, options),
     toggleFavorite: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
 
     // My Maps

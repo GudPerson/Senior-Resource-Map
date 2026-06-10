@@ -40,7 +40,7 @@ export function SavedAssetsProvider({ children }) {
 
         setSavedAssetsLoading(true);
         try {
-            const items = await api.getSavedAssets();
+            const items = await api.getSavedAssets({ suppressAuthExpired: true });
             setSavedAssets(Array.isArray(items) ? items : []);
             return items;
         } finally {
@@ -62,7 +62,7 @@ export function SavedAssetsProvider({ children }) {
 
             setSavedAssetsLoading(true);
             try {
-                const items = await api.getSavedAssets();
+                const items = await api.getSavedAssets({ suppressAuthExpired: true });
                 if (isActive) {
                     setSavedAssets(Array.isArray(items) ? items : []);
                 }
