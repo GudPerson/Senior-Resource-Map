@@ -102,7 +102,7 @@ test('server session check failures still preserve the current user', () => {
 test('API auth-expired events confirm the session before clearing the user', () => {
     assert.match(
         authContextSource,
-        /const handleAuthExpired = \(\) => \{\s*void checkSession\(false\);\s*\}/s,
+        /const handleAuthExpired = \(\) => \{\s*void checkSession\(\);\s*\}/s,
     );
     assert.doesNotMatch(
         authContextSource,

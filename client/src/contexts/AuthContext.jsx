@@ -137,7 +137,7 @@ export function AuthProvider({ children }) {
         if (typeof window === 'undefined') return undefined;
 
         const handleAuthExpired = () => {
-            void checkSession(false);
+            void checkSession();
         };
 
         const handleFocus = () => {
