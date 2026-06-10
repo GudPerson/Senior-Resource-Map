@@ -31,6 +31,11 @@ test('My Map PDF generator uses a mobile-friendly hierarchy without repeated map
     assert.match(source, /function writeLedgerFooter/);
     assert.match(source, /coverTitle: 16/);
     assert.match(source, /ledgerTable: 9\.5/);
+    assert.match(source, /metricsTop: 88/);
+    assert.match(source, /metricValueOffset: 18/);
+    assert.match(source, /titleY: 140/);
+    assert.match(source, /tableStartY: 156/);
+    assert.match(source, /titleTableGap: 10/);
     assert.match(source, /doc\.setProperties\(\{\s*title: ledger\.mapName/s);
     assert.match(source, /writeLedgerFooter\(doc, doc\.internal\.getNumberOfPages\(\)\)/);
     assert.doesNotMatch(source, /didDrawPage: \(\) => writeHeader\(doc, ledger\)/);

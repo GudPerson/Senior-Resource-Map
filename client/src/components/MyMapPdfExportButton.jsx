@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { FileDown } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
-import { downloadMyMapPdf } from '../lib/myMapPdfGenerator.js';
 
 export default function MyMapPdfExportButton({
     directory,
@@ -29,6 +28,7 @@ export default function MyMapPdfExportButton({
         setError('');
 
         try {
+            const { downloadMyMapPdf } = await import('../lib/myMapPdfGenerator.js');
             await downloadMyMapPdf({
                 directory,
                 presentation,

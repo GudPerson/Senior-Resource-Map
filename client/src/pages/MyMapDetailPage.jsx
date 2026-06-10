@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, X } from 'lucide-react';
@@ -9,7 +9,6 @@ import DirectoryMap from '../components/DirectoryMap.jsx';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
-import MapImageExportButton from '../components/MapImageExportButton.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
@@ -21,6 +20,8 @@ import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/direc
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+
+const MapImageExportButton = lazy(() => import('../components/MapImageExportButton.jsx'));
 
 function MapDetailLoadingState() {
     return (
@@ -590,7 +591,13 @@ export default function MyMapDetailPage() {
                             <ArrowLeft size={16} />
                             {t('backToInteractiveView')}
                         </button>
-                        <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={sharedDirectoryUrl} />
+                        <Suspense fallback={(
+                            <span className="btn-ghost justify-center border border-slate-200 text-slate-500">
+                                {t('loadingPage')}
+                            </span>
+                        )}>
+                            <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={sharedDirectoryUrl} />
+                        </Suspense>
                     </div>
                 </div>
 

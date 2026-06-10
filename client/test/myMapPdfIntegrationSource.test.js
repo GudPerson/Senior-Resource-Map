@@ -18,6 +18,12 @@ test('My Map detail page uses an unfiltered presentation for PDF export', () => 
     assert.match(pageSource, /presentation=\{pdfPresentation\}/);
 });
 
+test('My Map detail page lazy-loads print-only image export code', () => {
+    assert.match(pageSource, /const MapImageExportButton = lazy\(\(\) => import\('\.\.\/components\/MapImageExportButton\.jsx'\)\)/);
+    assert.match(pageSource, /<Suspense fallback=/);
+    assert.doesNotMatch(pageSource, /^\s*import\s+MapImageExportButton\s+from\s+['"]\.\.\/components\/MapImageExportButton\.jsx['"]/m);
+});
+
 test('My Map PDF labels are available in all locale dictionaries', () => {
     for (const key of ['downloadPdf', 'preparingPdf', 'failedDownloadPdf']) {
         const occurrences = [...i18nSource.matchAll(new RegExp(`${key}:`, 'g'))].length;

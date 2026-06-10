@@ -9,6 +9,8 @@ const source = readFileSync(
 
 test('My Map PDF export button downloads the ledger without hidden map snapshot capture', () => {
     assert.match(source, /downloadMyMapPdf/);
+    assert.match(source, /import\('\.\.\/lib\/myMapPdfGenerator\.js'\)/);
+    assert.doesNotMatch(source, /^\s*import\s+\{\s*downloadMyMapPdf\s*\}\s+from\s+['"]\.\.\/lib\/myMapPdfGenerator\.js['"]/m);
     assert.match(source, /failedDownloadPdf/);
     assert.match(source, /mountedRef/);
     assert.match(source, /return \(\) =>/);

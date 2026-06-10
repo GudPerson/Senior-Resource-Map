@@ -26,6 +26,19 @@ const TYPE = {
     footer: 8,
 };
 
+const SUMMARY_LAYOUT = {
+    metricsTop: 88,
+    metricValueOffset: 18,
+    titleY: 140,
+    tableStartY: 156,
+};
+
+const LEDGER_LAYOUT = {
+    titleY: 58,
+    titleLineHeight: 14,
+    titleTableGap: 10,
+};
+
 function resolveAutoTable(module) {
     return module?.default || module?.autoTable || module;
 }
@@ -59,27 +72,26 @@ function writeLabelValue(doc, label, value, x, y) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(TYPE.summaryValue);
     doc.setTextColor(...BRAND.ink);
-    doc.text(String(value), x, y + 22);
+    doc.text(String(value), x, y + SUMMARY_LAYOUT.metricValueOffset);
 }
 
 function writeSummary(doc, autoTable, ledger) {
     writeCoverHeader(doc, ledger);
 
     const { summary } = ledger;
-    const top = 96;
     const columnWidth = (PAGE.width - (PAGE.margin * 2)) / 4;
-    writeLabelValue(doc, 'Total resources', summary.resourceCount, PAGE.margin, top);
-    writeLabelValue(doc, 'Categories', summary.categoryCount, PAGE.margin + columnWidth, top);
-    writeLabelValue(doc, 'With notes', summary.resourcesWithNotesCount, PAGE.margin + (columnWidth * 2), top);
-    writeLabelValue(doc, 'Total notes', summary.noteCount, PAGE.margin + (columnWidth * 3), top);
+    writeLabelValue(doc, 'Total resources', summary.resourceCount, PAGE.margin, SUMMARY_LAYOUT.metricsTop);
+    writeLabelValue(doc, 'Categories', summary.categoryCount, PAGE.margin + columnWidth, SUMMARY_LAYOUT.metricsTop);
+    writeLabelValue(doc, 'With notes', summary.resourcesWithNotesCount, PAGE.margin + (columnWidth * 2), SUMMARY_LAYOUT.metricsTop);
+    writeLabelValue(doc, 'Total notes', summary.noteCount, PAGE.margin + (columnWidth * 3), SUMMARY_LAYOUT.metricsTop);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(TYPE.sectionTitle);
     doc.setTextColor(...BRAND.tealDark);
-    doc.text('Category summary', PAGE.margin, 164);
+    doc.text('Category summary', PAGE.margin, SUMMARY_LAYOUT.titleY);
 
     autoTable(doc, {
-        startY: 184,
+        startY: SUMMARY_LAYOUT.tableStartY,
         head: [['Category', 'Resources', 'Resources with notes', 'Notes']],
         body: ledger.categories.map((category) => [
             category.name,
@@ -128,10 +140,15 @@ function writeLedger(doc, autoTable, ledger) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(TYPE.sectionTitle);
         doc.setTextColor(...BRAND.tealDark);
-        doc.text(category.name, PAGE.margin, 72, { maxWidth: PAGE.width - (PAGE.margin * 2) });
+        const categoryTitleLines = doc.splitTextToSize(category.name, PAGE.width - (PAGE.margin * 2));
+        doc.text(categoryTitleLines, PAGE.margin, LEDGER_LAYOUT.titleY);
+        const tableStartY = LEDGER_LAYOUT.titleY
+            + ((categoryTitleLines.length - 1) * LEDGER_LAYOUT.titleLineHeight)
+            + LEDGER_LAYOUT.titleTableGap
+            + TYPE.sectionTitle;
 
         autoTable(doc, {
-            startY: 92,
+            startY: tableStartY,
             head: [['Resource', 'Address', 'Notes']],
             body: buildResourceRows(category),
             theme: 'grid',
