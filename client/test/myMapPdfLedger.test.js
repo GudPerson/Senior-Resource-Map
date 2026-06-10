@@ -204,3 +204,43 @@ test('buildMyMapPdfLedger aligns raw structured timestamps after blank notes are
     assert.equal(notes[0].createdAt, '2026-06-03T03:00:00.000Z');
     assert.equal(notes[0].updatedAt, '2026-06-04T04:00:00.000Z');
 });
+
+test('buildMyMapPdfLedger filters raw note timestamps with the normalized 1000 character text limit', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Truncated Timestamp Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 12,
+                    resourceType: 'soft',
+                    name: 'Truncated Note Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'late-text-note',
+                                text: `${' '.repeat(1000)}late text`,
+                                isShared: false,
+                                createdAt: '2026-06-05T05:00:00.000Z',
+                                updatedAt: '2026-06-06T06:00:00.000Z',
+                            },
+                            {
+                                id: 'valid-after-truncated-note',
+                                text: 'Use this visible note',
+                                isShared: true,
+                                createdAt: '2026-06-07T07:00:00.000Z',
+                                updatedAt: '2026-06-08T08:00:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const notes = ledger.categories[0].resources[0].notes;
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0].id, 'valid-after-truncated-note');
+    assert.equal(notes[0].createdAt, '2026-06-07T07:00:00.000Z');
+    assert.equal(notes[0].updatedAt, '2026-06-08T08:00:00.000Z');
+});

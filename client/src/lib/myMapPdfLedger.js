@@ -74,9 +74,13 @@ function getPresentationMapNumber(row, group, place, presentation) {
     return '';
 }
 
+function hasNormalizedNoteText(note) {
+    return String(note?.text || '').slice(0, 1000).trim().length > 0;
+}
+
 function getStructuredRawNoteItems(notes) {
     if (!Array.isArray(notes?.items)) return null;
-    return notes.items.filter((note) => cleanText(note?.text));
+    return notes.items.filter(hasNormalizedNoteText);
 }
 
 function buildLedgerNotes(row) {
