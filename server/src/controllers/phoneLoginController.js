@@ -102,7 +102,7 @@ export async function getPhoneLoginAttempt(c) {
         const attemptId = parsePositiveInt(c.req.param('attemptId'), 'Phone sign-in attempt id');
         const { db, store, gudAuthClient } = createPhoneLoginDependencies(c);
         await ensureBoundarySchema(db, c.env);
-        await ensureUserPreferenceColumns(db);
+        await ensureUserPreferenceColumns(db, c.env);
         const result = await pollPhoneLoginAttempt({
             store,
             gudAuthClient,
@@ -132,7 +132,7 @@ export async function completePhoneSignup(c) {
         const input = validateRequestBody(rawBody, phoneLoginSignupBodySchema, 'Phone sign-up details');
         const { db, store } = createPhoneLoginDependencies(c);
         await ensureBoundarySchema(db, c.env);
-        await ensureUserPreferenceColumns(db);
+        await ensureUserPreferenceColumns(db, c.env);
         const result = await completePhoneLoginSignup({
             store,
             attemptId,

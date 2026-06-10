@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { shouldRunRuntimeSchemaBootstrap } from '../src/utils/boundarySchema.js';
+import {
+    ensureUserPreferenceColumns,
+    resetBoundarySchemaBootstrapForTests,
+    shouldRunRuntimeSchemaBootstrap,
+} from '../src/utils/boundarySchema.js';
 
 test('runtime schema bootstrap is disabled by default in production', () => {
     assert.equal(
@@ -25,4 +29,34 @@ test('runtime schema bootstrap can be explicitly enabled in production', () => {
         }),
         true
     );
+});
+
+test('user preference column bootstrap is skipped in production by default', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    let calls = 0;
+    const db = {
+        execute: async () => {
+            calls += 1;
+        },
+    };
+
+    await ensureUserPreferenceColumns(db, { NODE_ENV: 'production' });
+
+    assert.equal(calls, 0);
+    resetBoundarySchemaBootstrapForTests();
+});
+
+test('user preference column bootstrap still runs outside production', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    let calls = 0;
+    const db = {
+        execute: async () => {
+            calls += 1;
+        },
+    };
+
+    await ensureUserPreferenceColumns(db, { NODE_ENV: 'development' });
+
+    assert.equal(calls, 3);
+    resetBoundarySchemaBootstrapForTests();
 });

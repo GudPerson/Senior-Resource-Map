@@ -814,7 +814,11 @@ export function resetBoundarySchemaBootstrapForTests() {
     ensureUserPreferenceColumnsPromise = null;
 }
 
-export async function ensureUserPreferenceColumns(db) {
+export async function ensureUserPreferenceColumns(db, envVars = {}) {
+    if (!shouldRunRuntimeSchemaBootstrap(envVars)) {
+        return;
+    }
+
     if (!ensureUserPreferenceColumnsPromise) {
         ensureUserPreferenceColumnsPromise = (async () => {
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS chas_card VARCHAR(20)`);

@@ -144,7 +144,7 @@ export const register = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await ensureUserPreferenceColumns(db);
+        await ensureUserPreferenceColumns(db, c.env);
         const postalCode = normalizeOptionalPostalCode(body.postalCode);
         const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
         const chasCard = normalizeChasCard(body.chasCard);
@@ -221,7 +221,7 @@ export const login = async (c) => {
 
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await ensureUserPreferenceColumns(db);
+        await ensureUserPreferenceColumns(db, c.env);
         const isEmail = loginId.includes('@');
 
         // Try exact match first
@@ -320,7 +320,7 @@ export const me = async (c) => {
     try {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await ensureUserPreferenceColumns(db);
+        await ensureUserPreferenceColumns(db, c.env);
         const liveUser = await loadUserWithSubregions(db, sessionUser.id);
 
         if (!liveUser) {
@@ -367,7 +367,7 @@ export const googleAuth = async (c) => {
         const { email, name } = payload;
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        await ensureUserPreferenceColumns(db);
+        await ensureUserPreferenceColumns(db, c.env);
 
         let [user] = await db.select().from(users).where(eq(users.email, email));
 
