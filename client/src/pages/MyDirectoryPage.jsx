@@ -85,7 +85,7 @@ function formatSectionLabel(section, t) {
 
 function SavedAssetsLoadingState() {
     return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
             {Array.from({ length: 3 }).map((_, index) => (
                 <div
                     key={index}
@@ -512,7 +512,7 @@ export default function MyDirectoryPage() {
                                         onClearSearch={() => setSearchTerm('')}
                                     />
                                 ) : (
-                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    <div className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
                                         {filteredAssets.map((asset) => (
                                             <SavedAssetCard
                                                 key={asset.assetKey || `${asset.resourceType}-${asset.resourceId}`}
