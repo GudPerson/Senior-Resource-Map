@@ -79,6 +79,10 @@ function RouteLoadingFallback() {
     return <LoadingState label={t('loadingPage')} />;
 }
 
+function isProtectedShellRoute(pathname = '') {
+    return pathname.startsWith('/my-directory') || pathname.startsWith('/dashboard');
+}
+
 function RouteErrorFallback({ error }) {
     const { t } = useLocale();
     const isChunkLoadError = isRouteChunkLoadError(error);
@@ -167,8 +171,9 @@ function AppShell() {
     const hideNavbar = location.pathname.startsWith('/shared/maps/')
         || location.pathname.startsWith('/auth/transition')
         || ownerPrintView;
+    const shouldUseAuthShellLoader = isProtectedShellRoute(location.pathname);
 
-    if (isLoading) {
+    if (isLoading && shouldUseAuthShellLoader) {
         return <RouteLoadingFallback />;
     }
 
