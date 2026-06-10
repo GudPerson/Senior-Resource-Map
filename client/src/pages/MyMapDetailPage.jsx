@@ -332,8 +332,8 @@ export default function MyMapDetailPage() {
         buildDirectoryPresentation(directory, { query, activeAnchor })
     ), [activeAnchor, directory, query]);
     const pdfPresentation = useMemo(() => (
-        buildDirectoryPresentation(directory, { activeAnchor })
-    ), [activeAnchor, directory]);
+        buildDirectoryPresentation(directory)
+    ), [directory]);
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
@@ -341,10 +341,9 @@ export default function MyMapDetailPage() {
         <MyMapPdfExportButton
             directory={directory}
             presentation={pdfPresentation}
-            activeAnchor={activeAnchor}
             className={className}
         />
-    ), [activeAnchor, directory, pdfPresentation]);
+    ), [directory, pdfPresentation]);
 
     const clearMapSelection = useCallback(() => {
         if (pendingFocusFrameRef.current !== null) {

@@ -14,7 +14,7 @@ const i18nSource = readFileSync(
 test('My Map detail page uses an unfiltered presentation for PDF export', () => {
     assert.match(pageSource, /MyMapPdfExportButton/);
     assert.match(pageSource, /pdfPresentation/);
-    assert.match(pageSource, /buildDirectoryPresentation\(directory,\s*\{\s*activeAnchor\s*\}\)/);
+    assert.match(pageSource, /buildDirectoryPresentation\(directory\)/);
     assert.match(pageSource, /presentation=\{pdfPresentation\}/);
 });
 

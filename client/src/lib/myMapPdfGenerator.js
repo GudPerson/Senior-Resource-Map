@@ -3,7 +3,6 @@ import { buildMyMapPdfFileName, buildMyMapPdfLedger } from './myMapPdfLedger.js'
 const BRAND = {
     teal: [13, 118, 112],
     tealDark: [7, 82, 79],
-    orange: [226, 112, 37],
     ink: [31, 41, 55],
     muted: [107, 114, 128],
     line: [220, 226, 232],
@@ -43,39 +42,7 @@ function writeLabelValue(doc, label, value, x, y) {
     doc.text(String(value), x, y + 22);
 }
 
-function getImageFormat(dataUrl) {
-    const mediaType = String(dataUrl || '').match(/^data:image\/([a-zA-Z0-9.+-]+);base64,/i)?.[1]?.toLowerCase();
-    if (mediaType === 'jpg' || mediaType === 'jpeg') return 'JPEG';
-    if (mediaType === 'webp') return 'WEBP';
-    return 'PNG';
-}
-
-function writeMapSnapshot(doc, mapSnapshotDataUrl) {
-    const x = PAGE.margin;
-    const y = 220;
-    const width = PAGE.width - (PAGE.margin * 2);
-    const height = 190;
-
-    doc.setDrawColor(...BRAND.line);
-    doc.setFillColor(...BRAND.panel);
-    doc.roundedRect(x, y, width, height, 6, 6, 'FD');
-
-    if (mapSnapshotDataUrl) {
-        try {
-            doc.addImage(mapSnapshotDataUrl, getImageFormat(mapSnapshotDataUrl), x + 8, y + 8, width - 16, height - 16);
-            return;
-        } catch {
-            // Fall through to the unavailable message when the browser cannot embed the snapshot.
-        }
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(...BRAND.muted);
-    doc.text('Map snapshot unavailable', x + 24, y + 98);
-}
-
-function writeSummary(doc, autoTable, ledger, mapSnapshotDataUrl) {
+function writeSummary(doc, autoTable, ledger) {
     writeHeader(doc, ledger);
 
     const { summary } = ledger;
@@ -89,11 +56,10 @@ function writeSummary(doc, autoTable, ledger, mapSnapshotDataUrl) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.setTextColor(...BRAND.tealDark);
-    doc.text('Map snapshot', PAGE.margin, 196);
-    writeMapSnapshot(doc, mapSnapshotDataUrl);
+    doc.text('Category summary', PAGE.margin, 172);
 
     autoTable(doc, {
-        startY: 448,
+        startY: 192,
         head: [['Category', 'Resources', 'Resources with notes', 'Notes']],
         body: ledger.categories.map((category) => [
             category.name,
@@ -130,7 +96,6 @@ function formatNote(note) {
 
 function buildResourceRows(category) {
     return category.resources.map((resource) => [
-        resource.sourceMapNumber,
         resource.name,
         resource.address,
         resource.notes.length > 0 ? resource.notes.map(formatNote).join('\n') : 'No notes',
@@ -149,14 +114,13 @@ function writeLedger(doc, autoTable, ledger) {
 
         autoTable(doc, {
             startY: 128,
-            head: [['#', 'Resource', 'Address', 'Notes']],
+            head: [['Resource', 'Address', 'Notes']],
             body: buildResourceRows(category),
             theme: 'grid',
             columns: [
-                { header: '#', dataKey: 0 },
-                { header: 'Resource', dataKey: 1 },
-                { header: 'Address', dataKey: 2 },
-                { header: 'Notes', dataKey: 3 },
+                { header: 'Resource', dataKey: 0 },
+                { header: 'Address', dataKey: 1 },
+                { header: 'Notes', dataKey: 2 },
             ],
             styles: {
                 font: 'helvetica',
@@ -177,10 +141,9 @@ function writeLedger(doc, autoTable, ledger) {
                 fillColor: BRAND.panel,
             },
             columnStyles: {
-                0: { cellWidth: 44, halign: 'center', fontStyle: 'bold', textColor: BRAND.orange },
-                1: { cellWidth: 140 },
-                2: { cellWidth: 140 },
-                3: { cellWidth: PAGE.width - (PAGE.margin * 2) - 324 },
+                0: { cellWidth: 150 },
+                1: { cellWidth: 150 },
+                2: { cellWidth: PAGE.width - (PAGE.margin * 2) - 300 },
             },
             margin: { left: PAGE.margin, right: PAGE.margin, top: 96 },
             didDrawPage: () => writeHeader(doc, ledger),
@@ -193,7 +156,6 @@ export async function downloadMyMapPdf({
     presentation,
     generatedAt = new Date(),
     locale = 'en-SG',
-    mapSnapshotDataUrl = null,
 } = {}) {
     const [{ jsPDF }, autoTableModule] = await Promise.all([
         import('jspdf'),
@@ -203,7 +165,7 @@ export async function downloadMyMapPdf({
     const ledger = buildMyMapPdfLedger({ directory, presentation, generatedAt, locale });
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
 
-    writeSummary(doc, autoTable, ledger, mapSnapshotDataUrl);
+    writeSummary(doc, autoTable, ledger);
     writeLedger(doc, autoTable, ledger);
     doc.save(buildMyMapPdfFileName(ledger.mapName));
 }

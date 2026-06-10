@@ -7,16 +7,14 @@ const source = readFileSync(
     'utf8',
 );
 
-test('My Map PDF export button captures a map snapshot but still downloads without one', () => {
+test('My Map PDF export button downloads the ledger without hidden map snapshot capture', () => {
     assert.match(source, /downloadMyMapPdf/);
-    assert.match(source, /captureMapSnapshot/);
-    assert.match(source, /mapSnapshotDataUrl/);
-    assert.match(source, /createPortal/);
-    assert.match(source, /DirectoryMap/);
     assert.match(source, /failedDownloadPdf/);
-    assert.match(source, /exportRoot && snapshotSurfaceVisible \? createPortal/);
     assert.match(source, /mountedRef/);
-    assert.match(source, /captureActiveRef/);
-    assert.match(source, /resetCaptureSessionState/);
     assert.match(source, /return \(\) =>/);
+    assert.doesNotMatch(source, /captureMapSnapshot/);
+    assert.doesNotMatch(source, /mapSnapshotDataUrl/);
+    assert.doesNotMatch(source, /createPortal/);
+    assert.doesNotMatch(source, /DirectoryMap/);
+    assert.doesNotMatch(source, /toPng/);
 });
