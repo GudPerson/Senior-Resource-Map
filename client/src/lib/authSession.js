@@ -1,6 +1,8 @@
-export const SESSION_FETCH_TIMEOUT_MS = 5_000;
+export const SESSION_FETCH_TIMEOUT_MS = 8_000;
 export const EMPTY_SESSION_RECHECK_ATTEMPTS = 2;
 export const EMPTY_SESSION_RECHECK_DELAY_MS = 350;
+export const SESSION_FAILURE_RECHECK_ATTEMPTS = 2;
+export const SESSION_FAILURE_RECHECK_DELAY_MS = 450;
 
 export class SessionRequestTimeoutError extends Error {
     constructor(timeoutMs) {
@@ -37,6 +39,13 @@ export function resolveUserAfterSessionCheckFailure(currentUser, failure = {}) {
         return null;
     }
     return currentUser || null;
+}
+
+export function shouldRetryColdSessionCheckFailure(currentUser, failure = {}, attempt = 0) {
+    if (currentUser) return false;
+    if (attempt >= SESSION_FAILURE_RECHECK_ATTEMPTS) return false;
+    if (isDefinitiveSignedOutSessionResponse(failure.response, failure.data)) return false;
+    return true;
 }
 
 export function resolveImpersonationSessionFailure(currentUser, failure = {}) {

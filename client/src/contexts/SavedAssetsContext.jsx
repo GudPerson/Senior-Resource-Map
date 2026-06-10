@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { api } from '../lib/api.js';
 import { buildOptimisticSavedAsset, buildSavedAssetKey } from '../lib/savedAssets.js';
+import { loadSavedAssetsWithRetry } from '../lib/savedAssetsLoading.js';
 import { useAuth } from './AuthContext.jsx';
 
 const SavedAssetsContext = createContext(null);
@@ -40,8 +41,8 @@ export function SavedAssetsProvider({ children }) {
 
         setSavedAssetsLoading(true);
         try {
-            const items = await api.getSavedAssets({ suppressAuthExpired: true });
-            setSavedAssets(Array.isArray(items) ? items : []);
+            const items = await loadSavedAssetsWithRetry(() => api.getSavedAssets({ suppressAuthExpired: true }));
+            setSavedAssets(items);
             return items;
         } finally {
             setSavedAssetsLoading(false);
@@ -62,9 +63,9 @@ export function SavedAssetsProvider({ children }) {
 
             setSavedAssetsLoading(true);
             try {
-                const items = await api.getSavedAssets({ suppressAuthExpired: true });
+                const items = await loadSavedAssetsWithRetry(() => api.getSavedAssets({ suppressAuthExpired: true }));
                 if (isActive) {
-                    setSavedAssets(Array.isArray(items) ? items : []);
+                    setSavedAssets(items);
                 }
             } catch (err) {
                 console.error(err);

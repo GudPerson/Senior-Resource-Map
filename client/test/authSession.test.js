@@ -8,7 +8,10 @@ import {
     isAmbiguousEmptySessionResponse,
     resolveImpersonationSessionFailure,
     resolveUserAfterSessionCheckFailure,
+    SESSION_FETCH_TIMEOUT_MS,
+    SESSION_FAILURE_RECHECK_ATTEMPTS,
     SessionRequestTimeoutError,
+    shouldRetryColdSessionCheckFailure,
 } from '../src/lib/authSession.js';
 
 const authContextSource = readFileSync(
@@ -34,6 +37,10 @@ test('session fetch returns parsed JSON when auth endpoint responds in time', as
 
     assert.equal(result.isJson, true);
     assert.deepEqual(result.data, { user: null });
+});
+
+test('session fetch timeout leaves margin for slow production auth checks', () => {
+    assert.ok(SESSION_FETCH_TIMEOUT_MS >= 8_000);
 });
 
 test('successful empty session responses are ambiguous and should be rechecked', () => {
@@ -96,6 +103,32 @@ test('server session check failures still preserve the current user', () => {
             data: { error: 'Database temporarily unavailable' },
         }),
         currentUser
+    );
+});
+
+test('cold-load transient session failures are retried before treating the user as signed out', () => {
+    assert.equal(
+        shouldRetryColdSessionCheckFailure(null, { error: new SessionRequestTimeoutError(5) }, 0),
+        true
+    );
+    assert.equal(
+        shouldRetryColdSessionCheckFailure(
+            null,
+            {
+                response: new Response(JSON.stringify({ error: 'No token provided' }), { status: 401 }),
+                data: { error: 'No token provided' },
+            },
+            0,
+        ),
+        false
+    );
+    assert.equal(
+        shouldRetryColdSessionCheckFailure({ id: 42 }, { error: new Error('network failed') }, 0),
+        false
+    );
+    assert.equal(
+        shouldRetryColdSessionCheckFailure(null, { error: new Error('network failed') }, SESSION_FAILURE_RECHECK_ATTEMPTS),
+        false
     );
 });
 
