@@ -20,16 +20,33 @@ export default function MyMapPdfExportButton({
     const mapSnapshotRef = useRef(null);
     const mapReadyRef = useRef(false);
     const mapErrorRef = useRef(null);
+    const mountedRef = useRef(false);
     const readyWaitersRef = useRef([]);
+    const [snapshotSurfaceVisible, setSnapshotSurfaceVisible] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState('');
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
 
+    const drainReadyWaiters = useCallback((reason) => {
+        const waiters = readyWaitersRef.current.splice(0);
+        waiters.forEach(({ reject }) => reject(reason));
+    }, []);
+
+    useEffect(() => {
+        mountedRef.current = true;
+
+        return () => {
+            mountedRef.current = false;
+            mapReadyRef.current = false;
+            mapErrorRef.current = null;
+            drainReadyWaiters(new Error('PDF snapshot capture was cancelled.'));
+        };
+    }, [drainReadyWaiters]);
+
     useEffect(() => {
         mapReadyRef.current = false;
         mapErrorRef.current = null;
-        const waiters = readyWaitersRef.current.splice(0);
-        waiters.forEach(({ reject }) => reject(new Error('Directory map changed before PDF snapshot capture.')));
+        drainReadyWaiters(new Error('Directory map changed before PDF snapshot capture.'));
     }, [
         activeAnchor?.address,
         activeAnchor?.kind,
@@ -37,11 +54,13 @@ export default function MyMapPdfExportButton({
         activeAnchor?.lng,
         activeAnchor?.postalCode,
         directory?.id,
+        drainReadyWaiters,
         presentation?.pins,
         presentation?.placeNumberByKey,
     ]);
 
     const handleMapReadyForCapture = useCallback(() => {
+        if (!mountedRef.current) return;
         mapReadyRef.current = true;
         mapErrorRef.current = null;
         const waiters = readyWaitersRef.current.splice(0);
@@ -49,6 +68,7 @@ export default function MyMapPdfExportButton({
     }, []);
 
     const handleMapCaptureError = useCallback((captureError) => {
+        if (!mountedRef.current) return;
         mapReadyRef.current = false;
         mapErrorRef.current = captureError;
         const waiters = readyWaitersRef.current.splice(0);
@@ -103,10 +123,22 @@ export default function MyMapPdfExportButton({
         });
     }
 
+    async function waitForSnapshotNode() {
+        if (mapSnapshotRef.current) return true;
+
+        await new Promise((resolve) => {
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(resolve);
+            });
+        });
+
+        return Boolean(mapSnapshotRef.current);
+    }
+
     async function captureMapSnapshot() {
         if (typeof document === 'undefined' || typeof window === 'undefined') return null;
-        if (!mapSnapshotRef.current) return null;
         if (!presentation?.pins?.length && !activeAnchor) return null;
+        if (!await waitForSnapshotNode()) return null;
 
         try {
             await waitForMapSnapshotSurface();
@@ -137,10 +169,21 @@ export default function MyMapPdfExportButton({
 
     async function handleDownload() {
         if (exporting) return;
+        if (!mountedRef.current) return;
         setExporting(true);
         setError('');
+        setSnapshotSurfaceVisible(true);
 
-        const mapSnapshotDataUrl = await captureMapSnapshot();
+        let mapSnapshotDataUrl = null;
+        try {
+            mapSnapshotDataUrl = await captureMapSnapshot();
+        } finally {
+            if (mountedRef.current) {
+                setSnapshotSurfaceVisible(false);
+            }
+        }
+
+        if (!mountedRef.current) return;
 
         try {
             await downloadMyMapPdf({
@@ -152,9 +195,13 @@ export default function MyMapPdfExportButton({
             });
         } catch (downloadError) {
             console.error(downloadError);
-            setError(t('failedDownloadPdf'));
+            if (mountedRef.current) {
+                setError(t('failedDownloadPdf'));
+            }
         } finally {
-            setExporting(false);
+            if (mountedRef.current) {
+                setExporting(false);
+            }
         }
     }
 
@@ -173,7 +220,7 @@ export default function MyMapPdfExportButton({
                 <p className="text-sm font-medium text-red-600">{error}</p>
             ) : null}
 
-            {exportRoot ? createPortal(
+            {exportRoot && snapshotSurfaceVisible ? createPortal(
                 <div
                     className="pointer-events-none fixed top-0 overflow-hidden bg-white"
                     style={{ left: '-10000px', width: '720px' }}
