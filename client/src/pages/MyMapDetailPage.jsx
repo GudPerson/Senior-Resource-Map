@@ -17,6 +17,7 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
@@ -303,7 +304,7 @@ export default function MyMapDetailPage() {
         setLoading(true);
         setError('');
         try {
-            const item = await api.getMyMap(mapId);
+            const item = await fetchMyMapWithResilience(() => api.getMyMap(mapId));
             setDirectory(item);
         } catch (err) {
             console.error(err);
@@ -546,10 +547,15 @@ export default function MyMapDetailPage() {
                         <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
                             {error || t('mapNotAvailableDescription')}
                         </p>
-                        <Link to="/my-directory?section=my-maps" className="btn-primary mt-6 inline-flex justify-center">
-                            <ArrowLeft size={16} />
-                            {t('backToMyMaps')}
-                        </Link>
+                        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                            <button type="button" onClick={loadMap} className="btn-primary inline-flex justify-center">
+                                {t('phoneLoginTryAgainButton')}
+                            </button>
+                            <Link to="/my-directory?section=my-maps" className="btn-ghost inline-flex justify-center border border-slate-200 text-slate-700">
+                                <ArrowLeft size={16} />
+                                {t('backToMyMaps')}
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </div>

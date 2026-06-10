@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bookmark, Map, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Bookmark, Map, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
@@ -16,6 +16,7 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
+import { fetchMyMapsWithResilience, getMyMapsListStatus } from '../lib/myMapsLoading.js';
 
 const DIRECTORY_SECTIONS = {
     saved: 'saved-assets',
@@ -120,6 +121,27 @@ function MyMapsLoadingState() {
                     </div>
                 </div>
             ))}
+        </div>
+    );
+}
+
+function MyMapsLoadErrorState({ message, onRetry, retrying = false }) {
+    const { t } = useLocale();
+    return (
+        <div className="rounded-3xl border border-dashed border-amber-200 bg-amber-50 px-6 py-14 text-center">
+            <p className="text-lg font-semibold text-amber-900">{message || t('failedLoadMaps')}</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-amber-800/85">
+                {t('myMapsLoadRetryHelp')}
+            </p>
+            <button
+                type="button"
+                onClick={onRetry}
+                disabled={retrying}
+                className="btn-primary mx-auto mt-5 justify-center disabled:cursor-not-allowed disabled:opacity-60"
+            >
+                <RefreshCw size={16} className={retrying ? 'animate-spin' : ''} />
+                {retrying ? t('loadingResources') : t('phoneLoginTryAgainButton')}
+            </button>
         </div>
     );
 }
@@ -241,19 +263,25 @@ export default function MyDirectoryPage() {
     }, [mapSortOrder, maps, normalizedMapQuery]);
     const hasMapSearch = Boolean(normalizedMapQuery);
     const hasFilteredMaps = filteredMaps.length > 0;
+    const mapsListStatus = getMyMapsListStatus({
+        mapsLoading,
+        mapsLoaded,
+        mapsError,
+        mapCount: maps.length,
+    });
 
     const loadMaps = useCallback(async () => {
         setMapsLoading(true);
         setMapsError('');
         try {
-            const items = await api.getMyMaps();
+            const items = await fetchMyMapsWithResilience(() => api.getMyMaps());
             setMaps(Array.isArray(items) ? items : []);
             setMapsLoaded(true);
             return items;
         } catch (err) {
             console.error(err);
             setMapsError(err.message || t('failedLoadMaps'));
-            setMapsLoaded(true);
+            setMapsLoaded(false);
             return [];
         } finally {
             setMapsLoading(false);
@@ -590,9 +618,15 @@ export default function MyDirectoryPage() {
                                     ) : null}
                                 </div>
 
-                                {mapsLoading && !mapsLoaded ? (
+                                {mapsListStatus === 'loading' ? (
                                     <MyMapsLoadingState />
-                                ) : maps.length === 0 ? (
+                                ) : mapsListStatus === 'load-error' ? (
+                                    <MyMapsLoadErrorState
+                                        message={mapsError}
+                                        onRetry={loadMaps}
+                                        retrying={mapsLoading}
+                                    />
+                                ) : mapsListStatus === 'empty' ? (
                                     <MyMapsEmptyState hasSavedAssets={hasSavedAssets} onCreate={() => setCreateModalOpen(true)} />
                                 ) : !hasFilteredMaps ? (
                                     <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
