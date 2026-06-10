@@ -25,15 +25,33 @@ export function getNoteRowsForGroup(group) {
     return getUniqueNoteRows(rows);
 }
 
+function normalizeNoteTimestamp(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const time = new Date(text).getTime();
+    return Number.isFinite(time) ? text : null;
+}
+
 export function normalizeNoteItems(notes) {
+    const fallbackTimestamp = normalizeNoteTimestamp(notes?.notesUpdatedAt);
+
     if (Array.isArray(notes?.items)) {
         return notes.items
-            .map((note, index) => ({
-                clientId: note?.id ? `note-${note.id}` : `note-${index}`,
-                id: note?.id || null,
-                text: String(note?.text || '').slice(0, 1000),
-                isShared: Boolean(note?.isShared),
-            }))
+            .map((note, index) => {
+                const createdAt = normalizeNoteTimestamp(note?.createdAt) || fallbackTimestamp;
+                const updatedAt = normalizeNoteTimestamp(note?.updatedAt)
+                    || normalizeNoteTimestamp(note?.createdAt)
+                    || fallbackTimestamp;
+
+                return {
+                    clientId: note?.id ? `note-${note.id}` : `note-${index}`,
+                    id: note?.id || null,
+                    text: String(note?.text || '').slice(0, 1000),
+                    isShared: Boolean(note?.isShared),
+                    createdAt,
+                    updatedAt,
+                };
+            })
             .filter((note) => note.text.trim());
     }
 
@@ -46,6 +64,8 @@ export function normalizeNoteItems(notes) {
             id: null,
             text: privateNote,
             isShared: false,
+            createdAt: fallbackTimestamp,
+            updatedAt: fallbackTimestamp,
         });
     }
     if (handoffNote) {
@@ -54,6 +74,8 @@ export function normalizeNoteItems(notes) {
             id: null,
             text: handoffNote,
             isShared: true,
+            createdAt: fallbackTimestamp,
+            updatedAt: fallbackTimestamp,
         });
     }
     return legacyItems;

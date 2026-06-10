@@ -7,6 +7,7 @@ import {
     buildMapNoteRowBadgeParts,
     buildMapNoteSummaryParts,
     getMapNoteResourceSummary,
+    normalizeNoteItems,
 } from '../src/lib/mapNotes.js';
 
 test('applySharedNoteTranslationsToDirectory translates visible shared notes without mutating originals', () => {
@@ -137,6 +138,31 @@ test('buildMapNoteResourceRows returns each mapped and unmapped resource once wi
         noteCount: 4,
         sharedNoteCount: 2,
     });
+});
+
+test('normalizeNoteItems preserves available note timestamps', () => {
+    const notes = normalizeNoteItems({
+        notesUpdatedAt: '2026-06-10T09:30:00.000Z',
+        items: [
+            {
+                id: 10,
+                text: 'Call before sending referral',
+                isShared: true,
+                createdAt: '2026-06-09T08:15:00.000Z',
+                updatedAt: '2026-06-10T09:30:00.000Z',
+            },
+            {
+                id: 11,
+                text: 'Bring printed form',
+                isShared: false,
+            },
+        ],
+    });
+
+    assert.equal(notes[0].createdAt, '2026-06-09T08:15:00.000Z');
+    assert.equal(notes[0].updatedAt, '2026-06-10T09:30:00.000Z');
+    assert.equal(notes[1].createdAt, '2026-06-10T09:30:00.000Z');
+    assert.equal(notes[1].updatedAt, '2026-06-10T09:30:00.000Z');
 });
 
 test('buildMapNoteSummaryParts hides the shared-note count from shared map receivers', () => {
