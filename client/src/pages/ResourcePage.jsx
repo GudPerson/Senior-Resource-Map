@@ -19,6 +19,7 @@ import {
     saveSearchLocation,
 } from '../lib/searchLocation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { LoadingState } from '../components/LoadingState.jsx';
 
 export default function ResourcePage() {
     const { type, id } = useParams();
@@ -35,24 +36,43 @@ export default function ResourcePage() {
     const { t } = useLocale();
 
     useEffect(() => {
+        let cancelled = false;
+
         const fetchAsset = async () => {
             setLoading(true);
             try {
-                const [data, subcats] = await Promise.all([
-                    type === 'hard' ? api.getHardAsset(id) : api.getSoftAsset(id),
-                    api.getSubCategories().catch(() => [])
-                ]);
-                const colors = {};
-                subcats.forEach(sc => { colors[sc.name] = sc.color || '#94a3b8'; });
-                setSubCatColors(colors);
+                const data = await (type === 'hard' ? api.getHardAsset(id) : api.getSoftAsset(id));
+                if (cancelled) return;
                 setAsset(data);
             } catch (err) {
                 console.error('Failed to load asset', err);
             } finally {
-                setLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
         };
+
+        const fetchSubCategoryColors = async () => {
+            try {
+                const subcats = await api.getSubCategories().catch(() => []);
+                if (cancelled) return;
+                const colors = {};
+                subcats.forEach((sc) => {
+                    colors[sc.name] = sc.color || '#94a3b8';
+                });
+                setSubCatColors(colors);
+            } catch {
+                // Keep default category colors if lookup is slow or unavailable.
+            }
+        };
+
         fetchAsset();
+        fetchSubCategoryColors();
+
+        return () => {
+            cancelled = true;
+        };
     }, [type, id]);
 
     useLayoutEffect(() => {
@@ -117,9 +137,7 @@ export default function ResourcePage() {
     }
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--page-gradient)' }}>
-            <div className="w-12 h-12 border-4 border-slate-200 border-t-brand-600 rounded-full animate-spin" />
-        </div>;
+        return <LoadingState label={t('loadingPage')} />;
     }
 
     if (!asset) {

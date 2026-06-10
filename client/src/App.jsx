@@ -9,6 +9,7 @@ import { canAccessAdmin, canAccessAuditTrail, canAccessOrganizationWorkspace, no
 import { SavedAssetsProvider } from './contexts/SavedAssetsContext.jsx';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
+import { LoadingState } from './components/LoadingState.jsx';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -44,8 +45,13 @@ function ProtectedRoute({
     requireDirectoryAccess,
     requireOrganizationAccess,
 }) {
-    const { user, isAuth } = useAuth();
+    const { user, isAuth, isLoading } = useAuth();
     const location = useLocation();
+
+    if (isLoading) {
+        return <RouteLoadingFallback />;
+    }
+
     if (!isAuth) {
         if (isGudAuthPhoneLoginReturn(location.search)) {
             const returnTo = encodeURIComponent(`${location.pathname}${location.hash || ''}`);
@@ -74,16 +80,7 @@ export default function App() {
 
 function RouteLoadingFallback() {
     const { t } = useLocale();
-    return (
-        <div className="flex min-h-[calc(100vh-88px)] items-center justify-center px-6 py-16">
-            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
-                <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
-                    {t('loadingPage')}
-                </div>
-            </div>
-        </div>
-    );
+    return <LoadingState label={t('loadingPage')} />;
 }
 
 function RouteErrorFallback({ error }) {

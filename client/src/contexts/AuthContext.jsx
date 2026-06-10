@@ -15,19 +15,6 @@ const AuthContext = createContext(null);
 const BASE_CANDIDATES = getSessionApiBaseCandidates();
 const SESSION_CHECK_COOLDOWN_MS = 750;
 
-function AuthLoadingFallback() {
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
-                <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
-                    Loading CareAround SG...
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function sleep(ms) {
     return new Promise((resolve) => {
         globalThis.setTimeout(resolve, ms);
@@ -36,7 +23,7 @@ function sleep(ms) {
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
     const userRef = useRef(null);
     const sessionCheckInFlightRef = useRef(null);
     const lastSessionCheckAtRef = useRef(0);
@@ -154,10 +141,10 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         const runSessionCheck = async () => {
-            setLoading(true);
+            setIsLoading(true);
             consumeImpersonationTokenFromHash();
             await checkSession();
-            setLoading(false);
+            setIsLoading(false);
         };
 
         runSessionCheck();
@@ -199,9 +186,9 @@ export function AuthProvider({ children }) {
     async function logout() {
         if (getImpersonationToken()) {
             clearImpersonationToken();
-            setLoading(true);
+            setIsLoading(true);
             await checkSession(false);
-            setLoading(false);
+            setIsLoading(false);
             return { exitedImpersonation: true };
         }
 
@@ -229,8 +216,6 @@ export function AuthProvider({ children }) {
         return { exitedImpersonation: false };
     }
 
-    if (loading) return <AuthLoadingFallback />;
-
     return (
         <AuthContext.Provider
             value={{
@@ -238,6 +223,7 @@ export function AuthProvider({ children }) {
                 login,
                 logout,
                 refreshSession: checkSession,
+                isLoading,
                 isAuth: !!user,
                 isImpersonating: Boolean(user?.isImpersonating && getImpersonationToken()),
             }}
