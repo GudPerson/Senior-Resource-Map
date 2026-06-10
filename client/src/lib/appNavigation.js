@@ -83,12 +83,14 @@ export function buildOwnerMyMapPathFromSharedDirectory(directory) {
 }
 
 export function hardNavigate(path, navigate = null) {
-    if (typeof window !== 'undefined') {
-        window.location.assign(path);
+    if (typeof navigate === 'function') {
+        navigate(path);
         return;
     }
 
-    navigate?.(path);
+    if (typeof window !== 'undefined') {
+        window.location.assign(path);
+    }
 }
 
 export function openResourceDetail(resourceType, resourceId, navigate = null) {
