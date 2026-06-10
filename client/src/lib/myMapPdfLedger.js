@@ -18,6 +18,13 @@ function normalizeGeneratedAt(value) {
     return Number.isFinite(date.getTime()) ? date : new Date();
 }
 
+function normalizeRawTimestamp(value) {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const time = new Date(text).getTime();
+    return Number.isFinite(time) ? text : null;
+}
+
 function getMapName(directory, presentation) {
     return cleanText(directory?.name)
         || cleanText(directory?.mapName)
@@ -88,14 +95,15 @@ function buildLedgerNotes(row) {
 
     return normalizeNoteItems(row?.notes).map((note, index) => {
         const rawNote = rawItems?.[index] || null;
-        const createdAt = rawNote ? rawNote.createdAt || null : note.createdAt || null;
+        const rawCreatedAt = normalizeRawTimestamp(rawNote?.createdAt);
+        const rawUpdatedAt = normalizeRawTimestamp(rawNote?.updatedAt) || rawCreatedAt;
 
         return {
             id: note.id ?? note.clientId ?? null,
             text: cleanText(note.text),
             visibility: note.isShared ? 'Shared' : 'Private',
-            createdAt,
-            updatedAt: rawNote ? rawNote.updatedAt || rawNote.createdAt || null : note.updatedAt || note.createdAt || null,
+            createdAt: rawNote ? rawCreatedAt : note.createdAt || null,
+            updatedAt: rawNote ? rawUpdatedAt : note.updatedAt || note.createdAt || null,
         };
     }).filter((note) => note.text);
 }

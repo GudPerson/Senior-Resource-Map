@@ -244,3 +244,35 @@ test('buildMyMapPdfLedger filters raw note timestamps with the normalized 1000 c
     assert.equal(notes[0].createdAt, '2026-06-07T07:00:00.000Z');
     assert.equal(notes[0].updatedAt, '2026-06-08T08:00:00.000Z');
 });
+
+test('buildMyMapPdfLedger sanitizes malformed raw structured note timestamps', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Malformed Timestamp Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 13,
+                    resourceType: 'soft',
+                    name: 'Malformed Timestamp Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        notesUpdatedAt: '2026-06-09T09:00:00.000Z',
+                        items: [
+                            {
+                                id: 'malformed-timestamps',
+                                text: 'Do not expose malformed timestamps',
+                                isShared: false,
+                                createdAt: 'not-a-date',
+                                updatedAt: 'also-not-a-date',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.equal(note.createdAt, null);
+    assert.equal(note.updatedAt, null);
+});
