@@ -165,6 +165,37 @@ test('buildMyMapPdfLedger uses raw structured note timestamps instead of contain
     assert.equal(note.updatedAt, null);
 });
 
+test('buildMyMapPdfLedger preserves note line breaks and adds compact Singapore date labels', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Formatted Notes Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 14,
+                    resourceType: 'soft',
+                    name: 'Formatted Note Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'formatted-note',
+                                text: 'First line\nSecond line\n\nThird line',
+                                isShared: false,
+                                createdAt: '2026-06-08T01:00:00.000Z',
+                                updatedAt: '2026-06-09T16:30:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.equal(note.text, 'First line\nSecond line\n\nThird line');
+    assert.equal(note.dateLabel, '100626');
+});
+
 test('buildMyMapPdfLedger aligns raw structured timestamps after blank notes are filtered', () => {
     const ledger = buildMyMapPdfLedger({
         directory: { name: 'Filtered Timestamp Map' },

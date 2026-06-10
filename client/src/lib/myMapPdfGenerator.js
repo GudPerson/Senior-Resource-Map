@@ -109,16 +109,15 @@ function writeSummary(doc, autoTable, ledger) {
 }
 
 function formatNote(note) {
-    const details = [note.visibility];
-    if (note.updatedAt) details.push(`Updated ${note.updatedAt}`);
-    return `${note.text} (${details.join('; ')})`;
+    const prefix = note.dateLabel ? `[${note.dateLabel}] - ` : '';
+    return `${prefix}${note.text}`;
 }
 
 function buildResourceRows(category) {
     return category.resources.map((resource) => [
         resource.name,
         resource.address,
-        resource.notes.length > 0 ? resource.notes.map(formatNote).join('\n') : 'No notes',
+        resource.notes.length > 0 ? resource.notes.map(formatNote).join('\n\n') : 'No notes',
     ]);
 }
 

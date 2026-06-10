@@ -9,6 +9,15 @@ function cleanText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function cleanNoteText(value) {
+    return String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map((line) => line.replace(/[ \t]+$/g, ''))
+        .join('\n')
+        .trim();
+}
+
 function compareText(left, right, locale) {
     return cleanText(left).localeCompare(cleanText(right), locale, TEXT_COMPARE_OPTIONS);
 }
@@ -23,6 +32,23 @@ function normalizeRawTimestamp(value) {
     if (!text) return null;
     const time = new Date(text).getTime();
     return Number.isFinite(time) ? text : null;
+}
+
+function buildCompactDateLabel(value) {
+    const text = normalizeRawTimestamp(value);
+    if (!text) return '';
+    const date = new Date(text);
+    const parts = new Intl.DateTimeFormat('en-SG', {
+        timeZone: 'Asia/Singapore',
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+    }).formatToParts(date).reduce((accumulator, part) => ({
+        ...accumulator,
+        [part.type]: part.value,
+    }), {});
+
+    return `${parts.day || ''}${parts.month || ''}${parts.year || ''}`;
 }
 
 function getMapName(directory, presentation) {
@@ -100,10 +126,11 @@ function buildLedgerNotes(row) {
 
         return {
             id: note.id ?? note.clientId ?? null,
-            text: cleanText(note.text),
+            text: cleanNoteText(note.text),
             visibility: note.isShared ? 'Shared' : 'Private',
             createdAt: rawNote ? rawCreatedAt : note.createdAt || null,
             updatedAt: rawNote ? rawUpdatedAt : note.updatedAt || note.createdAt || null,
+            dateLabel: buildCompactDateLabel(rawNote ? (rawUpdatedAt || rawCreatedAt) : (note.updatedAt || note.createdAt)),
         };
     }).filter((note) => note.text);
 }

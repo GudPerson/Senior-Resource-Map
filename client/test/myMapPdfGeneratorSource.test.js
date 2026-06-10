@@ -36,3 +36,10 @@ test('My Map PDF generator uses a mobile-friendly hierarchy without repeated map
     assert.doesNotMatch(source, /didDrawPage: \(\) => writeHeader\(doc, ledger\)/);
     assert.doesNotMatch(source, /function writeHeader/);
 });
+
+test('My Map PDF generator keeps note formatting readable', () => {
+    assert.match(source, /\[\$\{note\.dateLabel\}\] - /);
+    assert.match(source, /resource\.notes\.map\(formatNote\)\.join\('\\n\\n'\)/);
+    assert.doesNotMatch(source, /Updated \$\{note\.updatedAt\}/);
+    assert.doesNotMatch(source, /details = \[note\.visibility\]/);
+});
