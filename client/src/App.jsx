@@ -45,12 +45,8 @@ function ProtectedRoute({
     requireDirectoryAccess,
     requireOrganizationAccess,
 }) {
-    const { user, isAuth, isLoading } = useAuth();
+    const { user, isAuth } = useAuth();
     const location = useLocation();
-
-    if (isLoading) {
-        return <RouteLoadingFallback />;
-    }
 
     if (!isAuth) {
         if (isGudAuthPhoneLoginReturn(location.search)) {
@@ -165,11 +161,16 @@ class RouteErrorBoundary extends Component {
 
 function AppShell() {
     const location = useLocation();
+    const { isLoading } = useAuth();
     const ownerPrintView = location.pathname.startsWith('/my-directory/maps/')
         && new URLSearchParams(location.search).get('view') === 'print';
     const hideNavbar = location.pathname.startsWith('/shared/maps/')
         || location.pathname.startsWith('/auth/transition')
         || ownerPrintView;
+
+    if (isLoading) {
+        return <RouteLoadingFallback />;
+    }
 
     return (
         <>
