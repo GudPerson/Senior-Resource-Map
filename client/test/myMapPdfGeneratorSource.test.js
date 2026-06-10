@@ -8,8 +8,10 @@ const source = readFileSync(
 );
 
 test('My Map PDF generator lazy-loads heavy PDF libraries', () => {
-    assert.doesNotMatch(source, /^\s*import\s+(?:[^('"].*?\s+from\s+)?['"]jspdf['"];?/m);
-    assert.doesNotMatch(source, /^\s*import\s+(?:[^('"].*?\s+from\s+)?['"]jspdf-autotable['"];?/m);
+    assert.doesNotMatch(source, /^\s*import\s*['"]jspdf['"];?/m);
+    assert.doesNotMatch(source, /\bimport\s+(?!\()[\s\S]*?\s+from\s+['"]jspdf['"]/);
+    assert.doesNotMatch(source, /^\s*import\s*['"]jspdf-autotable['"];?/m);
+    assert.doesNotMatch(source, /\bimport\s+(?!\()[\s\S]*?\s+from\s+['"]jspdf-autotable['"]/);
     assert.match(source, /import\(['"]jspdf['"]\)/);
     assert.match(source, /import\(['"]jspdf-autotable['"]\)/);
 });
