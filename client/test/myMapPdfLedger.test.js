@@ -48,6 +48,12 @@ test('buildMyMapPdfLedger collects, deduplicates, groups, and sorts map resource
                                 ],
                             },
                         }),
+                        row({
+                            resourceId: 4,
+                            resourceType: 'soft',
+                            name: 'Alpha Befriending',
+                            subCategory: 'Befriending',
+                        }),
                     ],
                 },
                 {
@@ -107,7 +113,7 @@ test('buildMyMapPdfLedger collects, deduplicates, groups, and sorts map resource
     });
 
     assert.equal(ledger.mapName, 'My Partners');
-    assert.equal(ledger.summary.resourceCount, 3);
+    assert.equal(ledger.summary.resourceCount, 4);
     assert.equal(ledger.summary.categoryCount, 3);
     assert.equal(ledger.summary.resourcesWithNotesCount, 2);
     assert.equal(ledger.summary.noteCount, 2);
@@ -117,10 +123,44 @@ test('buildMyMapPdfLedger collects, deduplicates, groups, and sorts map resource
         'Home care',
     ]);
     assert.equal(ledger.categories[0].resources[0].sourceMapNumber, '2');
+    assert.deepEqual(ledger.categories[1].resources.map((resource) => resource.name), [
+        'Alpha Befriending',
+        'Zebra Befriending',
+    ]);
     assert.equal(ledger.categories[1].resources[0].sourceMapNumber, '1');
     assert.equal(ledger.categories[2].resources[0].sourceMapNumber, 'List only');
     assert.equal(ledger.categories[2].resources[0].notes[0].visibility, 'Private');
     assert.equal(ledger.categories[2].resources[0].notes[0].updatedAt, '2026-06-08T02:00:00.000Z');
     assert.equal(buildMyMapPdfFileName('My Partners / North-West'), 'my-partners-north-west-ledger.pdf');
     assert.equal(buildMyMapPdfFileName(''), 'carearound-map-ledger.pdf');
+});
+
+test('buildMyMapPdfLedger uses raw structured note timestamps instead of container fallback', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Timestamp Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 10,
+                    resourceType: 'soft',
+                    name: 'Timestamped Container Only',
+                    subCategory: 'Home care',
+                    notes: {
+                        notesUpdatedAt: '2026-06-09T08:30:00.000Z',
+                        items: [
+                            {
+                                id: 'container-only',
+                                text: 'Structured note has no raw item timestamps',
+                                isShared: true,
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.equal(note.createdAt, null);
+    assert.equal(note.updatedAt, null);
 });

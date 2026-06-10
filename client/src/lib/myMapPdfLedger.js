@@ -75,13 +75,20 @@ function getPresentationMapNumber(row, group, place, presentation) {
 }
 
 function buildLedgerNotes(row) {
-    return normalizeNoteItems(row?.notes).map((note) => ({
-        id: note.id ?? note.clientId ?? null,
-        text: cleanText(note.text),
-        visibility: note.isShared ? 'Shared' : 'Private',
-        createdAt: note.createdAt || null,
-        updatedAt: note.updatedAt || note.createdAt || null,
-    })).filter((note) => note.text);
+    const rawItems = Array.isArray(row?.notes?.items) ? row.notes.items : null;
+
+    return normalizeNoteItems(row?.notes).map((note, index) => {
+        const rawNote = rawItems?.[index] || null;
+        const createdAt = rawNote ? rawNote.createdAt || null : note.createdAt || null;
+
+        return {
+            id: note.id ?? note.clientId ?? null,
+            text: cleanText(note.text),
+            visibility: note.isShared ? 'Shared' : 'Private',
+            createdAt,
+            updatedAt: rawNote ? rawNote.updatedAt || rawNote.createdAt || null : note.updatedAt || note.createdAt || null,
+        };
+    }).filter((note) => note.text);
 }
 
 function collectPresentationRows(presentation) {
