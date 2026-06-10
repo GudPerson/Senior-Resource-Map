@@ -164,3 +164,43 @@ test('buildMyMapPdfLedger uses raw structured note timestamps instead of contain
     assert.equal(note.createdAt, null);
     assert.equal(note.updatedAt, null);
 });
+
+test('buildMyMapPdfLedger aligns raw structured timestamps after blank notes are filtered', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Filtered Timestamp Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 11,
+                    resourceType: 'soft',
+                    name: 'Filtered Note Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'blank-note',
+                                text: '   ',
+                                isShared: false,
+                                createdAt: '2026-06-01T01:00:00.000Z',
+                                updatedAt: '2026-06-02T01:00:00.000Z',
+                            },
+                            {
+                                id: 'valid-note',
+                                text: 'Use the valid note timestamps',
+                                isShared: true,
+                                createdAt: '2026-06-03T03:00:00.000Z',
+                                updatedAt: '2026-06-04T04:00:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const notes = ledger.categories[0].resources[0].notes;
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0].id, 'valid-note');
+    assert.equal(notes[0].createdAt, '2026-06-03T03:00:00.000Z');
+    assert.equal(notes[0].updatedAt, '2026-06-04T04:00:00.000Z');
+});
