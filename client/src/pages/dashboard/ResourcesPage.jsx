@@ -46,7 +46,9 @@ import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
+    buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
+    RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
     shouldUseFullResourceDataset,
     settleResourceListRequest,
     withResourceListSearchParam,
@@ -634,8 +636,9 @@ export default function ResourcesPage() {
     const [partnerOptions, setPartnerOptions] = useState([]);
     const [partnerBoundary, setPartnerBoundary] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [resourceLoadError, setResourceLoadError] = useState(null);
+    const [resourceLoading, setResourceLoading] = useState({ hard: true, soft: true });
+    const [metadataLoading, setMetadataLoading] = useState(false);
+    const [resourceLoadErrors, setResourceLoadErrors] = useState({ hard: null, soft: null, templates: null });
     const [hasCompletedResourceLoad, setHasCompletedResourceLoad] = useState(false);
     const [activeTab, setActiveTab] = useState('hard');
     const [assetModal, setAssetModal] = useState(null);
@@ -650,6 +653,7 @@ export default function ResourcesPage() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
@@ -667,6 +671,7 @@ export default function ResourcesPage() {
     const [hardAssetsPageSize] = useState(50);
     const [softAssetsPageSize] = useState(50);
     const loadRequestIdRef = useRef(0);
+    const metadataRequestIdRef = useRef(0);
     const inlineActionDrawerRef = useRef(null);
 
     const normalizedRole = normalizeRole(user?.role);
@@ -685,7 +690,7 @@ export default function ResourcesPage() {
         : partnerStaffLegacyPartnerIds;
     const partnerScopedOwnerKey = partnerScopedOwnerIds.join(',');
     const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner' || partnerStaffLegacyPartnerIds.length > 0;
-    const deferredSearchTerm = useDeferredValue(searchTerm);
+    const deferredSearchTerm = useDeferredValue(debouncedSearchTerm);
     const normalizedQuery = deferredSearchTerm.trim().toLowerCase();
     const needsFullAssetDataset = shouldUseFullResourceDataset({
         query: normalizedQuery,
@@ -700,8 +705,12 @@ export default function ResourcesPage() {
         canManageResourceTools,
         role: normalizedRole,
     });
-    const fullResourceListParams = withResourceListSearchParam(resourceListParams, normalizedQuery);
+    const softResourceListParams = buildManagedSoftResourceListParams({
+        canManageResourceTools,
+        role: normalizedRole,
+    });
     const fullHardResourceListParams = withResourceListSearchParam(hardResourceListParams, normalizedQuery);
+    const fullSoftResourceListParams = withResourceListSearchParam(softResourceListParams, normalizedQuery);
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
             ? ['full', normalizedQuery, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
@@ -734,6 +743,14 @@ export default function ResourcesPage() {
     }, [actionNotice]);
 
     useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, RESOURCE_LIST_SEARCH_DEBOUNCE_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
         if (!inlineActionScrollKey) return undefined;
 
         let secondFrameId = 0;
@@ -760,155 +777,181 @@ export default function ResourcesPage() {
     async function load() {
         const requestId = loadRequestIdRef.current + 1;
         loadRequestIdRef.current = requestId;
-        setLoading(true);
-        try {
-            const hardAssetsRequest = needsFullAssetDataset
-                ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
-                : fetchResourceListPageWithResilience(
-                    api.getHardAssets,
-                    { ...hardResourceListParams, q: normalizedQuery },
-                    { page: hardAssetsPage, pageSize: hardAssetsPageSize },
-                );
-            const softAssetsRequest = needsFullAssetDataset
-                ? fetchAllPaginatedResults(api.getSoftAssets, fullResourceListParams)
-                : fetchResourceListPageWithResilience(
-                    api.getSoftAssets,
-                    { ...resourceListParams, q: normalizedQuery },
-                    { page: softAssetsPage, pageSize: softAssetsPageSize },
-                );
-            const requests = [
-                settleResourceListRequest(hardAssetsRequest),
-                settleResourceListRequest(softAssetsRequest),
-            ];
+        setResourceLoading({ hard: true, soft: true });
+        setResourceLoadErrors((prev) => ({ ...prev, hard: null, soft: null }));
 
-            if (canManageResourceTools) {
-                requests.push(api.getSubregions().catch(() => []));
-                requests.push(api.getSoftAssetParents().catch(() => []));
-                requests.push(api.getAudienceZones().catch(() => []));
-            }
-            if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                requests.push(api.getUsers().catch(() => []));
-            }
-            if (normalizedRole === 'partner') {
-                requests.push(api.getPartnerBoundaries(user.id).catch(() => null));
-            }
+        const hardAssetsRequest = needsFullAssetDataset
+            ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
+            : fetchResourceListPageWithResilience(
+                api.getHardAssets,
+                { ...hardResourceListParams, q: normalizedQuery },
+                { page: hardAssetsPage, pageSize: hardAssetsPageSize },
+            );
+        const softAssetsRequest = needsFullAssetDataset
+            ? fetchAllPaginatedResults(api.getSoftAssets, fullSoftResourceListParams)
+            : fetchResourceListPageWithResilience(
+                api.getSoftAssets,
+                { ...softResourceListParams, q: normalizedQuery },
+                { page: softAssetsPage, pageSize: softAssetsPageSize },
+            );
 
-            const responses = await Promise.all(requests);
+        const buildFailure = (err) => buildResourceLoadFailureMessage({
+            isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
+            errorMessage: err?.message || '',
+        });
+
+        async function loadHardAssets() {
+            const result = await settleResourceListRequest(hardAssetsRequest);
             if (requestId !== loadRequestIdRef.current) return;
-            let cursor = 0;
-            const hardResult = responses[cursor++] || { status: 'rejected', reason: new Error('Places failed to load.') };
-            const softResult = responses[cursor++] || { status: 'rejected', reason: new Error('Offerings failed to load.') };
-            const hardLoadFailed = hardResult.status !== 'fulfilled';
-            const softLoadFailed = softResult.status !== 'fulfilled';
-            if (hardLoadFailed && softLoadFailed) {
-                throw hardResult.reason || softResult.reason || new Error('Resource pages failed to load.');
+            if (result.status !== 'fulfilled') {
+                console.error(result.reason);
+                const failure = buildFailure(result.reason);
+                setResourceLoadErrors((prev) => ({ ...prev, hard: failure }));
+                setActionNotice({ type: 'warning', message: failure.notice });
+                setResourceLoading((prev) => ({ ...prev, hard: false }));
+                return;
             }
-            const hard = hardLoadFailed ? null : (hardResult.value || []);
-            const soft = softLoadFailed ? null : (softResult.value || []);
-            const fetchedSubregions = canManageResourceTools ? (responses[cursor++] || []) : [];
-            const fetchedTemplates = canManageResourceTools ? (responses[cursor++] || []) : [];
-            const fetchedAudienceZones = canManageResourceTools ? (responses[cursor++] || []) : [];
-            const fetchedUsers = (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin')
-                ? (responses[cursor++] || [])
-                : [];
-            const fetchedPartnerBoundary = normalizedRole === 'partner'
-                ? (responses[cursor++] || null)
-                : null;
-            const hardResponse = hardLoadFailed ? null : normalizePaginatedResponse(hard, hardAssetsPageSize);
-            const softResponse = softLoadFailed ? null : normalizePaginatedResponse(soft, softAssetsPageSize);
-            const hardData = hardResponse?.data || [];
-            const softData = softResponse?.data || [];
+
+            const hardResponse = normalizePaginatedResponse(result.value || [], hardAssetsPageSize);
+            const hardData = hardResponse.data || [];
 
             if (!canManageResourceTools) {
                 const favorites = await api.getFavorites();
+                if (requestId !== loadRequestIdRef.current) return;
                 const favoriteHardIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'hard').map((favorite) => favorite.resourceId));
-                const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
-
                 const favoriteHardAssets = hardData.filter((asset) => favoriteHardIds.has(asset.id));
-                const favoriteSoftAssets = softData.filter((asset) => favoriteSoftIds.has(asset.id));
-
                 setHardAssets(favoriteHardAssets);
-                setSoftAssets(favoriteSoftAssets);
                 setHardAssetsTotal(favoriteHardAssets.length);
-                setSoftAssetsTotal(favoriteSoftAssets.length);
-                setSoftAssetParents([]);
-                setAudienceZones([]);
+            } else if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
+                setHardAssets(hardData);
+                setHardAssetsTotal(needsFullAssetDataset ? hardData.length : (hardResponse.pagination?.totalCount || 0));
             } else {
-                if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                    if (!hardLoadFailed) {
-                        setHardAssets(hardData);
-                        setHardAssetsTotal(needsFullAssetDataset ? hardData.length : (hardResponse.pagination?.totalCount || 0));
-                    }
-                    if (!softLoadFailed) {
-                        setSoftAssets(softData);
-                        setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
-                    }
-                } else {
-                    const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-                    if (!hardLoadFailed) {
-                        const scopedHardAssets = hardData.filter((asset) => (
-                            partnerOwnerIds.has(Number(asset.partnerId))
-                            || hardAssetStaffAccessIdSet.has(Number(asset.id))
-                        ));
-                        setHardAssets(scopedHardAssets);
-                        setHardAssetsTotal(needsFullAssetDataset ? scopedHardAssets.length : (hardResponse.pagination?.totalCount || 0));
-                    }
-                    if (!softLoadFailed) {
-                        const scopedSoftAssets = softData.filter((asset) => {
-                            if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
-                            if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
-                            const linkedIds = getLinkedHardAssetIdsForOffering(asset);
-                            return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
-                        });
-                        setSoftAssets(scopedSoftAssets);
-                        setSoftAssetsTotal(needsFullAssetDataset ? scopedSoftAssets.length : (softResponse.pagination?.totalCount || 0));
-                    }
-                }
-                setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
+                const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+                const scopedHardAssets = hardData.filter((asset) => (
+                    partnerOwnerIds.has(Number(asset.partnerId))
+                    || hardAssetStaffAccessIdSet.has(Number(asset.id))
+                ));
+                setHardAssets(scopedHardAssets);
+                setHardAssetsTotal(needsFullAssetDataset ? scopedHardAssets.length : (hardResponse.pagination?.totalCount || 0));
             }
 
-            if (canManageResourceTools) {
-                setSubregions(Array.isArray(fetchedSubregions) ? fetchedSubregions : []);
-                setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
-            }
-
-            if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                const partners = Array.isArray(fetchedUsers)
-                    ? fetchedUsers.filter((candidate) => normalizeRole(candidate.role) === 'partner')
-                    : [];
-                setPartnerOptions(partners);
-            } else {
-                setPartnerOptions([]);
-            }
-
-            if (normalizedRole === 'partner') {
-                setPartnerBoundary(fetchedPartnerBoundary);
-            }
-            if (hardLoadFailed || softLoadFailed) {
-                const failure = buildResourceLoadFailureMessage({
-                    isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
-                    errorMessage: hardResult.reason?.message || softResult.reason?.message || '',
-                });
-                setResourceLoadError(failure);
-                setActionNotice({ type: 'warning', message: failure.notice });
-            } else {
-                setResourceLoadError(null);
-            }
+            setResourceLoadErrors((prev) => ({ ...prev, hard: null }));
             setHasCompletedResourceLoad(true);
-        } catch (err) {
+            setResourceLoading((prev) => ({ ...prev, hard: false }));
+        }
+
+        async function loadSoftAssets() {
+            const result = await settleResourceListRequest(softAssetsRequest);
             if (requestId !== loadRequestIdRef.current) return;
+            if (result.status !== 'fulfilled') {
+                console.error(result.reason);
+                const failure = buildFailure(result.reason);
+                setResourceLoadErrors((prev) => ({ ...prev, soft: failure }));
+                setActionNotice({ type: 'warning', message: failure.notice });
+                setResourceLoading((prev) => ({ ...prev, soft: false }));
+                return;
+            }
+
+            const softResponse = normalizePaginatedResponse(result.value || [], softAssetsPageSize);
+            const softData = softResponse.data || [];
+
+            if (!canManageResourceTools) {
+                const favorites = await api.getFavorites();
+                if (requestId !== loadRequestIdRef.current) return;
+                const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
+                const favoriteSoftAssets = softData.filter((asset) => favoriteSoftIds.has(asset.id));
+                setSoftAssets(favoriteSoftAssets);
+                setSoftAssetsTotal(favoriteSoftAssets.length);
+            } else if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
+                setSoftAssets(softData);
+                setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
+            } else {
+                const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+                const scopedSoftAssets = softData.filter((asset) => {
+                    if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
+                    if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
+                    const linkedIds = getLinkedHardAssetIdsForOffering(asset);
+                    return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
+                });
+                setSoftAssets(scopedSoftAssets);
+                setSoftAssetsTotal(needsFullAssetDataset ? scopedSoftAssets.length : (softResponse.pagination?.totalCount || 0));
+            }
+
+            setResourceLoadErrors((prev) => ({ ...prev, soft: null }));
+            setHasCompletedResourceLoad(true);
+            setResourceLoading((prev) => ({ ...prev, soft: false }));
+        }
+
+        await Promise.all([loadHardAssets(), loadSoftAssets()]);
+    }
+
+    async function loadResourceMetadata() {
+        if (!canManageResourceTools) {
+            setSoftAssetParents([]);
+            setAudienceZones([]);
+            setSubregions([]);
+            setPartnerOptions([]);
+            return;
+        }
+
+        const requestId = metadataRequestIdRef.current + 1;
+        metadataRequestIdRef.current = requestId;
+        setMetadataLoading(true);
+
+        const coreMetadataRequest = Promise.all([
+            api.getSubregions().catch(() => []),
+            api.getSoftAssetParents().catch(() => []),
+            api.getAudienceZones().catch(() => []),
+        ]).then(([fetchedSubregions, fetchedTemplates, fetchedAudienceZones]) => {
+            if (requestId !== metadataRequestIdRef.current) return;
+            setSubregions(Array.isArray(fetchedSubregions) ? fetchedSubregions : []);
+            setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
+            setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
+            setResourceLoadErrors((prev) => ({ ...prev, templates: null }));
+        }).catch((err) => {
+            if (requestId !== metadataRequestIdRef.current) return;
             console.error(err);
             const failure = buildResourceLoadFailureMessage({
                 isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
                 errorMessage: err?.message || '',
             });
-            setResourceLoadError(failure);
+            setResourceLoadErrors((prev) => ({ ...prev, templates: failure }));
             setActionNotice({ type: 'warning', message: failure.notice });
-        } finally {
-            if (requestId === loadRequestIdRef.current) {
-                setLoading(false);
+        }).finally(() => {
+            if (requestId === metadataRequestIdRef.current) {
+                setMetadataLoading(false);
             }
+        });
+
+        if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
+            api.getUsers().then((fetchedUsers) => {
+                if (requestId !== metadataRequestIdRef.current) return;
+                const partners = Array.isArray(fetchedUsers)
+                    ? fetchedUsers.filter((candidate) => normalizeRole(candidate.role) === 'partner')
+                    : [];
+                setPartnerOptions(partners);
+            }).catch(() => {
+                if (requestId === metadataRequestIdRef.current) {
+                    setPartnerOptions([]);
+                }
+            });
+        } else {
+            setPartnerOptions([]);
         }
+
+        if (normalizedRole === 'partner') {
+            api.getPartnerBoundaries(user.id).then((fetchedPartnerBoundary) => {
+                if (requestId === metadataRequestIdRef.current) {
+                    setPartnerBoundary(fetchedPartnerBoundary);
+                }
+            }).catch(() => {
+                if (requestId === metadataRequestIdRef.current) {
+                    setPartnerBoundary(null);
+                }
+            });
+        }
+
+        await coreMetadataRequest;
     }
 
     useEffect(() => {
@@ -916,6 +959,12 @@ export default function ResourcesPage() {
         load();
         return undefined;
     }, [assetLoadKey, canManageResourceTools]);
+
+    useEffect(() => {
+        if (!canManageResourceTools) return undefined;
+        loadResourceMetadata();
+        return undefined;
+    }, [canManageResourceTools, normalizedRole, user?.id]);
 
     useEffect(() => {
         setHardAssetsPage(1);
@@ -999,25 +1048,44 @@ export default function ResourcesPage() {
     );
     const hardTabCount = hardUsesClientOnlyFilter ? filteredHardAssets.length : hardAssetsTotal;
     const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
-    const showInitialResourceLoadFailure = Boolean(resourceLoadError && !hasCompletedResourceLoad && !loading);
+    const hardInitialLoading = resourceLoading.hard && filteredHardAssets.length === 0;
+    const softInitialLoading = resourceLoading.soft && filteredSoftAssets.length === 0;
+    const templateInitialLoading = metadataLoading && filteredTemplates.length === 0;
+    const activeListLoading = activeTab === 'hard'
+        ? hardInitialLoading
+        : activeTab === 'soft'
+            ? softInitialLoading
+            : templateInitialLoading;
+    const activeResourceLoadError = activeTab === 'hard'
+        ? resourceLoadErrors.hard
+        : activeTab === 'soft'
+            ? resourceLoadErrors.soft
+            : resourceLoadErrors.templates;
+    const showInitialResourceLoadFailure = Boolean(
+        resourceLoadErrors.hard
+        && resourceLoadErrors.soft
+        && !hasCompletedResourceLoad
+        && !resourceLoading.hard
+        && !resourceLoading.soft
+    );
     const hardTabLabel = showInitialResourceLoadFailure ? '-' : hardTabCount;
     const softTabLabel = showInitialResourceLoadFailure ? '-' : softTabCount;
     const templateTabLabel = showInitialResourceLoadFailure ? '-' : filteredTemplates.length;
     const hardListStatus = getManagedResourceListStatus({
-        loading,
-        loadError: resourceLoadError,
+        loading: hardInitialLoading,
+        loadError: resourceLoadErrors.hard,
         visibleItemCount: filteredHardAssets.length,
         hasCompletedResourceLoad,
     });
     const softListStatus = getManagedResourceListStatus({
-        loading,
-        loadError: resourceLoadError,
+        loading: softInitialLoading,
+        loadError: resourceLoadErrors.soft,
         visibleItemCount: filteredSoftAssets.length,
         hasCompletedResourceLoad,
     });
     const templateListStatus = getManagedResourceListStatus({
-        loading,
-        loadError: resourceLoadError,
+        loading: templateInitialLoading,
+        loadError: resourceLoadErrors.templates,
         visibleItemCount: filteredTemplates.length,
         hasCompletedResourceLoad,
     });
@@ -1251,7 +1319,23 @@ export default function ResourcesPage() {
             openChildEditor(asset.id);
             return;
         }
-        setAssetModal({ mode: 'edit', assetType, data: asset });
+        setAssetModal({ mode: 'edit', assetType, data: asset, loading: true });
+        try {
+            const fullAsset = await api.getSoftAsset(asset.id);
+            setAssetModal((prev) => (
+                prev?.assetType === 'soft' && prev?.mode === 'edit' && Number(prev?.data?.id) === Number(asset.id)
+                    ? { ...prev, data: fullAsset, loading: false }
+                    : prev
+            ));
+        } catch (err) {
+            console.error('Failed to load offering details', err);
+            setAssetModal((prev) => (
+                prev?.assetType === 'soft' && prev?.mode === 'edit' && Number(prev?.data?.id) === Number(asset.id)
+                    ? { ...prev, loading: false }
+                    : prev
+            ));
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load offering details.' });
+        }
     }
 
     function openManualHardAssetCreate() {
@@ -1328,6 +1412,7 @@ export default function ResourcesPage() {
                 await api.deleteHardAsset(target.id);
             } else if (target.assetType === 'template') {
                 await api.deleteSoftAssetParent(target.id);
+                setSoftAssetParents((prev) => prev.filter((template) => Number(template.id) !== Number(target.id)));
                 setTemplateDetails((prev) => {
                     const next = { ...prev };
                     delete next[target.id];
@@ -1617,7 +1702,7 @@ export default function ResourcesPage() {
         const file = e.target.files?.[0];
         if (!file || normalizedRole !== 'partner') return;
 
-        setLoading(true);
+        setMetadataLoading(true);
         setPartnerBoundaryFeedback('');
         Papa.parse(file, {
             header: true,
@@ -1627,17 +1712,17 @@ export default function ResourcesPage() {
                     const rows = Array.isArray(results.data) ? results.data : [];
                     const response = await api.bulkUploadPartnerBoundaries(user.id, { rows });
                     setPartnerBoundaryFeedback(`Boundary updated: ${response.assignedPostalCodes || 0} postal code(s) assigned.`);
-                    await load();
+                    await Promise.all([load(), loadResourceMetadata()]);
                 } catch (err) {
                     setPartnerBoundaryFeedback(err.message || 'Failed to update managed area.');
                 } finally {
-                    setLoading(false);
+                    setMetadataLoading(false);
                     e.target.value = null;
                 }
             },
             error: (err) => {
                 setPartnerBoundaryFeedback(`File parsing error: ${err.message}`);
-                setLoading(false);
+                setMetadataLoading(false);
             },
         });
     }
@@ -1939,13 +2024,13 @@ export default function ResourcesPage() {
                 </div>
             </div>
 
-            {loading ? (
+            {activeListLoading ? (
                 <div className="space-y-3">
                     {[...Array(3)].map((_, index) => <div key={index} className="card h-24 animate-pulse bg-slate-100" />)}
                 </div>
             ) : activeTab === 'hard' ? (
                 hardListStatus === 'load-error' ? (
-                    <ResourceLoadFailureState failure={resourceLoadError} onRetry={load} />
+                    <ResourceLoadFailureState failure={resourceLoadErrors.hard} onRetry={load} />
                 ) : filteredHardAssets.length === 0 ? (
                     <EmptyState
                         icon={Building2}
@@ -2338,7 +2423,7 @@ export default function ResourcesPage() {
                 )
             ) : activeTab === 'soft' ? (
                 softListStatus === 'load-error' ? (
-                    <ResourceLoadFailureState failure={resourceLoadError} onRetry={load} />
+                    <ResourceLoadFailureState failure={resourceLoadErrors.soft} onRetry={load} />
                 ) : filteredSoftAssets.length === 0 ? (
                     <EmptyState
                         icon={CalendarDays}
@@ -2534,7 +2619,7 @@ export default function ResourcesPage() {
                 )
             ) : (
                 templateListStatus === 'load-error' ? (
-                    <ResourceLoadFailureState failure={resourceLoadError} onRetry={load} />
+                    <ResourceLoadFailureState failure={activeResourceLoadError} onRetry={loadResourceMetadata} />
                 ) : filteredTemplates.length === 0 ? (
                     <EmptyState
                         icon={Files}
@@ -2815,21 +2900,27 @@ export default function ResourcesPage() {
                     description={assetModal.assetType === 'hard' ? 'Add a physical address and contact info.' : 'Add schedule, description, and link to a location.'}
                     onClose={() => setAssetModal(null)}
                 >
-                    <AssetForm
-                        type={assetModal.assetType}
-                        initialData={assetModal.data}
-                        partnerHardAssets={hardAssets}
-                        currentUser={user}
-                        partnerOptions={partnerOptions}
-                        subregions={subregions}
-                        audienceZones={audienceZones}
-                        onSave={async () => {
-                            setAssetModal(null);
-                            await load();
-                            setActionNotice({ type: 'success', message: `${assetModal.assetType === 'hard' ? 'Place' : 'Offering'} saved.` });
-                        }}
-                        onCancel={() => setAssetModal(null)}
-                    />
+                    {assetModal.loading ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                            Loading offering details…
+                        </div>
+                    ) : (
+                        <AssetForm
+                            type={assetModal.assetType}
+                            initialData={assetModal.data}
+                            partnerHardAssets={hardAssets}
+                            currentUser={user}
+                            partnerOptions={partnerOptions}
+                            subregions={subregions}
+                            audienceZones={audienceZones}
+                            onSave={async () => {
+                                setAssetModal(null);
+                                await load();
+                                setActionNotice({ type: 'success', message: `${assetModal.assetType === 'hard' ? 'Place' : 'Offering'} saved.` });
+                            }}
+                            onCancel={() => setAssetModal(null)}
+                        />
+                    )}
                 </ResourceModal>
             ) : null}
 
@@ -2848,6 +2939,7 @@ export default function ResourcesPage() {
                             const templateId = templateModal.data?.id || null;
                             setTemplateModal(null);
                             await load();
+                            loadResourceMetadata().catch(() => null);
                             if (templateId) {
                                 await refreshTemplateDetail(templateId).catch(() => null);
                             }

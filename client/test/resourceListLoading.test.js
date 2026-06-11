@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
+    buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
+    RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
     settleResourceListRequest,
     shouldHydrateAllAdminResourcePages,
     shouldUseFullResourceDataset,
@@ -89,6 +91,27 @@ test('buildManagedHardResourceListParams requests lean summaries for managed har
         canManageResourceTools: false,
         role: 'regional_admin',
     }), {});
+});
+
+test('buildManagedSoftResourceListParams requests lean summaries for managed soft asset lists', () => {
+    assert.deepEqual(buildManagedSoftResourceListParams({
+        canManageResourceTools: true,
+        role: 'regional_admin',
+    }), { scope: 'managed', regionScoped: true, summary: true });
+
+    assert.deepEqual(buildManagedSoftResourceListParams({
+        canManageResourceTools: true,
+        role: 'super_admin',
+    }), { scope: 'managed', summary: true });
+
+    assert.deepEqual(buildManagedSoftResourceListParams({
+        canManageResourceTools: false,
+        role: 'regional_admin',
+    }), {});
+});
+
+test('resource list search debounce has a bounded demo-friendly delay', () => {
+    assert.equal(RESOURCE_LIST_SEARCH_DEBOUNCE_MS, 350);
 });
 
 test('admin resource loads do not eagerly hydrate every resource page', () => {

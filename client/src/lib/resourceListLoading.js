@@ -1,6 +1,7 @@
 import { fetchPaginatedResultPage } from './paginatedResults.js';
 
 export const RESOURCE_LIST_PAGE_LOAD_ATTEMPTS = 3;
+export const RESOURCE_LIST_SEARCH_DEBOUNCE_MS = 350;
 
 export function shouldUseFullResourceDataset({
     query = '',
@@ -25,6 +26,11 @@ export function buildManagedResourceListParams({
 }
 
 export function buildManagedHardResourceListParams(options = {}) {
+    const params = buildManagedResourceListParams(options);
+    return Object.keys(params).length > 0 ? { ...params, summary: true } : params;
+}
+
+export function buildManagedSoftResourceListParams(options = {}) {
     const params = buildManagedResourceListParams(options);
     return Object.keys(params).length > 0 ? { ...params, summary: true } : params;
 }

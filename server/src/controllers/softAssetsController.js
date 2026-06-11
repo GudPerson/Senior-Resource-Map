@@ -17,6 +17,7 @@ import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules, shouldExposeOfferingToViewer } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
+import { formatSoftAssetListSummary } from '../utils/softAssetListSummary.js';
 import { loadSingaporeFallbackRegion } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
@@ -208,6 +209,95 @@ const softAssetWithRelations = {
         },
     },
 };
+
+const softAssetListSummaryRelations = {
+    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+    parent: {
+        columns: {
+            id: true,
+            name: true,
+        },
+        with: {
+            audienceZones: {
+                with: {
+                    audienceZone: {
+                        columns: {
+                            id: true,
+                            zoneCode: true,
+                            name: true,
+                            partnerUserId: true,
+                        },
+                    },
+                },
+            },
+        },
+    },
+    hostHardAsset: {
+        columns: {
+            id: true,
+            name: true,
+            address: true,
+            country: true,
+            postalCode: true,
+            subregionId: true,
+            subCategory: true,
+            logoUrl: true,
+            partnerId: true,
+            isHidden: true,
+            hideFrom: true,
+            hideUntil: true,
+            isDeleted: true,
+        },
+        with: {
+            partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+        },
+    },
+    audienceZones: {
+        with: {
+            audienceZone: {
+                columns: {
+                    id: true,
+                    zoneCode: true,
+                    name: true,
+                    partnerUserId: true,
+                },
+            },
+        },
+    },
+    tags: { with: { tag: true } },
+    locations: {
+        columns: {
+            softAssetId: true,
+            hardAssetId: true,
+        },
+        with: {
+            hardAsset: {
+                columns: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    country: true,
+                    postalCode: true,
+                    subregionId: true,
+                    subCategory: true,
+                    logoUrl: true,
+                    partnerId: true,
+                    isHidden: true,
+                    hideFrom: true,
+                    hideUntil: true,
+                    isDeleted: true,
+                },
+                with: {
+                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                },
+            },
+        },
+    },
+};
+
+function isQueryFlagEnabled(value) {
+    return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
+}
 
 function normalizeAvailabilityEnabled(value) {
     return Boolean(value);
@@ -596,6 +686,8 @@ export const getSoftAssets = async (c) => {
         });
         const listScope = normalizeResourceListScope(c.req.query('scope'));
         const query = c.req.query('q');
+        const summaryOnly = isQueryFlagEnabled(c.req.query('summary'));
+        const useManagedSummary = summaryOnly && listScope === 'managed';
 
         const whereClauses = [eq(softAssets.isDeleted, false)];
         const isDirectStaffManagedScope = listScope === 'managed' && isStandardDirectResourceOperator(user);
@@ -639,7 +731,7 @@ export const getSoftAssets = async (c) => {
 
         const options = {
             where: finalWhere,
-            with: softAssetWithRelations,
+            with: useManagedSummary ? softAssetListSummaryRelations : softAssetWithRelations,
             orderBy: [desc(softAssets.updatedAt), desc(softAssets.id)],
         };
 
@@ -668,6 +760,33 @@ export const getSoftAssets = async (c) => {
             }),
             canExpose: () => true,
         });
+
+        if (useManagedSummary) {
+            const summaries = scopedAssets.map((asset) => ({
+                ...formatSoftAssetListSummary(asset, {
+                    boundaryStatus: resolveSoftAssetBoundaryStatus(getSoftAssetLocations(asset), boundaryContext),
+                    permissions: buildSoftAssetPermissionSummary(user, asset),
+                }),
+            }));
+            const { data: pagedSummaries, pagination } = canUseDirectPagination
+                ? {
+                    data: summaries,
+                    pagination: buildResourceListPagination({ totalCount: directTotalCount, page, pageSize }),
+                }
+                : paginateResourceList(summaries, { page, pageSize });
+            const organizationContextsByResource = await loadOrganizationContextsForResources(
+                db,
+                pagedSummaries.map((asset) => ({ resourceType: 'soft', resourceId: asset.id })),
+            );
+
+            return c.json({
+                data: pagedSummaries.map((asset) => ({
+                    ...asset,
+                    organizationLinks: organizationContextsByResource.get(`soft:${asset.id}`) || [],
+                })),
+                pagination,
+            });
+        }
 
         const eligibilityContext = await buildEligibilityContext(db, user);
         const membershipHostIdMap = await buildMembershipHostIdMap(db, scopedAssets);
