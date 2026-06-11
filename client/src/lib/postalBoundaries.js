@@ -1,4 +1,6 @@
 const EXACT_POSTAL_REGEX = /^\d{6}$/;
+const SINGAPORE_REGION_CODE = 'SIN';
+const SINGAPORE_REGION_NAME = 'Singapore';
 
 export function normalizePostalCode(value) {
     if (value === undefined || value === null) return '';
@@ -91,4 +93,38 @@ export function getPreferredSubregionMatch(matches) {
 
         return Number(left.id || 0) - Number(right.id || 0);
     })[0];
+}
+
+export function isSingaporeCountry(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'sg' || normalized === 'singapore';
+}
+
+export function findSingaporeFallbackSubregion(subregions) {
+    const rows = Array.isArray(subregions) ? subregions : [];
+    return rows.find((row) => row.subregionCode === SINGAPORE_REGION_CODE && row.name === SINGAPORE_REGION_NAME)
+        || rows.find((row) => row.subregionCode === SINGAPORE_REGION_CODE)
+        || rows.find((row) => row.name === SINGAPORE_REGION_NAME)
+        || null;
+}
+
+export function actorCanUseSingaporeFallbackRegion(actor, singaporeSubregionId) {
+    const role = String(actor?.role || '').trim().toLowerCase();
+    if (role === 'super_admin') return true;
+
+    const targetId = Number.parseInt(String(singaporeSubregionId), 10);
+    if (!Number.isInteger(targetId)) return false;
+
+    return Array.isArray(actor?.subregionIds)
+        && actor.subregionIds.some((id) => Number.parseInt(String(id), 10) === targetId);
+}
+
+export function canUseSingaporePostalFallback({ country, currentRole, currentUser, singaporeSubregion }) {
+    if (!isSingaporeCountry(country)) return false;
+    if (!singaporeSubregion) return false;
+
+    return actorCanUseSingaporeFallbackRegion(
+        { ...currentUser, role: currentRole || currentUser?.role },
+        singaporeSubregion.id
+    );
 }

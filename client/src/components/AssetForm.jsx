@@ -5,7 +5,12 @@ import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, 
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
-import { getPreferredSubregionMatch, resolveSingleSubregionByPostal } from '../lib/postalBoundaries.js';
+import {
+    canUseSingaporePostalFallback,
+    findSingaporeFallbackSubregion,
+    getPreferredSubregionMatch,
+    resolveSingleSubregionByPostal,
+} from '../lib/postalBoundaries.js';
 import { normalizeRole } from '../lib/roles.js';
 import { createEmptySocialLinks, mergeSocialLinks, normalizeSocialLinks, SOCIAL_PLATFORMS } from '../lib/socialLinks.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
@@ -310,6 +315,20 @@ export default function AssetForm({
         () => getPreferredSubregionMatch(hardSubregionResult.matches),
         [hardSubregionResult.matches]
     );
+    const singaporeFallbackSubregion = useMemo(
+        () => findSingaporeFallbackSubregion(subregions),
+        [subregions]
+    );
+    const canUseHardSingaporeFallback = useMemo(() => (
+        isHard
+        && hardSubregionResult.status === 'missing'
+        && canUseSingaporePostalFallback({
+            country: form.country,
+            currentRole,
+            currentUser,
+            singaporeSubregion: singaporeFallbackSubregion,
+        })
+    ), [currentRole, currentUser, form.country, hardSubregionResult.status, isHard, singaporeFallbackSubregion]);
 
     const linkedLocationOptions = partnerHardAssets.map((asset) => ({
         value: asset.id,
@@ -456,11 +475,13 @@ export default function AssetForm({
                 delete payload.ownershipMode;
                 delete payload.partnerId;
                 if (hardSubregionResult.status !== 'ok') {
-                    if (hardSubregionResult.status === 'missing') {
+                    if (hardSubregionResult.status === 'missing' && !canUseHardSingaporeFallback) {
                         throw new Error('Postal code does not match any configured service area.');
                     }
                     if (hardSubregionResult.status === 'ambiguous') {
                         // Save is allowed; the API will route this place under the preferred matched subregion.
+                    } else if (canUseHardSingaporeFallback) {
+                        // Save is allowed; the API validates and caches Singapore fallback postals.
                     } else {
                         throw new Error('Postal code must be a valid 6-digit code.');
                     }
@@ -876,6 +897,10 @@ export default function AssetForm({
                             ) : hardSubregionResult.status === 'ambiguous' ? (
                                 <span className="text-amber-700">
                                     Postal code matches multiple service areas. This place can still be saved and will use {preferredHardSubregion?.subregionCode || 'No code'} · {preferredHardSubregion?.name || 'the preferred service area'} for area-based management.
+                                </span>
+                            ) : hardSubregionResult.status === 'missing' && canUseHardSingaporeFallback ? (
+                                <span className="text-amber-700">
+                                    Postal code will be checked against Singapore before saving and attached to {singaporeFallbackSubregion?.subregionCode || 'SIN'} · {singaporeFallbackSubregion?.name || 'Singapore'} if valid.
                                 </span>
                             ) : hardSubregionResult.status === 'missing' ? (
                                 <span className="text-red-700">Postal code does not match any configured service area.</span>
