@@ -40,6 +40,13 @@ export function withResourceListSearchParam(params = {}, query = '') {
     return normalizedQuery ? { ...params, q: normalizedQuery } : params;
 }
 
+export function settleResourceListRequest(promise) {
+    return Promise.resolve(promise).then(
+        (value) => ({ status: 'fulfilled', value }),
+        (reason) => ({ status: 'rejected', reason }),
+    );
+}
+
 export async function fetchResourceListPageWithResilience(fetchPage, params = {}, options = {}) {
     const settings = typeof options === 'number' ? { pageSize: options } : options;
     return fetchPaginatedResultPage(fetchPage, params, {

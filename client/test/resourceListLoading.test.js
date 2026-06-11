@@ -5,6 +5,7 @@ import {
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
     fetchResourceListPageWithResilience,
+    settleResourceListRequest,
     shouldHydrateAllAdminResourcePages,
     shouldUseFullResourceDataset,
     withResourceListSearchParam,
@@ -142,4 +143,14 @@ test('fetchResourceListPageWithResilience retries a transient first-page failure
     assert.equal(attempts, 2);
     assert.equal(result.pagination.totalCount, 1);
     assert.deepEqual(result.data.map((asset) => asset.name), ['FRCS Active Ageing Centre']);
+});
+
+test('settleResourceListRequest keeps one failed resource family from throwing the whole load', async () => {
+    const okResult = await settleResourceListRequest(Promise.resolve({ data: [{ id: 1 }] }));
+    const failedResult = await settleResourceListRequest(Promise.reject(new Error('temporary offerings failure')));
+
+    assert.equal(okResult.status, 'fulfilled');
+    assert.deepEqual(okResult.value.data, [{ id: 1 }]);
+    assert.equal(failedResult.status, 'rejected');
+    assert.match(failedResult.reason.message, /temporary offerings failure/);
 });

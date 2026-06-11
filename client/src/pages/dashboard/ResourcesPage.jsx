@@ -48,6 +48,7 @@ import {
     buildManagedResourceListParams,
     fetchResourceListPageWithResilience,
     shouldUseFullResourceDataset,
+    settleResourceListRequest,
     withResourceListSearchParam,
 } from '../../lib/resourceListLoading.js';
 import {
@@ -761,21 +762,23 @@ export default function ResourcesPage() {
         loadRequestIdRef.current = requestId;
         setLoading(true);
         try {
+            const hardAssetsRequest = needsFullAssetDataset
+                ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
+                : fetchResourceListPageWithResilience(
+                    api.getHardAssets,
+                    { ...hardResourceListParams, q: normalizedQuery },
+                    { page: hardAssetsPage, pageSize: hardAssetsPageSize },
+                );
+            const softAssetsRequest = needsFullAssetDataset
+                ? fetchAllPaginatedResults(api.getSoftAssets, fullResourceListParams)
+                : fetchResourceListPageWithResilience(
+                    api.getSoftAssets,
+                    { ...resourceListParams, q: normalizedQuery },
+                    { page: softAssetsPage, pageSize: softAssetsPageSize },
+                );
             const requests = [
-                needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
-                    : fetchResourceListPageWithResilience(
-                        api.getHardAssets,
-                        { ...hardResourceListParams, q: normalizedQuery },
-                        { page: hardAssetsPage, pageSize: hardAssetsPageSize },
-                    ),
-                needsFullAssetDataset
-                    ? fetchAllPaginatedResults(api.getSoftAssets, fullResourceListParams)
-                    : fetchResourceListPageWithResilience(
-                        api.getSoftAssets,
-                        { ...resourceListParams, q: normalizedQuery },
-                        { page: softAssetsPage, pageSize: softAssetsPageSize },
-                    ),
+                settleResourceListRequest(hardAssetsRequest),
+                settleResourceListRequest(softAssetsRequest),
             ];
 
             if (canManageResourceTools) {
@@ -793,8 +796,15 @@ export default function ResourcesPage() {
             const responses = await Promise.all(requests);
             if (requestId !== loadRequestIdRef.current) return;
             let cursor = 0;
-            const hard = responses[cursor++] || [];
-            const soft = responses[cursor++] || [];
+            const hardResult = responses[cursor++] || { status: 'rejected', reason: new Error('Places failed to load.') };
+            const softResult = responses[cursor++] || { status: 'rejected', reason: new Error('Offerings failed to load.') };
+            const hardLoadFailed = hardResult.status !== 'fulfilled';
+            const softLoadFailed = softResult.status !== 'fulfilled';
+            if (hardLoadFailed && softLoadFailed) {
+                throw hardResult.reason || softResult.reason || new Error('Resource pages failed to load.');
+            }
+            const hard = hardLoadFailed ? null : (hardResult.value || []);
+            const soft = softLoadFailed ? null : (softResult.value || []);
             const fetchedSubregions = canManageResourceTools ? (responses[cursor++] || []) : [];
             const fetchedTemplates = canManageResourceTools ? (responses[cursor++] || []) : [];
             const fetchedAudienceZones = canManageResourceTools ? (responses[cursor++] || []) : [];
@@ -804,10 +814,10 @@ export default function ResourcesPage() {
             const fetchedPartnerBoundary = normalizedRole === 'partner'
                 ? (responses[cursor++] || null)
                 : null;
-            const hardResponse = normalizePaginatedResponse(hard, hardAssetsPageSize);
-            const softResponse = normalizePaginatedResponse(soft, softAssetsPageSize);
-            const hardData = hardResponse.data || [];
-            const softData = softResponse.data || [];
+            const hardResponse = hardLoadFailed ? null : normalizePaginatedResponse(hard, hardAssetsPageSize);
+            const softResponse = softLoadFailed ? null : normalizePaginatedResponse(soft, softAssetsPageSize);
+            const hardData = hardResponse?.data || [];
+            const softData = softResponse?.data || [];
 
             if (!canManageResourceTools) {
                 const favorites = await api.getFavorites();
@@ -825,26 +835,34 @@ export default function ResourcesPage() {
                 setAudienceZones([]);
             } else {
                 if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                    setHardAssets(hardData);
-                    setSoftAssets(softData);
-                    setHardAssetsTotal(needsFullAssetDataset ? hardData.length : (hardResponse.pagination?.totalCount || 0));
-                    setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
+                    if (!hardLoadFailed) {
+                        setHardAssets(hardData);
+                        setHardAssetsTotal(needsFullAssetDataset ? hardData.length : (hardResponse.pagination?.totalCount || 0));
+                    }
+                    if (!softLoadFailed) {
+                        setSoftAssets(softData);
+                        setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
+                    }
                 } else {
                     const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-                    const scopedHardAssets = hardData.filter((asset) => (
-                        partnerOwnerIds.has(Number(asset.partnerId))
-                        || hardAssetStaffAccessIdSet.has(Number(asset.id))
-                    ));
-                    const scopedSoftAssets = softData.filter((asset) => {
-                        if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
-                        if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
-                        const linkedIds = getLinkedHardAssetIdsForOffering(asset);
-                        return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
-                    });
-                    setHardAssets(scopedHardAssets);
-                    setSoftAssets(scopedSoftAssets);
-                    setHardAssetsTotal(needsFullAssetDataset ? scopedHardAssets.length : (hardResponse.pagination?.totalCount || 0));
-                    setSoftAssetsTotal(needsFullAssetDataset ? scopedSoftAssets.length : (softResponse.pagination?.totalCount || 0));
+                    if (!hardLoadFailed) {
+                        const scopedHardAssets = hardData.filter((asset) => (
+                            partnerOwnerIds.has(Number(asset.partnerId))
+                            || hardAssetStaffAccessIdSet.has(Number(asset.id))
+                        ));
+                        setHardAssets(scopedHardAssets);
+                        setHardAssetsTotal(needsFullAssetDataset ? scopedHardAssets.length : (hardResponse.pagination?.totalCount || 0));
+                    }
+                    if (!softLoadFailed) {
+                        const scopedSoftAssets = softData.filter((asset) => {
+                            if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
+                            if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
+                            const linkedIds = getLinkedHardAssetIdsForOffering(asset);
+                            return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
+                        });
+                        setSoftAssets(scopedSoftAssets);
+                        setSoftAssetsTotal(needsFullAssetDataset ? scopedSoftAssets.length : (softResponse.pagination?.totalCount || 0));
+                    }
                 }
                 setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             }
@@ -866,7 +884,16 @@ export default function ResourcesPage() {
             if (normalizedRole === 'partner') {
                 setPartnerBoundary(fetchedPartnerBoundary);
             }
-            setResourceLoadError(null);
+            if (hardLoadFailed || softLoadFailed) {
+                const failure = buildResourceLoadFailureMessage({
+                    isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
+                    errorMessage: hardResult.reason?.message || softResult.reason?.message || '',
+                });
+                setResourceLoadError(failure);
+                setActionNotice({ type: 'warning', message: failure.notice });
+            } else {
+                setResourceLoadError(null);
+            }
             setHasCompletedResourceLoad(true);
         } catch (err) {
             if (requestId !== loadRequestIdRef.current) return;
