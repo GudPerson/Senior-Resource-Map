@@ -11,7 +11,7 @@ import {
     ArrowLeft,
     ChevronRight,
     Plus,
-    Save,
+    RefreshCw,
     StickyNote,
     Trash2,
     X,
@@ -26,6 +26,12 @@ import {
     hasAnyOwnerNote,
     normalizeNoteItems,
 } from '../lib/mapNotes.js';
+import {
+    MAP_NOTES_AUTOSAVE_DELAY_MS,
+    buildMapNotesAutosaveSignature,
+    buildMapNotesSavePayload,
+    shouldResetDraftsFromRemote,
+} from '../lib/mapNotesAutosave.js';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 import {
@@ -247,22 +253,150 @@ function ResourceNotesEditor({
 }) {
     const { t } = useLocale();
     const rowKey = getRowAssetKey(row);
-    const noteSignature = normalizeNoteItems(row?.notes).map((note) => `${note.id || ''}:${note.text}:${note.isShared}`).join('|');
+    const remoteSignature = buildMapNotesAutosaveSignature(normalizeNoteItems(row?.notes));
     const [drafts, setDrafts] = useState(() => buildNoteDrafts(row ? [row] : []));
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
+    const [saveState, setSaveState] = useState('idle');
     const [error, setError] = useState('');
+    const activeRowKeyRef = useRef(rowKey);
+    const draftsRef = useRef(drafts);
+    const rowRef = useRef(row);
+    const onUpdateResourceNotesRef = useRef(onUpdateResourceNotes);
+    const saveTimerRef = useRef(null);
+    const pendingSaveRef = useRef(false);
+    const saveInFlightRef = useRef(false);
+    const queuedSaveRef = useRef(false);
+    const draftChangedRef = useRef(false);
+    const immediateSaveRef = useRef(false);
+    const latestDraftSignatureRef = useRef(remoteSignature);
+
+    rowRef.current = row;
+    onUpdateResourceNotesRef.current = onUpdateResourceNotes;
+
+    function clearAutosaveTimer() {
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+    }
+
+    function getCurrentDraftNotes() {
+        const activeRowKey = activeRowKeyRef.current;
+        const activeDraft = draftsRef.current[activeRowKey] || { notes: [] };
+        return activeDraft.notes || [];
+    }
+
+    function scheduleAutosave(delay = MAP_NOTES_AUTOSAVE_DELAY_MS) {
+        clearAutosaveTimer();
+        pendingSaveRef.current = true;
+        setSaveState('pending');
+        saveTimerRef.current = setTimeout(() => {
+            saveTimerRef.current = null;
+            void flushAutosave();
+        }, delay);
+    }
+
+    async function flushAutosave() {
+        clearAutosaveTimer();
+        if (!rowRef.current || !onUpdateResourceNotesRef.current) return;
+
+        if (saveInFlightRef.current) {
+            queuedSaveRef.current = true;
+            pendingSaveRef.current = true;
+            return;
+        }
+
+        const saveRowRef = rowRef.current;
+        const payload = buildMapNotesSavePayload(getCurrentDraftNotes());
+        const saveSignature = buildMapNotesAutosaveSignature(payload);
+        pendingSaveRef.current = false;
+        queuedSaveRef.current = false;
+        saveInFlightRef.current = true;
+        setSaveState('saving');
+        setError('');
+
+        try {
+            await onUpdateResourceNotesRef.current(saveRowRef, payload);
+            const hasNewerDraft = latestDraftSignatureRef.current !== saveSignature;
+            const shouldSaveAgain = queuedSaveRef.current || pendingSaveRef.current || hasNewerDraft;
+            if (shouldSaveAgain) {
+                pendingSaveRef.current = true;
+                scheduleAutosave(0);
+                return;
+            }
+            setSaveState('saved');
+        } catch (err) {
+            console.error(err);
+            const hasNewerDraft = latestDraftSignatureRef.current !== saveSignature;
+            if (hasNewerDraft || queuedSaveRef.current) {
+                pendingSaveRef.current = true;
+                scheduleAutosave(0);
+                return;
+            }
+            pendingSaveRef.current = true;
+            setSaveState('error');
+            setError(err.message || t('failedSaveMapNotes'));
+        } finally {
+            saveInFlightRef.current = false;
+        }
+    }
 
     useEffect(() => {
-        setDrafts(buildNoteDrafts(row ? [row] : []));
-        setSaved(false);
-        setError('');
-    }, [rowKey, noteSignature]);
+        draftsRef.current = drafts;
+        if (!draftChangedRef.current) return;
+
+        draftChangedRef.current = false;
+        const payload = buildMapNotesSavePayload(getCurrentDraftNotes());
+        latestDraftSignatureRef.current = buildMapNotesAutosaveSignature(payload);
+        const delay = immediateSaveRef.current ? 0 : MAP_NOTES_AUTOSAVE_DELAY_MS;
+        immediateSaveRef.current = false;
+        scheduleAutosave(delay);
+    }, [drafts]);
+
+    useEffect(() => {
+        const previousRowKey = activeRowKeyRef.current;
+        const localSignature = buildMapNotesAutosaveSignature(buildMapNotesSavePayload(getCurrentDraftNotes()));
+        const shouldReset = shouldResetDraftsFromRemote({
+            previousRowKey,
+            nextRowKey: rowKey,
+            localSignature,
+            remoteSignature,
+            hasPendingSave: pendingSaveRef.current,
+            isSaving: saveInFlightRef.current,
+        });
+
+        activeRowKeyRef.current = rowKey;
+        latestDraftSignatureRef.current = shouldReset ? remoteSignature : latestDraftSignatureRef.current;
+
+        if (!shouldReset) return;
+
+        if (previousRowKey !== rowKey) {
+            clearAutosaveTimer();
+            pendingSaveRef.current = false;
+            queuedSaveRef.current = false;
+            setSaveState('idle');
+            setError('');
+        }
+
+        const nextDrafts = buildNoteDrafts(row ? [row] : []);
+        draftsRef.current = nextDrafts;
+        setDrafts(nextDrafts);
+    }, [rowKey, remoteSignature]);
+
+    useEffect(() => () => {
+        clearAutosaveTimer();
+    }, []);
 
     if (!row || !onUpdateResourceNotes) return null;
 
-    function updateDraftNote(clientId, values) {
-        setSaved(false);
+    function markDraftChanged({ immediate = false } = {}) {
+        draftChangedRef.current = true;
+        immediateSaveRef.current = immediateSaveRef.current || immediate;
+        setSaveState('pending');
+        setError('');
+    }
+
+    function updateDraftNote(clientId, values, options = {}) {
+        markDraftChanged(options);
         setDrafts((current) => ({
             ...current,
             [rowKey]: {
@@ -277,7 +411,6 @@ function ResourceNotesEditor({
     }
 
     function addDraftNote() {
-        setSaved(false);
         setDrafts((current) => ({
             ...current,
             [rowKey]: {
@@ -288,7 +421,7 @@ function ResourceNotesEditor({
     }
 
     function removeDraftNote(clientId) {
-        setSaved(false);
+        markDraftChanged({ immediate: true });
         setDrafts((current) => ({
             ...current,
             [rowKey]: {
@@ -301,31 +434,13 @@ function ResourceNotesEditor({
         }));
     }
 
-    async function saveRow() {
-        const draft = drafts[rowKey] || { notes: [] };
-        setSaving(true);
-        setError('');
-        try {
-            await onUpdateResourceNotes(row, {
-                notes: (draft.notes || []).map((note) => ({
-                    id: note.id || undefined,
-                    text: note.text,
-                    isShared: Boolean(note.isShared),
-                })),
-            });
-            setSaved(true);
-        } catch (err) {
-            console.error(err);
-            setError(err.message || t('failedSaveMapNotes'));
-        } finally {
-            setSaving(false);
-        }
-    }
-
     const draft = drafts[rowKey] || {
         notes: [createEmptyDraftNote()],
     };
     const draftNotes = draft.notes?.length ? draft.notes : [createEmptyDraftNote()];
+    const isSaving = saveState === 'saving' || saveState === 'pending';
+    const isSaved = saveState === 'saved';
+    const didSaveFail = saveState === 'error';
 
     return (
         <div className="space-y-3">
@@ -341,6 +456,7 @@ function ResourceNotesEditor({
                             <textarea
                                 value={note.text}
                                 onChange={(event) => updateDraftNote(note.clientId, { text: event.target.value })}
+                                onBlur={() => void flushAutosave()}
                                 maxLength={1000}
                                 rows={3}
                                 className="min-h-[96px] flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
@@ -360,7 +476,7 @@ function ResourceNotesEditor({
                             <input
                                 type="checkbox"
                                 checked={note.isShared}
-                                onChange={(event) => updateDraftNote(note.clientId, { isShared: event.target.checked })}
+                                onChange={(event) => updateDraftNote(note.clientId, { isShared: event.target.checked }, { immediate: true })}
                                 className="h-5 w-5 rounded border-slate-300 accent-brand-600"
                             />
                             {t('shareThisNote')}
@@ -378,20 +494,26 @@ function ResourceNotesEditor({
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-3">
-                {saved ? (
+                {isSaving ? (
+                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
+                        {t('saving')}
+                    </span>
+                ) : null}
+                {isSaved ? (
                     <span className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">
                         {t('saved')}
                     </span>
                 ) : null}
-                <button
-                    type="button"
-                    onClick={saveRow}
-                    disabled={saving}
-                    className="btn-primary min-h-11 justify-center px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    <Save size={15} />
-                    {saving ? t('saving') : t('saveNotes')}
-                </button>
+                {didSaveFail ? (
+                    <button
+                        type="button"
+                        onClick={() => void flushAutosave()}
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-3 text-sm font-bold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-100"
+                    >
+                        <RefreshCw size={15} />
+                        {t('saveNotes')}
+                    </button>
+                ) : null}
             </div>
         </div>
     );
