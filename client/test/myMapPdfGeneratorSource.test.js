@@ -53,3 +53,11 @@ test('My Map PDF generator keeps note formatting readable', () => {
     assert.doesNotMatch(source, /Updated \$\{note\.updatedAt\}/);
     assert.doesNotMatch(source, /details = \[note\.visibility\]/);
 });
+
+test('My Map PDF generator constrains notes inside the printable page width', () => {
+    assert.match(source, /const LEDGER_CONTENT_WIDTH = PAGE\.width - \(PAGE\.margin \* 2\);/);
+    assert.match(source, /const LEDGER_COLUMN_WIDTHS = \{/);
+    assert.match(source, /notes: LEDGER_CONTENT_WIDTH - 264/);
+    assert.match(source, /tableWidth: LEDGER_CONTENT_WIDTH/);
+    assert.match(source, /2: \{\s*cellWidth: LEDGER_COLUMN_WIDTHS\.notes,\s*overflow: 'linebreak',\s*minCellWidth: LEDGER_COLUMN_WIDTHS\.notes/s);
+});

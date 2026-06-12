@@ -165,7 +165,7 @@ test('buildMyMapPdfLedger uses raw structured note timestamps instead of contain
     assert.equal(note.updatedAt, null);
 });
 
-test('buildMyMapPdfLedger preserves note line breaks and adds compact Singapore date labels', () => {
+test('buildMyMapPdfLedger preserves note line breaks and adds Singapore dd/mm/yy date labels', () => {
     const ledger = buildMyMapPdfLedger({
         directory: { name: 'Formatted Notes Map' },
         presentation: {
@@ -193,7 +193,67 @@ test('buildMyMapPdfLedger preserves note line breaks and adds compact Singapore 
 
     const [note] = ledger.categories[0].resources[0].notes;
     assert.equal(note.text, 'First line\nSecond line\n\nThird line');
-    assert.equal(note.dateLabel, '100626');
+    assert.equal(note.dateLabel, '10/06/26');
+});
+
+test('buildMyMapPdfLedger cleans copied markdown and letter-spaced note artifacts for PDF output', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Copied Notes Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 15,
+                    resourceType: 'soft',
+                    name: 'Copied Note Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'copied-note',
+                                text: '```text\n1. ` ` M a l e - C e n t r i c  A A P\n[ 1 0 0 6 2 6 ] - pasted date\n```',
+                                isShared: false,
+                                createdAt: '2026-06-10T01:00:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.equal(note.text, '1. Male-Centric AAP\n[100626] - pasted date');
+});
+
+test('buildMyMapPdfLedger breaks very long unspaced note tokens so the PDF table can wrap them', () => {
+    const longToken = 'CulturalInclusiveness'.repeat(5);
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Long Token Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 16,
+                    resourceType: 'soft',
+                    name: 'Long Token Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'long-token-note',
+                                text: `Review ${longToken} before sharing`,
+                                isShared: true,
+                                createdAt: '2026-06-10T01:00:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.match(note.text, /CulturalInclusivenessCulturalInclusive ness/);
+    assert.doesNotMatch(note.text, new RegExp(longToken));
 });
 
 test('buildMyMapPdfLedger aligns raw structured timestamps after blank notes are filtered', () => {

@@ -4,17 +4,55 @@ const LIST_ONLY_LABEL = 'List only';
 const FALLBACK_MAP_NAME = 'CareAround map';
 const FALLBACK_FILE_NAME = 'carearound-map-ledger.pdf';
 const TEXT_COMPARE_OPTIONS = { sensitivity: 'base', numeric: true };
+const MAX_PDF_NOTE_TOKEN_LENGTH = 38;
 
 function cleanText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function compactLetterSpacedSegment(segment) {
+    return segment.replace(/((?:\b[A-Za-z0-9]\b[ \t]+){2,}\b[A-Za-z0-9]\b)/g, (match) => (
+        match.replace(/[ \t]+/g, '')
+    ));
+}
+
+function repairLetterSpacedText(line) {
+    return line
+        .split(/[ \t]{2,}/g)
+        .map(compactLetterSpacedSegment)
+        .join(' ')
+        .replace(/\[\s*((?:\d\s*){6})\]/g, (_match, digits) => `[${digits.replace(/\s+/g, '')}]`)
+        .replace(/([A-Za-z])\s*-\s*([A-Za-z])/g, '$1-$2');
+}
+
+function breakLongNoteTokens(line) {
+    return line.split(/(\s+)/g).map((part) => {
+        if (!part || /\s/.test(part) || part.length <= MAX_PDF_NOTE_TOKEN_LENGTH) return part;
+        return part.match(new RegExp(`.{1,${MAX_PDF_NOTE_TOKEN_LENGTH}}`, 'g')).join(' ');
+    }).join('');
+}
+
+function cleanNoteLine(line) {
+    if (/^\s*```[\w-]*\s*$/i.test(line)) return null;
+
+    const normalized = String(line || '')
+        .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+        .replace(/[\u200b-\u200d\ufeff]/g, '')
+        .replace(/`+/g, '');
+
+    return breakLongNoteTokens(repairLetterSpacedText(normalized))
+        .replace(/[ \t]+/g, ' ')
+        .trim();
+}
+
 function cleanNoteText(value) {
-    return String(value || '')
+    const lines = String(value || '')
         .replace(/\r\n?/g, '\n')
         .split('\n')
-        .map((line) => line.replace(/[ \t]+$/g, ''))
-        .join('\n')
+        .map(cleanNoteLine)
+        .filter((line) => line !== null);
+
+    return lines.join('\n')
         .trim();
 }
 
@@ -48,7 +86,7 @@ function buildCompactDateLabel(value) {
         [part.type]: part.value,
     }), {});
 
-    return `${parts.day || ''}${parts.month || ''}${parts.year || ''}`;
+    return [parts.day, parts.month, parts.year].filter(Boolean).join('/');
 }
 
 function getMapName(directory, presentation) {

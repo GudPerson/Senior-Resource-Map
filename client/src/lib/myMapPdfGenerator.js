@@ -42,6 +42,13 @@ const LEDGER_LAYOUT = {
     minimumTableRoom: 112,
 };
 
+const LEDGER_CONTENT_WIDTH = PAGE.width - (PAGE.margin * 2);
+const LEDGER_COLUMN_WIDTHS = {
+    resource: 128,
+    address: 136,
+    notes: LEDGER_CONTENT_WIDTH - 264,
+};
+
 function resolveAutoTable(module) {
     return module?.default || module?.autoTable || module;
 }
@@ -197,10 +204,15 @@ function writeLedger(doc, autoTable, ledger) {
             alternateRowStyles: {
                 fillColor: BRAND.panel,
             },
+            tableWidth: LEDGER_CONTENT_WIDTH,
             columnStyles: {
-                0: { cellWidth: 150 },
-                1: { cellWidth: 150 },
-                2: { cellWidth: PAGE.width - (PAGE.margin * 2) - 300 },
+                0: { cellWidth: LEDGER_COLUMN_WIDTHS.resource, overflow: 'linebreak' },
+                1: { cellWidth: LEDGER_COLUMN_WIDTHS.address, overflow: 'linebreak' },
+                2: {
+                    cellWidth: LEDGER_COLUMN_WIDTHS.notes,
+                    overflow: 'linebreak',
+                    minCellWidth: LEDGER_COLUMN_WIDTHS.notes,
+                },
             },
             margin: { left: PAGE.margin, right: PAGE.margin, top: 60 },
             didDrawPage: () => writeLedgerFooter(doc, doc.internal.getNumberOfPages()),
