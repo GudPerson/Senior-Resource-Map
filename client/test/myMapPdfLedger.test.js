@@ -225,6 +225,39 @@ test('buildMyMapPdfLedger cleans copied markdown and letter-spaced note artifact
     assert.equal(note.text, '1. Male-Centric AAP\n[100626] - pasted date');
 });
 
+test('buildMyMapPdfLedger strips hidden control characters from older stored notes before PDF output', () => {
+    const encodedText = '\u00006\u0000. `\u0000  `\u0000T\u0000C\u0000M\n'
+        + '- Name of TCM collab: (Name / Non)';
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Encoded Notes Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 17,
+                    resourceType: 'soft',
+                    name: 'Encoded Note Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'encoded-note',
+                                text: encodedText,
+                                isShared: false,
+                                createdAt: '2026-06-10T01:00:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.equal(note.text, '6. TCM\n- Name of TCM collab: (Name / Non)');
+    assert.doesNotMatch(note.text, /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/);
+    assert.doesNotMatch(note.text, /`/);
+});
+
 test('buildMyMapPdfLedger breaks very long unspaced note tokens so the PDF table can wrap them', () => {
     const longToken = 'CulturalInclusiveness'.repeat(5);
     const ledger = buildMyMapPdfLedger({

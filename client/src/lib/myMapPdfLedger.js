@@ -5,6 +5,7 @@ const FALLBACK_MAP_NAME = 'CareAround map';
 const FALLBACK_FILE_NAME = 'carearound-map-ledger.pdf';
 const TEXT_COMPARE_OPTIONS = { sensitivity: 'base', numeric: true };
 const MAX_PDF_NOTE_TOKEN_LENGTH = 38;
+const PDF_NOTE_CONTROL_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
 
 function cleanText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
@@ -36,6 +37,7 @@ function cleanNoteLine(line) {
     if (/^\s*```[\w-]*\s*$/i.test(line)) return null;
 
     const normalized = String(line || '')
+        .replace(PDF_NOTE_CONTROL_CHARACTERS, '')
         .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
         .replace(/[\u200b-\u200d\ufeff]/g, '')
         .replace(/`+/g, '');
