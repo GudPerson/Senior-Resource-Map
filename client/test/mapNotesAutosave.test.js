@@ -5,6 +5,7 @@ import {
     MAP_NOTES_AUTOSAVE_DELAY_MS,
     buildMapNotesAutosaveSignature,
     buildMapNotesSavePayload,
+    mergeRemoteNotesWithStableDrafts,
     shouldResetDraftsFromRemote,
 } from '../src/lib/mapNotesAutosave.js';
 
@@ -74,6 +75,61 @@ test('shouldResetDraftsFromRemote accepts row changes and matching saved snapsho
         hasPendingSave: false,
         isSaving: false,
     }), true);
+});
+
+test('mergeRemoteNotesWithStableDrafts keeps editor identity when saved note ids churn', () => {
+    const merged = mergeRemoteNotesWithStableDrafts(
+        [
+            {
+                clientId: 'local-draft-1',
+                id: null,
+                text: 'APT 2.0 meeting notes',
+                isShared: false,
+            },
+        ],
+        [
+            {
+                clientId: 'note-431',
+                id: 431,
+                text: 'APT 2.0 meeting notes',
+                isShared: false,
+                updatedAt: '2026-06-13T08:00:00.000Z',
+            },
+        ],
+    );
+
+    assert.deepEqual(merged, [
+        {
+            clientId: 'local-draft-1',
+            id: 431,
+            text: 'APT 2.0 meeting notes',
+            isShared: false,
+            updatedAt: '2026-06-13T08:00:00.000Z',
+        },
+    ]);
+});
+
+test('mergeRemoteNotesWithStableDrafts uses remote identity for changed remote content', () => {
+    const merged = mergeRemoteNotesWithStableDrafts(
+        [
+            {
+                clientId: 'local-draft-1',
+                id: 7,
+                text: 'Old note',
+                isShared: false,
+            },
+        ],
+        [
+            {
+                clientId: 'note-431',
+                id: 431,
+                text: 'Admin changed note',
+                isShared: false,
+            },
+        ],
+    );
+
+    assert.equal(merged[0].clientId, 'note-431');
 });
 
 test('autosave debounce waits long enough for a typing pause', () => {

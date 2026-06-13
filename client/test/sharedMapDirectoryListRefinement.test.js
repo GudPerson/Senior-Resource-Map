@@ -94,6 +94,18 @@ test('map notes preview toggles in place instead of adding a second note body', 
     assert.doesNotMatch(editorSource, /previewNoteIds\[note\.clientId\] && note\.text\.trim\(\) \? \(/);
 });
 
+test('map notes editor keeps textarea identity stable when autosave returns new note ids', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(sharedMapDirectorySource, /mergeRemoteNotesWithStableDrafts/);
+    assert.match(editorSource, /const localDraftNotes = getCurrentDraftNotes\(\);/);
+    assert.match(editorSource, /notes: mergeRemoteNotesWithStableDrafts\(localDraftNotes, nextDrafts\[rowKey\]\.notes\)/);
+});
+
 test('map notes autosave status reserves space so saving feedback does not shift the editor', () => {
     const editorSource = sourceBetween(
         sharedMapDirectorySource,

@@ -36,6 +36,7 @@ import {
     MAP_NOTES_AUTOSAVE_DELAY_MS,
     buildMapNotesAutosaveSignature,
     buildMapNotesSavePayload,
+    mergeRemoteNotesWithStableDrafts,
     shouldResetDraftsFromRemote,
 } from '../lib/mapNotesAutosave.js';
 import { applyMapNoteMarkdownAction } from '../lib/mapNoteMarkdownToolbar.js';
@@ -397,7 +398,8 @@ function ResourceNotesEditor({
 
     useEffect(() => {
         const previousRowKey = activeRowKeyRef.current;
-        const localSignature = buildMapNotesAutosaveSignature(buildMapNotesSavePayload(getCurrentDraftNotes()));
+        const localDraftNotes = getCurrentDraftNotes();
+        const localSignature = buildMapNotesAutosaveSignature(buildMapNotesSavePayload(localDraftNotes));
         const shouldReset = shouldResetDraftsFromRemote({
             previousRowKey,
             nextRowKey: rowKey,
@@ -421,6 +423,12 @@ function ResourceNotesEditor({
         }
 
         const nextDrafts = buildNoteDrafts(row ? [row] : []);
+        if (previousRowKey === rowKey && nextDrafts[rowKey]) {
+            nextDrafts[rowKey] = {
+                ...nextDrafts[rowKey],
+                notes: mergeRemoteNotesWithStableDrafts(localDraftNotes, nextDrafts[rowKey].notes),
+            };
+        }
         draftsRef.current = nextDrafts;
         setDrafts(nextDrafts);
     }, [rowKey, remoteSignature]);

@@ -29,6 +29,27 @@ export function buildMapNotesAutosaveSignature(input = {}) {
         .join('|');
 }
 
+function buildNoteContentSignature(note = {}) {
+    const text = normalizeNoteText(note?.text);
+    return `${Boolean(note?.isShared) ? 1 : 0}:${text}`;
+}
+
+export function mergeRemoteNotesWithStableDrafts(currentNotes = [], remoteNotes = []) {
+    const draftNotes = Array.isArray(currentNotes) ? currentNotes : [];
+    const nextRemoteNotes = Array.isArray(remoteNotes) ? remoteNotes : [];
+
+    return nextRemoteNotes.map((remoteNote, index) => {
+        const draftNote = draftNotes[index];
+        if (!draftNote?.clientId) return remoteNote;
+        if (buildNoteContentSignature(draftNote) !== buildNoteContentSignature(remoteNote)) return remoteNote;
+
+        return {
+            ...remoteNote,
+            clientId: draftNote.clientId,
+        };
+    });
+}
+
 export function shouldResetDraftsFromRemote({
     previousRowKey,
     nextRowKey,
