@@ -80,3 +80,28 @@ test('map notes editor auto-sizes note textareas instead of using an inner scrol
     assert.match(editorSource, /resizeTextareaToContent\(element\)/);
     assert.match(editorSource, /overflow-hidden/);
 });
+
+test('map notes preview toggles in place instead of adding a second note body', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(editorSource, /const isPreviewing = Boolean\(previewNoteIds\[note\.clientId\]\);/);
+    assert.match(editorSource, /\{isPreviewing \? \(/);
+    assert.match(editorSource, /<MarkdownLiteText[\s\S]*text=\{note\.text\}/);
+    assert.doesNotMatch(editorSource, /previewNoteIds\[note\.clientId\] && note\.text\.trim\(\) \? \(/);
+});
+
+test('map notes autosave status reserves space so saving feedback does not shift the editor', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(editorSource, /aria-live="polite"/);
+    assert.match(editorSource, /min-h-10/);
+    assert.match(editorSource, /saveState !== 'idle'/);
+});

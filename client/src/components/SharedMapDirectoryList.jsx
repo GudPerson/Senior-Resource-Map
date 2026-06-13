@@ -525,6 +525,7 @@ function ResourceNotesEditor({
     const isSaving = saveState === 'saving' || saveState === 'pending';
     const isSaved = saveState === 'saved';
     const didSaveFail = saveState === 'error';
+    const shouldShowSaveStatus = saveState !== 'idle' && !didSaveFail;
     const markdownToolbarActions = [
         { action: 'bold', label: t('mapNoteMarkdownBold'), icon: Bold },
         { action: 'italic', label: t('mapNoteMarkdownItalic'), icon: Italic },
@@ -541,79 +542,90 @@ function ResourceNotesEditor({
             {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
 
             <div className="grid gap-2.5">
-                {draftNotes.map((note, index) => (
-                    <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-1">
-                                {markdownToolbarActions.map(({ action, label, icon: Icon }) => (
-                                    <MapNoteToolbarButton
-                                        key={action}
-                                        label={label}
-                                        onClick={() => applyMarkdownToDraftNote(note, action)}
-                                    >
-                                        <Icon size={15} strokeWidth={2.3} />
-                                    </MapNoteToolbarButton>
-                                ))}
+                {draftNotes.map((note, index) => {
+                    const isPreviewing = Boolean(previewNoteIds[note.clientId]);
+
+                    return (
+                        <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-1">
+                                    {markdownToolbarActions.map(({ action, label, icon: Icon }) => (
+                                        <MapNoteToolbarButton
+                                            key={action}
+                                            label={label}
+                                            onClick={() => applyMarkdownToDraftNote(note, action)}
+                                        >
+                                            <Icon size={15} strokeWidth={2.3} />
+                                        </MapNoteToolbarButton>
+                                    ))}
+                                </div>
+                                <MapNoteToolbarButton
+                                    label={t('mapNoteMarkdownPreview')}
+                                    active={isPreviewing}
+                                    onClick={() => togglePreviewNote(note.clientId)}
+                                >
+                                    <Eye size={15} strokeWidth={2.3} />
+                                </MapNoteToolbarButton>
                             </div>
-                            <MapNoteToolbarButton
-                                label={t('mapNoteMarkdownPreview')}
-                                active={Boolean(previewNoteIds[note.clientId])}
-                                onClick={() => togglePreviewNote(note.clientId)}
-                            >
-                                <Eye size={15} strokeWidth={2.3} />
-                            </MapNoteToolbarButton>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            <textarea
-                                ref={(element) => {
-                                    if (element) {
-                                        noteTextareaRefs.current[note.clientId] = element;
-                                        resizeTextareaToContent(element);
-                                    } else {
-                                        delete noteTextareaRefs.current[note.clientId];
-                                    }
-                                }}
-                                value={note.text}
-                                onChange={(event) => {
-                                    resizeTextareaToContent(event.currentTarget);
-                                    updateDraftNote(note.clientId, { text: event.target.value });
-                                }}
-                                onBlur={() => void flushAutosave()}
-                                maxLength={1000}
-                                rows={3}
-                                className="min-h-[96px] flex-1 resize-none overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
-                                placeholder={t('mapNotePlaceholder')}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => removeDraftNote(note.clientId)}
-                                className="mt-1 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label={t('removeNote')}
-                                disabled={draftNotes.length === 1 && !note.text.trim() && index === 0}
-                            >
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                        {previewNoteIds[note.clientId] && note.text.trim() ? (
-                            <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                                <MarkdownLiteText
-                                    text={note.text}
-                                    compact
-                                    className="text-sm leading-6 text-slate-700"
+                            <div className="flex items-start gap-2">
+                                <div className="min-w-0 flex-1">
+                                    {isPreviewing ? (
+                                        <div className="min-h-[96px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 sm:text-sm sm:leading-6">
+                                            {note.text.trim() ? (
+                                                <MarkdownLiteText
+                                                    text={note.text}
+                                                    compact
+                                                    className="text-slate-700"
+                                                />
+                                            ) : (
+                                                <p className="text-slate-400">{t('mapNotePlaceholder')}</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <textarea
+                                            ref={(element) => {
+                                                if (element) {
+                                                    noteTextareaRefs.current[note.clientId] = element;
+                                                    resizeTextareaToContent(element);
+                                                } else {
+                                                    delete noteTextareaRefs.current[note.clientId];
+                                                }
+                                            }}
+                                            value={note.text}
+                                            onChange={(event) => {
+                                                resizeTextareaToContent(event.currentTarget);
+                                                updateDraftNote(note.clientId, { text: event.target.value });
+                                            }}
+                                            onBlur={() => void flushAutosave()}
+                                            maxLength={1000}
+                                            rows={3}
+                                            className="min-h-[96px] w-full resize-none overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
+                                            placeholder={t('mapNotePlaceholder')}
+                                        />
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => removeDraftNote(note.clientId)}
+                                    className="mt-1 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                    aria-label={t('removeNote')}
+                                    disabled={draftNotes.length === 1 && !note.text.trim() && index === 0}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                            <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-1 text-sm font-bold text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    checked={note.isShared}
+                                    onChange={(event) => updateDraftNote(note.clientId, { isShared: event.target.checked }, { immediate: true })}
+                                    className="h-5 w-5 rounded border-slate-300 accent-brand-600"
                                 />
-                            </div>
-                        ) : null}
-                        <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-1 text-sm font-bold text-slate-600">
-                            <input
-                                type="checkbox"
-                                checked={note.isShared}
-                                onChange={(event) => updateDraftNote(note.clientId, { isShared: event.target.checked }, { immediate: true })}
-                                className="h-5 w-5 rounded border-slate-300 accent-brand-600"
-                            />
-                            {t('shareThisNote')}
-                        </label>
-                    </div>
-                ))}
+                                {t('shareThisNote')}
+                            </label>
+                        </div>
+                    );
+                })}
                 <button
                     type="button"
                     onClick={addDraftNote}
@@ -624,15 +636,14 @@ function ResourceNotesEditor({
                 </button>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-3">
-                {isSaving ? (
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
-                        {t('saving')}
-                    </span>
-                ) : null}
-                {isSaved ? (
-                    <span className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">
-                        {t('saved')}
+            <div className="flex min-h-10 flex-wrap items-center justify-end gap-3" aria-live="polite" aria-atomic="true">
+                {shouldShowSaveStatus ? (
+                    <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                        isSaving
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-brand-50 text-brand-700'
+                    }`}>
+                        {isSaving || !isSaved ? t('saving') : t('saved')}
                     </span>
                 ) : null}
                 {didSaveFail ? (
