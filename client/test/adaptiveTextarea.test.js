@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT,
     MAP_NOTE_TEXTAREA_MIN_HEIGHT,
     resizeTextareaToContent,
 } from '../src/lib/adaptiveTextarea.js';
@@ -48,4 +49,8 @@ test('resizeTextareaToContent only shows an inner scrollbar when a max height is
         height: '240px',
         overflowY: 'auto',
     });
+});
+
+test('map note focused textarea cap leaves enough room for mobile notes controls', () => {
+    assert.equal(MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT, 260);
 });

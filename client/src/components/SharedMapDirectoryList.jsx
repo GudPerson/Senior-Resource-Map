@@ -41,7 +41,10 @@ import {
     shouldResetDraftsFromRemote,
 } from '../lib/mapNotesAutosave.js';
 import { applyMapNoteMarkdownAction } from '../lib/mapNoteMarkdownToolbar.js';
-import { resizeTextareaToContent } from '../lib/adaptiveTextarea.js';
+import {
+    MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT,
+    resizeTextareaToContent,
+} from '../lib/adaptiveTextarea.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
@@ -381,7 +384,7 @@ function ResourceNotesEditor({
 
     useEffect(() => {
         draftsRef.current = drafts;
-        Object.values(noteTextareaRefs.current).forEach((textarea) => resizeTextareaToContent(textarea));
+        Object.values(noteTextareaRefs.current).forEach((textarea) => resizeTextareaToContent(textarea, { maxHeight: MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT }));
         if (!draftChangedRef.current) return;
 
         draftChangedRef.current = false;
@@ -625,19 +628,19 @@ function ResourceNotesEditor({
                                             ref={(element) => {
                                                 if (element) {
                                                     noteTextareaRefs.current[note.clientId] = element;
-                                                    resizeTextareaToContent(element);
+                                                    resizeTextareaToContent(element, { maxHeight: MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT });
                                                 } else {
                                                     delete noteTextareaRefs.current[note.clientId];
                                                 }
                                             }}
                                             value={note.text}
                                             onChange={(event) => {
-                                                resizeTextareaToContent(event.currentTarget);
+                                                resizeTextareaToContent(event.currentTarget, { maxHeight: MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT });
                                                 updateDraftNote(note.clientId, { text: event.target.value });
                                             }}
                                             maxLength={MAP_NOTE_MAX_LENGTH}
                                             rows={3}
-                                            className="min-h-[96px] w-full resize-none overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
+                                            className="min-h-[96px] w-full resize-none overflow-y-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
                                             placeholder={t('mapNotePlaceholder')}
                                         />
                                     )}
@@ -762,22 +765,20 @@ function MapNotesOverlay({
         flushEditorRef.current = typeof flush === 'function' ? flush : null;
     }, []);
 
-    const flushEditorBeforeExit = useCallback(async () => {
-        if (readonly || !flushEditorRef.current) return true;
-        return flushEditorRef.current();
-    }, [readonly]);
+    function saveEditorBeforeExit() {
+        if (readonly || !flushEditorRef.current) return;
+        void flushEditorRef.current({ keepalive: true });
+    }
 
-    const handleClose = useCallback(async () => {
-        if (await flushEditorBeforeExit()) {
-            onClose();
-        }
-    }, [flushEditorBeforeExit, onClose]);
+    const handleClose = useCallback(() => {
+        saveEditorBeforeExit();
+        onClose();
+    }, [onClose, readonly]);
 
-    const handleBackToList = useCallback(async () => {
-        if (await flushEditorBeforeExit()) {
-            onBackToList();
-        }
-    }, [flushEditorBeforeExit, onBackToList]);
+    const handleBackToList = useCallback(() => {
+        saveEditorBeforeExit();
+        onBackToList();
+    }, [onBackToList, readonly]);
 
     useEffect(() => {
         if (!open || typeof window === 'undefined') return undefined;

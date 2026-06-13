@@ -1,4 +1,5 @@
 export const MAP_NOTE_TEXTAREA_MIN_HEIGHT = 96;
+export const MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT = 260;
 
 function normalizeHeight(value, fallback) {
     const number = Number(value);

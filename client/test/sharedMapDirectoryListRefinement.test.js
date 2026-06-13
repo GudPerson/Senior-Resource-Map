@@ -75,7 +75,7 @@ test('map notes editor exposes a markdown helper toolbar without changing autosa
     assert.doesNotMatch(editorSource, /\bformat\s*:/);
 });
 
-test('map notes editor auto-sizes note textareas instead of using an inner scrollbar', () => {
+test('map notes editor caps live textarea growth so typing does not keep moving the panel', () => {
     const editorSource = sourceBetween(
         sharedMapDirectorySource,
         'function ResourceNotesEditor',
@@ -83,10 +83,11 @@ test('map notes editor auto-sizes note textareas instead of using an inner scrol
     );
 
     assert.match(sharedMapDirectorySource, /resizeTextareaToContent/);
-    assert.match(editorSource, /Object\.values\(noteTextareaRefs\.current\)\.forEach\(\(textarea\) => resizeTextareaToContent\(textarea\)\)/);
-    assert.match(editorSource, /resizeTextareaToContent\(event\.currentTarget\)/);
-    assert.match(editorSource, /resizeTextareaToContent\(element\)/);
-    assert.match(editorSource, /overflow-hidden/);
+    assert.match(sharedMapDirectorySource, /MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT/);
+    assert.match(editorSource, /Object\.values\(noteTextareaRefs\.current\)\.forEach\(\(textarea\) => resizeTextareaToContent\(textarea, \{ maxHeight: MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT \}\)\)/);
+    assert.match(editorSource, /resizeTextareaToContent\(event\.currentTarget, \{ maxHeight: MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT \}\)/);
+    assert.match(editorSource, /resizeTextareaToContent\(element, \{ maxHeight: MAP_NOTE_TEXTAREA_FOCUSED_MAX_HEIGHT \}\)/);
+    assert.match(editorSource, /overflow-y-auto/);
 });
 
 test('map notes preview toggles in place instead of adding a second note body', () => {
@@ -151,13 +152,27 @@ test('map notes editor keeps typing local until the owner exits the note flow', 
     assert.match(editorSource, /onUpdateResourceNotesRef\.current\(saveRowRef, payload, \{ keepalive \}\)/);
     assert.match(editorSource, /flushDraftChanges\(\{ keepalive: true \}\)/);
     assert.match(editorSource, /onRegisterFlush\?\.\(flushDraftChanges\)/);
-    assert.match(overlaySource, /flushEditorBeforeExit/);
+    assert.match(overlaySource, /saveEditorBeforeExit/);
     assert.match(overlaySource, /onClick=\{\(\) => void handleClose\(\)\}/);
     assert.match(overlaySource, /onClick=\{\(\) => void handleBackToList\(\)\}/);
     assert.match(myMapDetailPageSource, /handleUpdateResourceNotes\(row, notes, options = \{\}\)/);
     assert.match(myMapDetailPageSource, /updateMyMapAssetNotes\(directory\.id, row\.resourceType, row\.resourceId, notes, options\)/);
     assert.match(apiSource, /keepalive = false/);
     assert.match(apiSource, /\.\.\.\(keepalive \? \{ keepalive: true \} : \{\}\)/);
+});
+
+test('map notes Back and Close respond before the deferred save finishes', () => {
+    const overlaySource = sourceBetween(
+        sharedMapDirectorySource,
+        'function MapNotesOverlay',
+        'const DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH',
+    );
+
+    assert.match(overlaySource, /function saveEditorBeforeExit\(\)/);
+    assert.match(overlaySource, /void flushEditorRef\.current\(\{ keepalive: true \}\)/);
+    assert.match(overlaySource, /saveEditorBeforeExit\(\);\s+onClose\(\);/);
+    assert.match(overlaySource, /saveEditorBeforeExit\(\);\s+onBackToList\(\);/);
+    assert.doesNotMatch(overlaySource, /if \(await flushEditorBeforeExit\(\)\)/);
 });
 
 test('map notes editor shows the note character limit instead of failing silently', () => {
