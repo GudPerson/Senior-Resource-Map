@@ -40,6 +40,44 @@ test('GET requests retry another API base after a transient fetch failure', asyn
     ]);
 });
 
+test('keepalive request option is forwarded to fetch for unload-safe saves', async () => {
+    let fetchOptions;
+    const fetchImpl = async (url, options) => {
+        fetchOptions = options;
+        return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    const data = await requestWithBaseCandidates('PATCH', '/my-maps/1/assets/hard/2/notes', { notes: [] }, {
+        baseCandidates: ['https://api.example/api'],
+        fetchImpl,
+        keepalive: true,
+    });
+
+    assert.deepEqual(data, { ok: true });
+    assert.equal(fetchOptions.keepalive, true);
+});
+
+test('keepalive request option is omitted unless requested', async () => {
+    let fetchOptions;
+    const fetchImpl = async (url, options) => {
+        fetchOptions = options;
+        return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    await requestWithBaseCandidates('PATCH', '/my-maps/1/assets/hard/2/notes', { notes: [] }, {
+        baseCandidates: ['https://api.example/api'],
+        fetchImpl,
+    });
+
+    assert.equal(Object.hasOwn(fetchOptions, 'keepalive'), false);
+});
+
 test('authenticated form uploads do not fall through to fallback bases after an API HTML response', async () => {
     const calls = [];
     const fetchImpl = async (url) => {

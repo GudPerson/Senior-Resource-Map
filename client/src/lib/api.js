@@ -86,6 +86,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
         retryDelayMs = 250,
         networkAttemptsPerBase = 2,
         suppressAuthExpired = false,
+        keepalive = false,
     } = options;
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     const canUseFallbackBase = canRetryAcrossBases && canRetryAcrossBasesForPath(path);
@@ -104,6 +105,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
                     method,
                     headers: buildRequestHeaders(method, {}, body !== undefined),
                     credentials: 'include',
+                    ...(keepalive ? { keepalive: true } : {}),
                     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
                 });
                 break;
@@ -517,7 +519,7 @@ export const api = {
     publishMyMapShare: (id, body = {}) => request('POST', `/my-maps/${id}/share`, body),
     unpublishMyMapShare: (id) => request('DELETE', `/my-maps/${id}/share`),
     addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
-    updateMyMapAssetNotes: (id, resourceType, resourceId, body) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body),
+    updateMyMapAssetNotes: (id, resourceType, resourceId, body, options = {}) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body, options),
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
     getSharedMap: (token) => request('GET', `/shared-maps/${encodeURIComponent(token)}`),
     getSharedMapNoteTranslations: (token, locale) => request('GET', `/shared-maps/${encodeURIComponent(token)}/note-translations?locale=${encodeURIComponent(locale)}`),

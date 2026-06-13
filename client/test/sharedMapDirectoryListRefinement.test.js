@@ -6,6 +6,14 @@ const sharedMapDirectorySource = readFileSync(
     new URL('../src/components/SharedMapDirectoryList.jsx', import.meta.url),
     'utf8',
 );
+const myMapDetailPageSource = readFileSync(
+    new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url),
+    'utf8',
+);
+const apiSource = readFileSync(
+    new URL('../src/lib/api.js', import.meta.url),
+    'utf8',
+);
 const resourceRowIconSource = readFileSync(
     new URL('../src/components/ResourceRowIcon.jsx', import.meta.url),
     'utf8',
@@ -106,7 +114,33 @@ test('map notes editor keeps textarea identity stable when autosave returns new 
     assert.match(editorSource, /notes: mergeRemoteNotesWithStableDrafts\(localDraftNotes, nextDrafts\[rowKey\]\.notes\)/);
 });
 
-test('map notes autosave status reserves space so saving feedback does not shift the editor', () => {
+test('map notes editor keeps typing local until the owner exits the note flow', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+    const overlaySource = sourceBetween(
+        sharedMapDirectorySource,
+        'function MapNotesOverlay',
+        'const DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH',
+    );
+
+    assert.doesNotMatch(editorSource, /scheduleAutosave/);
+    assert.doesNotMatch(editorSource, /onBlur=\{\(\) => void flush/);
+    assert.match(editorSource, /onUpdateResourceNotesRef\.current\(saveRowRef, payload, \{ keepalive \}\)/);
+    assert.match(editorSource, /flushDraftChanges\(\{ keepalive: true \}\)/);
+    assert.match(editorSource, /onRegisterFlush\?\.\(flushDraftChanges\)/);
+    assert.match(overlaySource, /flushEditorBeforeExit/);
+    assert.match(overlaySource, /onClick=\{\(\) => void handleClose\(\)\}/);
+    assert.match(overlaySource, /onClick=\{\(\) => void handleBackToList\(\)\}/);
+    assert.match(myMapDetailPageSource, /handleUpdateResourceNotes\(row, notes, options = \{\}\)/);
+    assert.match(myMapDetailPageSource, /updateMyMapAssetNotes\(directory\.id, row\.resourceType, row\.resourceId, notes, options\)/);
+    assert.match(apiSource, /keepalive = false/);
+    assert.match(apiSource, /\.\.\.\(keepalive \? \{ keepalive: true \} : \{\}\)/);
+});
+
+test('map notes save status reserves space so saving feedback does not shift the editor', () => {
     const editorSource = sourceBetween(
         sharedMapDirectorySource,
         'function ResourceNotesEditor',

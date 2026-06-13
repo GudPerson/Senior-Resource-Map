@@ -443,10 +443,10 @@ export default function MyMapDetailPage() {
         }
     }
 
-    async function handleUpdateResourceNotes(row, notes) {
+    async function handleUpdateResourceNotes(row, notes, options = {}) {
         if (!directory || !row?.resourceType || !row?.resourceId) return null;
         setActionError('');
-        const updated = await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes);
+        const updated = await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes, options);
         const nextNotes = updated?.notes || {
             items: notes.notes || [],
             notesUpdatedAt: new Date().toISOString(),

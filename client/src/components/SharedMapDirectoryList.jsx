@@ -33,7 +33,6 @@ import {
     normalizeNoteItems,
 } from '../lib/mapNotes.js';
 import {
-    MAP_NOTES_AUTOSAVE_DELAY_MS,
     buildMapNotesAutosaveSignature,
     buildMapNotesSavePayload,
     mergeRemoteNotesWithStableDrafts,
@@ -291,6 +290,7 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
 function ResourceNotesEditor({
     row,
     onUpdateResourceNotes,
+    onRegisterFlush,
 }) {
     const { t } = useLocale();
     const rowKey = getRowAssetKey(row);
@@ -304,23 +304,16 @@ function ResourceNotesEditor({
     const rowRef = useRef(row);
     const onUpdateResourceNotesRef = useRef(onUpdateResourceNotes);
     const noteTextareaRefs = useRef({});
-    const saveTimerRef = useRef(null);
-    const pendingSaveRef = useRef(false);
     const saveInFlightRef = useRef(false);
     const queuedSaveRef = useRef(false);
     const draftChangedRef = useRef(false);
     const immediateSaveRef = useRef(false);
+    const hasUnsavedDraftRef = useRef(false);
     const latestDraftSignatureRef = useRef(remoteSignature);
+    const savePromiseRef = useRef(null);
 
     rowRef.current = row;
     onUpdateResourceNotesRef.current = onUpdateResourceNotes;
-
-    function clearAutosaveTimer() {
-        if (saveTimerRef.current) {
-            clearTimeout(saveTimerRef.current);
-            saveTimerRef.current = null;
-        }
-    }
 
     function getCurrentDraftNotes() {
         const activeRowKey = activeRowKeyRef.current;
@@ -328,60 +321,57 @@ function ResourceNotesEditor({
         return activeDraft.notes || [];
     }
 
-    function scheduleAutosave(delay = MAP_NOTES_AUTOSAVE_DELAY_MS) {
-        clearAutosaveTimer();
-        pendingSaveRef.current = true;
-        setSaveState('pending');
-        saveTimerRef.current = setTimeout(() => {
-            saveTimerRef.current = null;
-            void flushAutosave();
-        }, delay);
-    }
-
-    async function flushAutosave() {
-        clearAutosaveTimer();
-        if (!rowRef.current || !onUpdateResourceNotesRef.current) return;
+    const flushDraftChanges = useCallback(async (options = {}) => {
+        if (!rowRef.current || !onUpdateResourceNotesRef.current) return true;
+        const { keepalive = false } = options;
 
         if (saveInFlightRef.current) {
             queuedSaveRef.current = true;
-            pendingSaveRef.current = true;
-            return;
+            try {
+                await savePromiseRef.current;
+            } catch {
+                // The active saver will surface the error in the editor.
+            }
+            return flushDraftChanges(options);
         }
 
         const saveRowRef = rowRef.current;
         const payload = buildMapNotesSavePayload(getCurrentDraftNotes());
         const saveSignature = buildMapNotesAutosaveSignature(payload);
-        pendingSaveRef.current = false;
+        if (!hasUnsavedDraftRef.current && latestDraftSignatureRef.current === saveSignature) {
+            return true;
+        }
+
         queuedSaveRef.current = false;
         saveInFlightRef.current = true;
         setSaveState('saving');
         setError('');
 
         try {
-            await onUpdateResourceNotesRef.current(saveRowRef, payload);
+            const savePromise = onUpdateResourceNotesRef.current(saveRowRef, payload, { keepalive });
+            savePromiseRef.current = savePromise;
+            await savePromise;
             const hasNewerDraft = latestDraftSignatureRef.current !== saveSignature;
-            const shouldSaveAgain = queuedSaveRef.current || pendingSaveRef.current || hasNewerDraft;
+            const shouldSaveAgain = queuedSaveRef.current || hasNewerDraft;
             if (shouldSaveAgain) {
-                pendingSaveRef.current = true;
-                scheduleAutosave(0);
-                return;
+                hasUnsavedDraftRef.current = true;
+                return flushDraftChanges(options);
             }
+            hasUnsavedDraftRef.current = false;
             setSaveState('saved');
+            return true;
         } catch (err) {
             console.error(err);
-            const hasNewerDraft = latestDraftSignatureRef.current !== saveSignature;
-            if (hasNewerDraft || queuedSaveRef.current) {
-                pendingSaveRef.current = true;
-                scheduleAutosave(0);
-                return;
-            }
-            pendingSaveRef.current = true;
+            hasUnsavedDraftRef.current = true;
+            queuedSaveRef.current = false;
             setSaveState('error');
             setError(err.message || t('failedSaveMapNotes'));
+            return false;
         } finally {
             saveInFlightRef.current = false;
+            savePromiseRef.current = null;
         }
-    }
+    }, [t]);
 
     useEffect(() => {
         draftsRef.current = drafts;
@@ -391,9 +381,12 @@ function ResourceNotesEditor({
         draftChangedRef.current = false;
         const payload = buildMapNotesSavePayload(getCurrentDraftNotes());
         latestDraftSignatureRef.current = buildMapNotesAutosaveSignature(payload);
-        const delay = immediateSaveRef.current ? 0 : MAP_NOTES_AUTOSAVE_DELAY_MS;
+        hasUnsavedDraftRef.current = true;
+        const shouldSaveImmediately = immediateSaveRef.current;
         immediateSaveRef.current = false;
-        scheduleAutosave(delay);
+        if (shouldSaveImmediately) {
+            void flushDraftChanges();
+        }
     }, [drafts]);
 
     useEffect(() => {
@@ -405,7 +398,7 @@ function ResourceNotesEditor({
             nextRowKey: rowKey,
             localSignature,
             remoteSignature,
-            hasPendingSave: pendingSaveRef.current,
+            hasPendingSave: hasUnsavedDraftRef.current,
             isSaving: saveInFlightRef.current,
         });
 
@@ -415,9 +408,8 @@ function ResourceNotesEditor({
         if (!shouldReset) return;
 
         if (previousRowKey !== rowKey) {
-            clearAutosaveTimer();
-            pendingSaveRef.current = false;
             queuedSaveRef.current = false;
+            hasUnsavedDraftRef.current = false;
             setSaveState('idle');
             setError('');
         }
@@ -433,16 +425,43 @@ function ResourceNotesEditor({
         setDrafts(nextDrafts);
     }, [rowKey, remoteSignature]);
 
-    useEffect(() => () => {
-        clearAutosaveTimer();
-    }, []);
+    useEffect(() => {
+        onRegisterFlush?.(flushDraftChanges);
+        return () => onRegisterFlush?.(null);
+    }, [flushDraftChanges, onRegisterFlush]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+        function flushForPageExit() {
+            if (!hasUnsavedDraftRef.current) return;
+            void flushDraftChanges({ keepalive: true });
+        }
+
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'hidden') {
+                flushForPageExit();
+            }
+        }
+
+        window.addEventListener('pagehide', flushForPageExit);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('pagehide', flushForPageExit);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [flushDraftChanges]);
 
     if (!row || !onUpdateResourceNotes) return null;
 
     function markDraftChanged({ immediate = false } = {}) {
         draftChangedRef.current = true;
         immediateSaveRef.current = immediateSaveRef.current || immediate;
-        setSaveState('pending');
+        if (immediate) {
+            setSaveState('pending');
+        } else {
+            setSaveState((current) => (current === 'saved' ? 'idle' : current));
+        }
         setError('');
     }
 
@@ -604,7 +623,6 @@ function ResourceNotesEditor({
                                                 resizeTextareaToContent(event.currentTarget);
                                                 updateDraftNote(note.clientId, { text: event.target.value });
                                             }}
-                                            onBlur={() => void flushAutosave()}
                                             maxLength={1000}
                                             rows={3}
                                             className="min-h-[96px] w-full resize-none overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
@@ -657,7 +675,7 @@ function ResourceNotesEditor({
                 {didSaveFail ? (
                     <button
                         type="button"
-                        onClick={() => void flushAutosave()}
+                        onClick={() => void flushDraftChanges()}
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-3 text-sm font-bold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-100"
                     >
                         <RefreshCw size={15} />
@@ -716,24 +734,46 @@ function MapNotesOverlay({
         : null;
     const summary = getMapNoteResourceSummary(visibleRows);
     const readonly = mode !== 'owner';
+    const flushEditorRef = useRef(null);
+
+    const registerEditorFlush = useCallback((flush) => {
+        flushEditorRef.current = typeof flush === 'function' ? flush : null;
+    }, []);
+
+    const flushEditorBeforeExit = useCallback(async () => {
+        if (readonly || !flushEditorRef.current) return true;
+        return flushEditorRef.current();
+    }, [readonly]);
+
+    const handleClose = useCallback(async () => {
+        if (await flushEditorBeforeExit()) {
+            onClose();
+        }
+    }, [flushEditorBeforeExit, onClose]);
+
+    const handleBackToList = useCallback(async () => {
+        if (await flushEditorBeforeExit()) {
+            onBackToList();
+        }
+    }, [flushEditorBeforeExit, onBackToList]);
 
     useEffect(() => {
         if (!open || typeof window === 'undefined') return undefined;
         function handleKeyDown(event) {
             if (event.key === 'Escape') {
-                onClose();
+                void handleClose();
             }
         }
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose, open]);
+    }, [handleClose, open]);
 
     if (!open) return null;
 
     return (
         <div
             className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
-            onClick={onClose}
+            onClick={() => void handleClose()}
             role="presentation"
         >
             <section
@@ -747,7 +787,7 @@ function MapNotesOverlay({
                     {selectedRow ? (
                         <button
                             type="button"
-                            onClick={onBackToList}
+                            onClick={() => void handleBackToList()}
                             className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-100"
                             aria-label={t('backToMapNotesList')}
                         >
@@ -772,7 +812,7 @@ function MapNotesOverlay({
 
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={() => void handleClose()}
                         className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-100"
                         aria-label={t('closeMapNotes')}
                     >
@@ -788,6 +828,7 @@ function MapNotesOverlay({
                             <ResourceNotesEditor
                                 row={selectedRow}
                                 onUpdateResourceNotes={onUpdateResourceNotes}
+                                onRegisterFlush={registerEditorFlush}
                             />
                         )
                     ) : (

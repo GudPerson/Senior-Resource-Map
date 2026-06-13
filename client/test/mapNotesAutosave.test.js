@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-    MAP_NOTES_AUTOSAVE_DELAY_MS,
     buildMapNotesAutosaveSignature,
     buildMapNotesSavePayload,
     mergeRemoteNotesWithStableDrafts,
@@ -130,9 +129,4 @@ test('mergeRemoteNotesWithStableDrafts uses remote identity for changed remote c
     );
 
     assert.equal(merged[0].clientId, 'note-431');
-});
-
-test('autosave debounce waits long enough for a typing pause', () => {
-    assert.ok(MAP_NOTES_AUTOSAVE_DELAY_MS >= 800);
-    assert.ok(MAP_NOTES_AUTOSAVE_DELAY_MS <= 1200);
 });

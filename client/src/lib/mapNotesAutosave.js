@@ -1,4 +1,3 @@
-export const MAP_NOTES_AUTOSAVE_DELAY_MS = 900;
 const MAP_NOTE_MAX_LENGTH = 1000;
 
 function normalizeNoteText(value) {
