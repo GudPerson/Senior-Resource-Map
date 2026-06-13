@@ -18,12 +18,13 @@ test('My Map PDF generator lazy-loads heavy PDF libraries', () => {
 
 test('My Map PDF generator keeps the report layout focused on extractable ledger data', () => {
     assert.match(source, /Category summary/);
-    assert.match(source, /head: \[\['Resource', 'Address', 'Notes'\]\]/);
+    assert.match(source, /head: \[\['Resource \/ Address', 'Notes'\]\]/);
     assert.doesNotMatch(source, /Map snapshot/);
     assert.doesNotMatch(source, /mapSnapshotDataUrl/);
     assert.doesNotMatch(source, /addImage/);
     assert.doesNotMatch(source, /sourceMapNumber/);
     assert.doesNotMatch(source, /head: \[\['#'/);
+    assert.doesNotMatch(source, /header: 'Address'/);
 });
 
 test('My Map PDF generator uses a mobile-friendly hierarchy without repeated map titles on category pages', () => {
@@ -49,7 +50,8 @@ test('My Map PDF generator uses a mobile-friendly hierarchy without repeated map
 
 test('My Map PDF generator keeps note formatting readable', () => {
     assert.match(source, /\[\$\{note\.dateLabel\}\] - /);
-    assert.match(source, /resource\.notes\.map\(formatNote\)\.join\('\\n\\n'\)/);
+    assert.match(source, /buildPdfMarkdownLines\(note\.markdownText \|\| note\.text\)/);
+    assert.match(source, /fontStyle: line\.fontStyle/);
     assert.doesNotMatch(source, /Updated \$\{note\.updatedAt\}/);
     assert.doesNotMatch(source, /details = \[note\.visibility\]/);
 });
@@ -57,7 +59,8 @@ test('My Map PDF generator keeps note formatting readable', () => {
 test('My Map PDF generator constrains notes inside the printable page width', () => {
     assert.match(source, /const LEDGER_CONTENT_WIDTH = PAGE\.width - \(PAGE\.margin \* 2\);/);
     assert.match(source, /const LEDGER_COLUMN_WIDTHS = \{/);
-    assert.match(source, /notes: LEDGER_CONTENT_WIDTH - 264/);
+    assert.match(source, /return LEDGER_CONTENT_WIDTH - LEDGER_COLUMN_WIDTHS\.resource/);
     assert.match(source, /tableWidth: LEDGER_CONTENT_WIDTH/);
-    assert.match(source, /2: \{\s*cellWidth: LEDGER_COLUMN_WIDTHS\.notes,\s*overflow: 'linebreak',\s*minCellWidth: LEDGER_COLUMN_WIDTHS\.notes/s);
+    assert.match(source, /resource: \{\s*cellWidth: LEDGER_COLUMN_WIDTHS\.resource,\s*overflow: 'linebreak'/s);
+    assert.match(source, /notes: \{\s*cellWidth: LEDGER_COLUMN_WIDTHS\.notes,\s*overflow: 'linebreak',\s*minCellWidth: LEDGER_COLUMN_WIDTHS\.notes/s);
 });

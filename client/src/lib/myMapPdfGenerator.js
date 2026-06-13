@@ -1,4 +1,5 @@
 import { buildMyMapPdfFileName, buildMyMapPdfLedger } from './myMapPdfLedger.js';
+import { buildPdfMarkdownLines } from './myMapPdfMarkdown.js';
 
 const BRAND = {
     teal: [13, 118, 112],
@@ -44,9 +45,10 @@ const LEDGER_LAYOUT = {
 
 const LEDGER_CONTENT_WIDTH = PAGE.width - (PAGE.margin * 2);
 const LEDGER_COLUMN_WIDTHS = {
-    resource: 128,
-    address: 136,
-    notes: LEDGER_CONTENT_WIDTH - 264,
+    resource: 168,
+    get notes() {
+        return LEDGER_CONTENT_WIDTH - LEDGER_COLUMN_WIDTHS.resource;
+    },
 };
 
 function resolveAutoTable(module) {
@@ -137,12 +139,75 @@ function formatNote(note) {
     return `${prefix}${note.text}`;
 }
 
+function formatResourceIdentity(resource) {
+    return [resource.name, resource.address].filter(Boolean).join('\n');
+}
+
+function prefixFirstNoteLine(lines, note) {
+    const prefix = note.dateLabel ? `[${note.dateLabel}] - ` : '';
+    if (!prefix) return lines;
+    if (lines.length === 0) {
+        return [{ text: prefix.trim(), fontStyle: 'normal', hasLink: false }];
+    }
+
+    return [
+        {
+            ...lines[0],
+            text: `${prefix}${lines[0].text}`,
+        },
+        ...lines.slice(1),
+    ];
+}
+
+function buildNoteLines(notes) {
+    if (!notes.length) {
+        return [{ text: 'No notes', fontStyle: 'italic', hasLink: false }];
+    }
+
+    return notes.flatMap((note, index) => {
+        const lines = prefixFirstNoteLine(
+            buildPdfMarkdownLines(note.markdownText || note.text),
+            note,
+        );
+        const fallbackLines = lines.length > 0
+            ? lines
+            : [{ text: formatNote(note), fontStyle: 'normal', hasLink: false }];
+
+        return index === 0
+            ? fallbackLines
+            : [
+                { text: '', fontStyle: 'normal', hasLink: false, spacer: true },
+                ...fallbackLines,
+            ];
+    });
+}
+
+function buildNoteCell(line) {
+    const styles = {
+        fontStyle: line.fontStyle,
+        textColor: line.hasLink ? BRAND.tealDark : BRAND.ink,
+    };
+
+    if (line.spacer) {
+        styles.fontSize = 3;
+        styles.cellPadding = { top: 2, right: 6, bottom: 2, left: 6 };
+        styles.textColor = BRAND.muted;
+    }
+
+    return {
+        content: line.text || ' ',
+        styles,
+    };
+}
+
 function buildResourceRows(category) {
-    return category.resources.map((resource) => [
-        resource.name,
-        resource.address,
-        resource.notes.length > 0 ? resource.notes.map(formatNote).join('\n\n') : 'No notes',
-    ]);
+    return category.resources.flatMap((resource) => {
+        const noteLines = buildNoteLines(resource.notes);
+        return noteLines.map((line, index) => ({
+            resource: index === 0 ? formatResourceIdentity(resource) : '',
+            notes: buildNoteCell(line),
+        }));
+    });
 }
 
 function needsFreshPage(currentY, titleLines) {
@@ -178,13 +243,12 @@ function writeLedger(doc, autoTable, ledger) {
 
         autoTable(doc, {
             startY: tableStartY,
-            head: [['Resource', 'Address', 'Notes']],
+            head: [['Resource / Address', 'Notes']],
             body: buildResourceRows(category),
             theme: 'grid',
             columns: [
-                { header: 'Resource', dataKey: 0 },
-                { header: 'Address', dataKey: 1 },
-                { header: 'Notes', dataKey: 2 },
+                { header: 'Resource / Address', dataKey: 'resource' },
+                { header: 'Notes', dataKey: 'notes' },
             ],
             styles: {
                 font: 'helvetica',
@@ -201,14 +265,13 @@ function writeLedger(doc, autoTable, ledger) {
                 textColor: [255, 255, 255],
                 fontStyle: 'bold',
             },
-            alternateRowStyles: {
-                fillColor: BRAND.panel,
-            },
             tableWidth: LEDGER_CONTENT_WIDTH,
             columnStyles: {
-                0: { cellWidth: LEDGER_COLUMN_WIDTHS.resource, overflow: 'linebreak' },
-                1: { cellWidth: LEDGER_COLUMN_WIDTHS.address, overflow: 'linebreak' },
-                2: {
+                resource: {
+                    cellWidth: LEDGER_COLUMN_WIDTHS.resource,
+                    overflow: 'linebreak',
+                },
+                notes: {
                     cellWidth: LEDGER_COLUMN_WIDTHS.notes,
                     overflow: 'linebreak',
                     minCellWidth: LEDGER_COLUMN_WIDTHS.notes,

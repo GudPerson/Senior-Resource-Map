@@ -59,11 +59,42 @@ function cleanNoteLine(line) {
         .trim();
 }
 
+function preserveInlineMarkdownForPdf(line) {
+    return String(line || '')
+        .replace(/^(\s*)[*+]\s+/, '$1- ')
+        .replace(/^#{1,6}\s+/, '')
+        .replace(/`+/g, '');
+}
+
+function cleanNoteMarkdownLine(line) {
+    if (/^\s*```[\w-]*\s*$/i.test(line)) return null;
+
+    const normalized = String(line || '')
+        .replace(PDF_NOTE_CONTROL_CHARACTERS, '')
+        .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+        .replace(/[\u200b-\u200d\ufeff]/g, '');
+
+    return breakLongNoteTokens(preserveInlineMarkdownForPdf(repairLetterSpacedText(normalized)))
+        .replace(/[ \t]+/g, ' ')
+        .trim();
+}
+
 function cleanNoteText(value) {
     const lines = String(value || '')
         .replace(/\r\n?/g, '\n')
         .split('\n')
         .map(cleanNoteLine)
+        .filter((line) => line !== null);
+
+    return lines.join('\n')
+        .trim();
+}
+
+function cleanNoteMarkdownText(value) {
+    const lines = String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map(cleanNoteMarkdownLine)
         .filter((line) => line !== null);
 
     return lines.join('\n')
@@ -179,6 +210,7 @@ function buildLedgerNotes(row) {
         return {
             id: note.id ?? note.clientId ?? null,
             text: cleanNoteText(note.text),
+            markdownText: cleanNoteMarkdownText(note.text),
             visibility: note.isShared ? 'Shared' : 'Private',
             createdAt: rawNote ? rawCreatedAt : note.createdAt || null,
             updatedAt: rawNote ? rawUpdatedAt : note.updatedAt || note.createdAt || null,

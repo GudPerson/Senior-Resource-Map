@@ -258,7 +258,7 @@ test('buildMyMapPdfLedger strips hidden control characters from older stored not
     assert.doesNotMatch(note.text, /`/);
 });
 
-test('buildMyMapPdfLedger exports markdown note formatting as readable plain text', () => {
+test('buildMyMapPdfLedger preserves markdown note source for styled PDF output', () => {
     const ledger = buildMyMapPdfLedger({
         directory: { name: 'Markdown Notes Map' },
         presentation: {
@@ -285,6 +285,7 @@ test('buildMyMapPdfLedger exports markdown note formatting as readable plain tex
 
     const [note] = ledger.categories[0].resources[0].notes;
     assert.equal(note.text, 'Call intake\n- Bring referral letter\nWebsite https://example.com');
+    assert.equal(note.markdownText, '**Call intake**\n- Bring *referral letter*\n[Website](https://example.com)');
     assert.doesNotMatch(note.text, /[*_`]/);
 });
 
