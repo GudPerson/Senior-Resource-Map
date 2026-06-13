@@ -102,6 +102,26 @@ test('map notes preview toggles in place instead of adding a second note body', 
     assert.doesNotMatch(editorSource, /previewNoteIds\[note\.clientId\] && note\.text\.trim\(\) \? \(/);
 });
 
+test('map notes preview toggle uses explicit preview and edit labels', () => {
+    const toolbarSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function MapNoteToolbarButton',
+        'function createEmptyDraftNote',
+    );
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(sharedMapDirectorySource, /\bPencil\b/);
+    assert.match(toolbarSource, /showLabel = false/);
+    assert.match(toolbarSource, /\{showLabel \? <span/);
+    assert.match(editorSource, /label=\{isPreviewing \? t\('mapNoteMarkdownEdit'\) : t\('mapNoteMarkdownPreview'\)\}/);
+    assert.match(editorSource, /showLabel/);
+    assert.match(editorSource, /\{isPreviewing \? <Pencil size=\{15\} strokeWidth=\{2\.3\} \/> : <Eye size=\{15\} strokeWidth=\{2\.3\} \/>\}/);
+});
+
 test('map notes editor keeps textarea identity stable when autosave returns new note ids', () => {
     const editorSource = sourceBetween(
         sharedMapDirectorySource,
@@ -151,6 +171,33 @@ test('map notes editor shows the note character limit instead of failing silentl
     assert.match(editorSource, /maxLength=\{MAP_NOTE_MAX_LENGTH\}/);
     assert.match(editorSource, /mapNoteCharacterCount/);
     assert.match(editorSource, /mapNoteLimitReached/);
+});
+
+test('map notes editor applies the shared note limit to every local text update path', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(editorSource, /values\.text\.slice\(0, MAP_NOTE_MAX_LENGTH\)/);
+    assert.match(editorSource, /result\.value\.slice\(0, MAP_NOTE_MAX_LENGTH\)/);
+    assert.doesNotMatch(editorSource, /slice\(0, 1000\)/);
+});
+
+test('map notes editor keeps ordinary typing out of the visible saving state', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(editorSource, /const \[showSaveStatus, setShowSaveStatus\] = useState\(false\)/);
+    assert.match(editorSource, /setShowSaveStatus\(true\)/);
+    assert.match(editorSource, /setShowSaveStatus\(false\)/);
+    assert.match(editorSource, /const shouldShowSaveStatus = showSaveStatus && saveState !== 'idle' && !didSaveFail/);
+    assert.match(editorSource, /updateDraftNote\(note\.clientId, \{ text: event\.target\.value \}\)/);
+    assert.doesNotMatch(editorSource, /updateDraftNote\(note\.clientId, \{ text: event\.target\.value \}, \{ immediate: true \}\)/);
 });
 
 test('map notes save status reserves space so saving feedback does not shift the editor', () => {

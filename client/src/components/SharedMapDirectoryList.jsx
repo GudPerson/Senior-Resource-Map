@@ -16,6 +16,7 @@ import {
     Link2,
     List,
     ListOrdered,
+    Pencil,
     Plus,
     RefreshCw,
     StickyNote,
@@ -179,12 +180,14 @@ function SharedResourceNotes({ notes, compact = false, print = false }) {
     );
 }
 
-function MapNoteToolbarButton({ label, active = false, onClick, children }) {
+function MapNoteToolbarButton({ label, active = false, onClick, children, showLabel = false }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+            className={`inline-flex h-9 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+                showLabel ? 'gap-1.5 px-3 text-xs font-bold' : 'w-9'
+            } ${
                 active
                     ? 'border-brand-200 bg-brand-50 text-brand-700'
                     : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700'
@@ -194,6 +197,7 @@ function MapNoteToolbarButton({ label, active = false, onClick, children }) {
             aria-pressed={active || undefined}
         >
             {children}
+            {showLabel ? <span>{label}</span> : null}
         </button>
     );
 }
@@ -298,6 +302,7 @@ function ResourceNotesEditor({
     const remoteSignature = buildMapNotesAutosaveSignature(normalizeNoteItems(row?.notes));
     const [drafts, setDrafts] = useState(() => buildNoteDrafts(row ? [row] : []));
     const [saveState, setSaveState] = useState('idle');
+    const [showSaveStatus, setShowSaveStatus] = useState(false);
     const [error, setError] = useState('');
     const [previewNoteIds, setPreviewNoteIds] = useState({});
     const activeRowKeyRef = useRef(rowKey);
@@ -412,6 +417,7 @@ function ResourceNotesEditor({
             queuedSaveRef.current = false;
             hasUnsavedDraftRef.current = false;
             setSaveState('idle');
+            setShowSaveStatus(false);
             setError('');
         }
 
@@ -459,8 +465,10 @@ function ResourceNotesEditor({
         draftChangedRef.current = true;
         immediateSaveRef.current = immediateSaveRef.current || immediate;
         if (immediate) {
+            setShowSaveStatus(true);
             setSaveState('pending');
         } else {
+            setShowSaveStatus(false);
             setSaveState((current) => (current === 'saved' ? 'idle' : current));
         }
         setError('');
@@ -474,7 +482,7 @@ function ResourceNotesEditor({
                 ...(current[rowKey] || {}),
                 notes: (current[rowKey]?.notes || []).map((note) => (
                     note.clientId === clientId
-                        ? { ...note, ...values, text: values.text !== undefined ? values.text.slice(0, 1000) : note.text }
+                        ? { ...note, ...values, text: values.text !== undefined ? values.text.slice(0, MAP_NOTE_MAX_LENGTH) : note.text }
                         : note
                 )),
             },
@@ -530,7 +538,7 @@ function ResourceNotesEditor({
             selectionEnd: textarea?.selectionEnd ?? text.length,
             action,
         });
-        const nextText = result.value.slice(0, 1000);
+        const nextText = result.value.slice(0, MAP_NOTE_MAX_LENGTH);
         updateDraftNote(note.clientId, { text: nextText });
         restoreTextareaSelection(
             note.clientId,
@@ -553,7 +561,7 @@ function ResourceNotesEditor({
     const isSaving = saveState === 'saving' || saveState === 'pending';
     const isSaved = saveState === 'saved';
     const didSaveFail = saveState === 'error';
-    const shouldShowSaveStatus = saveState !== 'idle' && !didSaveFail;
+    const shouldShowSaveStatus = showSaveStatus && saveState !== 'idle' && !didSaveFail;
     const markdownToolbarActions = [
         { action: 'bold', label: t('mapNoteMarkdownBold'), icon: Bold },
         { action: 'italic', label: t('mapNoteMarkdownItalic'), icon: Italic },
@@ -590,11 +598,12 @@ function ResourceNotesEditor({
                                     ))}
                                 </div>
                                 <MapNoteToolbarButton
-                                    label={t('mapNoteMarkdownPreview')}
+                                    label={isPreviewing ? t('mapNoteMarkdownEdit') : t('mapNoteMarkdownPreview')}
                                     active={isPreviewing}
                                     onClick={() => togglePreviewNote(note.clientId)}
+                                    showLabel
                                 >
-                                    <Eye size={15} strokeWidth={2.3} />
+                                    {isPreviewing ? <Pencil size={15} strokeWidth={2.3} /> : <Eye size={15} strokeWidth={2.3} />}
                                 </MapNoteToolbarButton>
                             </div>
                             <div className="flex items-start gap-2">
@@ -685,7 +694,10 @@ function ResourceNotesEditor({
                 {didSaveFail ? (
                     <button
                         type="button"
-                        onClick={() => void flushDraftChanges()}
+                        onClick={() => {
+                            setShowSaveStatus(true);
+                            void flushDraftChanges();
+                        }}
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-3 text-sm font-bold text-red-700 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-100"
                     >
                         <RefreshCw size={15} />
