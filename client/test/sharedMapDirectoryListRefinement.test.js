@@ -66,3 +66,17 @@ test('map notes editor exposes a markdown helper toolbar without changing autosa
     assert.doesNotMatch(editorSource, /\bmarkdown\s*:/);
     assert.doesNotMatch(editorSource, /\bformat\s*:/);
 });
+
+test('map notes editor auto-sizes note textareas instead of using an inner scrollbar', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(sharedMapDirectorySource, /resizeTextareaToContent/);
+    assert.match(editorSource, /Object\.values\(noteTextareaRefs\.current\)\.forEach\(\(textarea\) => resizeTextareaToContent\(textarea\)\)/);
+    assert.match(editorSource, /resizeTextareaToContent\(event\.currentTarget\)/);
+    assert.match(editorSource, /resizeTextareaToContent\(element\)/);
+    assert.match(editorSource, /overflow-hidden/);
+});
