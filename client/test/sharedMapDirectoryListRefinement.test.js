@@ -140,6 +140,19 @@ test('map notes editor keeps typing local until the owner exits the note flow', 
     assert.match(apiSource, /\.\.\.\(keepalive \? \{ keepalive: true \} : \{\}\)/);
 });
 
+test('map notes editor shows the note character limit instead of failing silently', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(sharedMapDirectorySource, /MAP_NOTE_MAX_LENGTH/);
+    assert.match(editorSource, /maxLength=\{MAP_NOTE_MAX_LENGTH\}/);
+    assert.match(editorSource, /mapNoteCharacterCount/);
+    assert.match(editorSource, /mapNoteLimitReached/);
+});
+
 test('map notes save status reserves space so saving feedback does not shift the editor', () => {
     const editorSource = sourceBetween(
         sharedMapDirectorySource,

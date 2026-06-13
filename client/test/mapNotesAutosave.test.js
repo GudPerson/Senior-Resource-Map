@@ -2,23 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    MAP_NOTE_MAX_LENGTH,
     buildMapNotesAutosaveSignature,
     buildMapNotesSavePayload,
     mergeRemoteNotesWithStableDrafts,
     shouldResetDraftsFromRemote,
 } from '../src/lib/mapNotesAutosave.js';
 
+test('map note text allows full meeting notes before truncating at the shared note limit', () => {
+    assert.equal(MAP_NOTE_MAX_LENGTH, 3000);
+});
+
 test('buildMapNotesSavePayload keeps meaningful notes and drops blank drafts', () => {
     assert.deepEqual(
         buildMapNotesSavePayload([
             { id: 7, text: '  Call before referral  ', isShared: true },
             { id: 8, text: '   ', isShared: true },
-            { text: ` ${'x'.repeat(1005)} `, isShared: false },
+            { text: ` ${'x'.repeat(MAP_NOTE_MAX_LENGTH + 5)} `, isShared: false },
         ]),
         {
             notes: [
                 { id: 7, text: 'Call before referral', isShared: true },
-                { text: 'x'.repeat(1000), isShared: false },
+                { text: 'x'.repeat(MAP_NOTE_MAX_LENGTH), isShared: false },
             ],
         },
     );

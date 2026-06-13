@@ -6,7 +6,7 @@ import {
 } from './resourceTranslations.js';
 
 const MAX_NOTE_TRANSLATION_ITEMS = 120;
-const MAX_NOTE_TRANSLATION_LENGTH = 1000;
+const MAX_NOTE_TRANSLATION_LENGTH = 3000;
 
 function getAssetKey(item) {
     if (item?.assetKey) return String(item.assetKey);

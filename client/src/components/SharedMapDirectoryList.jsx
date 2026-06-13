@@ -33,6 +33,7 @@ import {
     normalizeNoteItems,
 } from '../lib/mapNotes.js';
 import {
+    MAP_NOTE_MAX_LENGTH,
     buildMapNotesAutosaveSignature,
     buildMapNotesSavePayload,
     mergeRemoteNotesWithStableDrafts,
@@ -571,6 +572,8 @@ function ResourceNotesEditor({
             <div className="grid gap-2.5">
                 {draftNotes.map((note, index) => {
                     const isPreviewing = Boolean(previewNoteIds[note.clientId]);
+                    const noteLength = note.text.length;
+                    const hasReachedNoteLimit = noteLength >= MAP_NOTE_MAX_LENGTH;
 
                     return (
                         <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
@@ -623,12 +626,19 @@ function ResourceNotesEditor({
                                                 resizeTextareaToContent(event.currentTarget);
                                                 updateDraftNote(note.clientId, { text: event.target.value });
                                             }}
-                                            maxLength={1000}
+                                            maxLength={MAP_NOTE_MAX_LENGTH}
                                             rows={3}
                                             className="min-h-[96px] w-full resize-none overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-base leading-7 text-slate-800 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100 sm:text-sm sm:leading-6"
                                             placeholder={t('mapNotePlaceholder')}
                                         />
                                     )}
+                                    <p className={`mt-1 text-right text-[11px] font-bold ${
+                                        hasReachedNoteLimit ? 'text-amber-700' : 'text-slate-400'
+                                    }`}>
+                                        {hasReachedNoteLimit
+                                            ? t('mapNoteLimitReached', { count: noteLength, limit: MAP_NOTE_MAX_LENGTH })
+                                            : t('mapNoteCharacterCount', { count: noteLength, limit: MAP_NOTE_MAX_LENGTH })}
+                                    </p>
                                 </div>
                                 <button
                                     type="button"

@@ -21,6 +21,8 @@ import {
     validateRequestBody,
 } from '../utils/inputValidation.js';
 
+const MY_MAP_NOTE_MAX_LENGTH = 3000;
+
 const mapAssetRefBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
@@ -39,7 +41,7 @@ const updateMyMapBodySchema = z.object({
 
 const mapAssetNoteInputSchema = z.object({
     id: z.number().int().positive().optional(),
-    text: optionalTextSchema(1000),
+    text: optionalTextSchema(MY_MAP_NOTE_MAX_LENGTH),
     isShared: z.boolean().optional(),
 });
 
@@ -47,8 +49,8 @@ const updateMyMapAssetNotesBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
     notes: z.array(mapAssetNoteInputSchema).max(20).optional(),
-    privateNote: optionalTextSchema(1000),
-    handoffNote: optionalTextSchema(1000),
+    privateNote: optionalTextSchema(MY_MAP_NOTE_MAX_LENGTH),
+    handoffNote: optionalTextSchema(MY_MAP_NOTE_MAX_LENGTH),
 });
 
 const shareMyMapBodySchema = z.object({

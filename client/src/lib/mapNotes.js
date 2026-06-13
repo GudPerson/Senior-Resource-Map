@@ -1,3 +1,5 @@
+import { MAP_NOTE_MAX_LENGTH } from './mapNotesAutosave.js';
+
 export function getRowAssetKey(row) {
     return row?.assetKey || `${row?.resourceType}-${row?.resourceId}`;
 }
@@ -46,7 +48,7 @@ export function normalizeNoteItems(notes) {
                 return {
                     clientId: note?.id ? `note-${note.id}` : `note-${index}`,
                     id: note?.id || null,
-                    text: String(note?.text || '').slice(0, 1000),
+                    text: String(note?.text || '').slice(0, MAP_NOTE_MAX_LENGTH),
                     isShared: Boolean(note?.isShared),
                     createdAt,
                     updatedAt,

@@ -1,4 +1,5 @@
 import { getRowAssetKey, normalizeNoteItems } from './mapNotes.js';
+import { MAP_NOTE_MAX_LENGTH } from './mapNotesAutosave.js';
 
 const LIST_ONLY_LABEL = 'List only';
 const FALLBACK_MAP_NAME = 'CareAround map';
@@ -159,7 +160,7 @@ function getPresentationMapNumber(row, group, place, presentation) {
 }
 
 function hasNormalizedNoteText(note) {
-    return String(note?.text || '').slice(0, 1000).trim().length > 0;
+    return String(note?.text || '').slice(0, MAP_NOTE_MAX_LENGTH).trim().length > 0;
 }
 
 function getStructuredRawNoteItems(notes) {

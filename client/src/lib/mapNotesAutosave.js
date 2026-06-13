@@ -1,4 +1,4 @@
-const MAP_NOTE_MAX_LENGTH = 1000;
+export const MAP_NOTE_MAX_LENGTH = 3000;
 
 function normalizeNoteText(value) {
     return String(value ?? '').trim().slice(0, MAP_NOTE_MAX_LENGTH);
