@@ -9,7 +9,13 @@ import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     ArrowLeft,
+    Bold,
     ChevronRight,
+    Eye,
+    Italic,
+    Link2,
+    List,
+    ListOrdered,
     Plus,
     RefreshCw,
     StickyNote,
@@ -32,6 +38,8 @@ import {
     buildMapNotesSavePayload,
     shouldResetDraftsFromRemote,
 } from '../lib/mapNotesAutosave.js';
+import { applyMapNoteMarkdownAction } from '../lib/mapNoteMarkdownToolbar.js';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 import {
@@ -137,9 +145,15 @@ function SharedResourceNotes({ notes, compact = false, print = false }) {
         return (
             <div className="mt-1 space-y-1">
                 {items.map((note, index) => (
-                    <p key={`${note.id || index}-${note.text}`} className="rounded-lg border border-brand-100 bg-brand-50 px-2 py-1 text-[10px] font-medium leading-4 text-brand-800">
-                        <span className="font-bold">{t('sharedNote')}:</span> {note.text}
-                    </p>
+                    <div key={`${note.id || index}-${note.text}`} className="rounded-lg border border-brand-100 bg-brand-50 px-2 py-1 text-[10px] font-medium leading-4 text-brand-800">
+                        <span className="font-bold">{t('sharedNote')}:</span>
+                        <MarkdownLiteText
+                            text={note.text}
+                            compact
+                            className="mt-0.5 text-[10px] leading-4 text-brand-800"
+                            linkClassName="text-brand-700 underline break-all"
+                        />
+                    </div>
                 ))}
             </div>
         );
@@ -150,10 +164,35 @@ function SharedResourceNotes({ notes, compact = false, print = false }) {
             <p className="font-bold">{t('sharedNotes')}</p>
             <div className="mt-1 space-y-1.5">
                 {items.map((note, index) => (
-                    <p key={`${note.id || index}-${note.text}`} className="whitespace-pre-wrap">{note.text}</p>
+                    <MarkdownLiteText
+                        key={`${note.id || index}-${note.text}`}
+                        text={note.text}
+                        compact
+                        className="text-brand-900"
+                        linkClassName="text-brand-700 underline break-all"
+                    />
                 ))}
             </div>
         </div>
+    );
+}
+
+function MapNoteToolbarButton({ label, active = false, onClick, children }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-slate-600 transition focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+                active
+                    ? 'border-brand-200 bg-brand-50 text-brand-700'
+                    : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700'
+            }`}
+            aria-label={label}
+            title={label}
+            aria-pressed={active || undefined}
+        >
+            {children}
+        </button>
     );
 }
 
@@ -257,10 +296,12 @@ function ResourceNotesEditor({
     const [drafts, setDrafts] = useState(() => buildNoteDrafts(row ? [row] : []));
     const [saveState, setSaveState] = useState('idle');
     const [error, setError] = useState('');
+    const [previewNoteIds, setPreviewNoteIds] = useState({});
     const activeRowKeyRef = useRef(rowKey);
     const draftsRef = useRef(drafts);
     const rowRef = useRef(row);
     const onUpdateResourceNotesRef = useRef(onUpdateResourceNotes);
+    const noteTextareaRefs = useRef({});
     const saveTimerRef = useRef(null);
     const pendingSaveRef = useRef(false);
     const saveInFlightRef = useRef(false);
@@ -434,6 +475,47 @@ function ResourceNotesEditor({
         }));
     }
 
+    function restoreTextareaSelection(clientId, selectionStart, selectionEnd) {
+        const restore = () => {
+            const textarea = noteTextareaRefs.current[clientId];
+            if (!textarea) return;
+            textarea.focus();
+            textarea.setSelectionRange(selectionStart, selectionEnd);
+        };
+
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(restore);
+            return;
+        }
+
+        setTimeout(restore, 0);
+    }
+
+    function applyMarkdownToDraftNote(note, action) {
+        const textarea = noteTextareaRefs.current[note.clientId];
+        const text = String(note.text || '');
+        const result = applyMapNoteMarkdownAction({
+            value: text,
+            selectionStart: textarea?.selectionStart ?? text.length,
+            selectionEnd: textarea?.selectionEnd ?? text.length,
+            action,
+        });
+        const nextText = result.value.slice(0, 1000);
+        updateDraftNote(note.clientId, { text: nextText });
+        restoreTextareaSelection(
+            note.clientId,
+            Math.min(result.selectionStart, nextText.length),
+            Math.min(result.selectionEnd, nextText.length),
+        );
+    }
+
+    function togglePreviewNote(clientId) {
+        setPreviewNoteIds((current) => ({
+            ...current,
+            [clientId]: !current[clientId],
+        }));
+    }
+
     const draft = drafts[rowKey] || {
         notes: [createEmptyDraftNote()],
     };
@@ -441,6 +523,13 @@ function ResourceNotesEditor({
     const isSaving = saveState === 'saving' || saveState === 'pending';
     const isSaved = saveState === 'saved';
     const didSaveFail = saveState === 'error';
+    const markdownToolbarActions = [
+        { action: 'bold', label: t('mapNoteMarkdownBold'), icon: Bold },
+        { action: 'italic', label: t('mapNoteMarkdownItalic'), icon: Italic },
+        { action: 'bullet-list', label: t('mapNoteMarkdownBulletList'), icon: List },
+        { action: 'numbered-list', label: t('mapNoteMarkdownNumberedList'), icon: ListOrdered },
+        { action: 'link', label: t('mapNoteMarkdownLink'), icon: Link2 },
+    ];
 
     return (
         <div className="space-y-3">
@@ -452,8 +541,35 @@ function ResourceNotesEditor({
             <div className="grid gap-2.5">
                 {draftNotes.map((note, index) => (
                     <div key={note.clientId} className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1">
+                                {markdownToolbarActions.map(({ action, label, icon: Icon }) => (
+                                    <MapNoteToolbarButton
+                                        key={action}
+                                        label={label}
+                                        onClick={() => applyMarkdownToDraftNote(note, action)}
+                                    >
+                                        <Icon size={15} strokeWidth={2.3} />
+                                    </MapNoteToolbarButton>
+                                ))}
+                            </div>
+                            <MapNoteToolbarButton
+                                label={t('mapNoteMarkdownPreview')}
+                                active={Boolean(previewNoteIds[note.clientId])}
+                                onClick={() => togglePreviewNote(note.clientId)}
+                            >
+                                <Eye size={15} strokeWidth={2.3} />
+                            </MapNoteToolbarButton>
+                        </div>
                         <div className="flex items-start gap-2">
                             <textarea
+                                ref={(element) => {
+                                    if (element) {
+                                        noteTextareaRefs.current[note.clientId] = element;
+                                    } else {
+                                        delete noteTextareaRefs.current[note.clientId];
+                                    }
+                                }}
                                 value={note.text}
                                 onChange={(event) => updateDraftNote(note.clientId, { text: event.target.value })}
                                 onBlur={() => void flushAutosave()}
@@ -472,6 +588,15 @@ function ResourceNotesEditor({
                                 <Trash2 size={16} />
                             </button>
                         </div>
+                        {previewNoteIds[note.clientId] && note.text.trim() ? (
+                            <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                <MarkdownLiteText
+                                    text={note.text}
+                                    compact
+                                    className="text-sm leading-6 text-slate-700"
+                                />
+                            </div>
+                        ) : null}
                         <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-1 text-sm font-bold text-slate-600">
                             <input
                                 type="checkbox"
@@ -535,7 +660,12 @@ function ResourceNotesReadOnly({ row }) {
         <div className="space-y-2.5">
             {notes.map((note, index) => (
                 <div key={`${note.id || index}-${note.text}`} className="rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">
-                    <p className="whitespace-pre-wrap">{note.text}</p>
+                    <MarkdownLiteText
+                        text={note.text}
+                        compact
+                        className="text-sm leading-6 text-brand-900"
+                        linkClassName="text-brand-700 underline break-all"
+                    />
                 </div>
             ))}
         </div>

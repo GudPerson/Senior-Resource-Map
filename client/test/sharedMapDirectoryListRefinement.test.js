@@ -37,3 +37,32 @@ test('interactive My Map cards avoid fixed pixel sizing so font controls can res
     assert.equal(/h-\[(?:34|38|42|46)px\]|w-\[(?:34|38|42|46)px\]/.test(cardSource), false);
     assert.equal(/fontSize:\s*[^,\n]*px/.test(cardSource), false);
 });
+
+test('map notes render markdown through the safe MarkdownLiteText component', () => {
+    const notesSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function SharedResourceNotes',
+        'function MapNotesOverlay',
+    );
+
+    assert.match(sharedMapDirectorySource, /import MarkdownLiteText from '\.\/MarkdownLiteText\.jsx';/);
+    assert.match(notesSource, /<MarkdownLiteText[\s\S]*text=\{note\.text\}/);
+    assert.doesNotMatch(notesSource, /dangerouslySetInnerHTML/);
+});
+
+test('map notes editor exposes a markdown helper toolbar without changing autosave payloads', () => {
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+
+    assert.match(sharedMapDirectorySource, /applyMapNoteMarkdownAction/);
+    assert.match(editorSource, /mapNoteMarkdownBold/);
+    assert.match(editorSource, /mapNoteMarkdownBulletList/);
+    assert.match(editorSource, /mapNoteMarkdownPreview/);
+    assert.match(editorSource, /updateDraftNote\(note\.clientId, \{ text:/);
+    assert.match(editorSource, /const payload = buildMapNotesSavePayload\(getCurrentDraftNotes\(\)\);/);
+    assert.doesNotMatch(editorSource, /\bmarkdown\s*:/);
+    assert.doesNotMatch(editorSource, /\bformat\s*:/);
+});

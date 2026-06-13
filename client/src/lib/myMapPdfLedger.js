@@ -6,6 +6,7 @@ const FALLBACK_FILE_NAME = 'carearound-map-ledger.pdf';
 const TEXT_COMPARE_OPTIONS = { sensitivity: 'base', numeric: true };
 const MAX_PDF_NOTE_TOKEN_LENGTH = 38;
 const PDF_NOTE_CONTROL_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
 
 function cleanText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
@@ -33,6 +34,16 @@ function breakLongNoteTokens(line) {
     }).join('');
 }
 
+function stripInlineMarkdownForPdf(line) {
+    return String(line || '')
+        .replace(/^(\s*)[*+]\s+/, '$1- ')
+        .replace(MARKDOWN_LINK_PATTERN, '$1 $2')
+        .replace(/(\*\*|__)([^*_]+?)\1/g, '$2')
+        .replace(/([*_])([^*_\n]+?)\1/g, '$2')
+        .replace(/~~([^~\n]+?)~~/g, '$1')
+        .replace(/^#{1,6}\s+/, '');
+}
+
 function cleanNoteLine(line) {
     if (/^\s*```[\w-]*\s*$/i.test(line)) return null;
 
@@ -42,7 +53,7 @@ function cleanNoteLine(line) {
         .replace(/[\u200b-\u200d\ufeff]/g, '')
         .replace(/`+/g, '');
 
-    return breakLongNoteTokens(repairLetterSpacedText(normalized))
+    return breakLongNoteTokens(stripInlineMarkdownForPdf(repairLetterSpacedText(normalized)))
         .replace(/[ \t]+/g, ' ')
         .trim();
 }

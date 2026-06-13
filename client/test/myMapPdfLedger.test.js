@@ -258,6 +258,36 @@ test('buildMyMapPdfLedger strips hidden control characters from older stored not
     assert.doesNotMatch(note.text, /`/);
 });
 
+test('buildMyMapPdfLedger exports markdown note formatting as readable plain text', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: { name: 'Markdown Notes Map' },
+        presentation: {
+            unmappedRows: [
+                row({
+                    resourceId: 18,
+                    resourceType: 'soft',
+                    name: 'Markdown Note Resource',
+                    subCategory: 'Home care',
+                    notes: {
+                        items: [
+                            {
+                                id: 'markdown-note',
+                                text: '**Call intake**\n- Bring *referral letter*\n[Website](https://example.com)',
+                                isShared: true,
+                                createdAt: '2026-06-10T01:00:00.000Z',
+                            },
+                        ],
+                    },
+                }),
+            ],
+        },
+    });
+
+    const [note] = ledger.categories[0].resources[0].notes;
+    assert.equal(note.text, 'Call intake\n- Bring referral letter\nWebsite https://example.com');
+    assert.doesNotMatch(note.text, /[*_`]/);
+});
+
 test('buildMyMapPdfLedger breaks very long unspaced note tokens so the PDF table can wrap them', () => {
     const longToken = 'CulturalInclusiveness'.repeat(5);
     const ledger = buildMyMapPdfLedger({
