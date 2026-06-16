@@ -99,7 +99,14 @@ function renderSavedPinCenterGlyph(iconUrl) {
     `;
 }
 
-export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone = 'saved', iconUrl = null, placeKey = null } = {}) {
+export function createSavedPlacePinIcon({
+    count = 0,
+    emphasis = 'default',
+    tone = 'saved',
+    iconUrl = null,
+    placeKey = null,
+    showBadge = true,
+} = {}) {
     const label = count > 99 ? '99+' : String(Math.max(0, count));
     const isPrimary = emphasis === 'primary';
     const isRelated = emphasis === 'related';
@@ -136,6 +143,38 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     const pulseBump = isPrimary ? 0.12 : isRelated ? 0.07 : 0;
     const innerSheen = isTemporary ? '#fff0c2' : '#8ef0e6';
     const glyphMarkup = renderSavedPinCenterGlyph(iconUrl);
+
+    const badgeMarkup = showBadge
+        ? `
+                <div
+                    class="saved-place-pin-marker__badge"
+                    style="
+                        position:absolute;
+                        top:-3px;
+                        right:-3px;
+                        z-index:100;
+                        min-width:20px;
+                        height:20px;
+                        padding:0 4px;
+                        border-radius:999px;
+                        background:${badgeBg};
+                        border:1.5px solid #ffffff;
+                        box-shadow:${badgeShadow};
+                        color:#ffffff;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:${label.length > 2 ? 8.5 : 10}px;
+                        line-height:1;
+                        font-weight:800;
+                        letter-spacing:-0.02em;
+                        transform-origin:center;
+                        pointer-events:none;
+                        font-family:var(--font-heading);
+                    "
+                >${escapeSvgText(label)}</div>
+            `
+        : '';
 
     const svg = `
         <div
@@ -181,33 +220,7 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
                         justify-content:center;
                     "
                 >${glyphMarkup}</div>
-                <div
-                    class="saved-place-pin-marker__badge"
-                    style="
-                        position:absolute;
-                        top:-3px;
-                        right:-3px;
-                        z-index:100;
-                        min-width:20px;
-                        height:20px;
-                        padding:0 4px;
-                        border-radius:999px;
-                        background:${badgeBg};
-                        border:1.5px solid #ffffff;
-                        box-shadow:${badgeShadow};
-                        color:#ffffff;
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                        font-size:${label.length > 2 ? 8.5 : 10}px;
-                        line-height:1;
-                        font-weight:800;
-                        letter-spacing:-0.02em;
-                        transform-origin:center;
-                        pointer-events:none;
-                        font-family:var(--font-heading);
-                    "
-                >${escapeSvgText(label)}</div>
+                ${badgeMarkup}
             </div>
         </div>
     `;
@@ -223,7 +236,13 @@ export function createSavedPlacePinIcon({ count = 0, emphasis = 'default', tone 
     });
 }
 
-export function createPostalGroupParentPinIcon({ count = 0, badgeCount = 0, emphasis = 'default', placeKey = null } = {}) {
+export function createPostalGroupParentPinIcon({
+    count = 0,
+    badgeCount = 0,
+    emphasis = 'default',
+    placeKey = null,
+    showBadge = true,
+} = {}) {
     const label = count > 99 ? '99+' : String(Math.max(0, count));
     const badgeLabel = badgeCount > 99 ? '99+' : String(Math.max(0, badgeCount));
     const isPrimary = emphasis === 'primary';
@@ -254,6 +273,38 @@ export function createPostalGroupParentPinIcon({ count = 0, badgeCount = 0, emph
     ].filter(Boolean).join(' ');
     const pinScale = isPrimary ? 1.24 : isRelated ? 1.12 : 1;
     const pulseBump = isPrimary ? 0.12 : isRelated ? 0.07 : 0;
+
+    const badgeMarkup = showBadge
+        ? `
+                <div
+                    class="saved-place-pin-marker__badge"
+                    style="
+                        position:absolute;
+                        top:-3px;
+                        right:-3px;
+                        z-index:100;
+                        min-width:20px;
+                        height:20px;
+                        padding:0 4px;
+                        border-radius:999px;
+                        background:${badgeBg};
+                        border:1.5px solid #ffffff;
+                        box-shadow:${badgeShadow};
+                        color:#ffffff;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        font-size:${badgeLabel.length > 2 ? 8.5 : 10}px;
+                        line-height:1;
+                        font-weight:800;
+                        letter-spacing:-0.02em;
+                        transform-origin:center;
+                        pointer-events:none;
+                        font-family:var(--font-heading);
+                    "
+                >${escapeSvgText(badgeLabel)}</div>
+            `
+        : '';
 
     return L.divIcon({
         className: '',
@@ -304,33 +355,7 @@ export function createPostalGroupParentPinIcon({ count = 0, badgeCount = 0, emph
                         font-family:var(--font-heading);
                     "
                 >${escapeSvgText(label)}</div>
-                <div
-                    class="saved-place-pin-marker__badge"
-                    style="
-                        position:absolute;
-                        top:-3px;
-                        right:-3px;
-                        z-index:100;
-                        min-width:20px;
-                        height:20px;
-                        padding:0 4px;
-                        border-radius:999px;
-                        background:${badgeBg};
-                        border:1.5px solid #ffffff;
-                        box-shadow:${badgeShadow};
-                        color:#ffffff;
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                        font-size:${badgeLabel.length > 2 ? 8.5 : 10}px;
-                        line-height:1;
-                        font-weight:800;
-                        letter-spacing:-0.02em;
-                        transform-origin:center;
-                        pointer-events:none;
-                        font-family:var(--font-heading);
-                    "
-                >${escapeSvgText(badgeLabel)}</div>
+                ${badgeMarkup}
                 </div>
             </div>
         `,

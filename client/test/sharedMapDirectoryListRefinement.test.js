@@ -10,6 +10,10 @@ const myMapDetailPageSource = readFileSync(
     new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url),
     'utf8',
 );
+const myMapV2ScaffoldSource = readFileSync(
+    new URL('../src/components/MyMapV2PreviewScaffold.jsx', import.meta.url),
+    'utf8',
+);
 const apiSource = readFileSync(
     new URL('../src/lib/api.js', import.meta.url),
     'utf8',
@@ -32,6 +36,28 @@ test('list-only resource badges use the row logo before falling back to icon art
     assert.match(resourceRowIconSource, /logoUrl\s*=\s*null/);
     assert.match(resourceRowIconSource, /<img[\s\S]*src=\{logoUrl\}/);
     assert.match(sharedMapDirectorySource, /<ResourceRowIcon[\s\S]*logoUrl=\{row\.logoUrl\}/);
+});
+
+test('v2 mapped cards can use permanent resource logos while numbered badges stay the default', () => {
+    const badgeSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryPlaceBadge',
+        'function DirectoryNestedPlaceSection',
+    );
+
+    assert.match(sharedMapDirectorySource, /cardBadgeMode = 'number'/);
+    assert.match(badgeSource, /badgeMode = 'number'/);
+    assert.match(badgeSource, /badgeMode === 'logo'/);
+    assert.match(badgeSource, /<ResourceRowIcon[\s\S]*logoUrl=\{resolvedBadgeRow\?\.logoUrl\}/);
+    assert.match(sharedMapDirectorySource, /cardBadgeMode=\{cardBadgeMode\}/);
+    assert.match(myMapV2ScaffoldSource, /cardBadgeMode="logo"/);
+});
+
+test('v2 can hide the map legend while shared directory lists keep it by default', () => {
+    assert.match(sharedMapDirectorySource, /showMapLegend = true/);
+    assert.match(sharedMapDirectorySource, /showMapLegend \? <MapLegend mobile \/> : null/);
+    assert.match(sharedMapDirectorySource, /resolvedLayout !== 'print' && showMapLegend \? <MapLegend \/> : null/);
+    assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
 });
 
 test('interactive My Map cards avoid fixed pixel sizing so font controls can resize them', () => {

@@ -1002,6 +1002,20 @@ function getNestedPlaceLogoRow(place) {
     return (place?.rows || []).find((row) => row?.logoUrl) || null;
 }
 
+function getGroupBadgeRow(group) {
+    return getGroupHoverLogoRow(group)
+        || (group?.rows || []).find((row) => row?.resourceType === 'hard')
+        || (group?.rows || [])[0]
+        || null;
+}
+
+function getNestedPlaceBadgeRow(place) {
+    return getNestedPlaceLogoRow(place)
+        || (place?.rows || []).find((row) => row?.resourceType === 'hard')
+        || (place?.rows || [])[0]
+        || null;
+}
+
 function getGroupKeys(group) {
     return [group?.placeKey, ...(group?.memberPlaceKeys || [])]
         .filter(Boolean)
@@ -1175,12 +1189,15 @@ function DirectoryPlaceBadge({
     group,
     clusterColorData,
     compactInteractive = false,
+    badgeMode = 'number',
+    badgeRow = null,
     hoverLogoRow = null,
     logoRevealed = false,
     onViewOnMap,
 }) {
     const { t } = useLocale();
     const [logoFitMode, setLogoFitMode] = useState('cover');
+    const isLogoMode = badgeMode === 'logo';
     const hasHoverLogo = Boolean(hoverLogoRow?.logoUrl);
     const wrapperClassName = compactInteractive ? 'h-[2.625rem] w-[2.625rem]' : 'h-[2.875rem] w-[2.875rem]';
     const numberBadgeClassName = compactInteractive
@@ -1200,6 +1217,36 @@ function DirectoryPlaceBadge({
     const logoImageClassName = logoFitMode === 'contain'
         ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
         : 'h-full w-full rounded-[inherit] object-cover';
+
+    if (isLogoMode) {
+        const resolvedBadgeRow = badgeRow || hoverLogoRow || getGroupBadgeRow(group);
+        const logoTileSizeClassName = compactInteractive
+            ? '!h-[2.625rem] !w-[2.625rem] !rounded-[0.9375rem]'
+            : '!h-[2.875rem] !w-[2.875rem] !rounded-[1.0625rem]';
+
+        return (
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onViewOnMap?.(group.placeKey);
+                }}
+                className={`relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`}
+                aria-label={`${t('viewOnMap')}: ${group.name}`}
+                title={t('viewOnMap')}
+            >
+                <ResourceRowIcon
+                    resourceType={resolvedBadgeRow?.resourceType || 'hard'}
+                    bucket={resolvedBadgeRow?.bucket}
+                    subCategory={resolvedBadgeRow?.subCategory}
+                    logoUrl={resolvedBadgeRow?.logoUrl}
+                    alt={resolvedBadgeRow?.name ? `${resolvedBadgeRow.name} logo` : `${group.name} logo`}
+                    className={`${logoTileSizeClassName} border-slate-200/90 bg-white shadow-[0_16px_28px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90`}
+                />
+            </button>
+        );
+    }
 
     return (
         <button
@@ -1319,6 +1366,7 @@ function DirectoryPlaceGroupCard({
     clusterColorData = null,
     showDesktopHoverLogo = false,
     logoRevealed = false,
+    cardBadgeMode = 'number',
 }) {
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
@@ -1460,6 +1508,8 @@ function DirectoryPlaceGroupCard({
                     group={group}
                     clusterColorData={clusterColorData}
                     compactInteractive={compactInteractive}
+                    badgeMode={cardBadgeMode}
+                    badgeRow={getNestedPlaceBadgeRow(primaryNestedPlace)}
                     hoverLogoRow={primaryHoverLogoRow}
                     logoRevealed={logoRevealed}
                     onViewOnMap={onViewOnMap}
@@ -1491,11 +1541,22 @@ function DirectoryPlaceGroupCard({
                                 key={nestedPlace.placeKey}
                                 className={`grid items-start ${compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3'}`}
                             >
-                                <HiddenLogoSlot
-                                    logoRow={getNestedPlaceLogoRow(nestedPlace)}
-                                    revealed={logoRevealed}
-                                    compactInteractive={compactInteractive}
-                                />
+                                {cardBadgeMode === 'logo' ? (
+                                    <DirectoryPlaceBadge
+                                        group={nestedPlace}
+                                        clusterColorData={clusterColorData}
+                                        compactInteractive={compactInteractive}
+                                        badgeMode={cardBadgeMode}
+                                        badgeRow={getNestedPlaceBadgeRow(nestedPlace)}
+                                        onViewOnMap={onViewOnMap}
+                                    />
+                                ) : (
+                                    <HiddenLogoSlot
+                                        logoRow={getNestedPlaceLogoRow(nestedPlace)}
+                                        revealed={logoRevealed}
+                                        compactInteractive={compactInteractive}
+                                    />
+                                )}
                                 <DirectoryNestedPlaceSection
                                     nestedPlace={nestedPlace}
                                     mode={mode}
@@ -1539,6 +1600,8 @@ function DirectoryPlaceGroupCard({
                     group={group}
                     clusterColorData={clusterColorData}
                     compactInteractive={compactInteractive}
+                    badgeMode={cardBadgeMode}
+                    badgeRow={getGroupBadgeRow(group)}
                     hoverLogoRow={hoverLogoRow}
                     logoRevealed={logoRevealed}
                     onViewOnMap={onViewOnMap}
@@ -1753,6 +1816,7 @@ function DirectoryGroupColumn({
     clusterMapping = {},
     showDesktopHoverLogo = false,
     logoRevealPlaceKeys = [],
+    cardBadgeMode = 'number',
     afterContent = null,
 }) {
     if (!groups.length && !afterContent) {
@@ -1780,6 +1844,7 @@ function DirectoryGroupColumn({
                     clusterColorData={clusterMapping[group.placeKey] || null}
                     showDesktopHoverLogo={showDesktopHoverLogo}
                     logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
+                    cardBadgeMode={cardBadgeMode}
                     sectionRef={(node) => {
                         if (node) {
                             sectionRefs.current[group.placeKey] = node;
@@ -1879,6 +1944,8 @@ export default function SharedMapDirectoryList({
     allowPrintLinks = false,
     autoScrollToHighlight = true,
     showDesktopHoverLogo = false,
+    showMapLegend = true,
+    cardBadgeMode = 'number',
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
@@ -2175,7 +2242,7 @@ export default function SharedMapDirectoryList({
                                 mapHeightClassName: mobileMapHeightClassName,
                                 layoutSignature: `mobile-map-${mobileMapPanelState}`,
                             })}
-                            <MapLegend mobile />
+                            {showMapLegend ? <MapLegend mobile /> : null}
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
                                 mode={mode}
@@ -2208,6 +2275,7 @@ export default function SharedMapDirectoryList({
                             clusterMapping={clusterMapping}
                             showDesktopHoverLogo={showDesktopHoverLogo}
                             logoRevealPlaceKeys={logoRevealPlaceKeys}
+                            cardBadgeMode={cardBadgeMode}
                         />
 
                         <DirectoryUnmappedSection
@@ -2259,6 +2327,7 @@ export default function SharedMapDirectoryList({
                         clusterMapping={clusterMapping}
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
+                        cardBadgeMode={cardBadgeMode}
                         afterContent={useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={leftUnmappedRows}
@@ -2277,7 +2346,7 @@ export default function SharedMapDirectoryList({
                         className={`${interactive ? 'lg:sticky lg:top-6' : ''} scroll-mt-[56px] sm:scroll-mt-[64px] ${desktopMapWrapperClassName}`.trim()}
                     >
                         {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
-                        {resolvedLayout !== 'print' && <MapLegend />}
+                        {resolvedLayout !== 'print' && showMapLegend ? <MapLegend /> : null}
                         {resolvedLayout !== 'print' ? (
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
@@ -2319,6 +2388,7 @@ export default function SharedMapDirectoryList({
                         clusterMapping={clusterMapping}
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
+                        cardBadgeMode={cardBadgeMode}
                         afterContent={useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={rightUnmappedRows}

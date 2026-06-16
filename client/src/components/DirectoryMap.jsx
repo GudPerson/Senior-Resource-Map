@@ -9,7 +9,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import OneMapBadge from './OneMapBadge.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import homeAnchorImage from '../assets/home-anchor.png';
-import { createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
+import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
 import {
     CAREAROUND_BASEMAP_ATTRIBUTION,
     CAREAROUND_BASEMAP_MAX_ZOOM,
@@ -34,7 +34,7 @@ const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
 const DIRECTORY_FOCUS_ZOOM = 16;
 const DIRECTORY_ANCHOR_ONLY_ZOOM = 15;
-const DIRECTORY_FIT_PADDING_TOP_LEFT = [44, 44];
+const DIRECTORY_FIT_PADDING_TOP_LEFT = [44, 72];
 const DIRECTORY_FIT_PADDING_BOTTOM_RIGHT = [44, 52];
 const DIRECTORY_CLUSTER_BOUNDS_PADDING = [56, 56];
 const DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT = [72, 118];
@@ -43,6 +43,7 @@ const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_TOP_LEFT = [64, 54];
 const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_BOTTOM_RIGHT = [64, 56];
 const DIRECTORY_COMPACT_MAP_HEIGHT = 380;
 const DIRECTORY_MOBILE_MAP_LAYOUT_TRANSITION_MS = 300;
+const DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE = 8;
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -64,8 +65,15 @@ function normalizeAnchorPoint(anchor) {
     };
 }
 
+function getDirectoryPinMapPoint(pin = {}) {
+    const lat = Number.parseFloat(pin.displayLat ?? pin.lat);
+    const lng = Number.parseFloat(pin.displayLng ?? pin.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+}
+
 function getDirectoryCameraPoints(pins = [], anchorPoint = null) {
-    const points = pins.map((pin) => ({ lat: pin.lat, lng: pin.lng }));
+    const points = pins.map(getDirectoryPinMapPoint).filter(Boolean);
     if (anchorPoint) {
         points.push({ lat: anchorPoint.lat, lng: anchorPoint.lng });
     }
@@ -73,7 +81,10 @@ function getDirectoryCameraPoints(pins = [], anchorPoint = null) {
 }
 
 function buildDirectoryCameraSignature(pins = [], anchorPoint = null) {
-    const pinSignature = pins.map((pin) => `${pin.placeKey}:${pin.lat}:${pin.lng}:${pin.curatedCount}`).join('|');
+    const pinSignature = pins.map((pin) => {
+        const point = getDirectoryPinMapPoint(pin);
+        return `${pin.placeKey}:${point?.lat ?? ''}:${point?.lng ?? ''}:${pin.curatedCount}`;
+    }).join('|');
     const anchorSignature = anchorPoint
         ? `${anchorPoint.kind || 'anchor'}:${anchorPoint.postalCode || ''}:${anchorPoint.lat}:${anchorPoint.lng}`
         : '';
@@ -86,6 +97,14 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+function getDirectoryPinAssetCount(pin = {}) {
+    if (Number.isFinite(pin.postalGroupCount) && pin.postalGroupCount > 0) {
+        return pin.postalGroupCount;
+    }
+    const memberCount = Array.isArray(pin.memberPlaceKeys) ? pin.memberPlaceKeys.length : 0;
+    return Math.max(1, memberCount || 1);
 }
 
 function createDirectoryAnchorIcon(anchorPoint = null) {
@@ -188,9 +207,235 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
     });
 }
 
-function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set()) {
+function getDirectoryClusterAssetCount(children = []) {
+    return children.reduce((total, marker) => {
+        const assetCount = Number(marker.options?.icon?.options?.assetCount || marker.options?.assetCount || 0);
+        return total + (Number.isFinite(assetCount) && assetCount > 0 ? assetCount : 1);
+    }, 0);
+}
+
+function getDirectoryClusterPlaceKey(children = []) {
+    return `cluster:${children
+        .map((marker) => marker.options?.icon?.options?.placeKey || marker.options?.placeKey)
+        .filter(Boolean)
+        .sort()
+        .join('|')}`;
+}
+
+function getAssetSpreadPlaceKeyFromEvent(event) {
+    const originalEvent = event?.originalEvent;
+    const target = originalEvent?.target;
+    if (!target || typeof target.closest !== 'function') return null;
+    const directPinElement = target.closest('.directory-asset-spread-cluster__pin[data-place-key]');
+    const clusterElement = target.closest('.directory-asset-spread-cluster');
+    const clientX = Number(originalEvent.clientX);
+    const clientY = Number(originalEvent.clientY);
+
+    if (
+        clusterElement
+        && Number.isFinite(clientX)
+        && Number.isFinite(clientY)
+        && typeof clusterElement.querySelectorAll === 'function'
+    ) {
+        const candidates = Array.from(clusterElement.querySelectorAll('.directory-asset-spread-cluster__hit-zone[data-place-key]'))
+            .map((element) => {
+                const rect = element.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const containsPointer = (
+                    clientX >= rect.left - 2
+                    && clientX <= rect.right + 2
+                    && clientY >= rect.top - 2
+                    && clientY <= rect.bottom + 2
+                );
+                return {
+                    element,
+                    containsPointer,
+                    distance: Math.hypot(clientX - centerX, clientY - centerY),
+                };
+            })
+            .filter((candidate) => candidate.containsPointer)
+            .sort((left, right) => left.distance - right.distance);
+
+        return candidates[0]?.element?.getAttribute('data-place-key') || null;
+    }
+
+    return directPinElement?.getAttribute('data-place-key') || null;
+}
+
+function getDirectoryAssetSpreadLayout(count = 0) {
+    const visibleCount = Math.min(Math.max(1, count), DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE);
+    if (visibleCount === 1) {
+        return {
+            iconSize: [72, 78],
+            pins: [{ x: 0, y: 0, scale: 0.92 }],
+        };
+    }
+
+    if (visibleCount <= 4) {
+        const layouts = {
+            2: [
+                { x: -7, y: 2, scale: 0.94, rotate: -4 },
+                { x: 7, y: 2, scale: 0.94, rotate: 4 },
+            ],
+            3: [
+                { x: -12, y: 8, scale: 0.86, rotate: -5 },
+                { x: 0, y: -5, scale: 0.92, rotate: 0 },
+                { x: 12, y: 8, scale: 0.86, rotate: 5 },
+            ],
+            4: [
+                { x: -13, y: -5, scale: 0.8, rotate: -5 },
+                { x: 13, y: -5, scale: 0.8, rotate: 5 },
+                { x: -8, y: 13, scale: 0.78, rotate: -3 },
+                { x: 8, y: 13, scale: 0.78, rotate: 3 },
+            ],
+        };
+
+        return {
+            iconSize: [86, 86],
+            pins: layouts[visibleCount],
+        };
+    }
+
+    const radius = visibleCount <= 6 ? 42 : 50;
+    const scale = visibleCount <= 6 ? 0.68 : 0.62;
+    return {
+        iconSize: [156, 148],
+        pins: Array.from({ length: visibleCount }, (_, index) => {
+            const angle = (-Math.PI / 2) + ((Math.PI * 2) / visibleCount) * index;
+            return {
+                x: Math.cos(angle) * radius,
+                y: Math.sin(angle) * radius,
+                scale,
+            };
+        }),
+    };
+}
+
+function createDirectoryAssetSpreadClusterIcon(children = [], emphasizedPlaceKeys = new Set()) {
+    const sortedChildren = [...children].sort((left, right) => {
+        const leftKey = String(left.options?.icon?.options?.placeKey || left.options?.placeKey || '');
+        const rightKey = String(right.options?.icon?.options?.placeKey || right.options?.placeKey || '');
+        const leftActive = emphasizedPlaceKeys.has(leftKey) ? 1 : 0;
+        const rightActive = emphasizedPlaceKeys.has(rightKey) ? 1 : 0;
+        if (leftActive !== rightActive) return leftActive - rightActive;
+        return leftKey.localeCompare(rightKey);
+    });
+    const visibleChildren = sortedChildren.slice(0, DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE);
+    const layout = getDirectoryAssetSpreadLayout(visibleChildren.length);
+    const [width, height] = layout.iconSize;
+    const hasHiddenChildren = sortedChildren.length > visibleChildren.length;
+    const isHighlighted = visibleChildren.some((marker) => {
+        const placeKey = String(marker.options?.icon?.options?.placeKey || marker.options?.placeKey || '');
+        return emphasizedPlaceKeys.has(placeKey);
+    });
+    const pinMarkup = visibleChildren.map((marker, index) => {
+        const iconOptions = marker.options?.icon?.options || {};
+        const placeKey = iconOptions.placeKey || marker.options?.placeKey || '';
+        const html = iconOptions.html || createSavedPlacePinIcon({
+            count: iconOptions.curatedCount || 0,
+            emphasis: emphasizedPlaceKeys.has(String(placeKey)) ? 'primary' : 'default',
+            tone: 'saved',
+            iconUrl: iconOptions.categoryIconUrl || null,
+            placeKey,
+            showBadge: false,
+        }).options.html;
+        const position = layout.pins[index] || { x: 0, y: 0, scale: 0.72, rotate: 0 };
+        const zIndex = emphasizedPlaceKeys.has(String(placeKey)) ? 90 : 10 + index;
+        return `
+            <div
+                class="directory-asset-spread-cluster__pin"
+                data-place-key="${escapeHtml(placeKey)}"
+                style="
+                    position:absolute;
+                    left:50%;
+                    top:50%;
+                    width:48px;
+                    height:64px;
+                    transform:translate(-50%, -50%) translate(${position.x}px, ${position.y}px) rotate(${position.rotate || 0}deg) scale(${position.scale});
+                    transform-origin:center bottom;
+                    z-index:${zIndex};
+                    pointer-events:auto;
+                    cursor:pointer;
+                "
+            >
+                <div
+                    class="directory-asset-spread-cluster__hit-zone"
+                    data-place-key="${escapeHtml(placeKey)}"
+                    aria-hidden="true"
+                    style="
+                        position:absolute;
+                        left:50%;
+                        top:4px;
+                        width:30px;
+                        height:43px;
+                        transform:translateX(-50%);
+                        border-radius:999px 999px 18px 18px;
+                        pointer-events:none;
+                    "
+                ></div>
+                ${html}
+            </div>
+        `;
+    }).join('');
+    const hiddenMarkup = hasHiddenChildren
+        ? `
+            <div
+                class="directory-asset-spread-cluster__more"
+                style="
+                    position:absolute;
+                    right:10px;
+                    bottom:8px;
+                    z-index:110;
+                    min-width:28px;
+                    height:24px;
+                    padding:0 7px;
+                    border-radius:999px;
+                    border:2px solid #ffffff;
+                    background:#0f766e;
+                    color:#ffffff;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:11px;
+                    line-height:1;
+                    font-weight:900;
+                    box-shadow:0 10px 20px rgba(15,23,42,0.18);
+                    font-family:var(--font-heading);
+                "
+            >+${escapeHtml(sortedChildren.length - visibleChildren.length)}</div>
+        `
+        : '';
+
+    return L.divIcon({
+        className: '',
+        html: `
+            <div
+                class="directory-asset-spread-cluster ${isHighlighted ? 'directory-asset-spread-cluster--active' : ''}"
+                style="
+                    position:relative;
+                    width:${width}px;
+                    height:${height}px;
+                    overflow:visible;
+                    pointer-events:auto;
+                "
+            >
+                ${pinMarkup}
+                ${hiddenMarkup}
+            </div>
+        `,
+        iconSize: [width, height],
+        iconAnchor: [Math.round(width / 2), Math.round(height / 2)],
+        popupAnchor: [0, -Math.round(height / 2)],
+        tooltipAnchor: [0, -Math.round(height / 2)],
+        placeKey: getDirectoryClusterPlaceKey(children),
+    });
+}
+
+function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set(), clusterMarkerMode = 'bubble') {
     const count = cluster.getChildCount();
     const children = cluster.getAllChildMarkers();
+    const assetCount = getDirectoryClusterAssetCount(children);
     const dominantColor = getClusterColorData(children) || {
         core: '#0f766e',
         bg: 'rgba(15,118,110,0.12)',
@@ -201,6 +446,34 @@ function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set()) {
         const placeKey = marker.options?.icon?.options?.placeKey || marker.options?.placeKey;
         return placeKey && emphasizedPlaceKeys.has(String(placeKey));
     });
+
+    if (clusterMarkerMode === 'asset-spread') {
+        return createDirectoryAssetSpreadClusterIcon(children, emphasizedPlaceKeys);
+    }
+
+    if (clusterMarkerMode === 'saved-pin') {
+        const icon = createSavedPlacePinIcon({
+            count,
+            emphasis: isHighlighted ? 'primary' : 'default',
+            tone: 'saved',
+            placeKey: getDirectoryClusterPlaceKey(children),
+        });
+
+        return icon;
+    }
+
+    if (clusterMarkerMode === 'postal-group') {
+        const icon = createPostalGroupParentPinIcon({
+            count: assetCount,
+            badgeCount: 0,
+            emphasis: isHighlighted ? 'primary' : 'default',
+            placeKey: getDirectoryClusterPlaceKey(children),
+            showBadge: false,
+        });
+
+        return icon;
+    }
+
     const outerBackground = isHighlighted ? 'rgba(249,115,22,0.14)' : dominantColor.bg;
     const outerBorder = isHighlighted ? 'rgba(249,115,22,0.38)' : dominantColor.border;
     const outerShadow = isHighlighted ? '0 18px 36px rgba(249,115,22,0.26)' : `0 16px 34px ${dominantColor.glow}`;
@@ -328,12 +601,17 @@ function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetV
 function DirectoryClusterHoverSync({
     clusterGroupRef,
     enabled = true,
+    clusterMarkerMode = 'bubble',
     activePlaceKeys = [],
+    onPlaceActivate,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onHoverClusterStart,
     onHoverClusterEnd,
     onClusterSelect,
 }) {
     const lastActivationRef = useRef({ token: null, at: 0 });
+    const lastAssetSpreadHoverRef = useRef(null);
 
     useEffect(() => {
         const clusterGroup = clusterGroupRef.current;
@@ -350,17 +628,50 @@ function DirectoryClusterHoverSync({
                 || Boolean(window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches),
         });
 
+        const setAssetSpreadHover = (nextPlaceKey) => {
+            const normalizedNextPlaceKey = nextPlaceKey ? String(nextPlaceKey) : null;
+            const previousPlaceKey = lastAssetSpreadHoverRef.current;
+            if (previousPlaceKey === normalizedNextPlaceKey) return;
+            if (previousPlaceKey) {
+                onHoverPlaceEnd?.(previousPlaceKey);
+            }
+            lastAssetSpreadHoverRef.current = normalizedNextPlaceKey;
+            if (normalizedNextPlaceKey) {
+                onHoverPlaceStart?.(normalizedNextPlaceKey);
+            }
+        };
+
+        const updateAssetSpreadHover = (event) => {
+            setAssetSpreadHover(getAssetSpreadPlaceKeyFromEvent(event));
+        };
+
         const handleClusterMouseOver = (event) => {
             if (shouldSkipHoverEvent(event)) return;
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
+            if (clusterMarkerMode === 'asset-spread') {
+                updateAssetSpreadHover(event);
+                return;
+            }
             onHoverClusterStart?.(resolveClusterPlaceKeys(cluster));
+        };
+
+        const handleClusterMouseMove = (event) => {
+            if (clusterMarkerMode !== 'asset-spread') return;
+            if (shouldSkipHoverEvent(event)) return;
+            const cluster = event.layer;
+            if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
+            updateAssetSpreadHover(event);
         };
 
         const handleClusterMouseOut = (event) => {
             if (shouldSkipHoverEvent(event)) return;
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
+            if (clusterMarkerMode === 'asset-spread') {
+                setAssetSpreadHover(null);
+                return;
+            }
             onHoverClusterEnd?.(resolveClusterPlaceKeys(cluster));
         };
 
@@ -369,6 +680,13 @@ function DirectoryClusterHoverSync({
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
             event.originalEvent?.preventDefault?.();
             event.originalEvent?.stopPropagation?.();
+            const assetSpreadPlaceKey = clusterMarkerMode === 'asset-spread'
+                ? getAssetSpreadPlaceKeyFromEvent(event)
+                : null;
+            if (assetSpreadPlaceKey) {
+                onPlaceActivate?.(assetSpreadPlaceKey);
+                return;
+            }
             const placeKeys = resolveClusterPlaceKeys(cluster);
             const token = buildClusterToken(placeKeys);
             const eventType = event.type || event.originalEvent?.type || '';
@@ -523,17 +841,31 @@ function DirectoryClusterHoverSync({
         };
 
         clusterGroup.on('clustermouseover', handleClusterMouseOver);
+        clusterGroup.on('clustermousemove', handleClusterMouseMove);
         clusterGroup.on('clustermouseout', handleClusterMouseOut);
         clusterGroup.on('clustermousedown', handleClusterActivate);
         clusterGroup.on('clusterclick', handleClusterActivate);
 
         return () => {
+            setAssetSpreadHover(null);
             clusterGroup.off('clustermouseover', handleClusterMouseOver);
+            clusterGroup.off('clustermousemove', handleClusterMouseMove);
             clusterGroup.off('clustermouseout', handleClusterMouseOut);
             clusterGroup.off('clustermousedown', handleClusterActivate);
             clusterGroup.off('clusterclick', handleClusterActivate);
         };
-    }, [activePlaceKeys, clusterGroupRef, enabled, onClusterSelect, onHoverClusterEnd, onHoverClusterStart]);
+    }, [
+        activePlaceKeys,
+        clusterGroupRef,
+        clusterMarkerMode,
+        enabled,
+        onClusterSelect,
+        onHoverClusterEnd,
+        onHoverClusterStart,
+        onHoverPlaceEnd,
+        onHoverPlaceStart,
+        onPlaceActivate,
+    ]);
 
     return null;
 }
@@ -655,10 +987,12 @@ function DirectoryMapController({
 
         const pin = pins.find((item) => String(item.placeKey) === String(cleanKey));
         if (!pin) return;
+        const targetPoint = getDirectoryPinMapPoint(pin);
+        if (!targetPoint) return;
 
         const targetZoom = isDeepZoom ? 18 : DIRECTORY_FOCUS_ZOOM;
 
-        map.flyTo([pin.lat, pin.lng], targetZoom, {
+        map.flyTo([targetPoint.lat, targetPoint.lng], targetZoom, {
             animate: true,
             duration: 0.5,
         });
@@ -684,6 +1018,8 @@ export default function DirectoryMap({
     className = '',
     emptyLabel = 'This directory does not have any mappable places yet.',
     markerMode = 'count',
+    pinBadgeMode = 'count',
+    clusterMarkerMode = 'bubble',
     placeNumberByKey = null,
     showPopup = true,
     showZoomControl = interactive,
@@ -703,7 +1039,7 @@ export default function DirectoryMap({
     const readyTimeoutRef = useRef(null);
     const captureErrorRef = useRef(null);
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
-    const shouldCluster = displayPins.length > 1;
+    const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
@@ -750,7 +1086,7 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [anchorPoint, markerMode, onMapCaptureError, onMapReadyForCapture, pins, placeNumberByKey]);
+    }, [anchorPoint, clusterMarkerMode, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pins, placeNumberByKey]);
 
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
@@ -779,7 +1115,7 @@ export default function DirectoryMap({
                     removeOutsideVisibleBounds={false}
                     disableClusteringAtZoom={16}
                     maxClusterRadius={42}
-                    iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster, activePlaceKeySet)}
+                    iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster, activePlaceKeySet, clusterMarkerMode)}
                 >
                     {displayPins.map((pin) => {
                         const activeKey = activePlaceKey ?? focusedPlaceKey;
@@ -793,13 +1129,20 @@ export default function DirectoryMap({
                                 isMatched ? 'primary' : 'default',
                                 pin.placeKey
                             )
-                            : createSavedPlacePinIcon({
-                                count: pin.curatedCount,
-                                emphasis: isMatched ? 'primary' : 'default',
-                                tone: 'saved',
-                                iconUrl: pin.categoryIconUrl || null,
-                                placeKey: pin.placeKey,
-                            });
+                            : (() => {
+                                const savedPinIcon = createSavedPlacePinIcon({
+                                    count: pin.curatedCount,
+                                    emphasis: isMatched ? 'primary' : 'default',
+                                    tone: 'saved',
+                                    iconUrl: pin.categoryIconUrl || null,
+                                    placeKey: pin.placeKey,
+                                    showBadge: pinBadgeMode !== 'none',
+                                });
+                                savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
+                                savedPinIcon.options.categoryIconUrl = pin.categoryIconUrl || null;
+                                savedPinIcon.options.curatedCount = pin.curatedCount;
+                                return savedPinIcon;
+                            })();
 
                         return (
                             <Marker
@@ -831,13 +1174,20 @@ export default function DirectoryMap({
                     isMatched ? 'primary' : 'default',
                     pin.placeKey
                 )
-                : createSavedPlacePinIcon({
-                    count: pin.curatedCount,
-                    emphasis: isMatched ? 'primary' : 'default',
-                    tone: 'saved',
-                    iconUrl: pin.categoryIconUrl || null,
-                    placeKey: pin.placeKey,
-                });
+                : (() => {
+                    const savedPinIcon = createSavedPlacePinIcon({
+                        count: pin.curatedCount,
+                        emphasis: isMatched ? 'primary' : 'default',
+                        tone: 'saved',
+                        iconUrl: pin.categoryIconUrl || null,
+                        placeKey: pin.placeKey,
+                        showBadge: pinBadgeMode !== 'none',
+                    });
+                    savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
+                    savedPinIcon.options.categoryIconUrl = pin.categoryIconUrl || null;
+                    savedPinIcon.options.curatedCount = pin.curatedCount;
+                    return savedPinIcon;
+                })();
 
             return (
                 <Marker
@@ -853,7 +1203,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     if (!pins.length && !anchorPoint) {
         return (
@@ -908,7 +1258,7 @@ export default function DirectoryMap({
                 />
                 <DirectoryMapController
                     activeAnchor={anchorPoint}
-                    pins={pins}
+                    pins={displayPins}
                     focusedPlaceKey={focusedPlaceKey}
                     activePlaceKey={activePlaceKey}
                     activePlaceKeys={activePlaceKeys}
@@ -924,7 +1274,11 @@ export default function DirectoryMap({
                 <DirectoryClusterHoverSync
                     clusterGroupRef={clusterGroupRef}
                     enabled={interactive && shouldCluster}
+                    clusterMarkerMode={clusterMarkerMode}
                     activePlaceKeys={activePlaceKeys}
+                    onPlaceActivate={handlePlaceActivate}
+                    onHoverPlaceStart={onHoverPlaceStart}
+                    onHoverPlaceEnd={onHoverPlaceEnd}
                     onHoverClusterStart={onHoverClusterStart}
                     onHoverClusterEnd={onHoverClusterEnd}
                     onClusterSelect={onClusterSelect}

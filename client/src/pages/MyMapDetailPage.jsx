@@ -10,6 +10,7 @@ import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
+import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -18,6 +19,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
+import { MY_MAP_UI_MODE_V2, buildStableMyMapSearchParams, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
@@ -300,6 +302,13 @@ export default function MyMapDetailPage() {
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
+    const myMapUiMode = getMyMapUiMode(searchParams);
+    const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
+    const stableViewHref = useMemo(() => {
+        const nextParams = buildStableMyMapSearchParams(searchParams);
+        const queryString = nextParams.toString();
+        return `/my-directory/maps/${mapId}${queryString ? `?${queryString}` : ''}`;
+    }, [mapId, searchParams]);
     const anchorState = useDirectoryDistanceAnchor({
         storageKey: mapId ? `my-map:${mapId}` : 'my-map',
         userPostalCode: user?.postalCode || '',
@@ -613,6 +622,97 @@ export default function MyMapDetailPage() {
                     />
                 </div>
             </div>
+        );
+    }
+
+    if (isV2View) {
+        return (
+            <>
+                <MyMapV2PreviewScaffold
+                    directory={directory}
+                    query={query}
+                    onQueryChange={setQuery}
+                    anchorState={anchorState}
+                    actionError={actionError}
+                    activeAnchor={activeAnchor}
+                    presentation={interactivePresentation}
+                    useDesktopLayout={useDesktopOwnerLayout}
+                    focusedPlaceKey={effectiveFocusedPlaceKey}
+                    activePlaceKey={activePlaceKey}
+                    activePlaceKeys={activePlaceKeys}
+                    selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
+                    selectionScrollRequest={selectionScrollRequest}
+                    desktopScrollTargetRef={desktopSelectionSnapRef}
+                    suspendMapInteraction={suspendMapInteraction}
+                    stableViewHref={stableViewHref}
+                    renderPdfExportButton={renderPdfExportButton}
+                    onAddAssets={() => setAddOpen(true)}
+                    onEditDetails={() => {
+                        setEditError('');
+                        setEditOpen(true);
+                    }}
+                    onOpenPrintView={openPrintView}
+                    onOpenShare={() => {
+                        setShareError('');
+                        setShareOpen(true);
+                    }}
+                    onViewOnMap={handleViewOnMap}
+                    onViewSection={handleViewSection}
+                    onRemoveResource={handleRemoveResource}
+                    onUpdateResourceNotes={handleUpdateResourceNotes}
+                    onHoverPlaceStart={handleMapHoverStart}
+                    onHoverPlaceEnd={handleMapHoverEnd}
+                    onHoverClusterStart={handleMapClusterHoverStart}
+                    onHoverClusterEnd={handleMapClusterHoverEnd}
+                    onClusterSelect={handleMapClusterSelect}
+                    onFocusHandled={handleMapFocusHandled}
+                    onResetView={clearMapSelection}
+                    emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
+                    emptyState={<EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />}
+                />
+
+                <CreateMapModal
+                    isOpen={addOpen}
+                    mode="manage-assets"
+                    savedAssets={savedAssets}
+                    initialAssetKeys={[...existingAssetKeys]}
+                    submitting={addSubmitting}
+                    error={addError}
+                    onClose={() => {
+                        if (addSubmitting) return;
+                        setAddOpen(false);
+                        setAddError('');
+                    }}
+                    onSubmit={handleManageAssets}
+                />
+
+                <EditMapDetailsModal
+                    isOpen={editOpen}
+                    map={directory}
+                    submitting={editSubmitting}
+                    error={editError}
+                    onClose={() => {
+                        if (editSubmitting) return;
+                        setEditOpen(false);
+                        setEditError('');
+                    }}
+                    onSubmit={handleUpdateDetails}
+                />
+
+                <ShareMapModal
+                    isOpen={shareOpen}
+                    map={directory}
+                    submitting={shareSubmitting}
+                    error={shareError}
+                    onClose={() => {
+                        if (shareSubmitting) return;
+                        setShareOpen(false);
+                        setShareError('');
+                    }}
+                    onPublish={handlePublishShare}
+                    onUnpublish={handleUnpublishShare}
+                />
+            </>
         );
     }
 
