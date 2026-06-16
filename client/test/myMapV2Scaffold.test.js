@@ -75,6 +75,8 @@ test('my map v2 uses the main saved-place pin style while stable my map keeps nu
 test('my map v2 uses the restored normal map sizing without enabling full-map mode', () => {
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-\[48vh\] min-h-\[440px\] max-h-\[700px\]'/);
     assert.match(myMapV2ScaffoldSource, /V2_MOBILE_MAP_HEIGHT_CLASS = 'h-\[34svh\] min-h-\[260px\] max-h-\[390px\]'/);
+    assert.match(myMapV2ScaffoldSource, /V2_FIT_PADDING_BOTTOM_RIGHT = \[44, 24\]/);
+    assert.match(myMapV2ScaffoldSource, /fitPaddingBottomRight=\{V2_FIT_PADDING_BOTTOM_RIGHT\}/);
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_GRID_CLASS = 'lg:grid-cols-\[minmax\(300px,0\.85fr\)_minmax\(520px,1\.4fr\)_minmax\(340px,0\.95fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /xl:grid-cols-\[minmax\(320px,0\.85fr\)_minmax\(620px,1\.45fr\)_minmax\(360px,0\.95fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);

@@ -22,6 +22,10 @@ test('directory map can disable clustering so close pins behave as individual ma
 
 test('directory map fits visible spread pin positions with enough top padding for pin artwork', () => {
     assert.match(directoryMapSource, /const DIRECTORY_FIT_PADDING_TOP_LEFT = \[44, 72\]/);
+    assert.match(directoryMapSource, /fitPaddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT/);
+    assert.match(directoryMapSource, /fitPaddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT/);
+    assert.match(directoryMapSource, /paddingTopLeft: fitPaddingTopLeft/);
+    assert.match(directoryMapSource, /paddingBottomRight: fitPaddingBottomRight/);
     assert.match(directoryMapSource, /function getDirectoryPinMapPoint\(pin = \{\}\)/);
     assert.match(directoryMapSource, /pin\.displayLat \?\? pin\.lat/);
     assert.match(directoryMapSource, /pin\.displayLng \?\? pin\.lng/);

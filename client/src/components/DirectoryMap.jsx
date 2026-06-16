@@ -532,6 +532,8 @@ function spreadPinsForDisplay(pins, interactive) {
 function fitDirectoryCamera(map, pins, anchorPoint, {
     animate = false,
     duration = 0.6,
+    paddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT,
+    paddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
 } = {}) {
     const points = getDirectoryCameraPoints(pins, anchorPoint);
     if (!points.length) return false;
@@ -550,15 +552,15 @@ function fitDirectoryCamera(map, pins, anchorPoint, {
     const bounds = getBounds(points);
     if (animate) {
         map.flyToBounds(bounds, {
-            paddingTopLeft: DIRECTORY_FIT_PADDING_TOP_LEFT,
-            paddingBottomRight: DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
+            paddingTopLeft,
+            paddingBottomRight,
             maxZoom: 16,
             duration,
         });
     } else {
         map.fitBounds(bounds, {
-            paddingTopLeft: DIRECTORY_FIT_PADDING_TOP_LEFT,
-            paddingBottomRight: DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
+            paddingTopLeft,
+            paddingBottomRight,
             maxZoom: 16,
             animate: false,
         });
@@ -567,7 +569,14 @@ function fitDirectoryCamera(map, pins, anchorPoint, {
     return true;
 }
 
-function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetView }) {
+function DirectoryMapRecenterControl({
+    activeAnchor,
+    pins,
+    interactive,
+    fitPaddingTopLeft,
+    fitPaddingBottomRight,
+    onResetView,
+}) {
     const map = useMap();
     const { t } = useLocale();
     const anchorPoint = normalizeAnchorPoint(activeAnchor);
@@ -586,7 +595,12 @@ function DirectoryMapRecenterControl({ activeAnchor, pins, interactive, onResetV
                         e.stopPropagation();
                         e.preventDefault();
                         onResetView?.();
-                        fitDirectoryCamera(map, pins, anchorPoint, { animate: true, duration: 0.6 });
+                        fitDirectoryCamera(map, pins, anchorPoint, {
+                            animate: true,
+                            duration: 0.6,
+                            paddingTopLeft: fitPaddingTopLeft,
+                            paddingBottomRight: fitPaddingBottomRight,
+                        });
                     }}
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -929,6 +943,8 @@ function DirectoryMapController({
     activePlaceKeys = [],
     interactive,
     layoutSignature = 'default',
+    fitPaddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT,
+    fitPaddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
     onMapSettled,
     onFocusHandled,
 }) {
@@ -957,7 +973,11 @@ function DirectoryMapController({
         const resizeMap = () => {
             map.invalidateSize({ animate: false });
             if (shouldRefitAfterResize) {
-                fitDirectoryCamera(map, pins, anchorPoint, { animate: false });
+                fitDirectoryCamera(map, pins, anchorPoint, {
+                    animate: false,
+                    paddingTopLeft: fitPaddingTopLeft,
+                    paddingBottomRight: fitPaddingBottomRight,
+                });
             }
         };
         const immediateResize = window.setTimeout(resizeMap, 0);
@@ -967,16 +987,20 @@ function DirectoryMapController({
             window.clearTimeout(immediateResize);
             window.clearTimeout(settledResize);
         };
-    }, [activePlaceKey, anchorPoint, focusedPlaceKey, hasActivePlaceKeys, layoutSignature, map, pins, signature]);
+    }, [activePlaceKey, anchorPoint, fitPaddingBottomRight, fitPaddingTopLeft, focusedPlaceKey, hasActivePlaceKeys, layoutSignature, map, pins, signature]);
 
     useEffect(() => {
         if (!pins.length && !anchorPoint) return;
         if (previousSignatureRef.current === signature) return;
         previousSignatureRef.current = signature;
 
-        fitDirectoryCamera(map, pins, anchorPoint, { animate: false });
+        fitDirectoryCamera(map, pins, anchorPoint, {
+            animate: false,
+            paddingTopLeft: fitPaddingTopLeft,
+            paddingBottomRight: fitPaddingBottomRight,
+        });
         window.setTimeout(() => onMapSettled?.(), 250);
-    }, [anchorPoint, map, onMapSettled, pins, signature]);
+    }, [anchorPoint, fitPaddingBottomRight, fitPaddingTopLeft, map, onMapSettled, pins, signature]);
 
     useEffect(() => {
         if (!focusedPlaceKey) return;
@@ -1027,6 +1051,8 @@ export default function DirectoryMap({
     showProviderBadgeLogo = true,
     mapHeightClassName = 'h-[340px]',
     layoutSignature = 'default',
+    fitPaddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT,
+    fitPaddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
     onMapReadyForCapture,
     onMapCaptureError,
     onClusterChange,
@@ -1264,13 +1290,22 @@ export default function DirectoryMap({
                     activePlaceKeys={activePlaceKeys}
                     interactive={interactive}
                     layoutSignature={layoutSignature}
+                    fitPaddingTopLeft={fitPaddingTopLeft}
+                    fitPaddingBottomRight={fitPaddingBottomRight}
                     onFocusHandled={onFocusHandled}
                     onMapSettled={onMapReadyForCapture ? () => {
                         mapSettledRef.current = true;
                         tryNotifyReady();
                     } : undefined}
                 />
-                <DirectoryMapRecenterControl activeAnchor={anchorPoint} pins={displayPins} interactive={interactive} onResetView={onResetView} />
+                <DirectoryMapRecenterControl
+                    activeAnchor={anchorPoint}
+                    pins={displayPins}
+                    interactive={interactive}
+                    fitPaddingTopLeft={fitPaddingTopLeft}
+                    fitPaddingBottomRight={fitPaddingBottomRight}
+                    onResetView={onResetView}
+                />
                 <DirectoryClusterHoverSync
                     clusterGroupRef={clusterGroupRef}
                     enabled={interactive && shouldCluster}
