@@ -78,6 +78,22 @@ function buildUnmappedRowQueryText(row) {
         .join(' ');
 }
 
+function compareText(left, right) {
+    return String(left || '').localeCompare(String(right || ''), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+    });
+}
+
+function getRowCategoryLabel(row = {}) {
+    return row.subCategory || row.bucket || (row.resourceType === 'soft' ? 'Programme/service' : 'Place');
+}
+
+function getGroupCategoryLabel(group = {}) {
+    const hardRow = (group.rows || []).find((row) => row.resourceType === 'hard');
+    return getRowCategoryLabel(hardRow || (group.rows || [])[0] || {});
+}
+
 function sortPinsForReadingOrder(pins) {
     if (!pins.length) return [];
 
@@ -216,6 +232,18 @@ function splitMappedGroupsIntoColumns(groups) {
     };
 }
 
+function splitDisplayGroupsIntoColumns(groups) {
+    if (!groups.length) {
+        return { leftGroups: [], rightGroups: [] };
+    }
+
+    const midpoint = Math.ceil(groups.length / 2);
+    return {
+        leftGroups: groups.slice(0, midpoint),
+        rightGroups: groups.slice(midpoint),
+    };
+}
+
 function sortNestedPlaces(places = []) {
     return [...places]
         .map((place) => ({
@@ -318,9 +346,153 @@ function buildGroupedPins(groups = []) {
         });
 }
 
+function buildUnmappedDisplayGroup(row, index) {
+    const placeKey = `unmapped:${row.rowKey || row.assetKey || index}`;
+    const categoryLabel = getRowCategoryLabel(row);
+
+    return {
+        placeKey,
+        placeId: null,
+        name: row.name || row.placeName || 'Resource not shown on map',
+        address: row.locationLabel || row.contextLabel || null,
+        postalCode: '',
+        lat: null,
+        lng: null,
+        hasCoordinates: false,
+        shortLocationLine: row.locationLabel || row.contextLabel || '',
+        distanceKm: null,
+        distanceLabel: null,
+        curatedCount: 1,
+        rows: [{ ...row, placeKey }],
+        nestedPlaces: [],
+        memberPlaceKeys: [placeKey],
+        isPostalGroup: false,
+        isUnmappedGroup: true,
+        categoryLabel,
+        categorySortKey: normalizeText(categoryLabel),
+        resourceSortKey: normalizeText(row.name || row.placeName || ''),
+    };
+}
+
+function decorateV2MappedGroup(group) {
+    const categoryLabel = getGroupCategoryLabel(group);
+    return {
+        ...group,
+        memberPlaceKeys: [group.placeKey].filter(Boolean),
+        isPostalGroup: false,
+        isUnmappedGroup: false,
+        categoryLabel,
+        categorySortKey: normalizeText(categoryLabel),
+        resourceSortKey: normalizeText(group.name),
+    };
+}
+
+function compareV2DisplayGroups(left, right) {
+    const leftMapRank = left.hasCoordinates ? 0 : 1;
+    const rightMapRank = right.hasCoordinates ? 0 : 1;
+    if (leftMapRank !== rightMapRank) {
+        return leftMapRank - rightMapRank;
+    }
+
+    const categoryCompare = compareText(left.categorySortKey || left.categoryLabel, right.categorySortKey || right.categoryLabel);
+    if (categoryCompare !== 0) return categoryCompare;
+
+    const resourceCompare = compareText(left.resourceSortKey || left.name, right.resourceSortKey || right.name);
+    if (resourceCompare !== 0) return resourceCompare;
+
+    return compareText(left.placeKey, right.placeKey);
+}
+
+function buildHoverPlaceKeysByKey(groups = []) {
+    const groupsByPostal = new Map();
+
+    groups.forEach((group) => {
+        const postalCode = resolvePostalGroupCode({
+            postalCode: group.postalCode,
+            address: group.address,
+        });
+        if (!postalCode || !group.hasCoordinates || !group.placeKey) return;
+        const members = groupsByPostal.get(postalCode) || [];
+        members.push(String(group.placeKey));
+        groupsByPostal.set(postalCode, members);
+    });
+
+    const hoverPlaceKeysByKey = {};
+    groupsByPostal.forEach((placeKeys) => {
+        if (placeKeys.length <= 1) return;
+        placeKeys.forEach((placeKey) => {
+            hoverPlaceKeysByKey[placeKey] = [...placeKeys];
+        });
+    });
+
+    return hoverPlaceKeysByKey;
+}
+
+function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], activeAnchor = null }) {
+    const orderedMappedGroups = mappedGroups
+        .map(decorateV2MappedGroup)
+        .sort(compareV2DisplayGroups);
+    const orderedUnmappedRows = [...unmappedRows].sort((left, right) => {
+        const categoryCompare = compareText(getRowCategoryLabel(left), getRowCategoryLabel(right));
+        if (categoryCompare !== 0) return categoryCompare;
+        return compareText(left.name, right.name);
+    });
+    const unmappedDisplayGroups = orderedUnmappedRows.map(buildUnmappedDisplayGroup);
+    const displayGroups = [...orderedMappedGroups, ...unmappedDisplayGroups]
+        .sort(compareV2DisplayGroups)
+        .map((group, index) => ({
+            ...group,
+            number: index + 1,
+        }));
+    const displayGroupByKey = displayGroups.reduce((accumulator, group) => {
+        accumulator[group.placeKey] = group;
+        return accumulator;
+    }, {});
+    const pins = buildGroupedPins(orderedMappedGroups).map((pin) => ({
+        ...pin,
+        number: displayGroupByKey[pin.placeKey]?.number || null,
+    }));
+    const placeNumberByKey = displayGroups.reduce((accumulator, group) => {
+        accumulator[group.placeKey] = group.number;
+        return accumulator;
+    }, {});
+    const groupKeyByPlaceKey = displayGroups.reduce((accumulator, group) => {
+        accumulator[group.placeKey] = group.placeKey;
+        return accumulator;
+    }, {});
+    const { leftGroups, rightGroups } = splitDisplayGroupsIntoColumns(displayGroups);
+
+    return {
+        pins,
+        mappedGroups: orderedMappedGroups.map((group) => ({
+            ...group,
+            number: displayGroupByKey[group.placeKey]?.number || null,
+        })),
+        displayGroups,
+        leftGroups,
+        rightGroups,
+        unmappedRows: orderedUnmappedRows,
+        desktopUnmappedPlacement: 'none',
+        leftUnmappedRows: [],
+        rightUnmappedRows: [],
+        dockedUnmappedRows: [],
+        placeNumberByKey,
+        groupKeyByPlaceKey,
+        hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(orderedMappedGroups),
+        activeAnchor,
+        activeAnchorNote: buildAnchorNote(activeAnchor),
+        hasActiveAnchor: Boolean(activeAnchor),
+        noteMappedGroups: orderedMappedGroups,
+        noteUnmappedRows: orderedUnmappedRows,
+        integratesUnmappedRowsAsCards: true,
+        showCategoryPills: true,
+    };
+}
+
 export function buildDirectoryPresentation(directory, {
     query = '',
     activeAnchor = null,
+    presentationMode = 'default',
 } = {}) {
     const normalizedQuery = normalizeText(query);
     const mappedGroups = [];
@@ -379,6 +551,14 @@ export function buildDirectoryPresentation(directory, {
             : preparedUnmappedRows;
 
         unmappedRows.push(...visibleUnmappedRows);
+    }
+
+    if (presentationMode === 'v2-cards') {
+        return buildV2DirectoryPresentation({
+            mappedGroups,
+            unmappedRows,
+            activeAnchor,
+        });
     }
 
     const groupedMappedGroups = buildGroupedMappedGroups(mappedGroups);

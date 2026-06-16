@@ -72,6 +72,14 @@ test('my map v2 uses the main saved-place pin style while stable my map keeps nu
     assert.match(myMapDetailPageSource, /markerMode="number"/);
 });
 
+test('my map v2 uses the dedicated V2 card-ordering presentation', () => {
+    assert.match(myMapDetailPageSource, /presentationMode: 'v2-cards'/);
+    assert.match(myMapDetailPageSource, /const ownerPresentation = isV2View \? v2Presentation : interactivePresentation/);
+    assert.match(myMapDetailPageSource, /presentation=\{v2Presentation\}/);
+    assert.match(myMapDetailPageSource, /ownerPresentation\.hoverPlaceKeysByKey/);
+    assert.match(myMapDetailPageSource, /focusPlaceOnMap\(placeKey\)[\s\S]*ownerPresentation\.groupKeyByPlaceKey/);
+});
+
 test('my map v2 uses the restored normal map sizing without enabling full-map mode', () => {
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-\[48vh\] min-h-\[440px\] max-h-\[700px\]'/);
     assert.match(myMapV2ScaffoldSource, /V2_MOBILE_MAP_HEIGHT_CLASS = 'h-\[34svh\] min-h-\[260px\] max-h-\[390px\]'/);

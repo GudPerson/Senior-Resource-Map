@@ -989,6 +989,9 @@ function getVisibleGroupRows(group) {
 
 function getPrimaryPlaceNoteRow(group) {
     const notedRows = getNoteRowsForGroup(group).filter(hasAnyOwnerNote);
+    if (group?.isUnmappedGroup) {
+        return notedRows[0] || null;
+    }
     return notedRows.find((row) => row?.resourceType === 'hard' && isRepeatedPrimaryRow(group, row))
         || notedRows.find((row) => row?.resourceType === 'hard')
         || null;
@@ -1217,49 +1220,96 @@ function DirectoryPlaceBadge({
     const logoImageClassName = logoFitMode === 'contain'
         ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
         : 'h-full w-full rounded-[inherit] object-cover';
+    const canViewOnMap = Boolean(onViewOnMap && group?.hasCoordinates !== false);
+    const shellClassName = `relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`;
+    const buttonProps = canViewOnMap ? {
+        type: 'button',
+        onClick: (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onViewOnMap?.(group.placeKey);
+        },
+        'aria-label': `${t('viewOnMap')}: ${group.name}`,
+        title: t('viewOnMap'),
+    } : null;
 
     if (isLogoMode) {
         const resolvedBadgeRow = badgeRow || hoverLogoRow || getGroupBadgeRow(group);
         const logoTileSizeClassName = compactInteractive
             ? '!h-[2.625rem] !w-[2.625rem] !rounded-[0.9375rem]'
             : '!h-[2.875rem] !w-[2.875rem] !rounded-[1.0625rem]';
+        const logoContent = (
+            <ResourceRowIcon
+                resourceType={resolvedBadgeRow?.resourceType || 'hard'}
+                bucket={resolvedBadgeRow?.bucket}
+                subCategory={resolvedBadgeRow?.subCategory}
+                logoUrl={resolvedBadgeRow?.logoUrl}
+                alt={resolvedBadgeRow?.name ? `${resolvedBadgeRow.name} logo` : `${group.name} logo`}
+                className={`${logoTileSizeClassName} border-slate-200/90 bg-white shadow-[0_16px_28px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90`}
+            />
+        );
 
-        return (
+        return canViewOnMap ? (
             <button
-                type="button"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onViewOnMap?.(group.placeKey);
-                }}
-                className={`relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`}
-                aria-label={`${t('viewOnMap')}: ${group.name}`}
-                title={t('viewOnMap')}
+                {...buttonProps}
+                className={shellClassName}
             >
-                <ResourceRowIcon
-                    resourceType={resolvedBadgeRow?.resourceType || 'hard'}
-                    bucket={resolvedBadgeRow?.bucket}
-                    subCategory={resolvedBadgeRow?.subCategory}
-                    logoUrl={resolvedBadgeRow?.logoUrl}
-                    alt={resolvedBadgeRow?.name ? `${resolvedBadgeRow.name} logo` : `${group.name} logo`}
-                    className={`${logoTileSizeClassName} border-slate-200/90 bg-white shadow-[0_16px_28px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90`}
-                />
+                {logoContent}
             </button>
+        ) : (
+            <span
+                className={shellClassName}
+                aria-label={group.name}
+                title={group.name}
+            >
+                {logoContent}
+            </span>
         );
     }
 
     return (
-        <button
-            type="button"
-            onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onViewOnMap?.(group.placeKey);
-            }}
-            className={`relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`}
-            aria-label={`${t('viewOnMap')}: ${group.name}`}
-            title={t('viewOnMap')}
-        >
+        canViewOnMap ? (
+            <button
+                {...buttonProps}
+                className={shellClassName}
+            >
+                <span
+                    className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
+                    style={{
+                        backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                        fontSize: String(group.number).length > 2 ? '0.75rem' : (compactInteractive ? '1rem' : '1.125rem'),
+                        fontFamily: 'var(--font-heading)',
+                        lineHeight: 1,
+                    }}
+                >
+                    {group.number}
+                </span>
+
+                {hasHoverLogo ? (
+                    <span
+                        className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center overflow-hidden border border-slate-200/90 bg-white shadow-[0_16px_28px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90 transition-all duration-300 ${logoTileClassName} ${logoVisibilityClassName}`}
+                        aria-hidden="true"
+                    >
+                        <img
+                            src={hoverLogoRow.logoUrl}
+                            alt={hoverLogoRow.name || group.name}
+                            className={logoImageClassName}
+                            onLoad={(event) => {
+                                const { naturalWidth, naturalHeight } = event.currentTarget;
+                                if (!naturalWidth || !naturalHeight) return;
+                                const aspectRatio = naturalWidth / naturalHeight;
+                                setLogoFitMode(aspectRatio > 1.2 || aspectRatio < 0.84 ? 'contain' : 'cover');
+                            }}
+                        />
+                    </span>
+                ) : null}
+            </button>
+        ) : (
+            <span
+                className={shellClassName}
+                aria-label={group.name}
+                title={group.name}
+            >
             <span
                 className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
                 style={{
@@ -1290,7 +1340,8 @@ function DirectoryPlaceBadge({
                     />
                 </span>
             ) : null}
-        </button>
+            </span>
+        )
     );
 }
 
@@ -1796,6 +1847,20 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
     );
 }
 
+function DirectoryCategoryPill({ label, compact = false }) {
+    if (!label) return null;
+
+    return (
+        <div className="px-1 pt-1">
+            <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
+                compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+            }`}>
+                <span className="truncate">{label}</span>
+            </span>
+        </div>
+    );
+}
+
 function DirectoryGroupColumn({
     groups,
     mode,
@@ -1817,6 +1882,7 @@ function DirectoryGroupColumn({
     showDesktopHoverLogo = false,
     logoRevealPlaceKeys = [],
     cardBadgeMode = 'number',
+    showCategoryPills = false,
     afterContent = null,
 }) {
     if (!groups.length && !afterContent) {
@@ -1825,33 +1891,48 @@ function DirectoryGroupColumn({
 
     return (
         <div className={interactive ? (compactInteractive ? 'space-y-3' : 'space-y-4') : (compactPrint ? 'space-y-1.5' : 'space-y-2')}>
-            {groups.map((group) => (
-                <DirectoryPlaceGroupCard
-                    key={group.placeKey}
-                    group={group}
-                    mode={mode}
-                    interactive={interactive}
-                    compactInteractive={compactInteractive}
-                    fullCardLink={fullCardLink}
-                    onViewOnMap={onViewOnMap}
-                    onRemoveResource={onRemoveResource}
-                    onUpdateResourceNotes={onUpdateResourceNotes}
-                    onOpenResourceNotes={onOpenResourceNotes}
-                    canSaveResources={canSaveResources}
-                    highlighted={isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys)}
-                    allowPrintLinks={allowPrintLinks}
-                    compactPrint={compactPrint}
-                    clusterColorData={clusterMapping[group.placeKey] || null}
-                    showDesktopHoverLogo={showDesktopHoverLogo}
-                    logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
-                    cardBadgeMode={cardBadgeMode}
-                    sectionRef={(node) => {
-                        if (node) {
-                            sectionRefs.current[group.placeKey] = node;
-                        }
-                    }}
-                />
-            ))}
+            {groups.map((group, index) => {
+                const categoryKey = normalizeLabel(group.categorySortKey || group.categoryLabel);
+                const previousCategoryKey = index > 0
+                    ? normalizeLabel(groups[index - 1]?.categorySortKey || groups[index - 1]?.categoryLabel)
+                    : '';
+                const shouldShowCategoryPill = Boolean(showCategoryPills && interactive && group.categoryLabel && categoryKey !== previousCategoryKey);
+
+                return (
+                    <React.Fragment key={group.placeKey}>
+                        {shouldShowCategoryPill ? (
+                            <DirectoryCategoryPill
+                                label={group.categoryLabel}
+                                compact={compactInteractive}
+                            />
+                        ) : null}
+                        <DirectoryPlaceGroupCard
+                            group={group}
+                            mode={mode}
+                            interactive={interactive}
+                            compactInteractive={compactInteractive}
+                            fullCardLink={fullCardLink}
+                            onViewOnMap={onViewOnMap}
+                            onRemoveResource={onRemoveResource}
+                            onUpdateResourceNotes={onUpdateResourceNotes}
+                            onOpenResourceNotes={onOpenResourceNotes}
+                            canSaveResources={canSaveResources}
+                            highlighted={isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys)}
+                            allowPrintLinks={allowPrintLinks}
+                            compactPrint={compactPrint}
+                            clusterColorData={clusterMapping[group.placeKey] || null}
+                            showDesktopHoverLogo={showDesktopHoverLogo}
+                            logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
+                            cardBadgeMode={cardBadgeMode}
+                            sectionRef={(node) => {
+                                if (node) {
+                                    sectionRefs.current[group.placeKey] = node;
+                                }
+                            }}
+                        />
+                    </React.Fragment>
+                );
+            })}
             {afterContent}
         </div>
     );
@@ -1971,28 +2052,35 @@ export default function SharedMapDirectoryList({
         && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED;
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
+    const displayGroups = presentation?.displayGroups || mappedGroups;
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
+    const shouldRenderUnmappedSections = !presentation?.integratesUnmappedRowsAsCards;
+    const showCategoryPills = Boolean(presentation?.showCategoryPills);
     const desktopUnmappedPlacement = presentation?.desktopUnmappedPlacement || 'none';
     const leftUnmappedRows = presentation?.leftUnmappedRows || [];
     const rightUnmappedRows = presentation?.rightUnmappedRows || [];
     const dockedUnmappedRows = presentation?.dockedUnmappedRows || [];
-    const noteResourceRows = useMemo(() => buildMapNoteResourceRows(presentation, {
+    const noteResourceRows = useMemo(() => buildMapNoteResourceRows({
+        ...(presentation || {}),
+        mappedGroups: presentation?.noteMappedGroups || mappedGroups,
+        unmappedRows: presentation?.noteUnmappedRows || unmappedRows,
+    }, {
         unmappedContextLabel: t('unmappedResources'),
-    }), [presentation, t]);
+    }), [mappedGroups, presentation, t, unmappedRows]);
     const [notesPanel, setNotesPanel] = useState({ open: false, selectedKey: null });
     const detailReturnPath = useMemo(() => (
         interactive ? normalizeMapReturnPath(buildCurrentAppPath(location)) : ''
     ), [interactive, location.hash, location.pathname, location.search]);
     const compactPrint = !interactive && (
-        mappedGroups.length >= 7
-        || mappedGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
+        displayGroups.length >= 7
+        || displayGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
     );
-    const interactiveRowCount = mappedGroups.reduce((count, group) => count + getVisibleGroupRows(group).length, 0);
+    const interactiveRowCount = displayGroups.reduce((count, group) => count + getVisibleGroupRows(group).length, 0);
     const compactInteractiveDesktop = interactive
         && resolvedLayout === 'desktop'
-        && (mappedGroups.length >= 7 || interactiveRowCount >= 9);
+        && (displayGroups.length >= 7 || interactiveRowCount >= 9);
     const logoRevealPlaceKeys = resolvedLayout === 'mobile'
         ? [selectionPlaceKey, highlightPlaceKey, ...highlightPlaceKeys].filter(Boolean)
         : (showDesktopHoverLogo
@@ -2214,7 +2302,7 @@ export default function SharedMapDirectoryList({
         // No timeout — flashPlaceKey stays set permanently until the next selection.
     }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, resolvedLayout, selectionPlaceKey, selectionScrollRequest]);
 
-    if (!mappedGroups.length && !unmappedRows.length) {
+    if (!displayGroups.length && !unmappedRows.length) {
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
@@ -2260,7 +2348,7 @@ export default function SharedMapDirectoryList({
                         onTouchCancel={handleMobileCardsTouchEnd}
                     >
                         <DirectoryGroupColumn
-                            groups={mappedGroups}
+                            groups={displayGroups}
                             mode={mode}
                             interactive
                             fullCardLink={false}
@@ -2276,17 +2364,20 @@ export default function SharedMapDirectoryList({
                             showDesktopHoverLogo={showDesktopHoverLogo}
                             logoRevealPlaceKeys={logoRevealPlaceKeys}
                             cardBadgeMode={cardBadgeMode}
+                            showCategoryPills={showCategoryPills}
                         />
 
-                        <DirectoryUnmappedSection
-                            rows={unmappedRows}
-                            interactive
-                            mode={mode}
-                            canSaveResources={canSaveResources}
-                            onRemoveResource={onRemoveResource}
-                            onOpenResourceNotes={openResourceNotes}
-                            compact
-                        />
+                        {shouldRenderUnmappedSections ? (
+                            <DirectoryUnmappedSection
+                                rows={unmappedRows}
+                                interactive
+                                mode={mode}
+                                canSaveResources={canSaveResources}
+                                onRemoveResource={onRemoveResource}
+                                onOpenResourceNotes={openResourceNotes}
+                                compact
+                            />
+                        ) : null}
                     </div>
                     <MapNotesOverlay
                         open={notesPanel.open}
@@ -2328,7 +2419,8 @@ export default function SharedMapDirectoryList({
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
-                        afterContent={useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
+                        showCategoryPills={showCategoryPills}
+                        afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={leftUnmappedRows}
                                 interactive={interactive}
@@ -2354,7 +2446,7 @@ export default function SharedMapDirectoryList({
                                 onOpen={openResourceNotes}
                             />
                         ) : null}
-                        {useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'map-column' && dockedUnmappedRows.length ? (
+                        {shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'map-column' && dockedUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={dockedUnmappedRows}
                                 interactive={interactive}
@@ -2389,7 +2481,8 @@ export default function SharedMapDirectoryList({
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
-                        afterContent={useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
+                        showCategoryPills={showCategoryPills}
+                        afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={rightUnmappedRows}
                                 interactive={interactive}
@@ -2403,7 +2496,7 @@ export default function SharedMapDirectoryList({
                     />
                 </div>
 
-                {!interactive ? (
+                {!interactive && shouldRenderUnmappedSections ? (
                     <DirectoryUnmappedSection
                         rows={unmappedRows}
                         interactive={interactive}

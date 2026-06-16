@@ -60,6 +60,17 @@ test('v2 can hide the map legend while shared directory lists keep it by default
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
 });
 
+test('v2 card ordering can opt into category pills and integrated list-only cards', () => {
+    assert.match(sharedMapDirectorySource, /const displayGroups = presentation\?\.displayGroups \|\| mappedGroups/);
+    assert.match(sharedMapDirectorySource, /const shouldRenderUnmappedSections = !presentation\?\.integratesUnmappedRowsAsCards/);
+    assert.match(sharedMapDirectorySource, /const showCategoryPills = Boolean\(presentation\?\.showCategoryPills\)/);
+    assert.match(sharedMapDirectorySource, /function DirectoryCategoryPill/);
+    assert.match(sharedMapDirectorySource, /showCategoryPills=\{showCategoryPills\}/);
+    assert.match(sharedMapDirectorySource, /groups=\{displayGroups\}/);
+    assert.match(sharedMapDirectorySource, /mappedGroups: presentation\?\.noteMappedGroups \|\| mappedGroups/);
+    assert.match(sharedMapDirectorySource, /unmappedRows: presentation\?\.noteUnmappedRows \|\| unmappedRows/);
+});
+
 test('interactive My Map cards avoid fixed pixel sizing so font controls can resize them', () => {
     const cardSource = sourceBetween(
         sharedMapDirectorySource,

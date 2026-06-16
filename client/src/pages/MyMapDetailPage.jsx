@@ -336,6 +336,10 @@ export default function MyMapDetailPage() {
     const interactivePresentation = useMemo(() => (
         buildDirectoryPresentation(directory, { query, activeAnchor })
     ), [activeAnchor, directory, query]);
+    const v2Presentation = useMemo(() => (
+        buildDirectoryPresentation(directory, { query, activeAnchor, presentationMode: 'v2-cards' })
+    ), [activeAnchor, directory, query]);
+    const ownerPresentation = isV2View ? v2Presentation : interactivePresentation;
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
     ), [directory]);
@@ -366,12 +370,19 @@ export default function MyMapDetailPage() {
         setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
     }, []);
 
+    const getHoverPlaceKeys = useCallback((placeKey) => {
+        const normalizedPlaceKey = placeKey ? String(placeKey) : '';
+        return ownerPresentation.hoverPlaceKeysByKey?.[normalizedPlaceKey] || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
+    }, [ownerPresentation.hoverPlaceKeysByKey]);
+
     const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
         : (hoveredPlaceKey || highlightPlaceKey || null);
     const activePlaceKeys = hoveredClusterPlaceKeys.length
         ? hoveredClusterPlaceKeys
-        : (selectedClusterPlaceKeys.length ? selectedClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []));
+        : (selectedClusterPlaceKeys.length
+            ? selectedClusterPlaceKeys
+            : (hoveredPlaceKey ? getHoverPlaceKeys(hoveredPlaceKey) : (activePlaceKey ? [activePlaceKey] : [])));
     const effectiveFocusedPlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
         : focusedPlaceKey;
@@ -475,7 +486,7 @@ export default function MyMapDetailPage() {
     }
 
     function focusPlaceOnMap(placeKey) {
-        const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
+        const resolvedPlaceKey = ownerPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         if (!resolvedPlaceKey) return;
         clearMapSelection();
         pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
@@ -628,7 +639,7 @@ export default function MyMapDetailPage() {
                     query={query}
                     onQueryChange={setQuery}
                     activeAnchor={activeAnchor}
-                    presentation={interactivePresentation}
+                    presentation={v2Presentation}
                     useDesktopLayout={useDesktopOwnerLayout}
                     focusedPlaceKey={effectiveFocusedPlaceKey}
                     activePlaceKey={activePlaceKey}
