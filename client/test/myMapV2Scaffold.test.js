@@ -38,18 +38,25 @@ test('my map detail routes v2 by default while print view keeps priority', () =>
     assert.match(myMapDetailPageSource, /import MyMapV2PreviewScaffold/);
     assert.match(myMapDetailPageSource, /getMyMapUiMode\(searchParams\)/);
     assert.match(myMapDetailPageSource, /myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView/);
-    assert.match(myMapDetailPageSource, /buildStableMyMapSearchParams\(searchParams\)/);
     assert.match(myMapDetailPageSource, /if \(isV2View\) \{/);
     assert.match(myMapDetailPageSource, /<MyMapV2PreviewScaffold/);
 });
 
-test('my map v2 scaffold reuses the existing presentation stack without private API calls', () => {
+test('my map v2 scaffold reuses the existing presentation stack and delegates the toolbar', () => {
     assert.match(myMapV2ScaffoldSource, /import DirectoryMap from '\.\/DirectoryMap\.jsx';/);
     assert.match(myMapV2ScaffoldSource, /import SharedMapDirectoryList from '\.\/SharedMapDirectoryList\.jsx';/);
-    assert.match(myMapV2ScaffoldSource, /import DirectoryDistanceControls from '\.\/DirectoryDistanceControls\.jsx';/);
-    assert.match(myMapV2ScaffoldSource, /renderPdfExportButton/);
-    assert.match(myMapV2ScaffoldSource, /stableViewHref/);
+    assert.match(myMapV2ScaffoldSource, /toolbar = null/);
+    assert.match(myMapV2ScaffoldSource, /\{toolbar\}/);
     assert.match(myMapV2ScaffoldSource, /data-my-map-ui="v2"/);
+    assert.match(myMapV2ScaffoldSource, /!\s*useDesktopLayout \? \(/);
+    assert.match(myMapV2ScaffoldSource, /useDesktopLayout \? \(/);
+    assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);
+    assert.match(myMapDetailPageSource, /<OwnerHeader/);
+    assert.match(myMapDetailPageSource, /<MyMapMobileControls/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /DirectorySearchBar/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /DirectoryDistanceControls/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /Map view/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /Classic view/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /from '\.\.\/lib\/api\.js'/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /\bapi\./);
 });

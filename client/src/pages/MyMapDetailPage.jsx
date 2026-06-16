@@ -19,7 +19,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
-import { MY_MAP_UI_MODE_V2, buildStableMyMapSearchParams, getMyMapUiMode } from '../lib/myMapUiMode.js';
+import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
@@ -304,11 +304,6 @@ export default function MyMapDetailPage() {
     const isPrintView = searchParams.get('view') === 'print';
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
-    const stableViewHref = useMemo(() => {
-        const nextParams = buildStableMyMapSearchParams(searchParams);
-        const queryString = nextParams.toString();
-        return `/my-directory/maps/${mapId}${queryString ? `?${queryString}` : ''}`;
-    }, [mapId, searchParams]);
     const anchorState = useDirectoryDistanceAnchor({
         storageKey: mapId ? `my-map:${mapId}` : 'my-map',
         userPostalCode: user?.postalCode || '',
@@ -632,8 +627,6 @@ export default function MyMapDetailPage() {
                     directory={directory}
                     query={query}
                     onQueryChange={setQuery}
-                    anchorState={anchorState}
-                    actionError={actionError}
                     activeAnchor={activeAnchor}
                     presentation={interactivePresentation}
                     useDesktopLayout={useDesktopOwnerLayout}
@@ -644,18 +637,6 @@ export default function MyMapDetailPage() {
                     selectionScrollRequest={selectionScrollRequest}
                     desktopScrollTargetRef={desktopSelectionSnapRef}
                     suspendMapInteraction={suspendMapInteraction}
-                    stableViewHref={stableViewHref}
-                    renderPdfExportButton={renderPdfExportButton}
-                    onAddAssets={() => setAddOpen(true)}
-                    onEditDetails={() => {
-                        setEditError('');
-                        setEditOpen(true);
-                    }}
-                    onOpenPrintView={openPrintView}
-                    onOpenShare={() => {
-                        setShareError('');
-                        setShareOpen(true);
-                    }}
                     onViewOnMap={handleViewOnMap}
                     onViewSection={handleViewSection}
                     onRemoveResource={handleRemoveResource}
@@ -667,6 +648,44 @@ export default function MyMapDetailPage() {
                     onClusterSelect={handleMapClusterSelect}
                     onFocusHandled={handleMapFocusHandled}
                     onResetView={clearMapSelection}
+                    toolbar={useDesktopOwnerLayout ? (
+                        <OwnerHeader
+                            directory={directory}
+                            query={query}
+                            onQueryChange={setQuery}
+                            anchorState={anchorState}
+                            actionError={actionError}
+                            onAddAssets={() => setAddOpen(true)}
+                            onEditDetails={() => {
+                                setEditError('');
+                                setEditOpen(true);
+                            }}
+                            onOpenPrintView={openPrintView}
+                            onOpenShare={() => {
+                                setShareError('');
+                                setShareOpen(true);
+                            }}
+                            renderPdfExportButton={renderPdfExportButton}
+                        />
+                    ) : (
+                        <MyMapMobileControls
+                            directory={directory}
+                            query={query}
+                            onQueryChange={setQuery}
+                            anchorState={anchorState}
+                            onAddAssets={() => setAddOpen(true)}
+                            onEditDetails={() => {
+                                setEditError('');
+                                setEditOpen(true);
+                            }}
+                            onOpenPrintView={openPrintView}
+                            onOpenShare={() => {
+                                setShareError('');
+                                setShareOpen(true);
+                            }}
+                            renderPdfExportButton={renderPdfExportButton}
+                        />
+                    )}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                     emptyState={<EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />}
                 />
