@@ -65,10 +65,56 @@ test('v2 card ordering can opt into category pills and integrated list-only card
     assert.match(sharedMapDirectorySource, /const shouldRenderUnmappedSections = !presentation\?\.integratesUnmappedRowsAsCards/);
     assert.match(sharedMapDirectorySource, /const showCategoryPills = Boolean\(presentation\?\.showCategoryPills\)/);
     assert.match(sharedMapDirectorySource, /function DirectoryCategoryPill/);
+    assert.match(sharedMapDirectorySource, /function DirectoryCategoryIcon/);
+    assert.match(sharedMapDirectorySource, /function getCategoryPillStyle/);
+    assert.match(sharedMapDirectorySource, /function getCategoryIconStyle/);
+    assert.match(sharedMapDirectorySource, /--directory-category-accent/);
+    assert.match(sharedMapDirectorySource, /<DirectoryCategoryIcon iconUrl=\{iconUrl\} color=\{color\} compact=\{compact\} \/>/);
+    assert.match(sharedMapDirectorySource, /compact \? 'h-10 w-10 p-1' : 'h-12 w-12 p-1\.5'/);
+    assert.match(sharedMapDirectorySource, /style=\{getCategoryIconStyle\(color\)\}/);
+    assert.match(sharedMapDirectorySource, /boxShadow: '0 0 0 2px color-mix/);
+    assert.match(sharedMapDirectorySource, /function DirectoryUnmappedPill/);
+    assert.match(sharedMapDirectorySource, /t\('unmapped'\)/);
+    assert.match(sharedMapDirectorySource, /const categoryStatus = group\.isUnmappedGroup \? 'unmapped' : 'mapped'/);
+    assert.match(sharedMapDirectorySource, /const previousCategoryStatus = previousGroup\?\.isUnmappedGroup \? 'unmapped' : 'mapped'/);
+    assert.match(sharedMapDirectorySource, /const shouldShowCategoryPill = Boolean\(showCategoryPills && group\.categoryLabel && categoryRunKey !== previousCategoryRunKey\)/);
+    assert.doesNotMatch(sharedMapDirectorySource, /showCategoryPills && interactive && group\.categoryLabel/);
+    assert.match(sharedMapDirectorySource, /showUnmapped=\{Boolean\(group\.isUnmappedGroup\)\}/);
+    assert.match(sharedMapDirectorySource, /color=\{group\.categoryColor\}/);
+    assert.match(sharedMapDirectorySource, /iconUrl=\{group\.categoryIconUrl\}/);
     assert.match(sharedMapDirectorySource, /showCategoryPills=\{showCategoryPills\}/);
     assert.match(sharedMapDirectorySource, /groups=\{displayGroups\}/);
     assert.match(sharedMapDirectorySource, /mappedGroups: presentation\?\.noteMappedGroups \|\| mappedGroups/);
     assert.match(sharedMapDirectorySource, /unmappedRows: presentation\?\.noteUnmappedRows \|\| unmappedRows/);
+});
+
+test('v2 logo cards show the resource name before the address metadata', () => {
+    const cardSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryPlaceGroupCard',
+        'function DirectoryUnmappedRow',
+    );
+    const v2CardSource = sourceBetween(
+        cardSource,
+        "const usesV2CardLanguage = cardBadgeMode === 'logo';",
+        'if (placeDetailPath && fullCardLink && !isPostalGroup)',
+    );
+
+    assert.match(v2CardSource, /!usesV2CardLanguage \? \(/);
+    assert.match(v2CardSource, /usesV2CardLanguage && hasLocationMeta \? \(/);
+    assert.match(v2CardSource, /const resolvedLocationLine = resolveGroupLocationLine\(group\)/);
+    assert.match(v2CardSource, /<div className="mt-0">/);
+    assert.match(v2CardSource, /tight/);
+    assert.match(sharedMapDirectorySource, /function resolveGroupLocationLine/);
+    assert.match(sharedMapDirectorySource, /item\?\.shortLocationLine \|\| item\?\.locationLabel \|\| item\?\.address \|\| item\?\.contextLabel/);
+    assert.ok(
+        v2CardSource.indexOf('{interactivePlaceTitle}') < v2CardSource.indexOf('usesV2CardLanguage && hasLocationMeta'),
+        'V2 cards should render the title row before location metadata',
+    );
+    assert.ok(
+        v2CardSource.indexOf('usesV2CardLanguage && hasLocationMeta') < v2CardSource.indexOf('<MapNoteIconButton'),
+        'V2 cards should keep the location metadata inside the title column before the note button can stretch the row',
+    );
 });
 
 test('interactive My Map cards avoid fixed pixel sizing so font controls can resize them', () => {

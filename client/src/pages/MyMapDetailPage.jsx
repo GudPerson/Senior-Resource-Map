@@ -271,6 +271,134 @@ function applyResourceNotesToDirectory(directory, resourceType, resourceId, note
     };
 }
 
+function normalizeCategoryMetaKey(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim().toLowerCase();
+}
+
+function normalizeMapAddress(value) {
+    const text = String(value || '').trim();
+    return text || '';
+}
+
+function buildSubCategoryMetaLookup(subcategories = []) {
+    const lookup = new Map();
+
+    (Array.isArray(subcategories) ? subcategories : []).forEach((subcategory) => {
+        const key = normalizeCategoryMetaKey(subcategory?.name);
+        if (!key) return;
+        lookup.set(key, {
+            color: subcategory?.color || null,
+            iconUrl: subcategory?.iconUrl || null,
+        });
+    });
+
+    return lookup;
+}
+
+function applySubCategoryMetaToRow(row, lookup) {
+    if (!row || !lookup.size) return row;
+    const categoryMeta = lookup.get(normalizeCategoryMetaKey(row.iconKey || row.subCategory));
+    if (!categoryMeta) return row;
+    const nextCategoryColor = row.categoryColor || categoryMeta.color || null;
+    const nextCategoryIconUrl = row.categoryIconUrl || categoryMeta.iconUrl || null;
+
+    if (
+        nextCategoryColor === (row.categoryColor || null)
+        && nextCategoryIconUrl === (row.categoryIconUrl || null)
+    ) {
+        return row;
+    }
+
+    return {
+        ...row,
+        categoryColor: nextCategoryColor,
+        categoryIconUrl: nextCategoryIconUrl,
+    };
+}
+
+function applySubCategoryMetaToDirectory(directory, subcategories = []) {
+    if (!directory) return directory;
+    const lookup = buildSubCategoryMetaLookup(subcategories);
+    if (!lookup.size) return directory;
+
+    return {
+        ...directory,
+        assets: (directory.assets || []).map((asset) => applySubCategoryMetaToRow(asset, lookup)),
+        places: (directory.places || []).map((place) => ({
+            ...place,
+            rows: (place.rows || []).map((row) => applySubCategoryMetaToRow(row, lookup)),
+        })),
+    };
+}
+
+function getMissingHardAddressIds(directory) {
+    const ids = new Set();
+
+    (directory?.places || []).forEach((place) => {
+        if (normalizeMapAddress(place?.address)) return;
+        (place?.rows || []).forEach((row) => {
+            if (row?.resourceType !== 'hard' || row?.status === 'unavailable') return;
+            const id = Number(row.resourceId);
+            if (Number.isInteger(id) && id > 0) {
+                ids.add(id);
+            }
+        });
+    });
+
+    return [...ids];
+}
+
+function applyHardAddressBackfillsToDirectory(directory, addressByHardAssetId) {
+    if (!directory || !addressByHardAssetId?.size) return directory;
+
+    return {
+        ...directory,
+        places: (directory.places || []).map((place) => {
+            const hardRow = (place.rows || []).find((row) => row?.resourceType === 'hard' && addressByHardAssetId.has(Number(row.resourceId)));
+            const backfilledAddress = hardRow ? addressByHardAssetId.get(Number(hardRow.resourceId)) : '';
+            const nextAddress = normalizeMapAddress(place.address) || backfilledAddress || null;
+            let changed = nextAddress !== (place.address || null);
+            const nextRows = (place.rows || []).map((row) => {
+                if (row?.resourceType !== 'hard') return row;
+                const rowAddress = addressByHardAssetId.get(Number(row.resourceId));
+                if (!rowAddress || normalizeMapAddress(row.address)) return row;
+                changed = true;
+                return {
+                    ...row,
+                    address: rowAddress,
+                };
+            });
+
+            if (!changed) return place;
+
+            return {
+                ...place,
+                address: nextAddress,
+                rows: nextRows,
+            };
+        }),
+    };
+}
+
+async function backfillMissingHardPlaceAddresses(directory) {
+    const missingHardAddressIds = getMissingHardAddressIds(directory);
+    if (!missingHardAddressIds.length) return directory;
+
+    const details = await Promise.all(
+        missingHardAddressIds.map((id) => api.getHardAsset(id, { suppressAuthExpired: true }).catch(() => null)),
+    );
+    const addressByHardAssetId = new Map();
+    details.forEach((detail, index) => {
+        const address = normalizeMapAddress(detail?.address);
+        if (address) {
+            addressByHardAssetId.set(missingHardAddressIds[index], address);
+        }
+    });
+
+    return applyHardAddressBackfillsToDirectory(directory, addressByHardAssetId);
+}
+
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -314,8 +442,12 @@ export default function MyMapDetailPage() {
         setLoading(true);
         setError('');
         try {
-            const item = await fetchMyMapWithResilience(() => api.getMyMap(mapId));
-            setDirectory(item);
+            const [item, subcategories] = await Promise.all([
+                fetchMyMapWithResilience(() => api.getMyMap(mapId)),
+                api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
+            ]);
+            const enrichedDirectory = applySubCategoryMetaToDirectory(item, subcategories);
+            setDirectory(await backfillMissingHardPlaceAddresses(enrichedDirectory));
         } catch (err) {
             console.error(err);
             setError(err.message || t('failedLoadMap'));
@@ -382,7 +514,7 @@ export default function MyMapDetailPage() {
         ? hoveredClusterPlaceKeys
         : (selectedClusterPlaceKeys.length
             ? selectedClusterPlaceKeys
-            : (hoveredPlaceKey ? getHoverPlaceKeys(hoveredPlaceKey) : (activePlaceKey ? [activePlaceKey] : [])));
+            : (hoveredPlaceKey ? getHoverPlaceKeys(hoveredPlaceKey) : (activePlaceKey ? getHoverPlaceKeys(activePlaceKey) : [])));
     const effectiveFocusedPlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
         : focusedPlaceKey;

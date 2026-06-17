@@ -48,10 +48,19 @@ function formatStreetLabel(address) {
     return `${trimmed.slice(0, 39).trimEnd()}...`;
 }
 
+function formatLocationLabel(address) {
+    const streetLabel = formatStreetLabel(address);
+    if (streetLabel) return streetLabel;
+
+    const postalCode = resolvePostalGroupCode({ address });
+    return postalCode ? `Singapore ${postalCode}` : '';
+}
+
 function buildPlaceQueryText(place, row) {
     return [
         place.name,
         place.address,
+        row.address,
         row.name,
         row.subCategory,
         row.bucket,
@@ -92,6 +101,106 @@ function getRowCategoryLabel(row = {}) {
 function getGroupCategoryLabel(group = {}) {
     const hardRow = (group.rows || []).find((row) => row.resourceType === 'hard');
     return getRowCategoryLabel(hardRow || (group.rows || [])[0] || {});
+}
+
+function normalizeCategoryColor(value) {
+    const text = String(value || '').trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '';
+}
+
+function getRowCategoryKey(row = {}) {
+    return row.iconKey || normalizeText(getRowCategoryLabel(row));
+}
+
+function getCategoryEntriesForRows(rows = []) {
+    const entriesByKey = new Map();
+
+    rows.forEach((row) => {
+        const key = getRowCategoryKey(row);
+        if (!key || entriesByKey.has(key)) return;
+
+        entriesByKey.set(key, {
+            key,
+            label: getRowCategoryLabel(row),
+            color: normalizeCategoryColor(row.categoryColor),
+            iconUrl: row.categoryIconUrl || null,
+        });
+    });
+
+    return [...entriesByKey.values()];
+}
+
+function getPrimaryCategoryEntry(rows = []) {
+    const hardRow = rows.find((row) => row.resourceType === 'hard');
+    const sourceRow = hardRow || rows[0] || {};
+    const [entry] = getCategoryEntriesForRows([sourceRow]);
+    if (entry) return entry;
+
+    return {
+        key: '',
+        label: getRowCategoryLabel(sourceRow),
+        color: '',
+        iconUrl: null,
+    };
+}
+
+function getGroupCategoryEntries(group = {}) {
+    if (group.isPostalGroup && Array.isArray(group.nestedPlaces)) {
+        return getCategoryEntriesForRows(group.nestedPlaces.flatMap((place) => place.rows || []));
+    }
+
+    return getCategoryEntriesForRows(group.rows || []);
+}
+
+function getGroupHardRows(group = {}) {
+    const rows = group.isPostalGroup && Array.isArray(group.nestedPlaces)
+        ? group.nestedPlaces.flatMap((place) => place.rows || [])
+        : (group.rows || []);
+
+    return rows.filter((row) => row.resourceType === 'hard');
+}
+
+function buildHardCategoryEntriesByPostal(groups = []) {
+    const rowsByPostal = new Map();
+
+    groups.forEach((group) => {
+        const postalCode = resolvePostalGroupCode({
+            postalCode: group.postalCode,
+            address: group.address,
+        });
+        if (!postalCode || !group.hasCoordinates) return;
+
+        const hardRows = getGroupHardRows(group);
+        if (!hardRows.length) return;
+
+        rowsByPostal.set(postalCode, [
+            ...(rowsByPostal.get(postalCode) || []),
+            ...hardRows,
+        ]);
+    });
+
+    const entriesByPostal = new Map();
+    rowsByPostal.forEach((rows, postalCode) => {
+        entriesByPostal.set(postalCode, getCategoryEntriesForRows(rows));
+    });
+
+    return entriesByPostal;
+}
+
+function getPinCategoryEntries(group = {}, { hardCategoryEntriesByPostal = null, hardRowsOnly = false } = {}) {
+    const postalCode = resolvePostalGroupCode({
+        postalCode: group.postalCode,
+        address: group.address,
+    });
+    const postalHardEntries = postalCode ? hardCategoryEntriesByPostal?.get(postalCode) : null;
+    if (postalHardEntries?.length) return postalHardEntries;
+
+    if (hardRowsOnly) {
+        const hardEntries = getCategoryEntriesForRows(getGroupHardRows(group));
+        if (hardEntries.length) return hardEntries;
+    }
+
+    return getGroupCategoryEntries(group);
 }
 
 function sortPinsForReadingOrder(pins) {
@@ -301,10 +410,16 @@ function buildGroupedMappedGroups(mappedGroups = []) {
     });
 }
 
-function buildGroupedPins(groups = []) {
+function buildGroupedPins(groups = [], options = {}) {
     return groups
         .filter((group) => group.hasCoordinates && group.lat !== null && group.lng !== null)
         .map((group) => {
+            const categoryEntries = getPinCategoryEntries(group, options);
+            const primaryCategoryEntry = getPrimaryCategoryEntry(group.rows || []);
+            const categoryColorSegments = categoryEntries
+                .map((entry) => entry.color)
+                .filter(Boolean);
+
             if (!group.isPostalGroup) {
                 return {
                     pinKey: group.placeKey,
@@ -316,9 +431,11 @@ function buildGroupedPins(groups = []) {
                     lat: group.lat,
                     lng: group.lng,
                     curatedCount: group.curatedCount,
-                    categoryIconUrl: group.rows.find((row) => row.resourceType === 'hard' && row.categoryIconUrl)?.categoryIconUrl
+                    categoryIconUrl: primaryCategoryEntry.iconUrl
                         || group.rows.find((row) => row.categoryIconUrl)?.categoryIconUrl
                         || null,
+                    categoryColor: primaryCategoryEntry.color || categoryColorSegments[0] || null,
+                    categoryColorSegments,
                     previewResourceNames: (group.rows || []).slice(0, 3).map((row) => row.name),
                     hiddenPreviewCount: Math.max(0, (group.rows || []).length - 3),
                     isPostalGroup: false,
@@ -337,6 +454,8 @@ function buildGroupedPins(groups = []) {
                 lng: group.lng,
                 curatedCount: group.curatedCount,
                 categoryIconUrl: null,
+                categoryColor: categoryColorSegments[0] || null,
+                categoryColorSegments,
                 previewResourceNames: group.nestedPlaces.map((place) => place.name).slice(0, 3),
                 hiddenPreviewCount: Math.max(0, group.nestedPlaces.length - 3),
                 isPostalGroup: true,
@@ -349,6 +468,7 @@ function buildGroupedPins(groups = []) {
 function buildUnmappedDisplayGroup(row, index) {
     const placeKey = `unmapped:${row.rowKey || row.assetKey || index}`;
     const categoryLabel = getRowCategoryLabel(row);
+    const categoryEntry = getPrimaryCategoryEntry([row]);
 
     return {
         placeKey,
@@ -370,12 +490,15 @@ function buildUnmappedDisplayGroup(row, index) {
         isUnmappedGroup: true,
         categoryLabel,
         categorySortKey: normalizeText(categoryLabel),
+        categoryColor: categoryEntry.color || null,
+        categoryIconUrl: categoryEntry.iconUrl || null,
         resourceSortKey: normalizeText(row.name || row.placeName || ''),
     };
 }
 
 function decorateV2MappedGroup(group) {
     const categoryLabel = getGroupCategoryLabel(group);
+    const categoryEntry = getPrimaryCategoryEntry(group.rows || []);
     return {
         ...group,
         memberPlaceKeys: [group.placeKey].filter(Boolean),
@@ -383,6 +506,8 @@ function decorateV2MappedGroup(group) {
         isUnmappedGroup: false,
         categoryLabel,
         categorySortKey: normalizeText(categoryLabel),
+        categoryColor: categoryEntry.color || null,
+        categoryIconUrl: categoryEntry.iconUrl || null,
         resourceSortKey: normalizeText(group.name),
     };
 }
@@ -403,8 +528,20 @@ function compareV2DisplayGroups(left, right) {
     return compareText(left.placeKey, right.placeKey);
 }
 
-function buildHoverPlaceKeysByKey(groups = []) {
+function buildHoverPlaceKeysByKey(groups = [], pinGroups = []) {
     const groupsByPostal = new Map();
+    const pinGroupKeyByPostal = new Map();
+
+    pinGroups.forEach((group) => {
+        if (!group?.isPostalGroup || !group?.placeKey) return;
+        const postalCode = resolvePostalGroupCode({
+            postalCode: group.postalCode,
+            address: group.address,
+        });
+        if (postalCode) {
+            pinGroupKeyByPostal.set(postalCode, String(group.placeKey));
+        }
+    });
 
     groups.forEach((group) => {
         const postalCode = resolvePostalGroupCode({
@@ -418,8 +555,12 @@ function buildHoverPlaceKeysByKey(groups = []) {
     });
 
     const hoverPlaceKeysByKey = {};
-    groupsByPostal.forEach((placeKeys) => {
+    groupsByPostal.forEach((placeKeys, postalCode) => {
         if (placeKeys.length <= 1) return;
+        const postalGroupKey = pinGroupKeyByPostal.get(postalCode);
+        if (postalGroupKey) {
+            hoverPlaceKeysByKey[postalGroupKey] = [...placeKeys];
+        }
         placeKeys.forEach((placeKey) => {
             hoverPlaceKeysByKey[placeKey] = [...placeKeys];
         });
@@ -432,6 +573,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
     const orderedMappedGroups = mappedGroups
         .map(decorateV2MappedGroup)
         .sort(compareV2DisplayGroups);
+    const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(orderedMappedGroups);
     const orderedUnmappedRows = [...unmappedRows].sort((left, right) => {
         const categoryCompare = compareText(getRowCategoryLabel(left), getRowCategoryLabel(right));
         if (categoryCompare !== 0) return categoryCompare;
@@ -448,9 +590,15 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         accumulator[group.placeKey] = group;
         return accumulator;
     }, {});
-    const pins = buildGroupedPins(orderedMappedGroups).map((pin) => ({
+    const pinGroups = buildGroupedMappedGroups(orderedMappedGroups);
+    const pins = buildGroupedPins(pinGroups, {
+        hardRowsOnly: true,
+        hardCategoryEntriesByPostal,
+    }).map((pin) => ({
         ...pin,
-        number: displayGroupByKey[pin.placeKey]?.number || null,
+        number: displayGroupByKey[pin.placeKey]?.number
+            || displayGroupByKey[pin.memberPlaceKeys?.[0]]?.number
+            || null,
     }));
     const placeNumberByKey = displayGroups.reduce((accumulator, group) => {
         accumulator[group.placeKey] = group.number;
@@ -460,6 +608,15 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         accumulator[group.placeKey] = group.placeKey;
         return accumulator;
     }, {});
+    pinGroups.forEach((group) => {
+        if (!group?.placeKey) return;
+        groupKeyByPlaceKey[group.placeKey] = group.placeKey;
+        if (group.isPostalGroup) {
+            (group.memberPlaceKeys || []).forEach((memberPlaceKey) => {
+                groupKeyByPlaceKey[memberPlaceKey] = group.placeKey;
+            });
+        }
+    });
     const { leftGroups, rightGroups } = splitDisplayGroupsIntoColumns(displayGroups);
 
     return {
@@ -478,7 +635,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         dockedUnmappedRows: [],
         placeNumberByKey,
         groupKeyByPlaceKey,
-        hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(orderedMappedGroups),
+        hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(orderedMappedGroups, pinGroups),
         activeAnchor,
         activeAnchorNote: buildAnchorNote(activeAnchor),
         hasActiveAnchor: Boolean(activeAnchor),
@@ -506,13 +663,19 @@ export function buildDirectoryPresentation(directory, {
             ? getDistance(activeAnchor.lat, activeAnchor.lng, lat, lng)
             : null;
 
-        const preparedRows = (place.rows || []).map((row) => ({
-            ...row,
-            placeKey: place.placeKey,
-            placeName: place.name,
-            shortLocationLine: formatStreetLabel(place.address),
-            locationLabel: formatStreetLabel(place.address) || place.name,
-        }));
+        const preparedRows = (place.rows || []).map((row) => {
+            const rowLocationLine = formatLocationLabel(row.address || place.address);
+            return {
+                ...row,
+                placeKey: place.placeKey,
+                placeName: place.name,
+                shortLocationLine: rowLocationLine,
+                locationLabel: rowLocationLine || place.name,
+            };
+        });
+        const placeLocationLine = formatLocationLabel(place.address)
+            || preparedRows.find((row) => row.shortLocationLine)?.shortLocationLine
+            || '';
 
         if (hasCoordinates) {
             const visibleRows = normalizedQuery
@@ -528,7 +691,7 @@ export function buildDirectoryPresentation(directory, {
                 lat,
                 lng,
                 hasCoordinates: true,
-                shortLocationLine: formatStreetLabel(place.address),
+                shortLocationLine: placeLocationLine,
                 distanceKm,
                 distanceLabel: buildDistanceLabel(distanceKm),
                 rows: visibleRows,
@@ -544,7 +707,7 @@ export function buildDirectoryPresentation(directory, {
         const preparedUnmappedRows = preparedRows.map((row) => ({
             ...row,
             contextLabel: place.name && normalizeText(place.name) !== normalizeText(row.name) ? place.name : null,
-            locationLabel: formatStreetLabel(place.address) || null,
+            locationLabel: formatLocationLabel(row.address || place.address) || null,
         }));
         const visibleUnmappedRows = normalizedQuery
             ? preparedUnmappedRows.filter((row) => buildUnmappedRowQueryText(row).includes(normalizedQuery))

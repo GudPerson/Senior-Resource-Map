@@ -72,6 +72,13 @@ function getDirectoryPinMapPoint(pin = {}) {
     return { lat, lng };
 }
 
+function getPinBasePoint(pin = {}) {
+    const lat = Number.parseFloat(pin.lat);
+    const lng = Number.parseFloat(pin.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+}
+
 function getDirectoryCameraPoints(pins = [], anchorPoint = null) {
     const points = pins.map(getDirectoryPinMapPoint).filter(Boolean);
     if (anchorPoint) {
@@ -337,6 +344,8 @@ function createDirectoryAssetSpreadClusterIcon(children = [], emphasizedPlaceKey
             emphasis: emphasizedPlaceKeys.has(String(placeKey)) ? 'primary' : 'default',
             tone: 'saved',
             iconUrl: iconOptions.categoryIconUrl || null,
+            color: iconOptions.categoryColor || null,
+            colorSegments: iconOptions.categoryColorSegments || [],
             placeKey,
             showBadge: false,
         }).options.html;
@@ -499,21 +508,23 @@ function spreadPinsForDisplay(pins, interactive) {
     const groupedPins = new Map();
 
     pins.forEach((pin) => {
-        const key = `${pin.lat.toFixed(6)}:${pin.lng.toFixed(6)}`;
+        const point = getPinBasePoint(pin);
+        const key = point ? `${point.lat.toFixed(6)}:${point.lng.toFixed(6)}` : `${pin.placeKey || pin.pinKey || ''}`;
         const group = groupedPins.get(key) || [];
         group.push(pin);
         groupedPins.set(key, group);
     });
 
     return pins.map((pin) => {
-        const key = `${pin.lat.toFixed(6)}:${pin.lng.toFixed(6)}`;
+        const point = getPinBasePoint(pin);
+        const key = point ? `${point.lat.toFixed(6)}:${point.lng.toFixed(6)}` : `${pin.placeKey || pin.pinKey || ''}`;
         const group = groupedPins.get(key) || [];
 
-        if (group.length <= 1) {
+        if (group.length <= 1 || !point) {
             return {
                 ...pin,
-                displayLat: pin.lat,
-                displayLng: pin.lng,
+                displayLat: point?.lat ?? pin.lat,
+                displayLng: point?.lng ?? pin.lng,
             };
         }
 
@@ -523,8 +534,8 @@ function spreadPinsForDisplay(pins, interactive) {
 
         return {
             ...pin,
-            displayLat: pin.lat + Math.sin(angle) * offset,
-            displayLng: pin.lng + Math.cos(angle) * offset,
+            displayLat: point.lat + Math.sin(angle) * offset,
+            displayLng: point.lng + Math.cos(angle) * offset,
         };
     });
 }
@@ -1043,6 +1054,7 @@ export default function DirectoryMap({
     emptyLabel = 'This directory does not have any mappable places yet.',
     markerMode = 'count',
     pinBadgeMode = 'count',
+    pinCategoryIconMode = 'auto',
     clusterMarkerMode = 'bubble',
     placeNumberByKey = null,
     showPopup = true,
@@ -1112,7 +1124,7 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [anchorPoint, clusterMarkerMode, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pins, placeNumberByKey]);
+    }, [anchorPoint, clusterMarkerMode, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, pins, placeNumberByKey]);
 
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
@@ -1160,12 +1172,16 @@ export default function DirectoryMap({
                                     count: pin.curatedCount,
                                     emphasis: isMatched ? 'primary' : 'default',
                                     tone: 'saved',
-                                    iconUrl: pin.categoryIconUrl || null,
+                                    iconUrl: pinCategoryIconMode === 'none' ? null : (pin.categoryIconUrl || null),
+                                    color: pin.categoryColor || null,
+                                    colorSegments: pin.categoryColorSegments || [],
                                     placeKey: pin.placeKey,
                                     showBadge: pinBadgeMode !== 'none',
                                 });
                                 savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                                 savedPinIcon.options.categoryIconUrl = pin.categoryIconUrl || null;
+                                savedPinIcon.options.categoryColor = pin.categoryColor || null;
+                                savedPinIcon.options.categoryColorSegments = pin.categoryColorSegments || [];
                                 savedPinIcon.options.curatedCount = pin.curatedCount;
                                 return savedPinIcon;
                             })();
@@ -1205,12 +1221,16 @@ export default function DirectoryMap({
                         count: pin.curatedCount,
                         emphasis: isMatched ? 'primary' : 'default',
                         tone: 'saved',
-                        iconUrl: pin.categoryIconUrl || null,
+                        iconUrl: pinCategoryIconMode === 'none' ? null : (pin.categoryIconUrl || null),
+                        color: pin.categoryColor || null,
+                        colorSegments: pin.categoryColorSegments || [],
                         placeKey: pin.placeKey,
                         showBadge: pinBadgeMode !== 'none',
                     });
                     savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                     savedPinIcon.options.categoryIconUrl = pin.categoryIconUrl || null;
+                    savedPinIcon.options.categoryColor = pin.categoryColor || null;
+                    savedPinIcon.options.categoryColorSegments = pin.categoryColorSegments || [];
                     savedPinIcon.options.curatedCount = pin.curatedCount;
                     return savedPinIcon;
                 })();
@@ -1229,7 +1249,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     if (!pins.length && !anchorPoint) {
         return (

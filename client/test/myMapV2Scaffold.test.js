@@ -64,6 +64,7 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
 test('my map v2 uses the main saved-place pin style while stable my map keeps numbered pins', () => {
     assert.match(myMapV2ScaffoldSource, /markerMode="count"/);
     assert.match(myMapV2ScaffoldSource, /pinBadgeMode="none"/);
+    assert.match(myMapV2ScaffoldSource, /pinCategoryIconMode="none"/);
     assert.match(myMapV2ScaffoldSource, /clusterMarkerMode="none"/);
     assert.match(myMapV2ScaffoldSource, /cardBadgeMode="logo"/);
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
@@ -78,6 +79,26 @@ test('my map v2 uses the dedicated V2 card-ordering presentation', () => {
     assert.match(myMapDetailPageSource, /presentation=\{v2Presentation\}/);
     assert.match(myMapDetailPageSource, /ownerPresentation\.hoverPlaceKeysByKey/);
     assert.match(myMapDetailPageSource, /focusPlaceOnMap\(placeKey\)[\s\S]*ownerPresentation\.groupKeyByPlaceKey/);
+});
+
+test('my map v2 enriches directory rows with configured category colors from the shared category metadata', () => {
+    assert.match(myMapDetailPageSource, /function applySubCategoryMetaToDirectory/);
+    assert.match(myMapDetailPageSource, /function applySubCategoryMetaToRow/);
+    assert.match(myMapDetailPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
+    assert.match(myMapDetailPageSource, /const enrichedDirectory = applySubCategoryMetaToDirectory\(item, subcategories\)/);
+    assert.match(myMapDetailPageSource, /setDirectory\(await backfillMissingHardPlaceAddresses\(enrichedDirectory\)\)/);
+    assert.match(myMapDetailPageSource, /categoryColor: nextCategoryColor/);
+    assert.match(myMapDetailPageSource, /categoryIconUrl: nextCategoryIconUrl/);
+});
+
+test('my map v2 backfills missing hard-place addresses without touching map ownership or auth paths', () => {
+    assert.match(myMapDetailPageSource, /function getMissingHardAddressIds/);
+    assert.match(myMapDetailPageSource, /function applyHardAddressBackfillsToDirectory/);
+    assert.match(myMapDetailPageSource, /async function backfillMissingHardPlaceAddresses/);
+    assert.match(myMapDetailPageSource, /row\?\.resourceType !== 'hard' \|\| row\?\.status === 'unavailable'/);
+    assert.match(myMapDetailPageSource, /api\.getHardAsset\(id, \{ suppressAuthExpired: true \}\)\.catch\(\(\) => null\)/);
+    assert.match(myMapDetailPageSource, /addressByHardAssetId\.set\(missingHardAddressIds\[index\], address\)/);
+    assert.match(myMapDetailPageSource, /address: rowAddress/);
 });
 
 test('my map v2 uses the restored normal map sizing without enabling full-map mode', () => {

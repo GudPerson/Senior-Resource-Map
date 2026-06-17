@@ -71,7 +71,35 @@ function escapeSvgText(value) {
         .replace(/>/g, '&gt;');
 }
 
-function renderSavedPinCenterGlyph(iconUrl) {
+function normalizePinHexColor(value) {
+    const text = String(value || '').trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '';
+}
+
+function formatPinBadgeLabel(count = 0) {
+    const numericCount = Number(count);
+    if (!Number.isFinite(numericCount) || numericCount <= 0) return '0';
+    return numericCount > 99 ? '99+' : String(Math.max(0, numericCount));
+}
+
+function buildSegmentedCssFill({ baseColor, colorSegments = [] } = {}) {
+    const segmentColors = (Array.isArray(colorSegments) ? colorSegments : [])
+        .map(normalizePinHexColor)
+        .filter(Boolean);
+    const colors = segmentColors.length > 1 ? [...new Set(segmentColors)] : [baseColor].filter(Boolean);
+
+    if (colors.length <= 1) return colors[0] || baseColor || '';
+
+    const width = 100 / colors.length;
+    const stops = colors.map((color, index) => {
+        const start = (index * width).toFixed(4);
+        const end = ((index + 1) * width).toFixed(4);
+        return `${color} ${start}%, ${color} ${end}%`;
+    });
+    return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
+function renderSavedPinCenterGlyph(iconUrl, categoryFill = '') {
     if (iconUrl) {
         return `
             <img
@@ -80,6 +108,22 @@ function renderSavedPinCenterGlyph(iconUrl) {
                 draggable="false"
                 style="width:100%;height:100%;object-fit:contain;padding:0.5px;display:block;"
             />
+        `;
+    }
+
+    if (categoryFill) {
+        return `
+            <span
+                aria-hidden="true"
+                style="
+                    display:block;
+                    width:100%;
+                    height:100%;
+                    border-radius:999px;
+                    background:${categoryFill};
+                    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.72);
+                "
+            ></span>
         `;
     }
 
@@ -104,14 +148,17 @@ export function createSavedPlacePinIcon({
     emphasis = 'default',
     tone = 'saved',
     iconUrl = null,
+    color = null,
+    colorSegments = [],
     placeKey = null,
     showBadge = true,
 } = {}) {
-    const label = count > 99 ? '99+' : String(Math.max(0, count));
+    const label = formatPinBadgeLabel(count);
     const isPrimary = emphasis === 'primary';
     const isRelated = emphasis === 'related';
     const isHighlighted = isPrimary || isRelated;
     const isTemporary = tone === 'temporary';
+    const categoryColor = normalizePinHexColor(color);
     const selectedRing = isTemporary ? '#f97316' : '#f59e0b';
     const outerFill = isTemporary
         ? (isPrimary ? '#d97706' : isRelated ? '#f59e0b' : '#f2a43a')
@@ -142,7 +189,11 @@ export function createSavedPlacePinIcon({
     const pinScale = isPrimary ? 1.24 : isRelated ? 1.12 : 1;
     const pulseBump = isPrimary ? 0.12 : isRelated ? 0.07 : 0;
     const innerSheen = isTemporary ? '#fff0c2' : '#8ef0e6';
-    const glyphMarkup = renderSavedPinCenterGlyph(iconUrl);
+    const categoryFill = buildSegmentedCssFill({
+        baseColor: categoryColor,
+        colorSegments,
+    });
+    const glyphMarkup = renderSavedPinCenterGlyph(iconUrl, categoryFill);
 
     const badgeMarkup = showBadge
         ? `
@@ -153,7 +204,7 @@ export function createSavedPlacePinIcon({
                         top:-3px;
                         right:-3px;
                         z-index:100;
-                        min-width:20px;
+                        min-width:${label.length > 3 ? 28 : 20}px;
                         height:20px;
                         padding:0 4px;
                         border-radius:999px;
@@ -164,7 +215,7 @@ export function createSavedPlacePinIcon({
                         display:flex;
                         align-items:center;
                         justify-content:center;
-                        font-size:${label.length > 2 ? 8.5 : 10}px;
+                        font-size:${label.length > 3 ? 7.5 : label.length > 2 ? 8.5 : 10}px;
                         line-height:1;
                         font-weight:800;
                         letter-spacing:-0.02em;

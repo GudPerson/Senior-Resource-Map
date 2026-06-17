@@ -53,6 +53,7 @@ export default function MyMapV2PreviewScaffold({
             interactive={!suspendMapInteraction}
             markerMode="count"
             pinBadgeMode="none"
+            pinCategoryIconMode="none"
             clusterMarkerMode="none"
             placeNumberByKey={presentation.placeNumberByKey}
             emptyLabel={emptyLabel}

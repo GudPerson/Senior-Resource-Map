@@ -987,6 +987,22 @@ function getVisibleGroupRows(group) {
     return (group?.rows || []).filter((row) => !isRepeatedPrimaryRow(group, row));
 }
 
+function resolveGroupLocationLine(group) {
+    if (group?.shortLocationLine) return group.shortLocationLine;
+
+    const candidates = [
+        ...(group?.rows || []),
+        ...(group?.nestedPlaces || []).flatMap((place) => [
+            place,
+            ...(place?.rows || []),
+        ]),
+    ];
+
+    return candidates
+        .map((item) => item?.shortLocationLine || item?.locationLabel || item?.address || item?.contextLabel)
+        .find((label) => label && normalizeLabel(label) !== normalizeLabel(group?.name)) || '';
+}
+
 function getPrimaryPlaceNoteRow(group) {
     const notedRows = getNoteRowsForGroup(group).filter(hasAnyOwnerNote);
     if (group?.isUnmappedGroup) {
@@ -1077,13 +1093,13 @@ function HiddenLogoSlot({ logoRow, revealed = false, compactInteractive = false 
     );
 }
 
-function DirectoryLocationMeta({ shortLocationLine, distanceLabel, compact = false }) {
+function DirectoryLocationMeta({ shortLocationLine, distanceLabel, compact = false, tight = false }) {
     if (!shortLocationLine && !distanceLabel) return null;
 
     return (
-        <div className={`flex flex-wrap items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+        <div className={`flex flex-wrap items-center ${tight ? 'gap-1 leading-[1.05]' : (compact ? 'gap-1.5' : 'gap-2')}`}>
             {shortLocationLine ? (
-                <p className={`${compact ? 'text-[0.6875rem]' : 'text-[0.75rem]'} font-medium text-slate-500`}>{shortLocationLine}</p>
+                <p className={`${compact ? 'text-[0.6875rem]' : 'text-[0.75rem]'} font-medium text-slate-500 ${tight ? 'leading-[1.05]' : ''}`}>{shortLocationLine}</p>
             ) : null}
             {distanceLabel ? (
                 <span className={`inline-flex rounded-full border border-brand-200 bg-brand-50 font-bold text-brand-700 ${compact ? 'px-1.5 py-0.5 text-[0.5625rem]' : 'px-2 py-0.5 text-[0.625rem]'}`}>
@@ -1435,17 +1451,27 @@ function DirectoryPlaceGroupCard({
                     }`}
                 >
                     <div className="flex items-start gap-2.5">
-                        <div
-                            className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
-                            style={{
-                                backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                                fontSize: String(group.number).length > 2 ? '0.6875rem' : (compactPrint ? '0.9375rem' : '1.0625rem'),
-                                fontFamily: 'var(--font-heading)',
-                                lineHeight: 1,
-                            }}
-                        >
-                            {group.number}
-                        </div>
+                        {cardBadgeMode === 'logo' ? (
+                            <DirectoryPlaceBadge
+                                group={group}
+                                clusterColorData={clusterColorData}
+                                compactInteractive={compactPrint}
+                                badgeMode={cardBadgeMode}
+                                badgeRow={getNestedPlaceBadgeRow(group.nestedPlaces[0])}
+                            />
+                        ) : (
+                            <div
+                                className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
+                                style={{
+                                    backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                                    fontSize: String(group.number).length > 2 ? '0.6875rem' : (compactPrint ? '0.9375rem' : '1.0625rem'),
+                                    fontFamily: 'var(--font-heading)',
+                                    lineHeight: 1,
+                                }}
+                            >
+                                {group.number}
+                            </div>
+                        )}
                         <div className="min-w-0 flex-1">
                             <div className="space-y-3">
                                 {group.nestedPlaces.map((nestedPlace) => {
@@ -1503,17 +1529,27 @@ function DirectoryPlaceGroupCard({
                 }`}
             >
                 <div className="flex items-start gap-2.5">
-                    <div 
-                        className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
-                        style={{ 
-                            backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
-                            fontSize: String(group.number).length > 2 ? '0.6875rem' : (compactPrint ? '0.9375rem' : '1.0625rem'),
-                            fontFamily: 'var(--font-heading)',
-                            lineHeight: 1,
-                        }}
-                    >
-                        {group.number}
-                    </div>
+                    {cardBadgeMode === 'logo' ? (
+                        <DirectoryPlaceBadge
+                            group={group}
+                            clusterColorData={clusterColorData}
+                            compactInteractive={compactPrint}
+                            badgeMode={cardBadgeMode}
+                            badgeRow={getGroupBadgeRow(group)}
+                        />
+                    ) : (
+                        <div
+                            className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
+                            style={{
+                                backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                                fontSize: String(group.number).length > 2 ? '0.6875rem' : (compactPrint ? '0.9375rem' : '1.0625rem'),
+                                fontFamily: 'var(--font-heading)',
+                                lineHeight: 1,
+                            }}
+                        >
+                            {group.number}
+                        </div>
+                    )}
                     <div className="min-w-0 flex-1">
                         {printPlaceTitle}
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -1643,6 +1679,9 @@ function DirectoryPlaceGroupCard({
         <h3 className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
     const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
+    const usesV2CardLanguage = cardBadgeMode === 'logo';
+    const resolvedLocationLine = resolveGroupLocationLine(group);
+    const hasLocationMeta = Boolean(resolvedLocationLine || group.distanceLabel);
 
     const cardContent = (
         <>
@@ -1658,14 +1697,26 @@ function DirectoryPlaceGroupCard({
                     onViewOnMap={onViewOnMap}
                 />
                 <div className="min-w-0 flex-1">
-                    <DirectoryLocationMeta
-                        shortLocationLine={group.shortLocationLine}
-                        distanceLabel={group.distanceLabel}
-                        compact={compactInteractive}
-                    />
-                    <div className={`${compactInteractive ? 'mt-2' : 'mt-2.5'} flex items-start gap-2`}>
+                    {!usesV2CardLanguage ? (
+                        <DirectoryLocationMeta
+                            shortLocationLine={resolvedLocationLine}
+                            distanceLabel={group.distanceLabel}
+                            compact={compactInteractive}
+                        />
+                    ) : null}
+                    <div className={`${usesV2CardLanguage ? '' : (compactInteractive ? 'mt-2' : 'mt-2.5')} flex items-start gap-2`}>
                         <div className="min-w-0 flex-1">
                             {interactivePlaceTitle}
+                            {usesV2CardLanguage && hasLocationMeta ? (
+                                <div className="mt-0">
+                                    <DirectoryLocationMeta
+                                        shortLocationLine={resolvedLocationLine}
+                                        distanceLabel={group.distanceLabel}
+                                        compact={compactInteractive}
+                                        tight
+                                    />
+                                </div>
+                            ) : null}
                         </div>
                         <MapNoteIconButton
                             row={primaryNoteRow}
@@ -1847,16 +1898,84 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
     );
 }
 
-function DirectoryCategoryPill({ label, compact = false }) {
-    if (!label) return null;
+function DirectoryUnmappedPill({ compact = false }) {
+    const { t } = useLocale();
 
     return (
-        <div className="px-1 pt-1">
-            <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
-                compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
-            }`}>
-                <span className="truncate">{label}</span>
-            </span>
+        <span className={`inline-flex items-center rounded-full border border-slate-200 bg-slate-50 font-black uppercase tracking-[0.14em] text-slate-500 ${
+            compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+        }`}>
+            <span>{t('unmapped')}</span>
+        </span>
+    );
+}
+
+function normalizeCategoryAccentColor(value) {
+    const text = String(value || '').trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '';
+}
+
+function getCategoryPillStyle(color) {
+    const accentColor = normalizeCategoryAccentColor(color);
+    if (!accentColor) return undefined;
+
+    return {
+        '--directory-category-accent': accentColor,
+        borderColor: 'color-mix(in srgb, var(--directory-category-accent) 34%, white)',
+        backgroundColor: 'color-mix(in srgb, var(--directory-category-accent) 12%, white)',
+        color: 'var(--directory-category-accent)',
+    };
+}
+
+function getCategoryIconStyle(color) {
+    const accentColor = normalizeCategoryAccentColor(color);
+    if (!accentColor) return undefined;
+
+    return {
+        '--directory-category-accent': accentColor,
+        borderColor: 'color-mix(in srgb, var(--directory-category-accent) 52%, white)',
+        boxShadow: '0 0 0 2px color-mix(in srgb, var(--directory-category-accent) 16%, white), 0 10px 18px -16px rgba(15, 23, 42, 0.42)',
+        color: 'var(--directory-category-accent)',
+    };
+}
+
+function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
+    if (!iconUrl) return null;
+
+    return (
+        <span
+            className={`inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white shadow-sm ${
+                compact ? 'h-10 w-10 p-1' : 'h-12 w-12 p-1.5'
+            }`}
+            style={getCategoryIconStyle(color)}
+            aria-hidden="true"
+        >
+            <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+        </span>
+    );
+}
+
+function DirectoryCategoryPill({
+    label,
+    compact = false,
+    showUnmapped = false,
+    color = null,
+    iconUrl = null,
+}) {
+    if (!label && !showUnmapped) return null;
+    const categoryPillStyle = getCategoryPillStyle(color);
+
+    return (
+        <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
+            <DirectoryCategoryIcon iconUrl={iconUrl} color={color} compact={compact} />
+            {label ? (
+                <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
+                    compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+                }`} style={categoryPillStyle}>
+                    <span className="truncate">{label}</span>
+                </span>
+            ) : null}
+            {showUnmapped ? <DirectoryUnmappedPill compact={compact} /> : null}
         </div>
     );
 }
@@ -1893,17 +2012,25 @@ function DirectoryGroupColumn({
         <div className={interactive ? (compactInteractive ? 'space-y-3' : 'space-y-4') : (compactPrint ? 'space-y-1.5' : 'space-y-2')}>
             {groups.map((group, index) => {
                 const categoryKey = normalizeLabel(group.categorySortKey || group.categoryLabel);
-                const previousCategoryKey = index > 0
-                    ? normalizeLabel(groups[index - 1]?.categorySortKey || groups[index - 1]?.categoryLabel)
+                const categoryStatus = group.isUnmappedGroup ? 'unmapped' : 'mapped';
+                const categoryRunKey = `${categoryStatus}:${categoryKey}`;
+                const previousGroup = index > 0 ? groups[index - 1] : null;
+                const previousCategoryKey = previousGroup
+                    ? normalizeLabel(previousGroup.categorySortKey || previousGroup.categoryLabel)
                     : '';
-                const shouldShowCategoryPill = Boolean(showCategoryPills && interactive && group.categoryLabel && categoryKey !== previousCategoryKey);
+                const previousCategoryStatus = previousGroup?.isUnmappedGroup ? 'unmapped' : 'mapped';
+                const previousCategoryRunKey = previousGroup ? `${previousCategoryStatus}:${previousCategoryKey}` : '';
+                const shouldShowCategoryPill = Boolean(showCategoryPills && group.categoryLabel && categoryRunKey !== previousCategoryRunKey);
 
                 return (
                     <React.Fragment key={group.placeKey}>
                         {shouldShowCategoryPill ? (
                             <DirectoryCategoryPill
                                 label={group.categoryLabel}
-                                compact={compactInteractive}
+                                compact={compactInteractive || compactPrint}
+                                showUnmapped={Boolean(group.isUnmappedGroup)}
+                                color={group.categoryColor}
+                                iconUrl={group.categoryIconUrl}
                             />
                         ) : null}
                         <DirectoryPlaceGroupCard

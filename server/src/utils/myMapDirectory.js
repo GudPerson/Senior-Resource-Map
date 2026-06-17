@@ -457,7 +457,9 @@ function buildRow({
         subCategory: snapshot.subCategory || null,
         iconKey: categoryKey || null,
         categoryIconUrl: categoryMeta?.iconUrl || null,
+        categoryColor: categoryMeta?.color || null,
         descriptor: snapshot.descriptor || null,
+        address: place.address || null,
         logoUrl: snapshot.logoUrl || null,
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot.availabilityCount),
@@ -504,42 +506,53 @@ function sortDirectoryPlaces(placeMap) {
 }
 
 function buildPins(places) {
-    function resolveDirectoryPinCategoryIcon(place) {
-        const hardPlaceRow = place.rows.find((row) => row.resourceType === 'hard' && row.categoryIconUrl);
+    function resolveDirectoryPinCategoryMeta(place) {
+        const hardPlaceRow = place.rows.find((row) => row.resourceType === 'hard' && (row.categoryIconUrl || row.categoryColor));
         if (hardPlaceRow) {
-            return hardPlaceRow.categoryIconUrl;
+            return {
+                iconUrl: hardPlaceRow.categoryIconUrl || null,
+                color: hardPlaceRow.categoryColor || null,
+            };
         }
 
         const categoryKeys = new Set();
         let sharedCategoryIconUrl = null;
+        let sharedCategoryColor = null;
 
         for (const row of place.rows) {
             if (!row.iconKey) continue;
             categoryKeys.add(row.iconKey);
             if (categoryKeys.size > 1) {
-                return null;
+                return { iconUrl: null, color: null };
             }
             sharedCategoryIconUrl = row.categoryIconUrl || null;
+            sharedCategoryColor = row.categoryColor || null;
         }
 
-        return categoryKeys.size === 1 ? sharedCategoryIconUrl : null;
+        return categoryKeys.size === 1
+            ? { iconUrl: sharedCategoryIconUrl, color: sharedCategoryColor }
+            : { iconUrl: null, color: null };
     }
 
     return places
         .filter((place) => place.hasCoordinates && place.lat !== null && place.lng !== null)
-        .map((place) => ({
-            pinKey: place.placeKey,
-            placeKey: place.placeKey,
-            placeId: place.placeId,
-            title: place.name,
-            address: place.address,
-            lat: place.lat,
-            lng: place.lng,
-            curatedCount: place.curatedCount,
-            categoryIconUrl: resolveDirectoryPinCategoryIcon(place),
-            previewResourceNames: place.rows.slice(0, 3).map((row) => row.name),
-            hiddenPreviewCount: Math.max(0, place.rows.length - 3),
-        }));
+        .map((place) => {
+            const categoryMeta = resolveDirectoryPinCategoryMeta(place);
+            return {
+                pinKey: place.placeKey,
+                placeKey: place.placeKey,
+                placeId: place.placeId,
+                title: place.name,
+                address: place.address,
+                lat: place.lat,
+                lng: place.lng,
+                curatedCount: place.curatedCount,
+                categoryIconUrl: categoryMeta.iconUrl,
+                categoryColor: categoryMeta.color,
+                previewResourceNames: place.rows.slice(0, 3).map((row) => row.name),
+                hiddenPreviewCount: Math.max(0, place.rows.length - 3),
+            };
+        });
 }
 
 async function loadCategoryLookup(db) {
@@ -549,12 +562,14 @@ async function loadCategoryLookup(db) {
         categoryRows = await db.query.subCategories.findMany({
             columns: {
                 name: true,
+                color: true,
                 iconUrl: true,
             },
         });
     } else if (typeof db.select === 'function') {
         categoryRows = await db.select({
             name: subCategories.name,
+            color: subCategories.color,
             iconUrl: subCategories.iconUrl,
         }).from(subCategories);
     }
@@ -563,10 +578,11 @@ async function loadCategoryLookup(db) {
         categoryRows
             .map((row) => ({
                 key: normalizeCategoryKey(row.name),
+                color: normalizeText(row.color),
                 iconUrl: normalizeText(row.iconUrl),
             }))
             .filter((row) => row.key)
-            .map((row) => [row.key, { iconUrl: row.iconUrl }])
+            .map((row) => [row.key, { color: row.color, iconUrl: row.iconUrl }])
     );
 }
 

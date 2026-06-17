@@ -48,6 +48,27 @@ test('directory map can hide individual pin count badges without changing the de
     assert.match(directoryMapSource, /showBadge: pinBadgeMode !== 'none'/);
 });
 
+test('directory map can show V2 category colors inside the saved pin circle without recoloring the teal pin body', () => {
+    assert.match(discoverUtilsSource, /color = null/);
+    assert.match(discoverUtilsSource, /colorSegments = \[\]/);
+    assert.match(discoverUtilsSource, /function buildSegmentedCssFill/);
+    assert.match(discoverUtilsSource, /linear-gradient\(90deg, \$\{stops\.join\(', '\)\}\)/);
+    assert.match(discoverUtilsSource, /function formatPinBadgeLabel\(count = 0\)/);
+    assert.match(discoverUtilsSource, /const outerFill = isTemporary/);
+    assert.match(discoverUtilsSource, /const categoryFill = buildSegmentedCssFill/);
+    assert.match(discoverUtilsSource, /renderSavedPinCenterGlyph\(iconUrl, categoryFill\)/);
+    assert.match(discoverUtilsSource, /background:\$\{categoryFill\}/);
+    assert.match(discoverUtilsSource, /fill="\$\{outerFill\}"/);
+    assert.match(directoryMapSource, /pinCategoryIconMode = 'auto'/);
+    assert.match(directoryMapSource, /iconUrl: pinCategoryIconMode === 'none' \? null : \(pin\.categoryIconUrl \|\| null\)/);
+    assert.match(directoryMapSource, /color: pin\.categoryColor \|\| null/);
+    assert.match(directoryMapSource, /colorSegments: pin\.categoryColorSegments \|\| \[\]/);
+    assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColor = pin\.categoryColor \|\| null/);
+    assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColorSegments = pin\.categoryColorSegments \|\| \[\]/);
+    assert.doesNotMatch(directoryMapSource, /pinSpreadMode/);
+    assert.doesNotMatch(directoryMapSource, /printNumberLabel/);
+});
+
 test('directory map can render V2 clusters with the same-postal parent pin style', () => {
     assert.match(directoryMapSource, /createPostalGroupParentPinIcon/);
     assert.match(directoryMapSource, /clusterMarkerMode === 'postal-group'/);
@@ -73,6 +94,8 @@ test('directory map can render V2 clusters as compact overlapping asset pins ins
     assert.match(directoryMapSource, /directory-asset-spread-cluster__hit-zone/);
     assert.doesNotMatch(directoryMapSource, /directory-asset-spread-cluster__anchor/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.categoryIconUrl = pin\.categoryIconUrl \|\| null/);
+    assert.match(directoryMapSource, /color: iconOptions\.categoryColor \|\| null/);
+    assert.match(directoryMapSource, /colorSegments: iconOptions\.categoryColorSegments \|\| \[\]/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.curatedCount = pin\.curatedCount/);
 });
 
