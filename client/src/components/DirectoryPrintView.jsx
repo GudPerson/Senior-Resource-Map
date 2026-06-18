@@ -359,13 +359,14 @@ export default function DirectoryPrintView({
     // Scaling logic for screen preview
     const sheetRef = useRef(null);
     const [scale, setScale] = useState(1);
+    const [previewFrameHeight, setPreviewFrameHeight] = useState(null);
     
     useEffect(() => {
         if (variant !== 'screen') return undefined;
 
         const handleResize = () => {
             if (!sheetRef.current) return;
-            const parent = sheetRef.current.parentElement;
+            const parent = sheetRef.current.parentElement?.parentElement || sheetRef.current.parentElement;
             if (!parent) return;
             
             // Allow some margins
@@ -379,13 +380,22 @@ export default function DirectoryPrintView({
 
             const nextScale = Math.min(1, Math.max(0.2, availableWidth / PREVIEW_CONTAINER_WIDTH));
             setScale(nextScale);
+            const nextHeight = Math.ceil(sheetRef.current.offsetHeight * nextScale);
+            setPreviewFrameHeight(nextHeight > 0 ? nextHeight : null);
         };
 
         // Use a small timeout to let the layout settle before calculating scale
         const timeoutId = window.setTimeout(handleResize, 50);
+        const resizeObserver = typeof ResizeObserver === 'undefined'
+            ? null
+            : new ResizeObserver(handleResize);
+        if (sheetRef.current && resizeObserver) {
+            resizeObserver.observe(sheetRef.current);
+        }
         window.addEventListener('resize', handleResize);
         return () => {
             window.clearTimeout(timeoutId);
+            resizeObserver?.disconnect();
             window.removeEventListener('resize', handleResize);
         };
     }, [variant]);
@@ -481,8 +491,10 @@ export default function DirectoryPrintView({
             style={{ 
                 width: `${sheetWidth}px`,
                 transform: variant === 'screen' ? `scale(${scale})` : undefined,
-                transformOrigin: 'top center',
-                marginBottom: variant === 'screen' ? `-${(1 - scale) * 101}%` : undefined,
+                transformOrigin: variant === 'screen' ? 'top left' : undefined,
+                position: variant === 'screen' && previewFrameHeight ? 'absolute' : undefined,
+                left: variant === 'screen' && previewFrameHeight ? 0 : undefined,
+                top: variant === 'screen' && previewFrameHeight ? 0 : undefined,
                 backgroundColor: 'white'
             }}
         >
@@ -537,8 +549,16 @@ export default function DirectoryPrintView({
     }
 
     return (
-        <div className={`w-full flex justify-center overflow-hidden py-4 ${className}`}>
-            {content}
+        <div className={`w-full overflow-x-hidden overflow-y-visible py-4 ${className}`}>
+            <div
+                className="relative mx-auto"
+                style={variant === 'screen' ? {
+                    width: `${Math.ceil(sheetWidth * scale)}px`,
+                    height: previewFrameHeight ? `${previewFrameHeight}px` : undefined,
+                } : undefined}
+            >
+                {content}
+            </div>
         </div>
     );
 }

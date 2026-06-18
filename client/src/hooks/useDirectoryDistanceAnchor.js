@@ -39,27 +39,55 @@ function loadStoredJson(storageKey) {
     }
 }
 
-function loadStoredActiveMode(storageKey, hasHome) {
-    if (typeof window === 'undefined') {
-        return hasHome ? 'home' : null;
-    }
+function normalizeDefaultActiveMode(value) {
+    return value === 'home' ? 'home' : null;
+}
 
-    const stored = window.sessionStorage.getItem(storageKey);
+export function resolveInitialActiveMode({
+    storedMode = null,
+    hasHome = false,
+    defaultActiveMode = 'home',
+} = {}) {
+    const stored = storedMode;
     if (stored === 'home' || stored === 'temporary' || stored === 'none') {
         return stored === 'none' ? null : stored;
     }
 
-    return hasHome ? 'home' : null;
+    return normalizeDefaultActiveMode(defaultActiveMode) === 'home' && hasHome ? 'home' : null;
+}
+
+export function getActiveModeAfterTemporaryClear({
+    normalizedPostalCode = '',
+    defaultActiveMode = 'home',
+} = {}) {
+    return normalizeDefaultActiveMode(defaultActiveMode) === 'home' && normalizedPostalCode ? 'home' : null;
+}
+
+function loadStoredActiveMode(storageKey, hasHome, defaultActiveMode) {
+    if (typeof window === 'undefined') {
+        return resolveInitialActiveMode({ hasHome, defaultActiveMode });
+    }
+
+    return resolveInitialActiveMode({
+        storedMode: window.sessionStorage.getItem(storageKey),
+        hasHome,
+        defaultActiveMode,
+    });
 }
 
 export function useDirectoryDistanceAnchor({
     storageKey,
     userPostalCode = '',
+    defaultActiveMode = 'home',
 }) {
     const normalizedPostalCode = String(userPostalCode || '').trim();
     const activeModeStorageKey = buildStorageKey(ACTIVE_MODE_STORAGE_PREFIX, storageKey);
     const temporaryAnchorStorageKey = buildStorageKey(TEMPORARY_ANCHOR_STORAGE_PREFIX, storageKey);
-    const [activeMode, setActiveMode] = useState(() => loadStoredActiveMode(activeModeStorageKey, Boolean(normalizedPostalCode)));
+    const [activeMode, setActiveMode] = useState(() => loadStoredActiveMode(
+        activeModeStorageKey,
+        Boolean(normalizedPostalCode),
+        defaultActiveMode,
+    ));
     const [temporaryAnchor, setTemporaryAnchor] = useState(() => normalizeAnchor(loadStoredJson(temporaryAnchorStorageKey)));
     const [homeAnchor, setHomeAnchor] = useState(null);
     const [error, setError] = useState('');
@@ -212,8 +240,8 @@ export function useDirectoryDistanceAnchor({
     const clearTemporaryLocation = useCallback(() => {
         setTemporaryAnchor(null);
         setError('');
-        setActiveMode(normalizedPostalCode ? 'home' : null);
-    }, [normalizedPostalCode]);
+        setActiveMode(getActiveModeAfterTemporaryClear({ normalizedPostalCode, defaultActiveMode }));
+    }, [defaultActiveMode, normalizedPostalCode]);
 
     const clearActiveAnchor = useCallback(() => {
         setError('');
@@ -237,4 +265,3 @@ export function useDirectoryDistanceAnchor({
 }
 
 export default useDirectoryDistanceAnchor;
-

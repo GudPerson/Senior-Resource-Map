@@ -48,6 +48,8 @@ test('my map detail routes v2 by default while print view keeps priority', () =>
     assert.match(myMapDetailPageSource, /myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView/);
     assert.match(myMapDetailPageSource, /if \(isV2View\) \{/);
     assert.match(myMapDetailPageSource, /<MyMapV2PreviewScaffold/);
+    assert.match(myMapDetailPageSource, /my-map:no-default/);
+    assert.match(myMapDetailPageSource, /defaultActiveMode: null/);
 });
 
 test('my map v2 scaffold reuses the existing presentation stack and delegates the toolbar', () => {
@@ -100,6 +102,15 @@ test('owner print can use V2 print cards without hiding the app toolbar or chang
     assert.doesNotMatch(directoryPrintViewSource, /pinSpreadMode/);
     assert.doesNotMatch(appSource, /ownerPrintView/);
     assert.match(appSource, /location\.pathname\.startsWith\('\/shared\/maps\/'\)/);
+});
+
+test('owner print screen preview reserves scaled height instead of clipping the map bottom', () => {
+    assert.match(directoryPrintViewSource, /const \[previewFrameHeight, setPreviewFrameHeight\] = useState\(null\)/);
+    assert.match(directoryPrintViewSource, /new ResizeObserver\(handleResize\)/);
+    assert.match(directoryPrintViewSource, /sheetRef\.current\.offsetHeight \* nextScale/);
+    assert.match(directoryPrintViewSource, /height: previewFrameHeight \? `\$\{previewFrameHeight\}px` : undefined/);
+    assert.match(directoryPrintViewSource, /overflow-x-hidden overflow-y-visible/);
+    assert.doesNotMatch(directoryPrintViewSource, /marginBottom: variant === 'screen'/);
 });
 
 test('owner print builds one composite badge pin per mapped V2 coordinate group', () => {

@@ -434,8 +434,9 @@ export default function MyMapDetailPage() {
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
     const anchorState = useDirectoryDistanceAnchor({
-        storageKey: mapId ? `my-map:${mapId}` : 'my-map',
+        storageKey: mapId ? `my-map:no-default:${mapId}` : 'my-map:no-default',
         userPostalCode: user?.postalCode || '',
+        defaultActiveMode: null,
     });
 
     const loadMap = useCallback(async () => {
