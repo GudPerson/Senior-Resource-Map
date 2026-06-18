@@ -48,6 +48,7 @@ test('hosted programme rows expose the host place category for My Map V2 present
         hostHardAsset: {
             id: 70,
             name: 'REACH Senior Centre @ Bukit Gombak Vista (BGV)',
+            logoUrl: 'https://example.test/reach-logo.png',
             subCategory: 'Active Ageing Centre (AAC)',
             address: '377A Bukit Batok Street 31 Singapore 651377',
             lat: '1.363',
@@ -131,6 +132,7 @@ test('hosted programme rows expose the host place category for My Map V2 present
     assert.equal(row.subCategory, 'Programmes');
     assert.equal(row.categoryColor, '#38bdf8');
     assert.equal(row.categoryIconUrl, '/icons/programmes.svg');
+    assert.equal(row.logoUrl, 'https://example.test/reach-logo.png');
     assert.equal(row.mapSubCategory, 'Active Ageing Centre (AAC)');
     assert.equal(row.mapCategoryColor, '#f59e0b');
     assert.equal(row.mapCategoryIconUrl, '/icons/aac.svg');

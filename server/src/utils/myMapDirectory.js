@@ -243,6 +243,7 @@ const hardLocationQuery = {
     columns: {
         id: true,
         name: true,
+        logoUrl: true,
         subCategory: true,
         address: true,
         lat: true,
@@ -452,6 +453,7 @@ function buildRow({
     const mapCategoryLabel = normalizeText(mapCategorySource?.subCategory);
     const mapCategoryKey = normalizeCategoryKey(mapCategoryLabel);
     const mapCategoryMeta = mapCategoryKey ? categoryLookup.get(mapCategoryKey) || null : null;
+    const fallbackLogoUrl = normalizeText(mapCategorySource?.logoUrl);
 
     return {
         rowKey: `${mapAsset.id}:${place.placeKey}`,
@@ -471,7 +473,7 @@ function buildRow({
         } : {}),
         descriptor: snapshot.descriptor || null,
         address: place.address || null,
-        logoUrl: snapshot.logoUrl || null,
+        logoUrl: snapshot.logoUrl || fallbackLogoUrl || null,
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(snapshot.availabilityUnit),
@@ -491,9 +493,10 @@ function buildSoftHostCategoryMetaByPlace(liveAsset) {
 
     getSoftAssetLocations(liveAsset).forEach((location, index) => {
         const subCategory = normalizeText(location?.subCategory);
-        if (!subCategory) return;
+        const logoUrl = normalizeText(location?.logoUrl);
+        if (!subCategory && !logoUrl) return;
 
-        const meta = { subCategory };
+        const meta = { subCategory, logoUrl };
         const place = buildPlaceSnapshot(location, index);
         if (Number.isInteger(place.placeId)) {
             metaByPlace.set(`id:${place.placeId}`, meta);
