@@ -3,7 +3,7 @@ import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 
 const V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[700px]';
 const V2_MOBILE_MAP_HEIGHT_CLASS = 'h-[34svh] min-h-[260px] max-h-[390px]';
-const V2_DESKTOP_GRID_CLASS = 'lg:grid-cols-[minmax(280px,0.85fr)_minmax(480px,1.35fr)_minmax(300px,0.9fr)] xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
+const V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-[minmax(230px,0.78fr)_minmax(430px,1.32fr)_minmax(240px,0.84fr)] xl:gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
 const V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
 
 export default function MyMapV2PreviewScaffold({

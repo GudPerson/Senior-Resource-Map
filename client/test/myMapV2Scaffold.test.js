@@ -62,7 +62,7 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapV2ScaffoldSource, /layout=\{useDesktopBodyLayout \? 'desktop' : 'responsive'\}/);
     assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);
     assert.match(myMapDetailPageSource, /const useDesktopOwnerLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
-    assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1200px\)'\)/);
+    assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /useDesktopBodyLayout=\{useDesktopDirectoryBodyLayout\}/);
     assert.match(myMapDetailPageSource, /<OwnerHeader/);
     assert.match(myMapDetailPageSource, /<MyMapMobileControls/);
@@ -155,8 +155,8 @@ test('my map v2 uses the restored normal map sizing without enabling full-map mo
     assert.match(myMapV2ScaffoldSource, /V2_MOBILE_MAP_HEIGHT_CLASS = 'h-\[34svh\] min-h-\[260px\] max-h-\[390px\]'/);
     assert.match(myMapV2ScaffoldSource, /V2_FIT_PADDING_BOTTOM_RIGHT = \[44, 24\]/);
     assert.match(myMapV2ScaffoldSource, /fitPaddingBottomRight=\{V2_FIT_PADDING_BOTTOM_RIGHT\}/);
-    assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_GRID_CLASS = 'lg:grid-cols-\[minmax\(280px,0\.85fr\)_minmax\(480px,1\.35fr\)_minmax\(300px,0\.9fr\)\]/);
-    assert.match(myMapV2ScaffoldSource, /xl:grid-cols-\[minmax\(320px,0\.85fr\)_minmax\(620px,1\.45fr\)_minmax\(360px,0\.95fr\)\]/);
+    assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-\[minmax\(230px,0\.78fr\)_minmax\(430px,1\.32fr\)_minmax\(240px,0\.84fr\)\]/);
+    assert.match(myMapV2ScaffoldSource, /xl:gap-5 xl:grid-cols-\[minmax\(320px,0\.85fr\)_minmax\(620px,1\.45fr\)_minmax\(360px,0\.95fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);
     assert.match(myMapV2ScaffoldSource, /sm:px-6 sm:py-6 lg:px-8 xl:px-10/);
     assert.match(myMapV2ScaffoldSource, /desktopGridClassName=\{V2_DESKTOP_GRID_CLASS\}/);
