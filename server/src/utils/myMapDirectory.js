@@ -243,6 +243,7 @@ const hardLocationQuery = {
     columns: {
         id: true,
         name: true,
+        subCategory: true,
         address: true,
         lat: true,
         lng: true,
@@ -443,10 +444,14 @@ function buildRow({
     detailPath,
     saveEligible,
     categoryLookup,
+    mapCategorySource = null,
     notes = null,
 }) {
     const categoryKey = normalizeCategoryKey(snapshot.subCategory);
     const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
+    const mapCategoryLabel = normalizeText(mapCategorySource?.subCategory);
+    const mapCategoryKey = normalizeCategoryKey(mapCategoryLabel);
+    const mapCategoryMeta = mapCategoryKey ? categoryLookup.get(mapCategoryKey) || null : null;
 
     return {
         rowKey: `${mapAsset.id}:${place.placeKey}`,
@@ -458,6 +463,12 @@ function buildRow({
         iconKey: categoryKey || null,
         categoryIconUrl: categoryMeta?.iconUrl || null,
         categoryColor: categoryMeta?.color || null,
+        ...(mapCategoryKey ? {
+            mapSubCategory: mapCategoryLabel,
+            mapIconKey: mapCategoryKey,
+            mapCategoryIconUrl: mapCategoryMeta?.iconUrl || null,
+            mapCategoryColor: mapCategoryMeta?.color || null,
+        } : {}),
         descriptor: snapshot.descriptor || null,
         address: place.address || null,
         logoUrl: snapshot.logoUrl || null,
@@ -473,6 +484,39 @@ function buildRow({
         addedAt: mapAsset.addedAt ?? null,
         ...(notes ? { notes } : {}),
     };
+}
+
+function buildSoftHostCategoryMetaByPlace(liveAsset) {
+    const metaByPlace = new Map();
+
+    getSoftAssetLocations(liveAsset).forEach((location, index) => {
+        const subCategory = normalizeText(location?.subCategory);
+        if (!subCategory) return;
+
+        const meta = { subCategory };
+        const place = buildPlaceSnapshot(location, index);
+        if (Number.isInteger(place.placeId)) {
+            metaByPlace.set(`id:${place.placeId}`, meta);
+            metaByPlace.set(`key:hard-${place.placeId}`, meta);
+        }
+        if (place.placeKey) {
+            metaByPlace.set(`key:${place.placeKey}`, meta);
+        }
+    });
+
+    return metaByPlace;
+}
+
+function getSoftHostCategoryMetaForPlace(metaByPlace, place) {
+    if (!metaByPlace?.size || !place) return null;
+
+    if (Number.isInteger(place.placeId)) {
+        return metaByPlace.get(`id:${place.placeId}`)
+            || metaByPlace.get(`key:hard-${place.placeId}`)
+            || null;
+    }
+
+    return place.placeKey ? metaByPlace.get(`key:${place.placeKey}`) || null : null;
 }
 
 function addRowToPlace(placeMap, place, row) {
@@ -693,6 +737,9 @@ export async function buildMyMapDirectory(db, {
         const normalizedPlaces = Array.isArray(sourceSnapshot.places) && sourceSnapshot.places.length > 0
             ? sourceSnapshot.places.map((place, index) => normalizePlaceSnapshot(place, index))
             : [createFallbackPlace(mapAsset.resourceType, mapAsset.resourceId, sourceSnapshot)];
+        const hostCategoryMetaByPlace = mapAsset.resourceType === 'soft' && isLiveVisible && liveAsset
+            ? buildSoftHostCategoryMetaByPlace(liveAsset)
+            : null;
 
         const notes = buildMapAssetNotes(mapAsset, map, mode);
 
@@ -723,6 +770,7 @@ export async function buildMyMapDirectory(db, {
                 detailPath: rowStatus === 'unavailable' ? null : detailPath,
                 saveEligible: mode === 'shared' && rowStatus !== 'unavailable',
                 categoryLookup,
+                mapCategorySource: getSoftHostCategoryMetaForPlace(hostCategoryMetaByPlace, place),
                 notes,
             });
             addRowToPlace(placeMap, place, row);

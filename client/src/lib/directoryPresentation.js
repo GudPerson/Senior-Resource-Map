@@ -94,13 +94,21 @@ function compareText(left, right) {
     });
 }
 
-function getRowCategoryLabel(row = {}) {
+function hasMapCategory(row = {}) {
+    return Boolean(row.mapSubCategory || row.mapCategoryLabel || row.mapIconKey || row.mapCategoryColor || row.mapCategoryIconUrl);
+}
+
+function getRowCategoryLabel(row = {}, { preferMapCategory = false } = {}) {
+    if (preferMapCategory && hasMapCategory(row)) {
+        return row.mapSubCategory || row.mapCategoryLabel || row.subCategory || row.bucket || (row.resourceType === 'soft' ? 'Programme/service' : 'Place');
+    }
+
     return row.subCategory || row.bucket || (row.resourceType === 'soft' ? 'Programme/service' : 'Place');
 }
 
-function getGroupCategoryLabel(group = {}) {
+function getGroupCategoryLabel(group = {}, options = {}) {
     const hardRow = (group.rows || []).find((row) => row.resourceType === 'hard');
-    return getRowCategoryLabel(hardRow || (group.rows || [])[0] || {});
+    return getRowCategoryLabel(hardRow || (group.rows || [])[0] || {}, options);
 }
 
 function normalizeCategoryColor(value) {
@@ -108,48 +116,53 @@ function normalizeCategoryColor(value) {
     return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '';
 }
 
-function getRowCategoryKey(row = {}) {
-    return row.iconKey || normalizeText(getRowCategoryLabel(row));
+function getRowCategoryKey(row = {}, options = {}) {
+    if (options.preferMapCategory && hasMapCategory(row)) {
+        return row.mapIconKey || normalizeText(getRowCategoryLabel(row, options));
+    }
+
+    return row.iconKey || normalizeText(getRowCategoryLabel(row, options));
 }
 
-function getCategoryEntriesForRows(rows = []) {
+function getCategoryEntriesForRows(rows = [], options = {}) {
     const entriesByKey = new Map();
 
     rows.forEach((row) => {
-        const key = getRowCategoryKey(row);
+        const useMapCategory = Boolean(options.preferMapCategory && hasMapCategory(row));
+        const key = getRowCategoryKey(row, options);
         if (!key || entriesByKey.has(key)) return;
 
         entriesByKey.set(key, {
             key,
-            label: getRowCategoryLabel(row),
-            color: normalizeCategoryColor(row.categoryColor),
-            iconUrl: row.categoryIconUrl || null,
+            label: getRowCategoryLabel(row, options),
+            color: normalizeCategoryColor(useMapCategory ? (row.mapCategoryColor || row.categoryColor) : row.categoryColor),
+            iconUrl: useMapCategory ? (row.mapCategoryIconUrl || row.categoryIconUrl || null) : (row.categoryIconUrl || null),
         });
     });
 
     return [...entriesByKey.values()];
 }
 
-function getPrimaryCategoryEntry(rows = []) {
+function getPrimaryCategoryEntry(rows = [], options = {}) {
     const hardRow = rows.find((row) => row.resourceType === 'hard');
     const sourceRow = hardRow || rows[0] || {};
-    const [entry] = getCategoryEntriesForRows([sourceRow]);
+    const [entry] = getCategoryEntriesForRows([sourceRow], options);
     if (entry) return entry;
 
     return {
         key: '',
-        label: getRowCategoryLabel(sourceRow),
+        label: getRowCategoryLabel(sourceRow, options),
         color: '',
         iconUrl: null,
     };
 }
 
-function getGroupCategoryEntries(group = {}) {
+function getGroupCategoryEntries(group = {}, options = {}) {
     if (group.isPostalGroup && Array.isArray(group.nestedPlaces)) {
-        return getCategoryEntriesForRows(group.nestedPlaces.flatMap((place) => place.rows || []));
+        return getCategoryEntriesForRows(group.nestedPlaces.flatMap((place) => place.rows || []), options);
     }
 
-    return getCategoryEntriesForRows(group.rows || []);
+    return getCategoryEntriesForRows(group.rows || [], options);
 }
 
 function getGroupHardRows(group = {}) {
@@ -187,7 +200,7 @@ function buildHardCategoryEntriesByPostal(groups = []) {
     return entriesByPostal;
 }
 
-function getPinCategoryEntries(group = {}, { hardCategoryEntriesByPostal = null, hardRowsOnly = false } = {}) {
+function getPinCategoryEntries(group = {}, { hardCategoryEntriesByPostal = null, hardRowsOnly = false, preferMapCategory = false } = {}) {
     const postalCode = resolvePostalGroupCode({
         postalCode: group.postalCode,
         address: group.address,
@@ -200,7 +213,7 @@ function getPinCategoryEntries(group = {}, { hardCategoryEntriesByPostal = null,
         if (hardEntries.length) return hardEntries;
     }
 
-    return getGroupCategoryEntries(group);
+    return getGroupCategoryEntries(group, { preferMapCategory });
 }
 
 function sortPinsForReadingOrder(pins) {
@@ -415,7 +428,7 @@ function buildGroupedPins(groups = [], options = {}) {
         .filter((group) => group.hasCoordinates && group.lat !== null && group.lng !== null)
         .map((group) => {
             const categoryEntries = getPinCategoryEntries(group, options);
-            const primaryCategoryEntry = getPrimaryCategoryEntry(group.rows || []);
+            const primaryCategoryEntry = getPrimaryCategoryEntry(group.rows || [], options);
             const categoryColorSegments = categoryEntries
                 .map((entry) => entry.color)
                 .filter(Boolean);
@@ -497,8 +510,8 @@ function buildUnmappedDisplayGroup(row, index) {
 }
 
 function decorateV2MappedGroup(group) {
-    const categoryLabel = getGroupCategoryLabel(group);
-    const categoryEntry = getPrimaryCategoryEntry(group.rows || []);
+    const categoryLabel = getGroupCategoryLabel(group, { preferMapCategory: true });
+    const categoryEntry = getPrimaryCategoryEntry(group.rows || [], { preferMapCategory: true });
     return {
         ...group,
         memberPlaceKeys: [group.placeKey].filter(Boolean),
@@ -594,6 +607,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
     const pins = buildGroupedPins(pinGroups, {
         hardRowsOnly: true,
         hardCategoryEntriesByPostal,
+        preferMapCategory: true,
     }).map((pin) => ({
         ...pin,
         number: displayGroupByKey[pin.placeKey]?.number

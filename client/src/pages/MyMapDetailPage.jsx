@@ -299,13 +299,18 @@ function buildSubCategoryMetaLookup(subcategories = []) {
 function applySubCategoryMetaToRow(row, lookup) {
     if (!row || !lookup.size) return row;
     const categoryMeta = lookup.get(normalizeCategoryMetaKey(row.iconKey || row.subCategory));
-    if (!categoryMeta) return row;
-    const nextCategoryColor = row.categoryColor || categoryMeta.color || null;
-    const nextCategoryIconUrl = row.categoryIconUrl || categoryMeta.iconUrl || null;
+    const mapCategoryMeta = lookup.get(normalizeCategoryMetaKey(row.mapIconKey || row.mapSubCategory || row.mapCategoryLabel));
+    if (!categoryMeta && !mapCategoryMeta) return row;
+    const nextCategoryColor = row.categoryColor || categoryMeta?.color || null;
+    const nextCategoryIconUrl = row.categoryIconUrl || categoryMeta?.iconUrl || null;
+    const nextMapCategoryColor = row.mapCategoryColor || mapCategoryMeta?.color || null;
+    const nextMapCategoryIconUrl = row.mapCategoryIconUrl || mapCategoryMeta?.iconUrl || null;
 
     if (
         nextCategoryColor === (row.categoryColor || null)
         && nextCategoryIconUrl === (row.categoryIconUrl || null)
+        && nextMapCategoryColor === (row.mapCategoryColor || null)
+        && nextMapCategoryIconUrl === (row.mapCategoryIconUrl || null)
     ) {
         return row;
     }
@@ -314,6 +319,10 @@ function applySubCategoryMetaToRow(row, lookup) {
         ...row,
         categoryColor: nextCategoryColor,
         categoryIconUrl: nextCategoryIconUrl,
+        ...(row.mapSubCategory || row.mapCategoryLabel || row.mapIconKey ? {
+            mapCategoryColor: nextMapCategoryColor,
+            mapCategoryIconUrl: nextMapCategoryIconUrl,
+        } : {}),
     };
 }
 

@@ -202,6 +202,47 @@ test('v2 pins ignore soft asset categories when one hard asset anchors the posta
     assert.deepEqual(pin.categoryColorSegments, ['#0f766e']);
 });
 
+test('v2 card presentation uses host place category for hosted programme-only map rows', () => {
+    const hostedProgrammePlace = {
+        placeKey: 'hard-70',
+        placeId: 70,
+        name: 'REACH Senior Centre @ Bukit Gombak Vista (BGV)',
+        address: '377A Bukit Batok Street 31 Singapore 651377',
+        postalCode: '651377',
+        lat: '1.363',
+        lng: '103.751',
+        hasCoordinates: true,
+        rows: [
+            {
+                rowKey: 'soft-70:hard-70',
+                assetKey: 'soft-70',
+                resourceType: 'soft',
+                resourceId: 70,
+                name: 'REACH Senior Centre @ Bukit Gombak Vista (BGV)',
+                subCategory: 'Programmes',
+                categoryColor: '#38bdf8',
+                categoryIconUrl: '/icons/programmes.svg',
+                mapSubCategory: 'Active Ageing Centre (AAC)',
+                mapIconKey: 'active ageing centre (aac)',
+                mapCategoryColor: '#f59e0b',
+                mapCategoryIconUrl: '/icons/aac.svg',
+                detailPath: '/resource/soft/70',
+            },
+        ],
+    };
+
+    const presentation = buildDirectoryPresentation({ places: [hostedProgrammePlace] }, { presentationMode: 'v2-cards' });
+    const [group] = presentation.displayGroups;
+    const [pin] = presentation.pins;
+
+    assert.equal(group.categoryLabel, 'Active Ageing Centre (AAC)');
+    assert.equal(group.categoryColor, '#f59e0b');
+    assert.equal(group.categoryIconUrl, '/icons/aac.svg');
+    assert.equal(group.rows[0].subCategory, 'Programmes');
+    assert.equal(pin.categoryColor, '#f59e0b');
+    assert.deepEqual(pin.categoryColorSegments, ['#f59e0b']);
+});
+
 test('v2 pins split colors across hard asset categories sharing a postal code', () => {
     const aacPlace = hardPlace({
         key: 'hard-50',
