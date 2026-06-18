@@ -709,6 +709,22 @@
   transform: scale(1.6);
 }
 
+.leaflet-marker-icon.directory-print-badge-leaflet-icon {
+  pointer-events: none !important;
+}
+
+.leaflet-marker-icon.directory-print-badge-leaflet-icon .directory-print-badge-marker {
+  pointer-events: none !important;
+}
+
+.leaflet-marker-icon.directory-print-badge-leaflet-icon .directory-print-badge-marker__core {
+  pointer-events: none !important;
+}
+
+.leaflet-marker-icon.directory-print-badge-leaflet-icon .directory-print-badge-marker__lobe {
+  pointer-events: auto !important;
+}
+
 .directory-number-marker--selected .directory-number-marker__core {
   animation: directoryNumberMarkerBeat 1.35s infinite ease-in-out;
 }

@@ -239,6 +239,31 @@ function NoteCountPill({ count, tone = 'brand' }) {
     );
 }
 
+function normalizeBadgeFillColor(value) {
+    const text = String(value || '').trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '#0f766e';
+}
+
+function PrintResourceNumberBadge({ value, color = null }) {
+    const label = String(value || '').replace(/^#/, '').trim();
+    if (!label) return null;
+    const badgeColor = normalizeBadgeFillColor(color);
+
+    return (
+        <span
+            className="ml-1 inline-flex h-7 w-7 min-w-7 flex-shrink-0 items-center justify-center rounded-full border-2 px-0 text-[0.6875rem] font-black leading-none text-white"
+            style={{
+                backgroundColor: badgeColor,
+                borderColor: 'rgba(255,255,255,0.96)',
+                boxShadow: '0 6px 12px rgba(15,23,42,0.14)',
+                textShadow: '0 1px 2px rgba(15,23,42,0.18)',
+            }}
+        >
+            {label}
+        </span>
+    );
+}
+
 function MapNoteIconButton({ row, onOpenResourceNotes, compact = false }) {
     const { t } = useLocale();
     const noteCount = normalizeNoteItems(row?.notes).length;
@@ -1434,6 +1459,7 @@ function DirectoryPlaceGroupCard({
     showDesktopHoverLogo = false,
     logoRevealed = false,
     cardBadgeMode = 'number',
+    showPrintNumberBadge = false,
 }) {
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
@@ -1508,6 +1534,7 @@ function DirectoryPlaceGroupCard({
                                 })}
                             </div>
                         </div>
+                        {showPrintNumberBadge ? <PrintResourceNumberBadge value={group.number} color={group.categoryColor || clusterColorData?.core || null} compact={compactPrint} /> : null}
                     </div>
                 </section>
             );
@@ -1580,6 +1607,7 @@ function DirectoryPlaceGroupCard({
                             </div>
                         ) : null}
                     </div>
+                    {showPrintNumberBadge ? <PrintResourceNumberBadge value={group.number} color={group.categoryColor || clusterColorData?.core || null} compact={compactPrint} /> : null}
                 </div>
             </section>
         );
@@ -2002,6 +2030,7 @@ function DirectoryGroupColumn({
     logoRevealPlaceKeys = [],
     cardBadgeMode = 'number',
     showCategoryPills = false,
+    showPrintNumberBadges = false,
     afterContent = null,
 }) {
     if (!groups.length && !afterContent) {
@@ -2051,6 +2080,7 @@ function DirectoryGroupColumn({
                             showDesktopHoverLogo={showDesktopHoverLogo}
                             logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
                             cardBadgeMode={cardBadgeMode}
+                            showPrintNumberBadge={showPrintNumberBadges}
                             sectionRef={(node) => {
                                 if (node) {
                                     sectionRefs.current[group.placeKey] = node;
@@ -2154,6 +2184,7 @@ export default function SharedMapDirectoryList({
     showDesktopHoverLogo = false,
     showMapLegend = true,
     cardBadgeMode = 'number',
+    showPrintNumberBadges = false,
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
@@ -2547,6 +2578,7 @@ export default function SharedMapDirectoryList({
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
                         showCategoryPills={showCategoryPills}
+                        showPrintNumberBadges={showPrintNumberBadges}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={leftUnmappedRows}
@@ -2609,6 +2641,7 @@ export default function SharedMapDirectoryList({
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
                         showCategoryPills={showCategoryPills}
+                        showPrintNumberBadges={showPrintNumberBadges}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={rightUnmappedRows}

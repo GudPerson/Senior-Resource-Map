@@ -44,6 +44,17 @@ const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_BOTTOM_RIGHT = [64, 56];
 const DIRECTORY_COMPACT_MAP_HEIGHT = 380;
 const DIRECTORY_MOBILE_MAP_LAYOUT_TRANSITION_MS = 300;
 const DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE = 8;
+const DIRECTORY_PRINT_BADGE_ICON_SIZE = 112;
+const DIRECTORY_PRINT_BADGE_DIAMETER = 25.5;
+const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.76;
+const DIRECTORY_PRINT_BADGE_BUBBLE_GAP = 1;
+const DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS = 56;
+const DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET = 44;
+const DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_PADDING = 6;
+const DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_ANCHOR_TOLERANCE = DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET + DIRECTORY_PRINT_BADGE_DIAMETER;
+const DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM = DIRECTORY_FOCUS_ZOOM - 0.25;
+const DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS = 140;
+const DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS = [0, 40, 120, 260, 520, 960, 1500, 2400];
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -104,6 +115,99 @@ function escapeHtml(value) {
         .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+function normalizeMarkerColor(value, fallback = '#0f766e') {
+    const text = String(value || '').trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : fallback;
+}
+
+function normalizeMarkerOffset(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeStylePixel(value) {
+    const number = Number.parseFloat(String(value || '0').replace('px', ''));
+    return Number.isFinite(number) ? number : 0;
+}
+
+function normalizePrintBadgeItems(number, items = null, fallbackColor = '#0f766e') {
+    const fallbackLabel = String(number || '?').trim() || '?';
+    const sourceItems = Array.isArray(items) && items.length
+        ? items
+        : [{ label: fallbackLabel, color: fallbackColor }];
+
+    return sourceItems.map((item, index) => {
+        const label = String(item?.label ?? item?.number ?? (index + 1)).trim() || '?';
+        return {
+            label,
+            color: normalizeMarkerColor(item?.color || item?.categoryColor, fallbackColor),
+            placeKey: item?.placeKey || null,
+        };
+    });
+}
+
+function getPrintBadgeLobeLayout(count) {
+    const safeCount = Math.max(1, Number(count) || 1);
+    const spacing = DIRECTORY_PRINT_BADGE_LOBE_SPACING;
+    let centers;
+
+    if (safeCount === 1) {
+        centers = [{ x: 0, y: 0 }];
+    } else if (safeCount === 2) {
+        centers = [
+            { x: -spacing / 2, y: 0 },
+            { x: spacing / 2, y: 0 },
+        ];
+    } else if (safeCount === 3) {
+        centers = [
+            { x: 0, y: -spacing * 0.56 },
+            { x: -spacing / 2, y: spacing * 0.42 },
+            { x: spacing / 2, y: spacing * 0.42 },
+        ];
+    } else if (safeCount === 4) {
+        centers = [
+            { x: -spacing / 2, y: -spacing / 2 },
+            { x: spacing / 2, y: -spacing / 2 },
+            { x: -spacing / 2, y: spacing / 2 },
+            { x: spacing / 2, y: spacing / 2 },
+        ];
+    } else if (safeCount === 5) {
+        centers = [
+            { x: -spacing, y: -spacing / 2 },
+            { x: 0, y: -spacing / 2 },
+            { x: spacing, y: -spacing / 2 },
+            { x: -spacing / 2, y: spacing / 2 },
+            { x: spacing / 2, y: spacing / 2 },
+        ];
+    } else {
+        const columns = Math.ceil(Math.sqrt(safeCount));
+        const rows = Math.ceil(safeCount / columns);
+        centers = Array.from({ length: safeCount }, (_, index) => {
+            const column = index % columns;
+            const row = Math.floor(index / columns);
+            return {
+                x: (column - ((columns - 1) / 2)) * spacing,
+                y: (row - ((rows - 1) / 2)) * spacing,
+            };
+        });
+    }
+
+    const radius = DIRECTORY_PRINT_BADGE_DIAMETER / 2;
+    const minX = Math.min(...centers.map((center) => center.x - radius));
+    const maxX = Math.max(...centers.map((center) => center.x + radius));
+    const minY = Math.min(...centers.map((center) => center.y - radius));
+    const maxY = Math.max(...centers.map((center) => center.y + radius));
+
+    return {
+        width: maxX - minX,
+        height: maxY - minY,
+        lobes: centers.map((center) => ({
+            left: center.x - radius - minX,
+            top: center.y - radius - minY,
+        })),
+    };
 }
 
 function getDirectoryPinAssetCount(pin = {}) {
@@ -211,6 +315,106 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
         iconAnchor: [24, 24],
         popupAnchor: [0, -24],
         tooltipAnchor: [0, -24],
+    });
+}
+
+function createPrintResourceBadgeMarker(number, {
+    color = null,
+    emphasis = 'default',
+    placeKey = null,
+    items = null,
+    offsetX = 0,
+    offsetY = 0,
+} = {}) {
+    const isSelected = emphasis === 'primary';
+    const badgeColor = normalizeMarkerColor(color);
+    const x = normalizeMarkerOffset(offsetX);
+    const y = normalizeMarkerOffset(offsetY);
+    const label = String(number || '?').trim() || '?';
+    const badgeItems = normalizePrintBadgeItems(number, items, badgeColor);
+    const markerKey = badgeItems.map((item) => `${item.placeKey || ''}:${item.label}`).join('|') || placeKey || label;
+    const lobeLayout = getPrintBadgeLobeLayout(badgeItems.length);
+    const shadowColor = isSelected ? '0 10px 18px rgba(194, 65, 12, 0.28)' : '0 6px 12px rgba(15, 23, 42, 0.18)';
+    const focusGlow = isSelected ? ', 0 0 0 5px rgba(249,115,22,0.24)' : '';
+    const lobeHtml = badgeItems.map((item, index) => {
+        const lobe = lobeLayout.lobes[index] || { left: 0, top: 0 };
+        const fontSize = item.label.length > 2 ? 7 : (item.label.length > 1 ? 8.5 : 10);
+        return `
+            <span
+                class="directory-print-badge-marker__lobe"
+                data-print-lobe-place-key="${escapeHtml(item.placeKey || '')}"
+                style="
+                    position:absolute;
+                    left:${lobe.left}px;
+                    top:${lobe.top}px;
+                    width:${DIRECTORY_PRINT_BADGE_DIAMETER}px;
+                    height:${DIRECTORY_PRINT_BADGE_DIAMETER}px;
+                    box-sizing:border-box;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    border:2px solid rgba(255,255,255,0.96);
+                    border-radius:999px;
+                    background:${item.color};
+                    color:#ffffff;
+                    font-family:var(--font-heading);
+                    font-size:${fontSize}px;
+                    font-weight:900;
+                    line-height:1;
+                    text-shadow:0 1px 2px rgba(15,23,42,0.18);
+                    box-shadow:${shadowColor}${focusGlow};
+                    pointer-events:auto;
+                "
+            >
+                ${escapeHtml(item.label)}
+            </span>
+        `;
+    }).join('');
+
+    return L.divIcon({
+        className: 'directory-print-badge-leaflet-icon',
+        placeKey,
+        categoryColor: badgeColor,
+        html: `
+            <div
+                class="directory-print-badge-marker"
+                style="
+                    position:relative;
+                    width:${lobeLayout.width}px;
+                    height:${lobeLayout.height}px;
+                    pointer-events:none;
+                "
+            >
+                <div
+                    class="directory-print-badge-marker__core"
+                    data-print-marker-key="${escapeHtml(markerKey)}"
+                    data-print-number="${escapeHtml(label)}"
+                    data-print-lobe-count="${badgeItems.length}"
+                    data-print-icon-width="${lobeLayout.width}"
+                    data-print-icon-height="${lobeLayout.height}"
+                    data-print-offset-x="${x}"
+                    data-print-offset-y="${y}"
+                    style="
+                        --print-badge-offset-x:${x}px;
+                        --print-badge-offset-y:${y}px;
+                        position:absolute;
+                        left:50%;
+                        top:50%;
+                        width:${lobeLayout.width}px;
+                        min-width:${lobeLayout.width}px;
+                        height:${lobeLayout.height}px;
+                        transform:translate(calc(-50% + var(--print-badge-offset-x)), calc(-50% + var(--print-badge-offset-y)));
+                        pointer-events:none;
+                    "
+                >
+                    ${lobeHtml}
+                </div>
+            </div>
+        `,
+        iconSize: [lobeLayout.width, lobeLayout.height],
+        iconAnchor: [lobeLayout.width / 2, lobeLayout.height / 2],
+        popupAnchor: [0, -20],
+        tooltipAnchor: [0, -20],
     });
 }
 
@@ -504,7 +708,18 @@ function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set(), cl
     });
 }
 
-function spreadPinsForDisplay(pins, interactive) {
+function spreadPinsForDisplay(pins, interactive, shouldSpread = true) {
+    if (!shouldSpread) {
+        return pins.map((pin) => {
+            const point = getPinBasePoint(pin);
+            return {
+                ...pin,
+                displayLat: point?.lat ?? pin.lat,
+                displayLng: point?.lng ?? pin.lng,
+            };
+        });
+    }
+
     const groupedPins = new Map();
 
     pins.forEach((pin) => {
@@ -538,6 +753,385 @@ function spreadPinsForDisplay(pins, interactive) {
             displayLng: point.lng + Math.cos(angle) * offset,
         };
     });
+}
+
+function getPrintBadgeBubbleCircles(item, offset) {
+    const deltaX = (offset.x - item.initialOffsetX) * item.scaleX;
+    const deltaY = (offset.y - item.initialOffsetY) * item.scaleY;
+    return item.lobes.map((lobe) => ({
+        x: item.centerX + lobe.x + deltaX,
+        y: item.centerY + lobe.y + deltaY,
+        radius: lobe.radius,
+    }));
+}
+
+function getPrintBadgeBubbleBounds(item, offset) {
+    const circles = getPrintBadgeBubbleCircles(item, offset);
+    return circles.reduce((bounds, circle) => ({
+        left: Math.min(bounds.left, circle.x - circle.radius),
+        right: Math.max(bounds.right, circle.x + circle.radius),
+        top: Math.min(bounds.top, circle.y - circle.radius),
+        bottom: Math.max(bounds.bottom, circle.y + circle.radius),
+    }), {
+        left: Number.POSITIVE_INFINITY,
+        right: Number.NEGATIVE_INFINITY,
+        top: Number.POSITIVE_INFINITY,
+        bottom: Number.NEGATIVE_INFINITY,
+    });
+}
+
+function getPrintBadgeBubbleFallbackVector(leftItem, rightItem) {
+    const anchorX = rightItem.centerX - leftItem.centerX;
+    const anchorY = rightItem.centerY - leftItem.centerY;
+    const anchorDistance = Math.hypot(anchorX, anchorY);
+    if (anchorDistance > 0.01) {
+        return { x: anchorX / anchorDistance, y: anchorY / anchorDistance };
+    }
+
+    const numberDelta = (rightItem.printNumber || 1) - (leftItem.printNumber || 0);
+    const angle = ((Number.isFinite(numberDelta) ? numberDelta : 1) * 137.508) * (Math.PI / 180);
+    return { x: Math.cos(angle), y: Math.sin(angle) };
+}
+
+function isPrintBadgeAnchorNearMap(item, mapBounds) {
+    if (!mapBounds) return true;
+
+    const tolerance = DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_ANCHOR_TOLERANCE;
+    return (
+        item.centerX >= mapBounds.left - tolerance
+        && item.centerX <= mapBounds.right + tolerance
+        && item.centerY >= mapBounds.top - tolerance
+        && item.centerY <= mapBounds.bottom + tolerance
+    );
+}
+
+function isLeafletMapCameraMoving(map) {
+    return Boolean(
+        map?._animatingZoom
+        || map?._panAnim?._inProgress
+        || map?._flyToFrame
+    );
+}
+
+function limitPrintBadgeBubbleOffset(item, offset) {
+    const deltaX = (offset.x - item.initialOffsetX) * item.scaleX;
+    const deltaY = (offset.y - item.initialOffsetY) * item.scaleY;
+    const distance = Math.hypot(deltaX, deltaY);
+    if (distance <= DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET || distance <= 0.01) {
+        return offset;
+    }
+
+    const scale = DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET / distance;
+    return {
+        x: item.initialOffsetX + ((deltaX * scale) / item.scaleX),
+        y: item.initialOffsetY + ((deltaY * scale) / item.scaleY),
+    };
+}
+
+function keepPrintBadgeBubbleInsideMap(item, offset, mapBounds) {
+    if (!mapBounds) return offset;
+    if (!isPrintBadgeAnchorNearMap(item, mapBounds)) return offset;
+
+    const bounds = getPrintBadgeBubbleBounds(item, offset);
+    const minLeft = mapBounds.left + DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_PADDING;
+    const maxRight = mapBounds.right - DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_PADDING;
+    const minTop = mapBounds.top + DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_PADDING;
+    const maxBottom = mapBounds.bottom - DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_PADDING;
+    let nextX = offset.x;
+    let nextY = offset.y;
+
+    if (bounds.left < minLeft) nextX += (minLeft - bounds.left) / item.scaleX;
+    if (bounds.right > maxRight) nextX -= (bounds.right - maxRight) / item.scaleX;
+    if (bounds.top < minTop) nextY += (minTop - bounds.top) / item.scaleY;
+    if (bounds.bottom > maxBottom) nextY -= (bounds.bottom - maxBottom) / item.scaleY;
+
+    return { x: nextX, y: nextY };
+}
+
+function settlePrintBadgeBubbleOffset(item, offset, mapBounds) {
+    return keepPrintBadgeBubbleInsideMap(item, limitPrintBadgeBubbleOffset(item, offset), mapBounds);
+}
+
+function resolvePrintBadgeBubbleLayout(items, mapBounds = null) {
+    const states = items.map((item) => ({
+        item,
+        mass: Math.max(1, item.lobes.length * 1.45),
+        offset: {
+            x: item.initialOffsetX,
+            y: item.initialOffsetY,
+        },
+    }));
+
+    for (let iteration = 0; iteration < DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS; iteration += 1) {
+        let moved = false;
+
+        for (let leftIndex = 0; leftIndex < states.length - 1; leftIndex += 1) {
+            for (let rightIndex = leftIndex + 1; rightIndex < states.length; rightIndex += 1) {
+                const leftState = states[leftIndex];
+                const rightState = states[rightIndex];
+                const leftCircles = getPrintBadgeBubbleCircles(leftState.item, leftState.offset);
+                const rightCircles = getPrintBadgeBubbleCircles(rightState.item, rightState.offset);
+
+                leftCircles.forEach((leftCircle) => {
+                    rightCircles.forEach((rightCircle) => {
+                        const dx = rightCircle.x - leftCircle.x;
+                        const dy = rightCircle.y - leftCircle.y;
+                        const distance = Math.hypot(dx, dy);
+                        const minimumDistance = leftCircle.radius + rightCircle.radius + DIRECTORY_PRINT_BADGE_BUBBLE_GAP;
+                        if (distance >= minimumDistance) return;
+
+                        const vector = distance > 0.01
+                            ? { x: dx / distance, y: dy / distance }
+                            : getPrintBadgeBubbleFallbackVector(leftState.item, rightState.item);
+                        const overlap = minimumDistance - Math.max(distance, 0.01);
+                        const leftInverseMass = 1 / leftState.mass;
+                        const rightInverseMass = 1 / rightState.mass;
+                        const inverseMassTotal = leftInverseMass + rightInverseMass;
+                        const leftPush = overlap * (leftInverseMass / inverseMassTotal);
+                        const rightPush = overlap * (rightInverseMass / inverseMassTotal);
+
+                        leftState.offset.x -= (vector.x * leftPush) / leftState.item.scaleX;
+                        leftState.offset.y -= (vector.y * leftPush) / leftState.item.scaleY;
+                        rightState.offset.x += (vector.x * rightPush) / rightState.item.scaleX;
+                        rightState.offset.y += (vector.y * rightPush) / rightState.item.scaleY;
+                        moved = true;
+                    });
+                });
+            }
+        }
+
+        states.forEach((state) => {
+            state.offset = settlePrintBadgeBubbleOffset(state.item, state.offset, mapBounds);
+        });
+
+        if (!moved) break;
+    }
+
+    return states.map(({ item, offset }) => ({
+        item,
+        offset: {
+            x: Math.round(offset.x * 10) / 10,
+            y: Math.round(offset.y * 10) / 10,
+        },
+    }));
+}
+
+function ensurePrintBadgeBaseMargins(markerElement) {
+    if (!markerElement) {
+        return { left: 0, top: 0 };
+    }
+
+    if (!markerElement.dataset.printCollisionBaseMarginLeft) {
+        markerElement.dataset.printCollisionBaseMarginLeft = String(normalizeStylePixel(markerElement.style.marginLeft));
+    }
+    if (!markerElement.dataset.printCollisionBaseMarginTop) {
+        markerElement.dataset.printCollisionBaseMarginTop = String(normalizeStylePixel(markerElement.style.marginTop));
+    }
+
+    return {
+        left: normalizeStylePixel(markerElement.dataset.printCollisionBaseMarginLeft),
+        top: normalizeStylePixel(markerElement.dataset.printCollisionBaseMarginTop),
+    };
+}
+
+function getPrintBadgeStoredOffset(markerKey, solvedOffsets) {
+    if (!markerKey || !solvedOffsets?.has(markerKey)) {
+        return null;
+    }
+
+    const offset = solvedOffsets.get(markerKey);
+    if (!Number.isFinite(offset?.x) || !Number.isFinite(offset?.y)) {
+        return null;
+    }
+
+    return offset;
+}
+
+function restorePrintBadgeStoredOffsets(markerPane, solvedOffsets) {
+    if (!markerPane || !solvedOffsets?.size) return;
+
+    [...markerPane.querySelectorAll('.directory-print-badge-marker__core')].forEach((coreElement) => {
+        const markerElement = coreElement.closest('.leaflet-marker-icon');
+        if (!markerElement) return;
+
+        const markerKey = coreElement.dataset.printMarkerKey || coreElement.dataset.printNumber || '';
+        const storedOffset = getPrintBadgeStoredOffset(markerKey, solvedOffsets);
+        if (!storedOffset) return;
+
+        const baseMargins = ensurePrintBadgeBaseMargins(markerElement);
+        markerElement.style.marginLeft = `${baseMargins.left + storedOffset.x}px`;
+        markerElement.style.marginTop = `${baseMargins.top + storedOffset.y}px`;
+        markerElement.dataset.printCollisionSolved = 'true';
+        coreElement.style.setProperty('--print-badge-offset-x', '0px');
+        coreElement.style.setProperty('--print-badge-offset-y', '0px');
+    });
+}
+
+function applyPrintBadgeMarkerOffset(item, offset, solvedOffsets = null) {
+    if (!item?.markerElement) return;
+
+    item.markerElement.style.marginLeft = `${item.baseMarginLeft + offset.x}px`;
+    item.markerElement.style.marginTop = `${item.baseMarginTop + offset.y}px`;
+    item.markerElement.dataset.printCollisionSolved = 'true';
+    if (item.markerKey && solvedOffsets) {
+        solvedOffsets.set(item.markerKey, { x: offset.x, y: offset.y });
+    }
+    item.coreElement.style.setProperty('--print-badge-offset-x', '0px');
+    item.coreElement.style.setProperty('--print-badge-offset-y', '0px');
+}
+
+function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '' }) {
+    const map = useMap();
+    const mapTransitionUntilRef = useRef(0);
+    const solvedOffsetsRef = useRef(new Map());
+
+    useEffect(() => {
+        if (!enabled || !map) return undefined;
+
+        const markerPane = map.getPanes?.()?.markerPane;
+        if (!markerPane) return undefined;
+
+        const timeouts = new Set();
+        const markMapTransitioning = () => {
+            mapTransitionUntilRef.current = Date.now() + DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS;
+        };
+        const isMapTransitioning = () => (
+            Date.now() < mapTransitionUntilRef.current || isLeafletMapCameraMoving(map)
+        );
+
+        const resolveCollisions = () => {
+            const mapBounds = map.getContainer?.()?.getBoundingClientRect?.() || null;
+            const markerElements = [...markerPane.querySelectorAll('.leaflet-marker-icon')]
+                .map((markerElement) => {
+                    const coreElement = markerElement.querySelector('.directory-print-badge-marker__core');
+                    if (!coreElement) return null;
+
+                    const baseMargins = ensurePrintBadgeBaseMargins(markerElement);
+                    const initialOffsetX = normalizeMarkerOffset(coreElement.dataset.printOffsetX);
+                    const initialOffsetY = normalizeMarkerOffset(coreElement.dataset.printOffsetY);
+                    const markerKey = coreElement.dataset.printMarkerKey || coreElement.dataset.printNumber || '';
+                    const storedOffset = getPrintBadgeStoredOffset(markerKey, solvedOffsetsRef.current);
+                    const isFocusedZoom = typeof map.getZoom === 'function' && map.getZoom() >= DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM;
+                    if (isFocusedZoom && storedOffset) {
+                        markerElement.style.marginLeft = `${baseMargins.left + storedOffset.x}px`;
+                        markerElement.style.marginTop = `${baseMargins.top + storedOffset.y}px`;
+                        markerElement.dataset.printCollisionSolved = 'true';
+                        coreElement.style.setProperty('--print-badge-offset-x', '0px');
+                        coreElement.style.setProperty('--print-badge-offset-y', '0px');
+                        return null;
+                    }
+
+                    const markerRect = markerElement.getBoundingClientRect();
+                    const markerCenterX = markerRect.left + (markerRect.width / 2);
+                    const markerCenterY = markerRect.top + (markerRect.height / 2);
+                    const hasSolvedOffset = markerElement.dataset.printCollisionSolved === 'true';
+                    if (hasSolvedOffset && !isPrintBadgeAnchorNearMap({ centerX: markerCenterX, centerY: markerCenterY }, mapBounds)) {
+                        return null;
+                    }
+
+                    markerElement.style.marginLeft = `${baseMargins.left + initialOffsetX}px`;
+                    markerElement.style.marginTop = `${baseMargins.top + initialOffsetY}px`;
+                    coreElement.style.setProperty('--print-badge-offset-x', '0px');
+                    coreElement.style.setProperty('--print-badge-offset-y', '0px');
+
+                    return { markerElement, coreElement, baseMargins, initialOffsetX, initialOffsetY, markerKey };
+                })
+                .filter(Boolean);
+
+            const badgeItems = markerElements
+                .map((markerElement) => {
+                    const { markerElement: markerNode, coreElement, baseMargins, initialOffsetX, initialOffsetY, markerKey } = markerElement;
+
+                    const markerRect = markerNode.getBoundingClientRect();
+                    const iconWidth = normalizeMarkerOffset(coreElement.dataset.printIconWidth) || DIRECTORY_PRINT_BADGE_DIAMETER;
+                    const iconHeight = normalizeMarkerOffset(coreElement.dataset.printIconHeight) || DIRECTORY_PRINT_BADGE_DIAMETER;
+                    const scaleX = markerRect.width / iconWidth || 1;
+                    const scaleY = markerRect.height / iconHeight || 1;
+                    const printNumber = Number.parseFloat(coreElement.dataset.printNumber);
+                    const lobeElements = [...coreElement.querySelectorAll('.directory-print-badge-marker__lobe')];
+                    const fallbackRect = coreElement.getBoundingClientRect();
+                    const markerCenterX = markerRect.left + (markerRect.width / 2);
+                    const markerCenterY = markerRect.top + (markerRect.height / 2);
+                    const lobes = (lobeElements.length ? lobeElements : [coreElement])
+                        .map((lobeElement) => {
+                            const lobeRect = lobeElement === coreElement ? fallbackRect : lobeElement.getBoundingClientRect();
+                            const width = lobeRect.width || DIRECTORY_PRINT_BADGE_DIAMETER;
+                            const height = lobeRect.height || DIRECTORY_PRINT_BADGE_DIAMETER;
+                            return {
+                                x: lobeRect.left + (width / 2) - markerCenterX,
+                                y: lobeRect.top + (height / 2) - markerCenterY,
+                                radius: (Math.max(width, height) / 2) + 0.5,
+                            };
+                        });
+
+                    return {
+                        markerElement: markerNode,
+                        coreElement,
+                        markerKey,
+                        printNumber: Number.isFinite(printNumber) ? printNumber : Number.MAX_SAFE_INTEGER,
+                        centerX: markerCenterX,
+                        centerY: markerCenterY,
+                        lobes,
+                        initialOffsetX,
+                        initialOffsetY,
+                        baseMarginLeft: baseMargins.left,
+                        baseMarginTop: baseMargins.top,
+                        scaleX,
+                        scaleY,
+                    };
+                })
+                .filter(Boolean)
+                .sort((left, right) => left.printNumber - right.printNumber);
+
+            resolvePrintBadgeBubbleLayout(badgeItems, mapBounds).forEach(({ item, offset }) => {
+                applyPrintBadgeMarkerOffset(item, offset, solvedOffsetsRef.current);
+            });
+        };
+
+        const scheduleCollisionPass = (delay = 80, { force = false } = {}) => {
+            const resolvedDelay = typeof delay === 'number' ? delay : 80;
+            const timeout = window.setTimeout(() => {
+                timeouts.delete(timeout);
+                if (!force && isMapTransitioning()) {
+                    restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current);
+                    const remainingDelay = Math.max(40, mapTransitionUntilRef.current - Date.now() + 40);
+                    scheduleCollisionPass(Math.min(remainingDelay, DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS));
+                    return;
+                }
+                resolveCollisions();
+            }, resolvedDelay);
+            timeouts.add(timeout);
+        };
+        const handleMapSettled = () => {
+            markMapTransitioning();
+            scheduleCollisionPass(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS);
+            scheduleCollisionPass(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS + 180);
+            scheduleCollisionPass(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS + 360, { force: true });
+        };
+
+        DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS.forEach(scheduleCollisionPass);
+        map.on('movestart', markMapTransitioning);
+        map.on('zoomstart', markMapTransitioning);
+        map.on('move', markMapTransitioning);
+        map.on('zoom', markMapTransitioning);
+        map.on('moveend', handleMapSettled);
+        map.on('zoomend', handleMapSettled);
+        map.on('layeradd', scheduleCollisionPass);
+
+        return () => {
+            timeouts.forEach((timeout) => window.clearTimeout(timeout));
+            timeouts.clear();
+            map.off('movestart', markMapTransitioning);
+            map.off('zoomstart', markMapTransitioning);
+            map.off('move', markMapTransitioning);
+            map.off('zoom', markMapTransitioning);
+            map.off('moveend', handleMapSettled);
+            map.off('zoomend', handleMapSettled);
+            map.off('layeradd', scheduleCollisionPass);
+        };
+    }, [enabled, map, refreshKey]);
+
+    return null;
 }
 
 function fitDirectoryCamera(map, pins, anchorPoint, {
@@ -1056,6 +1650,7 @@ export default function DirectoryMap({
     pinBadgeMode = 'count',
     pinCategoryIconMode = 'auto',
     clusterMarkerMode = 'bubble',
+    spreadCoincidentPins = true,
     placeNumberByKey = null,
     showPopup = true,
     showZoomControl = interactive,
@@ -1076,13 +1671,25 @@ export default function DirectoryMap({
     const tileLoadedRef = useRef(false);
     const readyTimeoutRef = useRef(null);
     const captureErrorRef = useRef(null);
-    const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive), [interactive, pins]);
+    const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, spreadCoincidentPins), [interactive, pins, spreadCoincidentPins]);
     const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
-    const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
+    const printBadgeLayoutRefreshKey = useMemo(() => {
+        if (markerMode !== 'print-badge') return '';
 
+        const activeKeys = [...activePlaceKeySet].sort().join('|');
+        const markerKeys = displayPins.map((pin) => {
+            const itemKey = (pin.printBadgeItems || [])
+                .map((item) => `${item?.label ?? item?.number ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.placeKey ?? ''}`)
+                .join(',');
+            return `${pin.pinKey || pin.placeKey}:${pin.placeKey}:${pin.number || ''}:${itemKey}`;
+        }).join(';');
+
+        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${activeKeys}::${markerKeys}`;
+    }, [activePlaceKey, activePlaceKeySet, displayPins, focusedPlaceKey, markerMode]);
+    const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
         hasReportedReadyRef.current = true;
@@ -1124,7 +1731,7 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [anchorPoint, clusterMarkerMode, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, pins, placeNumberByKey]);
+    }, [anchorPoint, clusterMarkerMode, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, pins, placeNumberByKey, spreadCoincidentPins]);
 
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
@@ -1161,7 +1768,19 @@ export default function DirectoryMap({
                         const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
                         const isMatched = String(cleanKey) === String(pin.placeKey);
 
-                        const icon = markerMode === 'number'
+                        const icon = markerMode === 'print-badge'
+                            ? createPrintResourceBadgeMarker(
+                                pin.printNumberLabel || pin.number || placeNumberByKey?.[pin.placeKey] || '?',
+                                {
+                                    color: pin.categoryColor || null,
+                                    emphasis: isMatched ? 'primary' : 'default',
+                                    placeKey: pin.placeKey,
+                                    items: pin.printBadgeItems || null,
+                                    offsetX: pin.printOffsetX || 0,
+                                    offsetY: pin.printOffsetY || 0,
+                                }
+                            )
+                            : markerMode === 'number'
                             ? createDirectoryNumberMarker(
                                 pin.number || placeNumberByKey?.[pin.placeKey] || '?',
                                 isMatched ? 'primary' : 'default',
@@ -1191,6 +1810,7 @@ export default function DirectoryMap({
                                 key={pin.pinKey || pin.placeKey}
                                 position={[pin.displayLat, pin.displayLng]}
                                 icon={icon}
+                                zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
                                 eventHandlers={interactive ? {
                                     mousedown: () => handlePlaceActivate(pin.placeKey),
                                     click: () => handlePlaceActivate(pin.placeKey),
@@ -1210,7 +1830,19 @@ export default function DirectoryMap({
             const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
             const isMatched = String(cleanKey) === String(pin.placeKey);
 
-            const icon = markerMode === 'number'
+            const icon = markerMode === 'print-badge'
+                ? createPrintResourceBadgeMarker(
+                    pin.printNumberLabel || pin.number || placeNumberByKey?.[pin.placeKey] || '?',
+                    {
+                        color: pin.categoryColor || null,
+                        emphasis: isMatched ? 'primary' : 'default',
+                        placeKey: pin.placeKey,
+                        items: pin.printBadgeItems || null,
+                        offsetX: pin.printOffsetX || 0,
+                        offsetY: pin.printOffsetY || 0,
+                    }
+                )
+                : markerMode === 'number'
                 ? createDirectoryNumberMarker(
                     pin.number || placeNumberByKey?.[pin.placeKey] || '?',
                     isMatched ? 'primary' : 'default',
@@ -1240,6 +1872,7 @@ export default function DirectoryMap({
                     key={pin.pinKey || pin.placeKey}
                     position={[pin.displayLat, pin.displayLng]}
                     icon={icon}
+                    zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
                     eventHandlers={interactive ? {
                         mousedown: () => handlePlaceActivate(pin.placeKey),
                         click: () => handlePlaceActivate(pin.placeKey),
@@ -1339,6 +1972,7 @@ export default function DirectoryMap({
                     onClusterSelect={onClusterSelect}
                 />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
+                <DirectoryPrintBadgeCollisionSync enabled={markerMode === 'print-badge'} refreshKey={printBadgeLayoutRefreshKey} />
                 {anchorPoint ? (
                     <Marker position={[anchorPoint.lat, anchorPoint.lng]} icon={createDirectoryAnchorIcon(anchorPoint)} zIndexOffset={1200}>
                         {showPopup ? (

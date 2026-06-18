@@ -18,6 +18,14 @@ const myMapV2ScaffoldSource = readFileSync(
     new URL('../src/components/MyMapV2PreviewScaffold.jsx', import.meta.url),
     'utf8',
 );
+const directoryPrintViewSource = readFileSync(
+    new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
+    'utf8',
+);
+const appSource = readFileSync(
+    new URL('../src/App.jsx', import.meta.url),
+    'utf8',
+);
 
 test('my map ui mode defaults to v2 unless the explicit stable fallback switch is present', () => {
     assert.equal(getMyMapUiMode(new URLSearchParams()), MY_MAP_UI_MODE_V2);
@@ -71,6 +79,42 @@ test('my map v2 uses the main saved-place pin style while stable my map keeps nu
     assert.doesNotMatch(myMapV2ScaffoldSource, /clusterMarkerMode="asset-spread"/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /markerMode="number"/);
     assert.match(myMapDetailPageSource, /markerMode="number"/);
+});
+
+test('owner print can use V2 print cards without hiding the app toolbar or changing shared print', () => {
+    assert.match(directoryPrintViewSource, /const useV2OwnerPrint = mode === 'owner'/);
+    assert.match(directoryPrintViewSource, /presentationMode: useV2OwnerPrint \? 'v2-cards' : 'default'/);
+    assert.match(directoryPrintViewSource, /withOwnerPrintBadgePins\(basePresentation\)/);
+    assert.match(directoryPrintViewSource, /markerMode=\{useV2Format \? 'print-badge' : 'number'\}/);
+    assert.match(directoryPrintViewSource, /pinBadgeMode=\{useV2Format \? 'none' : 'count'\}/);
+    assert.match(directoryPrintViewSource, /clusterMarkerMode=\{useV2Format \? 'none' : 'bubble'\}/);
+    assert.match(directoryPrintViewSource, /spreadCoincidentPins=\{!useV2Format\}/);
+    assert.match(directoryPrintViewSource, /cardBadgeMode=\{useV2OwnerPrint \? 'logo' : 'number'\}/);
+    assert.match(directoryPrintViewSource, /showPrintNumberBadges=\{useV2OwnerPrint\}/);
+    assert.match(directoryPrintViewSource, /showMapLegend=\{!useV2OwnerPrint\}/);
+    assert.doesNotMatch(directoryPrintViewSource, /pinSpreadMode/);
+    assert.doesNotMatch(appSource, /ownerPrintView/);
+    assert.match(appSource, /location\.pathname\.startsWith\('\/shared\/maps\/'\)/);
+});
+
+test('owner print builds one composite badge pin per mapped V2 coordinate group', () => {
+    assert.match(directoryPrintViewSource, /function withOwnerPrintBadgePins/);
+    assert.match(directoryPrintViewSource, /presentation\?\.displayGroups\?\.length/);
+    assert.match(directoryPrintViewSource, /const mappedBadgeGroups = displayGroups\.filter/);
+    assert.match(directoryPrintViewSource, /lat\.toFixed\(4\)/);
+    assert.match(directoryPrintViewSource, /lng\.toFixed\(4\)/);
+    assert.match(directoryPrintViewSource, /PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE/);
+    assert.match(directoryPrintViewSource, /function shouldSharePrintBadgeCoordinate/);
+    assert.match(directoryPrintViewSource, /const existingCoordinateEntry = \[\.\.\.groupsByCoordinate\.entries\(\)\]\.find/);
+    assert.match(directoryPrintViewSource, /const coordinateGroupEntries = \[\.\.\.groupsByCoordinate\.entries\(\)\]/);
+    assert.match(directoryPrintViewSource, /const compositePlaceKey = groups\.length > 1/);
+    assert.match(directoryPrintViewSource, /pinKey: groups\.length > 1 \? `print:\$\{coordinateKey\}` : `print:\$\{firstGroup\.placeKey\}`/);
+    assert.match(directoryPrintViewSource, /placeKey: compositePlaceKey/);
+    assert.match(directoryPrintViewSource, /printBadgeItems: groups\.map/);
+    assert.match(directoryPrintViewSource, /memberPlaceKeys/);
+    assert.match(directoryPrintViewSource, /hoverPlaceKeysByKey\[compositePlaceKey\] = memberPlaceKeys/);
+    assert.match(directoryPrintViewSource, /groupKeyByPlaceKey\[memberPlaceKey\] = compositePlaceKey/);
+    assert.match(directoryPrintViewSource, /getPrintHoverPlaceKeys\(resolvedPlaceKey\)/);
 });
 
 test('my map v2 uses the dedicated V2 card-ordering presentation', () => {

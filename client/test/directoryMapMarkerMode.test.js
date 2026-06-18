@@ -10,6 +10,10 @@ const discoverUtilsSource = readFileSync(
     new URL('../src/features/discover/discoverUtils.js', import.meta.url),
     'utf8',
 );
+const appCssSource = readFileSync(
+    new URL('../src/index.css', import.meta.url),
+    'utf8',
+);
 
 test('directory map keeps bubble clusters as the default marker mode', () => {
     assert.match(directoryMapSource, /clusterMarkerMode = 'bubble'/);
@@ -48,6 +52,83 @@ test('directory map can hide individual pin count badges without changing the de
     assert.match(directoryMapSource, /showBadge: pinBadgeMode !== 'none'/);
 });
 
+test('directory map supports print badge markers without moving marker coordinates', () => {
+    assert.match(directoryMapSource, /function createPrintResourceBadgeMarker/);
+    assert.match(directoryMapSource, /function normalizePrintBadgeItems/);
+    assert.match(directoryMapSource, /function getPrintBadgeLobeLayout/);
+    assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync/);
+    assert.match(directoryMapSource, /function getPrintBadgeBubbleCircles/);
+    assert.match(directoryMapSource, /function resolvePrintBadgeBubbleLayout/);
+    assert.match(directoryMapSource, /function isPrintBadgeAnchorNearMap/);
+    assert.match(directoryMapSource, /function isLeafletMapCameraMoving/);
+    assert.match(directoryMapSource, /function getPrintBadgeStoredOffset/);
+    assert.match(directoryMapSource, /function restorePrintBadgeStoredOffsets/);
+    assert.match(directoryMapSource, /data-print-marker-key="\$\{escapeHtml\(markerKey\)\}"/);
+    assert.match(directoryMapSource, /markerElement\.dataset\.printCollisionSolved = 'true'/);
+    assert.match(directoryMapSource, /const solvedOffsetsRef = useRef\(new Map\(\)\)/);
+    assert.match(directoryMapSource, /const storedOffset = getPrintBadgeStoredOffset\(markerKey, solvedOffsetsRef\.current\)/);
+    assert.match(directoryMapSource, /if \(isFocusedZoom && storedOffset\) \{/);
+    assert.match(directoryMapSource, /restorePrintBadgeStoredOffsets\(markerPane, solvedOffsetsRef\.current\)/);
+    assert.match(directoryMapSource, /const hasSolvedOffset = markerElement\.dataset\.printCollisionSolved === 'true'/);
+    assert.match(directoryMapSource, /if \(hasSolvedOffset && !isPrintBadgeAnchorNearMap\(\{ centerX: markerCenterX, centerY: markerCenterY \}, mapBounds\)\) \{/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_ANCHOR_TOLERANCE/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS/);
+    assert.doesNotMatch(directoryMapSource, /doesPrintBadgeLabelStayVisible/);
+    assert.doesNotMatch(directoryMapSource, /const placedTopRects = \[\]/);
+    assert.doesNotMatch(directoryMapSource, /new MutationObserver/);
+    assert.match(directoryMapSource, /printCollisionBaseMarginLeft/);
+    assert.match(directoryMapSource, /markerElement\.style\.marginLeft = `\$\{item\.baseMarginLeft \+ offset\.x\}px`/);
+    assert.match(directoryMapSource, /markerElement\.style\.marginTop = `\$\{item\.baseMarginTop \+ offset\.y\}px`/);
+    assert.match(directoryMapSource, /coreElement\.style\.setProperty\('--print-badge-offset-x', '0px'\)/);
+    assert.match(directoryMapSource, /markerMode === 'print-badge'/);
+    assert.match(directoryMapSource, /const printBadgeLayoutRefreshKey = useMemo\(\(\) => \{/);
+    assert.match(directoryMapSource, /activePlaceKeySet/);
+    assert.match(directoryMapSource, /printBadgeItems/);
+    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync enabled=\{markerMode === 'print-badge'\} refreshKey=\{printBadgeLayoutRefreshKey\} \/>/);
+    assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync\(\{ enabled, refreshKey = '' \}\)/);
+    assert.match(directoryMapSource, /const mapTransitionUntilRef = useRef\(0\)/);
+    assert.match(directoryMapSource, /\}, \[enabled, map, refreshKey\]\)/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS\.forEach\(scheduleCollisionPass\)/);
+    assert.match(directoryMapSource, /if \(!force && isMapTransitioning\(\)\) \{/);
+    assert.match(directoryMapSource, /scheduleCollisionPass\(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS \+ 360, \{ force: true \}\)/);
+    assert.match(directoryMapSource, /map\.on\('movestart', markMapTransitioning\)/);
+    assert.match(directoryMapSource, /map\.on\('zoomstart', markMapTransitioning\)/);
+    assert.match(directoryMapSource, /map\.on\('move', markMapTransitioning\)/);
+    assert.match(directoryMapSource, /map\.on\('zoom', markMapTransitioning\)/);
+    assert.match(directoryMapSource, /map\.on\('moveend', handleMapSettled\)/);
+    assert.match(directoryMapSource, /map\.on\('zoomend', handleMapSettled\)/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_LOBE_SPACING/);
+    assert.match(directoryMapSource, /zIndexOffset=\{markerMode === 'print-badge' \? 100000 \+ \(\(Number\(pin\.number\) \|\| 0\) \* 1000\) : undefined\}/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_DIAMETER = 25\.5/);
+    assert.match(directoryMapSource, /className: 'directory-print-badge-leaflet-icon'/);
+    assert.match(directoryMapSource, /iconSize: \[lobeLayout\.width, lobeLayout\.height\]/);
+    assert.match(directoryMapSource, /iconAnchor: \[lobeLayout\.width \/ 2, lobeLayout\.height \/ 2\]/);
+    assert.match(appCssSource, /\.leaflet-marker-icon\.directory-print-badge-leaflet-icon[\s\S]*pointer-events: none !important/);
+    assert.match(appCssSource, /\.leaflet-marker-icon\.directory-print-badge-leaflet-icon \.directory-print-badge-marker__lobe[\s\S]*pointer-events: auto !important/);
+    assert.match(directoryMapSource, /data-print-lobe-count="\$\{badgeItems\.length\}"/);
+    assert.match(directoryMapSource, /class="directory-print-badge-marker__lobe"/);
+    assert.match(directoryMapSource, /items: pin\.printBadgeItems \|\| null/);
+    assert.match(directoryMapSource, /categoryColor: badgeColor/);
+    assert.match(directoryMapSource, /class="directory-print-badge-marker"[\s\S]*pointer-events:none/);
+    assert.match(directoryMapSource, /class="directory-print-badge-marker__core"[\s\S]*pointer-events:none/);
+    assert.match(directoryMapSource, /class="directory-print-badge-marker__lobe"[\s\S]*pointer-events:auto/);
+    assert.match(directoryMapSource, /background:\$\{item\.color\}/);
+    assert.match(directoryMapSource, /border:2px solid rgba\(255,255,255,0\.96\)/);
+    assert.match(directoryMapSource, /offsetX: pin\.printOffsetX \|\| 0/);
+    assert.match(directoryMapSource, /offsetY: pin\.printOffsetY \|\| 0/);
+    assert.match(directoryMapSource, /spreadCoincidentPins = true/);
+    assert.match(directoryMapSource, /spreadPinsForDisplay\(pins, interactive, spreadCoincidentPins\)/);
+    assert.match(directoryMapSource, /position=\{\[pin\.displayLat, pin\.displayLng\]\}/);
+    assert.doesNotMatch(directoryMapSource, /pinBadgeMode === 'print-number'/);
+    assert.doesNotMatch(discoverUtilsSource, /badgePlacement/);
+    assert.doesNotMatch(directoryMapSource, /pinSpreadMode/);
+    assert.doesNotMatch(directoryMapSource, /border:3px solid \$\{ringColor\}/);
+});
+
 test('directory map can show V2 category colors inside the saved pin circle without recoloring the teal pin body', () => {
     assert.match(discoverUtilsSource, /color = null/);
     assert.match(discoverUtilsSource, /colorSegments = \[\]/);
@@ -66,7 +147,6 @@ test('directory map can show V2 category colors inside the saved pin circle with
     assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColor = pin\.categoryColor \|\| null/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColorSegments = pin\.categoryColorSegments \|\| \[\]/);
     assert.doesNotMatch(directoryMapSource, /pinSpreadMode/);
-    assert.doesNotMatch(directoryMapSource, /printNumberLabel/);
 });
 
 test('directory map can render V2 clusters with the same-postal parent pin style', () => {

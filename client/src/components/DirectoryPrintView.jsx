@@ -7,6 +7,8 @@ import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/direc
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getIntlLocale } from '../lib/i18n.js';
 
+const PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE = 0.0003;
+
 function formatGeneratedOn(value = new Date(), locale = 'en') {
     const date = value instanceof Date ? value : new Date(value);
     return new Intl.DateTimeFormat(getIntlLocale(locale), {
@@ -29,6 +31,132 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
     );
 }
 
+function normalizePrintNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function getPrintBadgeNumber(group = {}, placeNumberByKey = {}) {
+    return normalizePrintNumber(group.number || placeNumberByKey?.[group.placeKey]);
+}
+
+function getPrintBadgeColor(group = {}) {
+    const rowColor = (group.rows || []).find((row) => row?.categoryColor)?.categoryColor;
+    return group.categoryColor || rowColor || null;
+}
+
+function getPrintBadgeCoordinateKey(group = {}) {
+    const lat = Number.parseFloat(group.lat);
+    const lng = Number.parseFloat(group.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
+    return `${lat.toFixed(4)}:${lng.toFixed(4)}`;
+}
+
+function shouldSharePrintBadgeCoordinate(left = {}, right = {}) {
+    const leftPostal = String(left.postalCode || '').trim();
+    const rightPostal = String(right.postalCode || '').trim();
+    if (leftPostal && rightPostal && leftPostal === rightPostal) return true;
+
+    const leftLat = Number.parseFloat(left.lat);
+    const leftLng = Number.parseFloat(left.lng);
+    const rightLat = Number.parseFloat(right.lat);
+    const rightLng = Number.parseFloat(right.lng);
+    if (![leftLat, leftLng, rightLat, rightLng].every(Number.isFinite)) return false;
+
+    return Math.abs(leftLat - rightLat) <= PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE
+        && Math.abs(leftLng - rightLng) <= PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE;
+}
+
+function withOwnerPrintBadgePins(presentation) {
+    const displayGroups = presentation?.displayGroups?.length
+        ? presentation.displayGroups
+        : (presentation?.mappedGroups || []);
+    const mappedBadgeGroups = displayGroups.filter((group) => (
+        group?.hasCoordinates
+        && group.lat !== null
+        && group.lng !== null
+        && getPrintBadgeNumber(group, presentation.placeNumberByKey)
+    ));
+
+    const groupsByCoordinate = new Map();
+    mappedBadgeGroups.forEach((group) => {
+        const coordinateKey = getPrintBadgeCoordinateKey(group);
+        if (!coordinateKey) return;
+        const existingCoordinateEntry = [...groupsByCoordinate.entries()].find(([, groups]) => (
+            groups.some((candidate) => shouldSharePrintBadgeCoordinate(candidate, group))
+        ));
+        const resolvedCoordinateKey = existingCoordinateEntry?.[0] || coordinateKey;
+        groupsByCoordinate.set(resolvedCoordinateKey, [
+            ...(groupsByCoordinate.get(resolvedCoordinateKey) || []),
+            group,
+        ]);
+    });
+
+    const groupKeyByPlaceKey = {};
+    const hoverPlaceKeysByKey = {};
+    const coordinateGroupEntries = [...groupsByCoordinate.entries()];
+    const pins = coordinateGroupEntries.map(([coordinateKey, groups]) => {
+        const firstGroup = groups[0];
+        const firstNumber = getPrintBadgeNumber(firstGroup, presentation.placeNumberByKey);
+        const memberPlaceKeys = groups.map((group) => group.placeKey).filter(Boolean);
+        const compositePlaceKey = groups.length > 1
+            ? `print-group:${coordinateKey}`
+            : firstGroup.placeKey;
+
+        memberPlaceKeys.forEach((memberPlaceKey) => {
+            groupKeyByPlaceKey[memberPlaceKey] = compositePlaceKey;
+        });
+        if (compositePlaceKey) {
+            groupKeyByPlaceKey[compositePlaceKey] = compositePlaceKey;
+            hoverPlaceKeysByKey[compositePlaceKey] = memberPlaceKeys;
+        }
+
+        return {
+            pinKey: groups.length > 1 ? `print:${coordinateKey}` : `print:${firstGroup.placeKey}`,
+            placeKey: compositePlaceKey,
+            placeId: firstGroup.placeId,
+            title: firstGroup.name,
+            address: firstGroup.address,
+            postalCode: firstGroup.postalCode || '',
+            lat: firstGroup.lat,
+            lng: firstGroup.lng,
+            curatedCount: groups.reduce((total, group) => total + (group.curatedCount || Math.max(1, (group.rows || []).length)), 0),
+            number: firstNumber,
+            printNumberLabel: String(firstNumber),
+            printBadgeItems: groups.map((group) => {
+                const number = getPrintBadgeNumber(group, presentation.placeNumberByKey);
+                return {
+                    number,
+                    label: String(number),
+                    color: getPrintBadgeColor(group),
+                    placeKey: group.placeKey,
+                };
+            }),
+            categoryColor: getPrintBadgeColor(firstGroup),
+            categoryColorSegments: [],
+            previewResourceNames: groups.flatMap((group) => (group.rows || []).slice(0, 1).map((row) => row.name)).slice(0, 3),
+            hiddenPreviewCount: Math.max(0, groups.length - 3),
+            isPostalGroup: false,
+            memberPlaceKeys,
+            printOffsetX: 0,
+            printOffsetY: 0,
+        };
+    });
+
+    displayGroups.forEach((group) => {
+        if (group?.placeKey && !groupKeyByPlaceKey[group.placeKey]) {
+            groupKeyByPlaceKey[group.placeKey] = group.placeKey;
+        }
+    });
+
+    return {
+        ...presentation,
+        pins,
+        groupKeyByPlaceKey,
+        hoverPlaceKeysByKey,
+    };
+}
+
 function PrintDirectoryBoardHeader({
     directory,
     generatedAt,
@@ -37,6 +165,8 @@ function PrintDirectoryBoardHeader({
     unmappedCount,
     canShowQr,
     resolvedShareUrl,
+    showMapStatusCounters = true,
+    compact = false,
 }) {
     const { locale, t } = useLocale();
     const rightHeaderBlock = (
@@ -48,8 +178,12 @@ function PrintDirectoryBoardHeader({
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <SummaryChip label={t('resources')} value={resourceCount} tone="brand" />
-                        <SummaryChip label={t('mappedPlaces')} value={mappedPlaceCount} />
-                        {unmappedCount ? <SummaryChip label={t('notShownOnMap')} value={unmappedCount} /> : null}
+                        {showMapStatusCounters ? (
+                            <>
+                                <SummaryChip label={t('mappedPlaces')} value={mappedPlaceCount} />
+                                {unmappedCount ? <SummaryChip label={t('notShownOnMap')} value={unmappedCount} /> : null}
+                            </>
+                        ) : null}
                     </div>
                     <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                         {t('preparedOn', { date: formatGeneratedOn(generatedAt, locale) })}
@@ -65,7 +199,7 @@ function PrintDirectoryBoardHeader({
     );
 
     return (
-        <div className="border-b border-slate-100 pb-5">
+        <div className={`border-b border-slate-100 ${compact ? 'pb-3' : 'pb-5'}`}>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-8">
                 <div className="min-w-0 flex-1">
                     <BrandLockup compact />
@@ -115,6 +249,7 @@ function PrintDirectoryMap({
     onClusterSelect,
     onFocusHandled,
     onResetView,
+    useV2Format = false,
 }) {
     const { t } = useLocale();
     return (
@@ -127,6 +262,8 @@ function PrintDirectoryMap({
                 unmappedCount={presentation.unmappedRows.length}
                 canShowQr={canShowQr}
                 resolvedShareUrl={resolvedShareUrl}
+                showMapStatusCounters={!useV2Format}
+                compact={useV2Format}
             />
 
             {presentation.activeAnchorNote ? (
@@ -150,44 +287,52 @@ function PrintDirectoryMap({
                 onFocusHandled={onFocusHandled}
                 onResetView={onResetView}
                 interactive={interactive}
-                markerMode="number"
+                markerMode={useV2Format ? 'print-badge' : 'number'}
+                pinBadgeMode={useV2Format ? 'none' : 'count'}
+                pinCategoryIconMode={useV2Format ? 'none' : 'auto'}
+                clusterMarkerMode={useV2Format ? 'none' : 'bubble'}
+                spreadCoincidentPins={!useV2Format}
                 placeNumberByKey={presentation.placeNumberByKey}
                 showPopup={false}
                 showZoomControl={false}
                 showAttribution={true}
                 showProviderBadgeLogo={interactive}
                 mapHeightClassName={interactive ? 'h-[360px]' : 'h-[300px]'}
-                className={presentation.activeAnchorNote ? 'mt-3' : (interactive ? 'mt-8' : 'mt-5')}
+                className={presentation.activeAnchorNote ? 'mt-3' : (useV2Format ? 'mt-3' : (interactive ? 'mt-8' : 'mt-5'))}
+                layoutSignature={useV2Format ? 'print-v2-map' : 'print-map'}
+                fitPaddingBottomRight={useV2Format ? PRINT_V2_FIT_PADDING_BOTTOM_RIGHT : undefined}
                 emptyLabel={t('noMappablePlacesInMap')}
                 onMapReadyForCapture={onMapReadyForCapture}
                 onMapCaptureError={onMapCaptureError}
                 onClusterChange={onClusterChange}
             />
 
-            {/* Legend — self-contained inside the print map card */}
-            <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[15px] font-bold text-slate-600">
-                <div className="flex items-center gap-2">
-                    <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
-                    <span>{t('legendSingle')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex h-[1.3em] w-[1.3em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.78em] font-black text-white shadow-sm">1</div>
-                    <span>{t('legendResourceNumber')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-blue-500 shadow-sm" />
-                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-pink-500 shadow-sm" />
-                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-orange-500 shadow-sm" />
+            {!useV2Format ? (
+                <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[15px] font-bold text-slate-600">
+                    <div className="flex items-center gap-2">
+                        <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-[#0f766e] shadow-sm" />
+                        <span>{t('legendSingle')}</span>
                     </div>
-                    <span>{t('legendClusters')}</span>
+                    <div className="flex items-center gap-2">
+                        <div className="flex h-[1.3em] w-[1.3em] items-center justify-center rounded-lg bg-[#0f766e] text-[0.78em] font-black text-white shadow-sm">1</div>
+                        <span>{t('legendResourceNumber')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="flex -space-x-2">
+                            <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-blue-500 shadow-sm" />
+                            <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-pink-500 shadow-sm" />
+                            <div className="h-[1.05em] w-[1.05em] rounded-full border border-white bg-orange-500 shadow-sm" />
+                        </div>
+                        <span>{t('legendClusters')}</span>
+                    </div>
                 </div>
-            </div>
+            ) : null}
         </div>
     );
 }
 
 const PREVIEW_CONTAINER_WIDTH = 1480;
+const PRINT_V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
 
 export default function DirectoryPrintView({
     directory,
@@ -202,7 +347,12 @@ export default function DirectoryPrintView({
     onMapReadyForCapture,
     onMapCaptureError,
 }) {
-    const presentation = buildDirectoryPresentation(directory, { activeAnchor });
+    const useV2OwnerPrint = mode === 'owner';
+    const basePresentation = buildDirectoryPresentation(directory, {
+        activeAnchor,
+        presentationMode: useV2OwnerPrint ? 'v2-cards' : 'default',
+    });
+    const presentation = useV2OwnerPrint ? withOwnerPrintBadgePins(basePresentation) : basePresentation;
     const resolvedShareUrl = shareUrl || buildDirectoryShareUrl(directory?.share?.sharePath);
     const canShowQr = Boolean(resolvedShareUrl) && (mode === 'shared' || directory?.share?.isShared);
     
@@ -251,6 +401,10 @@ export default function DirectoryPrintView({
     const resolvePrintPlaceKey = useCallback((placeKey) => (
         presentation.groupKeyByPlaceKey?.[placeKey] || placeKey
     ), [presentation.groupKeyByPlaceKey]);
+    const getPrintHoverPlaceKeys = useCallback((placeKey) => {
+        const normalizedPlaceKey = placeKey ? String(placeKey) : '';
+        return presentation.hoverPlaceKeysByKey?.[normalizedPlaceKey] || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
+    }, [presentation.hoverPlaceKeysByKey]);
 
     const clearPrintMapSelection = useCallback(() => {
         setFocusedPrintPlaceKey(null);
@@ -262,11 +416,12 @@ export default function DirectoryPrintView({
     const handlePrintPlaceSelect = useCallback((placeKey) => {
         const resolvedPlaceKey = resolvePrintPlaceKey(placeKey);
         if (!resolvedPlaceKey) return;
+        const hoverPlaceKeys = getPrintHoverPlaceKeys(resolvedPlaceKey);
         setHoveredPrintPlaceKey(null);
         setHoveredPrintClusterPlaceKeys([]);
-        setSelectedPrintPlaceKeys([String(resolvedPlaceKey)]);
+        setSelectedPrintPlaceKeys(hoverPlaceKeys.length ? hoverPlaceKeys.map((value) => String(value)) : [String(resolvedPlaceKey)]);
         setFocusedPrintPlaceKey(`${resolvedPlaceKey}:zoom`);
-    }, [resolvePrintPlaceKey]);
+    }, [getPrintHoverPlaceKeys, resolvePrintPlaceKey]);
 
     const handlePrintPlaceHoverStart = useCallback((placeKey) => {
         const resolvedPlaceKey = resolvePrintPlaceKey(placeKey);
@@ -314,7 +469,7 @@ export default function DirectoryPrintView({
         ? hoveredPrintClusterPlaceKeys
         : (selectedPrintPlaceKeys.length
             ? selectedPrintPlaceKeys
-            : (hoveredPrintPlaceKey ? [hoveredPrintPlaceKey] : []));
+            : (hoveredPrintPlaceKey ? getPrintHoverPlaceKeys(hoveredPrintPlaceKey) : []));
 
     const sheetWidth = variant === 'export' ? (exportWidth || PREVIEW_CONTAINER_WIDTH) : PREVIEW_CONTAINER_WIDTH;
     const paddingClass = 'p-10';
@@ -365,8 +520,12 @@ export default function DirectoryPrintView({
                         onClusterSelect={handlePrintClusterSelect}
                         onFocusHandled={handlePrintFocusHandled}
                         onResetView={clearPrintMapSelection}
+                        useV2Format={useV2OwnerPrint}
                     />
                 )}
+                cardBadgeMode={useV2OwnerPrint ? 'logo' : 'number'}
+                showPrintNumberBadges={useV2OwnerPrint}
+                showMapLegend={!useV2OwnerPrint}
             />
 
 

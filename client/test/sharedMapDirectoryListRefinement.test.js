@@ -53,6 +53,28 @@ test('v2 mapped cards can use permanent resource logos while numbered badges sta
     assert.match(myMapV2ScaffoldSource, /cardBadgeMode="logo"/);
 });
 
+test('print V2 cards can opt into numeric right-edge resource badges', () => {
+    const printBadgeSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function PrintResourceNumberBadge',
+        'function MapNoteIconButton',
+    );
+
+    assert.match(sharedMapDirectorySource, /function normalizeBadgeFillColor/);
+    assert.match(printBadgeSource, /function PrintResourceNumberBadge/);
+    assert.match(printBadgeSource, /replace\(\s*\/\^#\//);
+    assert.match(printBadgeSource, /color = null/);
+    assert.match(printBadgeSource, /const badgeColor = normalizeBadgeFillColor\(color\)/);
+    assert.match(printBadgeSource, /className="ml-1 inline-flex h-7 w-7 min-w-7/);
+    assert.match(printBadgeSource, /backgroundColor: badgeColor/);
+    assert.match(printBadgeSource, /borderColor: 'rgba\(255,255,255,0\.96\)'/);
+    assert.match(sharedMapDirectorySource, /showPrintNumberBadges = false/);
+    assert.match(sharedMapDirectorySource, /showPrintNumberBadge = false/);
+    assert.match(sharedMapDirectorySource, /<PrintResourceNumberBadge value=\{group\.number\} color=\{group\.categoryColor \|\| clusterColorData\?\.core \|\| null\} compact=\{compactPrint\} \/>/);
+    assert.match(sharedMapDirectorySource, /showPrintNumberBadge=\{showPrintNumberBadges\}/);
+    assert.doesNotMatch(printBadgeSource, /bg-\[#0f766e\]/);
+});
+
 test('v2 can hide the map legend while shared directory lists keep it by default', () => {
     assert.match(sharedMapDirectorySource, /showMapLegend = true/);
     assert.match(sharedMapDirectorySource, /showMapLegend \? <MapLegend mobile \/> : null/);
