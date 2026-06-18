@@ -65,3 +65,27 @@ test('shared map page wires continuation through all sign-in entry points', () =
     assert.match(sharedMapPageSource, /navigate\(ownerMyMapPath, \{ replace: true \}\)/);
     assert.match(sharedMapPageSource, /const canSaveSharedResources = Boolean\(isAuth && !isOwner\);/);
 });
+
+test('shared map interactive view uses the My Map V2 card and pin language', () => {
+    assert.match(sharedMapPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
+    assert.match(sharedMapPageSource, /setDirectory\(applySubCategoryMetaToDirectory\(nextDirectory, subcategories\)\)/);
+    assert.match(sharedMapPageSource, /buildDirectoryPresentation\(translatedDirectory, \{ query, activeAnchor, presentationMode: 'v2-cards' \}\)/);
+    assert.match(sharedMapPageSource, /const resolvedPlaceKey = sharedPresentation\.groupKeyByPlaceKey\?\.\[placeKey\] \|\| placeKey/);
+    assert.match(sharedMapPageSource, /presentation=\{sharedPresentation\}/);
+    assert.match(sharedMapPageSource, /showMapLegend=\{false\}/);
+    assert.match(sharedMapPageSource, /cardBadgeMode="logo"/);
+    assert.match(sharedMapPageSource, /desktopGridClassName=\{SHARED_MAP_V2_DESKTOP_GRID_CLASS\}/);
+    assert.match(sharedMapPageSource, /markerMode="count"/);
+    assert.match(sharedMapPageSource, /pinBadgeMode="none"/);
+    assert.match(sharedMapPageSource, /pinCategoryIconMode="none"/);
+    assert.match(sharedMapPageSource, /clusterMarkerMode="none"/);
+    assert.match(sharedMapPageSource, /fitPaddingBottomRight=\{SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT\}/);
+    assert.doesNotMatch(sharedMapPageSource, /presentation=\{interactivePresentation\}/);
+    assert.doesNotMatch(sharedMapPageSource, /markerMode="number"/);
+});
+
+test('shared map print stays on the shared print path while interactive view is refreshed', () => {
+    assert.match(sharedMapPageSource, /if \(isPrintView\) \{/);
+    assert.match(sharedMapPageSource, /<DirectoryPrintView[\s\S]*mode="shared"/);
+    assert.doesNotMatch(sharedMapPageSource, /useV2OwnerPrint/);
+});

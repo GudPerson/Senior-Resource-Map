@@ -19,6 +19,75 @@ import { applySharedNoteTranslationsToDirectory } from '../lib/mapNotes.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { buildCurrentAppPath, buildLoginPathWithMapReturn, buildOwnerMyMapPathFromSharedDirectory } from '../lib/appNavigation.js';
 
+const SHARED_MAP_V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[700px]';
+const SHARED_MAP_V2_MOBILE_MAP_HEIGHT_CLASS = 'h-[34svh] min-h-[260px] max-h-[390px]';
+const SHARED_MAP_V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-[minmax(230px,0.78fr)_minmax(430px,1.32fr)_minmax(240px,0.84fr)] xl:gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
+const SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
+
+function normalizeCategoryMetaKey(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function buildSubCategoryMetaLookup(subcategories = []) {
+    const lookup = new Map();
+
+    (Array.isArray(subcategories) ? subcategories : []).forEach((subcategory) => {
+        const key = normalizeCategoryMetaKey(subcategory?.name);
+        if (!key) return;
+        lookup.set(key, {
+            color: subcategory?.color || null,
+            iconUrl: subcategory?.iconUrl || null,
+        });
+    });
+
+    return lookup;
+}
+
+function applySubCategoryMetaToRow(row, lookup) {
+    if (!row || !lookup.size) return row;
+    const categoryMeta = lookup.get(normalizeCategoryMetaKey(row.iconKey || row.subCategory));
+    const mapCategoryMeta = lookup.get(normalizeCategoryMetaKey(row.mapIconKey || row.mapSubCategory || row.mapCategoryLabel));
+    if (!categoryMeta && !mapCategoryMeta) return row;
+    const nextCategoryColor = row.categoryColor || categoryMeta?.color || null;
+    const nextCategoryIconUrl = row.categoryIconUrl || categoryMeta?.iconUrl || null;
+    const nextMapCategoryColor = row.mapCategoryColor || mapCategoryMeta?.color || null;
+    const nextMapCategoryIconUrl = row.mapCategoryIconUrl || mapCategoryMeta?.iconUrl || null;
+
+    if (
+        nextCategoryColor === (row.categoryColor || null)
+        && nextCategoryIconUrl === (row.categoryIconUrl || null)
+        && nextMapCategoryColor === (row.mapCategoryColor || null)
+        && nextMapCategoryIconUrl === (row.mapCategoryIconUrl || null)
+    ) {
+        return row;
+    }
+
+    return {
+        ...row,
+        categoryColor: nextCategoryColor,
+        categoryIconUrl: nextCategoryIconUrl,
+        ...(row.mapSubCategory || row.mapCategoryLabel || row.mapIconKey ? {
+            mapCategoryColor: nextMapCategoryColor,
+            mapCategoryIconUrl: nextMapCategoryIconUrl,
+        } : {}),
+    };
+}
+
+function applySubCategoryMetaToDirectory(directory, subcategories = []) {
+    if (!directory) return directory;
+    const lookup = buildSubCategoryMetaLookup(subcategories);
+    if (!lookup.size) return directory;
+
+    return {
+        ...directory,
+        assets: (directory.assets || []).map((asset) => applySubCategoryMetaToRow(asset, lookup)),
+        places: (directory.places || []).map((place) => ({
+            ...place,
+            rows: (place.rows || []).map((row) => applySubCategoryMetaToRow(row, lookup)),
+        })),
+    };
+}
+
 function UnavailableState({ message }) {
     const { t } = useLocale();
     return (
@@ -352,8 +421,11 @@ export default function SharedMapPage() {
         if (!keepCurrent) setLoading(true);
         setError('');
         try {
-            const nextDirectory = await api.getSharedMap(token);
-            setDirectory(nextDirectory);
+            const [nextDirectory, subcategories] = await Promise.all([
+                api.getSharedMap(token),
+                api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
+            ]);
+            setDirectory(applySubCategoryMetaToDirectory(nextDirectory, subcategories));
             setNoteTranslationByLocale({});
         } catch (err) {
             console.error(err);
@@ -432,8 +504,8 @@ export default function SharedMapPage() {
         Boolean(translatedDirectory?.viewer?.isOwner || (user?.id && translatedDirectory?.viewer?.isAuthenticated && translatedDirectory?.viewer?.isOwner))
     ), [translatedDirectory?.viewer, user?.id]);
     const activeAnchor = anchorState.activeAnchor;
-    const interactivePresentation = useMemo(() => (
-        buildDirectoryPresentation(translatedDirectory, { query, activeAnchor })
+    const sharedPresentation = useMemo(() => (
+        buildDirectoryPresentation(translatedDirectory, { query, activeAnchor, presentationMode: 'v2-cards' })
     ), [activeAnchor, translatedDirectory, query]);
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(translatedDirectory?.share?.sharePath || (token ? `/shared/maps/${token}` : ''))
@@ -456,7 +528,7 @@ export default function SharedMapPage() {
     }, [loading, navigate, ownerMyMapPath]);
 
     function handleViewSection(placeKey) {
-        const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
+        const resolvedPlaceKey = sharedPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setQuery('');
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -468,7 +540,7 @@ export default function SharedMapPage() {
     }
 
     function handleViewOnMap(placeKey) {
-        const resolvedPlaceKey = interactivePresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
+        const resolvedPlaceKey = sharedPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setFocusedPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -612,10 +684,10 @@ export default function SharedMapPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-[#f6f8fb]">
             {useDesktopLayout ? (
                 <div className="border-b border-slate-200 bg-white/90 backdrop-blur">
-                    <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
+                    <div className="mx-auto flex w-full max-w-[1800px] items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10 2xl:px-14">
                         <BrandLockup />
                         {!isAuth ? (
                             <Link to={loginPath} className="btn-ghost justify-center border border-slate-200 text-slate-700">
@@ -643,7 +715,7 @@ export default function SharedMapPage() {
                 />
             ) : null}
 
-            <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pb-8 pt-0 sm:px-6 sm:pb-10 sm:pt-0 lg:px-8 lg:py-8">
+            <div className="mx-auto w-full max-w-[1800px] space-y-5 px-4 pb-8 pt-0 sm:px-6 sm:pb-10 sm:pt-0 lg:px-8 lg:py-8 xl:px-10 2xl:px-14">
                 {useDesktopLayout ? (
                     <>
                         <DirectoryHeader
@@ -667,9 +739,9 @@ export default function SharedMapPage() {
                         </div>
 
                         <SharedMapDirectoryList
-                            presentation={interactivePresentation}
+                            presentation={sharedPresentation}
                             mode="shared"
-                            layout="responsive"
+                            layout="desktop"
                             onViewOnMap={handleViewOnMap}
                             highlightPlaceKey={activePlaceKey}
                             highlightPlaceKeys={activePlaceKeys}
@@ -677,10 +749,13 @@ export default function SharedMapPage() {
                             selectionScrollRequest={selectionScrollRequest}
                             canSaveResources={canSaveSharedResources}
                             showDesktopHoverLogo
+                            showMapLegend={false}
+                            cardBadgeMode="logo"
+                            desktopGridClassName={SHARED_MAP_V2_DESKTOP_GRID_CLASS}
                             renderDesktopMap={() => (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
-                                    pins={interactivePresentation.pins}
+                                    pins={sharedPresentation.pins}
                                     focusedPlaceKey={effectiveFocusedPlaceKey}
                                     activePlaceKey={activePlaceKey}
                                     activePlaceKeys={activePlaceKeys}
@@ -690,16 +765,21 @@ export default function SharedMapPage() {
                                     onHoverClusterStart={handleMapClusterHoverStart}
                                     onHoverClusterEnd={handleMapClusterHoverEnd}
                                     onClusterSelect={handleMapClusterSelect}
-                                    markerMode="number"
-                                    placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                    markerMode="count"
+                                    pinBadgeMode="none"
+                                    pinCategoryIconMode="none"
+                                    clusterMarkerMode="none"
+                                    placeNumberByKey={sharedPresentation.placeNumberByKey}
                                     emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
-                                    mapHeightClassName="h-[540px]"
+                                    mapHeightClassName={SHARED_MAP_V2_DESKTOP_MAP_HEIGHT_CLASS}
+                                    layoutSignature="shared-v2-map"
+                                    fitPaddingBottomRight={SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT}
                                 />
                             )}
                             renderMobileMap={() => (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
-                                    pins={interactivePresentation.pins}
+                                    pins={sharedPresentation.pins}
                                     focusedPlaceKey={effectiveFocusedPlaceKey}
                                     activePlaceKey={activePlaceKey}
                                     activePlaceKeys={activePlaceKeys}
@@ -709,17 +789,22 @@ export default function SharedMapPage() {
                                     onHoverClusterStart={handleMapClusterHoverStart}
                                     onHoverClusterEnd={handleMapClusterHoverEnd}
                                     onClusterSelect={handleMapClusterSelect}
-                                    markerMode="number"
-                                    placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                    markerMode="count"
+                                    pinBadgeMode="none"
+                                    pinCategoryIconMode="none"
+                                    clusterMarkerMode="none"
+                                    placeNumberByKey={sharedPresentation.placeNumberByKey}
                                     emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
-                                    mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
+                                    mapHeightClassName={SHARED_MAP_V2_MOBILE_MAP_HEIGHT_CLASS}
+                                    layoutSignature="shared-v2-map"
+                                    fitPaddingBottomRight={SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT}
                                 />
                             )}
                         />
                     </>
                 ) : (
                     <SharedMapDirectoryList
-                        presentation={interactivePresentation}
+                        presentation={sharedPresentation}
                         mode="shared"
                         layout="responsive"
                         onViewOnMap={handleViewOnMap}
@@ -729,10 +814,13 @@ export default function SharedMapPage() {
                         selectionScrollRequest={selectionScrollRequest}
                         canSaveResources={canSaveSharedResources}
                         showDesktopHoverLogo
+                        showMapLegend={false}
+                        cardBadgeMode="logo"
+                        desktopGridClassName={SHARED_MAP_V2_DESKTOP_GRID_CLASS}
                         renderDesktopMap={() => (
                             <DirectoryMap
                                 activeAnchor={activeAnchor}
-                                pins={interactivePresentation.pins}
+                                pins={sharedPresentation.pins}
                                 focusedPlaceKey={effectiveFocusedPlaceKey}
                                 activePlaceKey={activePlaceKey}
                                 activePlaceKeys={activePlaceKeys}
@@ -742,16 +830,21 @@ export default function SharedMapPage() {
                                 onHoverClusterStart={handleMapClusterHoverStart}
                                 onHoverClusterEnd={handleMapClusterHoverEnd}
                                 onClusterSelect={handleMapClusterSelect}
-                                markerMode="number"
-                                placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                markerMode="count"
+                                pinBadgeMode="none"
+                                pinCategoryIconMode="none"
+                                clusterMarkerMode="none"
+                                placeNumberByKey={sharedPresentation.placeNumberByKey}
                                 emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
-                                mapHeightClassName="h-[540px]"
+                                mapHeightClassName={SHARED_MAP_V2_DESKTOP_MAP_HEIGHT_CLASS}
+                                layoutSignature="shared-v2-map"
+                                fitPaddingBottomRight={SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT}
                             />
                         )}
                         renderMobileMap={() => (
                             <DirectoryMap
                                 activeAnchor={activeAnchor}
-                                pins={interactivePresentation.pins}
+                                pins={sharedPresentation.pins}
                                 focusedPlaceKey={effectiveFocusedPlaceKey}
                                 activePlaceKey={activePlaceKey}
                                 activePlaceKeys={activePlaceKeys}
@@ -761,13 +854,18 @@ export default function SharedMapPage() {
                                 onHoverClusterStart={handleMapClusterHoverStart}
                                 onHoverClusterEnd={handleMapClusterHoverEnd}
                                 onClusterSelect={handleMapClusterSelect}
-                                markerMode="number"
-                                placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                markerMode="count"
+                                pinBadgeMode="none"
+                                pinCategoryIconMode="none"
+                                clusterMarkerMode="none"
+                                placeNumberByKey={sharedPresentation.placeNumberByKey}
                                 emptyLabel={query ? t('noMappableSharedPlacesMatchSearch') : t('sharedMapNoMappablePlacesYet')}
-                                mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
+                                mapHeightClassName={SHARED_MAP_V2_MOBILE_MAP_HEIGHT_CLASS}
+                                layoutSignature="shared-v2-map"
+                                fitPaddingBottomRight={SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT}
                             />
                         )}
-                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-30 -mx-4 bg-slate-50 px-4 pb-5 pt-2 shadow-[0_10px_22px_rgba(15,23,42,0.08)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
+                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-30 -mx-4 bg-[#f6f8fb] px-4 pb-5 pt-2 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
                     />
                 )}
             </div>
