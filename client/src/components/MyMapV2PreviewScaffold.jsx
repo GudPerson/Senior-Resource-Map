@@ -3,7 +3,7 @@ import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 
 const V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[700px]';
 const V2_MOBILE_MAP_HEIGHT_CLASS = 'h-[34svh] min-h-[260px] max-h-[390px]';
-const V2_DESKTOP_GRID_CLASS = 'lg:grid-cols-[minmax(300px,0.85fr)_minmax(520px,1.4fr)_minmax(340px,0.95fr)] xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
+const V2_DESKTOP_GRID_CLASS = 'lg:grid-cols-[minmax(280px,0.85fr)_minmax(480px,1.35fr)_minmax(300px,0.9fr)] xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
 const V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
 
 export default function MyMapV2PreviewScaffold({
@@ -30,6 +30,7 @@ export default function MyMapV2PreviewScaffold({
     onFocusHandled,
     onResetView,
     toolbar = null,
+    useDesktopBodyLayout = useDesktopLayout,
     emptyLabel,
     emptyState = null,
 }) {
@@ -71,7 +72,7 @@ export default function MyMapV2PreviewScaffold({
                 </div>
             ) : null}
 
-            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14">
+            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10 2xl:px-14">
                 {useDesktopLayout ? (
                     <div data-my-map-ui="v2">
                         {toolbar}
@@ -90,7 +91,7 @@ export default function MyMapV2PreviewScaffold({
                     <SharedMapDirectoryList
                         presentation={presentation}
                         mode="owner"
-                        layout={useDesktopLayout ? 'desktop' : 'responsive'}
+                        layout={useDesktopBodyLayout ? 'desktop' : 'responsive'}
                         onViewOnMap={onViewOnMap}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}

@@ -428,6 +428,7 @@ export default function MyMapDetailPage() {
     const pendingFocusFrameRef = useRef(null);
     const desktopSelectionSnapRef = useRef(null);
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
+    const useDesktopDirectoryBodyLayout = useMediaQuery('(min-width: 1200px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
     const myMapUiMode = getMyMapUiMode(searchParams);
@@ -773,6 +774,7 @@ export default function MyMapDetailPage() {
                     activeAnchor={activeAnchor}
                     presentation={v2Presentation}
                     useDesktopLayout={useDesktopOwnerLayout}
+                    useDesktopBodyLayout={useDesktopDirectoryBodyLayout}
                     focusedPlaceKey={effectiveFocusedPlaceKey}
                     activePlaceKey={activePlaceKey}
                     activePlaceKeys={activePlaceKeys}
