@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Copy, Globe2, LockKeyhole, Link2, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
 
 function buildShareUrl(sharePath) {
     if (!sharePath) return '';
@@ -24,6 +25,9 @@ export default function ShareMapModal({
     if (!isOpen || !map) return null;
 
     const isShared = Boolean(map?.share?.isShared ?? map?.isShared);
+    const hasPendingShareUpdates = hasSharedMapUpdates(map);
+    const sharedStatusTitle = hasPendingShareUpdates ? t('shareLinkNeedsUpdateTitle') : t('sharedLinkIsLive');
+    const sharedStatusDescription = hasPendingShareUpdates ? t('shareLinkNeedsUpdateDescription') : t('sharedLinkDescription');
 
     async function handleCopyLink() {
         if (!shareUrl) return;
@@ -58,18 +62,26 @@ export default function ShareMapModal({
                 </div>
 
                 <div className="space-y-5 px-5 py-5 sm:px-6">
-                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+                    <div className={`rounded-[24px] border p-5 ${
+                        hasPendingShareUpdates
+                            ? 'border-amber-200 bg-amber-50'
+                            : 'border-slate-200 bg-slate-50'
+                    }`}>
                         <div className="flex items-center gap-3">
-                            <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${isShared ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-600'}`}>
+                            <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
+                                hasPendingShareUpdates
+                                    ? 'bg-white text-amber-600 shadow-sm'
+                                    : isShared ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-600'
+                            }`}>
                                 {isShared ? <Globe2 size={20} /> : <LockKeyhole size={20} />}
                             </div>
                             <div className="min-w-0">
                                 <p className="text-sm font-semibold text-slate-900">
-                                    {isShared ? t('sharedLinkIsLive') : t('privateMap')}
+                                    {isShared ? sharedStatusTitle : t('privateMap')}
                                 </p>
                                 <p className="mt-1 text-sm leading-6 text-slate-500">
                                     {isShared
-                                        ? t('sharedLinkDescription')
+                                        ? sharedStatusDescription
                                         : t('privateMapDescription')}
                                 </p>
                             </div>
@@ -91,9 +103,13 @@ export default function ShareMapModal({
                                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-700"
                                     />
                                 </div>
-                                <button type="button" onClick={handleCopyLink} className="btn-primary justify-center">
+                                <button
+                                    type="button"
+                                    onClick={handleCopyLink}
+                                    className={`${hasPendingShareUpdates ? 'btn-ghost border border-slate-200' : 'btn-primary'} justify-center`}
+                                >
                                     <Copy size={16} />
-                                    {t('copyLink')}
+                                    {hasPendingShareUpdates ? t('copyExistingLink') : t('copyLink')}
                                 </button>
                             </div>
                             {copyFeedback ? (
@@ -121,7 +137,7 @@ export default function ShareMapModal({
                                     type="button"
                                     onClick={() => onPublish?.()}
                                     disabled={submitting}
-                                    className="btn-ghost justify-center border border-brand-200 text-brand-700 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className={`${hasPendingShareUpdates ? 'btn-primary' : 'btn-ghost border border-brand-200 text-brand-700 hover:bg-brand-50'} justify-center disabled:cursor-not-allowed disabled:opacity-60`}
                                 >
                                     {submitting ? t('saving') : t('updateSharedLink')}
                                 </button>
