@@ -133,17 +133,12 @@ function HomePostalCodeCta({ compact = false }) {
 function buildSummaryChips({
     activeTab,
     activeSubregionLabel,
-    distanceOverridden = false,
     search,
-    searchOrigin,
-    searchRadius,
     showFavoritesOnly,
     t,
     user,
-    userLocation,
 }) {
     const summaryChips = [];
-    const hasLocationAnchor = Boolean(searchOrigin || userLocation);
 
     if (search.trim()) {
         summaryChips.push({
@@ -170,15 +165,6 @@ function buildSummaryChips({
         summaryChips.push({
             key: 'subregion',
             label: `${t('discoveryServiceArea')}: ${activeSubregionLabel}`,
-        });
-    }
-
-    if (hasLocationAnchor && searchRadius < 100 && !distanceOverridden) {
-        summaryChips.push({
-            key: 'radius',
-            label: t('discoveryWithinDistance', {
-                distance: searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`,
-            }),
         });
     }
 
@@ -273,11 +259,9 @@ function MobileFilterSheet({
     canClearLocationSearch,
     clearLocationSearch,
     discoverySubregionOptions = [],
-    distanceOverridden = false,
     favoritesActionNotice,
     handleHomeAnchor,
     handleLocateMe,
-    handlePostalSearch,
     hasHomePostalCode,
     isGeocoding,
     isSaveAllChecked,
@@ -292,12 +276,10 @@ function MobileFilterSheet({
     postalInput,
     saveAllCount = 0,
     saveAllPendingLabel,
-    searchRadius,
     selectedDiscoverySubregionId,
     setActiveTab,
     setPostalInput,
     setSelectedDiscoverySubregion,
-    setSearchRadius,
     setShowFavoritesOnly,
     showFavoritesOnly,
     tabCounts = { all: 0, hard: 0, soft: 0 },
@@ -306,15 +288,7 @@ function MobileFilterSheet({
     searchOrigin,
 }) {
     const { t } = useLocale();
-    const handleMobileSearchSubmit = async (event) => {
-        if (postalInput.trim()) {
-            const applied = await handlePostalSearch(event);
-            if (applied) {
-                onOpenChange(false);
-            }
-            return;
-        }
-
+    const handleMobileSearchSubmit = (event) => {
         event.preventDefault();
         onOpenChange(false);
     };
@@ -416,30 +390,7 @@ function MobileFilterSheet({
                             </label>
                         ) : null}
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <label className="space-y-2">
-                                <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    {t('discoveryDistance')}
-                                </span>
-                                <select
-                                    value={searchRadius}
-                                    onChange={(event) => setSearchRadius(parseFloat(event.target.value))}
-                                    disabled={distanceOverridden}
-                                    className="w-full rounded-2xl border bg-white px-3 py-3 text-[15px] font-semibold leading-none outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-                                    style={{
-                                        borderColor: 'var(--color-border)',
-                                        color: 'var(--color-text)',
-                                        opacity: distanceOverridden ? 0.55 : 1,
-                                    }}
-                                >
-                                    <option value={0.3}>300m</option>
-                                    <option value={0.5}>500m</option>
-                                    <option value={1}>1km</option>
-                                    <option value={2}>2km</option>
-                                    <option value={100}>{t('discoveryAllSg')}</option>
-                                </select>
-                            </label>
-
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <label className="space-y-2">
                                 <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
                                     {t('discoveryShow')}
@@ -456,12 +407,6 @@ function MobileFilterSheet({
                                 </select>
                             </label>
                         </div>
-
-                        {distanceOverridden ? (
-                            <p className="text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                {t('discoveryDistanceDisabledMobile')}
-                            </p>
-                        ) : null}
 
                         {user ? (
                             <div className="grid gap-3 sm:grid-cols-2">
@@ -557,13 +502,6 @@ function MobileFilterSheet({
                                     <p className="truncate" style={{ color: 'var(--color-brand-strong)' }}>
                                         {t('discoveryUsingLocation', { label: getSearchLocationLabel(searchOrigin) })}
                                     </p>
-                                    {searchRadius < 100 && !distanceOverridden ? (
-                                        <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                            {t('discoveryWithinDistance', {
-                                                distance: searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`,
-                                            })}
-                                        </p>
-                                    ) : null}
                                 </div>
                                 {canClearLocationSearch ? (
                                     <button type="button" onClick={clearLocationSearch} className="shrink-0 text-[12px] font-bold underline leading-none whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>
@@ -572,22 +510,6 @@ function MobileFilterSheet({
                                 ) : null}
                             </div>
                         ) : null}
-                        <div
-                            className="sticky bottom-0 z-10 -mx-1 border-t px-1 pb-1 pt-3"
-                            style={{
-                                borderColor: 'var(--color-border)',
-                                background: 'linear-gradient(180deg, rgba(246,252,251,0) 0%, var(--color-drawer-bg) 34%, var(--color-drawer-bg) 100%)',
-                            }}
-                        >
-                            <button
-                                type="submit"
-                                disabled={isGeocoding}
-                                className="btn-primary min-h-[48px] w-full justify-center text-[15px] leading-none whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                                <Search size={17} />
-                                {isGeocoding ? t('wait') : t('search')}
-                            </button>
-                        </div>
             </form>
         </MobileBottomSheet>
     );
@@ -601,11 +523,9 @@ function DesktopFilterPanel({
     canClearLocationSearch,
     clearLocationSearch,
     discoverySubregionOptions = [],
-    distanceOverridden = false,
     favoritesActionNotice,
     handleHomeAnchor,
     handleLocateMe,
-    handlePostalSearch,
     hasHomePostalCode,
     isGeocoding,
     isCollapsed,
@@ -613,7 +533,6 @@ function DesktopFilterPanel({
     isSaveAllIndeterminate,
     isSaveAllPending,
     locationNotice,
-    onApplySearch,
     onCollapsedPullExpand,
     onCollapse,
     onExpand,
@@ -625,12 +544,10 @@ function DesktopFilterPanel({
     saveAllPendingLabel,
     search,
     searchOrigin,
-    searchRadius,
     selectedDiscoverySubregionId,
     setActiveTab,
     setPostalInput,
     setSelectedDiscoverySubregion,
-    setSearchRadius,
     setShowFavoritesOnly,
     showFavoritesOnly,
     tabCounts = { all: 0, hard: 0, soft: 0 },
@@ -641,14 +558,10 @@ function DesktopFilterPanel({
     const summaryChips = buildSummaryChips({
         activeTab,
         activeSubregionLabel,
-        distanceOverridden,
         search,
-        searchOrigin,
-        searchRadius,
         showFavoritesOnly,
         t,
         user,
-        userLocation,
     });
     const { mode: locationControlMode, rowRef: locationControlsRef } = useAdaptiveLocationControlMode(hasHomePostalCode);
     const postalPlaceholder = locationControlMode === 'full'
@@ -656,7 +569,6 @@ function DesktopFilterPanel({
         : locationControlMode === 'compact'
             ? t('homePostalCode')
             : '';
-    const showSearchLabel = locationControlMode === 'full';
     const collapsedPullStartYRef = useRef(null);
 
     const handleCollapsedSummaryWheel = (event) => {
@@ -789,93 +701,7 @@ function DesktopFilterPanel({
             </div>
 
             <div className="space-y-4 p-6 pt-2">
-                <form onSubmit={onApplySearch} className="flex flex-col gap-3">
-                    <div ref={locationControlsRef} className="flex gap-2">
-                        <div className="relative flex-1">
-                            <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
-                            <input
-                                id="postal-input"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\d*"
-                                maxLength={6}
-                                placeholder={postalPlaceholder}
-                                value={postalInput}
-                                onChange={(event) => setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                                className={`w-full rounded-2xl py-2.5 pl-9 pr-10 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
-                                style={{
-                                    ...INPUT_RING_STYLE,
-                                    backgroundColor: 'var(--color-input-bg)',
-                                    color: 'var(--color-text)',
-                                    border: '1.5px solid var(--color-border)',
-                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
-                                }}
-                            />
-                            {isGeocoding ? (
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
-                                </div>
-                            ) : null}
-                        </div>
-                        {hasHomePostalCode ? (
-                            <LocationActionButton
-                                active={searchOrigin?.source === 'home'}
-                                icon={House}
-                                labelMode={locationControlMode}
-                                onClick={() => handleHomeAnchor()}
-                                shortLabel={t('discoveryHome')}
-                                title={t('discoveryUseHomeTitle')}
-                            >
-                                {t('discoveryHome')}
-                            </LocationActionButton>
-                        ) : null}
-                        <LocationActionButton
-                            active={searchOrigin?.source === 'geolocation'}
-                            icon={LocateFixed}
-                            labelMode={locationControlMode}
-                            onClick={handleLocateMe}
-                            shortLabel={t('discoveryLocateMe')}
-                            title={t('discoveryUseCurrentTitle')}
-                        >
-                            {t('discoveryLocateMe')}
-                        </LocationActionButton>
-                        <div className="relative shrink-0">
-                            <select
-                                value={searchRadius}
-                                onChange={(event) => setSearchRadius(parseFloat(event.target.value))}
-                                disabled={distanceOverridden}
-                                className={`${DISCOVERY_CONTROL_HEIGHT_CLASS} cursor-pointer appearance-none rounded-2xl pl-3 pr-8 py-2.5 text-[0.78rem] font-semibold focus:outline-none transition-all`}
-                                style={{
-                                    backgroundColor: 'var(--color-input-bg)',
-                                    color: 'var(--color-text)',
-                                    border: '1.5px solid var(--color-border)',
-                                    opacity: distanceOverridden ? 0.55 : 1,
-                                }}
-                            >
-                                <option value={0.3}>300m</option>
-                                <option value={0.5}>500m</option>
-                                <option value={1}>1km</option>
-                                <option value={2}>2km</option>
-                                <option value={100}>{t('discoveryAllSg')}</option>
-                            </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
-                        </div>
-                        <button
-                            type="submit"
-                            className={`flex ${DISCOVERY_CONTROL_HEIGHT_CLASS} flex-shrink-0 items-center justify-center rounded-2xl ${DISCOVERY_CONTROL_TEXT_CLASS} font-bold text-white transition-all hover:shadow-lg active:scale-95 ${showSearchLabel ? 'gap-2 px-5' : 'gap-0 px-3'}`}
-                            style={{ background: 'linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-strong) 100%)' }}
-                            aria-label={t('search')}
-                            title={t('search')}
-                        >
-                            <Search size={16} />
-                            {showSearchLabel ? t('search') : null}
-                        </button>
-                    </div>
-
-                    {user && !hasHomePostalCode ? (
-                        <HomePostalCodeCta />
-                    ) : null}
-
+                <div className="flex flex-col gap-3">
                     {canUseSubregionScope ? (
                         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
                             <div className="relative">
@@ -935,7 +761,62 @@ function DesktopFilterPanel({
                             />
                         </div>
                     )}
-                </form>
+
+                    <div ref={locationControlsRef} className="flex gap-2">
+                        <div className="relative flex-1">
+                            <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
+                            <input
+                                id="postal-input"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="\d*"
+                                maxLength={6}
+                                placeholder={postalPlaceholder}
+                                value={postalInput}
+                                onChange={(event) => setPostalInput(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className={`w-full rounded-2xl py-2.5 pl-9 pr-10 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
+                                style={{
+                                    ...INPUT_RING_STYLE,
+                                    backgroundColor: 'var(--color-input-bg)',
+                                    color: 'var(--color-text)',
+                                    border: '1.5px solid var(--color-border)',
+                                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
+                                }}
+                            />
+                            {isGeocoding ? (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: 'var(--color-border)', borderTopColor: 'var(--color-brand)' }} />
+                                </div>
+                            ) : null}
+                        </div>
+                        {hasHomePostalCode ? (
+                            <LocationActionButton
+                                active={searchOrigin?.source === 'home'}
+                                icon={House}
+                                labelMode={locationControlMode}
+                                onClick={() => handleHomeAnchor()}
+                                shortLabel={t('discoveryHome')}
+                                title={t('discoveryUseHomeTitle')}
+                            >
+                                {t('discoveryHome')}
+                            </LocationActionButton>
+                        ) : null}
+                        <LocationActionButton
+                            active={searchOrigin?.source === 'geolocation'}
+                            icon={LocateFixed}
+                            labelMode={locationControlMode}
+                            onClick={handleLocateMe}
+                            shortLabel={t('discoveryLocateMe')}
+                            title={t('discoveryUseCurrentTitle')}
+                        >
+                            {t('discoveryLocateMe')}
+                        </LocationActionButton>
+                    </div>
+
+                    {user && !hasHomePostalCode ? (
+                        <HomePostalCodeCta />
+                    ) : null}
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="flex flex-1 items-center gap-1 rounded-2xl p-1" style={{ backgroundColor: 'var(--color-badge-bg)', border: '1px solid var(--color-border)' }}>
@@ -1009,15 +890,6 @@ function DesktopFilterPanel({
                     </div>
                 ) : null}
 
-                {distanceOverridden ? (
-                    <div
-                        className="rounded-xl px-4 py-2.5 text-xs font-bold leading-relaxed border animate-in fade-in slide-in-from-top-1"
-                        style={{ backgroundColor: 'rgba(248,250,252,0.92)', color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }}
-                    >
-                        {t('discoveryDistanceDisabledDesktop')}
-                    </div>
-                ) : null}
-
                 {favoritesActionNotice ? (
                     <div
                         className="rounded-xl px-4 py-2.5 text-xs font-bold leading-relaxed border animate-in fade-in slide-in-from-top-1"
@@ -1032,12 +904,7 @@ function DesktopFilterPanel({
                         <div className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span style={{ color: 'var(--color-brand-strong)' }}>
-                                {searchRadius < 100 && !distanceOverridden
-                                    ? t('discoveryUsingLocationWithin', {
-                                        label: getSearchLocationLabel(searchOrigin),
-                                        distance: searchRadius < 1 ? `${searchRadius * 1000}m` : `${searchRadius}km`,
-                                    })
-                                    : t('discoveryUsingLocation', { label: getSearchLocationLabel(searchOrigin) })}
+                                {t('discoveryUsingLocation', { label: getSearchLocationLabel(searchOrigin) })}
                             </span>
                         </div>
                         {canClearLocationSearch ? (
@@ -1063,11 +930,9 @@ export function DiscoveryFilterPanel(props) {
         canClearLocationSearch = true,
         clearLocationSearch,
         discoverySubregionOptions = [],
-        distanceOverridden = false,
         favoritesActionNotice = '',
         handleHomeAnchor,
         handleLocateMe,
-        handlePostalSearch,
         hasHomePostalCode = false,
         isGeocoding,
         isCollapsed,
@@ -1077,7 +942,6 @@ export function DiscoveryFilterPanel(props) {
         locationNotice,
         mobileMode = 'browse',
         mobileCardDensity = 'comfortable',
-        onApplySearch,
         onChangeMobileCardDensity,
         onCollapse,
         onExpand,
@@ -1094,12 +958,10 @@ export function DiscoveryFilterPanel(props) {
         saveAllPendingLabel,
         search,
         searchOrigin,
-        searchRadius,
         selectedDiscoverySubregionId = '',
         setActiveTab,
         setPostalInput,
         setSelectedDiscoverySubregion = () => {},
-        setSearchRadius,
         setShowFavoritesOnly,
         showFavoritesOnly,
         tabCounts = { all: 0, hard: 0, soft: 0 },
@@ -1111,14 +973,10 @@ export function DiscoveryFilterPanel(props) {
     const summaryChips = buildSummaryChips({
         activeTab,
         activeSubregionLabel,
-        distanceOverridden,
         search,
-        searchOrigin,
-        searchRadius,
         showFavoritesOnly,
         t,
         user,
-        userLocation,
     });
     const mapDisabled = pinCount === 0 && !userLocation;
     const resolvedSaveAllPendingLabel = saveAllPendingLabel || t('wait');
@@ -1303,11 +1161,9 @@ export function DiscoveryFilterPanel(props) {
                 canClearLocationSearch={canClearLocationSearch}
                 clearLocationSearch={clearLocationSearch}
                 discoverySubregionOptions={discoverySubregionOptions}
-                distanceOverridden={distanceOverridden}
                 favoritesActionNotice={favoritesActionNotice}
                 handleHomeAnchor={handleHomeAnchor}
                 handleLocateMe={handleLocateMe}
-                handlePostalSearch={handlePostalSearch}
                 hasHomePostalCode={hasHomePostalCode}
                 isGeocoding={isGeocoding}
                 isSaveAllChecked={isSaveAllChecked}
@@ -1323,12 +1179,10 @@ export function DiscoveryFilterPanel(props) {
                 saveAllCount={saveAllCount}
                 saveAllPendingLabel={resolvedSaveAllPendingLabel}
                 searchOrigin={searchOrigin}
-                searchRadius={searchRadius}
                 selectedDiscoverySubregionId={selectedDiscoverySubregionId}
                 setActiveTab={setActiveTab}
                 setPostalInput={setPostalInput}
                 setSelectedDiscoverySubregion={setSelectedDiscoverySubregion}
-                setSearchRadius={setSearchRadius}
                 setShowFavoritesOnly={setShowFavoritesOnly}
                 showFavoritesOnly={showFavoritesOnly}
                 tabCounts={tabCounts}

@@ -551,17 +551,14 @@ export default function DiscoverPage() {
         flyTarget,
         handleHomeAnchor,
         handleLocateMe,
-        handlePostalSearch,
         hasHomePostalCode,
         isGeocoding,
         locationNotice,
         pendingLocationSearchOrigin,
         postalInput,
         searchOrigin,
-        searchRadius,
         setPostalInput,
         setFlyTarget,
-        setSearchRadius,
     } = useDiscoveryLocation(hardAssets, user?.postalCode);
     const listPageSize = 20;
     const [visibleCount, setVisibleCount] = useState(listPageSize);
@@ -744,7 +741,7 @@ export default function DiscoverPage() {
     // Reset visible batch when filters change
     useEffect(() => {
         setVisibleCount(listPageSize);
-    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, searchRadius, showFavoritesOnly]);
+    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, showFavoritesOnly]);
 
     const clearHoveredCardState = useCallback(() => {
         setHoveredPinKeys([]);
@@ -857,12 +854,6 @@ export default function DiscoverPage() {
             });
         }
 
-        if (effectiveUserLocation && !hasScopedDiscoverySubregion) {
-            if (searchRadius < 100) {
-                items = items.filter((resource) => resource._distance !== null && resource._distance <= searchRadius);
-            }
-        }
-
         items = items.filter((resource) => {
             if (showFavoritesOnly && user) {
                 const isSavedResource = savedAssetKeys.has(buildSavedAssetKey(resource._type, resource.id));
@@ -927,7 +918,6 @@ export default function DiscoverPage() {
         hasScopedDiscoverySubregion,
         savedAssetKeys,
         searchGroups,
-        searchRadius,
         showFavoritesOnly,
         user,
     ]);
@@ -2112,15 +2102,6 @@ export default function DiscoverPage() {
         touchDesktopPanePresetWidths,
     ]);
 
-    const handleApplySearch = useCallback(async (event) => {
-        if (postalInput.trim()) {
-            await handlePostalSearch(event);
-            return;
-        }
-
-        event.preventDefault();
-    }, [handlePostalSearch, postalInput]);
-
     const handleSearchChange = useCallback((value) => {
         setFavoritesActionNotice('');
         setSearch(value);
@@ -2342,11 +2323,9 @@ export default function DiscoverPage() {
             canClearLocationSearch={hasUserSelectedLocationFilter}
             clearLocationSearch={handleClearLocationSearch}
             discoverySubregionOptions={discoverySubregionOptions}
-            distanceOverridden={hasScopedDiscoverySubregion}
             favoritesActionNotice={favoritesActionNotice}
             handleHomeAnchor={handleHomeAnchorAndCollapse}
             handleLocateMe={handleLocateMeAndCollapse}
-            handlePostalSearch={handlePostalSearch}
             hasHomePostalCode={hasHomePostalCode}
             isCollapsed={isSearchPanelCollapsed}
             isGeocoding={isGeocoding}
@@ -2356,7 +2335,6 @@ export default function DiscoverPage() {
             locationNotice={locationNotice}
             mobileMode={mobileMode}
             mobileCardDensity={mobileCardDensity}
-            onApplySearch={handleApplySearch}
             onChangeMobileCardDensity={setMobileCardDensity}
             onCollapsedPullExpand={handleCollapsedSearchPanelPull}
             onCollapse={handleCollapseSearchPanel}
@@ -2374,12 +2352,10 @@ export default function DiscoverPage() {
             saveAllPendingLabel={saveAllPendingAction === 'remove' ? t('discoverySaveAllClearing') : t('discoverySaveAllSaving')}
             search={search}
             searchOrigin={searchOrigin}
-            searchRadius={searchRadius}
             selectedDiscoverySubregionId={selectedDiscoverySubregionId}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
             setSelectedDiscoverySubregion={setSelectedDiscoverySubregionId}
-            setSearchRadius={setSearchRadius}
             setShowFavoritesOnly={setShowFavoritesOnly}
             showFavoritesOnly={showFavoritesOnly}
             tabCounts={tabCounts}
