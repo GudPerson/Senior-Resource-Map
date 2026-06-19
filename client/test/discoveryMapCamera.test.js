@@ -16,10 +16,13 @@ function extractPaddingConstant(name) {
 test('Discover saved-place fit keeps the balanced UAT top padding for pin artwork', () => {
     const desktopTopLeft = extractPaddingConstant('DESKTOP_FIT_PADDING_TOP_LEFT');
     const mobileTopLeft = extractPaddingConstant('MOBILE_FIT_PADDING_TOP_LEFT');
+    const mobileBottomRight = extractPaddingConstant('MOBILE_FIT_PADDING_BOTTOM_RIGHT');
 
     assert.deepEqual(desktopTopLeft, [44, 60]);
     assert.deepEqual(mobileTopLeft, [60, 60]);
+    assert.deepEqual(mobileBottomRight, [96, 72]);
     assert.match(discoveryMapSource, /paddingTopLeft: fitConfig\.paddingTopLeft/);
+    assert.match(discoveryMapSource, /paddingBottomRight: fitConfig\.paddingBottomRight/);
     assert.match(discoveryMapSource, /map\.flyToBounds\(bounds, \{/);
 });
 
