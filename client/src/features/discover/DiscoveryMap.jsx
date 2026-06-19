@@ -19,6 +19,7 @@ import {
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
 const DEFAULT_MAP_ZOOM = 12;
+// Keep Discover fitBounds on fractional zoom steps. Whole-step zoom snapping caused UAT-visible jumps.
 const DISCOVER_ZOOM_SNAP = 0.1;
 const SINGLE_PIN_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const ANCHOR_ONLY_ZOOM = 15;

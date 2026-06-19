@@ -24,6 +24,9 @@ test('Discover saved-place fit keeps the balanced UAT top padding for pin artwor
 });
 
 test('Discover saved-place fit uses fractional zoom steps to avoid padding threshold jumps', () => {
+    assert.match(discoveryMapSource, /Whole-step zoom snapping caused UAT-visible jumps/);
     assert.match(discoveryMapSource, /const DISCOVER_ZOOM_SNAP = 0\.1;/);
     assert.match(discoveryMapSource, /zoomSnap=\{DISCOVER_ZOOM_SNAP\}/);
+    assert.match(discoveryMapSource, /maxZoom: fitConfig\.maxZoom/);
+    assert.doesNotMatch(discoveryMapSource, /zoomSnap=\{?1\}?/);
 });
