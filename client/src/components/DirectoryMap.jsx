@@ -47,6 +47,8 @@ const DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE = 8;
 const DIRECTORY_PRINT_BADGE_ICON_SIZE = 112;
 const DIRECTORY_PRINT_BADGE_DIAMETER = 25.5;
 const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.76;
+const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28;
+const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER * 0.74;
 const DIRECTORY_PRINT_BADGE_BUBBLE_GAP = 1;
 const DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS = 56;
 const DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET = 44;
@@ -55,6 +57,8 @@ const DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_ANCHOR_TOLERANCE = DIRECTORY_PRINT_BADGE
 const DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM = DIRECTORY_FOCUS_ZOOM - 0.25;
 const DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS = 140;
 const DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS = [0, 40, 120, 260, 520, 960, 1500, 2400];
+const DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR = '.directory-print-badge-marker__core, .directory-category-bubble-marker__core';
+const DIRECTORY_BUBBLE_MARKER_LOBE_SELECTOR = '.directory-print-badge-marker__lobe, .directory-category-bubble-marker__lobe';
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -148,9 +152,31 @@ function normalizePrintBadgeItems(number, items = null, fallbackColor = '#0f766e
     });
 }
 
-function getPrintBadgeLobeLayout(count) {
+function normalizeCategoryBubbleItems(items = null, pin = {}) {
+    const sourceItems = Array.isArray(items) && items.length
+        ? items
+        : [{
+            placeKey: pin.placeKey || null,
+            color: pin.categoryColor || null,
+            iconUrl: pin.categoryIconUrl || null,
+            label: pin.title || '',
+        }];
+
+    return sourceItems
+        .map((item, index) => ({
+            placeKey: item?.placeKey || pin.placeKey || null,
+            color: normalizeMarkerColor(item?.color || item?.categoryColor || pin.categoryColor, '#0f766e'),
+            iconUrl: item?.iconUrl || item?.categoryIconUrl || null,
+            label: String(item?.label || item?.title || index + 1),
+        }))
+        .filter((item) => item.placeKey);
+}
+
+function getBubbleLobeLayout(count, {
+    diameter = DIRECTORY_PRINT_BADGE_DIAMETER,
+    spacing = DIRECTORY_PRINT_BADGE_LOBE_SPACING,
+} = {}) {
     const safeCount = Math.max(1, Number(count) || 1);
-    const spacing = DIRECTORY_PRINT_BADGE_LOBE_SPACING;
     let centers;
 
     if (safeCount === 1) {
@@ -194,7 +220,7 @@ function getPrintBadgeLobeLayout(count) {
         });
     }
 
-    const radius = DIRECTORY_PRINT_BADGE_DIAMETER / 2;
+    const radius = diameter / 2;
     const minX = Math.min(...centers.map((center) => center.x - radius));
     const maxX = Math.max(...centers.map((center) => center.x + radius));
     const minY = Math.min(...centers.map((center) => center.y - radius));
@@ -208,6 +234,17 @@ function getPrintBadgeLobeLayout(count) {
             top: center.y - radius - minY,
         })),
     };
+}
+
+function getPrintBadgeLobeLayout(count) {
+    return getBubbleLobeLayout(count);
+}
+
+function getCategoryBubbleLobeLayout(count) {
+    return getBubbleLobeLayout(count, {
+        diameter: DIRECTORY_CATEGORY_BUBBLE_DIAMETER,
+        spacing: DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING,
+    });
 }
 
 function getDirectoryPinAssetCount(pin = {}) {
@@ -416,6 +453,113 @@ function createPrintResourceBadgeMarker(number, {
         popupAnchor: [0, -20],
         tooltipAnchor: [0, -20],
     });
+}
+
+function renderCategoryBubbleFallbackIcon() {
+    return `
+        <svg class="directory-category-bubble-marker__fallback" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" />
+        </svg>
+    `;
+}
+
+function createCategoryBubbleMarker(pin = {}, {
+    emphasis = 'default',
+    activePlaceKeys = new Set(),
+} = {}) {
+    const bubbleItems = normalizeCategoryBubbleItems(pin.categoryBubbleItems || null, pin);
+    const lobeLayout = getCategoryBubbleLobeLayout(bubbleItems.length);
+    const markerKey = bubbleItems.map((item) => `${item.placeKey || ''}:${item.color || ''}:${item.iconUrl || ''}`).join('|') || pin.placeKey || '';
+    const markerNumber = Number(pin.number) || Number.MAX_SAFE_INTEGER;
+    const markerSelected = emphasis === 'primary';
+    const activeKeys = activePlaceKeys instanceof Set ? activePlaceKeys : new Set(activePlaceKeys || []);
+    const lobeHtml = bubbleItems.map((item, index) => {
+        const lobe = lobeLayout.lobes[index] || { left: 0, top: 0 };
+        const isSelected = markerSelected || activeKeys.has(String(item.placeKey)) || activeKeys.has(String(pin.placeKey));
+        const shadowColor = isSelected
+            ? '0 12px 20px rgba(194,65,12,0.34), 0 0 0 6px rgba(249,115,22,0.24)'
+            : '0 8px 16px rgba(15,23,42,0.2)';
+        const content = item.iconUrl
+            ? `<img class="directory-category-bubble-marker__icon" src="${escapeHtml(item.iconUrl)}" alt="" />`
+            : renderCategoryBubbleFallbackIcon();
+        return `
+            <span
+                class="directory-category-bubble-marker__lobe"
+                data-category-bubble-place-key="${escapeHtml(item.placeKey || '')}"
+                style="
+                    position:absolute;
+                    left:${lobe.left}px;
+                    top:${lobe.top}px;
+                    width:${DIRECTORY_CATEGORY_BUBBLE_DIAMETER}px;
+                    height:${DIRECTORY_CATEGORY_BUBBLE_DIAMETER}px;
+                    box-sizing:border-box;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    border:3px solid ${item.color};
+                    border-radius:999px;
+                    background:#ffffff;
+                    color:${item.color};
+                    box-shadow:${shadowColor};
+                    pointer-events:auto;
+                "
+            >
+                ${content}
+            </span>
+        `;
+    }).join('');
+
+    return L.divIcon({
+        className: 'directory-category-bubble-leaflet-icon',
+        placeKey: pin.placeKey,
+        categoryColor: pin.categoryColor || null,
+        html: `
+            <div
+                class="directory-category-bubble-marker"
+                style="
+                    position:relative;
+                    width:${lobeLayout.width}px;
+                    height:${lobeLayout.height}px;
+                    pointer-events:none;
+                "
+            >
+                <div
+                    class="directory-category-bubble-marker__core"
+                    data-print-marker-key="${escapeHtml(markerKey)}"
+                    data-print-number="${escapeHtml(markerNumber)}"
+                    data-print-lobe-count="${bubbleItems.length}"
+                    data-print-icon-width="${lobeLayout.width}"
+                    data-print-icon-height="${lobeLayout.height}"
+                    data-print-offset-x="0"
+                    data-print-offset-y="0"
+                    style="
+                        --print-badge-offset-x:0px;
+                        --print-badge-offset-y:0px;
+                        position:absolute;
+                        left:50%;
+                        top:50%;
+                        width:${lobeLayout.width}px;
+                        min-width:${lobeLayout.width}px;
+                        height:${lobeLayout.height}px;
+                        transform:translate(calc(-50% + var(--print-badge-offset-x)), calc(-50% + var(--print-badge-offset-y)));
+                        pointer-events:none;
+                    "
+                >
+                    ${lobeHtml}
+                </div>
+            </div>
+        `,
+        iconSize: [lobeLayout.width, lobeLayout.height],
+        iconAnchor: [lobeLayout.width / 2, lobeLayout.height / 2],
+        popupAnchor: [0, -20],
+        tooltipAnchor: [0, -20],
+    });
+}
+
+function getCategoryBubblePlaceKeyFromEvent(event, fallbackPlaceKey) {
+    const target = event?.originalEvent?.target;
+    const element = target?.closest?.('.directory-category-bubble-marker__lobe[data-category-bubble-place-key]');
+    return element?.dataset?.categoryBubblePlaceKey || fallbackPlaceKey || null;
 }
 
 function getDirectoryClusterAssetCount(children = []) {
@@ -857,8 +1001,8 @@ function resolvePrintBadgeBubbleLayout(items, mapBounds = null) {
         item,
         mass: Math.max(1, item.lobes.length * 1.45),
         offset: {
-            x: item.initialOffsetX,
-            y: item.initialOffsetY,
+            x: item.layoutOffsetX ?? item.initialOffsetX,
+            y: item.layoutOffsetY ?? item.initialOffsetY,
         },
     }));
 
@@ -950,7 +1094,7 @@ function getPrintBadgeStoredOffset(markerKey, solvedOffsets) {
 function restorePrintBadgeStoredOffsets(markerPane, solvedOffsets) {
     if (!markerPane || !solvedOffsets?.size) return;
 
-    [...markerPane.querySelectorAll('.directory-print-badge-marker__core')].forEach((coreElement) => {
+    [...markerPane.querySelectorAll(DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR)].forEach((coreElement) => {
         const markerElement = coreElement.closest('.leaflet-marker-icon');
         if (!markerElement) return;
 
@@ -980,7 +1124,7 @@ function applyPrintBadgeMarkerOffset(item, offset, solvedOffsets = null) {
     item.coreElement.style.setProperty('--print-badge-offset-y', '0px');
 }
 
-function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '' }) {
+function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSolvedOffsets = false }) {
     const map = useMap();
     const mapTransitionUntilRef = useRef(0);
     const solvedOffsetsRef = useRef(new Map());
@@ -1003,7 +1147,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '' }) {
             const mapBounds = map.getContainer?.()?.getBoundingClientRect?.() || null;
             const markerElements = [...markerPane.querySelectorAll('.leaflet-marker-icon')]
                 .map((markerElement) => {
-                    const coreElement = markerElement.querySelector('.directory-print-badge-marker__core');
+                    const coreElement = markerElement.querySelector(DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR);
                     if (!coreElement) return null;
 
                     const baseMargins = ensurePrintBadgeBaseMargins(markerElement);
@@ -1034,13 +1178,31 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '' }) {
                     coreElement.style.setProperty('--print-badge-offset-x', '0px');
                     coreElement.style.setProperty('--print-badge-offset-y', '0px');
 
-                    return { markerElement, coreElement, baseMargins, initialOffsetX, initialOffsetY, markerKey };
+                    return {
+                        markerElement,
+                        coreElement,
+                        baseMargins,
+                        initialOffsetX,
+                        initialOffsetY,
+                        layoutOffsetX: preserveSolvedOffsets ? (storedOffset?.x ?? initialOffsetX) : initialOffsetX,
+                        layoutOffsetY: preserveSolvedOffsets ? (storedOffset?.y ?? initialOffsetY) : initialOffsetY,
+                        markerKey,
+                    };
                 })
                 .filter(Boolean);
 
             const badgeItems = markerElements
                 .map((markerElement) => {
-                    const { markerElement: markerNode, coreElement, baseMargins, initialOffsetX, initialOffsetY, markerKey } = markerElement;
+                    const {
+                        markerElement: markerNode,
+                        coreElement,
+                        baseMargins,
+                        initialOffsetX,
+                        initialOffsetY,
+                        layoutOffsetX,
+                        layoutOffsetY,
+                        markerKey,
+                    } = markerElement;
 
                     const markerRect = markerNode.getBoundingClientRect();
                     const iconWidth = normalizeMarkerOffset(coreElement.dataset.printIconWidth) || DIRECTORY_PRINT_BADGE_DIAMETER;
@@ -1048,7 +1210,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '' }) {
                     const scaleX = markerRect.width / iconWidth || 1;
                     const scaleY = markerRect.height / iconHeight || 1;
                     const printNumber = Number.parseFloat(coreElement.dataset.printNumber);
-                    const lobeElements = [...coreElement.querySelectorAll('.directory-print-badge-marker__lobe')];
+                    const lobeElements = [...coreElement.querySelectorAll(DIRECTORY_BUBBLE_MARKER_LOBE_SELECTOR)];
                     const fallbackRect = coreElement.getBoundingClientRect();
                     const markerCenterX = markerRect.left + (markerRect.width / 2);
                     const markerCenterY = markerRect.top + (markerRect.height / 2);
@@ -1074,6 +1236,8 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '' }) {
                         lobes,
                         initialOffsetX,
                         initialOffsetY,
+                        layoutOffsetX,
+                        layoutOffsetY,
                         baseMarginLeft: baseMargins.left,
                         baseMarginTop: baseMargins.top,
                         scaleX,
@@ -1675,16 +1839,20 @@ export default function DirectoryMap({
     const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
+    const lastCategoryBubbleHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
     const printBadgeLayoutRefreshKey = useMemo(() => {
-        if (markerMode !== 'print-badge') return '';
+        if (markerMode !== 'print-badge' && markerMode !== 'category-bubble') return '';
 
         const activeKeys = [...activePlaceKeySet].sort().join('|');
         const markerKeys = displayPins.map((pin) => {
             const itemKey = (pin.printBadgeItems || [])
                 .map((item) => `${item?.label ?? item?.number ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.placeKey ?? ''}`)
                 .join(',');
-            return `${pin.pinKey || pin.placeKey}:${pin.placeKey}:${pin.number || ''}:${itemKey}`;
+            const categoryItemKey = (pin.categoryBubbleItems || [])
+                .map((item) => `${item?.placeKey ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.iconUrl ?? item?.categoryIconUrl ?? ''}`)
+                .join(',');
+            return `${pin.pinKey || pin.placeKey}:${pin.placeKey}:${pin.number || ''}:${itemKey}:${categoryItemKey}`;
         }).join(';');
 
         return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${activeKeys}::${markerKeys}`;
@@ -1749,6 +1917,30 @@ export default function DirectoryMap({
         onViewSection?.(placeKey);
     };
 
+    const getMarkerEventPlaceKey = (event, pin) => (
+        markerMode === 'category-bubble'
+            ? getCategoryBubblePlaceKeyFromEvent(event, pin.placeKey)
+            : pin.placeKey
+    );
+
+    const handleMarkerHoverStart = (event, pin) => {
+        const placeKey = getMarkerEventPlaceKey(event, pin);
+        if (markerMode === 'category-bubble') {
+            lastCategoryBubbleHoverKeyRef.current = placeKey ? String(placeKey) : null;
+        }
+        onHoverPlaceStart?.(placeKey);
+    };
+
+    const handleMarkerHoverEnd = (event, pin) => {
+        const placeKey = markerMode === 'category-bubble'
+            ? (lastCategoryBubbleHoverKeyRef.current || getMarkerEventPlaceKey(event, pin))
+            : getMarkerEventPlaceKey(event, pin);
+        if (markerMode === 'category-bubble') {
+            lastCategoryBubbleHoverKeyRef.current = null;
+        }
+        onHoverPlaceEnd?.(placeKey);
+    };
+
     const renderedMarkers = useMemo(() => {
         if (shouldCluster) {
             return (
@@ -1778,6 +1970,17 @@ export default function DirectoryMap({
                                     items: pin.printBadgeItems || null,
                                     offsetX: pin.printOffsetX || 0,
                                     offsetY: pin.printOffsetY || 0,
+                                }
+                            )
+                            : markerMode === 'category-bubble'
+                            ? createCategoryBubbleMarker(
+                                {
+                                    ...pin,
+                                    categoryBubbleItems: pin.categoryBubbleItems || null,
+                                },
+                                {
+                                    emphasis: isMatched ? 'primary' : 'default',
+                                    activePlaceKeys: activePlaceKeySet,
                                 }
                             )
                             : markerMode === 'number'
@@ -1812,10 +2015,10 @@ export default function DirectoryMap({
                                 icon={icon}
                                 zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
                                 eventHandlers={interactive ? {
-                                    mousedown: () => handlePlaceActivate(pin.placeKey),
-                                    click: () => handlePlaceActivate(pin.placeKey),
-                                    mouseover: () => onHoverPlaceStart?.(pin.placeKey),
-                                    mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
+                                    mousedown: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
+                                    click: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
+                                    mouseover: (event) => handleMarkerHoverStart(event, pin),
+                                    mouseout: (event) => handleMarkerHoverEnd(event, pin),
                                 } : undefined}
                             />
                         );
@@ -1840,6 +2043,17 @@ export default function DirectoryMap({
                         items: pin.printBadgeItems || null,
                         offsetX: pin.printOffsetX || 0,
                         offsetY: pin.printOffsetY || 0,
+                    }
+                )
+                : markerMode === 'category-bubble'
+                ? createCategoryBubbleMarker(
+                    {
+                        ...pin,
+                        categoryBubbleItems: pin.categoryBubbleItems || null,
+                    },
+                    {
+                        emphasis: isMatched ? 'primary' : 'default',
+                        activePlaceKeys: activePlaceKeySet,
                     }
                 )
                 : markerMode === 'number'
@@ -1874,10 +2088,10 @@ export default function DirectoryMap({
                     icon={icon}
                     zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
                     eventHandlers={interactive ? {
-                        mousedown: () => handlePlaceActivate(pin.placeKey),
-                        click: () => handlePlaceActivate(pin.placeKey),
-                        mouseover: () => onHoverPlaceStart?.(pin.placeKey),
-                        mouseout: () => onHoverPlaceEnd?.(pin.placeKey),
+                        mousedown: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
+                        click: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
+                        mouseover: (event) => handleMarkerHoverStart(event, pin),
+                        mouseout: (event) => handleMarkerHoverEnd(event, pin),
                     } : undefined}
                 />
             );
@@ -1972,7 +2186,11 @@ export default function DirectoryMap({
                     onClusterSelect={onClusterSelect}
                 />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
-                <DirectoryPrintBadgeCollisionSync enabled={markerMode === 'print-badge'} refreshKey={printBadgeLayoutRefreshKey} />
+                <DirectoryPrintBadgeCollisionSync
+                    enabled={markerMode === 'print-badge' || markerMode === 'category-bubble'}
+                    preserveSolvedOffsets={markerMode === 'category-bubble'}
+                    refreshKey={printBadgeLayoutRefreshKey}
+                />
                 {anchorPoint ? (
                     <Marker position={[anchorPoint.lat, anchorPoint.lng]} icon={createDirectoryAnchorIcon(anchorPoint)} zIndexOffset={1200}>
                         {showPopup ? (

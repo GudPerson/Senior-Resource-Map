@@ -75,7 +75,7 @@ test('shared map interactive view uses the My Map V2 card and pin language', () 
     assert.match(sharedMapPageSource, /showMapLegend=\{false\}/);
     assert.match(sharedMapPageSource, /cardBadgeMode="logo"/);
     assert.match(sharedMapPageSource, /desktopGridClassName=\{SHARED_MAP_V2_DESKTOP_GRID_CLASS\}/);
-    assert.match(sharedMapPageSource, /markerMode="count"/);
+    assert.match(sharedMapPageSource, /markerMode="category-bubble"/);
     assert.match(sharedMapPageSource, /pinBadgeMode="none"/);
     assert.match(sharedMapPageSource, /pinCategoryIconMode="none"/);
     assert.match(sharedMapPageSource, /clusterMarkerMode="none"/);

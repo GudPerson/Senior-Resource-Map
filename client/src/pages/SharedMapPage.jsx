@@ -765,7 +765,7 @@ export default function SharedMapPage() {
                                     onHoverClusterStart={handleMapClusterHoverStart}
                                     onHoverClusterEnd={handleMapClusterHoverEnd}
                                     onClusterSelect={handleMapClusterSelect}
-                                    markerMode="count"
+                                    markerMode="category-bubble"
                                     pinBadgeMode="none"
                                     pinCategoryIconMode="none"
                                     clusterMarkerMode="none"
@@ -789,7 +789,7 @@ export default function SharedMapPage() {
                                     onHoverClusterStart={handleMapClusterHoverStart}
                                     onHoverClusterEnd={handleMapClusterHoverEnd}
                                     onClusterSelect={handleMapClusterSelect}
-                                    markerMode="count"
+                                    markerMode="category-bubble"
                                     pinBadgeMode="none"
                                     pinCategoryIconMode="none"
                                     clusterMarkerMode="none"
@@ -830,7 +830,7 @@ export default function SharedMapPage() {
                                 onHoverClusterStart={handleMapClusterHoverStart}
                                 onHoverClusterEnd={handleMapClusterHoverEnd}
                                 onClusterSelect={handleMapClusterSelect}
-                                markerMode="count"
+                                markerMode="category-bubble"
                                 pinBadgeMode="none"
                                 pinCategoryIconMode="none"
                                 clusterMarkerMode="none"
@@ -854,7 +854,7 @@ export default function SharedMapPage() {
                                 onHoverClusterStart={handleMapClusterHoverStart}
                                 onHoverClusterEnd={handleMapClusterHoverEnd}
                                 onClusterSelect={handleMapClusterSelect}
-                                markerMode="count"
+                                markerMode="category-bubble"
                                 pinBadgeMode="none"
                                 pinCategoryIconMode="none"
                                 clusterMarkerMode="none"

@@ -76,8 +76,8 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.doesNotMatch(myMapV2ScaffoldSource, /\bapi\./);
 });
 
-test('my map v2 uses the main saved-place pin style while stable my map keeps numbered pins', () => {
-    assert.match(myMapV2ScaffoldSource, /markerMode="count"/);
+test('my map v2 uses category bubble pins while stable my map keeps numbered pins', () => {
+    assert.match(myMapV2ScaffoldSource, /markerMode="category-bubble"/);
     assert.match(myMapV2ScaffoldSource, /pinBadgeMode="none"/);
     assert.match(myMapV2ScaffoldSource, /pinCategoryIconMode="none"/);
     assert.match(myMapV2ScaffoldSource, /clusterMarkerMode="none"/);

@@ -725,6 +725,33 @@
   pointer-events: auto !important;
 }
 
+.leaflet-marker-icon.directory-category-bubble-leaflet-icon {
+  pointer-events: none !important;
+}
+
+.leaflet-marker-icon.directory-category-bubble-leaflet-icon .directory-category-bubble-marker,
+.leaflet-marker-icon.directory-category-bubble-leaflet-icon .directory-category-bubble-marker__core {
+  pointer-events: none !important;
+}
+
+.leaflet-marker-icon.directory-category-bubble-leaflet-icon .directory-category-bubble-marker__lobe {
+  pointer-events: auto !important;
+}
+
+.directory-category-bubble-marker__icon {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.14));
+}
+
+.directory-category-bubble-marker__fallback {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
 .directory-number-marker--selected .directory-number-marker__core {
   animation: directoryNumberMarkerBeat 1.35s infinite ease-in-out;
 }

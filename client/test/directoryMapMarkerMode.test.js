@@ -88,8 +88,8 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /const printBadgeLayoutRefreshKey = useMemo\(\(\) => \{/);
     assert.match(directoryMapSource, /activePlaceKeySet/);
     assert.match(directoryMapSource, /printBadgeItems/);
-    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync enabled=\{markerMode === 'print-badge'\} refreshKey=\{printBadgeLayoutRefreshKey\} \/>/);
-    assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync\(\{ enabled, refreshKey = '' \}\)/);
+    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
+    assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync\(\{ enabled, refreshKey = '', preserveSolvedOffsets = false \}\)/);
     assert.match(directoryMapSource, /const mapTransitionUntilRef = useRef\(0\)/);
     assert.match(directoryMapSource, /\}, \[enabled, map, refreshKey\]\)/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS\.forEach\(scheduleCollisionPass\)/);
@@ -127,6 +127,32 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.doesNotMatch(discoverUtilsSource, /badgePlacement/);
     assert.doesNotMatch(directoryMapSource, /pinSpreadMode/);
     assert.doesNotMatch(directoryMapSource, /border:3px solid \$\{ringColor\}/);
+});
+
+test('directory map can render interactive category bubble markers with visible lobe hit targets', () => {
+    assert.match(directoryMapSource, /markerMode === 'category-bubble'/);
+    assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28/);
+    assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER \* 0\.74/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker/);
+    assert.match(directoryMapSource, /function normalizeCategoryBubbleItems/);
+    assert.match(directoryMapSource, /function getCategoryBubblePlaceKeyFromEvent\(event, fallbackPlaceKey\)/);
+    assert.match(directoryMapSource, /data-category-bubble-place-key/);
+    assert.match(directoryMapSource, /class="directory-category-bubble-marker__lobe"/);
+    assert.match(directoryMapSource, /categoryBubbleItems: pin\.categoryBubbleItems \|\| null/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*border:3px solid \$\{item\.color\}/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*background:#ffffff/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*color:\$\{item\.color\}/);
+    assert.match(directoryMapSource, /layoutOffsetX: preserveSolvedOffsets \? \(storedOffset\?\.x \?\? initialOffsetX\) : initialOffsetX/);
+    assert.match(directoryMapSource, /layoutOffsetY: preserveSolvedOffsets \? \(storedOffset\?\.y \?\? initialOffsetY\) : initialOffsetY/);
+    assert.match(directoryMapSource, /x: item\.layoutOffsetX \?\? item\.initialOffsetX/);
+    assert.match(directoryMapSource, /y: item\.layoutOffsetY \?\? item\.initialOffsetY/);
+    assert.match(directoryMapSource, /preserveSolvedOffsets=\{markerMode === 'category-bubble'\}/);
+    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
+    assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon[\s\S]*pointer-events: none !important/);
+    assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon \.directory-category-bubble-marker__lobe[\s\S]*pointer-events: auto !important/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*fill: currentColor/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*width: 17px/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*width: 14px/);
 });
 
 test('directory map can show V2 category colors inside the saved pin circle without recoloring the teal pin body', () => {

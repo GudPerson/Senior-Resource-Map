@@ -165,6 +165,24 @@ function getGroupCategoryEntries(group = {}, options = {}) {
     return getCategoryEntriesForRows(group.rows || [], options);
 }
 
+function getCategoryBubbleItemsForGroup(group = {}, options = {}) {
+    const groups = group.isPostalGroup && Array.isArray(group.nestedPlaces)
+        ? group.nestedPlaces
+        : [group];
+
+    return groups
+        .map((member) => {
+            const entry = getPrimaryCategoryEntry(member.rows || [], options);
+            return {
+                placeKey: member.placeKey,
+                color: entry.color || null,
+                iconUrl: entry.iconUrl || null,
+                label: member.name || '',
+            };
+        })
+        .filter((item) => item.placeKey);
+}
+
 function getGroupHardRows(group = {}) {
     const rows = group.isPostalGroup && Array.isArray(group.nestedPlaces)
         ? group.nestedPlaces.flatMap((place) => place.rows || [])
@@ -449,6 +467,7 @@ function buildGroupedPins(groups = [], options = {}) {
                         || null,
                     categoryColor: primaryCategoryEntry.color || categoryColorSegments[0] || null,
                     categoryColorSegments,
+                    categoryBubbleItems: getCategoryBubbleItemsForGroup(group, options),
                     previewResourceNames: (group.rows || []).slice(0, 3).map((row) => row.name),
                     hiddenPreviewCount: Math.max(0, (group.rows || []).length - 3),
                     isPostalGroup: false,
@@ -469,6 +488,7 @@ function buildGroupedPins(groups = [], options = {}) {
                 categoryIconUrl: null,
                 categoryColor: categoryColorSegments[0] || null,
                 categoryColorSegments,
+                categoryBubbleItems: getCategoryBubbleItemsForGroup(group, options),
                 previewResourceNames: group.nestedPlaces.map((place) => place.name).slice(0, 3),
                 hiddenPreviewCount: Math.max(0, group.nestedPlaces.length - 3),
                 isPostalGroup: true,

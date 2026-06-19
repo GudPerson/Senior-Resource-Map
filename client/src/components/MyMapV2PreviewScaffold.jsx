@@ -52,7 +52,7 @@ export default function MyMapV2PreviewScaffold({
             onFocusHandled={onFocusHandled}
             onResetView={onResetView}
             interactive={!suspendMapInteraction}
-            markerMode="count"
+            markerMode="category-bubble"
             pinBadgeMode="none"
             pinCategoryIconMode="none"
             clusterMarkerMode="none"

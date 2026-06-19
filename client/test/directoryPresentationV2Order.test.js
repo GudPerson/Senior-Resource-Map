@@ -279,6 +279,19 @@ test('v2 pins split colors across hard asset categories sharing a postal code', 
     assert.equal(postalPin.placeKey, 'postal-group:680488');
     assert.deepEqual(postalPin.memberPlaceKeys, ['hard-60', 'hard-50']);
     assert.deepEqual(postalPin.categoryColorSegments, ['#f59e0b', '#ef4444']);
+    assert.equal(postalPin.categoryBubbleItems.length, 2);
+    assert.deepEqual(
+        postalPin.categoryBubbleItems.map((item) => item.placeKey),
+        ['hard-60', 'hard-50'],
+    );
+    assert.deepEqual(
+        postalPin.categoryBubbleItems.map((item) => item.iconUrl),
+        ['/icons/day-rehab.svg', '/icons/aac.svg'],
+    );
+    assert.deepEqual(
+        postalPin.categoryBubbleItems.map((item) => item.color),
+        ['#ef4444', '#f59e0b'],
+    );
 });
 
 test('v2 card presentation can recover a mapped hard-asset address from the row when the place address is stale', () => {
