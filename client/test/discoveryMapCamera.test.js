@@ -18,7 +18,7 @@ test('Discover saved-place fit keeps the balanced UAT top padding for pin artwor
     const mobileTopLeft = extractPaddingConstant('MOBILE_FIT_PADDING_TOP_LEFT');
 
     assert.deepEqual(desktopTopLeft, [44, 60]);
-    assert.deepEqual(mobileTopLeft, [24, 60]);
+    assert.deepEqual(mobileTopLeft, [60, 60]);
     assert.match(discoveryMapSource, /paddingTopLeft: fitConfig\.paddingTopLeft/);
     assert.match(discoveryMapSource, /map\.flyToBounds\(bounds, \{/);
 });
