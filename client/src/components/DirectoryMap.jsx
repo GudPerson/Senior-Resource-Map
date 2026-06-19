@@ -1091,6 +1091,31 @@ function getPrintBadgeStoredOffset(markerKey, solvedOffsets) {
     return offset;
 }
 
+function hasPrintBadgeStoredOffsetDrift(markerElement, coreElement, solvedOffsets) {
+    if (!markerElement || !coreElement || !solvedOffsets?.size) return false;
+
+    const markerKey = coreElement.dataset.printMarkerKey || coreElement.dataset.printNumber || '';
+    const storedOffset = getPrintBadgeStoredOffset(markerKey, solvedOffsets);
+    if (!storedOffset) return false;
+
+    const baseMargins = ensurePrintBadgeBaseMargins(markerElement);
+    const expectedLeft = baseMargins.left + storedOffset.x;
+    const expectedTop = baseMargins.top + storedOffset.y;
+    const currentLeft = normalizeStylePixel(markerElement.style.marginLeft);
+    const currentTop = normalizeStylePixel(markerElement.style.marginTop);
+
+    return Math.abs(currentLeft - expectedLeft) > 0.5 || Math.abs(currentTop - expectedTop) > 0.5;
+}
+
+function hasAnyPrintBadgeStoredOffsetDrift(markerPane, solvedOffsets) {
+    if (!markerPane || !solvedOffsets?.size) return false;
+
+    return [...markerPane.querySelectorAll(DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR)].some((coreElement) => {
+        const markerElement = coreElement.closest('.leaflet-marker-icon');
+        return hasPrintBadgeStoredOffsetDrift(markerElement, coreElement, solvedOffsets);
+    });
+}
+
 function restorePrintBadgeStoredOffsets(markerPane, solvedOffsets) {
     if (!markerPane || !solvedOffsets?.size) return;
 
@@ -1266,14 +1291,34 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
             }, resolvedDelay);
             timeouts.add(timeout);
         };
+        const restoreDriftedStoredOffsets = () => {
+            if (!preserveSolvedOffsets) return false;
+            if (!hasAnyPrintBadgeStoredOffsetDrift(markerPane, solvedOffsetsRef.current)) return false;
+
+            restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current);
+            return true;
+        };
         const handleMapSettled = () => {
             markMapTransitioning();
             scheduleCollisionPass(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS);
             scheduleCollisionPass(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS + 180);
             scheduleCollisionPass(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS + 360, { force: true });
         };
+        let observer = null;
 
         DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS.forEach(scheduleCollisionPass);
+        if (preserveSolvedOffsets && typeof MutationObserver !== 'undefined') {
+            observer = new MutationObserver(() => {
+                if (!restoreDriftedStoredOffsets()) return;
+                scheduleCollisionPass(80);
+            });
+            observer.observe(markerPane, {
+                attributes: true,
+                attributeFilter: ['style', 'class'],
+                childList: true,
+                subtree: true,
+            });
+        }
         map.on('movestart', markMapTransitioning);
         map.on('zoomstart', markMapTransitioning);
         map.on('move', markMapTransitioning);
@@ -1283,6 +1328,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
         map.on('layeradd', scheduleCollisionPass);
 
         return () => {
+            observer?.disconnect();
             timeouts.forEach((timeout) => window.clearTimeout(timeout));
             timeouts.clear();
             map.off('movestart', markMapTransitioning);
@@ -1293,7 +1339,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
             map.off('zoomend', handleMapSettled);
             map.off('layeradd', scheduleCollisionPass);
         };
-    }, [enabled, map, refreshKey]);
+    }, [enabled, map, preserveSolvedOffsets, refreshKey]);
 
     return null;
 }
