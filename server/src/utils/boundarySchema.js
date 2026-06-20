@@ -1,23 +1,67 @@
 import { sql } from 'drizzle-orm';
 
 let ensureBoundarySchemaPromise = null;
+let ensureGroupAssetSchemaPromise = null;
 let ensureUserPreferenceColumnsPromise = null;
 
-export function shouldRunRuntimeSchemaBootstrap(envVars = {}) {
+export function getRuntimeSchemaBootstrapMode(envVars = {}) {
     const env = envVars?.env ?? envVars ?? {};
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
     const nodeEnv = String(env.NODE_ENV || processEnv.NODE_ENV || '').trim().toLowerCase();
     const explicitFlag = String(env.ALLOW_RUNTIME_SCHEMA_BOOTSTRAP || processEnv.ALLOW_RUNTIME_SCHEMA_BOOTSTRAP || '').trim().toLowerCase();
 
     if (explicitFlag) {
-        return ['1', 'true', 'yes', 'on'].includes(explicitFlag);
+        if (['group', 'group-only', 'groups'].includes(explicitFlag)) {
+            return 'group-only';
+        }
+        return ['1', 'true', 'yes', 'on'].includes(explicitFlag) ? 'full' : 'off';
     }
 
-    return nodeEnv !== 'production';
+    return nodeEnv !== 'production' ? 'full' : 'off';
+}
+
+export function shouldRunRuntimeSchemaBootstrap(envVars = {}) {
+    return getRuntimeSchemaBootstrapMode(envVars) !== 'off';
+}
+
+export async function ensureGroupAssetSchema(db) {
+    if (!ensureGroupAssetSchemaPromise) {
+        ensureGroupAssetSchemaPromise = (async () => {
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS asset_mode VARCHAR(20) NOT NULL DEFAULT 'standalone'`);
+            await db.execute(sql`UPDATE soft_assets SET asset_mode = 'standalone' WHERE asset_mode IS NULL OR asset_mode = ''`);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS soft_asset_group_members (
+                    id SERIAL PRIMARY KEY,
+                    group_soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    member_resource_type VARCHAR(20) NOT NULL,
+                    member_resource_id INTEGER NOT NULL,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    added_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    added_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_group_members_unique_member_idx ON soft_asset_group_members (group_soft_asset_id, member_resource_type, member_resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_group_idx ON soft_asset_group_members (group_soft_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_member_idx ON soft_asset_group_members (member_resource_type, member_resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_assets_asset_mode_idx ON soft_assets (asset_mode)`);
+        })().catch((err) => {
+            ensureGroupAssetSchemaPromise = null;
+            throw err;
+        });
+    }
+
+    await ensureGroupAssetSchemaPromise;
 }
 
 export async function ensureBoundarySchema(db, envVars = {}) {
-    if (!shouldRunRuntimeSchemaBootstrap(envVars)) {
+    const bootstrapMode = getRuntimeSchemaBootstrapMode(envVars);
+    if (bootstrapMode === 'off') {
+        return;
+    }
+
+    if (bootstrapMode === 'group-only') {
+        await ensureGroupAssetSchema(db);
         return;
     }
 
@@ -826,6 +870,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
 
 export function resetBoundarySchemaBootstrapForTests() {
     ensureBoundarySchemaPromise = null;
+    ensureGroupAssetSchemaPromise = null;
     ensureUserPreferenceColumnsPromise = null;
 }
 
