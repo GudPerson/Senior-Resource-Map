@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Layers3, Plus, Search, X } from 'lucide-react';
 
+import ImageUpload from './ImageUpload.jsx';
 import { api } from '../lib/api.js';
-import { formatGroupMemberCountLine, isGroupAsset } from '../lib/groupAssets.js';
+import { formatGroupMemberCountLine, formatGroupSaveErrorMessage, isGroupAsset } from '../lib/groupAssets.js';
 
 function splitTags(value) {
     return String(value || '')
@@ -74,6 +75,8 @@ function getReadinessLabel({ form, selectedMembers, memberRows }) {
 export default function GroupAssetForm({
     hardAssets = [],
     initialData = null,
+    memberCandidatesError = '',
+    memberCandidatesLoading = false,
     onCancel,
     onSave,
     partnerOptions = [],
@@ -207,7 +210,7 @@ export default function GroupAssetForm({
             });
             await onSave?.(saved);
         } catch (err) {
-            setError(err.message || 'Failed to save Group.');
+            setError(formatGroupSaveErrorMessage(err));
         } finally {
             setSubmitting(false);
         }
@@ -230,14 +233,18 @@ export default function GroupAssetForm({
                     <span className="mb-1 block text-sm font-bold text-slate-700">Description</span>
                     <textarea className="input-field min-h-[110px]" value={form.description} onChange={(event) => updateField('description', event.target.value)} />
                 </label>
-                <label className="block">
-                    <span className="mb-1 block text-sm font-bold text-slate-700">Logo URL</span>
-                    <input className="input-field" value={form.logoUrl} onChange={(event) => updateField('logoUrl', event.target.value)} />
-                </label>
-                <label className="block">
-                    <span className="mb-1 block text-sm font-bold text-slate-700">Banner URL</span>
-                    <input className="input-field" value={form.bannerUrl} onChange={(event) => updateField('bannerUrl', event.target.value)} />
-                </label>
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+                    <ImageUpload
+                        label="Logo / Icon"
+                        value={form.logoUrl}
+                        onChange={(url) => updateField('logoUrl', url)}
+                    />
+                    <ImageUpload
+                        label="Hero Banner"
+                        value={form.bannerUrl}
+                        onChange={(url) => updateField('bannerUrl', url)}
+                    />
+                </div>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-bold text-slate-700">Tags</span>
                     <input className="input-field" value={form.tags} onChange={(event) => updateField('tags', event.target.value)} placeholder="Caregiver, West, Active ageing" />
@@ -288,6 +295,7 @@ export default function GroupAssetForm({
                         <p className="mt-2 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
                     </div>
                     {loadingMembers ? <span className="text-sm font-semibold text-slate-500">Loading members...</span> : null}
+                    {memberCandidatesLoading ? <span className="text-sm font-semibold text-slate-500">Loading available members...</span> : null}
                 </div>
 
                 <div className="mt-4 grid gap-3">
@@ -324,7 +332,15 @@ export default function GroupAssetForm({
                         />
                     </label>
                     <div className="mt-3 max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
-                        {visibleMemberOptions.length > 0 ? visibleMemberOptions.map((member) => (
+                        {memberCandidatesError ? (
+                            <div className="px-4 py-6 text-center text-sm font-semibold text-red-600">
+                                {memberCandidatesError}
+                            </div>
+                        ) : memberCandidatesLoading ? (
+                            <div className="px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                                Loading available members...
+                            </div>
+                        ) : visibleMemberOptions.length > 0 ? visibleMemberOptions.map((member) => (
                             <button
                                 key={member.key}
                                 type="button"
@@ -349,6 +365,11 @@ export default function GroupAssetForm({
             </div>
 
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
+                {error ? (
+                    <div className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        {error}
+                    </div>
+                ) : null}
                 <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>Cancel</button>
                 <button type="submit" className="btn-primary" disabled={submitting}>
                     {submitting ? 'Saving...' : 'Save Group'}

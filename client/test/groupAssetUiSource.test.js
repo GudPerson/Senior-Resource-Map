@@ -32,8 +32,19 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
     assert.match(resourcesPageSource, /Groups \(\{groupTabCount\}\)/);
     assert.match(resourcesPageSource, /GroupAssetForm/);
     assert.match(resourcesPageSource, /offeringSoftAssets = useMemo/);
+    assert.match(resourcesPageSource, /groupMemberCandidates/);
+    assert.match(resourcesPageSource, /hardAssets=\{groupMemberCandidates\.hard\}/);
+    assert.match(resourcesPageSource, /softAssets=\{groupMemberCandidates\.soft\}/);
 
     assert.match(groupFormSource, /assetMode: 'group'/);
     assert.match(groupFormSource, /replaceSoftAssetGroupMembers/);
     assert.match(groupFormSource, /isGroupAsset/);
+});
+
+test('Group asset form uses upload controls for logo and banner images', () => {
+    assert.match(groupFormSource, /ImageUpload/);
+    assert.match(groupFormSource, /label="Logo \/ Icon"/);
+    assert.match(groupFormSource, /label="Hero Banner"/);
+    assert.doesNotMatch(groupFormSource, /Logo URL/);
+    assert.doesNotMatch(groupFormSource, /Banner URL/);
 });

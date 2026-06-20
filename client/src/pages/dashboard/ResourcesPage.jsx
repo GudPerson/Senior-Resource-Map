@@ -646,6 +646,7 @@ export default function ResourcesPage() {
     const [activeTab, setActiveTab] = useState('hard');
     const [assetModal, setAssetModal] = useState(null);
     const [groupModal, setGroupModal] = useState(null);
+    const [groupMemberCandidates, setGroupMemberCandidates] = useState({ hard: [], soft: [], loading: false, error: '' });
     const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
     const [placeImportWizardOpen, setPlaceImportWizardOpen] = useState(false);
     const [placeImportCloseGuard, setPlaceImportCloseGuard] = useState(null);
@@ -676,6 +677,7 @@ export default function ResourcesPage() {
     const [softAssetsPageSize] = useState(50);
     const loadRequestIdRef = useRef(0);
     const metadataRequestIdRef = useRef(0);
+    const groupMemberCandidateRequestIdRef = useRef(0);
     const inlineActionDrawerRef = useRef(null);
 
     const normalizedRole = normalizeRole(user?.role);
@@ -1180,6 +1182,36 @@ export default function ResourcesPage() {
         );
     }
 
+    async function loadGroupMemberCandidates() {
+        const requestId = groupMemberCandidateRequestIdRef.current + 1;
+        groupMemberCandidateRequestIdRef.current = requestId;
+        setGroupMemberCandidates({ hard: [], soft: [], loading: true, error: '' });
+
+        try {
+            const [allHardAssets, allSoftAssets] = await Promise.all([
+                fetchAllPaginatedResults(api.getHardAssets, hardResourceListParams),
+                fetchAllPaginatedResults(api.getSoftAssets, softResourceListParams),
+            ]);
+            if (requestId !== groupMemberCandidateRequestIdRef.current) return;
+
+            setGroupMemberCandidates({
+                hard: scopeHardAssetsForCurrentUser(Array.isArray(allHardAssets) ? allHardAssets : []),
+                soft: scopeSoftAssetsForCurrentUser(Array.isArray(allSoftAssets) ? allSoftAssets : []).filter((asset) => !isGroupAsset(asset)),
+                loading: false,
+                error: '',
+            });
+        } catch (err) {
+            if (requestId !== groupMemberCandidateRequestIdRef.current) return;
+            console.error('Failed to load Group member candidates', err);
+            setGroupMemberCandidates({
+                hard: [],
+                soft: [],
+                loading: false,
+                error: err.message || 'Failed to load available members.',
+            });
+        }
+    }
+
     async function refreshTemplateDetail(templateId) {
         if (!templateId) return null;
         const detail = await api.getSoftAssetParent(templateId);
@@ -1335,6 +1367,7 @@ export default function ResourcesPage() {
             return;
         }
         if (assetType === 'group') {
+            loadGroupMemberCandidates();
             setGroupModal({ mode: 'create', data: null });
             return;
         }
@@ -1384,6 +1417,7 @@ export default function ResourcesPage() {
 
     async function openGroupEdit(asset) {
         setInlineAction(null);
+        loadGroupMemberCandidates();
         setGroupModal({ mode: 'edit', data: asset, loading: true });
         try {
             const fullAsset = await api.getSoftAsset(asset.id);
@@ -3100,8 +3134,10 @@ export default function ResourcesPage() {
                     ) : (
                         <GroupAssetForm
                             initialData={groupModal.data}
-                            hardAssets={hardAssets}
-                            softAssets={offeringSoftAssets}
+                            hardAssets={groupMemberCandidates.hard}
+                            memberCandidatesError={groupMemberCandidates.error}
+                            memberCandidatesLoading={groupMemberCandidates.loading}
+                            softAssets={groupMemberCandidates.soft}
                             partnerOptions={partnerOptions}
                             subregions={subregions}
                             onSave={async () => {

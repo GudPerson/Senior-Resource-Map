@@ -29,3 +29,11 @@ export function formatGroupMemberCountLine(asset = {}) {
     const parts = formatGroupMemberCountParts(asset);
     return parts.length > 0 ? parts.join(' | ') : 'Needs members';
 }
+
+export function formatGroupSaveErrorMessage(error) {
+    const message = typeof error === 'string' ? error : (error?.message || '');
+    if (/generated child offerings must be created from a parent template/i.test(message)) {
+        return 'Group saving needs the latest API. This preview is connected to an API that does not support Groups yet.';
+    }
+    return message || 'Failed to save Group.';
+}
