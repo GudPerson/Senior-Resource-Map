@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Building2, CalendarDays, Check, MapPin, Clock, Navigation, Share2 } from 'lucide-react';
+import { ArrowUpRight, Building2, CalendarDays, Check, Layers3, MapPin, Clock, Navigation, Share2 } from 'lucide-react';
 import { SOFT_ASSET_BUCKETS, getSoftAssetBucketLabel, summarizeSoftAssetBuckets } from '../lib/softAssetBuckets.js';
 import { openResourceDetail } from '../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
@@ -12,6 +12,7 @@ import DiscoveryLocationIndicatorBadges from './DiscoveryLocationIndicatorBadges
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
 import { shareResourceLink } from '../lib/resourceShare.js';
+import { formatGroupMemberCountLine, isGroupAsset } from '../lib/groupAssets.js';
 
 function hasValidCoordinates(value) {
     return Number.isFinite(Number.parseFloat(value?.lat)) && Number.isFinite(Number.parseFloat(value?.lng));
@@ -61,23 +62,24 @@ export const AssetCard = React.memo(({
     const { locale, t } = useLocale();
     const asset = localizeResource(rawAsset, locale);
     const isHard = type === 'hard';
-    const linkedLocations = isHard ? [] : getLinkedLocations(asset);
-    const displayLocation = isHard ? asset : (asset._displayLocation || linkedLocations[0] || null);
+    const isGroup = !isHard && isGroupAsset(asset);
+    const linkedLocations = isHard || isGroup ? [] : getLinkedLocations(asset);
+    const displayLocation = isHard ? asset : (isGroup ? null : (asset._displayLocation || linkedLocations[0] || null));
     const locationCount = isHard ? (asset.address ? 1 : 0) : linkedLocations.length;
     const address = isHard ? asset.address : displayLocation?.address;
     const hasDirectionsTarget = isHard
         ? Boolean(asset.address || hasValidCoordinates(asset))
-        : Boolean(displayLocation && (displayLocation.address || hasValidCoordinates(displayLocation)));
+        : Boolean(!isGroup && displayLocation && (displayLocation.address || hasValidCoordinates(displayLocation)));
     const [isExpanded, setIsExpanded] = useState(false);
     const [shareStatus, setShareStatus] = useState('idle');
     const navigate = useNavigate();
     const softAssetCounts = isHard ? summarizeSoftAssetBuckets(asset.softAssets || []) : null;
     const showExpandedDescription = isExpanded || isSelected;
-    const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
+    const availabilityEnabled = !isHard && !isGroup && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
-    const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
-    const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
+    const access = !isHard && !isGroup ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
+    const isAccessRestricted = !isHard && !isGroup && access !== OFFERING_ACCESS.GRANTED;
     const savedAssetSummary = {
         name: asset.name,
         subCategory: asset.subCategory,
@@ -112,6 +114,8 @@ export const AssetCard = React.memo(({
     };
 
     const catColor = subCatColors[asset.subCategory] || '#64748b';
+    const categoryLabel = isGroup ? 'Group' : (asset.subCategory || (isHard ? t('place') : t('offering')));
+    const groupMemberCountLine = isGroup ? formatGroupMemberCountLine(asset) : '';
 
     return (
         <article
@@ -144,16 +148,16 @@ export const AssetCard = React.memo(({
             {/* Category + Favorite row */}
             <div className="flex items-start justify-between gap-3 mb-2">
                 <div
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${onCategoryClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${onCategoryClick && !isGroup ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                     style={{
                         color: '#0f172a',
                         backgroundColor: `${catColor}1c`,
                         border: `1px solid ${catColor}35`,
                     }}
-                    onClick={onCategoryClick ? (e) => { e.stopPropagation(); onCategoryClick(asset.subCategory) } : undefined}
+                    onClick={onCategoryClick && !isGroup ? (e) => { e.stopPropagation(); onCategoryClick(asset.subCategory) } : undefined}
                 >
-                    {isHard ? <Building2 size={14} className="opacity-80" style={{ color: catColor }} /> : <CalendarDays size={14} className="opacity-80" style={{ color: catColor }} />}
-                    {asset.subCategory || (isHard ? t('place') : t('offering'))}
+                    {isHard ? <Building2 size={14} className="opacity-80" style={{ color: catColor }} /> : isGroup ? <Layers3 size={14} className="opacity-80" style={{ color: catColor }} /> : <CalendarDays size={14} className="opacity-80" style={{ color: catColor }} />}
+                    {categoryLabel}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {asset._distance !== undefined && asset._distance !== null && (
@@ -241,7 +245,13 @@ export const AssetCard = React.memo(({
 
             {/* Info section */}
             <div className="space-y-1.5 pt-3 mt-auto" style={{ borderTop: '1px solid var(--color-border)' }}>
-                {(isHard ? Boolean(address) : locationCount > 0) && (
+                {isGroup ? (
+                    <div className="flex items-start gap-2 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                        <Layers3 size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
+                        <div className="min-w-0">{groupMemberCountLine}</div>
+                    </div>
+                ) : null}
+                {!isGroup && (isHard ? Boolean(address) : locationCount > 0) && (
                     <div
                         className={`flex items-start gap-2 text-sm font-medium p-1 -mx-1 rounded-lg transition-colors ${onLocationClick ? 'cursor-zoom-in hover:bg-slate-50' : ''}`}
                         style={{ color: 'var(--color-text-secondary)' }}

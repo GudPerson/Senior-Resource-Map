@@ -1,6 +1,7 @@
 export const SOFT_ASSET_MODES = Object.freeze({
     STANDALONE: 'standalone',
     CHILD: 'child',
+    GROUP: 'group',
 });
 
 export const PARENT_PROPAGATED_FIELDS = Object.freeze([
@@ -84,7 +85,15 @@ export function isChildSoftAsset(asset) {
     return (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.CHILD;
 }
 
+export function isGroupSoftAsset(asset) {
+    return (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.GROUP;
+}
+
 export function getSoftAssetLocations(asset) {
+    if (isGroupSoftAsset(asset)) {
+        return [];
+    }
+
     if (isChildSoftAsset(asset)) {
         return asset?.hostHardAsset ? [asset.hostHardAsset] : [];
     }

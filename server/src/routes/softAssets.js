@@ -3,7 +3,8 @@ import { authenticateToken, optionalAuth, authorizeResourceOperator } from '../m
 import { requireManagedResourceListAuth } from '../middleware/resourceListAuth.js';
 import {
     getSoftAssets, getSoftAssetById,
-    createSoftAsset, updateSoftAsset, deleteSoftAsset, resetSoftAssetOverrides, patchSoftAssetAvailability
+    createSoftAsset, updateSoftAsset, deleteSoftAsset, resetSoftAssetOverrides, patchSoftAssetAvailability,
+    getSoftAssetGroupMembers, replaceSoftAssetGroupMembers
 } from '../controllers/softAssetsController.js';
 import {
     addSoftAssetStaff,
@@ -24,6 +25,8 @@ router.get('/', optionalAuth, requireManagedResourceListAuth(), getSoftAssets);
 router.post('/import/collateral/preview', authenticateToken, authorizeResourceOperator(), previewSoftAssetCollateralImport);
 router.post('/import/collateral/commit', authenticateToken, authorizeResourceOperator(), commitSoftAssetCollateralImport);
 router.post('/', authenticateToken, authorizeResourceOperator(), createSoftAsset);
+router.get('/:id/group-members', authenticateToken, authorizeResourceOperator(), getSoftAssetGroupMembers);
+router.put('/:id/group-members', authenticateToken, authorizeResourceOperator(), replaceSoftAssetGroupMembers);
 router.get('/:id/staff', authenticateToken, authorizeResourceOperator(), getSoftAssetStaff);
 router.get('/:id/staff-candidates', authenticateToken, authorizeResourceOperator(), getSoftAssetStaffCandidates);
 router.post('/:id/staff', authenticateToken, authorizeResourceOperator(), addSoftAssetStaff);

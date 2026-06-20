@@ -1,4 +1,4 @@
-import { MapPin } from 'lucide-react';
+import { Layers3, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import DiscoveryLocationIndicatorBadges from '../../components/DiscoveryLocationIndicatorBadges.jsx';
@@ -9,6 +9,7 @@ import { openResourceDetail } from '../../lib/appNavigation.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { OFFERING_ACCESS } from '../../lib/eligibility.js';
 import { localizeResource } from '../../lib/localization.js';
+import { formatGroupMemberCountLine, isGroupAsset } from '../../lib/groupAssets.js';
 import {
     buildDiscoveryMobileLocationSummary,
     shouldShowDiscoveryMobileLocationSummary,
@@ -31,16 +32,17 @@ export function DiscoveryMobileBrowseCard({
     const asset = localizeResource(rawAsset, locale);
     const navigate = useNavigate();
     const isHard = type === 'hard';
+    const isGroup = !isHard && isGroupAsset(asset);
     const catColor = subCatColors[asset.subCategory] || '#64748b';
-    const displayLocation = isHard ? asset : asset._displayLocation;
-    const totalLocationCount = isHard ? 1 : (asset._locationCount || 0);
+    const displayLocation = isHard ? asset : (isGroup ? null : asset._displayLocation);
+    const totalLocationCount = isHard ? 1 : (isGroup ? 0 : (asset._locationCount || 0));
     const otherLocationCount = !isHard && totalLocationCount > 1 ? totalLocationCount - 1 : 0;
-    const categoryLabel = asset.subCategory || (isHard ? t('place') : t('discoveryCategoryOfferingFallback'));
-    const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
+    const categoryLabel = isGroup ? 'Group' : (asset.subCategory || (isHard ? t('place') : t('discoveryCategoryOfferingFallback')));
+    const availabilityEnabled = !isHard && !isGroup && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
-    const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
-    const isAccessRestricted = !isHard && access !== OFFERING_ACCESS.GRANTED;
+    const access = !isHard && !isGroup ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
+    const isAccessRestricted = !isHard && !isGroup && access !== OFFERING_ACCESS.GRANTED;
     const handleOpenDetails = () => openResourceDetail(type, asset.id, navigate);
     const handleOpenDirections = () => {
         const target = isHard ? asset : displayLocation;
@@ -58,7 +60,7 @@ export function DiscoveryMobileBrowseCard({
         }
     };
     const hasDirectionsTarget = Boolean(
-        (displayLocation && (displayLocation.address || (Number.isFinite(Number.parseFloat(displayLocation.lat)) && Number.isFinite(Number.parseFloat(displayLocation.lng)))))
+        (!isGroup && displayLocation && (displayLocation.address || (Number.isFinite(Number.parseFloat(displayLocation.lat)) && Number.isFinite(Number.parseFloat(displayLocation.lng)))))
         || (isHard && (asset.address || (Number.isFinite(Number.parseFloat(asset.lat)) && Number.isFinite(Number.parseFloat(asset.lng)))))
     );
     const locationSummary = buildDiscoveryMobileLocationSummary({
@@ -87,7 +89,7 @@ export function DiscoveryMobileBrowseCard({
                     type="button"
                     onClick={(event) => {
                         event.stopPropagation();
-                        onCategoryClick?.(asset.subCategory);
+                        if (!isGroup) onCategoryClick?.(asset.subCategory);
                     }}
                     className={`min-w-0 flex-1 rounded-full font-bold ${isCompact ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1 text-[11px]'}`}
                     style={{
@@ -107,9 +109,9 @@ export function DiscoveryMobileBrowseCard({
                             summary={{
                                 name: asset.name,
                                 subCategory: asset.subCategory,
-                                address: isHard ? asset.address : displayLocation?.address,
-                                lat: isHard ? asset.lat : displayLocation?.lat,
-                                lng: isHard ? asset.lng : displayLocation?.lng,
+                                address: isHard ? asset.address : (isGroup ? null : displayLocation?.address),
+                                lat: isHard ? asset.lat : (isGroup ? null : displayLocation?.lat),
+                                lng: isHard ? asset.lng : (isGroup ? null : displayLocation?.lng),
                                 detailPath: `/resource/${type}/${asset.id}`,
                             }}
                             variant="card"
@@ -146,6 +148,20 @@ export function DiscoveryMobileBrowseCard({
                 indicators={asset._locationIndicators}
             />
 
+            {isGroup ? (
+                <div
+                    className={`mt-3 flex items-center gap-2 rounded-xl border px-3 py-2 font-bold ${isCompact ? 'text-[12px]' : 'text-sm'}`}
+                    style={{
+                        borderColor: 'var(--color-border)',
+                        backgroundColor: 'rgba(231,248,244,0.65)',
+                        color: 'var(--color-text-secondary)',
+                    }}
+                >
+                    <Layers3 size={15} className="flex-shrink-0" style={{ color: 'var(--color-brand)' }} />
+                    <span className="min-w-0 truncate">{formatGroupMemberCountLine(asset)}</span>
+                </div>
+            ) : null}
+
             {availabilityEnabled ? (
                 <div className="mt-3">
                     <span
@@ -161,7 +177,7 @@ export function DiscoveryMobileBrowseCard({
                 </div>
             ) : null}
 
-            {!isHard ? (
+            {!isHard && !isGroup ? (
                 <OfferingAccessNotice
                     access={access}
                     missingProfileFields={asset.missingProfileFields}

@@ -6,6 +6,12 @@ import {
     normalizeOverrideFields,
     SOFT_ASSET_MODES,
 } from './softAssetHierarchy.js';
+import {
+    buildGroupDiscoverMetadata,
+    buildGroupMemberSummary,
+    getPublicGroupMemberEntries,
+    isGroupSoftAsset,
+} from './softAssetGroups.js';
 
 function formatLocationSummary(location) {
     if (!location) return null;
@@ -35,6 +41,9 @@ export function formatSoftAssetListSummary(asset, options = {}) {
         .filter(Boolean);
     const location = locations[0] || null;
     const hostLocation = isChildSoftAsset(asset) ? location : null;
+    const isGroup = isGroupSoftAsset(asset);
+    const groupMemberSummary = isGroup ? buildGroupMemberSummary(asset) : null;
+    const groupDiscoverMetadata = isGroup ? buildGroupDiscoverMetadata(asset) : null;
 
     return {
         id: asset.id,
@@ -82,6 +91,13 @@ export function formatSoftAssetListSummary(asset, options = {}) {
         locations,
         location,
         hostLocation,
+        ...(isGroup ? {
+            groupMemberSummary,
+            groupDiscoverMetadata,
+            isDiscoverReady: groupDiscoverMetadata.isDiscoverReady,
+            selectedGroupMemberCount: Array.isArray(asset.groupMembers) ? asset.groupMembers.length : 0,
+            publicGroupMemberCount: getPublicGroupMemberEntries(asset).length,
+        } : {}),
         coverageRegionIds: asset.coverageRegionIds || [],
         matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
         primaryRegionId: asset.subregionId || null,

@@ -614,6 +614,18 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS soft_asset_group_members (
+                    id SERIAL PRIMARY KEY,
+                    group_soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    member_resource_type VARCHAR(20) NOT NULL,
+                    member_resource_id INTEGER NOT NULL,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    added_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    added_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
             await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS hard_asset_id INTEGER REFERENCES hard_assets(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS sharing_status VARCHAR(40) NOT NULL DEFAULT 'approved'`);
             await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
@@ -753,6 +765,9 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_soft_asset_idx ON soft_asset_staff_memberships (soft_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_user_idx ON soft_asset_staff_memberships (user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_role_idx ON soft_asset_staff_memberships (staff_role)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_group_members_unique_member_idx ON soft_asset_group_members (group_soft_asset_id, member_resource_type, member_resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_group_idx ON soft_asset_group_members (group_soft_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_member_idx ON soft_asset_group_members (member_resource_type, member_resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_hard_asset_idx ON audience_zones (hard_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_sharing_status_idx ON audience_zones (sharing_status)`);
             await db.execute(sql`

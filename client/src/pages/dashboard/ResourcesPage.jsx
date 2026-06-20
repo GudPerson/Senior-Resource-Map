@@ -14,6 +14,7 @@ import {
     EyeOff,
     Files,
     Info,
+    Layers3,
     Lock,
     MapPin,
     Minus,
@@ -33,6 +34,7 @@ import AssetAccessPanel from '../../components/AssetAccessPanel.jsx';
 import AssetAudienceZonesPanel from '../../components/AssetAudienceZonesPanel.jsx';
 import AssetForm from '../../components/AssetForm.jsx';
 import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
+import GroupAssetForm from '../../components/GroupAssetForm.jsx';
 import HardAssetImportWizard from '../../components/HardAssetImportWizard.jsx';
 import MarkdownLiteText from '../../components/MarkdownLiteText.jsx';
 import SoftAssetCollateralImportWizard from '../../components/SoftAssetCollateralImportWizard.jsx';
@@ -68,6 +70,7 @@ import {
     normalizeRole,
 } from '../../lib/roles.js';
 import Pagination from '../../components/Pagination.jsx';
+import { formatGroupMemberCountLine, isGroupAsset } from '../../lib/groupAssets.js';
 
 const TagBadge = ({ tag, onClick }) => (
     <span
@@ -642,6 +645,7 @@ export default function ResourcesPage() {
     const [hasCompletedResourceLoad, setHasCompletedResourceLoad] = useState(false);
     const [activeTab, setActiveTab] = useState('hard');
     const [assetModal, setAssetModal] = useState(null);
+    const [groupModal, setGroupModal] = useState(null);
     const [placeCreateChooserOpen, setPlaceCreateChooserOpen] = useState(false);
     const [placeImportWizardOpen, setPlaceImportWizardOpen] = useState(false);
     const [placeImportCloseGuard, setPlaceImportCloseGuard] = useState(null);
@@ -854,22 +858,33 @@ export default function ResourcesPage() {
 
             const softResponse = normalizePaginatedResponse(result.value || [], softAssetsPageSize);
             const softData = softResponse.data || [];
+            const groupData = await fetchAllPaginatedResults(api.getSoftAssets, {
+                ...softResourceListParams,
+                assetMode: 'group',
+                q: normalizedQuery,
+            }).catch(() => []);
+            const groupIds = new Set((Array.isArray(groupData) ? groupData : []).map((asset) => Number(asset.id)).filter(Number.isInteger));
+            const mergedSoftData = [
+                ...softData.filter((asset) => !groupIds.has(Number(asset.id))),
+                ...(Array.isArray(groupData) ? groupData : []),
+            ];
 
             if (!canManageResourceTools) {
                 const favorites = await api.getFavorites();
                 if (requestId !== loadRequestIdRef.current) return;
                 const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
-                const favoriteSoftAssets = softData.filter((asset) => favoriteSoftIds.has(asset.id));
+                const favoriteSoftAssets = mergedSoftData.filter((asset) => favoriteSoftIds.has(asset.id));
                 setSoftAssets(favoriteSoftAssets);
                 setSoftAssetsTotal(favoriteSoftAssets.length);
             } else if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                setSoftAssets(softData);
+                setSoftAssets(mergedSoftData);
                 setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
             } else {
                 const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-                const scopedSoftAssets = softData.filter((asset) => {
+                const scopedSoftAssets = mergedSoftData.filter((asset) => {
                     if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
                     if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
+                    if (isGroupAsset(asset)) return false;
                     const linkedIds = getLinkedHardAssetIdsForOffering(asset);
                     return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
                 });
@@ -972,7 +987,7 @@ export default function ResourcesPage() {
     }, [boundaryFilter, normalizedQuery]);
 
     useEffect(() => {
-        if ((!canManageResourceTools || !canCreateStandaloneResources) && activeTab === 'templates') {
+        if ((!canManageResourceTools || !canCreateStandaloneResources) && (activeTab === 'templates' || activeTab === 'groups')) {
             setActiveTab('hard');
         }
     }, [activeTab, canCreateStandaloneResources, canManageResourceTools]);
@@ -995,18 +1010,35 @@ export default function ResourcesPage() {
         [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, sortOrder]
     );
 
+    const offeringSoftAssets = useMemo(
+        () => softAssets.filter((asset) => !isGroupAsset(asset)),
+        [softAssets],
+    );
+    const groupSoftAssets = useMemo(
+        () => softAssets.filter((asset) => isGroupAsset(asset)),
+        [softAssets],
+    );
+
     const filteredSoftAssets = useMemo(
         () => sortResourceItems(
-            softAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            offeringSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, softAssets, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, offeringSoftAssets, sortOrder]
+    );
+
+    const filteredGroupAssets = useMemo(
+        () => sortResourceItems(
+            groupSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            sortOrder
+        ),
+        [boundaryChecksEnabled, boundaryFilter, groupSoftAssets, normalizedQuery, sortOrder]
     );
 
     const activeManagedAreaFilterOptions = useMemo(() => {
         if (!boundaryChecksEnabled || activeTab === 'templates') return [];
-        return buildManagedAreaFilterOptions(activeTab === 'hard' ? hardAssets : softAssets);
-    }, [activeTab, boundaryChecksEnabled, hardAssets, softAssets]);
+        return buildManagedAreaFilterOptions(activeTab === 'hard' ? hardAssets : (activeTab === 'groups' ? groupSoftAssets : offeringSoftAssets));
+    }, [activeTab, boundaryChecksEnabled, groupSoftAssets, hardAssets, offeringSoftAssets]);
     const showManagedAreaFilter = boundaryChecksEnabled
         && activeTab !== 'templates'
         && activeManagedAreaFilterOptions.length > 2;
@@ -1046,8 +1078,10 @@ export default function ResourcesPage() {
         ),
         [filteredSoftAssets, softAssetsPage, softAssetsPageSize, softUsesClientOnlyFilter]
     );
+    const visibleGroupAssets = filteredGroupAssets;
     const hardTabCount = hardUsesClientOnlyFilter ? filteredHardAssets.length : hardAssetsTotal;
-    const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
+    const groupTabCount = filteredGroupAssets.length;
+    const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : Math.max(0, softAssetsTotal - groupTabCount);
     const hardInitialLoading = resourceLoading.hard && filteredHardAssets.length === 0;
     const softInitialLoading = resourceLoading.soft && filteredSoftAssets.length === 0;
     const templateInitialLoading = metadataLoading && filteredTemplates.length === 0;
@@ -1055,12 +1089,16 @@ export default function ResourcesPage() {
         ? hardInitialLoading
         : activeTab === 'soft'
             ? softInitialLoading
-            : templateInitialLoading;
+            : activeTab === 'groups'
+                ? softInitialLoading
+                : templateInitialLoading;
     const activeResourceLoadError = activeTab === 'hard'
         ? resourceLoadErrors.hard
         : activeTab === 'soft'
             ? resourceLoadErrors.soft
-            : resourceLoadErrors.templates;
+            : activeTab === 'groups'
+                ? resourceLoadErrors.soft
+                : resourceLoadErrors.templates;
     const showInitialResourceLoadFailure = Boolean(
         resourceLoadErrors.hard
         && resourceLoadErrors.soft
@@ -1100,7 +1138,9 @@ export default function ResourcesPage() {
         ? hardTabCount
         : activeTab === 'soft'
             ? softTabCount
-            : filteredTemplates.length;
+            : activeTab === 'groups'
+                ? groupTabCount
+                : filteredTemplates.length;
 
     function scopeHardAssetsForCurrentUser(items) {
         if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0 && !hasDirectAssetAccess) return items;
@@ -1294,6 +1334,10 @@ export default function ResourcesPage() {
             setPlaceCreateChooserOpen(true);
             return;
         }
+        if (assetType === 'group') {
+            setGroupModal({ mode: 'create', data: null });
+            return;
+        }
         setAssetModal({ mode: 'create', assetType, data: null });
     }
 
@@ -1335,6 +1379,27 @@ export default function ResourcesPage() {
                     : prev
             ));
             setActionNotice({ type: 'warning', message: err.message || 'Failed to load offering details.' });
+        }
+    }
+
+    async function openGroupEdit(asset) {
+        setInlineAction(null);
+        setGroupModal({ mode: 'edit', data: asset, loading: true });
+        try {
+            const fullAsset = await api.getSoftAsset(asset.id);
+            setGroupModal((prev) => (
+                prev?.mode === 'edit' && Number(prev?.data?.id) === Number(asset.id)
+                    ? { ...prev, data: fullAsset, loading: false }
+                    : prev
+            ));
+        } catch (err) {
+            console.error('Failed to load Group details', err);
+            setGroupModal((prev) => (
+                prev?.mode === 'edit' && Number(prev?.data?.id) === Number(asset.id)
+                    ? { ...prev, loading: false }
+                    : prev
+            ));
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load Group details.' });
         }
     }
 
@@ -1657,6 +1722,9 @@ export default function ResourcesPage() {
                         summary: `${rolloutIds.length} place version${rolloutIds.length === 1 ? '' : 's'}`,
                     });
                 }
+            } else if (activeTab === 'groups') {
+                setActionNotice({ type: 'warning', message: 'Group workbook export is not available yet.' });
+                return;
             } else {
                 const ids = uniqueIdsInOrder(filteredTemplates);
                 if (ids.length > 0) {
@@ -1779,7 +1847,9 @@ export default function ResourcesPage() {
 
     const searchPlaceholder = activeTab === 'templates'
         ? 'Search templates by name, category, owner, or tag. Use , for all and / for any'
-        : 'Search assets by name, category, postal code, or tag. Use , for all and / for any';
+        : activeTab === 'groups'
+            ? 'Search Groups by name, member, owner, or tag. Use , for all and / for any'
+            : 'Search assets by name, category, postal code, or tag. Use , for all and / for any';
 
     const generateHostOptions = useMemo(() => {
         if (!generateModal?.template) return [];
@@ -1872,6 +1942,13 @@ export default function ResourcesPage() {
                                 >
                                     <Plus size={18} strokeWidth={2.5} />
                                     New Template
+                                </button>
+                                <button
+                                    onClick={() => openCreate('group')}
+                                    className="flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-black hover:shadow-xl hover:shadow-slate-300 active:scale-[0.98]"
+                                >
+                                    <Plus size={18} strokeWidth={2.5} />
+                                    New Group
                                 </button>
                             </>
                         ) : null}
@@ -2008,6 +2085,19 @@ export default function ResourcesPage() {
                         <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
                         Offerings ({softTabLabel})
                     </button>
+                    {canManageResourceTools && canCreateStandaloneResources ? (
+                        <button
+                            onClick={() => setActiveTab('groups')}
+                            className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                                activeTab === 'groups'
+                                    ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <Layers3 size={18} strokeWidth={activeTab === 'groups' ? 2.5 : 2} />
+                            Groups ({groupTabCount})
+                        </button>
+                    ) : null}
                     {canManageResourceTools && canCreateStandaloneResources ? (
                         <button
                             onClick={() => setActiveTab('templates')}
@@ -2419,6 +2509,108 @@ export default function ResourcesPage() {
                             currentPage={hardAssetsPage}
                             onPageChange={setHardAssetsPage}
                         />
+                    </div>
+                )
+            ) : activeTab === 'groups' ? (
+                softListStatus === 'load-error' ? (
+                    <ResourceLoadFailureState failure={resourceLoadErrors.soft} onRetry={load} />
+                ) : filteredGroupAssets.length === 0 ? (
+                    <EmptyState
+                        icon={Layers3}
+                        title="No Groups found"
+                        description="Create a public collection from existing places and offerings."
+                        action={canManageResourceTools && canCreateStandaloneResources && !searchTerm ? (
+                            <button onClick={() => openCreate('group')} className="btn-primary mx-auto">
+                                <Plus size={16} /> Add Group
+                            </button>
+                        ) : null}
+                    />
+                ) : (
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-500">
+                            Showing {visibleGroupAssets.length} of {groupTabCount} groups
+                        </p>
+                        {visibleGroupAssets.map((asset) => {
+                            const hiddenStatus = getHiddenStatus(asset);
+                            const canEditGroup = canEditSoftAsset(asset);
+                            const canChangeGroupVisibility = canHideSoftAsset(asset);
+                            const canRemoveGroup = canDeleteSoftAsset(asset);
+                            const readinessLabel = hiddenStatus.hidden
+                                ? 'Hidden'
+                                : asset.publicGroupMemberCount === 0
+                                    ? 'Needs members'
+                                    : (asset.selectedGroupMemberCount > asset.publicGroupMemberCount ? 'Review members' : 'Ready for Discover');
+
+                            return (
+                                <div key={asset.id} className="card flex flex-col gap-4">
+                                    <div className="flex min-w-0 gap-4">
+                                        {asset.logoUrl ? (
+                                            <DashboardLogoFrame src={asset.logoUrl} alt={`${asset.name} logo`} />
+                                        ) : (
+                                            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                                                <Layers3 size={24} />
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-lg font-bold text-slate-900">{asset.name}</p>
+                                                    {asset.description ? (
+                                                        <MarkdownLiteText
+                                                            text={asset.description}
+                                                            compact
+                                                            className="mt-1 line-clamp-2 text-sm text-slate-500"
+                                                        />
+                                                    ) : null}
+                                                </div>
+                                                <span className="inline-flex items-center gap-1 rounded-md border border-brand-100 bg-brand-50 px-2 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-brand-700">
+                                                    <Layers3 size={13} />
+                                                    {readinessLabel}
+                                                </span>
+                                            </div>
+                                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                                <HiddenBadge status={hiddenStatus} />
+                                                <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                                                    {formatGroupMemberCountLine(asset)}
+                                                </span>
+                                                {(asset.tags || []).map((tag) => <TagBadge key={tag} tag={tag} onClick={() => setSearchTerm(tag)} />)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-1">
+                                        {canChangeGroupVisibility ? (
+                                            <button
+                                                onClick={() => handleToggleVisibility(asset, 'soft')}
+                                                disabled={visibilityActionKey === getVisibilityActionKey('soft', asset.id)}
+                                                className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    {visibilityActionKey === getVisibilityActionKey('soft', asset.id) ? (
+                                                        <RefreshCw size={15} className="animate-spin" />
+                                                    ) : hiddenStatus.hidden ? (
+                                                        <Eye size={15} />
+                                                    ) : (
+                                                        <EyeOff size={15} />
+                                                    )}
+                                                    {hiddenStatus.hidden ? 'Show in app' : 'Hide from app'}
+                                                </span>
+                                            </button>
+                                        ) : null}
+                                        {canEditGroup ? (
+                                            <button onClick={() => openGroupEdit(asset)} className="btn-ghost px-3 py-2 text-sm">
+                                                <Pencil size={15} /> Edit
+                                            </button>
+                                        ) : null}
+                                        {canRemoveGroup ? (
+                                            <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: 'Group' })} className="btn-danger px-3 py-2 text-sm">
+                                                <Trash2 size={15} /> Delete
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )
             ) : activeTab === 'soft' ? (
@@ -2890,6 +3082,36 @@ export default function ResourcesPage() {
                         }}
                         onCancel={() => closePlaceImportWizard({ force: true })}
                     />
+                </ResourceModal>
+            ) : null}
+
+
+            {groupModal ? (
+                <ResourceModal
+                    title={`${groupModal.mode === 'create' ? 'Create' : 'Edit'} Group`}
+                    description="Curate a public collection from existing places and offerings."
+                    onClose={() => setGroupModal(null)}
+                    maxWidth="max-w-5xl"
+                >
+                    {groupModal.loading ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                            Loading Group details...
+                        </div>
+                    ) : (
+                        <GroupAssetForm
+                            initialData={groupModal.data}
+                            hardAssets={hardAssets}
+                            softAssets={offeringSoftAssets}
+                            partnerOptions={partnerOptions}
+                            subregions={subregions}
+                            onSave={async () => {
+                                setGroupModal(null);
+                                await load();
+                                setActionNotice({ type: 'success', message: `Group saved.` });
+                            }}
+                            onCancel={() => setGroupModal(null)}
+                        />
+                    )}
                 </ResourceModal>
             ) : null}
 

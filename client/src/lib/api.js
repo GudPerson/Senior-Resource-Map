@@ -339,6 +339,8 @@ export const api = {
     updateSoftAssetAvailability: (id, body) => request('PATCH', `/soft-assets/${id}/availability`, body),
     resetSoftAssetOverrides: (id, body) => request('POST', `/soft-assets/${id}/reset-overrides`, body),
     deleteSoftAsset: (id) => request('DELETE', `/soft-assets/${id}`),
+    getSoftAssetGroupMembers: (id) => request('GET', `/soft-assets/${id}/group-members`),
+    replaceSoftAssetGroupMembers: (id, body) => request('PUT', `/soft-assets/${id}/group-members`, body),
     getSoftAssetStaff: (id) => request('GET', `/soft-assets/${id}/staff`),
     getSoftAssetStaffCandidates: (id, query = '') => request('GET', `/soft-assets/${id}/staff-candidates?q=${encodeURIComponent(query)}`),
     addSoftAssetStaff: (id, body) => request('POST', `/soft-assets/${id}/staff`, body),

@@ -37,6 +37,7 @@ import {
     buildPostalGroupedSavedPlacePins,
     buildRenderedPostalGroupedSavedPins,
     buildSavedPlacePins,
+    getAssetAreaLocations,
     getAssetLocations,
     getBestLocation,
     hasValidCoordinates,
@@ -219,11 +220,20 @@ function buildDiscoverySearchHaystack(resource) {
         resource.address,
         resource.subCategory,
         resource.postalCode,
+        resource.groupMemberSearchText,
         ...(Array.isArray(resource.locations)
             ? resource.locations.flatMap((location) => [
                 location?.name,
                 location?.address,
                 location?.postalCode,
+            ])
+            : []),
+        ...(Array.isArray(resource.groupMemberLocations)
+            ? resource.groupMemberLocations.flatMap((location) => [
+                location?.name,
+                location?.address,
+                location?.postalCode,
+                location?.subCategory,
             ])
             : []),
         ...normalizeTagNames(resource.tags),
@@ -614,6 +624,18 @@ export default function DiscoverPage() {
                     const cachedDirectory = normalizeDiscoveryCacheRows(cacheRows);
                     hardData = cachedDirectory.hardAssets;
                     softData = cachedDirectory.softAssets;
+                    const groupData = await withTimeout(
+                        fetchAllPaginatedResults(api.getSoftAssets, { assetMode: 'group' }).catch(() => []),
+                        [],
+                        12000,
+                    );
+                    if (Array.isArray(groupData) && groupData.length > 0) {
+                        const groupIds = new Set(groupData.map((asset) => Number(asset.id)).filter(Number.isInteger));
+                        softData = [
+                            ...softData.filter((asset) => !groupIds.has(Number(asset.id))),
+                            ...groupData,
+                        ];
+                    }
                 }
 
                 if (hardData.length === 0 && softData.length === 0) {
@@ -848,7 +870,7 @@ export default function DiscoverPage() {
                     return hasPostalCodeInBoundary(resource.postalCode, activeDiscoverySubregion.postalCodeSet);
                 }
 
-                return getAssetLocations(resource).some((location) => (
+                return getAssetAreaLocations(resource).some((location) => (
                     hasPostalCodeInBoundary(location?.postalCode, activeDiscoverySubregion.postalCodeSet)
                 ));
             });

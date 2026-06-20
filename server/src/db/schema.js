@@ -780,6 +780,22 @@ export const softAssetLocations = pgTable('soft_asset_locations', {
   hardAssetId: integer('hard_asset_id').references(() => hardAssets.id, { onDelete: 'cascade' }).notNull(),
 });
 
+export const softAssetGroupMembers = pgTable('soft_asset_group_members', {
+  id: serial('id').primaryKey(),
+  groupSoftAssetId: integer('group_soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  memberResourceType: varchar('member_resource_type', { length: 20 }).notNull(),
+  memberResourceId: integer('member_resource_id').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  addedByUserId: integer('added_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  addedAt: timestamp('added_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  uniqueMember: uniqueIndex('soft_asset_group_members_unique_member_idx')
+    .on(table.groupSoftAssetId, table.memberResourceType, table.memberResourceId),
+  groupIdx: index('soft_asset_group_members_group_idx').on(table.groupSoftAssetId),
+  memberIdx: index('soft_asset_group_members_member_idx').on(table.memberResourceType, table.memberResourceId),
+}));
+
 export const userSubregions = pgTable('user_subregions', {
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
@@ -1095,6 +1111,7 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
   audienceZones: many(softAssetAudienceZones),
   regionCoverages: many(softAssetRegionCoverages),
   staffMemberships: many(softAssetStaffMemberships),
+  groupMembers: many(softAssetGroupMembers, { relationName: 'soft_asset_group_members_group' }),
 }));
 
 export const partnerPostalCodesRelations = relations(partnerPostalCodes, ({ one }) => ({
@@ -1193,6 +1210,28 @@ export const softAssetLocationsRelations = relations(softAssetLocations, ({ one 
   hardAsset: one(hardAssets, {
     fields: [softAssetLocations.hardAssetId],
     references: [hardAssets.id],
+  }),
+}));
+
+export const softAssetGroupMembersRelations = relations(softAssetGroupMembers, ({ one }) => ({
+  groupSoftAsset: one(softAssets, {
+    fields: [softAssetGroupMembers.groupSoftAssetId],
+    references: [softAssets.id],
+    relationName: 'soft_asset_group_members_group',
+  }),
+  hardAsset: one(hardAssets, {
+    fields: [softAssetGroupMembers.memberResourceId],
+    references: [hardAssets.id],
+    relationName: 'soft_asset_group_members_hard_member',
+  }),
+  softAsset: one(softAssets, {
+    fields: [softAssetGroupMembers.memberResourceId],
+    references: [softAssets.id],
+    relationName: 'soft_asset_group_members_soft_member',
+  }),
+  addedBy: one(users, {
+    fields: [softAssetGroupMembers.addedByUserId],
+    references: [users.id],
   }),
 }));
 
