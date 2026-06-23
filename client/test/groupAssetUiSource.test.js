@@ -58,3 +58,9 @@ test('Group asset form uses wizard sections and upload controls without legacy r
     assert.doesNotMatch(groupFormSource, /Admin area/);
     assert.doesNotMatch(groupFormSource, /System owned/);
 });
+
+test('Group asset edit access can submit without nesting inside the Group save form', () => {
+    assert.doesNotMatch(groupFormSource, /<form onSubmit=\{handleSubmit\}/);
+    assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
+    assert.doesNotMatch(groupFormSource, /type="submit" className="btn-primary" disabled=\{submitting\}/);
+});

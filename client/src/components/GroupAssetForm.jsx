@@ -284,7 +284,7 @@ export default function GroupAssetForm({
     }
 
     async function handleSubmit(event) {
-        event.preventDefault();
+        event?.preventDefault?.();
         if (submitting) return;
         if (!validateStep(0) || (!initialData?.id && !validateStep(1))) return;
         setError('');
@@ -563,7 +563,7 @@ export default function GroupAssetForm({
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
             <div className="grid grid-cols-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                 {STEPS.map((step, index) => (
                     <button
@@ -604,12 +604,12 @@ export default function GroupAssetForm({
                             Next <ChevronRight size={16} />
                         </button>
                     ) : (
-                        <button type="submit" className="btn-primary" disabled={submitting}>
+                        <button type="button" onClick={handleSubmit} className="btn-primary" disabled={submitting}>
                             {submitting ? 'Saving...' : 'Save Group'}
                         </button>
                     )}
                 </div>
             </div>
-        </form>
+        </div>
     );
 }
