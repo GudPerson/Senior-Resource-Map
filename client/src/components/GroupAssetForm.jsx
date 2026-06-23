@@ -133,7 +133,6 @@ export default function GroupAssetForm({
         contactEmail: initialData?.contactEmail || '',
         ctaLabel: initialData?.ctaLabel || '',
         ctaUrl: initialData?.ctaUrl || '',
-        venueNote: initialData?.venueNote || '',
         lastReviewedAt: initialData?.lastReviewedAt ? String(initialData.lastReviewedAt).slice(0, 10) : '',
         sourceType: initialData?.sourceType || '',
         verificationStatus: initialData?.verificationStatus || 'unverified',
@@ -305,7 +304,6 @@ export default function GroupAssetForm({
                 contactEmail: form.contactEmail,
                 ctaLabel: form.ctaLabel,
                 ctaUrl: form.ctaUrl,
-                venueNote: form.venueNote,
                 lastReviewedAt: form.lastReviewedAt || null,
                 sourceType: form.sourceType,
                 verificationStatus: form.verificationStatus,
@@ -551,10 +549,6 @@ export default function GroupAssetForm({
                         <label className="block">
                             <span className="mb-1 block text-sm font-bold text-slate-700">Freshness date</span>
                             <input className="input-field" type="date" value={form.lastReviewedAt} onChange={(event) => updateField('lastReviewedAt', event.target.value)} />
-                        </label>
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-bold text-slate-700">Review notes</span>
-                            <textarea className="input-field min-h-[88px]" value={form.venueNote} onChange={(event) => updateField('venueNote', event.target.value)} />
                         </label>
                     </div>
                 </div>

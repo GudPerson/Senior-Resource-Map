@@ -1000,10 +1000,15 @@ export default function ResourcesPage() {
 
     useEffect(() => {
         if (!inlineAction?.id) return;
-        if (activeTab === 'hard' && inlineAction.assetType === 'soft') {
-            setInlineAction(null);
-        }
-        if (activeTab !== 'hard' && inlineAction.assetType !== 'soft') {
+        const currentInlineAssetType = inlineAction.assetType || 'hard';
+        const expectedInlineAssetType = activeTab === 'groups'
+            ? 'group'
+            : activeTab === 'soft'
+                ? 'soft'
+                : activeTab === 'hard'
+                    ? 'hard'
+                    : null;
+        if (!expectedInlineAssetType || currentInlineAssetType !== expectedInlineAssetType) {
             setInlineAction(null);
         }
     }, [activeTab, inlineAction?.assetType, inlineAction?.id]);
@@ -2648,6 +2653,7 @@ export default function ResourcesPage() {
                                         ) : null}
                                         {canManageGroupAccess ? (
                                             <button
+                                                type="button"
                                                 onClick={() => openAssetAccess(asset, 'group')}
                                                 className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.assetType === 'group' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
                                             >

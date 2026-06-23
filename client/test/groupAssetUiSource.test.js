@@ -64,3 +64,14 @@ test('Group asset edit access can submit without nesting inside the Group save f
     assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
     assert.doesNotMatch(groupFormSource, /type="submit" className="btn-primary" disabled=\{submitting\}/);
 });
+
+test('Group asset form omits the misleading review notes field', () => {
+    assert.doesNotMatch(groupFormSource, /Review notes/);
+    assert.doesNotMatch(groupFormSource, /venueNote/);
+});
+
+test('Dashboard inline action guard preserves Group access drawers on the Groups tab', () => {
+    assert.match(resourcesPageSource, /currentInlineAssetType = inlineAction\.assetType \|\| 'hard'/);
+    assert.match(resourcesPageSource, /activeTab === 'groups'[\s\S]*\? 'group'/);
+    assert.doesNotMatch(resourcesPageSource, /activeTab !== 'hard' && inlineAction\.assetType !== 'soft'/);
+});
