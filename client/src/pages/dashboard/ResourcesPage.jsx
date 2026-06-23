@@ -637,6 +637,7 @@ export default function ResourcesPage() {
     const [templateLoadingIds, setTemplateLoadingIds] = useState([]);
     const [subregions, setSubregions] = useState([]);
     const [partnerOptions, setPartnerOptions] = useState([]);
+    const [accessUserOptions, setAccessUserOptions] = useState([]);
     const [partnerBoundary, setPartnerBoundary] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
     const [resourceLoading, setResourceLoading] = useState({ hard: true, soft: true });
@@ -908,6 +909,7 @@ export default function ResourcesPage() {
             setAudienceZones([]);
             setSubregions([]);
             setPartnerOptions([]);
+            setAccessUserOptions([]);
             return;
         }
 
@@ -943,17 +945,19 @@ export default function ResourcesPage() {
         if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
             api.getUsers().then((fetchedUsers) => {
                 if (requestId !== metadataRequestIdRef.current) return;
-                const partners = Array.isArray(fetchedUsers)
-                    ? fetchedUsers.filter((candidate) => normalizeRole(candidate.role) === 'partner')
-                    : [];
+                const users = Array.isArray(fetchedUsers) ? fetchedUsers : [];
+                const partners = users.filter((candidate) => normalizeRole(candidate.role) === 'partner');
                 setPartnerOptions(partners);
+                setAccessUserOptions(users.filter((candidate) => normalizeRole(candidate.role) !== 'guest'));
             }).catch(() => {
                 if (requestId === metadataRequestIdRef.current) {
                     setPartnerOptions([]);
+                    setAccessUserOptions([]);
                 }
             });
         } else {
             setPartnerOptions([]);
+            setAccessUserOptions(user?.id ? [user] : []);
         }
 
         if (normalizedRole === 'partner') {
@@ -1358,6 +1362,15 @@ export default function ResourcesPage() {
     function canDeleteSoftAsset(asset) {
         const directRole = normalizeRole(getSoftAssetStaffRole(user, asset?.id));
         return getPermissionFlag(asset, 'canDelete', normalizedRole === 'super_admin' || directRole === 'owner' || hasLinkedHardAssetAccess(asset));
+    }
+
+    function getGroupReadinessLabel(asset, hiddenStatus) {
+        if (hiddenStatus?.hidden) return 'Hidden';
+        if (asset?.groupReadinessStatus === 'needs_owner') return 'Needs owner';
+        if (asset?.groupReadinessStatus === 'needs_members') return 'Needs members';
+        if (asset?.groupReadinessStatus === 'hidden') return 'Hidden';
+        if (asset?.selectedGroupMemberCount > asset?.publicGroupMemberCount) return 'Review members';
+        return 'Ready for Discover';
     }
 
     function openCreate(assetType) {
@@ -2567,13 +2580,10 @@ export default function ResourcesPage() {
                         {visibleGroupAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canEditGroup = canEditSoftAsset(asset);
+                            const canManageGroupAccess = canManageSoftAssetAccess(asset);
                             const canChangeGroupVisibility = canHideSoftAsset(asset);
                             const canRemoveGroup = canDeleteSoftAsset(asset);
-                            const readinessLabel = hiddenStatus.hidden
-                                ? 'Hidden'
-                                : asset.publicGroupMemberCount === 0
-                                    ? 'Needs members'
-                                    : (asset.selectedGroupMemberCount > asset.publicGroupMemberCount ? 'Review members' : 'Ready for Discover');
+                            const readinessLabel = getGroupReadinessLabel(asset, hiddenStatus);
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
@@ -2636,12 +2646,48 @@ export default function ResourcesPage() {
                                                 <Pencil size={15} /> Edit
                                             </button>
                                         ) : null}
+                                        {canManageGroupAccess ? (
+                                            <button
+                                                onClick={() => openAssetAccess(asset, 'group')}
+                                                className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.assetType === 'group' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
+                                            >
+                                                <ShieldCheck size={15} /> Access
+                                            </button>
+                                        ) : null}
                                         {canRemoveGroup ? (
                                             <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: 'Group' })} className="btn-danger px-3 py-2 text-sm">
                                                 <Trash2 size={15} /> Delete
                                             </button>
                                         ) : null}
                                     </div>
+                                    {inlineAction?.assetType === 'group' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? (
+                                        <div
+                                            ref={inlineActionDrawerRef}
+                                            className="mt-2 rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60"
+                                        >
+                                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">Group access</p>
+                                                    <h3 className="mt-1 text-xl font-black text-slate-900">Manage access for {asset.name}</h3>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setInlineAction(null)}
+                                                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                                                >
+                                                    <X size={15} />
+                                                    Close
+                                                </button>
+                                            </div>
+                                            <div className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-sm shadow-slate-100">
+                                                <AssetAccessPanel
+                                                    asset={asset}
+                                                    assetType="group"
+                                                    onChanged={load}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </div>
                             );
                         })}
@@ -3138,8 +3184,8 @@ export default function ResourcesPage() {
                             memberCandidatesError={groupMemberCandidates.error}
                             memberCandidatesLoading={groupMemberCandidates.loading}
                             softAssets={groupMemberCandidates.soft}
-                            partnerOptions={partnerOptions}
-                            subregions={subregions}
+                            accessUserOptions={accessUserOptions}
+                            currentUser={user}
                             onSave={async () => {
                                 setGroupModal(null);
                                 await load();

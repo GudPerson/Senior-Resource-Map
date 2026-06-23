@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { hardAssets, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes } from '../db/schema.js';
+import { hardAssets, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
@@ -12,7 +12,7 @@ import {
 } from '../utils/audienceZones.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
 import { hasAnyHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
-import { hasSoftAssetStaffAccess } from '../utils/softAssetAccess.js';
+import { hasSoftAssetStaffAccess, normalizeSoftAssetStaffRole } from '../utils/softAssetAccess.js';
 import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules, shouldExposeOfferingToViewer } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
@@ -50,6 +50,7 @@ import {
 } from '../utils/softAssetHierarchy.js';
 import {
     buildGroupDiscoverMetadata,
+    buildGroupReadiness,
     buildPublicGroupPayload,
     getGroupMemberAsset,
     getGroupMemberType,
@@ -210,6 +211,13 @@ const softAssetWithRelations = {
         },
     },
     tags: { with: { tag: true } },
+    staffMemberships: {
+        columns: {
+            id: true,
+            staffRole: true,
+            revokedAt: true,
+        },
+    },
     locations: {
         with: {
             hardAsset: {
@@ -305,6 +313,13 @@ const softAssetListSummaryRelations = {
         },
     },
     tags: { with: { tag: true } },
+    staffMemberships: {
+        columns: {
+            id: true,
+            staffRole: true,
+            revokedAt: true,
+        },
+    },
     locations: {
         columns: {
             softAssetId: true,
@@ -582,6 +597,7 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
     const resolvedAudienceZones = getAssetAudienceZones(asset);
     const groupPayload = isGroupSoftAsset(asset) ? buildPublicGroupPayload(asset) : null;
     const groupMetadata = isGroupSoftAsset(asset) ? buildGroupDiscoverMetadata(asset) : null;
+    const groupReadiness = isGroupSoftAsset(asset) ? buildGroupReadiness(asset) : null;
 
     return {
         ...assetRest,
@@ -609,7 +625,9 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
             groupMemberSearchText: groupPayload.groupMemberSearchText,
             groupMemberLocations: groupPayload.groupMemberLocations,
             groupDiscoverMetadata: groupMetadata,
-            isDiscoverReady: groupMetadata.isDiscoverReady,
+            groupReadinessStatus: groupReadiness.status,
+            groupOwnerCount: groupReadiness.ownerCount,
+            isDiscoverReady: groupReadiness.isDiscoverReady,
             selectedGroupMemberCount: Array.isArray(groupMembers) ? groupMembers.length : 0,
             publicGroupMemberCount: getPublicGroupMemberEntries(asset).length,
         } : {}),
@@ -640,11 +658,15 @@ function isStandaloneOffering(asset) {
         && (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.STANDALONE;
 }
 
+function isDirectAccessManagedSoftAsset(asset) {
+    return isStandaloneOffering(asset) || isGroupSoftAsset(asset);
+}
+
 function buildSoftAssetPermissionSummary(viewer, asset) {
     const role = normalizeRole(viewer?.role);
     const isSuperAdmin = role === 'super_admin';
 
-    if (isStandaloneOffering(asset)) {
+    if (isDirectAccessManagedSoftAsset(asset)) {
         const isOwner = hasSoftAssetStaffAccess(viewer, asset?.id, ['owner']);
         const isStaff = hasSoftAssetStaffAccess(viewer, asset?.id, ['staff']);
         return {
@@ -849,6 +871,65 @@ function resolveGroupSubregionId(actor, body = {}) {
     return fallback || null;
 }
 
+function normalizeInitialGroupAccessPayload(body = {}, actor = {}) {
+    const rawAccess = Array.isArray(body.initialAccess)
+        ? body.initialAccess
+        : (Array.isArray(body.initialStaff)
+            ? body.initialStaff
+            : (Array.isArray(body.initialOwnerUserIds)
+                ? body.initialOwnerUserIds.map((userId) => ({ userId, staffRole: 'owner' }))
+                : []));
+    const actorRole = normalizeRole(actor?.role);
+    const byUserId = new Map();
+
+    for (const row of rawAccess) {
+        const userId = Number.parseInt(String(row?.userId ?? row?.id ?? ''), 10);
+        const staffRole = normalizeSoftAssetStaffRole(row?.staffRole || row?.role || 'staff');
+        if (!Number.isInteger(userId) || userId <= 0) {
+            throw clientError('Each Group access row needs a user id.');
+        }
+        if (!staffRole) {
+            throw clientError('Group access role must be Owner or Staff.');
+        }
+        if (actorRole !== 'super_admin' && Number(userId) !== Number(actor?.id)) {
+            throw clientError('Only Super Admins can assign other initial Group managers.', 403);
+        }
+        if (actorRole !== 'super_admin' && staffRole !== 'owner') {
+            throw clientError('Group creators must save themselves as an Owner first.', 403);
+        }
+
+        const previous = byUserId.get(userId);
+        byUserId.set(userId, {
+            userId,
+            staffRole: previous?.staffRole === 'owner' || staffRole === 'owner' ? 'owner' : 'staff',
+        });
+    }
+
+    if (byUserId.size === 0 && actorRole !== 'super_admin' && actor?.id) {
+        byUserId.set(Number(actor.id), { userId: Number(actor.id), staffRole: 'owner' });
+    }
+
+    const rows = [...byUserId.values()];
+    if (!rows.some((row) => row.staffRole === 'owner')) {
+        throw clientError('Select at least one active Group Owner.');
+    }
+    return rows;
+}
+
+async function validateInitialGroupAccessUsers(db, rows = []) {
+    if (!rows.length) return rows;
+    const userIds = rows.map((row) => Number(row.userId));
+    const foundUsers = await db.select({ id: users.id })
+        .from(users)
+        .where(inArray(users.id, userIds));
+    const foundIds = new Set(foundUsers.map((row) => Number(row.id)));
+    const missingId = userIds.find((id) => !foundIds.has(id));
+    if (missingId) {
+        throw clientError(`Group Owner or Staff user #${missingId} could not be found.`, 404);
+    }
+    return rows;
+}
+
 async function createGroupSoftAsset(c, db, user, body, linkedIds) {
     assertNoGroupHostLinks(body, linkedIds);
 
@@ -875,8 +956,12 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
         return c.json({ error: 'Name is required' }, 400);
     }
 
+    const initialAccessRows = await validateInitialGroupAccessUsers(
+        db,
+        normalizeInitialGroupAccessPayload(body, user),
+    );
+    const requestedMembers = Array.isArray(body.groupMembers) ? body.groupMembers : body.members;
     const finalSubregionId = resolveGroupSubregionId(user, body);
-    const { owner } = await resolveAssetOwner(db, user, body, finalSubregionId);
     const [asset] = await db.insert(softAssets).values({
         assetMode: SOFT_ASSET_MODES.GROUP,
         externalKey: await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
@@ -884,7 +969,7 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
             prefix: 'group',
             name,
         }),
-        partnerId: owner?.id || null,
+        partnerId: null,
         createdByUserId: user.id,
         subregionId: finalSubregionId,
         name,
@@ -914,16 +999,24 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
     }).returning();
 
     try {
-        await syncAssetTags(db, asset.id, 'soft', newTags);
-        if (shouldGrantCreatorDefaultSoftAssetOwner(user, { linkedHardAssetIds: [], hostHardAssetId: null })) {
-            await db.insert(softAssetStaffMemberships).values({
-                softAssetId: asset.id,
-                userId: user.id,
-                staffRole: 'owner',
-                createdByUserId: user.id,
-                updatedByUserId: user.id,
-            }).onConflictDoNothing();
+        await db.insert(softAssetStaffMemberships).values(initialAccessRows.map((row) => ({
+            softAssetId: asset.id,
+            userId: row.userId,
+            staffRole: row.staffRole,
+            createdByUserId: user.id,
+            updatedByUserId: user.id,
+        }))).onConflictDoNothing();
+        const selectedMembers = await validateGroupMemberSelection(db, asset.id, { members: requestedMembers || [] });
+        if (selectedMembers.length > 0) {
+            await db.insert(softAssetGroupMembers).values(selectedMembers.map((member) => ({
+                groupSoftAssetId: asset.id,
+                memberResourceType: member.memberResourceType,
+                memberResourceId: member.memberResourceId,
+                sortOrder: member.sortOrder,
+                addedByUserId: user?.id || null,
+            }))).onConflictDoNothing();
         }
+        await syncAssetTags(db, asset.id, 'soft', newTags);
     } catch (syncError) {
         await db.delete(softAssets).where(eq(softAssets.id, asset.id));
         throw syncError;
@@ -934,6 +1027,8 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
     await recordSoftAssetAudit(db, user, asset, 'created', ['created'], {
         assetMode: SOFT_ASSET_MODES.GROUP,
         visibility: asset.isHidden ? 'hidden' : 'visible',
+        ownerCount: initialAccessRows.filter((row) => row.staffRole === 'owner').length,
+        selectedMemberCount: Array.isArray(requestedMembers) ? requestedMembers.length : 0,
     });
 
     return c.json({ ...asset, translationStatus }, 201);
@@ -942,25 +1037,12 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
 async function updateGroupSoftAsset(c, db, user, existing, body) {
     assertNoGroupHostLinks(body, parseLinkedHardAssetIds(body));
 
-    let owner = existing.partner || null;
     const finalSubregionId = body.subregionId !== undefined
         ? resolveGroupSubregionId(user, body)
         : (existing.subregionId || resolveGroupSubregionId(user, body));
 
-    if (normalizeRole(user?.role) === 'partner') {
-        owner = user;
-    } else if (hasAnyPartnerStaffAccess(user) && (body.partnerId !== undefined || body.ownershipMode !== undefined)) {
-        return c.json({ error: 'Partners cannot transfer Group ownership.' }, 403);
-    } else if (hasAnyPartnerStaffAccess(user)) {
-        const resolvedOwner = await resolveAssetOwner(db, user, body, finalSubregionId);
-        owner = resolvedOwner.owner;
-    } else if (body.partnerId !== undefined || body.ownershipMode !== undefined) {
-        const resolvedOwner = await resolveAssetOwner(db, user, body, finalSubregionId);
-        owner = resolvedOwner.owner;
-    }
-
     const updatePatch = {
-        partnerId: owner?.id || null,
+        partnerId: existing.partnerId || null,
         subregionId: finalSubregionId,
         name: body.name ?? existing.name,
         bucket: null,
@@ -1169,7 +1251,7 @@ export const getSoftAssetGroupMembers = async (c) => {
                 .map(summarizeGroupMemberForAdmin),
             publicPayload: buildPublicGroupPayload(group),
             readiness: {
-                isDiscoverReady: isDiscoverReadyGroup(group),
+                ...buildGroupReadiness(group),
                 selectedMemberCount: Array.isArray(group.groupMembers) ? group.groupMembers.length : 0,
                 publicMemberCount: getPublicGroupMemberEntries(group).length,
             },
@@ -1222,7 +1304,7 @@ export const replaceSoftAssetGroupMembers = async (c) => {
                 .map(summarizeGroupMemberForAdmin),
             publicPayload: refreshed ? buildPublicGroupPayload(refreshed) : null,
             readiness: {
-                isDiscoverReady: refreshed ? isDiscoverReadyGroup(refreshed) : false,
+                ...(refreshed ? buildGroupReadiness(refreshed) : { status: 'hidden', isDiscoverReady: false, ownerCount: 0 }),
                 selectedMemberCount: Array.isArray(refreshed?.groupMembers) ? refreshed.groupMembers.length : 0,
                 publicMemberCount: refreshed ? getPublicGroupMemberEntries(refreshed).length : 0,
             },

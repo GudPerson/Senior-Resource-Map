@@ -49,6 +49,20 @@ export function isGroupSoftAsset(asset) {
     return (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.GROUP;
 }
 
+function normalizeStaffRole(value) {
+    return normalizeText(value).toLowerCase();
+}
+
+function isActiveGroupOwnerMembership(row = {}) {
+    return normalizeStaffRole(row.staffRole) === 'owner' && !row.revokedAt;
+}
+
+export function getActiveGroupOwnerCount(group = {}) {
+    return Array.isArray(group.staffMemberships)
+        ? group.staffMemberships.filter(isActiveGroupOwnerMembership).length
+        : 0;
+}
+
 export function getGroupMemberAsset(entry = {}) {
     return entry.hardAsset || entry.softAsset || entry.member || entry.asset || null;
 }
@@ -145,8 +159,30 @@ export function buildGroupMemberSummary(group = {}) {
     return { counts };
 }
 
+export function buildGroupReadiness(group = {}) {
+    const memberSummary = buildGroupMemberSummary(group);
+    const ownerCount = getActiveGroupOwnerCount(group);
+    const isGroup = isGroupSoftAsset(group);
+    const isHidden = !isGroup || isHiddenNow(group) || group.isMemberOnly || (group.audienceMode || 'public') !== 'public';
+    const hasOwner = ownerCount > 0;
+    const hasPublicMembers = memberSummary.counts.total > 0;
+    const status = isHidden
+        ? 'hidden'
+        : (!hasOwner ? 'needs_owner' : (!hasPublicMembers ? 'needs_members' : 'ready'));
+
+    return {
+        status,
+        isDiscoverReady: status === 'ready',
+        hasOwner,
+        ownerCount,
+        hasPublicMembers,
+        publicMemberCount: memberSummary.counts.total,
+        memberSummary,
+    };
+}
+
 export function isDiscoverReadyGroup(group = {}) {
-    return isGroupSoftAsset(group) && buildGroupMemberSummary(group).counts.total > 0;
+    return buildGroupReadiness(group).isDiscoverReady;
 }
 
 export function getPublicGroupMemberLocations(group = {}) {
@@ -187,11 +223,13 @@ export function buildGroupMemberSearchText(group = {}) {
 }
 
 export function buildGroupDiscoverMetadata(group = {}) {
-    const summary = buildGroupMemberSummary(group);
+    const readiness = buildGroupReadiness(group);
     return {
         assetMode: SOFT_ASSET_MODES.GROUP,
-        isDiscoverReady: isDiscoverReadyGroup(group),
-        groupMemberSummary: summary,
+        isDiscoverReady: readiness.isDiscoverReady,
+        groupReadinessStatus: readiness.status,
+        groupOwnerCount: readiness.ownerCount,
+        groupMemberSummary: readiness.memberSummary,
         groupMemberSearchText: buildGroupMemberSearchText(group),
         locationCount: getPublicGroupMemberLocations(group).length,
     };

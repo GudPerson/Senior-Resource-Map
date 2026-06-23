@@ -38,13 +38,23 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
 
     assert.match(groupFormSource, /assetMode: 'group'/);
     assert.match(groupFormSource, /replaceSoftAssetGroupMembers/);
+    assert.match(groupFormSource, /initialAccess/);
+    assert.match(resourcesPageSource, /openAssetAccess\(asset, 'group'\)/);
     assert.match(groupFormSource, /isGroupAsset/);
 });
 
-test('Group asset form uses upload controls for logo and banner images', () => {
+test('Group asset form uses wizard sections and upload controls without legacy routing fields', () => {
+    assert.match(groupFormSource, /Profile/);
+    assert.match(groupFormSource, /Access/);
+    assert.match(groupFormSource, /Members/);
+    assert.match(groupFormSource, /Review/);
     assert.match(groupFormSource, /ImageUpload/);
     assert.match(groupFormSource, /label="Logo \/ Icon"/);
     assert.match(groupFormSource, /label="Hero Banner"/);
+    assert.match(groupFormSource, /label="Gallery Image"/);
+    assert.match(groupFormSource, /Group Owner/);
     assert.doesNotMatch(groupFormSource, /Logo URL/);
     assert.doesNotMatch(groupFormSource, /Banner URL/);
+    assert.doesNotMatch(groupFormSource, /Admin area/);
+    assert.doesNotMatch(groupFormSource, /System owned/);
 });

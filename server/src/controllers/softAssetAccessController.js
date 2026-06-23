@@ -50,7 +50,7 @@ function isMissingSoftAssetStaffTableError(error) {
 function handleSoftAssetStaffError(c, err, fallback) {
     if (isMissingSoftAssetStaffTableError(err)) {
         return c.json({
-            error: 'Standalone offering access setup is not ready yet. Run the soft-asset staff schema setup before managing access.',
+            error: 'Soft resource access setup is not ready yet. Run the soft-asset staff schema setup before managing access.',
             setupRequired: true,
         }, 503);
     }
@@ -58,7 +58,7 @@ function handleSoftAssetStaffError(c, err, fallback) {
         err?.code === '23505'
         && String(err?.constraint || err?.message || '').includes('soft_asset_staff_memberships_active_user_unique')
     ) {
-        return c.json({ error: 'This user already has active access to this offering.' }, 409);
+        return c.json({ error: 'This user already has active access to this resource.' }, 409);
     }
     console.error(fallback, err);
     return c.json({ error: err.message || fallback }, err.status || 500);
@@ -89,12 +89,13 @@ async function loadSoftAssetForAccess(db, softAssetId) {
         where: eq(softAssets.id, softAssetId),
         with: { locations: true },
     });
-    if (!softAsset || softAsset.isDeleted) throw httpError('Offering was not found.', 404);
-    if (
-        softAsset.assetMode !== SOFT_ASSET_MODES.STANDALONE
-        || softAsset.hostHardAssetId
-        || (Array.isArray(softAsset.locations) && softAsset.locations.length > 0)
-    ) {
+    if (!softAsset || softAsset.isDeleted) throw httpError('Resource was not found.', 404);
+    const assetMode = softAsset.assetMode || SOFT_ASSET_MODES.STANDALONE;
+    const hasLinkedPlace = Boolean(softAsset.hostHardAssetId)
+        || (Array.isArray(softAsset.locations) && softAsset.locations.length > 0);
+    const isStandaloneOffering = assetMode === SOFT_ASSET_MODES.STANDALONE && !hasLinkedPlace;
+    const isGroup = assetMode === SOFT_ASSET_MODES.GROUP && !hasLinkedPlace;
+    if (!isStandaloneOffering && !isGroup) {
         throw httpError('Linked offerings inherit access from their places. Use the place Access panel.', 400);
     }
     const staff = await loadSoftAssetStaffRows(db, softAsset.id);
@@ -166,7 +167,7 @@ export const getSoftAssetStaff = async (c) => {
 
         const softAsset = await loadSoftAssetForAccess(db, softAssetId);
         if (!canViewSoftAssetAccess(actor, softAsset)) {
-            return c.json({ error: 'Offering is outside your allowed access.' }, 403);
+            return c.json({ error: 'Resource is outside your allowed access.' }, 403);
         }
 
         const staff = await loadSoftAssetStaffRows(db, softAsset.id);
@@ -181,7 +182,7 @@ export const getSoftAssetStaff = async (c) => {
             setupRequired: false,
         });
     } catch (err) {
-        return handleSoftAssetStaffError(c, err, 'Failed to load offering access.');
+        return handleSoftAssetStaffError(c, err, 'Failed to load resource access.');
     }
 };
 
@@ -195,7 +196,7 @@ export const getSoftAssetStaffCandidates = async (c) => {
 
         const softAsset = await loadSoftAssetForAccess(db, softAssetId);
         if (!canAssignSoftAssetStaffRole(actor, softAsset, 'staff') && !canAssignSoftAssetStaffRole(actor, softAsset, 'owner')) {
-            return c.json({ error: 'Only Super Admins and offering Owners can add offering access.' }, 403);
+            return c.json({ error: 'Only Super Admins and resource Owners can add access.' }, 403);
         }
 
         const activeStaff = await loadSoftAssetStaffRows(db, softAsset.id);
@@ -232,7 +233,7 @@ export const getSoftAssetStaffCandidates = async (c) => {
 
         return c.json({ candidates });
     } catch (err) {
-        return handleSoftAssetStaffError(c, err, 'Failed to load offering access candidates.');
+        return handleSoftAssetStaffError(c, err, 'Failed to load resource access candidates.');
     }
 };
 
@@ -240,7 +241,7 @@ export const addSoftAssetStaff = async (c) => {
     try {
         const actor = c.get('user');
         const softAssetId = parsePositiveInt(c.req.param('id'), 'offeringId');
-        const body = validateRequestBody(await c.req.json(), addStaffBodySchema, 'Offering access member');
+        const body = validateRequestBody(await c.req.json(), addStaffBodySchema, 'Resource access member');
         const staffRole = normalizeStaffRoleInput(body.staffRole || 'staff');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
@@ -249,8 +250,8 @@ export const addSoftAssetStaff = async (c) => {
         if (!canAssignSoftAssetStaffRole(actor, softAsset, staffRole)) {
             return c.json({
                 error: staffRole === 'owner'
-                    ? 'Only Super Admins and offering Owners can add offering Owners.'
-                    : 'Only Super Admins and offering Owners can add offering Staff.',
+                    ? 'Only Super Admins and resource Owners can add Owners.'
+                    : 'Only Super Admins and resource Owners can add Staff.',
             }, 403);
         }
 
@@ -266,7 +267,7 @@ export const addSoftAssetStaff = async (c) => {
                 isNull(softAssetStaffMemberships.revokedAt),
             ))
             .limit(1);
-        if (existingActive) throw httpError('This user already has active access to this offering.', 409);
+        if (existingActive) throw httpError('This user already has active access to this resource.', 409);
 
         const [membership] = await db.insert(softAssetStaffMemberships).values({
             softAssetId: softAsset.id,
@@ -280,7 +281,7 @@ export const addSoftAssetStaff = async (c) => {
         await recordSoftAssetAccessAudit(db, actor, softAsset, targetUser.id, 'access_added', staffRole);
         return c.json({ staffMember: formatSoftAssetStaffMember(row) }, 201);
     } catch (err) {
-        return handleSoftAssetStaffError(c, err, 'Failed to add offering access.');
+        return handleSoftAssetStaffError(c, err, 'Failed to add resource access.');
     }
 };
 
@@ -294,10 +295,10 @@ export const revokeSoftAssetStaff = async (c) => {
 
         const softAsset = await loadSoftAssetForAccess(db, softAssetId);
         const membership = await loadActiveStaffMembership(db, softAsset.id, membershipId);
-        if (!membership) throw httpError('Offering access membership was not found.', 404);
+        if (!membership) throw httpError('Resource access membership was not found.', 404);
 
         if (!canRevokeSoftAssetStaffMembership(actor, softAsset, membership)) {
-            return c.json({ error: 'Only Super Admins and offering Owners can remove offering access, and the final Owner cannot be removed.' }, 403);
+            return c.json({ error: 'Only Super Admins and resource Owners can remove access, and the final Owner cannot be removed.' }, 403);
         }
 
         await db.update(softAssetStaffMemberships)
@@ -307,6 +308,6 @@ export const revokeSoftAssetStaff = async (c) => {
         await recordSoftAssetAccessAudit(db, actor, softAsset, membership.userId, 'access_revoked', membership.staffRole);
         return c.json({ success: true });
     } catch (err) {
-        return handleSoftAssetStaffError(c, err, 'Failed to revoke offering access.');
+        return handleSoftAssetStaffError(c, err, 'Failed to revoke resource access.');
     }
 };

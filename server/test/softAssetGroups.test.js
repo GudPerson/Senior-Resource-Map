@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     buildGroupDiscoverMetadata,
+    buildGroupReadiness,
     buildGroupMemberSearchText,
     buildGroupMemberSummary,
     buildPublicGroupPayload,
@@ -48,6 +49,7 @@ function group(overrides = {}) {
         isDeleted: false,
         audienceMode: 'public',
         isMemberOnly: false,
+        staffMemberships: [{ id: 1, staffRole: 'owner', revokedAt: null }],
         groupMembers: [
             { memberResourceType: 'hard', memberResourceId: 10, sortOrder: 0, hardAsset: publicPlace },
             { memberResourceType: 'soft', memberResourceId: 20, sortOrder: 1, softAsset: publicProgramme },
@@ -115,14 +117,25 @@ test('buildPublicGroupPayload filters non-public members and blocks nested Group
     assert.deepEqual(payload.groupMembers.promotions, []);
 });
 
-test('Groups with zero public members are not Discover-ready', () => {
+test('Groups need an active Owner and at least one public member to be Discover-ready', () => {
     assert.equal(isDiscoverReadyGroup(group()), true);
+    assert.equal(buildGroupReadiness(group()).status, 'ready');
     assert.equal(isDiscoverReadyGroup(group({ isHidden: true })), false);
+    assert.equal(buildGroupReadiness(group({ isHidden: true })).status, 'hidden');
+    assert.equal(isDiscoverReadyGroup(group({ staffMemberships: [] })), false);
+    assert.equal(buildGroupReadiness(group({ staffMemberships: [] })).status, 'needs_owner');
+    assert.equal(isDiscoverReadyGroup(group({ staffMemberships: [{ staffRole: 'staff', revokedAt: null }] })), false);
+    assert.equal(isDiscoverReadyGroup(group({ staffMemberships: [{ staffRole: 'owner', revokedAt: new Date().toISOString() }] })), false);
     assert.equal(isDiscoverReadyGroup(group({
         groupMembers: [
             { memberResourceType: 'soft', memberResourceId: 21, softAsset: { ...publicProgramme, id: 21, isMemberOnly: true } },
         ],
     })), false);
+    assert.equal(buildGroupReadiness(group({
+        groupMembers: [
+            { memberResourceType: 'soft', memberResourceId: 21, softAsset: { ...publicProgramme, id: 21, isMemberOnly: true } },
+        ],
+    })).status, 'needs_members');
 });
 
 test('Group Discover metadata uses public member search and locations without creating own pins', () => {
@@ -133,6 +146,8 @@ test('Group Discover metadata uses public member search and locations without cr
 
     assert.equal(metadata.assetMode, 'group');
     assert.equal(metadata.isDiscoverReady, true);
+    assert.equal(metadata.groupOwnerCount, 1);
+    assert.equal(metadata.groupReadinessStatus, 'ready');
     assert.equal(metadata.locationCount, 2);
     assert.match(searchText, /Bukit Batok Care Hub/);
     assert.match(searchText, /Falls Prevention Workshop/);

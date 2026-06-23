@@ -9,6 +9,7 @@ import {
 import {
     buildGroupDiscoverMetadata,
     buildGroupMemberSummary,
+    buildGroupReadiness,
     getPublicGroupMemberEntries,
     isGroupSoftAsset,
 } from './softAssetGroups.js';
@@ -44,6 +45,7 @@ export function formatSoftAssetListSummary(asset, options = {}) {
     const isGroup = isGroupSoftAsset(asset);
     const groupMemberSummary = isGroup ? buildGroupMemberSummary(asset) : null;
     const groupDiscoverMetadata = isGroup ? buildGroupDiscoverMetadata(asset) : null;
+    const groupReadiness = isGroup ? buildGroupReadiness(asset) : null;
 
     return {
         id: asset.id,
@@ -94,7 +96,9 @@ export function formatSoftAssetListSummary(asset, options = {}) {
         ...(isGroup ? {
             groupMemberSummary,
             groupDiscoverMetadata,
-            isDiscoverReady: groupDiscoverMetadata.isDiscoverReady,
+            groupReadinessStatus: groupReadiness.status,
+            groupOwnerCount: groupReadiness.ownerCount,
+            isDiscoverReady: groupReadiness.isDiscoverReady,
             selectedGroupMemberCount: Array.isArray(asset.groupMembers) ? asset.groupMembers.length : 0,
             publicGroupMemberCount: getPublicGroupMemberEntries(asset).length,
         } : {}),

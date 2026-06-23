@@ -52,9 +52,10 @@ export default function AssetAccessPanel({ asset, assetType = 'hard', onChanged 
     const canAddOwner = Boolean(permissions.canAddOwner);
     const canAddStaff = Boolean(permissions.canAddStaff);
     const canAddAny = canAddOwner || canAddStaff;
-    const isSoftAsset = assetType === 'soft';
-    const resourceLabel = isSoftAsset ? 'offering' : 'place';
-    const resourceLabelTitle = isSoftAsset ? 'Offering' : 'Asset';
+    const isGroupAsset = assetType === 'group' || asset?.assetMode === 'group';
+    const isSoftAsset = assetType === 'soft' || isGroupAsset;
+    const resourceLabel = isGroupAsset ? 'group' : (isSoftAsset ? 'offering' : 'place');
+    const resourceLabelTitle = isGroupAsset ? 'Group' : (isSoftAsset ? 'Offering' : 'Asset');
     const accessApi = isSoftAsset
         ? {
             getStaff: api.getSoftAssetStaff,
@@ -183,9 +184,11 @@ export default function AssetAccessPanel({ asset, assetType = 'hard', onChanged 
                             <Users size={22} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-900">Asset access</h3>
+                            <h3 className="text-xl font-black text-slate-900">{resourceLabelTitle} access</h3>
                             <p className="mt-1 text-sm font-medium text-slate-500">
-                                {isSoftAsset
+                                {isGroupAsset
+                                    ? 'Owners and Staff can edit this Group collection and members.'
+                                    : isSoftAsset
                                     ? 'Owners and Staff can edit this standalone offering and restricted content.'
                                     : 'Owners and Staff can edit this place and its linked offerings.'}
                             </p>
