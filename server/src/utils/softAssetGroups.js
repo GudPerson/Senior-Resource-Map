@@ -8,6 +8,11 @@ export const GROUP_MEMBER_TYPES = Object.freeze({
     SOFT: 'soft',
 });
 
+export const GROUP_AUDIENCE_MODES = Object.freeze({
+    PUBLIC: 'public',
+    TARGET_REGIONS: 'target_regions',
+});
+
 const EMPTY_GROUPS = Object.freeze({
     places: [],
     programmes: [],
@@ -63,6 +68,23 @@ export function getActiveGroupOwnerCount(group = {}) {
         : 0;
 }
 
+function getGroupAudienceMode(group = {}) {
+    return normalizeText(group.audienceMode || GROUP_AUDIENCE_MODES.PUBLIC).toLowerCase() || GROUP_AUDIENCE_MODES.PUBLIC;
+}
+
+function getGroupCoverageRegionIds(group = {}) {
+    return Array.isArray(group.coverageRegionIds)
+        ? group.coverageRegionIds
+            .map((value) => Number.parseInt(String(value), 10))
+            .filter((value) => Number.isInteger(value) && value > 0)
+        : [];
+}
+
+function isGroupAudienceModeSupported(group = {}) {
+    const audienceMode = getGroupAudienceMode(group);
+    return audienceMode === GROUP_AUDIENCE_MODES.PUBLIC || audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS;
+}
+
 export function getGroupMemberAsset(entry = {}) {
     return entry.hardAsset || entry.softAsset || entry.member || entry.asset || null;
 }
@@ -95,7 +117,7 @@ export function isPublicGroupMemberEntry(entry = {}) {
 }
 
 export function getPublicGroupMemberEntries(group = {}) {
-    if (!isGroupSoftAsset(group) || isHiddenNow(group) || group.isMemberOnly || (group.audienceMode || 'public') !== 'public') {
+    if (!isGroupSoftAsset(group) || isHiddenNow(group) || group.isMemberOnly || !isGroupAudienceModeSupported(group)) {
         return [];
     }
 
@@ -163,12 +185,15 @@ export function buildGroupReadiness(group = {}) {
     const memberSummary = buildGroupMemberSummary(group);
     const ownerCount = getActiveGroupOwnerCount(group);
     const isGroup = isGroupSoftAsset(group);
-    const isHidden = !isGroup || isHiddenNow(group) || group.isMemberOnly || (group.audienceMode || 'public') !== 'public';
+    const audienceMode = getGroupAudienceMode(group);
+    const isTargetRegionMode = audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS;
+    const hasTargetRegions = !isTargetRegionMode || getGroupCoverageRegionIds(group).length > 0;
+    const isHidden = !isGroup || isHiddenNow(group) || group.isMemberOnly || !isGroupAudienceModeSupported(group);
     const hasOwner = ownerCount > 0;
     const hasPublicMembers = memberSummary.counts.total > 0;
     const status = isHidden
         ? 'hidden'
-        : (!hasOwner ? 'needs_owner' : (!hasPublicMembers ? 'needs_members' : 'ready'));
+        : (!hasOwner ? 'needs_owner' : (!hasTargetRegions ? 'needs_regions' : (!hasPublicMembers ? 'needs_members' : 'ready')));
 
     return {
         status,
@@ -243,6 +268,8 @@ export function buildPublicGroupPayload(group = {}) {
         assetMode: SOFT_ASSET_MODES.GROUP,
         name: group.name,
         description: group.description || null,
+        audienceMode: getGroupAudienceMode(group),
+        coverageRegionIds: getGroupCoverageRegionIds(group),
         logoUrl: group.logoUrl || null,
         bannerUrl: group.bannerUrl || null,
         tags: Array.isArray(group.tags) ? group.tags.map((entry) => entry?.tag?.name || entry?.name).filter(Boolean) : [],

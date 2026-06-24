@@ -45,6 +45,7 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
 
 test('Group asset form uses wizard sections and upload controls without legacy routing fields', () => {
     assert.match(groupFormSource, /Profile/);
+    assert.match(groupFormSource, /Visibility/);
     assert.match(groupFormSource, /Access/);
     assert.match(groupFormSource, /Members/);
     assert.match(groupFormSource, /Review/);
@@ -57,6 +58,14 @@ test('Group asset form uses wizard sections and upload controls without legacy r
     assert.doesNotMatch(groupFormSource, /Banner URL/);
     assert.doesNotMatch(groupFormSource, /Admin area/);
     assert.doesNotMatch(groupFormSource, /System owned/);
+});
+
+test('Group asset form exposes Target region visibility using existing Regions', () => {
+    assert.match(groupFormSource, /Who can see this\?/);
+    assert.match(groupFormSource, /Target region\/s/);
+    assert.match(groupFormSource, /coverageRegionIds/);
+    assert.match(groupFormSource, /subregions = \[\]/);
+    assert.match(resourcesPageSource, /subregions=\{subregions\}/);
 });
 
 test('Group asset edit access can submit without nesting inside the Group save form', () => {

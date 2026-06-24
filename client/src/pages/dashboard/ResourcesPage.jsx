@@ -3190,6 +3190,7 @@ export default function ResourcesPage() {
                             memberCandidatesError={groupMemberCandidates.error}
                             memberCandidatesLoading={groupMemberCandidates.loading}
                             softAssets={groupMemberCandidates.soft}
+                            subregions={subregions}
                             accessUserOptions={accessUserOptions}
                             currentUser={user}
                             onSave={async () => {

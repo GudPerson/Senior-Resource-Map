@@ -138,6 +138,26 @@ test('Groups need an active Owner and at least one public member to be Discover-
     })).status, 'needs_members');
 });
 
+test('target-region Groups need selected Regions but keep public members discoverable', () => {
+    assert.equal(isDiscoverReadyGroup(group({
+        audienceMode: 'target_regions',
+        coverageRegionIds: [12, 13],
+    })), true);
+    assert.equal(buildGroupReadiness(group({
+        audienceMode: 'target_regions',
+        coverageRegionIds: [],
+    })).status, 'needs_regions');
+
+    const payload = buildPublicGroupPayload(group({
+        audienceMode: 'target_regions',
+        coverageRegionIds: [12],
+    }));
+
+    assert.equal(payload.audienceMode, 'target_regions');
+    assert.deepEqual(payload.coverageRegionIds, [12]);
+    assert.equal(payload.groupMemberSummary.counts.total, 2);
+});
+
 test('Group Discover metadata uses public member search and locations without creating own pins', () => {
     const asset = group();
     const metadata = buildGroupDiscoverMetadata(asset);

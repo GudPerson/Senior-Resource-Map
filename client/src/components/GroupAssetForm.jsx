@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Image, Layers3, Mail, Phone, Plus, Search, ShieldCheck, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Globe, Image, Layers3, Mail, Phone, Plus, Search, ShieldCheck, X } from 'lucide-react';
 
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import ImageUpload from './ImageUpload.jsx';
@@ -7,7 +7,11 @@ import { api } from '../lib/api.js';
 import { formatGroupMemberCountLine, formatGroupSaveErrorMessage, isGroupAsset } from '../lib/groupAssets.js';
 import { normalizeRole } from '../lib/roles.js';
 
-const STEPS = ['Profile', 'Access', 'Members', 'Review'];
+const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Review'];
+const GROUP_AUDIENCE_MODES = Object.freeze({
+    PUBLIC: 'public',
+    TARGET_REGIONS: 'target_regions',
+});
 
 function splitTags(value) {
     return String(value || '')
@@ -89,9 +93,18 @@ function buildDefaultAccess(currentUser, accessUserOptions) {
     return firstUser ? [{ userId: firstUser.id, staffRole: 'owner' }] : [];
 }
 
+function normalizeRegionIds(values = []) {
+    return [...new Set(
+        (Array.isArray(values) ? values : [])
+            .map((value) => Number.parseInt(String(value), 10))
+            .filter((value) => Number.isInteger(value) && value > 0)
+    )];
+}
+
 function getReadinessLabel({ form, ownerCount, selectedMembers, memberRows }) {
     if (form.isHidden) return 'Hidden';
     if (ownerCount === 0) return 'Needs owner';
+    if (form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && normalizeRegionIds(form.coverageRegionIds).length === 0) return 'Needs regions';
     if ((memberRows || []).some((member) => member.isPublicEligible === false)) return 'Review members';
     if (selectedMembers.length === 0) return 'Needs members';
     return 'Ready for Discover';
@@ -107,6 +120,7 @@ export default function GroupAssetForm({
     onCancel,
     onSave,
     softAssets = [],
+    subregions = [],
 }) {
     const normalizedAccessUsers = useMemo(() => {
         const byId = new Map();
@@ -137,6 +151,8 @@ export default function GroupAssetForm({
         sourceType: initialData?.sourceType || '',
         verificationStatus: initialData?.verificationStatus || 'unverified',
         verificationConfidence: initialData?.verificationConfidence ?? '',
+        audienceMode: initialData?.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? GROUP_AUDIENCE_MODES.TARGET_REGIONS : GROUP_AUDIENCE_MODES.PUBLIC,
+        coverageRegionIds: normalizeRegionIds(initialData?.coverageRegionIds || (initialData?.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && initialData?.subregionId ? [initialData.subregionId] : [])),
         isHidden: Boolean(initialData?.isHidden),
     }));
     const [initialAccess, setInitialAccess] = useState(() => initialData?.id ? [] : buildDefaultAccess(currentUser, accessUserOptions));
@@ -148,6 +164,18 @@ export default function GroupAssetForm({
     const [error, setError] = useState('');
 
     const memberOptions = useMemo(() => buildMemberOptions(hardAssets, softAssets), [hardAssets, softAssets]);
+    const regionOptions = useMemo(() => {
+        const actorRole = normalizeRole(currentUser?.role);
+        const allowedRegionIds = new Set((currentUser?.subregionIds || []).map(Number));
+        return (subregions || [])
+            .filter((subregion) => subregion?.id)
+            .filter((subregion) => actorRole === 'super_admin' || allowedRegionIds.size === 0 || allowedRegionIds.has(Number(subregion.id)))
+            .map((subregion) => ({
+                id: Number(subregion.id),
+                label: `${subregion.subregionCode || subregion.name || `Region #${subregion.id}`} · ${subregion.name || 'Unnamed region'}`,
+            }))
+            .sort((left, right) => left.label.localeCompare(right.label));
+    }, [currentUser?.role, currentUser?.subregionIds, subregions]);
     const selectedKeys = useMemo(() => new Set(selectedMembers.map((member) => normalizeMemberKey(member.memberResourceType, member.memberResourceId))), [selectedMembers]);
     const visibleMemberOptions = useMemo(
         () => memberOptions.filter((member) => !selectedKeys.has(member.key) && memberMatchesQuery(member, memberQuery)).slice(0, 60),
@@ -264,7 +292,11 @@ export default function GroupAssetForm({
             setError('Group name is required.');
             return false;
         }
-        if (stepIndex === 1 && !initialData?.id && ownerCount === 0) {
+        if (stepIndex === 1 && form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && normalizeRegionIds(form.coverageRegionIds).length === 0) {
+            setError('Select at least one target Region.');
+            return false;
+        }
+        if (stepIndex === 2 && !initialData?.id && ownerCount === 0) {
             setError('Select at least one Group Owner.');
             return false;
         }
@@ -285,7 +317,7 @@ export default function GroupAssetForm({
     async function handleSubmit(event) {
         event?.preventDefault?.();
         if (submitting) return;
-        if (!validateStep(0) || (!initialData?.id && !validateStep(1))) return;
+        if (!validateStep(0) || !validateStep(1) || (!initialData?.id && !validateStep(2))) return;
         setError('');
         setSubmitting(true);
         try {
@@ -308,6 +340,9 @@ export default function GroupAssetForm({
                 sourceType: form.sourceType,
                 verificationStatus: form.verificationStatus,
                 verificationConfidence: form.verificationConfidence === '' ? null : form.verificationConfidence,
+                audienceMode: form.audienceMode,
+                coverageRegionIds: form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? normalizeRegionIds(form.coverageRegionIds) : [],
+                subregionId: form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (normalizeRegionIds(form.coverageRegionIds)[0] || null) : null,
                 ...(initialData?.id ? {} : {
                     initialAccess,
                     members: selectedMembers.map((member, index) => ({ ...member, sortOrder: index })),
@@ -379,10 +414,6 @@ export default function GroupAssetForm({
                     <span className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700"><CalendarDays size={15} /> Schedule / notes</span>
                     <textarea className="input-field min-h-[88px]" value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)} />
                 </label>
-                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 md:col-span-2">
-                    <input type="checkbox" checked={form.isHidden} onChange={(event) => updateField('isHidden', event.target.checked)} className="h-4 w-4 accent-brand-600" />
-                    Hide from public Discover
-                </label>
             </div>
         );
     }
@@ -438,6 +469,80 @@ export default function GroupAssetForm({
                         ) : null}
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    function toggleRegion(regionId) {
+        const id = Number.parseInt(String(regionId), 10);
+        if (!Number.isInteger(id) || id <= 0) return;
+        setForm((current) => {
+            const selected = new Set(normalizeRegionIds(current.coverageRegionIds));
+            if (selected.has(id)) selected.delete(id);
+            else selected.add(id);
+            return { ...current, coverageRegionIds: [...selected] };
+        });
+    }
+
+    function renderVisibilityStep() {
+        const selectedRegionIds = new Set(normalizeRegionIds(form.coverageRegionIds));
+        return (
+            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                <div className="mb-4 flex items-start gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                        <Globe size={20} />
+                    </span>
+                    <div>
+                        <h3 className="text-lg font-black text-slate-900">Visibility Settings</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">Choose whether this Group is open to everyone or only shown for selected Regions.</p>
+                    </div>
+                </div>
+
+                <label className="block">
+                    <span className="mb-1 block text-sm font-bold text-slate-700">Who can see this?</span>
+                    <select
+                        className="input-field"
+                        value={form.audienceMode}
+                        onChange={(event) => updateField('audienceMode', event.target.value)}
+                    >
+                        <option value={GROUP_AUDIENCE_MODES.PUBLIC}>Public</option>
+                        <option value={GROUP_AUDIENCE_MODES.TARGET_REGIONS}>Target region/s</option>
+                    </select>
+                </label>
+
+                {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (
+                    <div className="mt-5">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <span className="text-sm font-bold text-slate-700">Target region/s</span>
+                            <span className="text-xs font-semibold text-slate-500">{selectedRegionIds.size} selected</span>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
+                            {regionOptions.length > 0 ? regionOptions.map((region) => (
+                                <label key={region.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 hover:bg-brand-50/50">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 accent-brand-600"
+                                        checked={selectedRegionIds.has(region.id)}
+                                        onChange={() => toggleRegion(region.id)}
+                                    />
+                                    <span className="text-sm font-semibold text-slate-700">{region.label}</span>
+                                </label>
+                            )) : (
+                                <div className="px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                                    No existing Regions are available to this account.
+                                </div>
+                            )}
+                        </div>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">Target-region Groups are shown only when the viewer is inside one of these existing Region boundaries.</p>
+                    </div>
+                ) : (
+                    <p className="mt-2 text-xs font-semibold text-slate-500">Public Groups are open to everyone once the Group is ready for Discover.</p>
+                )}
+
+                <label className="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                    <input type="checkbox" checked={form.isHidden} onChange={(event) => updateField('isHidden', event.target.checked)} className="h-4 w-4 accent-brand-600" />
+                    Hide from public Discover
+                </label>
             </div>
         );
     }
@@ -558,7 +663,7 @@ export default function GroupAssetForm({
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-slate-50" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
                 {STEPS.map((step, index) => (
                     <button
                         key={step}
@@ -581,9 +686,10 @@ export default function GroupAssetForm({
             ) : null}
 
             {activeStep === 0 ? renderProfileStep() : null}
-            {activeStep === 1 ? renderAccessStep() : null}
-            {activeStep === 2 ? renderMembersStep() : null}
-            {activeStep === 3 ? renderReviewStep() : null}
+            {activeStep === 1 ? renderVisibilityStep() : null}
+            {activeStep === 2 ? renderAccessStep() : null}
+            {activeStep === 3 ? renderMembersStep() : null}
+            {activeStep === 4 ? renderReviewStep() : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
                 <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>Cancel</button>

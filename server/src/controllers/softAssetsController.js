@@ -475,6 +475,12 @@ function normalizeCoverageRegionIds(value) {
     )];
 }
 
+function normalizeGroupAudienceMode(value) {
+    const mode = String(value || 'public').trim().toLowerCase() || 'public';
+    if (mode === 'public' || mode === 'target_regions') return mode;
+    throw clientError('Invalid Group visibility mode.', 400);
+}
+
 function getRequestedCoverageRegionIds(body = {}) {
     return normalizeCoverageRegionIds(
         body.coverageRegionIds ?? body.regionIds ?? body.serviceRegionIds ?? []
@@ -712,17 +718,17 @@ async function attachSoftAssetRegionMetadata(db, assets = []) {
         hardAssetsWithRegions.map((asset) => [Number(asset.id), asset.matchingRegionIds || []])
     );
 
-    const standaloneIds = assets
-        .filter(isStandaloneOffering)
+    const coverageTrackedIds = assets
+        .filter((asset) => isStandaloneOffering(asset) || isGroupSoftAsset(asset))
         .map((asset) => Number(asset.id))
         .filter((id) => Number.isInteger(id) && id > 0);
-    const coverageRows = standaloneIds.length > 0
+    const coverageRows = coverageTrackedIds.length > 0
         ? await db.select({
             softAssetId: softAssetRegionCoverages.softAssetId,
             subregionId: softAssetRegionCoverages.subregionId,
         })
             .from(softAssetRegionCoverages)
-            .where(inArray(softAssetRegionCoverages.softAssetId, standaloneIds))
+            .where(inArray(softAssetRegionCoverages.softAssetId, coverageTrackedIds))
         : [];
     const standaloneWithCoverage = attachStandaloneSoftAssetCoverage(assets, coverageRows);
     const coverageBySoftAssetId = new Map(
@@ -961,7 +967,13 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
         normalizeInitialGroupAccessPayload(body, user),
     );
     const requestedMembers = Array.isArray(body.groupMembers) ? body.groupMembers : body.members;
-    const finalSubregionId = resolveGroupSubregionId(user, body);
+    const audienceMode = normalizeGroupAudienceMode(body.audienceMode);
+    const coverageRegionIds = audienceMode === 'target_regions' ? getRequestedCoverageRegionIds(body) : [];
+    if (audienceMode === 'target_regions' && coverageRegionIds.length === 0) {
+        throw clientError('Select at least one target Region for target-region Groups.');
+    }
+    assertManageableCoverageRegions(user, coverageRegionIds);
+    const finalSubregionId = resolveGroupSubregionId(user, withCoverageSubregionFallback(body, [], coverageRegionIds));
     const [asset] = await db.insert(softAssets).values({
         assetMode: SOFT_ASSET_MODES.GROUP,
         externalKey: await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
@@ -980,7 +992,7 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
         logoUrl: logoUrl || null,
         bannerUrl: bannerUrl || null,
         galleryUrls: normalizeGalleryUrls(galleryUrls),
-        audienceMode: 'public',
+        audienceMode,
         isMemberOnly: false,
         eligibilityRules: null,
         contactPhone: contactPhone || null,
@@ -1016,6 +1028,7 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
                 addedByUserId: user?.id || null,
             }))).onConflictDoNothing();
         }
+        await syncSoftAssetRegionCoverages(db, asset.id, coverageRegionIds, user);
         await syncAssetTags(db, asset.id, 'soft', newTags);
     } catch (syncError) {
         await db.delete(softAssets).where(eq(softAssets.id, asset.id));
@@ -1023,7 +1036,7 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
     }
 
     const translationStatus = await triggerSoftAssetTranslation(db, c.env, asset, user);
-    await rebuildSoftAssetCaches([finalSubregionId, 'all'], c.env, user);
+    await rebuildSoftAssetCaches([finalSubregionId, ...coverageRegionIds, 'all'], c.env, user);
     await recordSoftAssetAudit(db, user, asset, 'created', ['created'], {
         assetMode: SOFT_ASSET_MODES.GROUP,
         visibility: asset.isHidden ? 'hidden' : 'visible',
@@ -1037,9 +1050,21 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
 async function updateGroupSoftAsset(c, db, user, existing, body) {
     assertNoGroupHostLinks(body, parseLinkedHardAssetIds(body));
 
-    const finalSubregionId = body.subregionId !== undefined
-        ? resolveGroupSubregionId(user, body)
-        : (existing.subregionId || resolveGroupSubregionId(user, body));
+    const [existingWithCoverage] = await attachSoftAssetRegionMetadata(db, [existing]);
+    const existingCoverageRegionIds = existingWithCoverage?.coverageRegionIds || [];
+    const audienceMode = normalizeGroupAudienceMode(body.audienceMode ?? existing.audienceMode);
+    const coveragePatchRequested = hasCoverageRegionPatch(body) || body.audienceMode !== undefined;
+    const nextCoverageRegionIds = audienceMode === 'target_regions'
+        ? (coveragePatchRequested ? getRequestedCoverageRegionIds(body) : existingCoverageRegionIds)
+        : [];
+    if (audienceMode === 'target_regions' && nextCoverageRegionIds.length === 0) {
+        throw clientError('Select at least one target Region for target-region Groups.');
+    }
+    assertManageableCoverageRegions(user, nextCoverageRegionIds);
+    const groupRoutingBody = withCoverageSubregionFallback(body, [], nextCoverageRegionIds);
+    const finalSubregionId = body.subregionId !== undefined || nextCoverageRegionIds.length > 0
+        ? resolveGroupSubregionId(user, groupRoutingBody)
+        : (existing.subregionId || resolveGroupSubregionId(user, groupRoutingBody));
 
     const updatePatch = {
         partnerId: existing.partnerId || null,
@@ -1052,7 +1077,7 @@ async function updateGroupSoftAsset(c, db, user, existing, body) {
         logoUrl: body.logoUrl !== undefined ? (body.logoUrl || null) : existing.logoUrl,
         bannerUrl: body.bannerUrl !== undefined ? (body.bannerUrl || null) : existing.bannerUrl,
         galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : existing.galleryUrls,
-        audienceMode: 'public',
+        audienceMode,
         isMemberOnly: false,
         eligibilityRules: null,
         contactPhone: body.contactPhone !== undefined ? (body.contactPhone || null) : existing.contactPhone,
@@ -1077,14 +1102,17 @@ async function updateGroupSoftAsset(c, db, user, existing, body) {
         await syncAssetTags(db, existing.id, 'soft', body.newTags || []);
     }
 
+    await syncSoftAssetRegionCoverages(db, existing.id, nextCoverageRegionIds, user);
+
     const refreshed = await loadSoftAssetById(db, existing.id);
     const translationStatus = refreshed
         ? await triggerSoftAssetTranslation(db, c.env, refreshed, user)
         : { status: 'skipped', message: 'Group was saved but could not be reloaded for translation.' };
 
-    await rebuildSoftAssetCaches([finalSubregionId, existing.subregionId, 'all'], c.env, user);
+    await rebuildSoftAssetCaches([finalSubregionId, existing.subregionId, ...nextCoverageRegionIds, ...existingCoverageRegionIds, 'all'], c.env, user);
     const changedFields = diffAuditFieldNames(existing, updatePatch)
-        .concat(body.newTags !== undefined ? ['tags'] : []);
+        .concat(body.newTags !== undefined ? ['tags'] : [])
+        .concat(coveragePatchRequested ? ['targetRegions'] : []);
     if (changedFields.length) {
         await recordSoftAssetAudit(
             db,
@@ -1509,12 +1537,14 @@ export const getSoftAssetById = async (c) => {
 
         const loadedAsset = await loadSoftAssetById(db, id);
         const [asset] = loadedAsset ? await attachSoftAssetRegionMetadata(db, [loadedAsset]) : [];
-        if (!asset || !isAssetVisible(asset, user, {
+        const permissions = asset ? buildSoftAssetPermissionSummary(user, asset) : null;
+        const isVisibleToViewer = asset ? isAssetVisible(asset, user, {
             ownerPartner: asset.partner,
             allowedPartnerAudienceIds,
             allowedAudienceZoneIds,
             treatMemberOnlyAsVisible: true,
-        })) {
+        }) : false;
+        if (!asset || (!isVisibleToViewer && !permissions?.canEdit)) {
             return c.json({ error: 'Not found' }, 404);
         }
 
@@ -1547,7 +1577,7 @@ export const getSoftAssetById = async (c) => {
             matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
             primaryRegionId: asset.subregionId || null,
             organizationLinks: (await loadOrganizationContextsForResources(db, [{ resourceType: 'soft', resourceId: asset.id }])).get(`soft:${asset.id}`) || [],
-            permissions: buildSoftAssetPermissionSummary(user, asset),
+            permissions,
         }));
     } catch (err) {
         console.error('getSoftAssetById Error:', err);

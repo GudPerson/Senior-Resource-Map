@@ -75,6 +75,37 @@ test('standard users can see audience-zone offerings when their postal code matc
     assert.equal(blocked, false);
 });
 
+test('target-region Groups are visible only to users inside one selected region', () => {
+    const allowed = isAssetVisible(
+        createAsset({
+            assetMode: 'group',
+            audienceMode: 'target_regions',
+            coverageRegionIds: [101, 202],
+        }),
+        { id: 7, role: 'standard', subregionIds: [202] }
+    );
+    const blocked = isAssetVisible(
+        createAsset({
+            assetMode: 'group',
+            audienceMode: 'target_regions',
+            coverageRegionIds: [101, 202],
+        }),
+        { id: 8, role: 'standard', subregionIds: [303] }
+    );
+    const guestBlocked = isAssetVisible(
+        createAsset({
+            assetMode: 'group',
+            audienceMode: 'target_regions',
+            coverageRegionIds: [101, 202],
+        }),
+        { role: 'guest' }
+    );
+
+    assert.equal(allowed, true);
+    assert.equal(blocked, false);
+    assert.equal(guestBlocked, false);
+});
+
 test('scheduled hide windows suppress public visibility', () => {
     const now = Date.now();
     const visible = isAssetVisible(
