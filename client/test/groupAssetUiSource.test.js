@@ -68,6 +68,22 @@ test('Group asset form exposes Target region visibility using existing Regions',
     assert.match(resourcesPageSource, /subregions=\{subregions\}/);
 });
 
+test('Group asset form exposes protected notes/files and translation review for saved Groups', () => {
+    assert.match(groupFormSource, /PrivateResourceContentEditor/);
+    assert.match(groupFormSource, /TranslationReviewPanel/);
+    assert.match(groupFormSource, /resourceType="soft"/);
+    assert.match(groupFormSource, /resourceId=\{initialData\.id\}/);
+    assert.match(groupFormSource, /Group management tools unlock after this Group is saved/);
+});
+
+test('Dashboard lets direct Group assignees see Groups without broad Group creation rights', () => {
+    assert.match(resourcesPageSource, /canCreateGroupResources = canManageResourceTools && canCreateStandaloneResources/);
+    assert.match(resourcesPageSource, /canSeeGroupResources = canManageResourceTools/);
+    assert.match(resourcesPageSource, /\{canSeeGroupResources \? \(/);
+    assert.match(resourcesPageSource, /action=\{canCreateGroupResources && !searchTerm \? \(/);
+    assert.doesNotMatch(resourcesPageSource, /\{canManageResourceTools && canCreateStandaloneResources \? \(\s*<button[\s\S]*Groups \(\{groupTabCount\}\)/);
+});
+
 test('Group asset edit access can submit without nesting inside the Group save form', () => {
     assert.doesNotMatch(groupFormSource, /<form onSubmit=\{handleSubmit\}/);
     assert.match(groupFormSource, /onClick=\{handleSubmit\}/);

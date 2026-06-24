@@ -190,6 +190,58 @@ test('restricted content view accepts direct standalone soft-asset owner and sta
     assert.equal(canManagePrivateResource(unrelatedStaff, resource), false);
 });
 
+test('restricted content view accepts direct Group owner and staff access only', () => {
+    const resource = {
+        id: 203,
+        resourceType: 'soft',
+        assetMode: 'group',
+        partnerId: null,
+        partner: null,
+    };
+    const groupOwner = {
+        id: 94,
+        role: 'standard',
+        softAssetStaffAccess: [{
+            softAssetId: 203,
+            staffRole: 'owner',
+        }],
+    };
+    const groupStaff = {
+        id: 95,
+        role: 'standard',
+        softAssetStaffAccess: [{
+            softAssetId: 203,
+            staffRole: 'staff',
+        }],
+    };
+    const unrelatedSoftStaff = {
+        id: 96,
+        role: 'standard',
+        softAssetStaffAccess: [{
+            softAssetId: 204,
+            staffRole: 'owner',
+        }],
+    };
+    const regionGroupAdmin = {
+        id: 97,
+        role: 'standard',
+        governanceGroupMemberships: [{
+            groupId: 5,
+            groupRole: 'admin',
+            groupType: 'region',
+        }],
+    };
+
+    assert.equal(canViewPrivateResource(groupOwner, resource, []), true);
+    assert.equal(canManagePrivateResource(groupOwner, resource), true);
+    assert.equal(canViewPrivateResource(groupStaff, resource, []), true);
+    assert.equal(canManagePrivateResource(groupStaff, resource), true);
+    assert.equal(canViewPrivateResource(unrelatedSoftStaff, resource, []), false);
+    assert.equal(canManagePrivateResource(unrelatedSoftStaff, resource), false);
+    assert.equal(canViewPrivateResource(regionGroupAdmin, resource, [{ userId: 97 }]), false);
+    assert.equal(canManagePrivateResource(regionGroupAdmin, resource), false);
+});
+
 test('restricted viewer grants require an active admin or operator status', () => {
     const resource = createResource({
         partnerId: null,

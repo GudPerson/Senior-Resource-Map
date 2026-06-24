@@ -3,6 +3,8 @@ import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Globe, Image, La
 
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import ImageUpload from './ImageUpload.jsx';
+import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
+import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 import { api } from '../lib/api.js';
 import { formatGroupMemberCountLine, formatGroupSaveErrorMessage, isGroupAsset } from '../lib/groupAssets.js';
 import { normalizeRole } from '../lib/roles.js';
@@ -612,51 +614,70 @@ export default function GroupAssetForm({
 
     function renderReviewStep() {
         return (
-            <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-brand-700">
-                        <CheckCircle2 size={14} />
-                        {readinessLabel}
+            <div className="grid gap-4">
+                <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-brand-700">
+                            <CheckCircle2 size={14} />
+                            {readinessLabel}
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
+                        {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
+                        <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
+                        <div className="mt-4 grid gap-2 text-sm text-slate-600">
+                            {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
+                            {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
+                            {form.galleryImageUrl ? <span className="inline-flex items-center gap-2"><Image size={14} /> Gallery image added</span> : null}
+                        </div>
                     </div>
-                    <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
-                    {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
-                    <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
-                    <div className="mt-4 grid gap-2 text-sm text-slate-600">
-                        {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
-                        {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
-                        {form.galleryImageUrl ? <span className="inline-flex items-center gap-2"><Image size={14} /> Gallery image added</span> : null}
-                    </div>
-                </div>
-                <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <div className="grid gap-4">
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-bold text-slate-700">Contact phone</span>
-                            <input className="input-field" value={form.contactPhone} onChange={(event) => updateField('contactPhone', event.target.value)} />
-                        </label>
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-bold text-slate-700">WhatsApp</span>
-                            <input className="input-field" value={form.whatsappContact} onChange={(event) => updateField('whatsappContact', event.target.value)} />
-                        </label>
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-bold text-slate-700">Email</span>
-                            <input className="input-field" type="email" value={form.contactEmail} onChange={(event) => updateField('contactEmail', event.target.value)} />
-                        </label>
-                        <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                        <div className="grid gap-4">
                             <label className="block">
-                                <span className="mb-1 block text-sm font-bold text-slate-700">CTA label</span>
-                                <input className="input-field" value={form.ctaLabel} onChange={(event) => updateField('ctaLabel', event.target.value)} />
+                                <span className="mb-1 block text-sm font-bold text-slate-700">Contact phone</span>
+                                <input className="input-field" value={form.contactPhone} onChange={(event) => updateField('contactPhone', event.target.value)} />
                             </label>
                             <label className="block">
-                                <span className="mb-1 block text-sm font-bold text-slate-700">CTA URL</span>
-                                <input className="input-field" value={form.ctaUrl} onChange={(event) => updateField('ctaUrl', event.target.value)} />
+                                <span className="mb-1 block text-sm font-bold text-slate-700">WhatsApp</span>
+                                <input className="input-field" value={form.whatsappContact} onChange={(event) => updateField('whatsappContact', event.target.value)} />
+                            </label>
+                            <label className="block">
+                                <span className="mb-1 block text-sm font-bold text-slate-700">Email</span>
+                                <input className="input-field" type="email" value={form.contactEmail} onChange={(event) => updateField('contactEmail', event.target.value)} />
+                            </label>
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <label className="block">
+                                    <span className="mb-1 block text-sm font-bold text-slate-700">CTA label</span>
+                                    <input className="input-field" value={form.ctaLabel} onChange={(event) => updateField('ctaLabel', event.target.value)} />
+                                </label>
+                                <label className="block">
+                                    <span className="mb-1 block text-sm font-bold text-slate-700">CTA URL</span>
+                                    <input className="input-field" value={form.ctaUrl} onChange={(event) => updateField('ctaUrl', event.target.value)} />
+                                </label>
+                            </div>
+                            <label className="block">
+                                <span className="mb-1 block text-sm font-bold text-slate-700">Freshness date</span>
+                                <input className="input-field" type="date" value={form.lastReviewedAt} onChange={(event) => updateField('lastReviewedAt', event.target.value)} />
                             </label>
                         </div>
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-bold text-slate-700">Freshness date</span>
-                            <input className="input-field" type="date" value={form.lastReviewedAt} onChange={(event) => updateField('lastReviewedAt', event.target.value)} />
-                        </label>
                     </div>
                 </div>
+
+                {initialData?.id ? (
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <TranslationReviewPanel
+                            resourceType="soft"
+                            resourceId={initialData.id}
+                        />
+                        <PrivateResourceContentEditor
+                            resourceType="soft"
+                            resourceId={initialData.id}
+                        />
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+                        Group management tools unlock after this Group is saved. Edit it again to review translations and add restricted notes or files.
+                    </div>
+                )}
             </div>
         );
     }

@@ -692,6 +692,8 @@ export default function ResourcesPage() {
     const hasDirectAssetAccess = hardAssetStaffAccessIds.length > 0 || softAssetStaffAccessIds.length > 0;
     const hasLegacyPartnerStaffAccess = hasPartnerStaffAccess(user);
     const canCreateStandaloneResources = normalizedRole !== 'standard' || hasLegacyPartnerStaffAccess;
+    const canCreateGroupResources = canManageResourceTools && canCreateStandaloneResources;
+    const canSeeGroupResources = canManageResourceTools;
     const partnerScopedOwnerIds = normalizedRole === 'partner'
         ? [Number(user?.id)].filter((id) => Number.isInteger(id) && id > 0)
         : partnerStaffLegacyPartnerIds;
@@ -993,10 +995,18 @@ export default function ResourcesPage() {
     }, [boundaryFilter, normalizedQuery]);
 
     useEffect(() => {
-        if ((!canManageResourceTools || !canCreateStandaloneResources) && (activeTab === 'templates' || activeTab === 'groups')) {
+        if (!canManageResourceTools && (activeTab === 'templates' || activeTab === 'groups')) {
+            setActiveTab('hard');
+            return;
+        }
+        if (!canCreateStandaloneResources && activeTab === 'templates') {
+            setActiveTab('hard');
+            return;
+        }
+        if (!canSeeGroupResources && activeTab === 'groups') {
             setActiveTab('hard');
         }
-    }, [activeTab, canCreateStandaloneResources, canManageResourceTools]);
+    }, [activeTab, canCreateStandaloneResources, canManageResourceTools, canSeeGroupResources]);
 
     useEffect(() => {
         if (!inlineAction?.id) return;
@@ -1995,14 +2005,16 @@ export default function ResourcesPage() {
                                     <Plus size={18} strokeWidth={2.5} />
                                     New Template
                                 </button>
-                                <button
-                                    onClick={() => openCreate('group')}
-                                    className="flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-black hover:shadow-xl hover:shadow-slate-300 active:scale-[0.98]"
-                                >
-                                    <Plus size={18} strokeWidth={2.5} />
-                                    New Group
-                                </button>
                             </>
+                        ) : null}
+                        {canCreateGroupResources ? (
+                            <button
+                                onClick={() => openCreate('group')}
+                                className="flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-black hover:shadow-xl hover:shadow-slate-300 active:scale-[0.98]"
+                            >
+                                <Plus size={18} strokeWidth={2.5} />
+                                New Group
+                            </button>
                         ) : null}
                     </div>
                 )}
@@ -2137,7 +2149,7 @@ export default function ResourcesPage() {
                         <CalendarDays size={18} strokeWidth={activeTab === 'soft' ? 2.5 : 2} />
                         Offerings ({softTabLabel})
                     </button>
-                    {canManageResourceTools && canCreateStandaloneResources ? (
+                    {canSeeGroupResources ? (
                         <button
                             onClick={() => setActiveTab('groups')}
                             className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
@@ -2571,7 +2583,7 @@ export default function ResourcesPage() {
                         icon={Layers3}
                         title="No Groups found"
                         description="Create a public collection from existing places and offerings."
-                        action={canManageResourceTools && canCreateStandaloneResources && !searchTerm ? (
+                        action={canCreateGroupResources && !searchTerm ? (
                             <button onClick={() => openCreate('group')} className="btn-primary mx-auto">
                                 <Plus size={16} /> Add Group
                             </button>
