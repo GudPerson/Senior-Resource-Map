@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
     formatGroupSaveErrorMessage,
     formatGroupMemberCountLine,
+    filterGroupRegionOptions,
     formatGroupUpdateSummary,
+    formatGroupRegionCountLine,
     getGroupGalleryUrls,
     getGroupMemberCounts,
     getGroupVisibilitySummary,
@@ -75,4 +77,20 @@ test('Group public detail helpers summarize visibility, updater accountability, 
         'https://one.test/a.png',
         'https://two.test/b.png',
     ]);
+});
+
+test('Group region helpers summarize and filter existing Region boundaries', () => {
+    assert.equal(formatGroupRegionCountLine({ coverageRegionIds: [] }), 'No Region boundaries selected');
+    assert.equal(formatGroupRegionCountLine({ coverageRegionIds: [129] }), '1 selected Region boundary');
+    assert.equal(formatGroupRegionCountLine({ coverage_region_ids: [129, '130', '', null] }), '2 selected Region boundaries');
+
+    const options = [
+        { id: 129, label: 'SR-CLW2 · Choa Chu Kang + Lim Chu Kang + Western Water Catchment + Tengah-2' },
+        { id: 130, label: 'SR-CLW3 · Choa Chu Kang + Lim Chu Kang + Western Water Catchment + Tengah-3' },
+        { id: 134, label: 'SR-GYL2 · Geylang-2' },
+    ];
+
+    assert.deepEqual(filterGroupRegionOptions(options, 'clw').map((region) => region.id), [129, 130]);
+    assert.deepEqual(filterGroupRegionOptions(options, 'Geylang').map((region) => region.id), [134]);
+    assert.deepEqual(filterGroupRegionOptions(options, '').map((region) => region.id), [129, 130, 134]);
 });

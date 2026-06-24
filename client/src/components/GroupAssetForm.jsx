@@ -6,11 +6,12 @@ import ImageUpload from './ImageUpload.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 import { api } from '../lib/api.js';
-import { formatGroupMemberCountLine, formatGroupSaveErrorMessage, formatGroupUpdateSummary, isGroupAsset } from '../lib/groupAssets.js';
+import { filterGroupRegionOptions, formatGroupMemberCountLine, formatGroupRegionCountLine, formatGroupSaveErrorMessage, formatGroupUpdateSummary, isGroupAsset } from '../lib/groupAssets.js';
 import { normalizeRole } from '../lib/roles.js';
 import { SOCIAL_PLATFORMS, createEmptySocialLinks, normalizeSocialLinks } from '../lib/socialLinks.js';
 
 const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Review'];
+const MAX_GROUP_GALLERY_IMAGES = 6;
 const GROUP_AUDIENCE_MODES = Object.freeze({
     PUBLIC: 'public',
     TARGET_REGIONS: 'target_regions',
@@ -104,6 +105,21 @@ function normalizeRegionIds(values = []) {
     )];
 }
 
+function normalizeGalleryUrls(values = []) {
+    return [...new Set(
+        (Array.isArray(values) ? values : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean)
+    )].slice(0, MAX_GROUP_GALLERY_IMAGES);
+}
+
+function buildGalleryInputs(values = []) {
+    const rows = (Array.isArray(values) ? values : [])
+        .map((value) => String(value || ''))
+        .slice(0, MAX_GROUP_GALLERY_IMAGES);
+    return rows.length > 0 ? rows : [''];
+}
+
 function getReadinessLabel({ form, ownerCount, selectedMembers, memberRows }) {
     if (form.isHidden) return 'Hidden';
     if (ownerCount === 0) return 'Needs owner';
@@ -144,7 +160,7 @@ export default function GroupAssetForm({
         schedule: initialData?.schedule || '',
         logoUrl: initialData?.logoUrl || '',
         bannerUrl: initialData?.bannerUrl || '',
-        galleryImageUrl: Array.isArray(initialData?.galleryUrls) ? (initialData.galleryUrls[0] || '') : '',
+        galleryUrls: buildGalleryInputs(initialData?.galleryUrls),
         tags: (initialData?.tags || []).join(', '),
         website: initialData?.website || '',
         socialLinks: initialData?.socialLinks ? normalizeSocialLinks(initialData.socialLinks) : createEmptySocialLinks(),
@@ -161,6 +177,7 @@ export default function GroupAssetForm({
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [memberRows, setMemberRows] = useState([]);
     const [memberQuery, setMemberQuery] = useState('');
+    const [regionQuery, setRegionQuery] = useState('');
     const [loadingMembers, setLoadingMembers] = useState(Boolean(initialData?.id));
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -178,6 +195,15 @@ export default function GroupAssetForm({
             }))
             .sort((left, right) => left.label.localeCompare(right.label));
     }, [currentUser?.role, currentUser?.subregionIds, subregions]);
+    const selectedRegionOptions = useMemo(() => {
+        const byId = new Map(regionOptions.map((region) => [Number(region.id), region]));
+        return normalizeRegionIds(form.coverageRegionIds)
+            .map((regionId) => byId.get(regionId) || { id: regionId, label: `Region #${regionId}` });
+    }, [form.coverageRegionIds, regionOptions]);
+    const visibleRegionOptions = useMemo(
+        () => filterGroupRegionOptions(regionOptions, regionQuery),
+        [regionOptions, regionQuery],
+    );
     const selectedKeys = useMemo(() => new Set(selectedMembers.map((member) => normalizeMemberKey(member.memberResourceType, member.memberResourceId))), [selectedMembers]);
     const visibleMemberOptions = useMemo(
         () => memberOptions.filter((member) => !selectedKeys.has(member.key) && memberMatchesQuery(member, memberQuery)).slice(0, 60),
@@ -255,6 +281,29 @@ export default function GroupAssetForm({
                 ...(current.socialLinks || createEmptySocialLinks()),
                 [platform]: value,
             },
+        }));
+    }
+
+    function updateGalleryImage(index, value) {
+        setForm((current) => {
+            const galleryUrls = buildGalleryInputs(current.galleryUrls);
+            galleryUrls[index] = value;
+            return { ...current, galleryUrls };
+        });
+    }
+
+    function addGalleryImage() {
+        setForm((current) => {
+            const galleryUrls = buildGalleryInputs(current.galleryUrls);
+            if (galleryUrls.length >= MAX_GROUP_GALLERY_IMAGES) return current;
+            return { ...current, galleryUrls: [...galleryUrls, ''] };
+        });
+    }
+
+    function removeGalleryImage(index) {
+        setForm((current) => ({
+            ...current,
+            galleryUrls: buildGalleryInputs(buildGalleryInputs(current.galleryUrls).filter((_, itemIndex) => itemIndex !== index)),
         }));
     }
 
@@ -342,7 +391,7 @@ export default function GroupAssetForm({
                 schedule: form.schedule,
                 logoUrl: form.logoUrl,
                 bannerUrl: form.bannerUrl,
-                galleryUrls: form.galleryImageUrl ? [form.galleryImageUrl] : [],
+                galleryUrls: normalizeGalleryUrls(form.galleryUrls),
                 newTags: splitTags(form.tags),
                 website: form.website,
                 socialLinks: form.socialLinks,
@@ -403,6 +452,7 @@ export default function GroupAssetForm({
     }
 
     function renderProfileStep() {
+        const galleryInputs = buildGalleryInputs(form.galleryUrls);
         return (
             <div className="grid gap-4 md:grid-cols-2">
                 <label className="block md:col-span-2">
@@ -421,10 +471,38 @@ export default function GroupAssetForm({
                     <span className="mb-1 block text-sm font-bold text-slate-700">Description</span>
                     <textarea className="input-field min-h-[110px]" value={form.description} onChange={(event) => updateField('description', event.target.value)} />
                 </label>
-                <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
                     <ImageUpload label="Logo / Icon" value={form.logoUrl} onChange={(url) => updateField('logoUrl', url)} />
                     <ImageUpload label="Hero Banner" value={form.bannerUrl} onChange={(url) => updateField('bannerUrl', url)} />
-                    <ImageUpload label="Gallery Image" value={form.galleryImageUrl} onChange={(url) => updateField('galleryImageUrl', url)} />
+                </div>
+                <div className="md:col-span-2">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-slate-700">Gallery images</span>
+                        <button type="button" className="btn-secondary h-10 px-3 text-sm" onClick={addGalleryImage} disabled={galleryInputs.length >= MAX_GROUP_GALLERY_IMAGES}>
+                            <Plus size={15} /> Add gallery image
+                        </button>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <div className="relative">
+                            <ImageUpload label="Gallery Image" value={galleryInputs[0] || ''} onChange={(url) => updateGalleryImage(0, url)} />
+                            {galleryInputs.length > 1 ? (
+                                <button type="button" className="btn-ghost mt-2 h-9 px-3 text-xs" onClick={() => removeGalleryImage(0)}>
+                                    <X size={14} /> Remove
+                                </button>
+                            ) : null}
+                        </div>
+                        {galleryInputs.slice(1).map((url, index) => {
+                            const slotIndex = index + 1;
+                            return (
+                                <div key={`gallery-image-${slotIndex}`} className="relative">
+                                    <ImageUpload label={`Gallery Image ${slotIndex + 1}`} value={url} onChange={(nextUrl) => updateGalleryImage(slotIndex, nextUrl)} />
+                                    <button type="button" className="btn-ghost mt-2 h-9 px-3 text-xs" onClick={() => removeGalleryImage(slotIndex)}>
+                                        <X size={14} /> Remove
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-bold text-slate-700">Tags</span>
@@ -516,7 +594,7 @@ export default function GroupAssetForm({
             const selected = new Set(normalizeRegionIds(current.coverageRegionIds));
             if (selected.has(id)) selected.delete(id);
             else selected.add(id);
-            return { ...current, coverageRegionIds: [...selected] };
+            return { ...current, coverageRegionIds: [...selected].sort((left, right) => left - right) };
         });
     }
 
@@ -550,10 +628,35 @@ export default function GroupAssetForm({
                     <div className="mt-5">
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <span className="text-sm font-bold text-slate-700">Target region/s</span>
-                            <span className="text-xs font-semibold text-slate-500">{selectedRegionIds.size} selected</span>
+                            <span className="text-xs font-semibold text-slate-500">{formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })}</span>
                         </div>
+                        <label className="relative mb-3 block">
+                            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="search"
+                                className="input-field pl-9"
+                                value={regionQuery}
+                                onChange={(event) => setRegionQuery(event.target.value)}
+                                placeholder="Search existing Regions"
+                            />
+                        </label>
+                        {selectedRegionOptions.length > 0 ? (
+                            <div className="mb-3 flex flex-wrap gap-2">
+                                {selectedRegionOptions.map((region) => (
+                                    <button
+                                        key={`selected-region-${region.id}`}
+                                        type="button"
+                                        className="inline-flex max-w-full items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700"
+                                        onClick={() => toggleRegion(region.id)}
+                                    >
+                                        <span className="truncate">{region.label}</span>
+                                        <X size={13} />
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
                         <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
-                            {regionOptions.length > 0 ? regionOptions.map((region) => (
+                            {visibleRegionOptions.length > 0 ? visibleRegionOptions.map((region) => (
                                 <label key={region.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 hover:bg-brand-50/50">
                                     <input
                                         type="checkbox"
@@ -565,11 +668,11 @@ export default function GroupAssetForm({
                                 </label>
                             )) : (
                                 <div className="px-4 py-6 text-center text-sm font-semibold text-slate-500">
-                                    No existing Regions are available to this account.
+                                    {regionOptions.length === 0 ? 'No existing Regions are available to this account.' : 'No matching existing Regions found.'}
                                 </div>
                             )}
                         </div>
-                        <p className="mt-2 text-xs font-semibold text-slate-500">Target-region Groups are shown only when the viewer is inside one of these existing Region boundaries.</p>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">Target-region Groups are shown only when the viewer is inside one of these existing Region boundaries. New Region boundaries are created in Admin Tools, not here.</p>
                     </div>
                 ) : (
                     <p className="mt-2 text-xs font-semibold text-slate-500">Public Groups are open to everyone once the Group is ready for Discover.</p>
@@ -647,6 +750,7 @@ export default function GroupAssetForm({
     }
 
     function renderReviewStep() {
+        const galleryUrls = normalizeGalleryUrls(form.galleryUrls);
         return (
             <div className="grid gap-4">
                 <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -660,11 +764,30 @@ export default function GroupAssetForm({
                         {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
                         <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
                         <div className="mt-4 grid gap-2 text-sm text-slate-600">
+                            {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (
+                                <span className="inline-flex items-center gap-2"><Globe size={14} /> {formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })}</span>
+                            ) : (
+                                <span className="inline-flex items-center gap-2"><Globe size={14} /> Public</span>
+                            )}
                             {form.website ? <span className="inline-flex items-center gap-2"><Globe size={14} /> {form.website}</span> : null}
                             {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
                             {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
-                            {form.galleryImageUrl ? <span className="inline-flex items-center gap-2"><Image size={14} /> Gallery image added</span> : null}
+                            {galleryUrls.length > 0 ? <span className="inline-flex items-center gap-2"><Image size={14} /> {galleryUrls.length === 1 ? '1 gallery image added' : `${galleryUrls.length} gallery images added`}</span> : null}
                         </div>
+                        {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && selectedRegionOptions.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {selectedRegionOptions.slice(0, 6).map((region) => (
+                                    <span key={`review-region-${region.id}`} className="inline-flex max-w-full items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                        <span className="truncate">{region.label}</span>
+                                    </span>
+                                ))}
+                                {selectedRegionOptions.length > 6 ? (
+                                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                        +{selectedRegionOptions.length - 6} more
+                                    </span>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </div>
                     <div className="rounded-3xl border border-slate-200 bg-white p-4">
                         <div className="grid gap-4">

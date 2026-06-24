@@ -39,15 +39,47 @@ export function getGroupVisibilitySummary(asset = {}) {
         };
     }
 
-    const regionIds = Array.isArray(asset?.coverageRegionIds)
-        ? asset.coverageRegionIds
-        : (Array.isArray(asset?.coverage_region_ids) ? asset.coverage_region_ids : []);
-    const selectedCount = regionIds.filter((regionId) => String(regionId ?? '').trim() !== '').length;
-
+    const selectedCount = normalizeGroupRegionIds(asset).length;
     return {
         label: 'Target region/s',
         detail: selectedCount === 1 ? '1 selected Region' : `${selectedCount} selected Regions`,
     };
+}
+
+export function normalizeGroupRegionIds(assetOrIds = {}) {
+    const values = Array.isArray(assetOrIds)
+        ? assetOrIds
+        : (Array.isArray(assetOrIds?.coverageRegionIds)
+            ? assetOrIds.coverageRegionIds
+            : (Array.isArray(assetOrIds?.coverage_region_ids) ? assetOrIds.coverage_region_ids : []));
+    return [...new Set(
+        values
+            .map((regionId) => Number.parseInt(String(regionId), 10))
+            .filter((regionId) => Number.isInteger(regionId) && regionId > 0)
+    )];
+}
+
+export function formatGroupRegionCountLine(assetOrIds = {}) {
+    const selectedCount = normalizeGroupRegionIds(assetOrIds).length;
+    if (selectedCount === 0) return 'No Region boundaries selected';
+    return selectedCount === 1 ? '1 selected Region boundary' : `${selectedCount} selected Region boundaries`;
+}
+
+export function filterGroupRegionOptions(options = [], query = '') {
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    const rows = Array.isArray(options) ? options : [];
+    if (!normalizedQuery) return rows;
+    return rows.filter((option) => [
+        option?.label,
+        option?.name,
+        option?.subregionCode,
+        option?.code,
+        option?.id,
+    ]
+        .filter((value) => value !== undefined && value !== null)
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedQuery));
 }
 
 export function formatGroupReviewDate(value, locale = 'en-SG') {

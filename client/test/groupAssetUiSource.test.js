@@ -65,6 +65,9 @@ test('Group asset form uses wizard sections and upload controls without legacy r
     assert.match(groupFormSource, /label="Logo \/ Icon"/);
     assert.match(groupFormSource, /label="Hero Banner"/);
     assert.match(groupFormSource, /label="Gallery Image"/);
+    assert.match(groupFormSource, /Gallery images/);
+    assert.match(groupFormSource, /Add gallery image/);
+    assert.match(groupFormSource, /updateGalleryImage/);
     assert.match(groupFormSource, /Group Owner/);
     assert.doesNotMatch(groupFormSource, /Logo URL/);
     assert.doesNotMatch(groupFormSource, /Banner URL/);
@@ -75,6 +78,10 @@ test('Group asset form uses wizard sections and upload controls without legacy r
 test('Group asset form exposes Target region visibility using existing Regions', () => {
     assert.match(groupFormSource, /Who can see this\?/);
     assert.match(groupFormSource, /Target region\/s/);
+    assert.match(groupFormSource, /Search existing Regions/);
+    assert.match(groupFormSource, /selectedRegionOptions/);
+    assert.match(groupFormSource, /formatGroupRegionCountLine/);
+    assert.match(groupFormSource, /filterGroupRegionOptions/);
     assert.match(groupFormSource, /coverageRegionIds/);
     assert.match(groupFormSource, /subregions = \[\]/);
     assert.match(resourcesPageSource, /subregions=\{subregions\}/);
@@ -114,6 +121,7 @@ test('Group asset form uses resource profile fields and system update accountabi
     assert.match(groupFormSource, /Social media/);
     assert.match(groupFormSource, /formatGroupUpdateSummary/);
     assert.match(groupFormSource, /socialLinks: form\.socialLinks/);
+    assert.match(groupFormSource, /galleryUrls: normalizeGalleryUrls\(form\.galleryUrls\)/);
     assert.doesNotMatch(groupFormSource, /Freshness date/);
     assert.doesNotMatch(groupFormSource, /lastReviewedAt: form\.lastReviewedAt/);
 });
