@@ -153,6 +153,39 @@ test('runtime schema bootstrap includes hard asset social links column', async (
     );
 });
 
+test('runtime schema bootstrap includes Group profile and accountability columns on soft assets', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table soft_assets add column if not exists website')),
+        'expected soft asset website column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('alter table soft_assets add column if not exists social_links')
+            && statement.includes('jsonb')
+            && statement.includes("default '{}'::jsonb")
+        )),
+        'expected soft asset social_links column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('alter table soft_assets add column if not exists updated_by_user_id')
+            && statement.includes('references users(id)')
+        )),
+        'expected soft asset updater accountability bootstrap SQL',
+    );
+});
+
 test('runtime schema bootstrap includes public WhatsApp contact columns', async () => {
     resetBoundarySchemaBootstrapForTests();
     const statements = [];

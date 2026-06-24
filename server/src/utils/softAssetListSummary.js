@@ -94,6 +94,11 @@ export function formatSoftAssetListSummary(asset, options = {}) {
         location,
         hostLocation,
         ...(isGroup ? {
+            galleryUrls: Array.isArray(asset.galleryUrls) ? asset.galleryUrls : [],
+            website: asset.website || null,
+            socialLinks: asset.socialLinks || {},
+            creatorName: asset.creator?.name || null,
+            updatedByName: asset.updater?.name || asset.creator?.name || null,
             groupMemberSummary,
             groupDiscoverMetadata,
             groupReadinessStatus: groupReadiness.status,

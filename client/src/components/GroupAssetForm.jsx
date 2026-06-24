@@ -6,8 +6,9 @@ import ImageUpload from './ImageUpload.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 import { api } from '../lib/api.js';
-import { formatGroupMemberCountLine, formatGroupSaveErrorMessage, isGroupAsset } from '../lib/groupAssets.js';
+import { formatGroupMemberCountLine, formatGroupSaveErrorMessage, formatGroupUpdateSummary, isGroupAsset } from '../lib/groupAssets.js';
 import { normalizeRole } from '../lib/roles.js';
+import { SOCIAL_PLATFORMS, createEmptySocialLinks, normalizeSocialLinks } from '../lib/socialLinks.js';
 
 const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Review'];
 const GROUP_AUDIENCE_MODES = Object.freeze({
@@ -138,21 +139,20 @@ export default function GroupAssetForm({
     const [activeStep, setActiveStep] = useState(0);
     const [form, setForm] = useState(() => ({
         name: initialData?.name || '',
+        subCategory: initialData?.subCategory || 'Groups',
         description: initialData?.description || '',
         schedule: initialData?.schedule || '',
         logoUrl: initialData?.logoUrl || '',
         bannerUrl: initialData?.bannerUrl || '',
         galleryImageUrl: Array.isArray(initialData?.galleryUrls) ? (initialData.galleryUrls[0] || '') : '',
         tags: (initialData?.tags || []).join(', '),
+        website: initialData?.website || '',
+        socialLinks: initialData?.socialLinks ? normalizeSocialLinks(initialData.socialLinks) : createEmptySocialLinks(),
         contactPhone: initialData?.contactPhone || '',
         whatsappContact: initialData?.whatsappContact || '',
         contactEmail: initialData?.contactEmail || '',
         ctaLabel: initialData?.ctaLabel || '',
         ctaUrl: initialData?.ctaUrl || '',
-        lastReviewedAt: initialData?.lastReviewedAt ? String(initialData.lastReviewedAt).slice(0, 10) : '',
-        sourceType: initialData?.sourceType || '',
-        verificationStatus: initialData?.verificationStatus || 'unverified',
-        verificationConfidence: initialData?.verificationConfidence ?? '',
         audienceMode: initialData?.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? GROUP_AUDIENCE_MODES.TARGET_REGIONS : GROUP_AUDIENCE_MODES.PUBLIC,
         coverageRegionIds: normalizeRegionIds(initialData?.coverageRegionIds || (initialData?.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && initialData?.subregionId ? [initialData.subregionId] : [])),
         isHidden: Boolean(initialData?.isHidden),
@@ -201,6 +201,7 @@ export default function GroupAssetForm({
         ? Number(initialData?.groupOwnerCount || 0)
         : initialAccess.filter((row) => row.staffRole === 'owner').length;
     const readinessLabel = getReadinessLabel({ form, ownerCount, selectedMembers, memberRows });
+    const updateSummary = initialData?.id ? formatGroupUpdateSummary(initialData) : null;
     const canMoveNext = activeStep < STEPS.length - 1;
     const canMovePrevious = activeStep > 0;
 
@@ -245,6 +246,16 @@ export default function GroupAssetForm({
 
     function updateField(field, value) {
         setForm((current) => ({ ...current, [field]: value }));
+    }
+
+    function updateSocialLink(platform, value) {
+        setForm((current) => ({
+            ...current,
+            socialLinks: {
+                ...(current.socialLinks || createEmptySocialLinks()),
+                [platform]: value,
+            },
+        }));
     }
 
     function addMember(member) {
@@ -326,22 +337,21 @@ export default function GroupAssetForm({
             const payload = {
                 assetMode: 'group',
                 name: form.name.trim(),
+                subCategory: form.subCategory.trim() || 'Groups',
                 description: form.description,
                 schedule: form.schedule,
                 logoUrl: form.logoUrl,
                 bannerUrl: form.bannerUrl,
                 galleryUrls: form.galleryImageUrl ? [form.galleryImageUrl] : [],
                 newTags: splitTags(form.tags),
+                website: form.website,
+                socialLinks: form.socialLinks,
                 isHidden: form.isHidden,
                 contactPhone: form.contactPhone,
                 whatsappContact: form.whatsappContact,
                 contactEmail: form.contactEmail,
                 ctaLabel: form.ctaLabel,
                 ctaUrl: form.ctaUrl,
-                lastReviewedAt: form.lastReviewedAt || null,
-                sourceType: form.sourceType,
-                verificationStatus: form.verificationStatus,
-                verificationConfidence: form.verificationConfidence === '' ? null : form.verificationConfidence,
                 audienceMode: form.audienceMode,
                 coverageRegionIds: form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? normalizeRegionIds(form.coverageRegionIds) : [],
                 subregionId: form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (normalizeRegionIds(form.coverageRegionIds)[0] || null) : null,
@@ -399,6 +409,14 @@ export default function GroupAssetForm({
                     <span className="mb-1 block text-sm font-bold text-slate-700">Group name</span>
                     <input className="input-field" value={form.name} onChange={(event) => updateField('name', event.target.value)} required />
                 </label>
+                <label className="block">
+                    <span className="mb-1 block text-sm font-bold text-slate-700">Sub-category</span>
+                    <input className="input-field" value={form.subCategory} onChange={(event) => updateField('subCategory', event.target.value)} placeholder="Groups" />
+                </label>
+                <label className="block">
+                    <span className="mb-1 block text-sm font-bold text-slate-700">Website</span>
+                    <input className="input-field" value={form.website} onChange={(event) => updateField('website', event.target.value)} placeholder="https://example.org" />
+                </label>
                 <label className="block md:col-span-2">
                     <span className="mb-1 block text-sm font-bold text-slate-700">Description</span>
                     <textarea className="input-field min-h-[110px]" value={form.description} onChange={(event) => updateField('description', event.target.value)} />
@@ -412,6 +430,22 @@ export default function GroupAssetForm({
                     <span className="mb-1 block text-sm font-bold text-slate-700">Tags</span>
                     <input className="input-field" value={form.tags} onChange={(event) => updateField('tags', event.target.value)} placeholder="Caregiver, West, Active ageing" />
                 </label>
+                <div className="md:col-span-2">
+                    <span className="mb-2 block text-sm font-bold text-slate-700">Social media</span>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {SOCIAL_PLATFORMS.map((platform) => (
+                            <label key={platform.key} className="block">
+                                <span className="mb-1 block text-xs font-black uppercase tracking-[0.12em] text-slate-500">{platform.label}</span>
+                                <input
+                                    className="input-field"
+                                    value={form.socialLinks?.[platform.key] || ''}
+                                    onChange={(event) => updateSocialLink(platform.key, event.target.value)}
+                                    placeholder={platform.placeholder}
+                                />
+                            </label>
+                        ))}
+                    </div>
+                </div>
                 <label className="block md:col-span-2">
                     <span className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700"><CalendarDays size={15} /> Schedule / notes</span>
                     <textarea className="input-field min-h-[88px]" value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)} />
@@ -622,9 +656,11 @@ export default function GroupAssetForm({
                             {readinessLabel}
                         </div>
                         <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">{form.subCategory || 'Groups'}</p>
                         {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
                         <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
                         <div className="mt-4 grid gap-2 text-sm text-slate-600">
+                            {form.website ? <span className="inline-flex items-center gap-2"><Globe size={14} /> {form.website}</span> : null}
                             {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
                             {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
                             {form.galleryImageUrl ? <span className="inline-flex items-center gap-2"><Image size={14} /> Gallery image added</span> : null}
@@ -654,10 +690,12 @@ export default function GroupAssetForm({
                                     <input className="input-field" value={form.ctaUrl} onChange={(event) => updateField('ctaUrl', event.target.value)} />
                                 </label>
                             </div>
-                            <label className="block">
-                                <span className="mb-1 block text-sm font-bold text-slate-700">Freshness date</span>
-                                <input className="input-field" type="date" value={form.lastReviewedAt} onChange={(event) => updateField('lastReviewedAt', event.target.value)} />
-                            </label>
+                            {updateSummary?.detail ? (
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                    <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{updateSummary.label}</p>
+                                    <p className="mt-1 text-sm font-semibold text-slate-700">{updateSummary.detail}</p>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>

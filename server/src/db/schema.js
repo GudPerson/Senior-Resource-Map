@@ -330,6 +330,7 @@ export const softAssets = pgTable('soft_assets', {
   externalKey: varchar('external_key', { length: 160 }).unique(),
   partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   assetMode: varchar('asset_mode', { length: 20 }).notNull().default('standalone'),
   parentSoftAssetId: integer('parent_soft_asset_id').references(() => softAssetParents.id, { onDelete: 'set null' }),
@@ -342,6 +343,8 @@ export const softAssets = pgTable('soft_assets', {
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
   galleryUrls: jsonb('gallery_urls').default('[]'),
+  website: text('website'),
+  socialLinks: jsonb('social_links').default({}),
   audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
   eligibilityRules: jsonb('eligibility_rules'),
@@ -1094,6 +1097,10 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
   }),
   creator: one(users, {
     fields: [softAssets.createdByUserId],
+    references: [users.id],
+  }),
+  updater: one(users, {
+    fields: [softAssets.updatedByUserId],
     references: [users.id],
   }),
   parent: one(softAssetParents, {

@@ -54,7 +54,7 @@ test('runtime schema bootstrap can run the Group-only schema gate in production'
         ALLOW_RUNTIME_SCHEMA_BOOTSTRAP: 'group-only',
     });
 
-    assert.equal(calls, 7);
+    assert.equal(calls, 11);
     resetBoundarySchemaBootstrapForTests();
 });
 

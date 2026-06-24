@@ -167,3 +167,38 @@ test('soft asset list summaries keep dashboard fields and omit heavy nested payl
     assert.equal(Object.hasOwn(summary, 'eligibilityRules'), false);
     assert.equal(Object.hasOwn(summary, 'translations'), false);
 });
+
+test('Group soft asset list summaries keep lightweight profile and update fields', () => {
+    const summary = formatSoftAssetListSummary({
+        id: 55,
+        assetMode: 'group',
+        partnerId: null,
+        subregionId: 130,
+        name: 'ICCP CCK3',
+        subCategory: 'Caregiver support',
+        description: 'A curated public collection.',
+        schedule: 'Monthly updates',
+        logoUrl: 'https://example.test/logo.png',
+        bannerUrl: 'https://example.test/banner.png',
+        galleryUrls: ['https://example.test/gallery.png'],
+        website: 'https://example.test',
+        socialLinks: { facebook: 'https://facebook.com/example' },
+        isHidden: false,
+        updatedAt: new Date('2026-06-24T00:00:00.000Z'),
+        creator: { id: 1, name: 'Creator' },
+        updater: { id: 2, name: 'Editor' },
+        partner: null,
+        tags: [],
+        audienceZones: [],
+        groupMembers: [],
+        coverageRegionIds: [130],
+    });
+
+    assert.equal(summary.assetMode, 'group');
+    assert.equal(summary.subCategory, 'Caregiver support');
+    assert.equal(summary.website, 'https://example.test');
+    assert.deepEqual(summary.socialLinks, { facebook: 'https://facebook.com/example' });
+    assert.deepEqual(summary.galleryUrls, ['https://example.test/gallery.png']);
+    assert.equal(summary.creatorName, 'Creator');
+    assert.equal(summary.updatedByName, 'Editor');
+});

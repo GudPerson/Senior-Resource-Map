@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
     formatGroupSaveErrorMessage,
     formatGroupMemberCountLine,
-    formatGroupReviewDate,
+    formatGroupUpdateSummary,
     getGroupGalleryUrls,
     getGroupMemberCounts,
     getGroupVisibilitySummary,
@@ -48,7 +48,7 @@ test('Group save errors explain when the API does not support Groups yet', () =>
     );
 });
 
-test('Group public detail helpers summarize visibility, review date, and gallery safely', () => {
+test('Group public detail helpers summarize visibility, updater accountability, and gallery safely', () => {
     assert.deepEqual(getGroupVisibilitySummary({ audienceMode: 'public' }), {
         label: 'Public',
         detail: 'Open to everyone',
@@ -57,8 +57,20 @@ test('Group public detail helpers summarize visibility, review date, and gallery
         label: 'Target region/s',
         detail: '2 selected Regions',
     });
-    assert.equal(formatGroupReviewDate('2026-06-24T00:00:00.000Z', 'en-SG'), '24 Jun 2026');
-    assert.equal(formatGroupReviewDate('not a date', 'en-SG'), '');
+    assert.deepEqual(
+        formatGroupUpdateSummary({
+            updatedAt: '2026-06-24T00:00:00.000Z',
+            updatedByName: 'SG Admin',
+        }, 'en-SG'),
+        { label: 'Last updated', detail: '24 Jun 2026 by SG Admin' },
+    );
+    assert.deepEqual(
+        formatGroupUpdateSummary({
+            updatedAt: 'not a date',
+            updatedByName: 'SG Admin',
+        }, 'en-SG'),
+        { label: 'Last updated', detail: 'by SG Admin' },
+    );
     assert.deepEqual(getGroupGalleryUrls({ galleryUrls: [' https://one.test/a.png ', '', null, 'https://two.test/b.png'] }), [
         'https://one.test/a.png',
         'https://two.test/b.png',

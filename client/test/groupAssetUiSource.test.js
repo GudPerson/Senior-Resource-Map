@@ -27,12 +27,14 @@ test('Resource detail renders Group members outside hard Place offering buckets'
     assert.match(detailSource, /isHard && asset\.softAssets && asset\.softAssets\.length > 0/);
 });
 
-test('Resource detail gives Groups public profile parity with visibility, review, and gallery context', () => {
+test('Resource detail gives Groups public profile parity with visibility, update, and gallery context', () => {
     assert.match(detailSource, /getGroupVisibilitySummary/);
-    assert.match(detailSource, /formatGroupReviewDate/);
+    assert.match(detailSource, /formatGroupUpdateSummary/);
     assert.match(detailSource, /getGroupGalleryUrls/);
     assert.match(detailSource, /Collection visibility/);
-    assert.match(detailSource, /Last reviewed/);
+    assert.match(detailSource, /groupUpdateSummary\.label/);
+    assert.match(detailSource, /\(isHard \|\| isGroup\) \? splitWebsiteAndSocialLinks/);
+    assert.match(detailSource, /\(isHard \|\| isGroup\) \? <SocialLinksStrip/);
     assert.match(detailSource, /Gallery/);
     assert.match(detailSource, /groupGalleryUrls\.map/);
 });
@@ -103,6 +105,17 @@ test('Group asset edit access can submit without nesting inside the Group save f
 test('Group asset form omits the misleading review notes field', () => {
     assert.doesNotMatch(groupFormSource, /Review notes/);
     assert.doesNotMatch(groupFormSource, /venueNote/);
+});
+
+test('Group asset form uses resource profile fields and system update accountability', () => {
+    assert.match(groupFormSource, /SOCIAL_PLATFORMS/);
+    assert.match(groupFormSource, /Sub-category/);
+    assert.match(groupFormSource, /Website/);
+    assert.match(groupFormSource, /Social media/);
+    assert.match(groupFormSource, /formatGroupUpdateSummary/);
+    assert.match(groupFormSource, /socialLinks: form\.socialLinks/);
+    assert.doesNotMatch(groupFormSource, /Freshness date/);
+    assert.doesNotMatch(groupFormSource, /lastReviewedAt: form\.lastReviewedAt/);
 });
 
 test('Dashboard inline action guard preserves Group access drawers on the Groups tab', () => {

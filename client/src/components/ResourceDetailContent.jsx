@@ -28,7 +28,7 @@ import { buildWhatsAppContactHref, formatWhatsAppContactLabel } from '../lib/wha
 import { shareResourceLink } from '../lib/resourceShare.js';
 import {
     formatGroupMemberCountLine,
-    formatGroupReviewDate,
+    formatGroupUpdateSummary,
     getGroupGalleryUrls,
     getGroupVisibilitySummary,
     isGroupAsset,
@@ -287,9 +287,9 @@ export default function ResourceDetailContent({
     const whatsappContact = String(asset?.whatsappContact || primaryLocation?.whatsappContact || '').trim();
     const whatsappHref = buildWhatsAppContactHref(whatsappContact);
     const whatsappLabel = formatWhatsAppContactLabel(whatsappContact);
-    const websiteParts = isHard ? splitWebsiteAndSocialLinks(asset?.website) : { website: '', socialLinks: {} };
-    const websiteHref = isHard ? normalizeExternalHref(websiteParts.website) : '';
-    const visibleSocialLinks = isHard ? mergeSocialLinks(asset?.socialLinks, websiteParts.socialLinks) : {};
+    const websiteParts = (isHard || isGroup) ? splitWebsiteAndSocialLinks(asset?.website) : { website: '', socialLinks: {} };
+    const websiteHref = (isHard || isGroup) ? normalizeExternalHref(websiteParts.website) : '';
+    const visibleSocialLinks = (isHard || isGroup) ? mergeSocialLinks(asset?.socialLinks, websiteParts.socialLinks) : {};
     const contactEmail = !isHard ? String(asset?.contactEmail || '').trim() : '';
     const externalCtaLabel = !isHard ? String(asset?.ctaLabel || '').trim() || t('openLink') : '';
     const externalCtaHref = !isHard ? normalizeExternalHref(asset?.ctaUrl) : '';
@@ -311,7 +311,7 @@ export default function ResourceDetailContent({
         : Boolean(!isGroup && primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
     const groupMemberSections = isGroup ? getGroupMemberSections(asset) : [];
     const groupVisibilitySummary = isGroup ? getGroupVisibilitySummary(asset) : null;
-    const groupReviewDate = isGroup ? formatGroupReviewDate(asset.lastReviewedAt || asset.last_reviewed_at, locale) : '';
+    const groupUpdateSummary = isGroup ? formatGroupUpdateSummary(asset, locale) : null;
     const groupGalleryUrls = isGroup ? getGroupGalleryUrls(asset, isCompact ? 4 : 6) : [];
     const grabAddress = String(primaryAddress || '').trim();
     const grabPlaceName = String(((isHard ? asset?.name : primaryLocation?.name) || asset?.name || '')).trim();
@@ -518,7 +518,7 @@ export default function ResourceDetailContent({
                             style={{ color: subCatColors[asset.subCategory] || '#334155', borderColor: 'var(--color-border)' }}
                         >
                             {isHard ? <Building2 size={16} /> : isGroup ? <Layers3 size={16} /> : <CalendarDays size={16} />}
-                            {isGroup ? 'Group' : (asset.subCategory || (isHard ? t('place') : t('offering')))}
+                            {isGroup ? (asset.subCategory || 'Group') : (asset.subCategory || (isHard ? t('place') : t('offering')))}
                         </div>
                         <h1 className={introTitleClass}>{asset.name}</h1>
                         {!isHard ? (
@@ -544,12 +544,12 @@ export default function ResourceDetailContent({
                                         {groupVisibilitySummary.label}
                                     </span>
                                 ) : null}
-                                {isGroup && groupReviewDate ? (
+                                {isGroup && groupUpdateSummary?.detail ? (
                                     <span
                                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-sm font-bold text-slate-700 border border-slate-200"
                                     >
                                         <Check size={15} />
-                                        Last reviewed {groupReviewDate}
+                                        {groupUpdateSummary.label} · {groupUpdateSummary.detail}
                                     </span>
                                 ) : null}
                                 {hasLinkedPlaceDetails ? (
@@ -657,12 +657,12 @@ export default function ResourceDetailContent({
                         </div>
                     ) : null}
 
-                    {isGroup && groupReviewDate ? (
+                    {isGroup && groupUpdateSummary?.detail ? (
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Check size={22} /></div>
                             <div>
-                                <p className="font-bold text-slate-900 mb-1">Last reviewed</p>
-                                <p className="text-slate-700">{groupReviewDate}</p>
+                                <p className="font-bold text-slate-900 mb-1">{groupUpdateSummary.label}</p>
+                                <p className="text-slate-700">{groupUpdateSummary.detail}</p>
                             </div>
                         </div>
                     ) : null}
@@ -760,7 +760,7 @@ export default function ResourceDetailContent({
                         </div>
                     ) : null}
 
-                    {isHard ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
+                    {(isHard || isGroup) ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
                 </div>
 
                 {groupGalleryUrls.length > 0 ? (

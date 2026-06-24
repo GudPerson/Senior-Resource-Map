@@ -62,6 +62,21 @@ export function formatGroupReviewDate(value, locale = 'en-SG') {
     }).format(date);
 }
 
+export function formatGroupUpdateSummary(asset = {}, locale = 'en-SG') {
+    const dateLabel = formatGroupReviewDate(asset?.updatedAt || asset?.updated_at || asset?.createdAt || asset?.created_at, locale);
+    const actorName = String(asset?.updatedByName || asset?.updated_by_name || asset?.creatorName || asset?.creator_name || '').trim();
+    const detail = [
+        dateLabel,
+        actorName ? `by ${actorName}` : '',
+    ].filter(Boolean).join(' ');
+
+    if (!detail) return null;
+    return {
+        label: 'Last updated',
+        detail,
+    };
+}
+
 export function getGroupGalleryUrls(asset = {}, limit = 3) {
     const urls = Array.isArray(asset?.galleryUrls) ? asset.galleryUrls : [];
     return urls

@@ -84,6 +84,7 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import { normalizeSocialLinks } from '../utils/socialLinks.js';
 import {
     buildResourceAuditPayload,
     diffAuditFieldNames,
@@ -162,6 +163,7 @@ function buildFreshnessUpdate(body, existing, user) {
 const softAssetWithRelations = {
     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
     creator: { columns: { id: true, name: true } },
+    updater: { columns: { id: true, name: true } },
     parent: {
         columns: {
             id: true,
@@ -260,6 +262,8 @@ const softAssetWithRelations = {
 
 const softAssetListSummaryRelations = {
     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+    creator: { columns: { id: true, name: true } },
+    updater: { columns: { id: true, name: true } },
     parent: {
         columns: {
             id: true,
@@ -555,6 +559,8 @@ function sanitizeSoftAssetPayload(body = {}) {
         galleryUrls: Array.isArray(body.galleryUrls)
             ? body.galleryUrls.map((url) => normalizeUrlText(url, 2000)).filter(Boolean).slice(0, 12)
             : [],
+        website: normalizeUrlText(body.website, 2000),
+        socialLinks: normalizeSocialLinks(body.socialLinks),
         newTags: cleanTagList(body.newTags),
         contactPhone: cleanOptionalOneLineText(body.contactPhone, 50),
         whatsappContact: cleanOptionalOneLineText(body.whatsappContact, 255),
@@ -579,6 +585,8 @@ function sanitizeSoftAssetPatch(body = {}) {
         'logoUrl',
         'bannerUrl',
         'galleryUrls',
+        'website',
+        'socialLinks',
         'newTags',
         'contactPhone',
         'whatsappContact',
@@ -599,7 +607,7 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
     const allLocations = getSoftAssetLocations(asset);
     const visibleLocations = allLocations
         .filter((location) => isAssetVisible(location, viewer, { ownerPartner: location.partner, allowedPartnerAudienceIds, allowedAudienceZoneIds }));
-    const { parent, hostHardAsset, tags, locations, audienceZones, groupMembers, ...assetRest } = asset;
+    const { parent, hostHardAsset, tags, locations, audienceZones, groupMembers, updater, ...assetRest } = asset;
     const resolvedAudienceZones = getAssetAudienceZones(asset);
     const groupPayload = isGroupSoftAsset(asset) ? buildPublicGroupPayload(asset) : null;
     const groupMetadata = isGroupSoftAsset(asset) ? buildGroupDiscoverMetadata(asset) : null;
@@ -612,6 +620,7 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         partnerRole: asset.partner?.role ? normalizeRole(asset.partner.role) : null,
         ownershipMode: asset.partnerId ? 'partner' : 'system',
         creatorName: asset.creator?.name || null,
+        updatedByName: asset.updater?.name || asset.creator?.name || null,
         audienceMode: asset.audienceMode || 'public',
         tags: asset.tags.map((entry) => entry.tag.name),
         audienceZones: resolvedAudienceZones,
@@ -947,6 +956,9 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
         bannerUrl,
         galleryUrls,
         newTags = [],
+        subCategory,
+        website,
+        socialLinks,
         isHidden,
         hideFrom,
         hideUntil,
@@ -983,15 +995,18 @@ async function createGroupSoftAsset(c, db, user, body, linkedIds) {
         }),
         partnerId: null,
         createdByUserId: user.id,
+        updatedByUserId: user.id,
         subregionId: finalSubregionId,
         name,
         bucket: null,
-        subCategory: 'Groups',
+        subCategory: subCategory || 'Groups',
         description: description || null,
         schedule: schedule || null,
         logoUrl: logoUrl || null,
         bannerUrl: bannerUrl || null,
         galleryUrls: normalizeGalleryUrls(galleryUrls),
+        website: website || null,
+        socialLinks: normalizeSocialLinks(socialLinks),
         audienceMode,
         isMemberOnly: false,
         eligibilityRules: null,
@@ -1071,12 +1086,14 @@ async function updateGroupSoftAsset(c, db, user, existing, body) {
         subregionId: finalSubregionId,
         name: body.name ?? existing.name,
         bucket: null,
-        subCategory: 'Groups',
+        subCategory: body.subCategory !== undefined ? (body.subCategory || 'Groups') : (existing.subCategory || 'Groups'),
         description: body.description !== undefined ? (body.description || null) : existing.description,
         schedule: body.schedule !== undefined ? (body.schedule || null) : existing.schedule,
         logoUrl: body.logoUrl !== undefined ? (body.logoUrl || null) : existing.logoUrl,
         bannerUrl: body.bannerUrl !== undefined ? (body.bannerUrl || null) : existing.bannerUrl,
         galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : existing.galleryUrls,
+        website: body.website !== undefined ? (body.website || null) : existing.website,
+        socialLinks: body.socialLinks !== undefined ? normalizeSocialLinks(body.socialLinks) : normalizeSocialLinks(existing.socialLinks),
         audienceMode,
         isMemberOnly: false,
         eligibilityRules: null,
@@ -1093,6 +1110,7 @@ async function updateGroupSoftAsset(c, db, user, existing, body) {
         isHidden: body.isHidden !== undefined ? Boolean(body.isHidden) : existing.isHidden,
         hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
         hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
+        updatedByUserId: user.id,
         updatedAt: new Date(),
     };
 
