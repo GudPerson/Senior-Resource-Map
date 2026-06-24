@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import {
     formatGroupSaveErrorMessage,
     formatGroupMemberCountLine,
+    formatGroupReviewDate,
+    getGroupGalleryUrls,
     getGroupMemberCounts,
+    getGroupVisibilitySummary,
     isGroupAsset,
 } from '../src/lib/groupAssets.js';
 
@@ -43,4 +46,21 @@ test('Group save errors explain when the API does not support Groups yet', () =>
         formatGroupSaveErrorMessage(new Error('Database unavailable')),
         'Database unavailable'
     );
+});
+
+test('Group public detail helpers summarize visibility, review date, and gallery safely', () => {
+    assert.deepEqual(getGroupVisibilitySummary({ audienceMode: 'public' }), {
+        label: 'Public',
+        detail: 'Open to everyone',
+    });
+    assert.deepEqual(getGroupVisibilitySummary({ audienceMode: 'target_regions', coverageRegionIds: [129, '130'] }), {
+        label: 'Target region/s',
+        detail: '2 selected Regions',
+    });
+    assert.equal(formatGroupReviewDate('2026-06-24T00:00:00.000Z', 'en-SG'), '24 Jun 2026');
+    assert.equal(formatGroupReviewDate('not a date', 'en-SG'), '');
+    assert.deepEqual(getGroupGalleryUrls({ galleryUrls: [' https://one.test/a.png ', '', null, 'https://two.test/b.png'] }), [
+        'https://one.test/a.png',
+        'https://two.test/b.png',
+    ]);
 });

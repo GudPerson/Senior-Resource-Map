@@ -26,7 +26,13 @@ import { localizeResource } from '../lib/localization.js';
 import { getSocialLinkEntries, mergeSocialLinks, splitWebsiteAndSocialLinks } from '../lib/socialLinks.js';
 import { buildWhatsAppContactHref, formatWhatsAppContactLabel } from '../lib/whatsappContact.js';
 import { shareResourceLink } from '../lib/resourceShare.js';
-import { formatGroupMemberCountLine, isGroupAsset } from '../lib/groupAssets.js';
+import {
+    formatGroupMemberCountLine,
+    formatGroupReviewDate,
+    getGroupGalleryUrls,
+    getGroupVisibilitySummary,
+    isGroupAsset,
+} from '../lib/groupAssets.js';
 import {
     getResourceDetailPhone,
     getResourceHeroPresentation,
@@ -304,6 +310,9 @@ export default function ResourceDetailContent({
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
         : Boolean(!isGroup && primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
     const groupMemberSections = isGroup ? getGroupMemberSections(asset) : [];
+    const groupVisibilitySummary = isGroup ? getGroupVisibilitySummary(asset) : null;
+    const groupReviewDate = isGroup ? formatGroupReviewDate(asset.lastReviewedAt || asset.last_reviewed_at, locale) : '';
+    const groupGalleryUrls = isGroup ? getGroupGalleryUrls(asset, isCompact ? 4 : 6) : [];
     const grabAddress = String(primaryAddress || '').trim();
     const grabPlaceName = String(((isHard ? asset?.name : primaryLocation?.name) || asset?.name || '')).trim();
     const grabClipboardText = buildGrabClipboardDestination({
@@ -527,6 +536,22 @@ export default function ResourceDetailContent({
                                         {formatGroupMemberCountLine(asset)}
                                     </span>
                                 ) : null}
+                                {isGroup && groupVisibilitySummary ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-sm font-bold text-slate-700 border border-slate-200"
+                                    >
+                                        <Globe size={15} />
+                                        {groupVisibilitySummary.label}
+                                    </span>
+                                ) : null}
+                                {isGroup && groupReviewDate ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-sm font-bold text-slate-700 border border-slate-200"
+                                    >
+                                        <Check size={15} />
+                                        Last reviewed {groupReviewDate}
+                                    </span>
+                                ) : null}
                                 {hasLinkedPlaceDetails ? (
                                     <span
                                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border"
@@ -619,6 +644,27 @@ export default function ResourceDetailContent({
                                 </div>
                             </div>
                         ))
+                    ) : null}
+
+                    {isGroup && groupVisibilitySummary ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Globe size={22} /></div>
+                            <div>
+                                <p className="font-bold text-slate-900 mb-1">Collection visibility</p>
+                                <p className="text-slate-700">{groupVisibilitySummary.label}</p>
+                                <p className="text-sm text-slate-500">{groupVisibilitySummary.detail}</p>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {isGroup && groupReviewDate ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Check size={22} /></div>
+                            <div>
+                                <p className="font-bold text-slate-900 mb-1">Last reviewed</p>
+                                <p className="text-slate-700">{groupReviewDate}</p>
+                            </div>
+                        </div>
                     ) : null}
 
                     {(asset.schedule || asset.hours) ? (
@@ -716,6 +762,23 @@ export default function ResourceDetailContent({
 
                     {isHard ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
                 </div>
+
+                {groupGalleryUrls.length > 0 ? (
+                    <div className="mt-8 pt-6 border-t border-slate-200">
+                        <h3 className="font-bold text-slate-900 mb-3 text-sm uppercase tracking-wider">Gallery</h3>
+                        <div className={isCompact ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-2 gap-3 sm:grid-cols-3'}>
+                            {groupGalleryUrls.map((url, index) => (
+                                <div key={`${url}-${index}`} className="aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                                    <img
+                                        src={url}
+                                        alt={`${asset.name || 'Group'} gallery image ${index + 1}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
 
                 {asset.tags && asset.tags.length > 0 ? (
                     <div className="mt-8 pt-6 border-t border-slate-200">

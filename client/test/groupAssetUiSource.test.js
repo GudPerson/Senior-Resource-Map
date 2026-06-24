@@ -27,6 +27,16 @@ test('Resource detail renders Group members outside hard Place offering buckets'
     assert.match(detailSource, /isHard && asset\.softAssets && asset\.softAssets\.length > 0/);
 });
 
+test('Resource detail gives Groups public profile parity with visibility, review, and gallery context', () => {
+    assert.match(detailSource, /getGroupVisibilitySummary/);
+    assert.match(detailSource, /formatGroupReviewDate/);
+    assert.match(detailSource, /getGroupGalleryUrls/);
+    assert.match(detailSource, /Collection visibility/);
+    assert.match(detailSource, /Last reviewed/);
+    assert.match(detailSource, /Gallery/);
+    assert.match(detailSource, /groupGalleryUrls\.map/);
+});
+
 test('Dashboard Resources keeps Groups on a separate tab and editor path', () => {
     assert.match(resourcesPageSource, /activeTab === 'groups'/);
     assert.match(resourcesPageSource, /Groups \(\{groupTabCount\}\)/);

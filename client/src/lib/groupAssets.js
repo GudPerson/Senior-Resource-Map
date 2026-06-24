@@ -30,6 +30,46 @@ export function formatGroupMemberCountLine(asset = {}) {
     return parts.length > 0 ? parts.join(' | ') : 'Needs members';
 }
 
+export function getGroupVisibilitySummary(asset = {}) {
+    const audienceMode = String(asset?.audienceMode || asset?.audience_mode || 'public').trim().toLowerCase();
+    if (audienceMode !== 'target_regions') {
+        return {
+            label: 'Public',
+            detail: 'Open to everyone',
+        };
+    }
+
+    const regionIds = Array.isArray(asset?.coverageRegionIds)
+        ? asset.coverageRegionIds
+        : (Array.isArray(asset?.coverage_region_ids) ? asset.coverage_region_ids : []);
+    const selectedCount = regionIds.filter((regionId) => String(regionId ?? '').trim() !== '').length;
+
+    return {
+        label: 'Target region/s',
+        detail: selectedCount === 1 ? '1 selected Region' : `${selectedCount} selected Regions`,
+    };
+}
+
+export function formatGroupReviewDate(value, locale = 'en-SG') {
+    if (!value) return '';
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+
+    return new Intl.DateTimeFormat(locale || 'en-SG', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(date);
+}
+
+export function getGroupGalleryUrls(asset = {}, limit = 3) {
+    const urls = Array.isArray(asset?.galleryUrls) ? asset.galleryUrls : [];
+    return urls
+        .map((url) => String(url || '').trim())
+        .filter(Boolean)
+        .slice(0, Math.max(0, limit));
+}
+
 export function formatGroupSaveErrorMessage(error) {
     const message = typeof error === 'string' ? error : (error?.message || '');
     if (/generated child offerings must be created from a parent template/i.test(message)) {
