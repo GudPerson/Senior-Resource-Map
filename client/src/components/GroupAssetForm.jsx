@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Globe, Image, Layers3, Mail, Phone, Plus, Search, ShieldCheck, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Eye, Globe, Image, Layers3, Mail, Phone, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
 
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import ImageUpload from './ImageUpload.jsx';
@@ -180,6 +180,7 @@ export default function GroupAssetForm({
     const [regionQuery, setRegionQuery] = useState('');
     const [loadingMembers, setLoadingMembers] = useState(Boolean(initialData?.id));
     const [submitting, setSubmitting] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
     const [error, setError] = useState('');
 
     const memberOptions = useMemo(() => buildMemberOptions(hardAssets, softAssets), [hardAssets, softAssets]);
@@ -209,8 +210,18 @@ export default function GroupAssetForm({
         () => memberOptions.filter((member) => !selectedKeys.has(member.key) && memberMatchesQuery(member, memberQuery)).slice(0, 60),
         [memberOptions, memberQuery, selectedKeys],
     );
-    const selectedPreviewAsset = useMemo(() => ({
+    const groupPreviewAsset = useMemo(() => ({
+        id: initialData?.id || 'preview',
         assetMode: 'group',
+        name: form.name || 'Untitled Group',
+        subCategory: form.subCategory || 'Group',
+        description: form.description,
+        schedule: form.schedule,
+        logoUrl: form.logoUrl,
+        bannerUrl: form.bannerUrl,
+        tags: splitTags(form.tags),
+        audienceMode: form.audienceMode,
+        coverageRegionIds: normalizeRegionIds(form.coverageRegionIds),
         groupMemberSummary: {
             counts: selectedMembers.reduce((counts, member) => {
                 const option = memberOptions.find((candidate) => candidate.type === member.memberResourceType && Number(candidate.id) === Number(member.memberResourceId));
@@ -222,14 +233,12 @@ export default function GroupAssetForm({
                 return counts;
             }, { places: 0, programmes: 0, services: 0, promotions: 0, total: 0 }),
         },
-    }), [memberOptions, selectedMembers]);
+    }), [form.audienceMode, form.bannerUrl, form.coverageRegionIds, form.description, form.logoUrl, form.name, form.schedule, form.subCategory, form.tags, initialData?.id, memberOptions, selectedMembers]);
     const ownerCount = initialData?.id
         ? Number(initialData?.groupOwnerCount || 0)
         : initialAccess.filter((row) => row.staffRole === 'owner').length;
     const readinessLabel = getReadinessLabel({ form, ownerCount, selectedMembers, memberRows });
     const updateSummary = initialData?.id ? formatGroupUpdateSummary(initialData) : null;
-    const canMoveNext = activeStep < STEPS.length - 1;
-    const canMovePrevious = activeStep > 0;
 
     useEffect(() => {
         let active = true;
@@ -366,20 +375,21 @@ export default function GroupAssetForm({
         return true;
     }
 
-    function goNext() {
-        if (!validateStep()) return;
-        setActiveStep((current) => Math.min(current + 1, STEPS.length - 1));
-    }
-
-    function goPrevious() {
-        setError('');
-        setActiveStep((current) => Math.max(current - 1, 0));
+    function validateSubmitSteps() {
+        const requiredSteps = initialData?.id ? [0, 1] : [0, 1, 2];
+        for (const stepIndex of requiredSteps) {
+            if (!validateStep(stepIndex)) {
+                setActiveStep(stepIndex);
+                return false;
+            }
+        }
+        return true;
     }
 
     async function handleSubmit(event) {
         event?.preventDefault?.();
         if (submitting) return;
-        if (!validateStep(0) || !validateStep(1) || (!initialData?.id && !validateStep(2))) return;
+        if (!validateSubmitSteps()) return;
         setError('');
         setSubmitting(true);
         try {
@@ -695,7 +705,7 @@ export default function GroupAssetForm({
                             <Layers3 size={14} />
                             {readinessLabel}
                         </div>
-                        <p className="mt-2 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(groupPreviewAsset)}</p>
                     </div>
                     {loadingMembers ? <span className="text-sm font-semibold text-slate-500">Loading members...</span> : null}
                     {memberCandidatesLoading ? <span className="text-sm font-semibold text-slate-500">Loading available members...</span> : null}
@@ -762,7 +772,7 @@ export default function GroupAssetForm({
                         <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
                         <p className="mt-1 text-sm font-semibold text-slate-500">{form.subCategory || 'Groups'}</p>
                         {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
-                        <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(selectedPreviewAsset)}</p>
+                        <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(groupPreviewAsset)}</p>
                         <div className="mt-4 grid gap-2 text-sm text-slate-600">
                             {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (
                                 <span className="inline-flex items-center gap-2"><Globe size={14} /> {formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })}</span>
@@ -843,9 +853,72 @@ export default function GroupAssetForm({
         );
     }
 
+    function renderGroupPreviewCard() {
+        const tags = splitTags(form.tags).slice(0, 6);
+        return (
+            <article className="asset-card card relative flex max-h-[70vh] flex-col overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-brand-50 to-transparent" />
+                <div className="relative flex items-start justify-between gap-3">
+                    <div className="inline-flex items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-bold text-slate-900">
+                        <Layers3 size={14} className="text-brand-700" />
+                        Group
+                    </div>
+                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                        Preview
+                    </span>
+                </div>
+
+                <div className="relative mt-4 flex items-center gap-3">
+                    {groupPreviewAsset.logoUrl ? (
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1">
+                            <img src={groupPreviewAsset.logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+                        </div>
+                    ) : null}
+                    <div className="min-w-0">
+                        <h3 className="text-lg font-black leading-tight text-slate-950">{groupPreviewAsset.name}</h3>
+                        <p className="mt-1 truncate text-sm font-semibold text-slate-500">{groupPreviewAsset.subCategory}</p>
+                    </div>
+                </div>
+
+                {groupPreviewAsset.description ? (
+                    <p className="relative mt-4 line-clamp-4 text-sm leading-6 text-slate-600">{groupPreviewAsset.description}</p>
+                ) : null}
+
+                <div className="relative mt-4 space-y-2 border-t border-slate-100 pt-4">
+                    <div className="flex items-start gap-2 text-sm font-semibold text-slate-600">
+                        <Layers3 size={15} className="mt-0.5 flex-shrink-0 text-brand-700" />
+                        <span>{formatGroupMemberCountLine(groupPreviewAsset)}</span>
+                    </div>
+                    {groupPreviewAsset.schedule ? (
+                        <div className="flex items-start gap-2 text-sm font-semibold text-slate-600">
+                            <CalendarDays size={15} className="mt-0.5 flex-shrink-0 text-brand-700" />
+                            <span className="whitespace-pre-line">{groupPreviewAsset.schedule}</span>
+                        </div>
+                    ) : null}
+                    {tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 pt-2">
+                            {tags.map((tag) => (
+                                <span key={tag} className="rounded-full border border-brand-100 bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+
+                {groupPreviewAsset.bannerUrl ? (
+                    <div className="relative mt-4 h-32 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                        <img src={groupPreviewAsset.bannerUrl} alt="" className="h-full w-full object-cover" />
+                    </div>
+                ) : null}
+            </article>
+        );
+    }
+
     return (
-        <div className="space-y-6">
-            <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-slate-50" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
+        <div className="group-wizard-shell flex h-[74vh] max-h-[760px] flex-col overflow-hidden">
+            <div className="group-wizard-tabbar shrink-0 bg-white pb-4">
+                <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-slate-50" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
                 {STEPS.map((step, index) => (
                     <button
                         key={step}
@@ -859,39 +932,53 @@ export default function GroupAssetForm({
                         <span className="truncate">{step}</span>
                     </button>
                 ))}
+                </div>
             </div>
 
-            {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                    {error}
+            <div className="group-wizard-workspace min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="space-y-6 pb-4">
+                    {error ? (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                            {error}
+                        </div>
+                    ) : null}
+
+                    {activeStep === 0 ? renderProfileStep() : null}
+                    {activeStep === 1 ? renderVisibilityStep() : null}
+                    {activeStep === 2 ? renderAccessStep() : null}
+                    {activeStep === 3 ? renderMembersStep() : null}
+                    {activeStep === 4 ? renderReviewStep() : null}
                 </div>
-            ) : null}
+            </div>
 
-            {activeStep === 0 ? renderProfileStep() : null}
-            {activeStep === 1 ? renderVisibilityStep() : null}
-            {activeStep === 2 ? renderAccessStep() : null}
-            {activeStep === 3 ? renderMembersStep() : null}
-            {activeStep === 4 ? renderReviewStep() : null}
-
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
+            <div className="group-wizard-footer flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white pt-5">
                 <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>Cancel</button>
                 <div className="flex flex-wrap justify-end gap-3">
-                    {canMovePrevious ? (
-                        <button type="button" className="btn-secondary" onClick={goPrevious} disabled={submitting}>
-                            <ChevronLeft size={16} /> Back
-                        </button>
-                    ) : null}
-                    {canMoveNext ? (
-                        <button type="button" className="btn-primary" onClick={goNext} disabled={submitting}>
-                            Next <ChevronRight size={16} />
-                        </button>
-                    ) : (
-                        <button type="button" onClick={handleSubmit} className="btn-primary" disabled={submitting}>
-                            {submitting ? 'Saving...' : 'Save Group'}
-                        </button>
-                    )}
+                    <button type="button" className="btn-secondary" onClick={() => setShowPreview(true)} disabled={submitting}>
+                        <Eye size={16} /> <span>Preview</span>
+                    </button>
+                    <button type="button" onClick={handleSubmit} className="btn-primary" disabled={submitting}>
+                        <Save size={16} /> {submitting ? 'Saving...' : 'Save Group'}
+                    </button>
                 </div>
             </div>
+
+            {showPreview ? (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Group card preview">
+                    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-950">Group card preview</h3>
+                                <p className="mt-1 text-sm font-semibold text-slate-500">Unsaved edits shown as a public resource card.</p>
+                            </div>
+                            <button type="button" className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600" onClick={() => setShowPreview(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        {renderGroupPreviewCard()}
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

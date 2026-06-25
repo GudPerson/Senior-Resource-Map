@@ -130,6 +130,24 @@ test('Group asset form uses resource profile fields and system update accountabi
     assert.doesNotMatch(groupFormSource, /lastReviewedAt: form\.lastReviewedAt/);
 });
 
+test('Group asset wizard uses static tab and action bars with preview instead of Back and Next', () => {
+    assert.match(groupFormSource, /group-wizard-shell/);
+    assert.match(groupFormSource, /group-wizard-tabbar/);
+    assert.match(groupFormSource, /group-wizard-workspace/);
+    assert.match(groupFormSource, /group-wizard-footer/);
+    assert.match(groupFormSource, /renderGroupPreviewCard/);
+    assert.match(groupFormSource, /showPreview/);
+    assert.match(groupFormSource, />Preview</);
+    assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
+    assert.match(resourcesPageSource, /bodyClassName="overflow-hidden"/);
+    assert.doesNotMatch(groupFormSource, /goNext/);
+    assert.doesNotMatch(groupFormSource, /goPrevious/);
+    assert.doesNotMatch(groupFormSource, /ChevronLeft/);
+    assert.doesNotMatch(groupFormSource, /ChevronRight/);
+    assert.doesNotMatch(groupFormSource, /> Back/);
+    assert.doesNotMatch(groupFormSource, />\s*Next\s*</);
+});
+
 test('Dashboard inline action guard preserves Group access drawers on the Groups tab', () => {
     assert.match(resourcesPageSource, /currentInlineAssetType = inlineAction\.assetType \|\| 'hard'/);
     assert.match(resourcesPageSource, /activeTab === 'groups'[\s\S]*\? 'group'/);

@@ -3193,6 +3193,7 @@ export default function ResourcesPage() {
                     description="Curate a public collection from existing places and offerings."
                     onClose={() => setGroupModal(null)}
                     maxWidth="max-w-5xl"
+                    bodyClassName="overflow-hidden"
                 >
                     {groupModal.loading ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
