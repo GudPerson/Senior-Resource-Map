@@ -49,6 +49,8 @@ test('Resource detail gives Groups public profile parity with visibility, update
 });
 
 test('Dashboard Resources keeps Groups on a separate tab and editor path', () => {
+    const groupTabSource = sourceBetween(resourcesPageSource, ") : activeTab === 'groups' ? (", ") : activeTab === 'soft' ? (");
+
     assert.match(resourcesPageSource, /activeTab === 'groups'/);
     assert.match(resourcesPageSource, /Groups \(\{groupTabCount\}\)/);
     assert.match(resourcesPageSource, /GroupAssetForm/);
@@ -64,7 +66,10 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
     assert.match(groupFormSource, /assetMode: 'group'/);
     assert.match(groupFormSource, /replaceSoftAssetGroupMembers/);
     assert.match(groupFormSource, /initialAccess/);
-    assert.match(resourcesPageSource, /openAssetAccess\(asset, 'group'\)/);
+    assert.match(groupFormSource, /function renderAccessStep/);
+    assert.match(groupFormSource, /<AssetAccessPanel asset=\{initialData\} assetType="group" \/>/);
+    assert.doesNotMatch(groupTabSource, /openAssetAccess\(asset, 'group'\)/);
+    assert.doesNotMatch(groupTabSource, /AssetAccessPanel/);
     assert.match(groupFormSource, /isGroupAsset/);
 });
 
@@ -197,8 +202,14 @@ test('Group asset wizard uses static tab and action bars with preview instead of
     assert.doesNotMatch(groupFormSource, />\s*Next\s*</);
 });
 
-test('Dashboard inline action guard preserves Group access drawers on the Groups tab', () => {
+test('Dashboard keeps Group access inside the wizard instead of an inline row drawer', () => {
+    const groupTabSource = sourceBetween(resourcesPageSource, ") : activeTab === 'groups' ? (", ") : activeTab === 'soft' ? (");
+
     assert.match(resourcesPageSource, /currentInlineAssetType = inlineAction\.assetType \|\| 'hard'/);
-    assert.match(resourcesPageSource, /activeTab === 'groups'[\s\S]*\? 'group'/);
+    assert.match(groupFormSource, /function renderAccessStep/);
+    assert.match(groupFormSource, /<AssetAccessPanel asset=\{initialData\} assetType="group" \/>/);
+    assert.doesNotMatch(groupTabSource, /openAssetAccess\(asset, 'group'\)/);
+    assert.doesNotMatch(groupTabSource, /AssetAccessPanel/);
+    assert.doesNotMatch(resourcesPageSource, /activeTab === 'groups'[\s\S]*\? 'group'/);
     assert.doesNotMatch(resourcesPageSource, /activeTab !== 'hard' && inlineAction\.assetType !== 'soft'/);
 });
