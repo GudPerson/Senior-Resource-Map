@@ -38,18 +38,29 @@ export function SaveAssetButton({
 }) {
     const { isAuth } = useAuth();
     const { t } = useLocale();
-    const { isSaved, isSavedAssetPending, toggleSavedAsset } = useSavedAssets();
+    const {
+        isSaved,
+        isSavedAssetPending,
+        savedAssetsLoading,
+        savedAssetsLoadError,
+        toggleSavedAsset,
+    } = useSavedAssets();
 
     if (!isAuth) return null;
 
     const resolvedVariant = VARIANT_STYLES[variant] || VARIANT_STYLES.card;
     const saved = isSaved(resourceType, resourceId);
     const pending = isSavedAssetPending(resourceType, resourceId);
+    const savedAssetsUnavailable = Boolean(savedAssetsLoadError);
+    const disabled = pending || savedAssetsLoading || savedAssetsUnavailable;
+    const label = savedAssetsUnavailable
+        ? t('savedResourcesUnavailable')
+        : (saved ? t('removeFromMyDirectory') : t('saveToMyDirectory'));
 
     async function handleClick(event) {
         event.stopPropagation();
         onClick?.(event);
-        if (event.defaultPrevented || pending) {
+        if (event.defaultPrevented || disabled) {
             return;
         }
 
@@ -67,16 +78,17 @@ export function SaveAssetButton({
             className={joinClasses(
                 resolvedVariant.className,
                 pending ? 'cursor-wait opacity-70' : '',
+                savedAssetsUnavailable ? 'cursor-not-allowed opacity-60' : '',
                 className
             )}
             style={{
                 ...(saved ? resolvedVariant.savedStyle : resolvedVariant.unsavedStyle),
                 ...style,
             }}
-            aria-label={saved ? t('removeFromMyDirectory') : t('saveToMyDirectory')}
-            title={saved ? t('removeFromMyDirectory') : t('saveToMyDirectory')}
+            aria-label={label}
+            title={label}
             aria-pressed={saved}
-            disabled={pending}
+            disabled={disabled}
             data-testid={`save-asset-${resourceType}-${resourceId}`}
         >
             <Heart
