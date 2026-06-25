@@ -72,6 +72,8 @@ test('Group asset form uses wizard sections and upload controls without legacy r
     assert.match(groupFormSource, /Visibility/);
     assert.match(groupFormSource, /Access/);
     assert.match(groupFormSource, /Members/);
+    assert.match(groupFormSource, /Translate/);
+    assert.match(groupFormSource, /Restricted/);
     assert.match(groupFormSource, /Review/);
     assert.match(groupFormSource, /ImageUpload/);
     assert.match(groupFormSource, /label="Logo \/ Icon"/);
@@ -100,11 +102,24 @@ test('Group asset form exposes Target region visibility using existing Regions',
 });
 
 test('Group asset form exposes protected notes/files and translation review for saved Groups', () => {
+    const translationStepSource = sourceBetween(groupFormSource, 'function renderTranslationStep()', 'function renderRestrictedStep()');
+    const restrictedStepSource = sourceBetween(groupFormSource, 'function renderRestrictedStep()', 'function renderReviewStep()');
+    const reviewStepSource = sourceBetween(groupFormSource, 'function renderReviewStep()', 'function renderPreviewInfoRow');
+
     assert.match(groupFormSource, /PrivateResourceContentEditor/);
     assert.match(groupFormSource, /TranslationReviewPanel/);
-    assert.match(groupFormSource, /resourceType="soft"/);
-    assert.match(groupFormSource, /resourceId=\{initialData\.id\}/);
-    assert.match(groupFormSource, /Group management tools unlock after this Group is saved/);
+    assert.match(groupFormSource, /function renderTranslationStep/);
+    assert.match(groupFormSource, /function renderRestrictedStep/);
+    assert.match(translationStepSource, /TranslationReviewPanel/);
+    assert.match(translationStepSource, /resourceType="soft"/);
+    assert.match(translationStepSource, /resourceId=\{initialData\.id\}/);
+    assert.match(restrictedStepSource, /PrivateResourceContentEditor/);
+    assert.match(restrictedStepSource, /resourceType="soft"/);
+    assert.match(restrictedStepSource, /resourceId=\{initialData\.id\}/);
+    assert.match(groupFormSource, /Save this Group first\. Edit the saved Group again to use \{toolName\.toLowerCase\(\)\}/);
+    assert.match(reviewStepSource, /Translation review and restricted notes\/files are managed in their own tabs/);
+    assert.doesNotMatch(reviewStepSource, /TranslationReviewPanel/);
+    assert.doesNotMatch(reviewStepSource, /PrivateResourceContentEditor/);
 });
 
 test('Dashboard lets direct Group assignees see Groups without broad Group creation rights', () => {
@@ -150,6 +165,8 @@ test('Group asset form uses resource profile fields and system update accountabi
 });
 
 test('Group asset wizard uses static tab and action bars with preview instead of Back and Next', () => {
+    const tabbarSource = sourceBetween(groupFormSource, 'group-wizard-tabbar', 'group-wizard-workspace');
+
     assert.match(groupFormSource, /group-wizard-shell/);
     assert.match(groupFormSource, /group-wizard-tabbar/);
     assert.match(groupFormSource, /group-wizard-workspace/);
@@ -164,6 +181,8 @@ test('Group asset wizard uses static tab and action bars with preview instead of
     assert.doesNotMatch(groupFormSource, /public resource card/);
     assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
     assert.match(resourcesPageSource, /bodyClassName="overflow-hidden"/);
+    assert.doesNotMatch(tabbarSource, /index \+ 1/);
+    assert.doesNotMatch(tabbarSource, /text-\[11px\]/);
     assert.doesNotMatch(groupFormSource, /goNext/);
     assert.doesNotMatch(groupFormSource, /goPrevious/);
     assert.doesNotMatch(groupFormSource, /ChevronLeft/);

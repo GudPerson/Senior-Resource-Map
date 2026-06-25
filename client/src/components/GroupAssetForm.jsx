@@ -10,7 +10,7 @@ import { filterGroupRegionOptions, formatGroupMemberCountLine, formatGroupRegion
 import { normalizeRole } from '../lib/roles.js';
 import { SOCIAL_PLATFORMS, createEmptySocialLinks, normalizeSocialLinks } from '../lib/socialLinks.js';
 
-const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Review'];
+const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Translate', 'Restricted', 'Review'];
 const MAX_GROUP_GALLERY_IMAGES = 6;
 const GROUP_AUDIENCE_MODES = Object.freeze({
     PUBLIC: 'public',
@@ -848,6 +848,38 @@ export default function GroupAssetForm({
         );
     }
 
+    function renderSavedToolUnlockMessage(toolName) {
+        return (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm font-semibold text-slate-500">
+                Save this Group first. Edit the saved Group again to use {toolName.toLowerCase()}.
+            </div>
+        );
+    }
+
+    function renderTranslationStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Translation review');
+        return (
+            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                <TranslationReviewPanel
+                    resourceType="soft"
+                    resourceId={initialData.id}
+                />
+            </div>
+        );
+    }
+
+    function renderRestrictedStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Restricted notes and files');
+        return (
+            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                <PrivateResourceContentEditor
+                    resourceType="soft"
+                    resourceId={initialData.id}
+                />
+            </div>
+        );
+    }
+
     function renderReviewStep() {
         const galleryUrls = normalizeGalleryUrls(form.galleryUrls);
         return (
@@ -890,22 +922,9 @@ export default function GroupAssetForm({
                     ) : null}
                 </div>
 
-                {initialData?.id ? (
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <TranslationReviewPanel
-                            resourceType="soft"
-                            resourceId={initialData.id}
-                        />
-                        <PrivateResourceContentEditor
-                            resourceType="soft"
-                            resourceId={initialData.id}
-                        />
-                    </div>
-                ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
-                        Group management tools unlock after this Group is saved. Edit it again to review translations and add restricted notes or files.
-                    </div>
-                )}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                    Translation review and restricted notes/files are managed in their own tabs.
+                </div>
             </div>
         );
     }
@@ -1140,7 +1159,6 @@ export default function GroupAssetForm({
                         }}
                         className={`flex min-h-[48px] items-center justify-center gap-2 border-r border-slate-200 px-2 text-sm font-black last:border-r-0 ${index === activeStep ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-white'}`}
                     >
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-current text-[11px]">{index + 1}</span>
                         <span className="truncate">{step}</span>
                     </button>
                 ))}
@@ -1159,7 +1177,9 @@ export default function GroupAssetForm({
                     {activeStep === 1 ? renderVisibilityStep() : null}
                     {activeStep === 2 ? renderAccessStep() : null}
                     {activeStep === 3 ? renderMembersStep() : null}
-                    {activeStep === 4 ? renderReviewStep() : null}
+                    {activeStep === 4 ? renderTranslationStep() : null}
+                    {activeStep === 5 ? renderRestrictedStep() : null}
+                    {activeStep === 6 ? renderReviewStep() : null}
                 </div>
             </div>
 
