@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarDays, CheckCircle2, Clock, ExternalLink, Eye, Globe, Image, Layers3, Mail, MessageCircle, Phone, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
+import { Building2, CalendarDays, CheckCircle2, Clock, ExternalLink, Eye, Globe, Layers3, Mail, MessageCircle, Phone, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
 
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import ImageUpload from './ImageUpload.jsx';
+import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 import { api } from '../lib/api.js';
@@ -10,7 +12,8 @@ import { filterGroupRegionOptions, formatGroupMemberCountLine, formatGroupRegion
 import { normalizeRole } from '../lib/roles.js';
 import { SOCIAL_PLATFORMS, createEmptySocialLinks, normalizeSocialLinks } from '../lib/socialLinks.js';
 
-const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Translate', 'Restricted', 'Review'];
+const STEPS = ['Profile', 'Visibility', 'Access', 'Members', 'Translate', 'Restricted'];
+const GROUP_TRANSLATION_EXCLUDED_FIELDS = Object.freeze(['venueNote']);
 const MAX_GROUP_GALLERY_IMAGES = 6;
 const GROUP_AUDIENCE_MODES = Object.freeze({
     PUBLIC: 'public',
@@ -536,10 +539,15 @@ export default function GroupAssetForm({
                     <span className="mb-1 block text-sm font-bold text-slate-700">Website</span>
                     <input className="input-field" value={form.website} onChange={(event) => updateField('website', event.target.value)} placeholder="https://example.org" />
                 </label>
-                <label className="block md:col-span-2">
-                    <span className="mb-1 block text-sm font-bold text-slate-700">Description</span>
-                    <textarea className="input-field min-h-[110px]" value={form.description} onChange={(event) => updateField('description', event.target.value)} />
-                </label>
+                <div className="md:col-span-2">
+                    <MarkdownDescriptionField
+                        id="group-description"
+                        value={form.description}
+                        onChange={(value) => updateField('description', value)}
+                        placeholder="Describe what this Group brings together..."
+                        rows={5}
+                    />
+                </div>
                 <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
                     <label className="block">
                         <span className="mb-1 block text-sm font-bold text-slate-700">Contact phone</span>
@@ -863,6 +871,7 @@ export default function GroupAssetForm({
                 <TranslationReviewPanel
                     resourceType="soft"
                     resourceId={initialData.id}
+                    excludedFields={GROUP_TRANSLATION_EXCLUDED_FIELDS}
                 />
             </div>
         );
@@ -876,55 +885,6 @@ export default function GroupAssetForm({
                     resourceType="soft"
                     resourceId={initialData.id}
                 />
-            </div>
-        );
-    }
-
-    function renderReviewStep() {
-        const galleryUrls = normalizeGalleryUrls(form.galleryUrls);
-        return (
-            <div className="grid gap-4">
-                <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-brand-700">
-                        <CheckCircle2 size={14} />
-                        {readinessLabel}
-                    </div>
-                    <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">{form.subCategory || 'Groups'}</p>
-                    {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
-                    <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(groupPreviewAsset)}</p>
-                    <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-                        {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (
-                            <span className="inline-flex items-center gap-2"><Globe size={14} /> {formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })}</span>
-                        ) : (
-                            <span className="inline-flex items-center gap-2"><Globe size={14} /> Public</span>
-                        )}
-                        {form.website ? <span className="inline-flex items-center gap-2"><Globe size={14} /> {form.website}</span> : null}
-                        {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
-                        {form.whatsappContact ? <span className="inline-flex items-center gap-2"><MessageCircle size={14} /> {form.whatsappContact}</span> : null}
-                        {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
-                        {form.ctaLabel || form.ctaUrl ? <span className="inline-flex items-center gap-2"><ExternalLink size={14} /> {form.ctaLabel || 'CTA link'}{form.ctaUrl ? ` - ${form.ctaUrl}` : ''}</span> : null}
-                        {galleryUrls.length > 0 ? <span className="inline-flex items-center gap-2"><Image size={14} /> {galleryUrls.length === 1 ? '1 gallery image added' : `${galleryUrls.length} gallery images added`}</span> : null}
-                    </div>
-                    {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && selectedRegionOptions.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {selectedRegionOptions.slice(0, 6).map((region) => (
-                                <span key={`review-region-${region.id}`} className="inline-flex max-w-full items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                                    <span className="truncate">{region.label}</span>
-                                </span>
-                            ))}
-                            {selectedRegionOptions.length > 6 ? (
-                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                                    +{selectedRegionOptions.length - 6} more
-                                </span>
-                            ) : null}
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
-                    Translation review and restricted notes/files are managed in their own tabs.
-                </div>
             </div>
         );
     }
@@ -1006,7 +966,7 @@ export default function GroupAssetForm({
 
                     <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-600">
                         {groupPreviewAsset.description ? (
-                            <p className="whitespace-pre-line">{groupPreviewAsset.description}</p>
+                            <MarkdownLiteText text={groupPreviewAsset.description} />
                         ) : (
                             <p className="italic text-slate-400">No description added yet.</p>
                         )}
@@ -1179,7 +1139,6 @@ export default function GroupAssetForm({
                     {activeStep === 3 ? renderMembersStep() : null}
                     {activeStep === 4 ? renderTranslationStep() : null}
                     {activeStep === 5 ? renderRestrictedStep() : null}
-                    {activeStep === 6 ? renderReviewStep() : null}
                 </div>
             </div>
 

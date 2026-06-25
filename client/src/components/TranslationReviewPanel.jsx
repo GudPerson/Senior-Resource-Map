@@ -29,6 +29,8 @@ const LANGUAGE_STATUS_LABELS = {
     missing: 'Missing translation',
 };
 
+const EMPTY_EXCLUDED_FIELDS = Object.freeze([]);
+
 function badgeClass(status) {
     if (status === 'missing') return 'border-red-200 bg-red-50 text-red-700';
     if (status === 'stale' || status === 'needs_review') return 'border-amber-200 bg-amber-50 text-amber-800';
@@ -107,7 +109,7 @@ function sortFieldStates(fieldStates) {
     return [...fieldStates].sort((a, b) => (priority[a.status] ?? 5) - (priority[b.status] ?? 5));
 }
 
-export default function TranslationReviewPanel({ resourceType, resourceId }) {
+export default function TranslationReviewPanel({ resourceType, resourceId, excludedFields = EMPTY_EXCLUDED_FIELDS }) {
     const [payload, setPayload] = useState(null);
     const [activeLocale, setActiveLocale] = useState('zh-CN');
     const [draftFields, setDraftFields] = useState({});
@@ -118,7 +120,12 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
-    const sourceFields = payload?.sourceFields || {};
+    const excludedFieldSet = useMemo(() => new Set((excludedFields || []).map((field) => String(field || '').trim()).filter(Boolean)), [excludedFields]);
+    const sourceFields = useMemo(() => (
+        Object.entries(payload?.sourceFields || {})
+            .filter(([field]) => !excludedFieldSet.has(field))
+            .reduce((fields, [field, value]) => ({ ...fields, [field]: value }), {})
+    ), [excludedFieldSet, payload?.sourceFields]);
     const sourceFieldNames = useMemo(() => Object.keys(sourceFields), [sourceFields]);
     const summaries = useMemo(() => {
         return (payload?.targetLocales || []).map((item) => buildLanguageSummary(
@@ -136,10 +143,12 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
         api.getResourceTranslations(resourceType, resourceId)
             .then((data) => {
                 if (cancelled) return;
+                const nextSourceFieldNames = Object.keys(data?.sourceFields || {})
+                    .filter((field) => !excludedFieldSet.has(field));
                 const nextSummaries = (data?.targetLocales || []).map((item) => buildLanguageSummary(
                     item.locale,
                     item.label,
-                    Object.keys(data?.sourceFields || {}),
+                    nextSourceFieldNames,
                     data?.translations?.[item.locale] || {},
                 ));
                 setPayload(data);
@@ -154,7 +163,7 @@ export default function TranslationReviewPanel({ resourceType, resourceId }) {
         return () => {
             cancelled = true;
         };
-    }, [resourceId, resourceType]);
+    }, [excludedFieldSet, resourceId, resourceType]);
 
     const activeSummary = summaries.find((item) => item.locale === activeLocale) || summaries[0] || null;
     const localeEntry = payload?.translations?.[activeLocale] || {};

@@ -7,6 +7,7 @@ const mobileCardSource = readFileSync(new URL('../src/features/discover/Discover
 const detailSource = readFileSync(new URL('../src/components/ResourceDetailContent.jsx', import.meta.url), 'utf8');
 const resourcesPageSource = readFileSync(new URL('../src/pages/dashboard/ResourcesPage.jsx', import.meta.url), 'utf8');
 const groupFormSource = readFileSync(new URL('../src/components/GroupAssetForm.jsx', import.meta.url), 'utf8');
+const translationPanelSource = readFileSync(new URL('../src/components/TranslationReviewPanel.jsx', import.meta.url), 'utf8');
 
 function sourceBetween(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
@@ -68,13 +69,16 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
 });
 
 test('Group asset form uses wizard sections and upload controls without legacy routing fields', () => {
+    const stepsDefinition = groupFormSource.match(/const STEPS = \[([^\]]+)\]/)?.[1] || '';
+
     assert.match(groupFormSource, /Profile/);
     assert.match(groupFormSource, /Visibility/);
     assert.match(groupFormSource, /Access/);
     assert.match(groupFormSource, /Members/);
     assert.match(groupFormSource, /Translate/);
     assert.match(groupFormSource, /Restricted/);
-    assert.match(groupFormSource, /Review/);
+    assert.doesNotMatch(stepsDefinition, /Review/);
+    assert.doesNotMatch(groupFormSource, /function renderReviewStep/);
     assert.match(groupFormSource, /ImageUpload/);
     assert.match(groupFormSource, /label="Logo \/ Icon"/);
     assert.match(groupFormSource, /label="Hero Banner"/);
@@ -103,8 +107,7 @@ test('Group asset form exposes Target region visibility using existing Regions',
 
 test('Group asset form exposes protected notes/files and translation review for saved Groups', () => {
     const translationStepSource = sourceBetween(groupFormSource, 'function renderTranslationStep()', 'function renderRestrictedStep()');
-    const restrictedStepSource = sourceBetween(groupFormSource, 'function renderRestrictedStep()', 'function renderReviewStep()');
-    const reviewStepSource = sourceBetween(groupFormSource, 'function renderReviewStep()', 'function renderPreviewInfoRow');
+    const restrictedStepSource = sourceBetween(groupFormSource, 'function renderRestrictedStep()', 'function renderPreviewInfoRow');
 
     assert.match(groupFormSource, /PrivateResourceContentEditor/);
     assert.match(groupFormSource, /TranslationReviewPanel/);
@@ -113,13 +116,14 @@ test('Group asset form exposes protected notes/files and translation review for 
     assert.match(translationStepSource, /TranslationReviewPanel/);
     assert.match(translationStepSource, /resourceType="soft"/);
     assert.match(translationStepSource, /resourceId=\{initialData\.id\}/);
+    assert.match(translationStepSource, /excludedFields=\{GROUP_TRANSLATION_EXCLUDED_FIELDS\}/);
+    assert.match(translationPanelSource, /excludedFields = EMPTY_EXCLUDED_FIELDS/);
+    assert.match(translationPanelSource, /excludedFieldSet/);
+    assert.match(translationPanelSource, /\.filter\(\(\[field\]\) => !excludedFieldSet\.has\(field\)\)/);
     assert.match(restrictedStepSource, /PrivateResourceContentEditor/);
     assert.match(restrictedStepSource, /resourceType="soft"/);
     assert.match(restrictedStepSource, /resourceId=\{initialData\.id\}/);
     assert.match(groupFormSource, /Save this Group first\. Edit the saved Group again to use \{toolName\.toLowerCase\(\)\}/);
-    assert.match(reviewStepSource, /Translation review and restricted notes\/files are managed in their own tabs/);
-    assert.doesNotMatch(reviewStepSource, /TranslationReviewPanel/);
-    assert.doesNotMatch(reviewStepSource, /PrivateResourceContentEditor/);
 });
 
 test('Dashboard lets direct Group assignees see Groups without broad Group creation rights', () => {
@@ -138,28 +142,30 @@ test('Group asset edit access can submit without nesting inside the Group save f
 
 test('Group asset form omits the misleading review notes field', () => {
     assert.doesNotMatch(groupFormSource, /Review notes/);
-    assert.doesNotMatch(groupFormSource, /venueNote/);
+    assert.match(groupFormSource, /GROUP_TRANSLATION_EXCLUDED_FIELDS = Object\.freeze\(\['venueNote'\]\)/);
+    assert.doesNotMatch(groupFormSource, /updateField\('venueNote'/);
+    assert.doesNotMatch(groupFormSource, /venueNote: form/);
 });
 
 test('Group asset form uses resource profile fields and system update accountability', () => {
     const profileStepSource = sourceBetween(groupFormSource, 'function renderProfileStep()', 'function renderAccessStep()');
-    const reviewStepSource = sourceBetween(groupFormSource, 'function renderReviewStep()', 'function renderPreviewInfoRow');
 
     assert.match(groupFormSource, /SOCIAL_PLATFORMS/);
     assert.match(groupFormSource, /Sub-category/);
     assert.match(groupFormSource, /Website/);
     assert.match(groupFormSource, /Social media/);
+    assert.match(groupFormSource, /MarkdownDescriptionField/);
+    assert.match(groupFormSource, /MarkdownLiteText/);
     assert.match(groupFormSource, /formatGroupUpdateSummary/);
     assert.match(groupFormSource, /socialLinks: form\.socialLinks/);
     assert.match(groupFormSource, /galleryUrls: normalizeGalleryUrls\(form\.galleryUrls\)/);
+    assert.match(profileStepSource, /id="group-description"/);
     assert.match(profileStepSource, /Contact phone/);
     assert.match(profileStepSource, /WhatsApp/);
     assert.match(profileStepSource, /Email/);
     assert.match(profileStepSource, /CTA label/);
     assert.match(profileStepSource, /CTA URL/);
     assert.match(profileStepSource, /updateSummary\.label/);
-    assert.doesNotMatch(reviewStepSource, /onChange=\{\(event\) => updateField\('contactPhone'/);
-    assert.doesNotMatch(reviewStepSource, /onChange=\{\(event\) => updateField\('ctaLabel'/);
     assert.doesNotMatch(groupFormSource, /Freshness date/);
     assert.doesNotMatch(groupFormSource, /lastReviewedAt: form\.lastReviewedAt/);
 });
