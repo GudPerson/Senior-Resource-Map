@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, Eye, Globe, Image, Layers3, Mail, Phone, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
+import { Building2, CalendarDays, CheckCircle2, Clock, ExternalLink, Eye, Globe, Image, Layers3, Mail, MessageCircle, Phone, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
 
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import ImageUpload from './ImageUpload.jsx';
@@ -67,6 +67,8 @@ function buildMemberOptions(hardAssets = [], softAssets = []) {
             address: asset.address || '',
             postalCode: asset.postalCode || '',
             tags: asset.tags || [],
+            description: asset.description || '',
+            logoUrl: asset.logoUrl || '',
             label: 'Place',
         }));
 
@@ -82,6 +84,9 @@ function buildMemberOptions(hardAssets = [], softAssets = []) {
             address: asset.location?.address || '',
             postalCode: asset.location?.postalCode || '',
             tags: asset.tags || [],
+            description: asset.description || '',
+            logoUrl: asset.logoUrl || '',
+            bucket: asset.bucket || '',
             label: asset.bucket || 'Offering',
         }));
 
@@ -95,6 +100,25 @@ function buildDefaultAccess(currentUser, accessUserOptions) {
     }
     const firstUser = accessUserOptions.map(normalizeUserOption).find(Boolean);
     return firstUser ? [{ userId: firstUser.id, staffRole: 'owner' }] : [];
+}
+
+function normalizeExternalHref(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const candidate = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    try {
+        return new URL(candidate).toString();
+    } catch {
+        return '';
+    }
+}
+
+function getPreviewMemberBucket(member, option = {}) {
+    if (member.memberResourceType === 'hard' || member.type === 'hard') return 'places';
+    const text = `${option.label || ''} ${option.subCategory || ''} ${option.bucket || ''}`.toLowerCase();
+    if (/promotion/.test(text)) return 'promotions';
+    if (/service/.test(text)) return 'services';
+    return 'programmes';
 }
 
 function normalizeRegionIds(values = []) {
@@ -219,6 +243,18 @@ export default function GroupAssetForm({
         schedule: form.schedule,
         logoUrl: form.logoUrl,
         bannerUrl: form.bannerUrl,
+        galleryUrls: normalizeGalleryUrls(form.galleryUrls),
+        website: form.website,
+        socialLinks: normalizeSocialLinks(form.socialLinks),
+        contactPhone: form.contactPhone,
+        whatsappContact: form.whatsappContact,
+        contactEmail: form.contactEmail,
+        ctaLabel: form.ctaLabel,
+        ctaUrl: form.ctaUrl,
+        updatedAt: initialData?.updatedAt || initialData?.updated_at || initialData?.createdAt || initialData?.created_at || '',
+        createdAt: initialData?.createdAt || initialData?.created_at || '',
+        updatedByName: initialData?.updatedByName || initialData?.updated_by_name || '',
+        creatorName: initialData?.creatorName || initialData?.creator_name || '',
         tags: splitTags(form.tags),
         audienceMode: form.audienceMode,
         coverageRegionIds: normalizeRegionIds(form.coverageRegionIds),
@@ -233,7 +269,30 @@ export default function GroupAssetForm({
                 return counts;
             }, { places: 0, programmes: 0, services: 0, promotions: 0, total: 0 }),
         },
-    }), [form.audienceMode, form.bannerUrl, form.coverageRegionIds, form.description, form.logoUrl, form.name, form.schedule, form.subCategory, form.tags, initialData?.id, memberOptions, selectedMembers]);
+    }), [form.audienceMode, form.bannerUrl, form.contactEmail, form.contactPhone, form.coverageRegionIds, form.ctaLabel, form.ctaUrl, form.description, form.galleryUrls, form.logoUrl, form.name, form.schedule, form.socialLinks, form.subCategory, form.tags, form.website, form.whatsappContact, initialData, memberOptions, selectedMembers]);
+    const previewMemberSections = useMemo(() => {
+        const sections = [
+            { key: 'places', label: 'Places', members: [] },
+            { key: 'programmes', label: 'Programmes', members: [] },
+            { key: 'services', label: 'Services', members: [] },
+            { key: 'promotions', label: 'Promotions', members: [] },
+        ];
+        const byKey = new Map(sections.map((section) => [section.key, section]));
+        selectedMembers.forEach((member) => {
+            const option = getSelectedOption(member) || {};
+            const bucket = getPreviewMemberBucket(member, option);
+            byKey.get(bucket)?.members.push({
+                key: `${member.memberResourceType}-${member.memberResourceId}`,
+                resourceType: member.memberResourceType,
+                id: member.memberResourceId,
+                name: option.name || 'Selected resource',
+                subCategory: option.subCategory || option.label || (member.memberResourceType === 'hard' ? 'Place' : 'Offering'),
+                description: option.description || '',
+                logoUrl: option.logoUrl || '',
+            });
+        });
+        return sections;
+    }, [memberOptions, memberRows, selectedMembers]);
     const ownerCount = initialData?.id
         ? Number(initialData?.groupOwnerCount || 0)
         : initialAccess.filter((row) => row.staffRole === 'owner').length;
@@ -481,6 +540,30 @@ export default function GroupAssetForm({
                     <span className="mb-1 block text-sm font-bold text-slate-700">Description</span>
                     <textarea className="input-field min-h-[110px]" value={form.description} onChange={(event) => updateField('description', event.target.value)} />
                 </label>
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
+                    <label className="block">
+                        <span className="mb-1 block text-sm font-bold text-slate-700">Contact phone</span>
+                        <input className="input-field" value={form.contactPhone} onChange={(event) => updateField('contactPhone', event.target.value)} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1 block text-sm font-bold text-slate-700">WhatsApp</span>
+                        <input className="input-field" value={form.whatsappContact} onChange={(event) => updateField('whatsappContact', event.target.value)} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1 block text-sm font-bold text-slate-700">Email</span>
+                        <input className="input-field" type="email" value={form.contactEmail} onChange={(event) => updateField('contactEmail', event.target.value)} />
+                    </label>
+                </div>
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+                    <label className="block">
+                        <span className="mb-1 block text-sm font-bold text-slate-700">CTA label</span>
+                        <input className="input-field" value={form.ctaLabel} onChange={(event) => updateField('ctaLabel', event.target.value)} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1 block text-sm font-bold text-slate-700">CTA URL</span>
+                        <input className="input-field" value={form.ctaUrl} onChange={(event) => updateField('ctaUrl', event.target.value)} />
+                    </label>
+                </div>
                 <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
                     <ImageUpload label="Logo / Icon" value={form.logoUrl} onChange={(url) => updateField('logoUrl', url)} />
                     <ImageUpload label="Hero Banner" value={form.bannerUrl} onChange={(url) => updateField('bannerUrl', url)} />
@@ -538,6 +621,12 @@ export default function GroupAssetForm({
                     <span className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700"><CalendarDays size={15} /> Schedule / notes</span>
                     <textarea className="input-field min-h-[88px]" value={form.schedule} onChange={(event) => updateField('schedule', event.target.value)} />
                 </label>
+                {updateSummary?.detail ? (
+                    <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{updateSummary.label}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-700">{updateSummary.detail}</p>
+                    </div>
+                ) : null}
             </div>
         );
     }
@@ -763,74 +852,42 @@ export default function GroupAssetForm({
         const galleryUrls = normalizeGalleryUrls(form.galleryUrls);
         return (
             <div className="grid gap-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                    <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-brand-700">
-                            <CheckCircle2 size={14} />
-                            {readinessLabel}
-                        </div>
-                        <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">{form.subCategory || 'Groups'}</p>
-                        {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
-                        <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(groupPreviewAsset)}</p>
-                        <div className="mt-4 grid gap-2 text-sm text-slate-600">
-                            {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (
-                                <span className="inline-flex items-center gap-2"><Globe size={14} /> {formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })}</span>
-                            ) : (
-                                <span className="inline-flex items-center gap-2"><Globe size={14} /> Public</span>
-                            )}
-                            {form.website ? <span className="inline-flex items-center gap-2"><Globe size={14} /> {form.website}</span> : null}
-                            {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
-                            {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
-                            {galleryUrls.length > 0 ? <span className="inline-flex items-center gap-2"><Image size={14} /> {galleryUrls.length === 1 ? '1 gallery image added' : `${galleryUrls.length} gallery images added`}</span> : null}
-                        </div>
-                        {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && selectedRegionOptions.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                {selectedRegionOptions.slice(0, 6).map((region) => (
-                                    <span key={`review-region-${region.id}`} className="inline-flex max-w-full items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                                        <span className="truncate">{region.label}</span>
-                                    </span>
-                                ))}
-                                {selectedRegionOptions.length > 6 ? (
-                                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                                        +{selectedRegionOptions.length - 6} more
-                                    </span>
-                                ) : null}
-                            </div>
-                        ) : null}
+                <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-brand-700">
+                        <CheckCircle2 size={14} />
+                        {readinessLabel}
                     </div>
-                    <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                        <div className="grid gap-4">
-                            <label className="block">
-                                <span className="mb-1 block text-sm font-bold text-slate-700">Contact phone</span>
-                                <input className="input-field" value={form.contactPhone} onChange={(event) => updateField('contactPhone', event.target.value)} />
-                            </label>
-                            <label className="block">
-                                <span className="mb-1 block text-sm font-bold text-slate-700">WhatsApp</span>
-                                <input className="input-field" value={form.whatsappContact} onChange={(event) => updateField('whatsappContact', event.target.value)} />
-                            </label>
-                            <label className="block">
-                                <span className="mb-1 block text-sm font-bold text-slate-700">Email</span>
-                                <input className="input-field" type="email" value={form.contactEmail} onChange={(event) => updateField('contactEmail', event.target.value)} />
-                            </label>
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <label className="block">
-                                    <span className="mb-1 block text-sm font-bold text-slate-700">CTA label</span>
-                                    <input className="input-field" value={form.ctaLabel} onChange={(event) => updateField('ctaLabel', event.target.value)} />
-                                </label>
-                                <label className="block">
-                                    <span className="mb-1 block text-sm font-bold text-slate-700">CTA URL</span>
-                                    <input className="input-field" value={form.ctaUrl} onChange={(event) => updateField('ctaUrl', event.target.value)} />
-                                </label>
-                            </div>
-                            {updateSummary?.detail ? (
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                    <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{updateSummary.label}</p>
-                                    <p className="mt-1 text-sm font-semibold text-slate-700">{updateSummary.detail}</p>
-                                </div>
+                    <h3 className="text-lg font-black text-slate-900">{form.name || 'Untitled Group'}</h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">{form.subCategory || 'Groups'}</p>
+                    {form.description ? <p className="mt-2 text-sm text-slate-600">{form.description}</p> : null}
+                    <p className="mt-3 text-sm font-semibold text-slate-600">{formatGroupMemberCountLine(groupPreviewAsset)}</p>
+                    <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+                        {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? (
+                            <span className="inline-flex items-center gap-2"><Globe size={14} /> {formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })}</span>
+                        ) : (
+                            <span className="inline-flex items-center gap-2"><Globe size={14} /> Public</span>
+                        )}
+                        {form.website ? <span className="inline-flex items-center gap-2"><Globe size={14} /> {form.website}</span> : null}
+                        {form.contactPhone ? <span className="inline-flex items-center gap-2"><Phone size={14} /> {form.contactPhone}</span> : null}
+                        {form.whatsappContact ? <span className="inline-flex items-center gap-2"><MessageCircle size={14} /> {form.whatsappContact}</span> : null}
+                        {form.contactEmail ? <span className="inline-flex items-center gap-2"><Mail size={14} /> {form.contactEmail}</span> : null}
+                        {form.ctaLabel || form.ctaUrl ? <span className="inline-flex items-center gap-2"><ExternalLink size={14} /> {form.ctaLabel || 'CTA link'}{form.ctaUrl ? ` - ${form.ctaUrl}` : ''}</span> : null}
+                        {galleryUrls.length > 0 ? <span className="inline-flex items-center gap-2"><Image size={14} /> {galleryUrls.length === 1 ? '1 gallery image added' : `${galleryUrls.length} gallery images added`}</span> : null}
+                    </div>
+                    {form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && selectedRegionOptions.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {selectedRegionOptions.slice(0, 6).map((region) => (
+                                <span key={`review-region-${region.id}`} className="inline-flex max-w-full items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                    <span className="truncate">{region.label}</span>
+                                </span>
+                            ))}
+                            {selectedRegionOptions.length > 6 ? (
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                    +{selectedRegionOptions.length - 6} more
+                                </span>
                             ) : null}
                         </div>
-                    </div>
+                    ) : null}
                 </div>
 
                 {initialData?.id ? (
@@ -853,65 +910,220 @@ export default function GroupAssetForm({
         );
     }
 
-    function renderGroupPreviewCard() {
-        const tags = splitTags(form.tags).slice(0, 6);
+    function renderPreviewInfoRow({ icon, label, children }) {
         return (
-            <article className="asset-card card relative flex max-h-[70vh] flex-col overflow-hidden">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-brand-50 to-transparent" />
-                <div className="relative flex items-start justify-between gap-3">
-                    <div className="inline-flex items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-bold text-slate-900">
-                        <Layers3 size={14} className="text-brand-700" />
-                        Group
-                    </div>
-                    <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                        Preview
-                    </span>
+            <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600">{icon}</div>
+                <div className="min-w-0">
+                    <p className="mb-1 font-bold text-slate-900">{label}</p>
+                    <div className="break-words text-slate-700">{children}</div>
                 </div>
+            </div>
+        );
+    }
 
-                <div className="relative mt-4 flex items-center gap-3">
-                    {groupPreviewAsset.logoUrl ? (
-                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1">
-                            <img src={groupPreviewAsset.logoUrl} alt="" className="max-h-full max-w-full object-contain" />
-                        </div>
-                    ) : null}
-                    <div className="min-w-0">
-                        <h3 className="text-lg font-black leading-tight text-slate-950">{groupPreviewAsset.name}</h3>
-                        <p className="mt-1 truncate text-sm font-semibold text-slate-500">{groupPreviewAsset.subCategory}</p>
+    function renderGroupDetailPreview() {
+        const tags = splitTags(form.tags).slice(0, 6);
+        const galleryUrls = normalizeGalleryUrls(form.galleryUrls);
+        const update = formatGroupUpdateSummary(groupPreviewAsset);
+        const visibilityLabel = form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS ? 'Target region/s' : 'Public';
+        const visibilityDetail = form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS
+            ? formatGroupRegionCountLine({ coverageRegionIds: form.coverageRegionIds })
+            : 'Open to everyone';
+        const websiteHref = normalizeExternalHref(form.website);
+        const ctaHref = normalizeExternalHref(form.ctaUrl);
+        const socialEntries = SOCIAL_PLATFORMS
+            .map((platform) => ({
+                ...platform,
+                url: normalizeExternalHref(form.socialLinks?.[platform.key]),
+            }))
+            .filter((entry) => entry.url);
+        const hasIncludedResources = previewMemberSections.some((section) => section.members.length > 0);
+        return (
+            <div className="space-y-5">
+                {(groupPreviewAsset.bannerUrl || groupPreviewAsset.logoUrl) ? (
+                    <div className="flex h-52 items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <img
+                            src={groupPreviewAsset.bannerUrl || groupPreviewAsset.logoUrl}
+                            alt=""
+                            className={groupPreviewAsset.bannerUrl ? 'h-full w-full object-cover' : 'max-h-full max-w-full object-contain p-6'}
+                        />
                     </div>
-                </div>
-
-                {groupPreviewAsset.description ? (
-                    <p className="relative mt-4 line-clamp-4 text-sm leading-6 text-slate-600">{groupPreviewAsset.description}</p>
                 ) : null}
 
-                <div className="relative mt-4 space-y-2 border-t border-slate-100 pt-4">
-                    <div className="flex items-start gap-2 text-sm font-semibold text-slate-600">
-                        <Layers3 size={15} className="mt-0.5 flex-shrink-0 text-brand-700" />
-                        <span>{formatGroupMemberCountLine(groupPreviewAsset)}</span>
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="mb-4 flex flex-col items-start gap-4 sm:flex-row">
+                        {groupPreviewAsset.logoUrl && groupPreviewAsset.bannerUrl ? (
+                            <img
+                                src={groupPreviewAsset.logoUrl}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain"
+                            />
+                        ) : null}
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 shadow-sm">
+                                <Layers3 size={16} />
+                                {groupPreviewAsset.subCategory || 'Group'}
+                            </div>
+                            <h1 className="text-3xl font-bold leading-tight text-slate-900">{groupPreviewAsset.name}</h1>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
+                                    <Layers3 size={15} />
+                                    {formatGroupMemberCountLine(groupPreviewAsset)}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                    <Globe size={15} />
+                                    {visibilityLabel}
+                                </span>
+                                {update?.detail ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                        <CheckCircle2 size={15} />
+                                        {update.label} · {update.detail}
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
                     </div>
-                    {groupPreviewAsset.schedule ? (
-                        <div className="flex items-start gap-2 text-sm font-semibold text-slate-600">
-                            <CalendarDays size={15} className="mt-0.5 flex-shrink-0 text-brand-700" />
-                            <span className="whitespace-pre-line">{groupPreviewAsset.schedule}</span>
+
+                    <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-600">
+                        {groupPreviewAsset.description ? (
+                            <p className="whitespace-pre-line">{groupPreviewAsset.description}</p>
+                        ) : (
+                            <p className="italic text-slate-400">No description added yet.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
+                        {renderPreviewInfoRow({
+                            icon: <Globe size={22} />,
+                            label: 'Collection visibility',
+                            children: (
+                                <>
+                                    <p>{visibilityLabel}</p>
+                                    <p className="text-sm text-slate-500">{visibilityDetail}</p>
+                                </>
+                            ),
+                        })}
+                        {update?.detail ? renderPreviewInfoRow({
+                            icon: <CheckCircle2 size={22} />,
+                            label: update.label,
+                            children: update.detail,
+                        }) : null}
+                        {form.schedule ? renderPreviewInfoRow({
+                            icon: <Clock size={22} />,
+                            label: 'Schedule',
+                            children: <span className="whitespace-pre-line">{form.schedule}</span>,
+                        }) : null}
+                        {websiteHref ? renderPreviewInfoRow({
+                            icon: <Globe size={22} />,
+                            label: 'Website',
+                            children: <span className="break-all text-brand-700">{form.website || websiteHref}</span>,
+                        }) : null}
+                        {form.contactEmail ? renderPreviewInfoRow({
+                            icon: <Mail size={22} />,
+                            label: 'Email',
+                            children: <span className="break-all text-brand-700">{form.contactEmail}</span>,
+                        }) : null}
+                        {ctaHref ? renderPreviewInfoRow({
+                            icon: <ExternalLink size={22} />,
+                            label: 'Link',
+                            children: <span className="break-all text-brand-700">{form.ctaLabel || 'Open link'}</span>,
+                        }) : null}
+                        {form.contactPhone ? renderPreviewInfoRow({
+                            icon: <Phone size={22} />,
+                            label: 'Contact',
+                            children: form.contactPhone,
+                        }) : null}
+                        {form.whatsappContact ? renderPreviewInfoRow({
+                            icon: <MessageCircle size={22} />,
+                            label: 'WhatsApp contact',
+                            children: form.whatsappContact,
+                        }) : null}
+                        {socialEntries.length > 0 ? renderPreviewInfoRow({
+                            icon: <Globe size={22} />,
+                            label: 'Social channels',
+                            children: (
+                                <div className="flex flex-wrap gap-2">
+                                    {socialEntries.map((entry) => (
+                                        <span key={entry.key} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-700">
+                                            {entry.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            ),
+                        }) : null}
+                    </div>
+
+                    {galleryUrls.length > 0 ? (
+                        <div className="mt-8 border-t border-slate-200 pt-6">
+                            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-900">Gallery</h3>
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                {galleryUrls.map((url, index) => (
+                                    <div key={`${url}-${index}`} className="aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                                        <img src={url} alt="" className="h-full w-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     ) : null}
+
                     {tags.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 pt-2">
+                        <div className="mt-8 border-t border-slate-200 pt-6">
+                            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-900">Tags</h3>
+                            <div className="flex flex-wrap gap-2">
                             {tags.map((tag) => (
-                                <span key={tag} className="rounded-full border border-brand-100 bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700">
+                                <span key={tag} className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
                                     #{tag}
                                 </span>
                             ))}
+                            </div>
                         </div>
                     ) : null}
-                </div>
+                </article>
 
-                {groupPreviewAsset.bannerUrl ? (
-                    <div className="relative mt-4 h-32 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                        <img src={groupPreviewAsset.bannerUrl} alt="" className="h-full w-full object-cover" />
+                <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div>
+                        <h2 className="text-2xl font-bold leading-tight text-slate-900">Included resources</h2>
+                        <p className="mt-1 text-sm text-slate-500">{formatGroupMemberCountLine(groupPreviewAsset)}</p>
                     </div>
-                ) : null}
-            </article>
+                    {hasIncludedResources ? (
+                        <div className="mt-6 grid gap-5">
+                            {previewMemberSections.map((section) => (
+                                section.members.length > 0 ? (
+                                    <section key={section.key} className="grid gap-3">
+                                        <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{section.label}</h3>
+                                        <div className="grid gap-3">
+                                            {section.members.map((member) => (
+                                                <div key={member.key} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                    {member.logoUrl ? (
+                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1">
+                                                            <img src={member.logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600">
+                                                            {member.resourceType === 'hard' ? <Building2 size={22} /> : <CalendarDays size={22} />}
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="line-clamp-2 text-base font-bold leading-tight text-slate-900">{member.name}</h4>
+                                                        {member.subCategory ? <p className="mt-1 text-sm font-semibold text-slate-500">{member.subCategory}</p> : null}
+                                                        {member.description ? <p className="mt-2 line-clamp-2 text-sm text-slate-600">{member.description}</p> : null}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                ) : null
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
+                            <p className="text-base font-bold text-slate-900">No included resources selected yet.</p>
+                            <p className="mt-1 text-sm text-slate-500">Add Places, programmes, services, or promotions on the Members step.</p>
+                        </div>
+                    )}
+                </section>
+            </div>
         );
     }
 
@@ -964,18 +1176,20 @@ export default function GroupAssetForm({
             </div>
 
             {showPreview ? (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Group card preview">
-                    <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Group detail preview">
+                    <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
                         <div className="mb-4 flex items-center justify-between gap-3">
                             <div>
-                                <h3 className="text-lg font-black text-slate-950">Group card preview</h3>
-                                <p className="mt-1 text-sm font-semibold text-slate-500">Unsaved edits shown as a public resource card.</p>
+                                <h3 className="text-lg font-black text-slate-950">Group detail preview</h3>
+                                <p className="mt-1 text-sm font-semibold text-slate-500">Unsaved edits shown as a public resource detail page.</p>
                             </div>
                             <button type="button" className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600" onClick={() => setShowPreview(false)}>
                                 <X size={20} />
                             </button>
                         </div>
-                        {renderGroupPreviewCard()}
+                        <div className="min-h-0 overflow-y-auto rounded-[28px] bg-slate-50 p-4">
+                            {renderGroupDetailPreview()}
+                        </div>
                     </div>
                 </div>
             ) : null}

@@ -8,6 +8,14 @@ const detailSource = readFileSync(new URL('../src/components/ResourceDetailConte
 const resourcesPageSource = readFileSync(new URL('../src/pages/dashboard/ResourcesPage.jsx', import.meta.url), 'utf8');
 const groupFormSource = readFileSync(new URL('../src/components/GroupAssetForm.jsx', import.meta.url), 'utf8');
 
+function sourceBetween(source, startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start + startMarker.length);
+    assert.notEqual(start, -1, `Missing source marker: ${startMarker}`);
+    assert.notEqual(end, -1, `Missing source marker: ${endMarker}`);
+    return source.slice(start, end);
+}
+
 test('Discover cards render Groups as collection cards without location directions', () => {
     assert.match(assetCardSource, /isGroupAsset/);
     assert.match(assetCardSource, /formatGroupMemberCountLine/);
@@ -119,6 +127,9 @@ test('Group asset form omits the misleading review notes field', () => {
 });
 
 test('Group asset form uses resource profile fields and system update accountability', () => {
+    const profileStepSource = sourceBetween(groupFormSource, 'function renderProfileStep()', 'function renderAccessStep()');
+    const reviewStepSource = sourceBetween(groupFormSource, 'function renderReviewStep()', 'function renderPreviewInfoRow');
+
     assert.match(groupFormSource, /SOCIAL_PLATFORMS/);
     assert.match(groupFormSource, /Sub-category/);
     assert.match(groupFormSource, /Website/);
@@ -126,6 +137,14 @@ test('Group asset form uses resource profile fields and system update accountabi
     assert.match(groupFormSource, /formatGroupUpdateSummary/);
     assert.match(groupFormSource, /socialLinks: form\.socialLinks/);
     assert.match(groupFormSource, /galleryUrls: normalizeGalleryUrls\(form\.galleryUrls\)/);
+    assert.match(profileStepSource, /Contact phone/);
+    assert.match(profileStepSource, /WhatsApp/);
+    assert.match(profileStepSource, /Email/);
+    assert.match(profileStepSource, /CTA label/);
+    assert.match(profileStepSource, /CTA URL/);
+    assert.match(profileStepSource, /updateSummary\.label/);
+    assert.doesNotMatch(reviewStepSource, /onChange=\{\(event\) => updateField\('contactPhone'/);
+    assert.doesNotMatch(reviewStepSource, /onChange=\{\(event\) => updateField\('ctaLabel'/);
     assert.doesNotMatch(groupFormSource, /Freshness date/);
     assert.doesNotMatch(groupFormSource, /lastReviewedAt: form\.lastReviewedAt/);
 });
@@ -135,9 +154,14 @@ test('Group asset wizard uses static tab and action bars with preview instead of
     assert.match(groupFormSource, /group-wizard-tabbar/);
     assert.match(groupFormSource, /group-wizard-workspace/);
     assert.match(groupFormSource, /group-wizard-footer/);
-    assert.match(groupFormSource, /renderGroupPreviewCard/);
+    assert.match(groupFormSource, /renderGroupDetailPreview/);
     assert.match(groupFormSource, /showPreview/);
     assert.match(groupFormSource, />Preview</);
+    assert.match(groupFormSource, /Group detail preview/);
+    assert.match(groupFormSource, /public resource detail page/);
+    assert.match(groupFormSource, /Included resources/);
+    assert.doesNotMatch(groupFormSource, /Group card preview/);
+    assert.doesNotMatch(groupFormSource, /public resource card/);
     assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
     assert.match(resourcesPageSource, /bodyClassName="overflow-hidden"/);
     assert.doesNotMatch(groupFormSource, /goNext/);
