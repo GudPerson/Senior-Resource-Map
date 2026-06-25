@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarDays, CheckCircle2, Clock, ExternalLink, Eye, Globe, Layers3, Mail, MessageCircle, Phone, Plus, Save, Search, ShieldCheck, X } from 'lucide-react';
+import { Building2, CalendarDays, CheckCircle2, Clock, ExternalLink, Globe, Layers3, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, X } from 'lucide-react';
 
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
+import ResourceWizardShell from './ResourceWizardShell.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 import { api } from '../lib/api.js';
 import { filterGroupRegionOptions, formatGroupMemberCountLine, formatGroupRegionCountLine, formatGroupSaveErrorMessage, formatGroupUpdateSummary, isGroupAsset } from '../lib/groupAssets.js';
@@ -207,7 +208,6 @@ export default function GroupAssetForm({
     const [regionQuery, setRegionQuery] = useState('');
     const [loadingMembers, setLoadingMembers] = useState(Boolean(initialData?.id));
     const [submitting, setSubmitting] = useState(false);
-    const [showPreview, setShowPreview] = useState(false);
     const [error, setError] = useState('');
 
     const memberOptions = useMemo(() => buildMemberOptions(hardAssets, softAssets), [hardAssets, softAssets]);
@@ -1106,72 +1106,32 @@ export default function GroupAssetForm({
         );
     }
 
+    function renderWizardStep(stepIndex) {
+        if (stepIndex === 0) return renderProfileStep();
+        if (stepIndex === 1) return renderVisibilityStep();
+        if (stepIndex === 2) return renderAccessStep();
+        if (stepIndex === 3) return renderMembersStep();
+        if (stepIndex === 4) return renderTranslationStep();
+        if (stepIndex === 5) return renderRestrictedStep();
+        return null;
+    }
+
     return (
-        <div className="group-wizard-shell flex h-[74vh] max-h-[760px] flex-col overflow-hidden">
-            <div className="group-wizard-tabbar shrink-0 bg-white pb-4">
-                <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-slate-50" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
-                {STEPS.map((step, index) => (
-                    <button
-                        key={step}
-                        type="button"
-                        onClick={() => {
-                            if (index <= activeStep || validateStep()) setActiveStep(index);
-                        }}
-                        className={`flex min-h-[48px] items-center justify-center gap-2 border-r border-slate-200 px-2 text-sm font-black last:border-r-0 ${index === activeStep ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-white'}`}
-                    >
-                        <span className="truncate">{step}</span>
-                    </button>
-                ))}
-                </div>
-            </div>
-
-            <div className="group-wizard-workspace min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="space-y-6 pb-4">
-                    {error ? (
-                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                            {error}
-                        </div>
-                    ) : null}
-
-                    {activeStep === 0 ? renderProfileStep() : null}
-                    {activeStep === 1 ? renderVisibilityStep() : null}
-                    {activeStep === 2 ? renderAccessStep() : null}
-                    {activeStep === 3 ? renderMembersStep() : null}
-                    {activeStep === 4 ? renderTranslationStep() : null}
-                    {activeStep === 5 ? renderRestrictedStep() : null}
-                </div>
-            </div>
-
-            <div className="group-wizard-footer flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white pt-5">
-                <button type="button" className="btn-secondary" onClick={onCancel} disabled={submitting}>Cancel</button>
-                <div className="flex flex-wrap justify-end gap-3">
-                    <button type="button" className="btn-secondary" onClick={() => setShowPreview(true)} disabled={submitting}>
-                        <Eye size={16} /> <span>Preview</span>
-                    </button>
-                    <button type="button" onClick={handleSubmit} className="btn-primary" disabled={submitting}>
-                        <Save size={16} /> {submitting ? 'Saving...' : 'Save Group'}
-                    </button>
-                </div>
-            </div>
-
-            {showPreview ? (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Group detail preview">
-                    <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <div>
-                                <h3 className="text-lg font-black text-slate-950">Group detail preview</h3>
-                                <p className="mt-1 text-sm font-semibold text-slate-500">Unsaved edits shown as a public resource detail page.</p>
-                            </div>
-                            <button type="button" className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600" onClick={() => setShowPreview(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="min-h-0 overflow-y-auto rounded-[28px] bg-slate-50 p-4">
-                            {renderGroupDetailPreview()}
-                        </div>
-                    </div>
-                </div>
-            ) : null}
-        </div>
+        <ResourceWizardShell
+            steps={STEPS}
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+            validateStep={validateStep}
+            error={error}
+            renderStep={renderWizardStep}
+            onCancel={onCancel}
+            onSave={handleSubmit}
+            saving={submitting}
+            saveLabel="Save Group"
+            savingLabel="Saving..."
+            previewTitle="Group detail preview"
+            previewDescription="Unsaved edits shown as a public resource detail page."
+            renderPreview={renderGroupDetailPreview}
+        />
     );
 }

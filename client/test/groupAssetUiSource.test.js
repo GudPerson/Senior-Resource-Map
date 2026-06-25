@@ -7,6 +7,7 @@ const mobileCardSource = readFileSync(new URL('../src/features/discover/Discover
 const detailSource = readFileSync(new URL('../src/components/ResourceDetailContent.jsx', import.meta.url), 'utf8');
 const resourcesPageSource = readFileSync(new URL('../src/pages/dashboard/ResourcesPage.jsx', import.meta.url), 'utf8');
 const groupFormSource = readFileSync(new URL('../src/components/GroupAssetForm.jsx', import.meta.url), 'utf8');
+const wizardShellSource = readFileSync(new URL('../src/components/ResourceWizardShell.jsx', import.meta.url), 'utf8');
 const translationPanelSource = readFileSync(new URL('../src/components/TranslationReviewPanel.jsx', import.meta.url), 'utf8');
 
 function sourceBetween(source, startMarker, endMarker) {
@@ -141,7 +142,7 @@ test('Dashboard lets direct Group assignees see Groups without broad Group creat
 
 test('Group asset edit access can submit without nesting inside the Group save form', () => {
     assert.doesNotMatch(groupFormSource, /<form onSubmit=\{handleSubmit\}/);
-    assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
+    assert.match(groupFormSource, /onSave=\{handleSubmit\}/);
     assert.doesNotMatch(groupFormSource, /type="submit" className="btn-primary" disabled=\{submitting\}/);
 });
 
@@ -176,30 +177,34 @@ test('Group asset form uses resource profile fields and system update accountabi
 });
 
 test('Group asset wizard uses static tab and action bars with preview instead of Back and Next', () => {
-    const tabbarSource = sourceBetween(groupFormSource, 'group-wizard-tabbar', 'group-wizard-workspace');
+    const tabbarSource = sourceBetween(wizardShellSource, 'resource-wizard-tabbar', 'resource-wizard-workspace');
 
-    assert.match(groupFormSource, /group-wizard-shell/);
-    assert.match(groupFormSource, /group-wizard-tabbar/);
-    assert.match(groupFormSource, /group-wizard-workspace/);
-    assert.match(groupFormSource, /group-wizard-footer/);
+    assert.match(groupFormSource, /import ResourceWizardShell from '\.\/ResourceWizardShell\.jsx';/);
+    assert.match(groupFormSource, /<ResourceWizardShell/);
+    assert.match(groupFormSource, /steps=\{STEPS\}/);
+    assert.match(groupFormSource, /renderStep=\{renderWizardStep\}/);
+    assert.match(wizardShellSource, /resource-wizard-shell/);
+    assert.match(wizardShellSource, /resource-wizard-tabbar/);
+    assert.match(wizardShellSource, /resource-wizard-workspace/);
+    assert.match(wizardShellSource, /resource-wizard-footer/);
     assert.match(groupFormSource, /renderGroupDetailPreview/);
-    assert.match(groupFormSource, /showPreview/);
-    assert.match(groupFormSource, />Preview</);
-    assert.match(groupFormSource, /Group detail preview/);
-    assert.match(groupFormSource, /public resource detail page/);
+    assert.match(wizardShellSource, /showPreview/);
+    assert.match(wizardShellSource, /previewLabel = 'Preview'/);
+    assert.match(groupFormSource, /previewTitle="Group detail preview"/);
+    assert.match(groupFormSource, /previewDescription="Unsaved edits shown as a public resource detail page\."/);
     assert.match(groupFormSource, /Included resources/);
     assert.doesNotMatch(groupFormSource, /Group card preview/);
     assert.doesNotMatch(groupFormSource, /public resource card/);
-    assert.match(groupFormSource, /onClick=\{handleSubmit\}/);
+    assert.match(groupFormSource, /onSave=\{handleSubmit\}/);
     assert.match(resourcesPageSource, /bodyClassName="overflow-hidden"/);
     assert.doesNotMatch(tabbarSource, /index \+ 1/);
     assert.doesNotMatch(tabbarSource, /text-\[11px\]/);
-    assert.doesNotMatch(groupFormSource, /goNext/);
-    assert.doesNotMatch(groupFormSource, /goPrevious/);
-    assert.doesNotMatch(groupFormSource, /ChevronLeft/);
-    assert.doesNotMatch(groupFormSource, /ChevronRight/);
-    assert.doesNotMatch(groupFormSource, /> Back/);
-    assert.doesNotMatch(groupFormSource, />\s*Next\s*</);
+    assert.doesNotMatch(wizardShellSource, /goNext/);
+    assert.doesNotMatch(wizardShellSource, /goPrevious/);
+    assert.doesNotMatch(wizardShellSource, /ChevronLeft/);
+    assert.doesNotMatch(wizardShellSource, /ChevronRight/);
+    assert.doesNotMatch(wizardShellSource, /> Back/);
+    assert.doesNotMatch(wizardShellSource, />\s*Next\s*</);
 });
 
 test('Dashboard keeps Group access inside the wizard instead of an inline row drawer', () => {
