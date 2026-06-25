@@ -45,6 +45,10 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
     assert.match(resourcesPageSource, /GroupAssetForm/);
     assert.match(resourcesPageSource, /offeringSoftAssets = useMemo/);
     assert.match(resourcesPageSource, /groupMemberCandidates/);
+    assert.match(resourcesPageSource, /groupMemberHardCandidateParams/);
+    assert.match(resourcesPageSource, /groupMemberSoftCandidateParams/);
+    assert.doesNotMatch(resourcesPageSource, /fetchAllPaginatedResults\(api\.getHardAssets, hardResourceListParams\)/);
+    assert.doesNotMatch(resourcesPageSource, /fetchAllPaginatedResults\(api\.getSoftAssets, softResourceListParams\)/);
     assert.match(resourcesPageSource, /hardAssets=\{groupMemberCandidates\.hard\}/);
     assert.match(resourcesPageSource, /softAssets=\{groupMemberCandidates\.soft\}/);
 

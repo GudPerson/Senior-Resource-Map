@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    buildGroupMemberCandidateListParams,
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
     buildManagedSoftResourceListParams,
@@ -108,6 +109,13 @@ test('buildManagedSoftResourceListParams requests lean summaries for managed sof
         canManageResourceTools: false,
         role: 'regional_admin',
     }), {});
+});
+
+test('buildGroupMemberCandidateListParams keeps Group member search on public candidates', () => {
+    assert.deepEqual(buildGroupMemberCandidateListParams({ assetType: 'hard' }), { summary: true });
+    assert.deepEqual(buildGroupMemberCandidateListParams({ assetType: 'soft' }), {});
+    assert.deepEqual(buildGroupMemberCandidateListParams({ assetType: 'hard' }).scope, undefined);
+    assert.deepEqual(buildGroupMemberCandidateListParams({ assetType: 'soft' }).scope, undefined);
 });
 
 test('resource list search debounce has a bounded demo-friendly delay', () => {

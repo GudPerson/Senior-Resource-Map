@@ -46,6 +46,7 @@ import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import {
+    buildGroupMemberCandidateListParams,
     buildManagedHardResourceListParams,
     buildManagedResourceListParams,
     buildManagedSoftResourceListParams,
@@ -718,6 +719,8 @@ export default function ResourcesPage() {
         canManageResourceTools,
         role: normalizedRole,
     });
+    const groupMemberHardCandidateParams = buildGroupMemberCandidateListParams({ assetType: 'hard' });
+    const groupMemberSoftCandidateParams = buildGroupMemberCandidateListParams({ assetType: 'soft' });
     const fullHardResourceListParams = withResourceListSearchParam(hardResourceListParams, normalizedQuery);
     const fullSoftResourceListParams = withResourceListSearchParam(softResourceListParams, normalizedQuery);
     const assetLoadKey = useMemo(() => (
@@ -1208,14 +1211,14 @@ export default function ResourcesPage() {
 
         try {
             const [allHardAssets, allSoftAssets] = await Promise.all([
-                fetchAllPaginatedResults(api.getHardAssets, hardResourceListParams),
-                fetchAllPaginatedResults(api.getSoftAssets, softResourceListParams),
+                fetchAllPaginatedResults(api.getHardAssets, groupMemberHardCandidateParams),
+                fetchAllPaginatedResults(api.getSoftAssets, groupMemberSoftCandidateParams),
             ]);
             if (requestId !== groupMemberCandidateRequestIdRef.current) return;
 
             setGroupMemberCandidates({
-                hard: scopeHardAssetsForCurrentUser(Array.isArray(allHardAssets) ? allHardAssets : []),
-                soft: scopeSoftAssetsForCurrentUser(Array.isArray(allSoftAssets) ? allSoftAssets : []).filter((asset) => !isGroupAsset(asset)),
+                hard: Array.isArray(allHardAssets) ? allHardAssets : [],
+                soft: (Array.isArray(allSoftAssets) ? allSoftAssets : []).filter((asset) => !isGroupAsset(asset)),
                 loading: false,
                 error: '',
             });
