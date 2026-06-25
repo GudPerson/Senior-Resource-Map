@@ -1,5 +1,5 @@
 import { tags, hardAssetTags, softAssetTags } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 /**
  * Syncs tags for an asset using any drizzle executor with select/insert/delete methods.
@@ -8,6 +8,10 @@ import { eq } from 'drizzle-orm';
 export async function syncAssetTags(tx, assetId, assetType, newTags) {
     if (!newTags) return;
 
+    const normalizedTags = [...new Set(newTags
+        .map((tag) => String(tag || '').trim().toLowerCase())
+        .filter(Boolean))];
+
     // Remove existing mappings
     if (assetType === 'hard') {
         await tx.delete(hardAssetTags).where(eq(hardAssetTags.hardAssetId, assetId));
@@ -15,28 +19,42 @@ export async function syncAssetTags(tx, assetId, assetType, newTags) {
         await tx.delete(softAssetTags).where(eq(softAssetTags.softAssetId, assetId));
     }
 
-    if (newTags.length === 0) return;
+    if (normalizedTags.length === 0) return;
 
-    // Map new tags
-    for (const t of newTags) {
-        const normalizedTag = t.trim().toLowerCase();
-        if (!normalizedTag) continue;
+    const existingTags = await tx.select().from(tags).where(inArray(tags.name, normalizedTags));
+    const existingNames = new Set(existingTags.map((tag) => tag.name));
+    const missingTagValues = normalizedTags
+        .filter((tag) => !existingNames.has(tag))
+        .map((name) => ({ name }));
 
-        let [existingTag] = await tx.select().from(tags).where(eq(tags.name, normalizedTag));
-        if (!existingTag) {
-            [existingTag] = await tx.insert(tags).values({ name: normalizedTag }).returning();
-        }
+    if (missingTagValues.length > 0) {
+        await tx.insert(tags).values(missingTagValues).onConflictDoNothing();
+    }
 
-        if (assetType === 'hard') {
-            await tx.insert(hardAssetTags).values({
-                hardAssetId: assetId,
-                tagId: existingTag.id
-            });
-        } else if (assetType === 'soft') {
-            await tx.insert(softAssetTags).values({
+    const syncedTags = await tx.select().from(tags).where(inArray(tags.name, normalizedTags));
+    const tagIdsByName = new Map(syncedTags.map((tag) => [tag.name, tag.id]));
+
+    const mappingValues = normalizedTags
+        .map((name) => tagIdsByName.get(name))
+        .filter((tagId) => Number.isInteger(tagId))
+        .map((tagId) => {
+            if (assetType === 'hard') {
+                return {
+                    hardAssetId: assetId,
+                    tagId,
+                };
+            }
+            return {
                 softAssetId: assetId,
-                tagId: existingTag.id
-            });
-        }
+                tagId,
+            };
+        });
+
+    if (mappingValues.length === 0) return;
+
+    if (assetType === 'hard') {
+        await tx.insert(hardAssetTags).values(mappingValues);
+    } else if (assetType === 'soft') {
+        await tx.insert(softAssetTags).values(mappingValues);
     }
 }
