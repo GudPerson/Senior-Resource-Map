@@ -21,6 +21,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import PartnerPrivatePanel from './PartnerPrivatePanel.jsx';
+import SaveAssetButton from './SaveAssetButton.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
 import { getSocialLinkEntries, mergeSocialLinks, splitWebsiteAndSocialLinks } from '../lib/socialLinks.js';
@@ -67,6 +68,34 @@ function getGroupMemberSections(asset = {}) {
         { key: 'services', label: 'Services', members: Array.isArray(members.services) ? members.services : [] },
         { key: 'promotions', label: 'Promotions', members: Array.isArray(members.promotions) ? members.promotions : [] },
     ];
+}
+
+function buildNestedResourceSaveSummary(resource = {}, resourceType, host = null) {
+    const firstLocation = Array.isArray(resource.locations) ? resource.locations[0] : null;
+    const location = resource.location || firstLocation || {};
+    const fallbackLocation = host || {};
+
+    return {
+        name: resource.name,
+        subCategory: resource.subCategory,
+        address: resource.address || location.address || fallbackLocation.address || null,
+        lat: resource.lat ?? location.lat ?? fallbackLocation.lat ?? null,
+        lng: resource.lng ?? location.lng ?? fallbackLocation.lng ?? null,
+        detailPath: `/resource/${resourceType}/${resource.id}`,
+    };
+}
+
+function handleRelatedResourceCardKeyDown(event, onActivate) {
+    if (event.target !== event.currentTarget && event.target?.closest?.('a,button,input,textarea,select,summary')) {
+        return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+    }
+
+    event.preventDefault();
+    onActivate?.();
 }
 
 function normalizeExternalHref(value) {
@@ -248,8 +277,8 @@ export default function ResourceDetailContent({
         ? 'rounded-2xl border px-3 py-3 text-left transition-colors'
         : 'rounded-2xl border px-2.5 py-2 text-left transition-colors sm:px-3';
     const relatedItemClass = isCompact
-        ? 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md cursor-pointer'
-        : 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md sm:gap-4 sm:p-4 cursor-pointer';
+        ? 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2 cursor-pointer'
+        : 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2 sm:gap-4 sm:p-4 cursor-pointer';
 
     const softLocations = useMemo(() => {
         if (isHard || isGroup) return [];
@@ -870,10 +899,15 @@ export default function ResourceDetailContent({
                                     <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{section.label}</h3>
                                     <div className="grid gap-3">
                                         {section.members.map((member) => (
-                                            <button
+                                            <div
                                                 key={`${member.resourceType}-${member.id}`}
-                                                type="button"
                                                 onClick={() => onNavigateToResource?.(member.resourceType, member.id)}
+                                                onKeyDown={(event) => handleRelatedResourceCardKeyDown(
+                                                    event,
+                                                    () => onNavigateToResource?.(member.resourceType, member.id),
+                                                )}
+                                                role="button"
+                                                tabIndex={0}
                                                 className={relatedItemClass}
                                             >
                                                 {member.logoUrl ? (
@@ -898,7 +932,16 @@ export default function ResourceDetailContent({
                                                         />
                                                     ) : null}
                                                 </div>
-                                            </button>
+                                                <div className="ml-1 flex flex-shrink-0 items-start">
+                                                    <SaveAssetButton
+                                                        resourceType={member.resourceType}
+                                                        resourceId={member.id}
+                                                        summary={buildNestedResourceSaveSummary(member, member.resourceType)}
+                                                        variant="card"
+                                                        iconSize={20}
+                                                    />
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 </section>
@@ -951,6 +994,12 @@ export default function ResourceDetailContent({
                             <div
                                 key={softAsset.id}
                                 onClick={() => onNavigateToResource?.('soft', softAsset.id)}
+                                onKeyDown={(event) => handleRelatedResourceCardKeyDown(
+                                    event,
+                                    () => onNavigateToResource?.('soft', softAsset.id),
+                                )}
+                                role="button"
+                                tabIndex={0}
                                 className={relatedItemClass}
                             >
                                 {softAsset.logoUrl ? (
@@ -977,6 +1026,15 @@ export default function ResourceDetailContent({
                                             className={isCompact ? 'mt-2 line-clamp-3 text-sm text-slate-600' : 'mt-2 line-clamp-2 text-xs text-slate-600 sm:text-sm'}
                                         />
                                     ) : null}
+                                </div>
+                                <div className="ml-1 flex flex-shrink-0 items-start">
+                                    <SaveAssetButton
+                                        resourceType="soft"
+                                        resourceId={softAsset.id}
+                                        summary={buildNestedResourceSaveSummary(softAsset, 'soft', asset)}
+                                        variant="card"
+                                        iconSize={20}
+                                    />
                                 </div>
                             </div>
                         )) : (

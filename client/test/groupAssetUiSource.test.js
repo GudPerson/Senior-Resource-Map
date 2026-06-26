@@ -37,6 +37,29 @@ test('Resource detail renders Group members outside hard Place offering buckets'
     assert.match(detailSource, /isHard && asset\.softAssets && asset\.softAssets\.length > 0/);
 });
 
+test('Resource detail nested Place and Group cards expose in-card favorite controls', () => {
+    const groupMembersSource = sourceBetween(
+        detailSource,
+        'groupMemberSections.map((section)',
+        '{isHard && asset.softAssets && asset.softAssets.length > 0',
+    );
+    const placeOfferingsSource = sourceBetween(
+        detailSource,
+        'relatedSoftAssetGroups[activeSoftBucket].length > 0 ?',
+        'className="rounded-2xl border border-dashed',
+    );
+
+    assert.match(detailSource, /import SaveAssetButton from '\.\/SaveAssetButton\.jsx';/);
+    assert.match(detailSource, /function buildNestedResourceSaveSummary/);
+    assert.match(detailSource, /function handleRelatedResourceCardKeyDown/);
+    assert.match(groupMembersSource, /<SaveAssetButton[\s\S]*resourceType=\{member\.resourceType\}[\s\S]*resourceId=\{member\.id\}/);
+    assert.match(groupMembersSource, /summary=\{buildNestedResourceSaveSummary\(member, member\.resourceType\)\}/);
+    assert.match(groupMembersSource, /role="button"/);
+    assert.doesNotMatch(groupMembersSource, /<button[\s\S]*key=\{`\$\{member\.resourceType\}-\$\{member\.id\}`\}/);
+    assert.match(placeOfferingsSource, /<SaveAssetButton[\s\S]*resourceType="soft"[\s\S]*resourceId=\{softAsset\.id\}/);
+    assert.match(placeOfferingsSource, /summary=\{buildNestedResourceSaveSummary\(softAsset, 'soft', asset\)\}/);
+});
+
 test('Resource detail gives Groups public profile parity with visibility, update, and gallery context', () => {
     assert.match(detailSource, /getGroupVisibilitySummary/);
     assert.match(detailSource, /formatGroupUpdateSummary/);
