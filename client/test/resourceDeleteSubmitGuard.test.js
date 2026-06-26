@@ -22,6 +22,17 @@ test('admin single-resource delete ignores repeat clicks while the request is ru
     assert.match(source, /title=\{isDeletingResource \? 'Deleting\.\.\.' : 'Delete'\}/);
 });
 
+test('admin category edit scrolls the edit form into view', () => {
+    const source = readSource('src/pages/dashboard/AdminPage.jsx');
+
+    assert.match(source, /useRef/);
+    assert.match(source, /const subCategoryFormRef = useRef\(null\)/);
+    assert.match(source, /function handleEditSubCategory\(category\)[\s\S]*window\.requestAnimationFrame/);
+    assert.match(source, /subCategoryFormRef\.current\?\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+    assert.match(source, /<form ref=\{subCategoryFormRef\}/);
+    assert.match(source, /scroll-mt-28/);
+});
+
 test('resource dashboard confirmation modal disables delete while the request is running', () => {
     const source = readSource('src/pages/dashboard/ResourcesPage.jsx');
 

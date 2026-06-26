@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
@@ -658,6 +658,7 @@ export default function AdminPage() {
     const [importReport, setImportReport] = useState(null);
     const [importCopyNotice, setImportCopyNotice] = useState('');
     const [partnerBoundaryModalUser, setPartnerBoundaryModalUser] = useState(null);
+    const subCategoryFormRef = useRef(null);
     const [partnerBoundaryData, setPartnerBoundaryData] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
     const [regionScopeModalUser, setRegionScopeModalUser] = useState(null);
@@ -1162,6 +1163,9 @@ export default function AdminPage() {
             type: category.type || 'hard',
             color: category.color || '#3b82f6',
             iconUrl: category.iconUrl || '',
+        });
+        window.requestAnimationFrame(() => {
+            subCategoryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     }
 
@@ -3429,7 +3433,7 @@ export default function AdminPage() {
             ) : tab === 'subcats' ? (
                 /* ======== SubCategories Table ======== */
                 <div className="space-y-6">
-                    <form onSubmit={handleAddSubCategory} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                    <form ref={subCategoryFormRef} onSubmit={handleAddSubCategory} className="scroll-mt-28 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <h2 className="text-lg font-bold text-slate-900">
