@@ -28,7 +28,10 @@ import {
     shouldIgnoreClusterHover,
 } from '../lib/mapClusterInteraction.js';
 import { buildDirectoryMapClassNames } from '../lib/directoryMapPresentation.js';
-import { shouldRefitDirectoryCameraAfterResize } from '../lib/directoryMapCamera.js';
+import {
+    getFocusedDirectoryCameraPins,
+    shouldRefitDirectoryCameraAfterResize,
+} from '../lib/directoryMapCamera.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -100,6 +103,14 @@ function getDirectoryCameraPoints(pins = [], anchorPoint = null) {
         points.push({ lat: anchorPoint.lat, lng: anchorPoint.lng });
     }
     return points;
+}
+
+function pinMatchesPlaceKeys(pin, placeKeys = new Set()) {
+    if (!pin || !placeKeys?.size) return false;
+    const pinKeys = [pin.placeKey, ...(pin.memberPlaceKeys || [])]
+        .filter(Boolean)
+        .map((value) => String(value));
+    return pinKeys.some((key) => placeKeys.has(key));
 }
 
 function buildDirectoryCameraSignature(pins = [], anchorPoint = null) {
@@ -1754,6 +1765,7 @@ function DirectoryMapController({
     activeAnchor,
     pins,
     focusedPlaceKey,
+    focusedPlaceKeys = [],
     activePlaceKey,
     activePlaceKeys = [],
     interactive,
@@ -1782,6 +1794,7 @@ function DirectoryMapController({
             nextLayoutSignature: layoutSignature,
             pointCount: getDirectoryCameraPoints(pins, anchorPoint).length,
             focusedPlaceKey,
+            focusedPlaceKeys,
             activePlaceKey,
             hasActivePlaceKeys,
         });
@@ -1802,7 +1815,7 @@ function DirectoryMapController({
             window.clearTimeout(immediateResize);
             window.clearTimeout(settledResize);
         };
-    }, [activePlaceKey, anchorPoint, fitPaddingBottomRight, fitPaddingTopLeft, focusedPlaceKey, hasActivePlaceKeys, layoutSignature, map, pins, signature]);
+    }, [activePlaceKey, anchorPoint, fitPaddingBottomRight, fitPaddingTopLeft, focusedPlaceKey, focusedPlaceKeys, hasActivePlaceKeys, layoutSignature, map, pins, signature]);
 
     useEffect(() => {
         if (!pins.length && !anchorPoint) return;
@@ -1838,6 +1851,22 @@ function DirectoryMapController({
         onFocusHandled?.(focusedPlaceKey);
     }, [focusedPlaceKey, interactive, map, onFocusHandled, pins]);
 
+    useEffect(() => {
+        if (!focusedPlaceKeys?.length) return;
+        if (!interactive) return;
+
+        const focusedPins = getFocusedDirectoryCameraPins(pins, focusedPlaceKeys);
+        if (!focusedPins.length) return;
+
+        fitDirectoryCamera(map, focusedPins, null, {
+            animate: true,
+            duration: 0.5,
+            paddingTopLeft: fitPaddingTopLeft,
+            paddingBottomRight: fitPaddingBottomRight,
+        });
+        onFocusHandled?.(focusedPlaceKeys.join('|'));
+    }, [fitPaddingBottomRight, fitPaddingTopLeft, focusedPlaceKeys, interactive, map, onFocusHandled, pins]);
+
     return null;
 }
 
@@ -1845,6 +1874,7 @@ export default function DirectoryMap({
     pins = [],
     activeAnchor = null,
     focusedPlaceKey = null,
+    focusedPlaceKeys = [],
     activePlaceKey = null,
     activePlaceKeys = [],
     onViewSection,
@@ -1901,8 +1931,9 @@ export default function DirectoryMap({
             return `${pin.pinKey || pin.placeKey}:${pin.placeKey}:${pin.number || ''}:${itemKey}:${categoryItemKey}`;
         }).join(';');
 
-        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${activeKeys}::${markerKeys}`;
-    }, [activePlaceKey, activePlaceKeySet, displayPins, focusedPlaceKey, markerMode]);
+        const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
+        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${markerKeys}`;
+    }, [activePlaceKey, activePlaceKeySet, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -2004,7 +2035,8 @@ export default function DirectoryMap({
                         const activeKey = activePlaceKey ?? focusedPlaceKey;
                         const isDeepZoom = String(activeKey).endsWith(':zoom');
                         const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
-                        const isMatched = String(cleanKey) === String(pin.placeKey);
+                        const isMatched = String(cleanKey) === String(pin.placeKey)
+                            || pinMatchesPlaceKeys(pin, activePlaceKeySet);
 
                         const icon = markerMode === 'print-badge'
                             ? createPrintResourceBadgeMarker(
@@ -2077,7 +2109,8 @@ export default function DirectoryMap({
             const activeKey = activePlaceKey ?? focusedPlaceKey;
             const isDeepZoom = String(activeKey).endsWith(':zoom');
             const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
-            const isMatched = String(cleanKey) === String(pin.placeKey);
+            const isMatched = String(cleanKey) === String(pin.placeKey)
+                || pinMatchesPlaceKeys(pin, activePlaceKeySet);
 
             const icon = markerMode === 'print-badge'
                 ? createPrintResourceBadgeMarker(
@@ -2199,6 +2232,7 @@ export default function DirectoryMap({
                     activeAnchor={anchorPoint}
                     pins={displayPins}
                     focusedPlaceKey={focusedPlaceKey}
+                    focusedPlaceKeys={focusedPlaceKeys}
                     activePlaceKey={activePlaceKey}
                     activePlaceKeys={activePlaceKeys}
                     interactive={interactive}

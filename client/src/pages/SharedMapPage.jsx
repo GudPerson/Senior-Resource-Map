@@ -13,6 +13,10 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { api } from '../lib/api.js';
+import {
+    getGroupFocusFallbackResourceIds,
+    mergeGroupFocusDetailsIntoDirectory,
+} from '../lib/directoryGroupFocus.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { DEFAULT_LOCALE } from '../lib/i18n.js';
 import { applySharedNoteTranslationsToDirectory } from '../lib/mapNotes.js';
@@ -23,6 +27,23 @@ const SHARED_MAP_V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[70
 const SHARED_MAP_V2_MOBILE_MAP_HEIGHT_CLASS = 'h-[34svh] min-h-[260px] max-h-[390px]';
 const SHARED_MAP_V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-[minmax(230px,0.78fr)_minmax(430px,1.32fr)_minmax(240px,0.84fr)] xl:gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
 const SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
+
+async function backfillGroupFocusPlaceKeys(directory) {
+    const resourceIds = getGroupFocusFallbackResourceIds(directory);
+    if (!resourceIds.length) return directory;
+
+    const details = await Promise.all(
+        resourceIds.map((id) => api.getSoftAsset(id, { suppressAuthExpired: true }).catch(() => null)),
+    );
+    const groupDetailsByResourceId = new Map();
+    details.forEach((detail, index) => {
+        if (detail?.assetMode === 'group') {
+            groupDetailsByResourceId.set(resourceIds[index], detail);
+        }
+    });
+
+    return mergeGroupFocusDetailsIntoDirectory(directory, groupDetailsByResourceId);
+}
 
 function normalizeCategoryMetaKey(value) {
     return String(value || '').trim().toLowerCase();
@@ -403,6 +424,7 @@ export default function SharedMapPage() {
     const [copying, setCopying] = useState(false);
     const [copyError, setCopyError] = useState('');
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
+    const [focusedPlaceKeys, setFocusedPlaceKeys] = useState([]);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
     const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
@@ -425,7 +447,8 @@ export default function SharedMapPage() {
                 api.getSharedMap(token),
                 api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
             ]);
-            setDirectory(applySubCategoryMetaToDirectory(nextDirectory, subcategories));
+            const enrichedDirectory = applySubCategoryMetaToDirectory(nextDirectory, subcategories);
+            setDirectory(await backfillGroupFocusPlaceKeys(enrichedDirectory));
             setNoteTranslationByLocale({});
         } catch (err) {
             console.error(err);
@@ -530,6 +553,7 @@ export default function SharedMapPage() {
     function handleViewSection(placeKey) {
         const resolvedPlaceKey = sharedPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
         setQuery('');
+        setFocusedPlaceKeys([]);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
         setSelectedClusterPlaceKeys([]);
@@ -540,23 +564,44 @@ export default function SharedMapPage() {
     }
 
     function handleViewOnMap(placeKey) {
+        const mapFocusPlaceKeys = sharedPresentation.mapFocusPlaceKeysByKey?.[placeKey] || [];
         const resolvedPlaceKey = sharedPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
+        const singleFocusPlaceKey = mapFocusPlaceKeys.length === 1
+            ? (sharedPresentation.groupKeyByPlaceKey?.[mapFocusPlaceKeys[0]] || mapFocusPlaceKeys[0])
+            : resolvedPlaceKey;
         setFocusedPlaceKey(null);
+        setFocusedPlaceKeys([]);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
         setSelectedClusterPlaceKeys([]);
         window.requestAnimationFrame(() => {
-            setFocusedPlaceKey(resolvedPlaceKey);
-            setHighlightPlaceKey(resolvedPlaceKey);
+            if (mapFocusPlaceKeys.length > 1) {
+                setFocusedPlaceKeys(mapFocusPlaceKeys);
+                setHighlightPlaceKey(String(placeKey));
+                return;
+            }
+            setFocusedPlaceKey(singleFocusPlaceKey);
+            setHighlightPlaceKey(String(placeKey));
         });
     }
+
+    const handleMapFocusHandled = useCallback((handledPlaceKey) => {
+        setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
+        setFocusedPlaceKeys((current) => (current.join('|') === handledPlaceKey ? [] : current));
+    }, []);
+
+    const getActivePlaceKeys = useCallback((placeKey) => {
+        const normalizedPlaceKey = placeKey ? String(placeKey) : '';
+        return sharedPresentation.mapFocusPlaceKeysByKey?.[normalizedPlaceKey]
+            || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
+    }, [sharedPresentation.mapFocusPlaceKeysByKey]);
 
     const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
         : (hoveredPlaceKey || highlightPlaceKey || null);
     const activePlaceKeys = hoveredClusterPlaceKeys.length
         ? hoveredClusterPlaceKeys
-        : (selectedClusterPlaceKeys.length ? selectedClusterPlaceKeys : (activePlaceKey ? [activePlaceKey] : []));
+        : (selectedClusterPlaceKeys.length ? selectedClusterPlaceKeys : (activePlaceKey ? getActivePlaceKeys(activePlaceKey) : []));
     const effectiveFocusedPlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
         : focusedPlaceKey;
@@ -589,6 +634,7 @@ export default function SharedMapPage() {
     const handleMapClusterSelect = useCallback((placeKeys) => {
         if (!placeKeys?.length) return;
         setFocusedPlaceKey(null);
+        setFocusedPlaceKeys([]);
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -757,6 +803,7 @@ export default function SharedMapPage() {
                                     activeAnchor={activeAnchor}
                                     pins={sharedPresentation.pins}
                                     focusedPlaceKey={effectiveFocusedPlaceKey}
+                                    focusedPlaceKeys={focusedPlaceKeys}
                                     activePlaceKey={activePlaceKey}
                                     activePlaceKeys={activePlaceKeys}
                                     onViewSection={handleViewSection}
@@ -765,6 +812,7 @@ export default function SharedMapPage() {
                                     onHoverClusterStart={handleMapClusterHoverStart}
                                     onHoverClusterEnd={handleMapClusterHoverEnd}
                                     onClusterSelect={handleMapClusterSelect}
+                                    onFocusHandled={handleMapFocusHandled}
                                     markerMode="category-bubble"
                                     pinBadgeMode="none"
                                     pinCategoryIconMode="none"
@@ -781,6 +829,7 @@ export default function SharedMapPage() {
                                     activeAnchor={activeAnchor}
                                     pins={sharedPresentation.pins}
                                     focusedPlaceKey={effectiveFocusedPlaceKey}
+                                    focusedPlaceKeys={focusedPlaceKeys}
                                     activePlaceKey={activePlaceKey}
                                     activePlaceKeys={activePlaceKeys}
                                     onViewSection={handleViewSection}
@@ -789,6 +838,7 @@ export default function SharedMapPage() {
                                     onHoverClusterStart={handleMapClusterHoverStart}
                                     onHoverClusterEnd={handleMapClusterHoverEnd}
                                     onClusterSelect={handleMapClusterSelect}
+                                    onFocusHandled={handleMapFocusHandled}
                                     markerMode="category-bubble"
                                     pinBadgeMode="none"
                                     pinCategoryIconMode="none"
@@ -822,6 +872,7 @@ export default function SharedMapPage() {
                                 activeAnchor={activeAnchor}
                                 pins={sharedPresentation.pins}
                                 focusedPlaceKey={effectiveFocusedPlaceKey}
+                                focusedPlaceKeys={focusedPlaceKeys}
                                 activePlaceKey={activePlaceKey}
                                 activePlaceKeys={activePlaceKeys}
                                 onViewSection={handleViewSection}
@@ -830,6 +881,7 @@ export default function SharedMapPage() {
                                 onHoverClusterStart={handleMapClusterHoverStart}
                                 onHoverClusterEnd={handleMapClusterHoverEnd}
                                 onClusterSelect={handleMapClusterSelect}
+                                onFocusHandled={handleMapFocusHandled}
                                 markerMode="category-bubble"
                                 pinBadgeMode="none"
                                 pinCategoryIconMode="none"
@@ -846,6 +898,7 @@ export default function SharedMapPage() {
                                 activeAnchor={activeAnchor}
                                 pins={sharedPresentation.pins}
                                 focusedPlaceKey={effectiveFocusedPlaceKey}
+                                focusedPlaceKeys={focusedPlaceKeys}
                                 activePlaceKey={activePlaceKey}
                                 activePlaceKeys={activePlaceKeys}
                                 onViewSection={handleViewSection}
@@ -854,6 +907,7 @@ export default function SharedMapPage() {
                                 onHoverClusterStart={handleMapClusterHoverStart}
                                 onHoverClusterEnd={handleMapClusterHoverEnd}
                                 onClusterSelect={handleMapClusterSelect}
+                                onFocusHandled={handleMapFocusHandled}
                                 markerMode="category-bubble"
                                 pinBadgeMode="none"
                                 pinCategoryIconMode="none"

@@ -159,6 +159,61 @@ test('v2 card presentation integrates unmapped resources as normal category card
     assert.deepEqual(presentation.noteUnmappedRows.map((row) => row.name), ['Alpha Meals Support']);
 });
 
+test('v2 card presentation lets list-only Group cards borrow mapped Place member focus keys', () => {
+    const presentation = buildDirectoryPresentation({
+        places: [
+            hardPlace({
+                key: 'hard-10',
+                name: 'Alpha Active Ageing',
+                subCategory: 'Active Ageing Centre (AAC)',
+                postalCode: '200200',
+                lat: '1.321',
+                lng: '103.841',
+            }),
+            hardPlace({
+                key: 'hard-20',
+                name: 'Beta Active Ageing',
+                subCategory: 'Active Ageing Centre (AAC)',
+                postalCode: '200201',
+                lat: '1.322',
+                lng: '103.842',
+            }),
+            {
+                placeKey: 'fallback-soft-99',
+                placeId: null,
+                name: 'West Active Ageing Picks',
+                address: null,
+                postalCode: '',
+                lat: null,
+                lng: null,
+                hasCoordinates: false,
+                rows: [
+                    {
+                        rowKey: 'soft-99:fallback',
+                        assetKey: 'soft-99',
+                        resourceType: 'soft',
+                        resourceId: 99,
+                        name: 'West Active Ageing Picks',
+                        subCategory: 'Group',
+                        status: 'list_only',
+                        mapFocusPlaceKeys: ['hard-10', 'hard-20', 'hard-404'],
+                    },
+                ],
+            },
+        ],
+    }, { presentationMode: 'v2-cards' });
+    const groupCard = presentation.displayGroups.find((group) => group.rows?.[0]?.resourceId === 99);
+
+    assert.equal(groupCard.hasCoordinates, false);
+    assert.deepEqual(groupCard.mapFocusPlaceKeys, ['hard-10', 'hard-20']);
+    assert.deepEqual(groupCard.memberPlaceKeys, [
+        groupCard.placeKey,
+        'hard-10',
+        'hard-20',
+    ]);
+    assert.deepEqual(presentation.mapFocusPlaceKeysByKey[groupCard.placeKey], ['hard-10', 'hard-20']);
+});
+
 test('v2 card presentation exposes category colors and icons for cards and pins', () => {
     const presentation = buildDirectoryPresentation(directory, { presentationMode: 'v2-cards' });
     const alphaGroup = presentation.displayGroups.find((group) => group.placeKey === 'hard-10');

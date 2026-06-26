@@ -1261,7 +1261,7 @@ function DirectoryPlaceBadge({
     const logoImageClassName = logoFitMode === 'contain'
         ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
         : 'h-full w-full rounded-[inherit] object-cover';
-    const canViewOnMap = Boolean(onViewOnMap && group?.hasCoordinates !== false);
+    const canViewOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
     const shellClassName = `relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`;
     const buttonProps = canViewOnMap ? {
         type: 'button',

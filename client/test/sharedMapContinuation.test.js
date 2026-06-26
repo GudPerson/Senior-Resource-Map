@@ -68,7 +68,8 @@ test('shared map page wires continuation through all sign-in entry points', () =
 
 test('shared map interactive view uses the My Map V2 card and pin language', () => {
     assert.match(sharedMapPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
-    assert.match(sharedMapPageSource, /setDirectory\(applySubCategoryMetaToDirectory\(nextDirectory, subcategories\)\)/);
+    assert.match(sharedMapPageSource, /const enrichedDirectory = applySubCategoryMetaToDirectory\(nextDirectory, subcategories\)/);
+    assert.match(sharedMapPageSource, /setDirectory\(await backfillGroupFocusPlaceKeys\(enrichedDirectory\)\)/);
     assert.match(sharedMapPageSource, /buildDirectoryPresentation\(translatedDirectory, \{ query, activeAnchor, presentationMode: 'v2-cards' \}\)/);
     assert.match(sharedMapPageSource, /const resolvedPlaceKey = sharedPresentation\.groupKeyByPlaceKey\?\.\[placeKey\] \|\| placeKey/);
     assert.match(sharedMapPageSource, /presentation=\{sharedPresentation\}/);
@@ -82,6 +83,15 @@ test('shared map interactive view uses the My Map V2 card and pin language', () 
     assert.match(sharedMapPageSource, /fitPaddingBottomRight=\{SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT\}/);
     assert.doesNotMatch(sharedMapPageSource, /presentation=\{interactivePresentation\}/);
     assert.doesNotMatch(sharedMapPageSource, /markerMode="number"/);
+});
+
+test('shared map can backfill Group member focus keys from public Group details', () => {
+    assert.match(sharedMapPageSource, /getGroupFocusFallbackResourceIds/);
+    assert.match(sharedMapPageSource, /mergeGroupFocusDetailsIntoDirectory/);
+    assert.match(sharedMapPageSource, /async function backfillGroupFocusPlaceKeys/);
+    assert.match(sharedMapPageSource, /api\.getSoftAsset\(id, \{ suppressAuthExpired: true \}\)\.catch\(\(\) => null\)/);
+    assert.match(sharedMapPageSource, /detail\?\.assetMode === 'group'/);
+    assert.match(sharedMapPageSource, /mergeGroupFocusDetailsIntoDirectory\(directory, groupDetailsByResourceId\)/);
 });
 
 test('shared map print stays on the shared print path while interactive view is refreshed', () => {

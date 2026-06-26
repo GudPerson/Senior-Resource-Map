@@ -12,6 +12,7 @@ export default function MyMapV2PreviewScaffold({
     presentation,
     useDesktopLayout,
     focusedPlaceKey,
+    focusedPlaceKeys = [],
     activePlaceKey,
     activePlaceKeys,
     selectionPlaceKey,
@@ -41,6 +42,7 @@ export default function MyMapV2PreviewScaffold({
             activeAnchor={activeAnchor}
             pins={presentation.pins}
             focusedPlaceKey={focusedPlaceKey}
+            focusedPlaceKeys={focusedPlaceKeys}
             activePlaceKey={activePlaceKey}
             activePlaceKeys={activePlaceKeys}
             onViewSection={onViewSection}

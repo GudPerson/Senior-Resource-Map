@@ -17,6 +17,10 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
+import {
+    getGroupFocusFallbackResourceIds,
+    mergeGroupFocusDetailsIntoDirectory,
+} from '../lib/directoryGroupFocus.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
@@ -408,6 +412,23 @@ async function backfillMissingHardPlaceAddresses(directory) {
     return applyHardAddressBackfillsToDirectory(directory, addressByHardAssetId);
 }
 
+async function backfillGroupFocusPlaceKeys(directory) {
+    const resourceIds = getGroupFocusFallbackResourceIds(directory);
+    if (!resourceIds.length) return directory;
+
+    const details = await Promise.all(
+        resourceIds.map((id) => api.getSoftAsset(id, { suppressAuthExpired: true }).catch(() => null)),
+    );
+    const groupDetailsByResourceId = new Map();
+    details.forEach((detail, index) => {
+        if (detail?.assetMode === 'group') {
+            groupDetailsByResourceId.set(resourceIds[index], detail);
+        }
+    });
+
+    return mergeGroupFocusDetailsIntoDirectory(directory, groupDetailsByResourceId);
+}
+
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -420,6 +441,7 @@ export default function MyMapDetailPage() {
     const [actionError, setActionError] = useState('');
     const [query, setQuery] = useState('');
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
+    const [focusedPlaceKeys, setFocusedPlaceKeys] = useState([]);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
     const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
@@ -458,7 +480,8 @@ export default function MyMapDetailPage() {
                 api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
             ]);
             const enrichedDirectory = applySubCategoryMetaToDirectory(item, subcategories);
-            setDirectory(await backfillMissingHardPlaceAddresses(enrichedDirectory));
+            const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses(enrichedDirectory);
+            setDirectory(await backfillGroupFocusPlaceKeys(addressBackfilledDirectory));
         } catch (err) {
             console.error(err);
             setError(err.message || t('failedLoadMap'));
@@ -503,6 +526,7 @@ export default function MyMapDetailPage() {
             pendingFocusFrameRef.current = null;
         }
         setFocusedPlaceKey(null);
+        setFocusedPlaceKeys([]);
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -511,12 +535,15 @@ export default function MyMapDetailPage() {
 
     const handleMapFocusHandled = useCallback((handledPlaceKey) => {
         setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
+        setFocusedPlaceKeys((current) => (current.join('|') === handledPlaceKey ? [] : current));
     }, []);
 
     const getHoverPlaceKeys = useCallback((placeKey) => {
         const normalizedPlaceKey = placeKey ? String(placeKey) : '';
-        return ownerPresentation.hoverPlaceKeysByKey?.[normalizedPlaceKey] || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
-    }, [ownerPresentation.hoverPlaceKeysByKey]);
+        return ownerPresentation.mapFocusPlaceKeysByKey?.[normalizedPlaceKey]
+            || ownerPresentation.hoverPlaceKeysByKey?.[normalizedPlaceKey]
+            || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
+    }, [ownerPresentation.hoverPlaceKeysByKey, ownerPresentation.mapFocusPlaceKeysByKey]);
 
     const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
@@ -629,14 +656,23 @@ export default function MyMapDetailPage() {
     }
 
     function focusPlaceOnMap(placeKey) {
+        const mapFocusPlaceKeys = ownerPresentation.mapFocusPlaceKeysByKey?.[placeKey] || [];
         const resolvedPlaceKey = ownerPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
-        if (!resolvedPlaceKey) return;
+        const singleFocusPlaceKey = mapFocusPlaceKeys.length === 1
+            ? (ownerPresentation.groupKeyByPlaceKey?.[mapFocusPlaceKeys[0]] || mapFocusPlaceKeys[0])
+            : resolvedPlaceKey;
+        if (!singleFocusPlaceKey && !mapFocusPlaceKeys.length) return;
         clearMapSelection();
         pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
             pendingFocusFrameRef.current = null;
             setSelectionScrollRequest((value) => value + 1);
-            setFocusedPlaceKey(`${resolvedPlaceKey}:zoom`);
-            setHighlightPlaceKey(String(resolvedPlaceKey));
+            if (mapFocusPlaceKeys.length > 1) {
+                setFocusedPlaceKeys(mapFocusPlaceKeys);
+                setHighlightPlaceKey(String(placeKey));
+                return;
+            }
+            setFocusedPlaceKey(`${singleFocusPlaceKey}:zoom`);
+            setHighlightPlaceKey(String(placeKey));
         });
     }
 
@@ -677,6 +713,7 @@ export default function MyMapDetailPage() {
     const handleMapClusterSelect = useCallback((placeKeys) => {
         if (suspendMapInteraction || !placeKeys?.length) return;
         setFocusedPlaceKey(null);
+        setFocusedPlaceKeys([]);
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -786,6 +823,7 @@ export default function MyMapDetailPage() {
                     useDesktopLayout={useDesktopOwnerLayout}
                     useDesktopBodyLayout={useDesktopDirectoryBodyLayout}
                     focusedPlaceKey={effectiveFocusedPlaceKey}
+                    focusedPlaceKeys={focusedPlaceKeys}
                     activePlaceKey={activePlaceKey}
                     activePlaceKeys={activePlaceKeys}
                     selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
@@ -968,6 +1006,7 @@ export default function MyMapDetailPage() {
                                         activeAnchor={activeAnchor}
                                         pins={interactivePresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
+                                        focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
                                         activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
@@ -990,6 +1029,7 @@ export default function MyMapDetailPage() {
                                         activeAnchor={activeAnchor}
                                         pins={interactivePresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
+                                        focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
                                         activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}

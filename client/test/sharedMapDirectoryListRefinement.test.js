@@ -53,6 +53,16 @@ test('v2 mapped cards can use permanent resource logos while numbered badges sta
     assert.match(myMapV2ScaffoldSource, /cardBadgeMode="logo"/);
 });
 
+test('list-only Group cards can expose a map focus action when mapped member pins exist', () => {
+    const badgeSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryPlaceBadge',
+        'function DirectoryNestedPlaceSection',
+    );
+
+    assert.match(badgeSource, /group\?\.hasCoordinates !== false \|\| group\?\.mapFocusPlaceKeys\?\.length/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,

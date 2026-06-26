@@ -146,7 +146,8 @@ test('my map v2 enriches directory rows with configured category colors from the
     assert.match(myMapDetailPageSource, /function applySubCategoryMetaToRow/);
     assert.match(myMapDetailPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
     assert.match(myMapDetailPageSource, /const enrichedDirectory = applySubCategoryMetaToDirectory\(item, subcategories\)/);
-    assert.match(myMapDetailPageSource, /setDirectory\(await backfillMissingHardPlaceAddresses\(enrichedDirectory\)\)/);
+    assert.match(myMapDetailPageSource, /const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses\(enrichedDirectory\)/);
+    assert.match(myMapDetailPageSource, /setDirectory\(await backfillGroupFocusPlaceKeys\(addressBackfilledDirectory\)\)/);
     assert.match(myMapDetailPageSource, /categoryColor: nextCategoryColor/);
     assert.match(myMapDetailPageSource, /categoryIconUrl: nextCategoryIconUrl/);
 });
@@ -159,6 +160,15 @@ test('my map v2 backfills missing hard-place addresses without touching map owne
     assert.match(myMapDetailPageSource, /api\.getHardAsset\(id, \{ suppressAuthExpired: true \}\)\.catch\(\(\) => null\)/);
     assert.match(myMapDetailPageSource, /addressByHardAssetId\.set\(missingHardAddressIds\[index\], address\)/);
     assert.match(myMapDetailPageSource, /address: rowAddress/);
+});
+
+test('my map v2 can backfill Group member focus keys from public Group details', () => {
+    assert.match(myMapDetailPageSource, /getGroupFocusFallbackResourceIds/);
+    assert.match(myMapDetailPageSource, /mergeGroupFocusDetailsIntoDirectory/);
+    assert.match(myMapDetailPageSource, /async function backfillGroupFocusPlaceKeys/);
+    assert.match(myMapDetailPageSource, /api\.getSoftAsset\(id, \{ suppressAuthExpired: true \}\)\.catch\(\(\) => null\)/);
+    assert.match(myMapDetailPageSource, /detail\?\.assetMode === 'group'/);
+    assert.match(myMapDetailPageSource, /mergeGroupFocusDetailsIntoDirectory\(directory, groupDetailsByResourceId\)/);
 });
 
 test('my map v2 uses the restored normal map sizing without enabling full-map mode', () => {

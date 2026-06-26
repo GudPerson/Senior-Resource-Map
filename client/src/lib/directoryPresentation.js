@@ -9,6 +9,20 @@ function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+function normalizePlaceKeyList(values = []) {
+    const keys = [];
+    const seen = new Set();
+
+    (Array.isArray(values) ? values : []).forEach((value) => {
+        const key = String(value || '').trim();
+        if (!key || seen.has(key)) return;
+        keys.push(key);
+        seen.add(key);
+    });
+
+    return keys;
+}
+
 function parseCoordinate(value) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : null;
@@ -498,10 +512,12 @@ function buildGroupedPins(groups = [], options = {}) {
         });
 }
 
-function buildUnmappedDisplayGroup(row, index) {
+function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
     const placeKey = `unmapped:${row.rowKey || row.assetKey || index}`;
     const categoryLabel = getRowCategoryLabel(row);
     const categoryEntry = getPrimaryCategoryEntry([row]);
+    const mapFocusPlaceKeys = normalizePlaceKeyList(row.mapFocusPlaceKeys)
+        .filter((key) => mappedPlaceKeys.has(key));
 
     return {
         placeKey,
@@ -518,7 +534,8 @@ function buildUnmappedDisplayGroup(row, index) {
         curatedCount: 1,
         rows: [{ ...row, placeKey }],
         nestedPlaces: [],
-        memberPlaceKeys: [placeKey],
+        memberPlaceKeys: [placeKey, ...mapFocusPlaceKeys],
+        mapFocusPlaceKeys,
         isPostalGroup: false,
         isUnmappedGroup: true,
         categoryLabel,
@@ -606,13 +623,16 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
     const orderedMappedGroups = mappedGroups
         .map(decorateV2MappedGroup)
         .sort(compareV2DisplayGroups);
+    const mappedPlaceKeys = new Set(orderedMappedGroups.map((group) => group.placeKey).filter(Boolean));
     const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(orderedMappedGroups);
     const orderedUnmappedRows = [...unmappedRows].sort((left, right) => {
         const categoryCompare = compareText(getRowCategoryLabel(left), getRowCategoryLabel(right));
         if (categoryCompare !== 0) return categoryCompare;
         return compareText(left.name, right.name);
     });
-    const unmappedDisplayGroups = orderedUnmappedRows.map(buildUnmappedDisplayGroup);
+    const unmappedDisplayGroups = orderedUnmappedRows.map((row, index) => (
+        buildUnmappedDisplayGroup(row, index, mappedPlaceKeys)
+    ));
     const displayGroups = [...orderedMappedGroups, ...unmappedDisplayGroups]
         .sort(compareV2DisplayGroups)
         .map((group, index) => ({
@@ -642,6 +662,12 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         accumulator[group.placeKey] = group.placeKey;
         return accumulator;
     }, {});
+    const mapFocusPlaceKeysByKey = displayGroups.reduce((accumulator, group) => {
+        if (group.mapFocusPlaceKeys?.length) {
+            accumulator[group.placeKey] = [...group.mapFocusPlaceKeys];
+        }
+        return accumulator;
+    }, {});
     pinGroups.forEach((group) => {
         if (!group?.placeKey) return;
         groupKeyByPlaceKey[group.placeKey] = group.placeKey;
@@ -669,6 +695,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         dockedUnmappedRows: [],
         placeNumberByKey,
         groupKeyByPlaceKey,
+        mapFocusPlaceKeysByKey,
         hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(orderedMappedGroups, pinGroups),
         activeAnchor,
         activeAnchorNote: buildAnchorNote(activeAnchor),

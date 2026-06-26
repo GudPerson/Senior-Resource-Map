@@ -7,6 +7,7 @@ import {
     getOfferingAccessMetadata,
 } from './eligibility.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
+import { groupPublicGroupMembers } from './softAssetGroups.js';
 import { isAssetVisible } from './visibility.js';
 
 function normalizeText(value) {
@@ -62,6 +63,20 @@ function buildPlaceKey(place) {
     const lat = parseCoordinate(place?.lat);
     const lng = parseCoordinate(place?.lng);
     return `snapshot-${name}-${address}-${lat ?? 'na'}-${lng ?? 'na'}`.toLowerCase();
+}
+
+function normalizePlaceKeyList(values = []) {
+    const keys = [];
+    const seen = new Set();
+
+    (Array.isArray(values) ? values : []).forEach((value) => {
+        const key = normalizeText(value);
+        if (!key || seen.has(key)) return;
+        keys.push(key);
+        seen.add(key);
+    });
+
+    return keys;
 }
 
 function hasCoordinates(source) {
@@ -140,6 +155,7 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
             availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
             availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
+            mapFocusPlaceKeys: normalizePlaceKeyList(snapshot?.mapFocusPlaceKeys),
             places: snapshot.places.map((place, index) => normalizePlaceSnapshot(place, index)),
         };
     }
@@ -167,6 +183,12 @@ function buildPlaceSnapshot(place, fallbackIndex = 0) {
     }, fallbackIndex);
 }
 
+function buildGroupMapFocusPlaceKeys(asset) {
+    return groupPublicGroupMembers(asset).places
+        .map((place) => (Number.isInteger(place?.id) && place.id > 0 ? `hard-${place.id}` : null))
+        .filter(Boolean);
+}
+
 export function buildMyMapAssetSnapshot(resourceType, asset) {
     if (!asset) {
         return normalizeLegacySnapshot(resourceType, 0, null);
@@ -191,6 +213,7 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
     }
 
     const places = getSoftAssetLocations(asset).map((place, index) => buildPlaceSnapshot(place, index));
+    const mapFocusPlaceKeys = buildGroupMapFocusPlaceKeys(asset);
     return {
         version: 2,
         resourceType,
@@ -204,6 +227,7 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
         availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(asset.availabilityUnit),
+        mapFocusPlaceKeys,
         places: places.length > 0 ? places : [createFallbackPlace('soft', asset.id, null)],
     };
 }
@@ -330,6 +354,46 @@ const softAssetQuery = {
         locations: {
             with: {
                 hardAsset: hardLocationQuery,
+            },
+        },
+        groupMembers: {
+            columns: {
+                id: true,
+                memberResourceType: true,
+                memberResourceId: true,
+                sortOrder: true,
+            },
+            with: {
+                hardAsset: {
+                    columns: {
+                        id: true,
+                        name: true,
+                        subCategory: true,
+                        address: true,
+                        postalCode: true,
+                        lat: true,
+                        lng: true,
+                        isHidden: true,
+                        hideFrom: true,
+                        hideUntil: true,
+                        isDeleted: true,
+                    },
+                },
+                softAsset: {
+                    columns: {
+                        id: true,
+                        name: true,
+                        bucket: true,
+                        subCategory: true,
+                        audienceMode: true,
+                        isMemberOnly: true,
+                        isHidden: true,
+                        hideFrom: true,
+                        hideUntil: true,
+                        isDeleted: true,
+                        assetMode: true,
+                    },
+                },
             },
         },
     },
@@ -482,6 +546,7 @@ function buildRow({
         saveEligible,
         access: status === 'unavailable' ? null : (snapshot.access || null),
         missingProfileFields: Array.isArray(snapshot.missingProfileFields) ? snapshot.missingProfileFields : [],
+        ...(snapshot.mapFocusPlaceKeys?.length ? { mapFocusPlaceKeys: snapshot.mapFocusPlaceKeys } : {}),
         assetKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId),
         addedAt: mapAsset.addedAt ?? null,
         ...(notes ? { notes } : {}),
