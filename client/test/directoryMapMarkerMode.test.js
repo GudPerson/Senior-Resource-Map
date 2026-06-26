@@ -163,6 +163,9 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(appCssSource, /\.directory-category-bubble-marker__ring[\s\S]*border: 3px solid currentColor/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*fill: currentColor/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*width: 16px/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*border-radius: 999px/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*clip-path: circle\(50% at 50% 50%\)/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*filter: none/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*width: 14px/);
 });
 
