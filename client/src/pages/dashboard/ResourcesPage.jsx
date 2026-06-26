@@ -30,8 +30,6 @@ import {
     X,
 } from 'lucide-react';
 
-import AssetAccessPanel from '../../components/AssetAccessPanel.jsx';
-import AssetAudienceZonesPanel from '../../components/AssetAudienceZonesPanel.jsx';
 import AssetForm from '../../components/AssetForm.jsx';
 import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
 import GroupAssetForm from '../../components/GroupAssetForm.jsx';
@@ -1307,14 +1305,6 @@ export default function ResourcesPage() {
         }
     }
 
-    function openAssetAccess(asset, assetType = 'hard') {
-        setInlineAction({ id: asset.id, type: 'access', asset, assetType });
-    }
-
-    function openAssetZones(asset) {
-        setInlineAction({ id: asset.id, type: 'zones', asset });
-    }
-
     function getPermissionFlag(asset, key, fallback = false) {
         if (typeof asset?.permissions?.[key] === 'boolean') return asset.permissions[key];
         return fallback;
@@ -1330,11 +1320,6 @@ export default function ResourcesPage() {
         return getPermissionFlag(asset, 'canEdit', normalizedRole === 'super_admin' || directRole === 'owner' || directRole === 'staff');
     }
 
-    function canManageHardAssetAccess(asset) {
-        const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
-        return getPermissionFlag(asset, 'canManageAccess', normalizedRole === 'super_admin' || directRole === 'owner');
-    }
-
     function canHideHardAsset(asset) {
         const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
         return getPermissionFlag(asset, 'canHide', normalizedRole === 'super_admin' || directRole === 'owner');
@@ -1343,10 +1328,6 @@ export default function ResourcesPage() {
     function canDeleteHardAsset(asset) {
         const directRole = normalizeRole(getHardAssetStaffRole(user, asset?.id));
         return getPermissionFlag(asset, 'canDelete', normalizedRole === 'super_admin' || directRole === 'owner');
-    }
-
-    function isStandaloneSoftAsset(asset) {
-        return asset?.assetMode !== 'child' && getLinkedHardAssetIdsForOffering(asset).size === 0;
     }
 
     function canEditSoftAsset(asset) {
@@ -1358,15 +1339,6 @@ export default function ResourcesPage() {
                 || directRole === 'owner'
                 || directRole === 'staff'
                 || hasLinkedHardAssetAccess(asset),
-        );
-    }
-
-    function canManageSoftAssetAccess(asset) {
-        const directRole = normalizeRole(getSoftAssetStaffRole(user, asset?.id));
-        return isStandaloneSoftAsset(asset) && getPermissionFlag(
-            asset,
-            'canManageAccess',
-            normalizedRole === 'super_admin' || directRole === 'owner',
         );
     }
 
@@ -2221,9 +2193,10 @@ export default function ResourcesPage() {
                             const hiddenStatus = getHiddenStatus(asset);
                             const canShowMembers = typeof asset.membershipCount === 'number';
                             const canEditPlace = canEditHardAsset(asset);
-                            const canManageAccess = canManageHardAssetAccess(asset);
                             const canChangeHardAssetVisibility = canHideHardAsset(asset);
                             const canRemoveHardAsset = canDeleteHardAsset(asset);
+                            const isHardInlineActionOpen = inlineAction?.id === asset.id
+                                && ['soft-create', 'edit', 'import', 'qr'].includes(inlineAction?.type);
                             const activeInlineHardAsset = inlineAction?.id === asset.id && inlineAction?.asset
                                 ? inlineAction.asset
                                 : asset;
@@ -2321,22 +2294,6 @@ export default function ResourcesPage() {
                                                     </button>
                                                 </>
                                             ) : null}
-                                            {canManageAccess ? (
-                                                <>
-                                                    <button
-                                                        onClick={() => openAssetAccess(asset)}
-                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'access' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                                    >
-                                                        <ShieldCheck size={15} /> Access
-                                                    </button>
-                                                    <button
-                                                        onClick={() => openAssetZones(asset)}
-                                                        className={`btn-ghost px-3 py-2 text-sm ${inlineAction?.id === asset.id && inlineAction?.type === 'zones' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                                    >
-                                                        <MapPin size={15} /> Zones
-                                                    </button>
-                                                </>
-                                            ) : null}
                                             {canRemoveHardAsset ? (
                                                 <button onClick={() => setDeleteTarget({ id: asset.id, assetType: 'hard', label: 'Place' })} className="btn-danger px-3 py-2 text-sm">
                                                     <Trash2 size={15} /> Delete
@@ -2345,7 +2302,7 @@ export default function ResourcesPage() {
                                         </div>
                                     </div>
 
-                                    {inlineAction?.id === asset.id ? (
+                                    {isHardInlineActionOpen ? (
                                         <div
                                             ref={inlineActionDrawerRef}
                                             className="rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60"
@@ -2356,24 +2313,18 @@ export default function ResourcesPage() {
                                                         {inlineAction.type === 'soft-create' ? 'Inline offering composer' :
                                                          inlineAction.type === 'edit' ? 'Inline place editor' :
                                                          inlineAction.type === 'import' ? 'Inline material import' :
-                                                         inlineAction.type === 'access' ? 'Asset access' :
-                                                         inlineAction.type === 'zones' ? 'Audience zones' :
                                                          'Memberships & QR'}
                                                     </p>
                                                     <h3 className="mt-1 text-xl font-black text-slate-900">
                                                         {inlineAction.type === 'soft-create' ? `Add an offering for ${asset.name}` :
                                                          inlineAction.type === 'edit' ? `Edit ${asset.name}` :
                                                          inlineAction.type === 'import' ? `Import materials to ${asset.name}` :
-                                                         inlineAction.type === 'access' ? `Manage access for ${asset.name}` :
-                                                         inlineAction.type === 'zones' ? `Manage zones for ${asset.name}` :
                                                          `Memberships for ${asset.name}`}
                                                     </h3>
                                                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                                         {inlineAction.type === 'soft-create' ? `Start with the essentials and keep ${asset.name} preselected as the host place. Open advanced settings for audience targeting, multi-host linking, eligibility, visibility, or media.` :
                                                          inlineAction.type === 'edit' ? 'Update physical address, managed-area status, hidden status, and contact info directly without leaving the list.' :
                                                          inlineAction.type === 'import' ? 'Upload printed flyer or programme material for this place, review extracted offering drafts, then create or update offerings in bulk.' :
-                                                         inlineAction.type === 'access' ? 'Assign real user accounts as Owner or Staff for this place.' :
-                                                         inlineAction.type === 'zones' ? 'Create local postal-code zones for this asset and request sharing when needed.' :
                                                          'Manage linked members joining this place. Share the QR code or link below to allow new members to onboard instantly.'}
                                                     </p>
                                                 </div>
@@ -2425,6 +2376,7 @@ export default function ResourcesPage() {
                                                         subregions={subregions}
                                                         audienceZones={audienceZones}
                                                         layoutMode="inline-soft"
+                                                        onResourceToolsChanged={load}
                                                         onSave={async () => {
                                                             setInlineAction(null);
                                                             await load();
@@ -2449,6 +2401,7 @@ export default function ResourcesPage() {
                                                             subregions={subregions}
                                                             audienceZones={audienceZones}
                                                             layoutMode="inline-soft"
+                                                            onResourceToolsChanged={load}
                                                             onSave={async () => {
                                                                 setInlineAction(null);
                                                                 await load();
@@ -2487,19 +2440,6 @@ export default function ResourcesPage() {
                                                             });
                                                         }}
                                                         onCancel={() => setInlineAction(null)}
-                                                    />
-                                                )}
-                                                {inlineAction.type === 'access' && (
-                                                    <AssetAccessPanel
-                                                        asset={asset}
-                                                        assetType="hard"
-                                                        onChanged={load}
-                                                    />
-                                                )}
-                                                {inlineAction.type === 'zones' && (
-                                                    <AssetAudienceZonesPanel
-                                                        asset={asset}
-                                                        currentUser={user}
                                                     />
                                                 )}
                                                 {inlineAction.type === 'qr' && (
@@ -2714,7 +2654,6 @@ export default function ResourcesPage() {
                             const isVisibilitySaving = visibilityActionKey === getVisibilityActionKey('soft', asset.id);
                             const isAvailabilitySaving = availabilityActionKey === getAvailabilityActionKey(asset.id);
                             const canEditOffering = canEditSoftAsset(asset);
-                            const canManageOfferingAccess = canManageSoftAssetAccess(asset);
                             const canChangeSoftVisibility = canHideSoftAsset(asset);
                             const canRemoveSoftAsset = canDeleteSoftAsset(asset);
                             return (
@@ -2811,14 +2750,6 @@ export default function ResourcesPage() {
                                                 <Pencil size={15} /> <span>{isChild ? 'Edit place version' : 'Edit'}</span>
                                             </button>
                                         ) : null}
-                                        {canManageOfferingAccess ? (
-                                            <button
-                                                onClick={() => openAssetAccess(asset, 'soft')}
-                                                className={`btn-ghost resource-action-button text-sm ${inlineAction?.assetType === 'soft' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}
-                                            >
-                                                <ShieldCheck size={15} /> <span>Access</span>
-                                            </button>
-                                        ) : null}
                                         {canRemoveSoftAsset ? (
                                             <button
                                                 onClick={() => setDeleteTarget({ id: asset.id, assetType: 'soft', label: isChild ? 'Place version' : 'Offering', parentId: asset.parentSummary?.id || null })}
@@ -2828,37 +2759,6 @@ export default function ResourcesPage() {
                                             </button>
                                         ) : null}
                                     </div>
-                                    {inlineAction?.assetType === 'soft' && inlineAction?.id === asset.id && inlineAction?.type === 'access' ? (
-                                        <div
-                                            ref={inlineActionDrawerRef}
-                                            className="mt-2 w-full rounded-3xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-slate-50 p-5 shadow-sm shadow-brand-100/60"
-                                        >
-                                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                <div>
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">Offering access</p>
-                                                    <h3 className="mt-1 text-xl font-black text-slate-900">Manage access for {asset.name}</h3>
-                                                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                                                        Assign real user accounts as Owner or Staff for this standalone offering.
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setInlineAction(null)}
-                                                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-                                                >
-                                                    <X size={15} />
-                                                    Close
-                                                </button>
-                                            </div>
-                                            <div className="rounded-3xl border border-white/80 bg-white/95 p-5 shadow-sm shadow-slate-100">
-                                                <AssetAccessPanel
-                                                    asset={asset}
-                                                    assetType="soft"
-                                                    onChanged={load}
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : null}
                                 </div>
                             );
                         })}
@@ -3152,7 +3052,7 @@ export default function ResourcesPage() {
                     title={`${groupModal.mode === 'create' ? 'Create' : 'Edit'} Group`}
                     description="Curate a public collection from existing places and offerings."
                     onClose={() => setGroupModal(null)}
-                    maxWidth="max-w-5xl"
+                    maxWidth="max-w-[min(96vw,1180px)]"
                     bodyClassName="overflow-hidden"
                 >
                     {groupModal.loading ? (
@@ -3186,6 +3086,8 @@ export default function ResourcesPage() {
                     title={`${assetModal.mode === 'create' ? 'Create' : 'Edit'} ${assetModal.assetType === 'hard' ? 'Place' : 'Offering'}`}
                     description={assetModal.assetType === 'hard' ? 'Add a physical address and contact info.' : 'Add schedule, description, and link to a location.'}
                     onClose={() => setAssetModal(null)}
+                    maxWidth="max-w-[min(96vw,1180px)]"
+                    bodyClassName="overflow-hidden"
                 >
                     {assetModal.loading ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
@@ -3200,6 +3102,7 @@ export default function ResourcesPage() {
                             partnerOptions={partnerOptions}
                             subregions={subregions}
                             audienceZones={audienceZones}
+                            onResourceToolsChanged={load}
                             onSave={async () => {
                                 setAssetModal(null);
                                 await load();
@@ -3216,6 +3119,8 @@ export default function ResourcesPage() {
                     title={`${templateModal.mode === 'create' ? 'Create' : 'Edit'} Template`}
                     description="Save shared content once, then generate hidden place-specific versions."
                     onClose={() => setTemplateModal(null)}
+                    maxWidth="max-w-[min(96vw,1180px)]"
+                    bodyClassName="overflow-hidden"
                 >
                     <SoftAssetTemplateForm
                         initialData={templateModal.data}

@@ -117,6 +117,24 @@ function normalizeExternalHref(value) {
     }
 }
 
+function isValidOptionalHttpUrl(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    if (!/^https?:\/\//i.test(text)) return false;
+    try {
+        const url = new URL(text);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function isValidOptionalEmail(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
+
 function getPreviewMemberBucket(member, option = {}) {
     if (member.memberResourceType === 'hard' || member.type === 'hard') return 'places';
     const text = `${option.label || ''} ${option.subCategory || ''} ${option.bucket || ''}`.toLowerCase();
@@ -420,10 +438,38 @@ export default function GroupAssetForm({
         setInitialAccess((current) => current.filter((_, rowIndex) => rowIndex !== index));
     }
 
+    function getProfileContactValidationError() {
+        if (!isValidOptionalHttpUrl(form.website)) {
+            return 'Enter a valid website URL starting with http:// or https://.';
+        }
+        const socialLinks = normalizeSocialLinks(form.socialLinks);
+        const invalidSocialPlatform = SOCIAL_PLATFORMS.find((platform) => (
+            String(socialLinks[platform.key] || '').trim()
+            && !isValidOptionalHttpUrl(socialLinks[platform.key])
+        ));
+        if (invalidSocialPlatform) {
+            return `Enter a valid ${invalidSocialPlatform.label} URL starting with http:// or https://.`;
+        }
+        if (!isValidOptionalEmail(form.contactEmail)) {
+            return 'Enter a valid contact email address.';
+        }
+        if (!isValidOptionalHttpUrl(form.ctaUrl)) {
+            return 'Enter a valid CTA URL starting with http:// or https://.';
+        }
+        return '';
+    }
+
     function validateStep(stepIndex = activeStep) {
-        if (stepIndex === 0 && !form.name.trim()) {
-            setError('Group name is required.');
-            return false;
+        if (stepIndex === 0) {
+            if (!form.name.trim()) {
+                setError('Add a Group name to continue.');
+                return false;
+            }
+            const profileContactMessage = getProfileContactValidationError();
+            if (profileContactMessage) {
+                setError(profileContactMessage);
+                return false;
+            }
         }
         if (stepIndex === 1 && form.audienceMode === GROUP_AUDIENCE_MODES.TARGET_REGIONS && normalizeRegionIds(form.coverageRegionIds).length === 0) {
             setError('Select at least one target Region.');
@@ -642,7 +688,7 @@ export default function GroupAssetForm({
     function renderAccessStep() {
         if (initialData?.id) {
             return (
-                <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-5">
                     <AssetAccessPanel asset={initialData} assetType="group" />
                 </div>
             );
@@ -867,7 +913,7 @@ export default function GroupAssetForm({
     function renderTranslationStep() {
         if (!initialData?.id) return renderSavedToolUnlockMessage('Translation review');
         return (
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-4">
                 <TranslationReviewPanel
                     resourceType="soft"
                     resourceId={initialData.id}
@@ -880,7 +926,7 @@ export default function GroupAssetForm({
     function renderRestrictedStep() {
         if (!initialData?.id) return renderSavedToolUnlockMessage('Restricted notes and files');
         return (
-            <div className="rounded-3xl border border-slate-200 bg-white p-4">
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-4">
                 <PrivateResourceContentEditor
                     resourceType="soft"
                     resourceId={initialData.id}

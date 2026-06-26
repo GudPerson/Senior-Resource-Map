@@ -112,6 +112,7 @@ test('Group asset form exposes Target region visibility using existing Regions',
 });
 
 test('Group asset form exposes protected notes/files and translation review for saved Groups', () => {
+    const accessStepSource = sourceBetween(groupFormSource, 'function renderAccessStep()', 'function renderMembersStep()');
     const translationStepSource = sourceBetween(groupFormSource, 'function renderTranslationStep()', 'function renderRestrictedStep()');
     const restrictedStepSource = sourceBetween(groupFormSource, 'function renderRestrictedStep()', 'function renderPreviewInfoRow');
 
@@ -119,7 +120,9 @@ test('Group asset form exposes protected notes/files and translation review for 
     assert.match(groupFormSource, /TranslationReviewPanel/);
     assert.match(groupFormSource, /function renderTranslationStep/);
     assert.match(groupFormSource, /function renderRestrictedStep/);
+    assert.match(accessStepSource, /data-resource-wizard-skip-validity/);
     assert.match(translationStepSource, /TranslationReviewPanel/);
+    assert.match(translationStepSource, /data-resource-wizard-skip-validity/);
     assert.match(translationStepSource, /resourceType="soft"/);
     assert.match(translationStepSource, /resourceId=\{initialData\.id\}/);
     assert.match(translationStepSource, /excludedFields=\{GROUP_TRANSLATION_EXCLUDED_FIELDS\}/);
@@ -127,6 +130,7 @@ test('Group asset form exposes protected notes/files and translation review for 
     assert.match(translationPanelSource, /excludedFieldSet/);
     assert.match(translationPanelSource, /\.filter\(\(\[field\]\) => !excludedFieldSet\.has\(field\)\)/);
     assert.match(restrictedStepSource, /PrivateResourceContentEditor/);
+    assert.match(restrictedStepSource, /data-resource-wizard-skip-validity/);
     assert.match(restrictedStepSource, /resourceType="soft"/);
     assert.match(restrictedStepSource, /resourceId=\{initialData\.id\}/);
     assert.match(groupFormSource, /Save this Group first\. Edit the saved Group again to use \{toolName\.toLowerCase\(\)\}/);
@@ -174,6 +178,28 @@ test('Group asset form uses resource profile fields and system update accountabi
     assert.match(profileStepSource, /updateSummary\.label/);
     assert.doesNotMatch(groupFormSource, /Freshness date/);
     assert.doesNotMatch(groupFormSource, /lastReviewedAt: form\.lastReviewedAt/);
+});
+
+test('Group asset form validates hidden Profile contact and action fields before save', () => {
+    const profileValidationSource = sourceBetween(groupFormSource, 'function getProfileContactValidationError()', 'function validateStep(stepIndex = activeStep)');
+    const validateStepSource = sourceBetween(groupFormSource, 'function validateStep(stepIndex = activeStep)', 'function validateSubmitSteps()');
+    const submitValidationSource = sourceBetween(groupFormSource, 'function validateSubmitSteps()', 'async function handleSubmit(event)');
+
+    assert.match(groupFormSource, /function isValidOptionalHttpUrl\(value\)/);
+    assert.match(groupFormSource, /function isValidOptionalEmail\(value\)/);
+    assert.match(profileValidationSource, /form\.website/);
+    assert.match(profileValidationSource, /form\.contactEmail/);
+    assert.match(profileValidationSource, /form\.ctaUrl/);
+    assert.match(profileValidationSource, /normalizeSocialLinks\(form\.socialLinks\)/);
+    assert.match(profileValidationSource, /SOCIAL_PLATFORMS\.find/);
+    assert.match(profileValidationSource, /Enter a valid website URL starting with http:\/\/ or https:\/\/\./);
+    assert.match(profileValidationSource, /Enter a valid contact email address\./);
+    assert.match(profileValidationSource, /Enter a valid CTA URL starting with http:\/\/ or https:\/\/\./);
+    assert.match(validateStepSource, /if \(stepIndex === 0\)/);
+    assert.match(validateStepSource, /getProfileContactValidationError\(\)/);
+    assert.match(validateStepSource, /setError\(profileContactMessage\)/);
+    assert.match(submitValidationSource, /requiredSteps/);
+    assert.match(submitValidationSource, /setActiveStep\(stepIndex\)/);
 });
 
 test('Group asset wizard uses static tab and action bars with preview instead of Back and Next', () => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Clock, Globe, Loader2, Users } from 'lucide-react';
+import { Clock, Globe, Users } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -9,7 +9,9 @@ import { normalizeRole } from '../lib/roles.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
+import ResourceWizardShell from './ResourceWizardShell.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 
 function buildInitialForm(initialData, currentUser) {
@@ -56,6 +58,30 @@ const OWNERSHIP_OPTIONS = [
     { value: 'system', label: 'System-owned' },
 ];
 
+const TEMPLATE_STEPS = ['Profile', 'Defaults', 'Visibility', 'Generate', 'Translate'];
+
+function isBlankEligibilityAge(value) {
+    return value === undefined || value === null || String(value).trim() === '';
+}
+
+function isWholeEligibilityAge(value) {
+    return /^\d+$/.test(String(value).trim());
+}
+
+function getEligibilityAgeValidationError(rules) {
+    const age = rules?.criteria?.age;
+    if (!age || typeof age !== 'object') return '';
+    const hasMin = !isBlankEligibilityAge(age.min);
+    const hasMax = !isBlankEligibilityAge(age.max);
+    if ((hasMin && !isWholeEligibilityAge(age.min)) || (hasMax && !isWholeEligibilityAge(age.max))) {
+        return 'Eligibility age must use whole numbers greater than or equal to 0.';
+    }
+    if (hasMin && hasMax && Number(age.min) > Number(age.max)) {
+        return 'Eligibility minimum age cannot be greater than maximum age.';
+    }
+    return '';
+}
+
 export default function SoftAssetTemplateForm({
     initialData,
     currentUser,
@@ -67,6 +93,7 @@ export default function SoftAssetTemplateForm({
     const [form, setForm] = useState(() => buildInitialForm(initialData, currentUser));
     const [availableTags, setAvailableTags] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
+    const [activeTemplateStep, setActiveTemplateStep] = useState(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     // Only reset when opening a different template record; browser refocus after uploads
@@ -75,6 +102,7 @@ export default function SoftAssetTemplateForm({
 
     useEffect(() => {
         setForm(buildInitialForm(initialData, currentUser));
+        setActiveTemplateStep(0);
     }, [templateResetKey]);
 
     useEffect(() => {
@@ -104,7 +132,7 @@ export default function SoftAssetTemplateForm({
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
 
     async function handleSubmit(e) {
-        e.preventDefault();
+        e?.preventDefault?.();
         setSaving(true);
         setError('');
 
@@ -130,7 +158,7 @@ export default function SoftAssetTemplateForm({
             };
 
             if (!payload.name?.trim()) {
-                throw new Error('Template name is required.');
+                throw new Error('Add a template name to continue.');
             }
 
             if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
@@ -154,10 +182,48 @@ export default function SoftAssetTemplateForm({
         }
     }
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-2 gap-5">
-                <div className="col-span-2 grid grid-cols-2 gap-4">
+    function getTemplateStepValidationError(stepIndex = activeTemplateStep) {
+        if (stepIndex === 0) {
+            if (!String(form.name || '').trim()) return 'Add a template name to continue.';
+        }
+        if (stepIndex === 2) {
+            const audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
+            if (form.audienceMode === 'audience_zones' && audienceZoneIds.length === 0) {
+                return 'Select at least one audience zone for audience-zone templates.';
+            }
+            const eligibilityAgeMessage = getEligibilityAgeValidationError(form.eligibilityRules);
+            if (eligibilityAgeMessage) return eligibilityAgeMessage;
+        }
+        return '';
+    }
+
+    function validateTemplateStep(stepIndex = activeTemplateStep) {
+        const message = getTemplateStepValidationError(stepIndex);
+        setError(message);
+        return !message;
+    }
+
+    function validateAllTemplateSteps() {
+        for (const stepIndex of [0, 2]) {
+            const message = getTemplateStepValidationError(stepIndex);
+            if (message) {
+                setActiveTemplateStep(stepIndex);
+                setError(message);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    async function handleTemplateWizardSave() {
+        if (!validateAllTemplateSteps()) return;
+        await handleSubmit();
+    }
+
+    function renderTemplateProfileStep() {
+        return (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
                     <ImageUpload
                         label="Logo / Icon"
                         value={form.logoUrl}
@@ -188,7 +254,7 @@ export default function SoftAssetTemplateForm({
                     </p>
                 </div>
 
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                     <label className="mb-1 block text-sm font-semibold text-slate-700">Template Name *</label>
                     <input
                         required
@@ -199,6 +265,55 @@ export default function SoftAssetTemplateForm({
                     />
                 </div>
 
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Bucket *</label>
+                    <select required value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
+                        {SOFT_ASSET_BUCKETS.map((bucket) => (
+                            <option key={bucket} value={bucket}>{bucket}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Sub-Category *</label>
+                    <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
+                        {availableSubCategories
+                            .filter((subcategory) => subcategory.type === 'soft')
+                            .map((subcategory) => (
+                                <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
+                            ))}
+                    </select>
+                </div>
+
+                <div className="md:col-span-2">
+                    <MarkdownDescriptionField
+                        id="template-description"
+                        value={form.description || ''}
+                        onChange={(value) => setField('description', value)}
+                        placeholder="Main description shared by all place versions."
+                        rows={4}
+                    />
+                </div>
+
+                <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Tags</label>
+                    <CreatableSelect
+                        isMulti
+                        options={tagOptions}
+                        value={currentTags}
+                        onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        placeholder="Search or create tags..."
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    function renderTemplateDefaultsStep() {
+        return (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
                     <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><Users size={13} /> Ownership</label>
                     <select
@@ -218,26 +333,6 @@ export default function SoftAssetTemplateForm({
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Bucket *</label>
-                    <select value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
-                        {SOFT_ASSET_BUCKETS.map((bucket) => (
-                            <option key={bucket} value={bucket}>{bucket}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Sub-Category *</label>
-                    <select value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
-                        {availableSubCategories
-                            .filter((subcategory) => subcategory.type === 'soft')
-                            .map((subcategory) => (
-                                <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
-                            ))}
-                    </select>
-                </div>
-
-                <div>
                     <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><Clock size={13} /> Default Schedule</label>
                     <input
                         value={form.schedule || ''}
@@ -246,44 +341,12 @@ export default function SoftAssetTemplateForm({
                         className="input-field"
                     />
                 </div>
-
-                <div className="col-span-2">
-                    <MarkdownDescriptionField
-                        id="template-description"
-                        value={form.description || ''}
-                        onChange={(value) => setField('description', value)}
-                        placeholder="Main description shared by all place versions."
-                        rows={4}
-                    />
-                </div>
-
-                {initialData?.id ? (
-                    <div className="col-span-2">
-                        <TranslationReviewPanel
-                            resourceType="template"
-                            resourceId={initialData.id}
-                        />
-                    </div>
-                ) : (
-                    <div className="col-span-2 rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
-                        Save this template first, then edit it again to review Mandarin, Malay, and Tamil translations.
-                    </div>
-                )}
-
-                <div className="col-span-2">
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Tags</label>
-                    <CreatableSelect
-                        isMulti
-                        options={tagOptions}
-                        value={currentTags}
-                        onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
-                        className="react-select-container"
-                        classNamePrefix="react-select"
-                        placeholder="Search or create tags..."
-                    />
-                </div>
             </div>
+        );
+    }
 
+    function renderTemplateVisibilityStep() {
+        return (
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2">
                     <Globe size={16} className="text-brand-600" />
@@ -335,20 +398,177 @@ export default function SoftAssetTemplateForm({
                     onChange={(rules) => setField('eligibilityRules', rules)}
                     description="These demographic rules are copied into generated place versions."
                 />
+            </div>
+        );
+    }
 
+    function renderTemplateGenerateStep() {
+        return (
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2">
+                    <Globe size={16} className="text-brand-600" />
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-800">Generate place versions</h3>
+                        <p className="text-xs text-slate-500">Generated place versions are created from the saved template and use the existing row action.</p>
+                    </div>
+                </div>
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Access source</label>
+                    <input value="Inherited from generated place access" readOnly className="input-field bg-white" />
+                </div>
                 <div className="rounded-xl border border-dashed border-brand-200 bg-white px-4 py-3 text-xs text-slate-600">
                     Save the template first, then generate hidden place-specific offerings from the template panel.
                 </div>
             </div>
+        );
+    }
 
-            {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+    function renderTemplateTranslationStep() {
+        if (initialData?.id) {
+            return (
+                <div data-resource-wizard-skip-validity>
+                    <TranslationReviewPanel
+                        resourceType="template"
+                        resourceId={initialData.id}
+                    />
+                </div>
+            );
+        }
 
-            <div className="flex gap-3 pt-2">
-                <button type="button" onClick={onCancel} className="btn-ghost flex-1 justify-center">Cancel</button>
-                <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : initialData?.id ? 'Save Template' : 'Create Template'}
-                </button>
+        return (
+            <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
+                Save this template first, then edit it again to review Mandarin, Malay, and Tamil translations.
             </div>
-        </form>
+        );
+    }
+
+    function renderTemplateStep(stepIndex) {
+        if (stepIndex === 0) return renderTemplateProfileStep();
+        if (stepIndex === 1) return renderTemplateDefaultsStep();
+        if (stepIndex === 2) return renderTemplateVisibilityStep();
+        if (stepIndex === 3) return renderTemplateGenerateStep();
+        if (stepIndex === 4) return renderTemplateTranslationStep();
+        return null;
+    }
+
+    function renderTemplatePreview() {
+        const tags = Array.isArray(form.newTags) ? form.newTags.slice(0, 8) : [];
+        const visibilityLabel = form.audienceMode === 'audience_zones' ? 'Target areas' : 'Public';
+        const targetAreaLabels = form.audienceMode === 'audience_zones'
+            ? selectedAudienceZoneOptions.map((option) => option.label).filter(Boolean)
+            : [];
+
+        return (
+            <div className="space-y-5">
+                {(form.bannerUrl || form.logoUrl) ? (
+                    <div className="flex h-52 items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <img
+                            src={form.bannerUrl || form.logoUrl}
+                            alt=""
+                            className={form.bannerUrl ? 'h-full w-full object-cover' : 'max-h-full max-w-full object-contain p-6'}
+                        />
+                    </div>
+                ) : null}
+
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="mb-4 flex flex-col items-start gap-4 sm:flex-row">
+                        {form.logoUrl && form.bannerUrl ? (
+                            <img
+                                src={form.logoUrl}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain"
+                            />
+                        ) : null}
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 shadow-sm">
+                                <Globe size={16} />
+                                {form.bucket || 'Programmes'} · {form.subCategory || 'Template'}
+                            </div>
+                            <h1 className="text-3xl font-bold leading-tight text-slate-900">{form.name || 'Untitled Template'}</h1>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {form.schedule ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
+                                        <Clock size={15} />
+                                        Scheduled
+                                    </span>
+                                ) : null}
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                    <Globe size={15} />
+                                    {visibilityLabel}
+                                </span>
+                                {form.isMemberOnly ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                        <Users size={15} />
+                                        Linked members
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-600">
+                        {form.description ? (
+                            <MarkdownLiteText text={form.description} />
+                        ) : (
+                            <p className="italic text-slate-400">No description added yet.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
+                        {form.schedule ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Clock size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Schedule</p>
+                                    <div className="break-words text-slate-700">{form.schedule}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {targetAreaLabels.length > 0 ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Globe size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Target areas</p>
+                                    <div className="break-words text-slate-700">{targetAreaLabels.join(', ')}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {tags.length > 0 ? (
+                        <div className="mt-8 border-t border-slate-200 pt-6">
+                            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-900">Tags</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map((tag) => (
+                                    <span key={tag} className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                </article>
+            </div>
+        );
+    }
+
+    return (
+        <ResourceWizardShell
+            steps={TEMPLATE_STEPS}
+            activeStep={activeTemplateStep}
+            setActiveStep={setActiveTemplateStep}
+            validateStep={validateTemplateStep}
+            error={error}
+            renderStep={renderTemplateStep}
+            onCancel={onCancel}
+            onSave={handleTemplateWizardSave}
+            saving={saving}
+            saveLabel={initialData?.id ? 'Save Template' : 'Create Template'}
+            savingLabel="Saving..."
+            previewLabel="Preview"
+            previewTitle="Template preview"
+            previewDescription="Unsaved edits shown as the parent template profile."
+            renderPreview={renderTemplatePreview}
+        />
     );
 }

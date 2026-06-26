@@ -529,6 +529,16 @@
     --tw-ring-color: var(--color-brand);
   }
 
+  .resource-wizard-guidance-active .input-field:invalid {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  }
+
+  .resource-wizard-guidance-active .input-field:invalid::placeholder {
+    color: #b45309;
+  }
+
   /* ───────────────── NAVIGATION (high-contrast aware) ───────────────── */
   .hc-nav {
     background-color: var(--color-nav-bg) !important;
