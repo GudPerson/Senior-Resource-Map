@@ -95,6 +95,8 @@ export default function MyMapV2PreviewScaffold({
                         mode="owner"
                         layout={useDesktopBodyLayout ? 'desktop' : 'responsive'}
                         onViewOnMap={onViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         highlightPlaceKey={activePlaceKey}

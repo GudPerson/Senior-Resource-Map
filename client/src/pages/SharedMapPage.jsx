@@ -593,8 +593,9 @@ export default function SharedMapPage() {
     const getActivePlaceKeys = useCallback((placeKey) => {
         const normalizedPlaceKey = placeKey ? String(placeKey) : '';
         return sharedPresentation.mapFocusPlaceKeysByKey?.[normalizedPlaceKey]
+            || sharedPresentation.hoverPlaceKeysByKey?.[normalizedPlaceKey]
             || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
-    }, [sharedPresentation.mapFocusPlaceKeysByKey]);
+    }, [sharedPresentation.hoverPlaceKeysByKey, sharedPresentation.mapFocusPlaceKeysByKey]);
 
     const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
@@ -789,6 +790,8 @@ export default function SharedMapPage() {
                             mode="shared"
                             layout="desktop"
                             onViewOnMap={handleViewOnMap}
+                            onHoverPlaceStart={handleMapHoverStart}
+                            onHoverPlaceEnd={handleMapHoverEnd}
                             highlightPlaceKey={activePlaceKey}
                             highlightPlaceKeys={activePlaceKeys}
                             selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
@@ -858,6 +861,8 @@ export default function SharedMapPage() {
                         mode="shared"
                         layout="responsive"
                         onViewOnMap={handleViewOnMap}
+                        onHoverPlaceStart={handleMapHoverStart}
+                        onHoverPlaceEnd={handleMapHoverEnd}
                         highlightPlaceKey={activePlaceKey}
                         highlightPlaceKeys={activePlaceKeys}
                         selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}

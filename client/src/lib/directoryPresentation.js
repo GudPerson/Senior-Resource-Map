@@ -388,13 +388,18 @@ function splitMappedGroupsIntoColumns(groups) {
 
 function splitDisplayGroupsIntoColumns(groups) {
     if (!groups.length) {
-        return { leftGroups: [], rightGroups: [] };
+        return { leftGroups: [], rightGroups: [], mapColumnGroups: [] };
     }
 
-    const midpoint = Math.ceil(groups.length / 2);
+    const mapColumnGroups = groups.filter((group) => (
+        group.isUnmappedGroup && group.mapFocusPlaceKeys?.length
+    ));
+    const sideGroups = groups.filter((group) => !mapColumnGroups.includes(group));
+    const midpoint = Math.ceil(sideGroups.length / 2);
     return {
-        leftGroups: groups.slice(0, midpoint),
-        rightGroups: groups.slice(midpoint),
+        leftGroups: sideGroups.slice(0, midpoint),
+        rightGroups: sideGroups.slice(midpoint),
+        mapColumnGroups,
     };
 }
 
@@ -518,17 +523,19 @@ function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
     const categoryEntry = getPrimaryCategoryEntry([row]);
     const mapFocusPlaceKeys = normalizePlaceKeyList(row.mapFocusPlaceKeys)
         .filter((key) => mappedPlaceKeys.has(key));
+    const isMapFocusableListGroup = mapFocusPlaceKeys.length > 0;
+    const locationLine = isMapFocusableListGroup ? '' : (row.locationLabel || row.contextLabel || '');
 
     return {
         placeKey,
         placeId: null,
         name: row.name || row.placeName || 'Resource not shown on map',
-        address: row.locationLabel || row.contextLabel || null,
+        address: locationLine || null,
         postalCode: '',
         lat: null,
         lng: null,
         hasCoordinates: false,
-        shortLocationLine: row.locationLabel || row.contextLabel || '',
+        shortLocationLine: locationLine,
         distanceKm: null,
         distanceLabel: null,
         curatedCount: 1,
@@ -677,7 +684,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
             });
         }
     });
-    const { leftGroups, rightGroups } = splitDisplayGroupsIntoColumns(displayGroups);
+    const { leftGroups, rightGroups, mapColumnGroups } = splitDisplayGroupsIntoColumns(displayGroups);
 
     return {
         pins,
@@ -688,6 +695,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         displayGroups,
         leftGroups,
         rightGroups,
+        mapColumnGroups,
         unmappedRows: orderedUnmappedRows,
         desktopUnmappedPlacement: 'none',
         leftUnmappedRows: [],

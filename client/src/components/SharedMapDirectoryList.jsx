@@ -1081,6 +1081,10 @@ function isGroupLogoRevealed(group, logoRevealPlaceKeys = []) {
     return (logoRevealPlaceKeys || []).some((value) => matchesGroupKey(group, value));
 }
 
+function isInteractiveCardTarget(target) {
+    return Boolean(target?.closest?.('a,button,input,textarea,select,summary,[data-directory-card-action]'));
+}
+
 function getSecondaryCategory(row, t) {
     return row?.subCategory || row?.bucket || (row?.resourceType === 'hard' ? t('placeType') : t('offeringType'));
 }
@@ -1447,6 +1451,8 @@ function DirectoryPlaceGroupCard({
     compactInteractive = false,
     fullCardLink = false,
     onViewOnMap,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onRemoveResource,
     onUpdateResourceNotes,
     onOpenResourceNotes,
@@ -1461,11 +1467,38 @@ function DirectoryPlaceGroupCard({
     cardBadgeMode = 'number',
     showPrintNumberBadge = false,
 }) {
+    const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
+    const canFocusCardOnMap = Boolean(interactive && onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
+
+    function handleCardClick(event) {
+        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
+        event.preventDefault();
+        onViewOnMap?.(group.placeKey);
+    }
+
+    function handleCardKeyDown(event) {
+        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onViewOnMap?.(group.placeKey);
+    }
+
+    const cardInteractionProps = interactive ? {
+        onMouseEnter: () => onHoverPlaceStart?.(group.placeKey),
+        onMouseLeave: () => onHoverPlaceEnd?.(group.placeKey),
+        ...(canFocusCardOnMap ? {
+            onClick: handleCardClick,
+            onKeyDown: handleCardKeyDown,
+            role: 'button',
+            tabIndex: 0,
+            'aria-label': `${t('viewOnMap')}: ${group.name}`,
+        } : {}),
+    } : {};
 
     if (!interactive) {
         if (isPostalGroup) {
@@ -1690,6 +1723,7 @@ function DirectoryPlaceGroupCard({
         return (
             <section
                 ref={sectionRef}
+                {...cardInteractionProps}
                 className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
@@ -1775,12 +1809,13 @@ function DirectoryPlaceGroupCard({
         </>
     );
 
-    if (placeDetailPath && fullCardLink && !isPostalGroup) {
+    if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap) {
         return (
             <Link
                 to={placeDetailPath}
                 reloadDocument
                 ref={sectionRef}
+                {...cardInteractionProps}
                 className={`group relative block overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
@@ -1793,6 +1828,7 @@ function DirectoryPlaceGroupCard({
     return (
         <section
             ref={sectionRef}
+            {...cardInteractionProps}
             className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                 highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
             } scroll-mt-[62svh] lg:scroll-mt-6`}
@@ -2015,6 +2051,8 @@ function DirectoryGroupColumn({
     compactInteractive = false,
     fullCardLink = false,
     onViewOnMap,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onRemoveResource,
     onUpdateResourceNotes,
     onOpenResourceNotes,
@@ -2069,6 +2107,8 @@ function DirectoryGroupColumn({
                             compactInteractive={compactInteractive}
                             fullCardLink={fullCardLink}
                             onViewOnMap={onViewOnMap}
+                            onHoverPlaceStart={onHoverPlaceStart}
+                            onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
                             onUpdateResourceNotes={onUpdateResourceNotes}
                             onOpenResourceNotes={onOpenResourceNotes}
@@ -2170,6 +2210,8 @@ export default function SharedMapDirectoryList({
     renderDesktopMap = null,
     renderMobileMap = null,
     onViewOnMap,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onRemoveResource,
     onUpdateResourceNotes,
     highlightPlaceKey = null,
@@ -2213,6 +2255,7 @@ export default function SharedMapDirectoryList({
     const displayGroups = presentation?.displayGroups || mappedGroups;
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
+    const mapColumnGroups = presentation?.mapColumnGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
     const shouldRenderUnmappedSections = !presentation?.integratesUnmappedRowsAsCards;
     const showCategoryPills = Boolean(presentation?.showCategoryPills);
@@ -2511,6 +2554,8 @@ export default function SharedMapDirectoryList({
                             interactive
                             fullCardLink={false}
                             onViewOnMap={handleDirectoryViewOnMap}
+                            onHoverPlaceStart={onHoverPlaceStart}
+                            onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
                             onUpdateResourceNotes={onUpdateResourceNotes}
                             onOpenResourceNotes={openResourceNotes}
@@ -2563,6 +2608,8 @@ export default function SharedMapDirectoryList({
                         compactInteractive={compactInteractiveDesktop}
                         fullCardLink={interactive && mode !== 'owner'}
                         onViewOnMap={handleDirectoryViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}
@@ -2605,6 +2652,36 @@ export default function SharedMapDirectoryList({
                                 onOpen={openResourceNotes}
                             />
                         ) : null}
+                        {mapColumnGroups.length ? (
+                            <div className={resolvedLayout !== 'print' ? 'mt-3' : ''}>
+                                <DirectoryGroupColumn
+                                    groups={mapColumnGroups}
+                                    mode={mode}
+                                    interactive={interactive}
+                                    compactInteractive={compactInteractiveDesktop}
+                                    fullCardLink={false}
+                                    onViewOnMap={handleDirectoryViewOnMap}
+                                    onHoverPlaceStart={onHoverPlaceStart}
+                                    onHoverPlaceEnd={onHoverPlaceEnd}
+                                    onRemoveResource={onRemoveResource}
+                                    onUpdateResourceNotes={onUpdateResourceNotes}
+                                    onOpenResourceNotes={openResourceNotes}
+                                    canSaveResources={canSaveResources}
+                                    highlightPlaceKey={flashPlaceKey}
+                                    highlightPlaceKeys={highlightPlaceKeys}
+                                    sectionRefs={sectionRefs}
+                                    allowPrintLinks={allowPrintLinks}
+                                    compactPrint={compactPrint}
+                                    clusterMapping={clusterMapping}
+                                    showDesktopHoverLogo={showDesktopHoverLogo}
+                                    logoRevealPlaceKeys={logoRevealPlaceKeys}
+                                    cardBadgeMode={cardBadgeMode}
+                                    showCategoryPills={showCategoryPills}
+                                    showPrintNumberBadges={showPrintNumberBadges}
+                                    afterContent={null}
+                                />
+                            </div>
+                        ) : null}
                         {shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'map-column' && dockedUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={dockedUnmappedRows}
@@ -2626,6 +2703,8 @@ export default function SharedMapDirectoryList({
                         compactInteractive={compactInteractiveDesktop}
                         fullCardLink={interactive && mode !== 'owner'}
                         onViewOnMap={handleDirectoryViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}

@@ -63,6 +63,39 @@ test('list-only Group cards can expose a map focus action when mapped member pin
     assert.match(badgeSource, /group\?\.hasCoordinates !== false \|\| group\?\.mapFocusPlaceKeys\?\.length/);
 });
 
+test('focusable Group cards render under the desktop map notes area', () => {
+    const desktopSource = sourceBetween(
+        sharedMapDirectorySource,
+        'ref={desktopMapWrapperRef}',
+        '<DirectoryGroupColumn\n                        groups={rightGroups}',
+    );
+
+    assert.match(sharedMapDirectorySource, /const mapColumnGroups = presentation\?\.mapColumnGroups \|\| \[\]/);
+    assert.match(desktopSource, /<MapNotesEntryButton/);
+    assert.match(desktopSource, /mapColumnGroups\.length/);
+    assert.match(desktopSource, /groups=\{mapColumnGroups\}/);
+    assert.ok(
+        desktopSource.indexOf('<MapNotesEntryButton') < desktopSource.indexOf('groups={mapColumnGroups}'),
+        'map-column Group cards should render below the map notes entry',
+    );
+});
+
+test('interactive cards hover pins and use card body clicks for map focus only', () => {
+    const cardSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryPlaceGroupCard',
+        'function DirectoryUnmappedRow',
+    );
+
+    assert.match(cardSource, /onMouseEnter: \(\) => onHoverPlaceStart\?\.\(group\.placeKey\)/);
+    assert.match(cardSource, /onMouseLeave: \(\) => onHoverPlaceEnd\?\.\(group\.placeKey\)/);
+    assert.match(sharedMapDirectorySource, /function isInteractiveCardTarget/);
+    assert.match(cardSource, /onViewOnMap\?\.\(group\.placeKey\)/);
+    assert.match(cardSource, /fullCardLink && !isPostalGroup && !canFocusCardOnMap/);
+    assert.match(sharedMapDirectorySource, /onHoverPlaceStart=\{onHoverPlaceStart\}/);
+    assert.match(sharedMapDirectorySource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,
@@ -129,7 +162,7 @@ test('v2 logo cards show the resource name before the address metadata', () => {
     const v2CardSource = sourceBetween(
         cardSource,
         "const usesV2CardLanguage = cardBadgeMode === 'logo';",
-        'if (placeDetailPath && fullCardLink && !isPostalGroup)',
+        'if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap)',
     );
 
     assert.match(v2CardSource, /!usesV2CardLanguage \? \(/);

@@ -206,6 +206,10 @@ test('v2 card presentation lets list-only Group cards borrow mapped Place member
 
     assert.equal(groupCard.hasCoordinates, false);
     assert.deepEqual(groupCard.mapFocusPlaceKeys, ['hard-10', 'hard-20']);
+    assert.equal(groupCard.shortLocationLine, '');
+    assert.deepEqual(presentation.mapColumnGroups.map((group) => group.placeKey), [groupCard.placeKey]);
+    assert.equal(presentation.leftGroups.includes(groupCard), false);
+    assert.equal(presentation.rightGroups.includes(groupCard), false);
     assert.deepEqual(groupCard.memberPlaceKeys, [
         groupCard.placeKey,
         'hard-10',

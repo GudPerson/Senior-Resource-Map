@@ -72,7 +72,10 @@ test('shared map interactive view uses the My Map V2 card and pin language', () 
     assert.match(sharedMapPageSource, /setDirectory\(await backfillGroupFocusPlaceKeys\(enrichedDirectory\)\)/);
     assert.match(sharedMapPageSource, /buildDirectoryPresentation\(translatedDirectory, \{ query, activeAnchor, presentationMode: 'v2-cards' \}\)/);
     assert.match(sharedMapPageSource, /const resolvedPlaceKey = sharedPresentation\.groupKeyByPlaceKey\?\.\[placeKey\] \|\| placeKey/);
+    assert.match(sharedMapPageSource, /sharedPresentation\.hoverPlaceKeysByKey\?\.\[normalizedPlaceKey\]/);
     assert.match(sharedMapPageSource, /presentation=\{sharedPresentation\}/);
+    assert.match(sharedMapPageSource, /onHoverPlaceStart=\{handleMapHoverStart\}/);
+    assert.match(sharedMapPageSource, /onHoverPlaceEnd=\{handleMapHoverEnd\}/);
     assert.match(sharedMapPageSource, /showMapLegend=\{false\}/);
     assert.match(sharedMapPageSource, /cardBadgeMode="logo"/);
     assert.match(sharedMapPageSource, /desktopGridClassName=\{SHARED_MAP_V2_DESKTOP_GRID_CLASS\}/);

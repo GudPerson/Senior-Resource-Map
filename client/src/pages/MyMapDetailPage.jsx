@@ -992,6 +992,8 @@ export default function MyMapDetailPage() {
                                 mode="owner"
                                 layout={useDesktopOwnerLayout ? 'desktop' : 'responsive'}
                                 onViewOnMap={handleViewOnMap}
+                                onHoverPlaceStart={handleMapHoverStart}
+                                onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={handleRemoveResource}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}

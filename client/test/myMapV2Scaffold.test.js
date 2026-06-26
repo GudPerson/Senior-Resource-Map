@@ -62,6 +62,8 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapV2ScaffoldSource, /useDesktopLayout \? \(/);
     assert.match(myMapV2ScaffoldSource, /useDesktopBodyLayout = useDesktopLayout/);
     assert.match(myMapV2ScaffoldSource, /layout=\{useDesktopBodyLayout \? 'desktop' : 'responsive'\}/);
+    assert.match(myMapV2ScaffoldSource, /onHoverPlaceStart=\{onHoverPlaceStart\}/);
+    assert.match(myMapV2ScaffoldSource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
     assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);
     assert.match(myMapDetailPageSource, /const useDesktopOwnerLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
@@ -139,6 +141,7 @@ test('my map v2 uses the dedicated V2 card-ordering presentation', () => {
     assert.match(myMapDetailPageSource, /presentation=\{v2Presentation\}/);
     assert.match(myMapDetailPageSource, /ownerPresentation\.hoverPlaceKeysByKey/);
     assert.match(myMapDetailPageSource, /focusPlaceOnMap\(placeKey\)[\s\S]*ownerPresentation\.groupKeyByPlaceKey/);
+    assert.match(myMapDetailPageSource, /<SharedMapDirectoryList[\s\S]*onHoverPlaceStart=\{handleMapHoverStart\}[\s\S]*onHoverPlaceEnd=\{handleMapHoverEnd\}/);
 });
 
 test('my map v2 enriches directory rows with configured category colors from the shared category metadata', () => {
