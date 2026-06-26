@@ -507,15 +507,23 @@ function createCategoryBubbleMarker(pin = {}, {
                     display:flex;
                     align-items:center;
                     justify-content:center;
-                    border:3px solid ${item.color};
+                    border:0;
                     border-radius:999px;
                     background:#ffffff;
                     color:${item.color};
                     box-shadow:${shadowColor};
+                    overflow:hidden;
                     pointer-events:auto;
                 "
             >
-                ${content}
+                <span class="directory-category-bubble-marker__content">
+                    ${content}
+                </span>
+                <span
+                    class="directory-category-bubble-marker__ring"
+                    style="border-color:${item.color};"
+                    aria-hidden="true"
+                ></span>
             </span>
         `;
     }).join('');

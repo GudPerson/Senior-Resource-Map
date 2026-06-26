@@ -139,7 +139,9 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /data-category-bubble-place-key/);
     assert.match(directoryMapSource, /class="directory-category-bubble-marker__lobe"/);
     assert.match(directoryMapSource, /categoryBubbleItems: pin\.categoryBubbleItems \|\| null/);
-    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*border:3px solid \$\{item\.color\}/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*class="directory-category-bubble-marker__content"/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*class="directory-category-bubble-marker__ring"/);
+    assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*style="border-color:\$\{item\.color\};"/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*background:#ffffff/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*color:\$\{item\.color\}/);
     assert.match(directoryMapSource, /layoutOffsetX: preserveSolvedOffsets \? \(storedOffset\?\.x \?\? initialOffsetX\) : initialOffsetX/);
@@ -156,8 +158,11 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
     assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon[\s\S]*pointer-events: none !important/);
     assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon \.directory-category-bubble-marker__lobe[\s\S]*pointer-events: auto !important/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__content[\s\S]*z-index: 1/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__ring[\s\S]*z-index: 2/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__ring[\s\S]*border: 3px solid currentColor/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*fill: currentColor/);
-    assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*width: 17px/);
+    assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*width: 16px/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*width: 14px/);
 });
 

@@ -748,9 +748,30 @@
   pointer-events: auto !important;
 }
 
+.directory-category-bubble-marker__content {
+  position: absolute;
+  inset: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.directory-category-bubble-marker__ring {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 3px solid currentColor;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
 .directory-category-bubble-marker__icon {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.14));
