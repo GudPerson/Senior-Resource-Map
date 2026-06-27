@@ -139,6 +139,25 @@ test('mobile map panel uses softened collapse and reveal animation', () => {
     assert.match(sharedMapDirectorySource, /Date\.now\(\) \+ 650/);
 });
 
+test('mobile map panel keeps the mounted map cached while collapsed', () => {
+    const mobileSource = sourceBetween(
+        sharedMapDirectorySource,
+        "if (resolvedLayout === 'mobile')",
+        'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
+    );
+
+    assert.match(mobileSource, /const mobileMapBaseHeightClassName/);
+    assert.match(mobileSource, /const mobileMapFrameHeightClassName/);
+    assert.match(mobileSource, /const mobileMapViewportClassName/);
+    assert.match(mobileSource, /const mobileMapInnerClassName/);
+    assert.match(mobileSource, /className=\{mobileMapViewportClassName\}/);
+    assert.match(mobileSource, /className=\{mobileMapInnerClassName\}/);
+    assert.match(mobileSource, /mapHeightClassName: mobileMapFrameHeightClassName/);
+    assert.match(mobileSource, /layoutSignature: isMobileMapFullscreen \? 'mobile-map-fullscreen' : 'mobile-map-normal'/);
+    assert.doesNotMatch(mobileSource, /mapHeightClassName: mobileMapHeightClassName/);
+    assert.doesNotMatch(mobileSource, /layoutSignature: `mobile-map-\$\{mobileMapPanelState\}`/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,

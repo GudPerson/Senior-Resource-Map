@@ -2609,15 +2609,21 @@ export default function SharedMapDirectoryList({
 
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
-        const mobileMapHeightClassName = isMobileMapFullscreen
-            ? `h-full min-h-0 max-h-none opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+        const mobileMapBaseHeightClassName = mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]';
+        const mobileMapFrameHeightClassName = isMobileMapFullscreen
+            ? 'h-full min-h-0 max-h-none'
+            : mobileMapBaseHeightClassName;
+        const mobileMapViewportClassName = isMobileMapFullscreen
+            ? 'min-h-0 flex-1 overflow-hidden opacity-100 translate-y-0'
             : isMobileMapCollapsed
             ? `h-0 min-h-0 max-h-0 overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+            : `${mobileMapBaseHeightClassName} overflow-hidden opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+        const mobileMapInnerClassName = isMobileMapCollapsed
+            ? `opacity-0 -translate-y-2 scale-[0.985] pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `h-full min-h-0 opacity-100 translate-y-0 scale-100 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
         const mobileMapWrapperClassName = isMobileMapFullscreen
             ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling'
             : `${mobileMapStickyClassName} disable-font-scaling`;
-        const mobileMapFrameClassName = isMobileMapFullscreen ? 'min-h-0 flex-1' : '';
         const mobileMapLegendClassName = isMobileMapCollapsed
             ? `max-h-0 overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
             : `max-h-20 opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
@@ -2627,14 +2633,16 @@ export default function SharedMapDirectoryList({
                 <div className={`space-y-4 ${className}`}>
                     {mobileMapElement ? (
                         <div ref={mobileMapWrapperRef} className={mobileMapWrapperClassName}>
-                            <div className={mobileMapFrameClassName}>
-                                {React.cloneElement(mobileMapElement, {
-                                    onClusterChange: setClusterMapping,
-                                    onViewSection: handleMobileMapViewSection,
-                                    onClusterSelect: handleMobileMapClusterSelect,
-                                    mapHeightClassName: mobileMapHeightClassName,
-                                    layoutSignature: `mobile-map-${mobileMapPanelState}`,
-                                })}
+                            <div className={mobileMapViewportClassName}>
+                                <div className={mobileMapInnerClassName}>
+                                    {React.cloneElement(mobileMapElement, {
+                                        onClusterChange: setClusterMapping,
+                                        onViewSection: handleMobileMapViewSection,
+                                        onClusterSelect: handleMobileMapClusterSelect,
+                                        mapHeightClassName: mobileMapFrameHeightClassName,
+                                        layoutSignature: isMobileMapFullscreen ? 'mobile-map-fullscreen' : 'mobile-map-normal',
+                                    })}
+                                </div>
                             </div>
                             {showMapLegend ? (
                                 <div className={mobileMapLegendClassName}>
