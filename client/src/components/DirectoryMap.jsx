@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -53,6 +53,8 @@ const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.76
 const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28;
 const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER * 0.74;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 13.25;
+const DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER = 13;
+const DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER * 0.58;
 const DIRECTORY_PRINT_BADGE_BUBBLE_GAP = 1;
 const DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS = 56;
 const DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET = 44;
@@ -252,10 +254,10 @@ function getPrintBadgeLobeLayout(count) {
     return getBubbleLobeLayout(count);
 }
 
-function getCategoryBubbleLobeLayout(count) {
+function getCategoryBubbleLobeLayout(count, compact = false) {
     return getBubbleLobeLayout(count, {
-        diameter: DIRECTORY_CATEGORY_BUBBLE_DIAMETER,
-        spacing: DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING,
+        diameter: compact ? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER : DIRECTORY_CATEGORY_BUBBLE_DIAMETER,
+        spacing: compact ? DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING : DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING,
     });
 }
 
@@ -478,9 +480,14 @@ function renderCategoryBubbleFallbackIcon() {
 function createCategoryBubbleMarker(pin = {}, {
     emphasis = 'default',
     activePlaceKeys = new Set(),
+    compact = false,
 } = {}) {
     const bubbleItems = normalizeCategoryBubbleItems(pin.categoryBubbleItems || null, pin);
-    const lobeLayout = getCategoryBubbleLobeLayout(bubbleItems.length);
+    const lobeLayout = getCategoryBubbleLobeLayout(bubbleItems.length, compact);
+    const lobeDiameter = compact ? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER : DIRECTORY_CATEGORY_BUBBLE_DIAMETER;
+    const lobeClassName = compact
+        ? 'directory-category-bubble-marker__lobe directory-category-bubble-marker__lobe--compact-dot'
+        : 'directory-category-bubble-marker__lobe';
     const markerKey = bubbleItems.map((item) => `${item.placeKey || ''}:${item.color || ''}:${item.iconUrl || ''}`).join('|') || pin.placeKey || '';
     const markerNumber = Number(pin.number) || Number.MAX_SAFE_INTEGER;
     const markerSelected = emphasis === 'primary';
@@ -496,14 +503,14 @@ function createCategoryBubbleMarker(pin = {}, {
             : renderCategoryBubbleFallbackIcon();
         return `
             <span
-                class="directory-category-bubble-marker__lobe"
+                class="${lobeClassName}"
                 data-category-bubble-place-key="${escapeHtml(item.placeKey || '')}"
                 style="
                     position:absolute;
                     left:${lobe.left}px;
                     top:${lobe.top}px;
-                    width:${DIRECTORY_CATEGORY_BUBBLE_DIAMETER}px;
-                    height:${DIRECTORY_CATEGORY_BUBBLE_DIAMETER}px;
+                    width:${lobeDiameter}px;
+                    height:${lobeDiameter}px;
                     box-sizing:border-box;
                     display:flex;
                     align-items:center;
@@ -1169,7 +1176,7 @@ function applyPrintBadgeMarkerOffset(item, offset, solvedOffsets = null) {
     item.coreElement.style.setProperty('--print-badge-offset-y', '0px');
 }
 
-function DirectoryCategoryBubbleZoomClassSync({ enabled }) {
+function DirectoryCategoryBubbleZoomClassSync({ enabled, onCompactChange }) {
     const map = useMap();
 
     useEffect(() => {
@@ -1182,6 +1189,7 @@ function DirectoryCategoryBubbleZoomClassSync({ enabled }) {
                 && Number.isFinite(zoom)
                 && zoom <= DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD;
             container.classList.toggle('directory-map--category-bubbles-compact', shouldShowDots);
+            onCompactChange?.(shouldShowDots);
         };
 
         syncCompactClass();
@@ -1192,8 +1200,9 @@ function DirectoryCategoryBubbleZoomClassSync({ enabled }) {
             map.off('zoomend', syncCompactClass);
             map.off('moveend', syncCompactClass);
             container.classList.remove('directory-map--category-bubbles-compact');
+            onCompactChange?.(false);
         };
-    }, [enabled, map]);
+    }, [enabled, map, onCompactChange]);
 
     return null;
 }
@@ -1955,6 +1964,7 @@ export default function DirectoryMap({
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const lastCategoryBubbleHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
+    const [compactCategoryBubbles, setCompactCategoryBubbles] = useState(false);
     const printBadgeLayoutRefreshKey = useMemo(() => {
         if (markerMode !== 'print-badge' && markerMode !== 'category-bubble') return '';
 
@@ -1970,8 +1980,8 @@ export default function DirectoryMap({
         }).join(';');
 
         const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
-        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${markerKeys}`;
-    }, [activePlaceKey, activePlaceKeySet, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
+        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${markerKeys}`;
+    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -2097,6 +2107,7 @@ export default function DirectoryMap({
                                 {
                                     emphasis: isMatched ? 'primary' : 'default',
                                     activePlaceKeys: activePlaceKeySet,
+                                    compact: compactCategoryBubbles,
                                 }
                             )
                             : markerMode === 'number'
@@ -2171,6 +2182,7 @@ export default function DirectoryMap({
                     {
                         emphasis: isMatched ? 'primary' : 'default',
                         activePlaceKeys: activePlaceKeySet,
+                        compact: compactCategoryBubbles,
                     }
                 )
                 : markerMode === 'number'
@@ -2213,7 +2225,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     if (!pins.length && !anchorPoint) {
         return (
@@ -2304,7 +2316,10 @@ export default function DirectoryMap({
                     onClusterSelect={onClusterSelect}
                 />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
-                <DirectoryCategoryBubbleZoomClassSync enabled={markerMode === 'category-bubble'} />
+                <DirectoryCategoryBubbleZoomClassSync
+                    enabled={markerMode === 'category-bubble'}
+                    onCompactChange={setCompactCategoryBubbles}
+                />
                 <DirectoryPrintBadgeCollisionSync
                     enabled={markerMode === 'print-badge' || markerMode === 'category-bubble'}
                     preserveSolvedOffsets={markerMode === 'category-bubble'}
