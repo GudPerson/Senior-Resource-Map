@@ -175,6 +175,60 @@ test('mobile map notes are the only sticky mobile map element', () => {
     assert.doesNotMatch(mobileSource, /h-0 min-h-0 max-h-0/);
 });
 
+test('mobile natural scroll can open a gesture-driven full map after the first card', () => {
+    const mobileSource = sourceBetween(
+        sharedMapDirectorySource,
+        "if (resolvedLayout === 'mobile')",
+        'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
+    );
+    const scrollGestureSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const openMobileGestureFullMap = useCallback',
+        'function openResourceNotes',
+    );
+
+    assert.match(sharedMapDirectorySource, /const MOBILE_FULL_MAP_FIRST_CARD_TRIGGER_OFFSET = 12;/);
+    assert.match(sharedMapDirectorySource, /const \[isMobileGestureFullMap, setIsMobileGestureFullMap\] = useState\(false\)/);
+    assert.match(sharedMapDirectorySource, /const mobileCardsWrapperRef = useRef\(null\)/);
+    assert.match(sharedMapDirectorySource, /data-directory-place-card="true"/);
+    assert.match(scrollGestureSource, /querySelector\('\[data-directory-place-card="true"\]'\)/);
+    assert.match(scrollGestureSource, /firstCardRect\.bottom <= triggerLine/);
+    assert.match(scrollGestureSource, /scrollingDown/);
+    assert.match(scrollGestureSource, /openMobileGestureFullMap\(\)/);
+    assert.match(mobileSource, /isMobileGestureFullMap && mobileMapElement \? \(/);
+    assert.match(mobileSource, /layoutSignature: 'mobile-map-fullscreen'/);
+    assert.match(mobileSource, /mapHeightClassName: 'h-full min-h-0 max-h-none'/);
+    assert.doesNotMatch(sharedMapDirectorySource, /getMobileMapPanelActionForScroll/);
+});
+
+test('mobile full map exits from a bottom-edge upward swipe and keeps map notes reachable', () => {
+    const fullMapSource = sourceBetween(
+        sharedMapDirectorySource,
+        'isMobileGestureFullMap && mobileMapElement ? (',
+        '<div ref={mobileCardsWrapperRef} className={mobileCardsClassName}',
+    );
+    const gestureSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const handleMobileFullMapTouchStart = useCallback',
+        'function openResourceNotes',
+    );
+
+    assert.match(sharedMapDirectorySource, /const MOBILE_FULL_MAP_BOTTOM_GESTURE_ZONE = 112;/);
+    assert.match(sharedMapDirectorySource, /const MOBILE_FULL_MAP_SWIPE_UP_DELTA = 48;/);
+    assert.match(sharedMapDirectorySource, /const mobileFullMapTouchStartYRef = useRef\(null\)/);
+    assert.match(sharedMapDirectorySource, /document\.body\.style\.overflow = 'hidden'/);
+    assert.match(sharedMapDirectorySource, /mobileNormalMapRef\.current\?\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\)/);
+    assert.match(gestureSource, /window\.innerHeight - MOBILE_FULL_MAP_BOTTOM_GESTURE_ZONE/);
+    assert.match(gestureSource, /mobileFullMapTouchStartYRef\.current - endY/);
+    assert.match(gestureSource, /swipeDistance >= MOBILE_FULL_MAP_SWIPE_UP_DELTA/);
+    assert.match(gestureSource, /closeMobileGestureFullMap\(\)/);
+    assert.match(fullMapSource, /onTouchStart=\{handleMobileFullMapTouchStart\}/);
+    assert.match(fullMapSource, /onTouchEnd=\{handleMobileFullMapTouchEnd\}/);
+    assert.match(fullMapSource, /<MapNotesEntryButton/);
+    assert.match(fullMapSource, /aria-label=\{t\('returnToMapList'\)\}/);
+    assert.match(fullMapSource, /<ChevronUp size=\{22\}/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,
