@@ -131,9 +131,16 @@ function MyMapMobileControls({
     onOpenPrintView,
     onOpenShare,
     renderPdfExportButton,
+    compactOverlay = false,
 }) {
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
+    const headerClassName = compactOverlay
+        ? 'sticky top-[56px] z-40 -mx-4 flex h-11 items-center border-b border-slate-200 bg-slate-50/95 px-4 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.45)] backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-12 sm:px-6 xl:hidden disable-font-scaling'
+        : 'sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling';
+    const menuButtonClassName = compactOverlay
+        ? 'inline-flex h-8 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:bg-white active:scale-95 sm:h-9 sm:w-11'
+        : 'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95 transition-transform';
 
     const runDrawerAction = useCallback((action) => {
         setOpen(false);
@@ -144,28 +151,28 @@ function MyMapMobileControls({
 
     return (
         <>
-            <div className="sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
-                <div className="flex items-center gap-4">
+            <div className={headerClassName}>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
-                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95 transition-transform"
+                        className={menuButtonClassName}
                         aria-label={t('openMapControls')}
                     >
-                        <Menu size={20} />
+                        <Menu size={compactOverlay ? 18 : 20} strokeWidth={compactOverlay ? 2.3 : 2} />
                     </button>
 
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-bold text-slate-900 sm:text-[17px]">{directory.name}</p>
+                        <p className={`${compactOverlay ? 'text-[15px] sm:text-base' : 'text-base sm:text-[17px]'} truncate font-bold text-slate-900`}>{directory.name}</p>
                     </div>
                 </div>
             </div>
 
             <Drawer.Root direction="left" open={open} onOpenChange={setOpen}>
                 <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35 xl:hidden" />
+                    <Drawer.Overlay className="fixed inset-0 z-[1200] bg-slate-950/35 xl:hidden" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
+                        className="fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
                         style={{
                             borderColor: 'var(--color-border)',
                             background: 'linear-gradient(180deg, #ffffff 0%, #f6fcfb 100%)',
@@ -877,6 +884,7 @@ export default function MyMapDetailPage() {
                                 setShareOpen(true);
                             }}
                             renderPdfExportButton={renderPdfExportButton}
+                            compactOverlay
                         />
                     )}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}

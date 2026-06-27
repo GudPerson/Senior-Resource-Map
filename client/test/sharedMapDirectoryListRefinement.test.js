@@ -96,7 +96,7 @@ test('interactive cards hover pins and use card body clicks for map focus only',
     assert.match(sharedMapDirectorySource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
 });
 
-test('mobile map uses natural page scroll with sticky map notes instead of collapse controls', () => {
+test('mobile map uses stable page scroll with sticky notes and explicit full-map control', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
@@ -106,14 +106,19 @@ test('mobile map uses natural page scroll with sticky map notes instead of colla
     assert.match(mobileSource, /mobileMapNotesWrapperClassName/);
     assert.match(mobileSource, /`\$\{mobileMapStickyClassName\} \[overflow-anchor:none\]`/);
     assert.match(sharedMapDirectorySource, /mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2'/);
-    assert.match(mobileSource, /mapHeightClassName: mobileMapBaseHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: 'mobile-map-normal'/);
+    assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
+    assert.match(mobileSource, /layoutSignature: mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'/);
+    assert.match(mobileSource, /openMobileFullMap/);
+    assert.match(mobileSource, /t\('openFullMap'\)/);
+    assert.match(mobileSource, /<Maximize2/);
     assert.doesNotMatch(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_COLLAPSE_SETTLE_MS/);
     assert.doesNotMatch(sharedMapDirectorySource, /getMobileMapPanelActionForScroll/);
     assert.doesNotMatch(sharedMapDirectorySource, /shouldExpandMobileMapPanelFromTopPull/);
-    assert.match(sharedMapDirectorySource, /fixed inset-0 z-\[90\] flex items-end/);
+    assert.doesNotMatch(sharedMapDirectorySource, /function MobileMapResizeTab/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_ADJUSTABLE_MAP_STEPS/);
+    assert.doesNotMatch(mobileSource, /fixed inset-0 z-\[90\] flex items-end/);
     assert.ok(
         mobileSource.indexOf('React.cloneElement(mobileMapElement') < mobileSource.indexOf('<MapNotesEntryButton'),
         'the map should stay above sticky notes in the normal page flow',
@@ -137,18 +142,20 @@ test('mobile map no longer animates collapse or listens to card scroll gestures'
     assert.doesNotMatch(mobileSource, /onTouchMove=\{handleMobileCardsTouchMove\}/);
 });
 
-test('mobile map stays mounted as a normal partial-height map', () => {
+test('mobile map keeps the supplied partial-height map without resize state', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
-    assert.match(mobileSource, /const mobileMapBaseHeightClassName/);
-    assert.match(mobileSource, /mapHeightClassName: mobileMapBaseHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: 'mobile-map-normal'/);
+    assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
+    assert.match(mobileSource, /layoutSignature: mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'/);
     assert.match(mobileSource, /onViewSection: handleMobileMapViewSection/);
     assert.match(mobileSource, /onClusterSelect: handleMobileMapClusterSelect/);
+    assert.doesNotMatch(mobileSource, /transition-\[height,min-height,max-height\]/);
+    assert.doesNotMatch(sharedMapDirectorySource, /mobileMapSizeStep/);
+    assert.doesNotMatch(sharedMapDirectorySource, /setMobileMapSizeStep/);
     assert.doesNotMatch(mobileSource, /const mobileMapFrameHeightClassName/);
     assert.doesNotMatch(mobileSource, /const mobileMapViewportClassName/);
     assert.doesNotMatch(mobileSource, /const mobileMapClipClassName/);
@@ -175,58 +182,44 @@ test('mobile map notes are the only sticky mobile map element', () => {
     assert.doesNotMatch(mobileSource, /h-0 min-h-0 max-h-0/);
 });
 
-test('mobile natural scroll can open a gesture-driven full map after the first card', () => {
+test('mobile full map opens from an explicit control instead of scroll or resize gestures', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
-    const scrollGestureSource = sourceBetween(
-        sharedMapDirectorySource,
-        'const openMobileGestureFullMap = useCallback',
-        'function openResourceNotes',
-    );
 
-    assert.match(sharedMapDirectorySource, /const MOBILE_FULL_MAP_FIRST_CARD_TRIGGER_OFFSET = 12;/);
-    assert.match(sharedMapDirectorySource, /const \[isMobileGestureFullMap, setIsMobileGestureFullMap\] = useState\(false\)/);
-    assert.match(sharedMapDirectorySource, /const mobileCardsWrapperRef = useRef\(null\)/);
-    assert.match(sharedMapDirectorySource, /data-directory-place-card="true"/);
-    assert.match(scrollGestureSource, /querySelector\('\[data-directory-place-card="true"\]'\)/);
-    assert.match(scrollGestureSource, /firstCardRect\.bottom <= triggerLine/);
-    assert.match(scrollGestureSource, /scrollingDown/);
-    assert.match(scrollGestureSource, /openMobileGestureFullMap\(\)/);
-    assert.match(mobileSource, /isMobileGestureFullMap && mobileMapElement \? \(/);
-    assert.match(mobileSource, /layoutSignature: 'mobile-map-fullscreen'/);
-    assert.match(mobileSource, /mapHeightClassName: 'h-full min-h-0 max-h-none'/);
+    assert.match(sharedMapDirectorySource, /const \[mobileFullMapOpen, setMobileFullMapOpen\] = useState\(false\)/);
+    assert.match(sharedMapDirectorySource, /const openMobileFullMap = useCallback/);
+    assert.match(sharedMapDirectorySource, /const closeMobileFullMap = useCallback/);
+    assert.match(mobileSource, /mobileFullMapOpen \? \(/);
+    assert.match(mobileSource, /mobileFullMapElement/);
+    assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
+    assert.match(mobileSource, /t\('returnToMapList'\)/);
+    assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*rows=\{noteResourceRows\}/);
+    assert.match(sharedMapDirectorySource, /document\.body\.style\.overflow = 'hidden'/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_ADJUSTABLE_MAP_STEPS/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_RESIZE_SWIPE_DELTA/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_FULL_MAP_FIRST_CARD_TRIGGER_OFFSET/);
+    assert.doesNotMatch(sharedMapDirectorySource, /openMobileGestureFullMap/);
+    assert.doesNotMatch(sharedMapDirectorySource, /querySelector\('\[data-directory-place-card="true"\]'\)/);
     assert.doesNotMatch(sharedMapDirectorySource, /getMobileMapPanelActionForScroll/);
 });
 
-test('mobile full map exits from a bottom-edge upward swipe and keeps map notes reachable', () => {
-    const fullMapSource = sourceBetween(
+test('mobile full-map overlay has visible return and notes controls', () => {
+    const mobileSource = sourceBetween(
         sharedMapDirectorySource,
-        'isMobileGestureFullMap && mobileMapElement ? (',
-        '<div ref={mobileCardsWrapperRef} className={mobileCardsClassName}',
-    );
-    const gestureSource = sourceBetween(
-        sharedMapDirectorySource,
-        'const handleMobileFullMapTouchStart = useCallback',
-        'function openResourceNotes',
+        "if (resolvedLayout === 'mobile')",
+        'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
-    assert.match(sharedMapDirectorySource, /const MOBILE_FULL_MAP_BOTTOM_GESTURE_ZONE = 112;/);
-    assert.match(sharedMapDirectorySource, /const MOBILE_FULL_MAP_SWIPE_UP_DELTA = 48;/);
-    assert.match(sharedMapDirectorySource, /const mobileFullMapTouchStartYRef = useRef\(null\)/);
-    assert.match(sharedMapDirectorySource, /document\.body\.style\.overflow = 'hidden'/);
-    assert.match(sharedMapDirectorySource, /mobileNormalMapRef\.current\?\.scrollIntoView\?\.\(\{ behavior: 'smooth', block: 'start' \}\)/);
-    assert.match(gestureSource, /window\.innerHeight - MOBILE_FULL_MAP_BOTTOM_GESTURE_ZONE/);
-    assert.match(gestureSource, /mobileFullMapTouchStartYRef\.current - endY/);
-    assert.match(gestureSource, /swipeDistance >= MOBILE_FULL_MAP_SWIPE_UP_DELTA/);
-    assert.match(gestureSource, /closeMobileGestureFullMap\(\)/);
-    assert.match(fullMapSource, /onTouchStart=\{handleMobileFullMapTouchStart\}/);
-    assert.match(fullMapSource, /onTouchEnd=\{handleMobileFullMapTouchEnd\}/);
-    assert.match(fullMapSource, /<MapNotesEntryButton/);
-    assert.match(fullMapSource, /aria-label=\{t\('returnToMapList'\)\}/);
-    assert.match(fullMapSource, /<ChevronUp size=\{22\}/);
+    assert.match(mobileSource, /fixed inset-0 z-\[1300\]/);
+    assert.match(mobileSource, /onClick=\{closeMobileFullMap\}/);
+    assert.match(mobileSource, /aria-label=\{t\('returnToMapList'\)\}/);
+    assert.match(mobileSource, /<X size=\{18\}/);
+    assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
+    assert.doesNotMatch(mobileSource, /onTouchStart=\{handleMobileMapResizeTouchStart\}/);
+    assert.doesNotMatch(mobileSource, /onTouchEnd=\{handleMobileMapResizeTouchEnd\}/);
 });
 
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
@@ -451,6 +444,7 @@ test('map notes editor keeps typing local until the owner exits the note flow', 
     assert.match(editorSource, /flushDraftChanges\(\{ keepalive: true \}\)/);
     assert.match(editorSource, /onRegisterFlush\?\.\(flushDraftChanges\)/);
     assert.match(overlaySource, /saveEditorBeforeExit/);
+    assert.match(overlaySource, /fixed inset-0 z-\[1400\]/);
     assert.match(overlaySource, /onClick=\{\(\) => void handleClose\(\)\}/);
     assert.match(overlaySource, /onClick=\{\(\) => void handleBackToList\(\)\}/);
     assert.match(myMapDetailPageSource, /handleUpdateResourceNotes\(row, notes, options = \{\}\)/);

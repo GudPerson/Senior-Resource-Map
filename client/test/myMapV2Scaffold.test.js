@@ -78,6 +78,27 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.doesNotMatch(myMapV2ScaffoldSource, /\bapi\./);
 });
 
+test('my map v2 mobile chrome stays compact in normal flow above the scrolling map', () => {
+    const mobileControlsSource = myMapDetailPageSource.slice(
+        myMapDetailPageSource.indexOf('function MyMapMobileControls'),
+        myMapDetailPageSource.indexOf('function EmptyOwnerDirectory'),
+    );
+
+    assert.match(mobileControlsSource, /compactOverlay = false/);
+    assert.match(mobileControlsSource, /z-40 -mx-4 flex h-11/);
+    assert.match(mobileControlsSource, /bg-slate-50\/95/);
+    assert.match(mobileControlsSource, /inline-flex h-8 w-10/);
+    assert.match(mobileControlsSource, /rounded-full/);
+    assert.doesNotMatch(mobileControlsSource, /mb-\[-44px\]/);
+    assert.doesNotMatch(mobileControlsSource, /mb-\[-48px\]/);
+    assert.doesNotMatch(mobileControlsSource, /z-\[1100\]/);
+    assert.match(mobileControlsSource, /Drawer\.Overlay className="fixed inset-0 z-\[1200\]/);
+    assert.match(mobileControlsSource, /className="fixed bottom-0 left-0 top-\[56px\] z-\[1210\]/);
+    assert.match(myMapDetailPageSource, /renderPdfExportButton=\{renderPdfExportButton\}\s+compactOverlay/);
+    assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\]/);
+});
+
 test('my map v2 uses category bubble pins while stable my map keeps numbered pins', () => {
     assert.match(myMapV2ScaffoldSource, /markerMode="category-bubble"/);
     assert.match(myMapV2ScaffoldSource, /pinBadgeMode="none"/);
@@ -188,9 +209,7 @@ test('my map v2 uses the restored normal map sizing without enabling full-map mo
     assert.match(myMapV2ScaffoldSource, /renderMobileMap=\{\(\) => renderMap\(V2_MOBILE_MAP_HEIGHT_CLASS\)\}/);
 });
 
-test('my map v2 does not expose the rejected full-map experiment', () => {
-    assert.doesNotMatch(myMapV2ScaffoldSource, /Full map/);
-    assert.doesNotMatch(myMapV2ScaffoldSource, /Exit full map/);
+test('my map v2 does not expose the rejected auto full-map experiment', () => {
     assert.doesNotMatch(myMapV2ScaffoldSource, /data-my-map-v2-full-map/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /compactPinCards/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /pinCardMode/);

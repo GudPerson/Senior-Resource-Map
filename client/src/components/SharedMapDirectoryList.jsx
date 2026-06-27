@@ -10,13 +10,13 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     ArrowLeft,
     Bold,
-    ChevronUp,
     ChevronRight,
     Eye,
     Italic,
     Link2,
     List,
     ListOrdered,
+    Maximize2,
     Pencil,
     Plus,
     RefreshCw,
@@ -51,9 +51,6 @@ import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
 const DirectoryReturnPathContext = React.createContext('');
-const MOBILE_FULL_MAP_FIRST_CARD_TRIGGER_OFFSET = 12;
-const MOBILE_FULL_MAP_BOTTOM_GESTURE_ZONE = 112;
-const MOBILE_FULL_MAP_SWIPE_UP_DELTA = 48;
 
 function useDirectoryDetailPath(path) {
     const returnTo = React.useContext(DirectoryReturnPathContext);
@@ -833,7 +830,7 @@ function MapNotesOverlay({
 
     return (
         <div
-            className="fixed inset-0 z-[90] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
             onClick={() => void handleClose()}
             role="presentation"
         >
@@ -2274,16 +2271,10 @@ export default function SharedMapDirectoryList({
     const location = useLocation();
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
-    const mobileNormalMapRef = useRef(null);
     const mobileMapWrapperRef = useRef(null);
-    const mobileCardsWrapperRef = useRef(null);
-    const mobileFullMapTouchStartYRef = useRef(null);
-    const mobileFullMapDismissedUntilTopRef = useRef(false);
-    const mobileLastScrollYRef = useRef(0);
-    const mobileScrollFrameRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
-    const [isMobileGestureFullMap, setIsMobileGestureFullMap] = useState(false);
+    const [mobileFullMapOpen, setMobileFullMapOpen] = useState(false);
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
     const resolvedLayout = layout === 'responsive'
         ? (isDesktop ? 'desktop' : 'mobile')
@@ -2343,115 +2334,33 @@ export default function SharedMapDirectoryList({
         renderMobileMap?.().props?.onClusterSelect?.(placeKeys);
     }, [renderMobileMap]);
 
-    const openMobileGestureFullMap = useCallback(() => {
-        mobileFullMapTouchStartYRef.current = null;
-        setIsMobileGestureFullMap(true);
-    }, []);
+    const openMobileFullMap = useCallback(() => {
+        if (!isMobileMapPanelEnabled) return;
+        setMobileFullMapOpen(true);
+    }, [isMobileMapPanelEnabled]);
 
-    const closeMobileGestureFullMap = useCallback(() => {
-        mobileFullMapDismissedUntilTopRef.current = true;
-        mobileFullMapTouchStartYRef.current = null;
-        setIsMobileGestureFullMap(false);
-
-        if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => {
-                mobileNormalMapRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-            });
-        }
-    }, []);
-
-    const handleMobileFullMapTouchStart = useCallback((event) => {
-        if (typeof window === 'undefined') return;
-        const startY = event.touches?.[0]?.clientY;
-        if (typeof startY !== 'number') return;
-        mobileFullMapTouchStartYRef.current = startY >= window.innerHeight - MOBILE_FULL_MAP_BOTTOM_GESTURE_ZONE
-            ? startY
-            : null;
-    }, []);
-
-    const handleMobileFullMapTouchEnd = useCallback((event) => {
-        const startY = mobileFullMapTouchStartYRef.current;
-        if (typeof startY !== 'number') return;
-        const endY = event.changedTouches?.[0]?.clientY;
-        if (typeof endY !== 'number') {
-            mobileFullMapTouchStartYRef.current = null;
-            return;
-        }
-        const swipeDistance = mobileFullMapTouchStartYRef.current - endY;
-        mobileFullMapTouchStartYRef.current = null;
-        if (swipeDistance >= MOBILE_FULL_MAP_SWIPE_UP_DELTA) {
-            closeMobileGestureFullMap();
-        }
-    }, [closeMobileGestureFullMap]);
-
-    const handleMobileFullMapTouchCancel = useCallback(() => {
-        mobileFullMapTouchStartYRef.current = null;
+    const closeMobileFullMap = useCallback(() => {
+        setMobileFullMapOpen(false);
     }, []);
 
     useEffect(() => {
         if (!isMobileMapPanelEnabled) {
-            setIsMobileGestureFullMap(false);
-            mobileFullMapDismissedUntilTopRef.current = false;
+            setMobileFullMapOpen(false);
         }
     }, [isMobileMapPanelEnabled]);
 
     useEffect(() => {
-        if (!isMobileGestureFullMap || typeof document === 'undefined') {
+        if (!isMobileMapPanelEnabled || !mobileFullMapOpen || typeof document === 'undefined') {
             return undefined;
         }
 
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
+
         return () => {
             document.body.style.overflow = previousOverflow;
         };
-    }, [isMobileGestureFullMap]);
-
-    useEffect(() => {
-        if (!isMobileMapPanelEnabled || typeof window === 'undefined') {
-            return undefined;
-        }
-
-        mobileLastScrollYRef.current = Math.max(0, Math.round(window.scrollY || document.documentElement?.scrollTop || 0));
-
-        const checkMobileFullMapTrigger = () => {
-            mobileScrollFrameRef.current = null;
-            const firstCard = mobileCardsWrapperRef.current?.querySelector('[data-directory-place-card="true"]');
-            if (!firstCard) return;
-
-            const nextScrollY = Math.max(0, Math.round(window.scrollY || document.documentElement?.scrollTop || 0));
-            const scrollingDown = nextScrollY > mobileLastScrollYRef.current + 4;
-            mobileLastScrollYRef.current = nextScrollY;
-
-            const firstCardRect = firstCard.getBoundingClientRect();
-            const notesRect = mobileMapWrapperRef.current?.getBoundingClientRect();
-            const triggerLine = Math.max(0, Math.round((notesRect?.bottom || 0) + MOBILE_FULL_MAP_FIRST_CARD_TRIGGER_OFFSET));
-            const firstCardPassed = firstCardRect.bottom <= triggerLine;
-
-            if (!firstCardPassed) {
-                mobileFullMapDismissedUntilTopRef.current = false;
-                return;
-            }
-
-            if (firstCardPassed && scrollingDown && !mobileFullMapDismissedUntilTopRef.current && !isMobileGestureFullMap) {
-                openMobileGestureFullMap();
-            }
-        };
-
-        const handleWindowScroll = () => {
-            if (mobileScrollFrameRef.current) return;
-            mobileScrollFrameRef.current = window.requestAnimationFrame(checkMobileFullMapTrigger);
-        };
-
-        window.addEventListener('scroll', handleWindowScroll, { passive: true });
-        return () => {
-            window.removeEventListener('scroll', handleWindowScroll);
-            if (mobileScrollFrameRef.current) {
-                window.cancelAnimationFrame(mobileScrollFrameRef.current);
-                mobileScrollFrameRef.current = null;
-            }
-        };
-    }, [isMobileGestureFullMap, isMobileMapPanelEnabled, openMobileGestureFullMap]);
+    }, [isMobileMapPanelEnabled, mobileFullMapOpen]);
 
     function openResourceNotes(row = null) {
         if (!interactive || !noteResourceRows.length) return;
@@ -2538,7 +2447,7 @@ export default function SharedMapDirectoryList({
 
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
-        const mobileMapBaseHeightClassName = mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]';
+        const mobileFullMapElement = mobileFullMapOpen ? renderMobileMap?.() : null;
         const mobileMapNotesWrapperClassName = `${mobileMapStickyClassName} [overflow-anchor:none]`;
         const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
@@ -2546,14 +2455,25 @@ export default function SharedMapDirectoryList({
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-4 ${className}`}>
                     {mobileMapElement ? (
-                        <div ref={mobileNormalMapRef} className="disable-font-scaling [overflow-anchor:none]">
-                            {React.cloneElement(mobileMapElement, {
-                                onClusterChange: setClusterMapping,
-                                onViewSection: handleMobileMapViewSection,
-                                onClusterSelect: handleMobileMapClusterSelect,
-                                mapHeightClassName: mobileMapBaseHeightClassName,
-                                layoutSignature: 'mobile-map-normal',
-                            })}
+                        <div className="disable-font-scaling [overflow-anchor:none]">
+                            <div className="relative">
+                                {React.cloneElement(mobileMapElement, {
+                                    onClusterChange: setClusterMapping,
+                                    onViewSection: handleMobileMapViewSection,
+                                    onClusterSelect: handleMobileMapClusterSelect,
+                                    mapHeightClassName: mobileMapElement.props?.mapHeightClassName,
+                                    layoutSignature: mobileMapElement.props?.layoutSignature || 'mobile-map-normal',
+                                })}
+                                <button
+                                    type="button"
+                                    onClick={openMobileFullMap}
+                                    className="absolute right-3 top-14 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:top-16"
+                                    aria-label={t('openFullMap')}
+                                    title={t('openFullMap')}
+                                >
+                                    <Maximize2 size={19} strokeWidth={2.4} aria-hidden="true" />
+                                </button>
+                            </div>
                             {showMapLegend ? (
                                 <MapLegend mobile />
                             ) : null}
@@ -2568,46 +2488,7 @@ export default function SharedMapDirectoryList({
                         />
                     </div>
 
-                    {isMobileGestureFullMap && mobileMapElement ? (
-                        <div
-                            className="fixed inset-0 z-[70] flex flex-col gap-3 overflow-hidden bg-slate-50 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling"
-                            onTouchStart={handleMobileFullMapTouchStart}
-                            onTouchEnd={handleMobileFullMapTouchEnd}
-                            onTouchCancel={handleMobileFullMapTouchCancel}
-                        >
-                            <div className="min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl">
-                                {React.cloneElement(mobileMapElement, {
-                                    onClusterChange: setClusterMapping,
-                                    onViewSection: handleMobileMapViewSection,
-                                    onClusterSelect: handleMobileMapClusterSelect,
-                                    mapHeightClassName: 'h-full min-h-0 max-h-none',
-                                    layoutSignature: 'mobile-map-fullscreen',
-                                })}
-                            </div>
-                            {showMapLegend ? (
-                                <MapLegend mobile />
-                            ) : null}
-                            <MapNotesEntryButton
-                                rows={noteResourceRows}
-                                mode={mode}
-                                onOpen={openResourceNotes}
-                            />
-                            <div className="flex justify-center">
-                                <button
-                                    type="button"
-                                    onClick={closeMobileGestureFullMap}
-                                    className="inline-flex h-12 min-w-24 items-center justify-center rounded-t-3xl border border-b-0 border-brand-100 bg-brand-50 px-8 text-brand-700 shadow-sm transition hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                                    aria-label={t('returnToMapList')}
-                                    title={t('returnToMapList')}
-                                >
-                                    <ChevronUp size={22} strokeWidth={2.7} aria-hidden="true" />
-                                    <span className="sr-only">{t('returnToMapList')}</span>
-                                </button>
-                            </div>
-                        </div>
-                    ) : null}
-
-                    <div ref={mobileCardsWrapperRef} className={mobileCardsClassName}>
+                    <div className={mobileCardsClassName}>
                         <DirectoryGroupColumn
                             groups={mobileDisplayGroups}
                             mode={mode}
@@ -2652,6 +2533,36 @@ export default function SharedMapDirectoryList({
                         onClose={closeResourceNotes}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                     />
+                    {mobileFullMapOpen ? (
+                        <div className="fixed inset-0 z-[1300] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-[calc(env(safe-area-inset-top)+16px)] disable-font-scaling">
+                            <div className="flex min-h-11 items-center justify-between gap-3">
+                                <button
+                                    type="button"
+                                    onClick={closeMobileFullMap}
+                                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                    aria-label={t('returnToMapList')}
+                                >
+                                    <X size={18} strokeWidth={2.4} aria-hidden="true" />
+                                    <span>{t('returnToMapList')}</span>
+                                </button>
+                            </div>
+                            <div className="min-h-0 flex-1">
+                                {mobileFullMapElement ? React.cloneElement(mobileFullMapElement, {
+                                    onClusterChange: setClusterMapping,
+                                    onViewSection: handleMobileMapViewSection,
+                                    onClusterSelect: handleMobileMapClusterSelect,
+                                    mapHeightClassName: 'h-full min-h-0 max-h-none',
+                                    className: mobileFullMapElement.props?.className,
+                                    layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
+                                }) : null}
+                            </div>
+                            <MapNotesEntryButton
+                                rows={noteResourceRows}
+                                mode={mode}
+                                onOpen={openResourceNotes}
+                            />
+                        </div>
+                    ) : null}
                 </div>
             </DirectoryReturnPathContext.Provider>
         );
