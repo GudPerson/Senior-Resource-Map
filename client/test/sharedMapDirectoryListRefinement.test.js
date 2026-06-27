@@ -123,6 +123,22 @@ test('mobile map panel exposes a full-screen handle while keeping map notes reac
     );
 });
 
+test('mobile map panel uses softened collapse and reveal animation', () => {
+    const mobileSource = sourceBetween(
+        sharedMapDirectorySource,
+        "if (resolvedLayout === 'mobile')",
+        'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
+    );
+
+    assert.match(sharedMapDirectorySource, /const MOBILE_MAP_PANEL_TRANSITION_CLASS/);
+    assert.match(sharedMapDirectorySource, /duration-500/);
+    assert.match(sharedMapDirectorySource, /ease-\[cubic-bezier\(0\.22,1,0\.36,1\)\]/);
+    assert.match(sharedMapDirectorySource, /will-change-\[height,opacity,transform\]/);
+    assert.match(mobileSource, /opacity-0 -translate-y-1 pointer-events-none/);
+    assert.match(mobileSource, /opacity-100 translate-y-0/);
+    assert.match(sharedMapDirectorySource, /Date\.now\(\) \+ 650/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,
@@ -147,7 +163,10 @@ test('print V2 cards can opt into numeric right-edge resource badges', () => {
 
 test('v2 can hide the map legend while shared directory lists keep it by default', () => {
     assert.match(sharedMapDirectorySource, /showMapLegend = true/);
-    assert.match(sharedMapDirectorySource, /showMapLegend && !isMobileMapCollapsed \? <MapLegend mobile \/> : null/);
+    assert.match(sharedMapDirectorySource, /const mobileMapLegendClassName = isMobileMapCollapsed/);
+    assert.match(sharedMapDirectorySource, /showMapLegend \? \(/);
+    assert.match(sharedMapDirectorySource, /<div className=\{mobileMapLegendClassName\}>/);
+    assert.match(sharedMapDirectorySource, /<MapLegend mobile \/>/);
     assert.match(sharedMapDirectorySource, /resolvedLayout !== 'print' && showMapLegend \? <MapLegend \/> : null/);
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
 });

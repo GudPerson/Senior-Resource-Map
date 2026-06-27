@@ -58,6 +58,7 @@ import {
 } from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
+const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[height,opacity,transform]';
 
 function useDirectoryDetailPath(path) {
     const returnTo = React.useContext(DirectoryReturnPathContext);
@@ -2366,7 +2367,7 @@ export default function SharedMapDirectoryList({
         }
 
         if (action === 'collapse') {
-            mobileMapSuppressCollapseUntilRef.current = Date.now() + 450;
+            mobileMapSuppressCollapseUntilRef.current = Date.now() + 650;
             return MOBILE_MAP_PANEL_STATES.COLLAPSED;
         }
 
@@ -2609,14 +2610,17 @@ export default function SharedMapDirectoryList({
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
         const mobileMapHeightClassName = isMobileMapFullscreen
-            ? 'h-full min-h-0 max-h-none transition-[height] duration-300 ease-out'
+            ? `h-full min-h-0 max-h-none opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
             : isMobileMapCollapsed
-            ? 'h-0 min-h-0 max-h-0 overflow-hidden transition-[height] duration-300 ease-out'
-            : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} transition-[height] duration-300 ease-out`;
+            ? `h-0 min-h-0 max-h-0 overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
         const mobileMapWrapperClassName = isMobileMapFullscreen
             ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling'
             : `${mobileMapStickyClassName} disable-font-scaling`;
         const mobileMapFrameClassName = isMobileMapFullscreen ? 'min-h-0 flex-1' : '';
+        const mobileMapLegendClassName = isMobileMapCollapsed
+            ? `max-h-0 overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `max-h-20 opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
 
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
@@ -2632,7 +2636,11 @@ export default function SharedMapDirectoryList({
                                     layoutSignature: `mobile-map-${mobileMapPanelState}`,
                                 })}
                             </div>
-                            {showMapLegend && !isMobileMapCollapsed ? <MapLegend mobile /> : null}
+                            {showMapLegend ? (
+                                <div className={mobileMapLegendClassName}>
+                                    <MapLegend mobile />
+                                </div>
+                            ) : null}
                             <MobileMapDrawerHandle
                                 fullscreen={isMobileMapFullscreen}
                                 onToggle={handleMobileMapDrawerToggle}
