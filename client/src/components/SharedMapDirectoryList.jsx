@@ -58,7 +58,8 @@ import {
 } from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
-const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[height,opacity,transform]';
+const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-[grid-template-rows,opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[grid-template-rows,opacity,transform]';
+const MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS = 'transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,transform]';
 
 function useDirectoryDetailPath(path) {
     const returnTo = React.useContext(DirectoryReturnPathContext);
@@ -2616,17 +2617,20 @@ export default function SharedMapDirectoryList({
         const mobileMapViewportClassName = isMobileMapFullscreen
             ? 'min-h-0 flex-1 overflow-hidden opacity-100 translate-y-0'
             : isMobileMapCollapsed
-            ? `h-0 min-h-0 max-h-0 overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `${mobileMapBaseHeightClassName} overflow-hidden opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+            ? `grid grid-rows-[0fr] overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `grid grid-rows-[1fr] overflow-hidden opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+        const mobileMapClipClassName = isMobileMapFullscreen ? 'min-h-0 h-full overflow-hidden' : 'min-h-0 overflow-hidden';
         const mobileMapInnerClassName = isMobileMapCollapsed
-            ? `opacity-0 -translate-y-2 scale-[0.985] pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `h-full min-h-0 opacity-100 translate-y-0 scale-100 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+            ? `opacity-0 -translate-y-2 scale-[0.985] pointer-events-none ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`
+            : `h-full min-h-0 opacity-100 translate-y-0 scale-100 ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`;
         const mobileMapWrapperClassName = isMobileMapFullscreen
-            ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling'
-            : `${mobileMapStickyClassName} disable-font-scaling`;
+            ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling [overflow-anchor:none]'
+            : `${mobileMapStickyClassName} disable-font-scaling [overflow-anchor:none]`;
         const mobileMapLegendClassName = isMobileMapCollapsed
-            ? `max-h-0 overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `max-h-20 opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+            ? `grid grid-rows-[0fr] overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `grid grid-rows-[1fr] opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+        const mobileMapLegendClipClassName = 'min-h-0 overflow-hidden';
+        const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
@@ -2634,19 +2638,23 @@ export default function SharedMapDirectoryList({
                     {mobileMapElement ? (
                         <div ref={mobileMapWrapperRef} className={mobileMapWrapperClassName}>
                             <div className={mobileMapViewportClassName}>
-                                <div className={mobileMapInnerClassName}>
-                                    {React.cloneElement(mobileMapElement, {
-                                        onClusterChange: setClusterMapping,
-                                        onViewSection: handleMobileMapViewSection,
-                                        onClusterSelect: handleMobileMapClusterSelect,
-                                        mapHeightClassName: mobileMapFrameHeightClassName,
-                                        layoutSignature: isMobileMapFullscreen ? 'mobile-map-fullscreen' : 'mobile-map-normal',
-                                    })}
+                                <div className={mobileMapClipClassName}>
+                                    <div className={mobileMapInnerClassName}>
+                                        {React.cloneElement(mobileMapElement, {
+                                            onClusterChange: setClusterMapping,
+                                            onViewSection: handleMobileMapViewSection,
+                                            onClusterSelect: handleMobileMapClusterSelect,
+                                            mapHeightClassName: mobileMapFrameHeightClassName,
+                                            layoutSignature: isMobileMapFullscreen ? 'mobile-map-fullscreen' : 'mobile-map-normal',
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                             {showMapLegend ? (
                                 <div className={mobileMapLegendClassName}>
-                                    <MapLegend mobile />
+                                    <div className={mobileMapLegendClipClassName}>
+                                        <MapLegend mobile />
+                                    </div>
                                 </div>
                             ) : null}
                             <MobileMapDrawerHandle
@@ -2662,7 +2670,7 @@ export default function SharedMapDirectoryList({
                     ) : null}
 
                     <div
-                        className="space-y-4"
+                        className={mobileCardsClassName}
                         onWheel={handleMobileCardsWheel}
                         onTouchStart={handleMobileCardsTouchStart}
                         onTouchMove={handleMobileCardsTouchMove}
