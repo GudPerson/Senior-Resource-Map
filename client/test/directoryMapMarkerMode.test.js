@@ -133,7 +133,7 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /markerMode === 'category-bubble'/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER \* 0\.74/);
-    assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 13\.25/);
+    assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 12\.25/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER = 13/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER \* 0\.58/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker/);
