@@ -22,11 +22,14 @@ export function getMobileMapPanelActionForScroll({
         return 'none';
     }
 
-    if (
-        mapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED
-        || mapPanelState === MOBILE_MAP_PANEL_STATES.FULLSCREEN
-    ) {
+    if (mapPanelState === MOBILE_MAP_PANEL_STATES.FULLSCREEN) {
         return 'none';
+    }
+
+    if (mapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED) {
+        const returnedNearTop = nextScrollTop <= MOBILE_MAP_EXPAND_SCROLL_TOP
+            && previousScrollTop > nextScrollTop;
+        return returnedNearTop ? 'expand' : 'none';
     }
 
     const scrolledIntoCards = nextScrollTop > previousScrollTop;

@@ -44,13 +44,22 @@ test('mobile map panel collapses when slow scrolling crosses the card threshold'
     }), 'collapse');
 });
 
-test('collapsed mobile map panel ignores scroll anchoring after the map height shrinks', () => {
+test('collapsed mobile map panel ignores scroll anchoring away from the top', () => {
     assert.equal(getMobileMapPanelActionForScroll({
         isMobile: true,
         mapPanelState: MOBILE_MAP_PANEL_STATES.COLLAPSED,
-        nextScrollTop: 0,
+        nextScrollTop: 72,
         previousScrollTop: 96,
     }), 'none');
+});
+
+test('collapsed mobile map panel expands when scrolling back near the top card', () => {
+    assert.equal(getMobileMapPanelActionForScroll({
+        isMobile: true,
+        mapPanelState: MOBILE_MAP_PANEL_STATES.COLLAPSED,
+        nextScrollTop: 18,
+        previousScrollTop: 96,
+    }), 'expand');
 });
 
 test('collapsed mobile map panel expands when pulling down at the top card', () => {

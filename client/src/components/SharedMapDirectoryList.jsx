@@ -10,14 +10,14 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     ArrowLeft,
     Bold,
+    ChevronDown,
     ChevronRight,
+    ChevronUp,
     Eye,
     Italic,
     Link2,
     List,
     ListOrdered,
-    Maximize2,
-    Minimize2,
     Pencil,
     Plus,
     RefreshCw,
@@ -325,24 +325,22 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
 function MobileMapDrawerHandle({ fullscreen = false, onToggle }) {
     const { t } = useLocale();
     const label = fullscreen ? t('returnToMapList') : t('openFullMap');
-    const Icon = fullscreen ? Minimize2 : Maximize2;
+    const Icon = fullscreen ? ChevronDown : ChevronUp;
 
     return (
-        <button
-            type="button"
-            onClick={onToggle}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            aria-label={label}
-            title={label}
-            aria-expanded={fullscreen}
-        >
-            <span className="flex flex-col items-center gap-1" aria-hidden="true">
-                <span className="h-1 w-12 rounded-full bg-slate-300" />
-                <span className="h-1 w-8 rounded-full bg-slate-200" />
-            </span>
-            <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
-            <span>{label}</span>
-        </button>
+        <div className="flex justify-center">
+            <button
+                type="button"
+                onClick={onToggle}
+                className="-mt-px inline-flex h-8 min-w-16 items-center justify-center rounded-b-2xl border border-t-0 border-brand-100 bg-brand-50 px-6 text-brand-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-100 hover:text-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                aria-label={label}
+                title={label}
+                aria-expanded={fullscreen}
+            >
+                <Icon size={20} strokeWidth={2.6} aria-hidden="true" />
+                <span className="sr-only">{label}</span>
+            </button>
+        </div>
     );
 }
 
@@ -2327,10 +2325,14 @@ export default function SharedMapDirectoryList({
         }
 
         if (action === 'collapse') {
+            mobileMapSuppressCollapseUntilRef.current = Date.now() + 450;
             return MOBILE_MAP_PANEL_STATES.COLLAPSED;
         }
 
         if (action === 'expand') {
+            if (Date.now() < mobileMapSuppressCollapseUntilRef.current) {
+                return current;
+            }
             return MOBILE_MAP_PANEL_STATES.EXPANDED;
         }
 
@@ -2568,7 +2570,7 @@ export default function SharedMapDirectoryList({
         const mobileMapHeightClassName = isMobileMapFullscreen
             ? 'h-full min-h-0 max-h-none transition-[height] duration-300 ease-out'
             : isMobileMapCollapsed
-            ? 'h-[128px] min-h-[128px] max-h-[128px] transition-[height] duration-300 ease-out'
+            ? 'h-0 min-h-0 max-h-0 overflow-hidden transition-[height] duration-300 ease-out'
             : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} transition-[height] duration-300 ease-out`;
         const mobileMapWrapperClassName = isMobileMapFullscreen
             ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling'
@@ -2589,7 +2591,7 @@ export default function SharedMapDirectoryList({
                                     layoutSignature: `mobile-map-${mobileMapPanelState}`,
                                 })}
                             </div>
-                            {showMapLegend ? <MapLegend mobile /> : null}
+                            {showMapLegend && !isMobileMapCollapsed ? <MapLegend mobile /> : null}
                             <MobileMapDrawerHandle
                                 fullscreen={isMobileMapFullscreen}
                                 onToggle={handleMobileMapDrawerToggle}

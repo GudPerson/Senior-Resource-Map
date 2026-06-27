@@ -104,11 +104,16 @@ test('mobile map panel exposes a full-screen handle while keeping map notes reac
     );
 
     assert.match(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
+    assert.match(sharedMapDirectorySource, /ChevronUp/);
+    assert.match(sharedMapDirectorySource, /ChevronDown/);
+    assert.match(sharedMapDirectorySource, /rounded-b-2xl/);
     assert.match(sharedMapDirectorySource, /isMobileMapFullscreen/);
     assert.match(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES\.FULLSCREEN/);
     assert.match(sharedMapDirectorySource, /fixed inset-0 z-\[90\] flex items-end/);
     assert.match(mobileSource, /mobileMapWrapperClassName/);
     assert.match(mobileSource, /fixed inset-0 z-\[70\]/);
+    assert.match(mobileSource, /h-0 min-h-0 max-h-0 overflow-hidden/);
+    assert.doesNotMatch(mobileSource, /h-\[128px\]/);
     assert.match(mobileSource, /<MobileMapDrawerHandle/);
     assert.match(mobileSource, /onToggle=\{handleMobileMapDrawerToggle\}/);
     assert.ok(
@@ -141,7 +146,7 @@ test('print V2 cards can opt into numeric right-edge resource badges', () => {
 
 test('v2 can hide the map legend while shared directory lists keep it by default', () => {
     assert.match(sharedMapDirectorySource, /showMapLegend = true/);
-    assert.match(sharedMapDirectorySource, /showMapLegend \? <MapLegend mobile \/> : null/);
+    assert.match(sharedMapDirectorySource, /showMapLegend && !isMobileMapCollapsed \? <MapLegend mobile \/> : null/);
     assert.match(sharedMapDirectorySource, /resolvedLayout !== 'print' && showMapLegend \? <MapLegend \/> : null/);
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
 });
