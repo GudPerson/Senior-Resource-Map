@@ -17,6 +17,15 @@ test('mobile map panel collapses when cards scroll upward', () => {
     }), 'collapse');
 });
 
+test('mobile map panel keeps fullscreen steady while cards scroll behind it', () => {
+    assert.equal(getMobileMapPanelActionForScroll({
+        isMobile: true,
+        mapPanelState: MOBILE_MAP_PANEL_STATES.FULLSCREEN,
+        nextScrollTop: 128,
+        previousScrollTop: 64,
+    }), 'none');
+});
+
 test('mobile map panel ignores small top-card jitter', () => {
     assert.equal(getMobileMapPanelActionForScroll({
         isMobile: true,
@@ -66,6 +75,13 @@ test('number badge activation expands the mobile map panel before focusing the p
     assert.equal(getMobileMapPanelStateAfterBadgeActivation({
         isMobile: true,
         mapPanelState: MOBILE_MAP_PANEL_STATES.COLLAPSED,
+    }), MOBILE_MAP_PANEL_STATES.EXPANDED);
+});
+
+test('card activation returns fullscreen mobile maps to the normal partial map', () => {
+    assert.equal(getMobileMapPanelStateAfterBadgeActivation({
+        isMobile: true,
+        mapPanelState: MOBILE_MAP_PANEL_STATES.FULLSCREEN,
     }), MOBILE_MAP_PANEL_STATES.EXPANDED);
 });
 

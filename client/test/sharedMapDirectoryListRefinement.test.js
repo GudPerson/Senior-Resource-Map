@@ -96,6 +96,27 @@ test('interactive cards hover pins and use card body clicks for map focus only',
     assert.match(sharedMapDirectorySource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
 });
 
+test('mobile map panel exposes a full-screen handle while keeping map notes reachable', () => {
+    const mobileSource = sourceBetween(
+        sharedMapDirectorySource,
+        "if (resolvedLayout === 'mobile')",
+        'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
+    );
+
+    assert.match(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
+    assert.match(sharedMapDirectorySource, /isMobileMapFullscreen/);
+    assert.match(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES\.FULLSCREEN/);
+    assert.match(sharedMapDirectorySource, /fixed inset-0 z-\[90\] flex items-end/);
+    assert.match(mobileSource, /mobileMapWrapperClassName/);
+    assert.match(mobileSource, /fixed inset-0 z-\[70\]/);
+    assert.match(mobileSource, /<MobileMapDrawerHandle/);
+    assert.match(mobileSource, /onToggle=\{handleMobileMapDrawerToggle\}/);
+    assert.ok(
+        mobileSource.indexOf('<MobileMapDrawerHandle') < mobileSource.indexOf('<MapNotesEntryButton'),
+        'the map drawer handle should sit above the notes entry so notes remain reachable',
+    );
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,

@@ -16,6 +16,8 @@ import {
     Link2,
     List,
     ListOrdered,
+    Maximize2,
+    Minimize2,
     Pencil,
     Plus,
     RefreshCw,
@@ -316,6 +318,30 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
                 </span>
             </span>
             <ChevronRight size={18} className="flex-shrink-0 text-slate-400" />
+        </button>
+    );
+}
+
+function MobileMapDrawerHandle({ fullscreen = false, onToggle }) {
+    const { t } = useLocale();
+    const label = fullscreen ? t('returnToMapList') : t('openFullMap');
+    const Icon = fullscreen ? Minimize2 : Maximize2;
+
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            aria-label={label}
+            title={label}
+            aria-expanded={fullscreen}
+        >
+            <span className="flex flex-col items-center gap-1" aria-hidden="true">
+                <span className="h-1 w-12 rounded-full bg-slate-300" />
+                <span className="h-1 w-8 rounded-full bg-slate-200" />
+            </span>
+            <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
+            <span>{label}</span>
         </button>
     );
 }
@@ -820,7 +846,7 @@ function MapNotesOverlay({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            className="fixed inset-0 z-[90] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
             onClick={() => void handleClose()}
             role="presentation"
         >
@@ -2250,6 +2276,8 @@ export default function SharedMapDirectoryList({
     const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
     const isMobileMapCollapsed = isMobileMapPanelEnabled
         && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED;
+    const isMobileMapFullscreen = isMobileMapPanelEnabled
+        && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.FULLSCREEN;
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
     const displayGroups = presentation?.displayGroups || mappedGroups;
@@ -2316,6 +2344,16 @@ export default function SharedMapDirectoryList({
             isMobile: true,
             mapPanelState: current,
         }));
+    }, [isMobileMapPanelEnabled]);
+
+    const handleMobileMapDrawerToggle = useCallback(() => {
+        if (!isMobileMapPanelEnabled) return;
+        mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
+        setMobileMapPanelState((current) => (
+            current === MOBILE_MAP_PANEL_STATES.FULLSCREEN
+                ? MOBILE_MAP_PANEL_STATES.EXPANDED
+                : MOBILE_MAP_PANEL_STATES.FULLSCREEN
+        ));
     }, [isMobileMapPanelEnabled]);
 
     const handleDirectoryViewOnMap = useCallback((placeKey) => {
@@ -2402,6 +2440,18 @@ export default function SharedMapDirectoryList({
             setMobileMapPanelState(MOBILE_MAP_PANEL_STATES.EXPANDED);
         }
     }, [resolvedLayout]);
+
+    useEffect(() => {
+        if (!isMobileMapFullscreen || typeof document === 'undefined') {
+            return undefined;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isMobileMapFullscreen]);
 
     useEffect(() => {
         if (!isMobileMapPanelEnabled || typeof window === 'undefined') {
@@ -2515,23 +2565,35 @@ export default function SharedMapDirectoryList({
 
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
-        const mobileMapHeightClassName = isMobileMapCollapsed
+        const mobileMapHeightClassName = isMobileMapFullscreen
+            ? 'h-full min-h-0 max-h-none transition-[height] duration-300 ease-out'
+            : isMobileMapCollapsed
             ? 'h-[128px] min-h-[128px] max-h-[128px] transition-[height] duration-300 ease-out'
             : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} transition-[height] duration-300 ease-out`;
+        const mobileMapWrapperClassName = isMobileMapFullscreen
+            ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling'
+            : `${mobileMapStickyClassName} disable-font-scaling`;
+        const mobileMapFrameClassName = isMobileMapFullscreen ? 'min-h-0 flex-1' : '';
 
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-4 ${className}`}>
                     {mobileMapElement ? (
-                        <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
-                            {React.cloneElement(mobileMapElement, {
-                                onClusterChange: setClusterMapping,
-                                onViewSection: handleMobileMapViewSection,
-                                onClusterSelect: handleMobileMapClusterSelect,
-                                mapHeightClassName: mobileMapHeightClassName,
-                                layoutSignature: `mobile-map-${mobileMapPanelState}`,
-                            })}
+                        <div ref={mobileMapWrapperRef} className={mobileMapWrapperClassName}>
+                            <div className={mobileMapFrameClassName}>
+                                {React.cloneElement(mobileMapElement, {
+                                    onClusterChange: setClusterMapping,
+                                    onViewSection: handleMobileMapViewSection,
+                                    onClusterSelect: handleMobileMapClusterSelect,
+                                    mapHeightClassName: mobileMapHeightClassName,
+                                    layoutSignature: `mobile-map-${mobileMapPanelState}`,
+                                })}
+                            </div>
                             {showMapLegend ? <MapLegend mobile /> : null}
+                            <MobileMapDrawerHandle
+                                fullscreen={isMobileMapFullscreen}
+                                onToggle={handleMobileMapDrawerToggle}
+                            />
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
                                 mode={mode}

@@ -1,6 +1,7 @@
 export const MOBILE_MAP_PANEL_STATES = {
     EXPANDED: 'expanded',
     COLLAPSED: 'collapsed',
+    FULLSCREEN: 'fullscreen',
 };
 
 export const MOBILE_MAP_COLLAPSE_SCROLL_TOP = 32;
@@ -21,7 +22,10 @@ export function getMobileMapPanelActionForScroll({
         return 'none';
     }
 
-    if (mapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED) {
+    if (
+        mapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED
+        || mapPanelState === MOBILE_MAP_PANEL_STATES.FULLSCREEN
+    ) {
         return 'none';
     }
 
