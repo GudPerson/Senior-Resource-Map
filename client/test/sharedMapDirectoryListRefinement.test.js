@@ -167,6 +167,9 @@ test('v2 card ordering can opt into category pills and integrated list-only card
     assert.match(sharedMapDirectorySource, /boxShadow: '0 0 0 2px color-mix/);
     assert.match(sharedMapDirectorySource, /function DirectoryUnmappedPill/);
     assert.match(sharedMapDirectorySource, /t\('unmapped'\)/);
+    assert.match(sharedMapDirectorySource, /function isListOnlyGroupDisplayGroup/);
+    assert.match(sharedMapDirectorySource, /return t\('groupType'\)/);
+    assert.match(sharedMapDirectorySource, /flex-col items-start/);
     assert.match(sharedMapDirectorySource, /const categoryStatus = group\.isUnmappedGroup \? 'unmapped' : 'mapped'/);
     assert.match(sharedMapDirectorySource, /const previousCategoryStatus = previousGroup\?\.isUnmappedGroup \? 'unmapped' : 'mapped'/);
     assert.match(sharedMapDirectorySource, /const shouldShowCategoryPill = Boolean\(showCategoryPills && group\.categoryLabel && categoryRunKey !== previousCategoryRunKey\)/);
@@ -178,6 +181,14 @@ test('v2 card ordering can opt into category pills and integrated list-only card
     assert.match(sharedMapDirectorySource, /groups=\{displayGroups\}/);
     assert.match(sharedMapDirectorySource, /mappedGroups: presentation\?\.noteMappedGroups \|\| mappedGroups/);
     assert.match(sharedMapDirectorySource, /unmappedRows: presentation\?\.noteUnmappedRows \|\| unmappedRows/);
+});
+
+test('mobile map directory locks viewport scale only while the mobile map surface is active', () => {
+    assert.match(sharedMapDirectorySource, /function useMobileViewportScaleLock/);
+    assert.match(sharedMapDirectorySource, /querySelector\('meta\[name="viewport"\]'\)/);
+    assert.match(sharedMapDirectorySource, /maximum-scale=1, user-scalable=no/);
+    assert.match(sharedMapDirectorySource, /meta\.setAttribute\('content', previousContent\)/);
+    assert.match(sharedMapDirectorySource, /useMobileViewportScaleLock\(isMobileMapPanelEnabled\)/);
 });
 
 test('v2 logo cards show the resource name before the address metadata', () => {
@@ -194,10 +205,11 @@ test('v2 logo cards show the resource name before the address metadata', () => {
 
     assert.match(v2CardSource, /!usesV2CardLanguage \? \(/);
     assert.match(v2CardSource, /usesV2CardLanguage && hasLocationMeta \? \(/);
-    assert.match(v2CardSource, /const resolvedLocationLine = resolveGroupLocationLine\(group\)/);
+    assert.match(v2CardSource, /const resolvedLocationLine = resolveV2CardLocationLine\(group, t\)/);
     assert.match(v2CardSource, /<div className="mt-0">/);
     assert.match(v2CardSource, /tight/);
     assert.match(sharedMapDirectorySource, /function resolveGroupLocationLine/);
+    assert.match(sharedMapDirectorySource, /function resolveV2CardLocationLine/);
     assert.match(sharedMapDirectorySource, /item\?\.shortLocationLine \|\| item\?\.locationLabel \|\| item\?\.address \|\| item\?\.contextLabel/);
     assert.ok(
         v2CardSource.indexOf('{interactivePlaceTitle}') < v2CardSource.indexOf('usesV2CardLanguage && hasLocationMeta'),

@@ -344,6 +344,21 @@ function MobileMapDrawerHandle({ fullscreen = false, onToggle }) {
     );
 }
 
+function useMobileViewportScaleLock(enabled) {
+    useEffect(() => {
+        if (!enabled || typeof document === 'undefined') return undefined;
+        const meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) return undefined;
+
+        const previousContent = meta.getAttribute('content') || '';
+        meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no');
+
+        return () => {
+            meta.setAttribute('content', previousContent);
+        };
+    }, [enabled]);
+}
+
 function ResourceNotesEditor({
     row,
     onUpdateResourceNotes,
@@ -1036,6 +1051,20 @@ function getVisibleGroupRows(group) {
     return (group?.rows || []).filter((row) => !isRepeatedPrimaryRow(group, row));
 }
 
+function isListOnlyGroupDisplayGroup(group) {
+    if (!group?.isUnmappedGroup) return false;
+    return (group?.rows || []).some((row) => (
+        row?.resourceType === 'soft'
+        && (
+            row?.assetMode === 'group'
+            || normalizeLabel(row?.bucket) === 'groups'
+            || normalizeLabel(row?.bucket) === 'group'
+            || normalizeLabel(row?.subCategory) === 'group'
+            || Boolean(row?.mapFocusPlaceKeys?.length)
+        )
+    ));
+}
+
 function resolveGroupLocationLine(group) {
     if (group?.shortLocationLine) return group.shortLocationLine;
 
@@ -1050,6 +1079,13 @@ function resolveGroupLocationLine(group) {
     return candidates
         .map((item) => item?.shortLocationLine || item?.locationLabel || item?.address || item?.contextLabel)
         .find((label) => label && normalizeLabel(label) !== normalizeLabel(group?.name)) || '';
+}
+
+function resolveV2CardLocationLine(group, t) {
+    if (isListOnlyGroupDisplayGroup(group)) {
+        return t('groupType');
+    }
+    return resolveGroupLocationLine(group);
 }
 
 function getPrimaryPlaceNoteRow(group) {
@@ -1766,7 +1802,7 @@ function DirectoryPlaceGroupCard({
     );
     const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
     const usesV2CardLanguage = cardBadgeMode === 'logo';
-    const resolvedLocationLine = resolveGroupLocationLine(group);
+    const resolvedLocationLine = resolveV2CardLocationLine(group, t);
     const hasLocationMeta = Boolean(resolvedLocationLine || group.distanceLabel);
 
     const cardContent = (
@@ -2056,14 +2092,16 @@ function DirectoryCategoryPill({
     return (
         <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
             <DirectoryCategoryIcon iconUrl={iconUrl} color={color} compact={compact} />
-            {label ? (
-                <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
-                    compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
-                }`} style={categoryPillStyle}>
-                    <span className="truncate">{label}</span>
-                </span>
-            ) : null}
-            {showUnmapped ? <DirectoryUnmappedPill compact={compact} /> : null}
+            <span className="flex min-w-0 flex-col items-start gap-1.5">
+                {label ? (
+                    <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
+                        compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+                    }`} style={categoryPillStyle}>
+                        <span className="truncate">{label}</span>
+                    </span>
+                ) : null}
+                {showUnmapped ? <DirectoryUnmappedPill compact={compact} /> : null}
+            </span>
         </div>
     );
 }
@@ -2313,6 +2351,8 @@ export default function SharedMapDirectoryList({
         : (showDesktopHoverLogo
             ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
             : []);
+
+    useMobileViewportScaleLock(isMobileMapPanelEnabled);
 
     const getMobileScrollTop = useCallback(() => {
         if (typeof window === 'undefined') return 0;

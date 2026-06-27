@@ -53,6 +53,7 @@ const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.76
 const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28;
 const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER * 0.74;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 12.25;
+const DIRECTORY_CATEGORY_BUBBLE_REVEAL_ZOOM = DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD + 0.35;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER = 13;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER * 0.58;
 const DIRECTORY_PRINT_BADGE_BUBBLE_GAP = 1;
@@ -1808,6 +1809,17 @@ function DirectoryClusterStateSync({ onClusterChange }) {
     return null;
 }
 
+function DirectoryMapInstanceSync({ onMapReady }) {
+    const map = useMap();
+
+    useEffect(() => {
+        onMapReady?.(map);
+        return () => onMapReady?.(null);
+    }, [map, onMapReady]);
+
+    return null;
+}
+
 function DirectoryMapController({
     activeAnchor,
     pins,
@@ -1961,6 +1973,7 @@ export default function DirectoryMap({
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, spreadCoincidentPins), [interactive, pins, spreadCoincidentPins]);
     const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
+    const mapInstanceRef = useRef(null);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const lastCategoryBubbleHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
@@ -2042,6 +2055,41 @@ export default function DirectoryMap({
         onViewSection?.(placeKey);
     };
 
+    function handleCompactCategoryBubbleReveal(event) {
+        const mapInstance = mapInstanceRef.current;
+        if (!mapInstance) return false;
+
+        const currentZoom = Number(mapInstance.getZoom?.());
+        if (!Number.isFinite(currentZoom) || currentZoom > DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD) {
+            return false;
+        }
+
+        event?.originalEvent?.preventDefault?.();
+        event?.originalEvent?.stopPropagation?.();
+
+        const maxZoom = Number(mapInstance.getMaxZoom?.());
+        const targetZoom = Math.min(
+            Number.isFinite(maxZoom) ? maxZoom : DIRECTORY_CATEGORY_BUBBLE_REVEAL_ZOOM,
+            DIRECTORY_CATEGORY_BUBBLE_REVEAL_ZOOM,
+        );
+        const targetPoint = event?.latlng || event?.target?.getLatLng?.() || null;
+
+        if (targetPoint && typeof mapInstance.setZoomAround === 'function') {
+            mapInstance.setZoomAround(targetPoint, targetZoom, { animate: true });
+            return true;
+        }
+        if (targetPoint && typeof mapInstance.setView === 'function') {
+            mapInstance.setView(targetPoint, targetZoom, { animate: true });
+            return true;
+        }
+        if (typeof mapInstance.setZoom === 'function') {
+            mapInstance.setZoom(targetZoom, { animate: true });
+            return true;
+        }
+
+        return false;
+    }
+
     const getMarkerEventPlaceKey = (event, pin) => (
         markerMode === 'category-bubble'
             ? getCategoryBubblePlaceKeyFromEvent(event, pin.placeKey)
@@ -2064,6 +2112,13 @@ export default function DirectoryMap({
             lastCategoryBubbleHoverKeyRef.current = null;
         }
         onHoverPlaceEnd?.(placeKey);
+    };
+
+    const handleMarkerActivate = (event, pin) => {
+        if (markerMode === 'category-bubble' && compactCategoryBubbles) {
+            if (handleCompactCategoryBubbleReveal(event)) return;
+        }
+        handlePlaceActivate(getMarkerEventPlaceKey(event, pin));
     };
 
     const renderedMarkers = useMemo(() => {
@@ -2142,8 +2197,8 @@ export default function DirectoryMap({
                                 icon={icon}
                                 zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
                                 eventHandlers={interactive ? {
-                                    mousedown: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
-                                    click: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
+                                    mousedown: (event) => handleMarkerActivate(event, pin),
+                                    click: (event) => handleMarkerActivate(event, pin),
                                     mouseover: (event) => handleMarkerHoverStart(event, pin),
                                     mouseout: (event) => handleMarkerHoverEnd(event, pin),
                                 } : undefined}
@@ -2217,15 +2272,15 @@ export default function DirectoryMap({
                     icon={icon}
                     zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
                     eventHandlers={interactive ? {
-                        mousedown: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
-                        click: (event) => handlePlaceActivate(getMarkerEventPlaceKey(event, pin)),
+                        mousedown: (event) => handleMarkerActivate(event, pin),
+                        click: (event) => handleMarkerActivate(event, pin),
                         mouseover: (event) => handleMarkerHoverStart(event, pin),
                         mouseout: (event) => handleMarkerHoverEnd(event, pin),
                     } : undefined}
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handlePlaceActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     if (!pins.length && !anchorPoint) {
         return (
@@ -2259,6 +2314,9 @@ export default function DirectoryMap({
                 attributionControl={showAttribution}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
             >
+                <DirectoryMapInstanceSync onMapReady={(map) => {
+                    mapInstanceRef.current = map;
+                }} />
                 <TileLayer
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                     minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}

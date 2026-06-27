@@ -141,6 +141,12 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /diameter: compact \? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER : DIRECTORY_CATEGORY_BUBBLE_DIAMETER/);
     assert.match(directoryMapSource, /spacing: compact \? DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING : DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING/);
     assert.match(directoryMapSource, /function DirectoryCategoryBubbleZoomClassSync/);
+    assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_REVEAL_ZOOM = DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD \+ 0\.35/);
+    assert.match(directoryMapSource, /function DirectoryMapInstanceSync/);
+    assert.match(directoryMapSource, /function handleCompactCategoryBubbleReveal/);
+    assert.match(directoryMapSource, /mapInstance\.setZoomAround/);
+    assert.match(directoryMapSource, /const handleMarkerActivate = \(event, pin\) => \{/);
+    assert.match(directoryMapSource, /markerMode === 'category-bubble' && compactCategoryBubbles/);
     assert.match(directoryMapSource, /onCompactChange/);
     assert.match(directoryMapSource, /setCompactCategoryBubbles/);
     assert.match(directoryMapSource, /compact: compactCategoryBubbles/);
