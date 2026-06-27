@@ -2388,7 +2388,7 @@ export default function SharedMapDirectoryList({
 
     function scheduleMobileMapCollapse() {
         if (typeof window === 'undefined') return;
-        clearMobileMapCollapseTimer();
+        if (mobileMapCollapseTimerRef.current) return;
         mobileMapCollapseTimerRef.current = window.setTimeout(() => {
             mobileMapCollapseTimerRef.current = null;
             setMobileMapPanelState((current) => getMobileMapPanelStateForAction(current, 'collapse'));
@@ -2458,6 +2458,7 @@ export default function SharedMapDirectoryList({
             }
             if (action === 'expand') {
                 clearMobileMapCollapseTimer();
+                return MOBILE_MAP_PANEL_STATES.EXPANDED;
             }
             return getMobileMapPanelStateForAction(current, action);
         });
@@ -2502,6 +2503,7 @@ export default function SharedMapDirectoryList({
             }
             if (action === 'expand') {
                 clearMobileMapCollapseTimer();
+                return MOBILE_MAP_PANEL_STATES.EXPANDED;
             }
             return getMobileMapPanelStateForAction(current, action);
         });
@@ -2559,6 +2561,7 @@ export default function SharedMapDirectoryList({
                 }
                 if (action === 'expand') {
                     clearMobileMapCollapseTimer();
+                    return getMobileMapPanelStateForAction(current, action);
                 }
                 return getMobileMapPanelStateForAction(current, action);
             });

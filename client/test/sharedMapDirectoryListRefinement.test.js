@@ -196,6 +196,28 @@ test('mobile map panel waits for scroll to settle before collapsing layout', () 
     assert.doesNotMatch(scrollControlSource, /if \(action === 'collapse'\) \{[\s\S]{0,160}return MOBILE_MAP_PANEL_STATES\.COLLAPSED;/);
 });
 
+test('mobile map panel does not postpone collapse through an entire card scroll', () => {
+    const scrollControlSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function scheduleMobileMapCollapse',
+        'function openResourceNotes',
+    );
+
+    assert.match(scrollControlSource, /if \(mobileMapCollapseTimerRef\.current\) return;/);
+    assert.doesNotMatch(scrollControlSource, /clearMobileMapCollapseTimer\(\);\s*mobileMapCollapseTimerRef\.current = window\.setTimeout/);
+});
+
+test('mobile map panel reveals immediately from direct near-top gestures', () => {
+    const scrollControlSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const handleMobileCardsWheel = useCallback',
+        'function openResourceNotes',
+    );
+
+    assert.match(scrollControlSource, /if \(action === 'expand'\) \{\s*clearMobileMapCollapseTimer\(\);\s*return MOBILE_MAP_PANEL_STATES\.EXPANDED;\s*\}/);
+    assert.doesNotMatch(scrollControlSource, /if \(action === 'expand'\) \{\s*clearMobileMapCollapseTimer\(\);\s*\}\s*return getMobileMapPanelStateForAction\(current, action\);/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,
