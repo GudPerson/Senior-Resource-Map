@@ -96,56 +96,48 @@ test('interactive cards hover pins and use card body clicks for map focus only',
     assert.match(sharedMapDirectorySource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
 });
 
-test('mobile map panel exposes a full-screen handle while keeping map notes reachable', () => {
+test('mobile map uses natural page scroll with sticky map notes instead of collapse controls', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
-    assert.match(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
-    assert.match(sharedMapDirectorySource, /ChevronUp/);
-    assert.match(sharedMapDirectorySource, /ChevronDown/);
-    assert.match(sharedMapDirectorySource, /const Icon = fullscreen \? ChevronUp : ChevronDown/);
-    assert.match(sharedMapDirectorySource, /rounded-b-2xl/);
-    assert.match(sharedMapDirectorySource, /isMobileMapFullscreen/);
-    assert.match(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES\.FULLSCREEN/);
+    assert.match(mobileSource, /mobileMapNotesWrapperClassName/);
+    assert.match(mobileSource, /`\$\{mobileMapStickyClassName\} \[overflow-anchor:none\]`/);
+    assert.match(sharedMapDirectorySource, /mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2'/);
+    assert.match(mobileSource, /mapHeightClassName: mobileMapBaseHeightClassName/);
+    assert.match(mobileSource, /layoutSignature: 'mobile-map-normal'/);
+    assert.doesNotMatch(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_COLLAPSE_SETTLE_MS/);
+    assert.doesNotMatch(sharedMapDirectorySource, /getMobileMapPanelActionForScroll/);
+    assert.doesNotMatch(sharedMapDirectorySource, /shouldExpandMobileMapPanelFromTopPull/);
     assert.match(sharedMapDirectorySource, /fixed inset-0 z-\[90\] flex items-end/);
-    assert.match(mobileSource, /mobileMapWrapperClassName/);
-    assert.match(mobileSource, /fixed inset-0 z-\[70\]/);
-    assert.match(mobileSource, /grid grid-rows-\[0fr\] overflow-hidden/);
-    assert.doesNotMatch(mobileSource, /h-\[128px\]/);
-    assert.match(mobileSource, /<MobileMapDrawerHandle/);
-    assert.match(mobileSource, /onToggle=\{handleMobileMapDrawerToggle\}/);
     assert.ok(
-        mobileSource.indexOf('<MobileMapDrawerHandle') < mobileSource.indexOf('<MapNotesEntryButton'),
-        'the map drawer handle should sit above the notes entry so notes remain reachable',
+        mobileSource.indexOf('React.cloneElement(mobileMapElement') < mobileSource.indexOf('<MapNotesEntryButton'),
+        'the map should stay above sticky notes in the normal page flow',
     );
 });
 
-test('mobile map panel uses softened collapse and reveal animation', () => {
+test('mobile map no longer animates collapse or listens to card scroll gestures', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
-    assert.match(sharedMapDirectorySource, /const MOBILE_MAP_PANEL_TRANSITION_CLASS/);
-    assert.match(sharedMapDirectorySource, /duration-500/);
-    assert.match(sharedMapDirectorySource, /ease-\[cubic-bezier\(0\.22,1,0\.36,1\)\]/);
-    assert.match(sharedMapDirectorySource, /transition-\[grid-template-rows\]/);
-    assert.match(sharedMapDirectorySource, /will-change-\[grid-template-rows\]/);
-    assert.match(mobileSource, /grid grid-rows-\[0fr\] overflow-hidden pointer-events-none/);
-    assert.match(mobileSource, /grid grid-rows-\[1fr\] overflow-hidden/);
-    assert.doesNotMatch(mobileSource, /grid grid-rows-\[0fr\] overflow-hidden opacity-0 -translate-y-1 pointer-events-none/);
-    assert.doesNotMatch(mobileSource, /grid grid-rows-\[1fr\] overflow-hidden opacity-100 translate-y-0/);
-    assert.doesNotMatch(sharedMapDirectorySource, /transition-\[grid-template-rows,opacity,transform\]/);
-    assert.doesNotMatch(sharedMapDirectorySource, /will-change-\[grid-template-rows,opacity,transform\]/);
-    assert.doesNotMatch(sharedMapDirectorySource, /const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-all/);
-    assert.match(sharedMapDirectorySource, /Date\.now\(\) \+ 650/);
+    assert.match(mobileSource, /className=\{mobileCardsClassName\}/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_TRANSITION_CLASS/);
+    assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS/);
+    assert.doesNotMatch(mobileSource, /grid grid-rows-\[0fr\]/);
+    assert.doesNotMatch(mobileSource, /grid grid-rows-\[1fr\]/);
+    assert.doesNotMatch(mobileSource, /onWheel=\{handleMobileCardsWheel\}/);
+    assert.doesNotMatch(mobileSource, /onTouchStart=\{handleMobileCardsTouchStart\}/);
+    assert.doesNotMatch(mobileSource, /onTouchMove=\{handleMobileCardsTouchMove\}/);
 });
 
-test('mobile map panel keeps the mounted map cached while collapsed', () => {
+test('mobile map stays mounted as a normal partial-height map', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
@@ -153,20 +145,19 @@ test('mobile map panel keeps the mounted map cached while collapsed', () => {
     );
 
     assert.match(mobileSource, /const mobileMapBaseHeightClassName/);
-    assert.match(mobileSource, /const mobileMapFrameHeightClassName/);
-    assert.match(mobileSource, /const mobileMapViewportClassName/);
-    assert.match(mobileSource, /const mobileMapClipClassName/);
-    assert.match(mobileSource, /const mobileMapInnerClassName/);
-    assert.match(mobileSource, /className=\{mobileMapViewportClassName\}/);
-    assert.match(mobileSource, /className=\{mobileMapClipClassName\}/);
-    assert.match(mobileSource, /className=\{mobileMapInnerClassName\}/);
-    assert.match(mobileSource, /mapHeightClassName: mobileMapFrameHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: isMobileMapFullscreen \? 'mobile-map-fullscreen' : 'mobile-map-normal'/);
+    assert.match(mobileSource, /mapHeightClassName: mobileMapBaseHeightClassName/);
+    assert.match(mobileSource, /layoutSignature: 'mobile-map-normal'/);
+    assert.match(mobileSource, /onViewSection: handleMobileMapViewSection/);
+    assert.match(mobileSource, /onClusterSelect: handleMobileMapClusterSelect/);
+    assert.doesNotMatch(mobileSource, /const mobileMapFrameHeightClassName/);
+    assert.doesNotMatch(mobileSource, /const mobileMapViewportClassName/);
+    assert.doesNotMatch(mobileSource, /const mobileMapClipClassName/);
+    assert.doesNotMatch(mobileSource, /const mobileMapInnerClassName/);
     assert.doesNotMatch(mobileSource, /mapHeightClassName: mobileMapHeightClassName/);
     assert.doesNotMatch(mobileSource, /layoutSignature: `mobile-map-\$\{mobileMapPanelState\}`/);
 });
 
-test('mobile map panel avoids browser scroll anchoring during collapse motion', () => {
+test('mobile map notes are the only sticky mobile map element', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
@@ -176,57 +167,12 @@ test('mobile map panel avoids browser scroll anchoring during collapse motion', 
     assert.match(mobileSource, /\[overflow-anchor:none\]/);
     assert.match(mobileSource, /mobileCardsClassName/);
     assert.match(mobileSource, /className=\{mobileCardsClassName\}/);
-    assert.match(mobileSource, /mobileMapLegendClipClassName/);
-    assert.match(mobileSource, /grid grid-rows-\[0fr\]/);
-    assert.match(mobileSource, /grid grid-rows-\[1fr\]/);
+    assert.match(mobileSource, /mobileMapNotesWrapperClassName/);
+    assert.match(mobileSource, /ref=\{mobileMapWrapperRef\} className=\{mobileMapNotesWrapperClassName\}/);
+    assert.match(mobileSource, /<MapNotesEntryButton/);
+    assert.doesNotMatch(mobileSource, /mobileMapWrapperClassName/);
+    assert.doesNotMatch(mobileSource, /mobileMapLegendClassName/);
     assert.doesNotMatch(mobileSource, /h-0 min-h-0 max-h-0/);
-});
-
-test('mobile map panel waits for scroll to settle before collapsing layout', () => {
-    const scrollControlSource = sourceBetween(
-        sharedMapDirectorySource,
-        'const getMobileMapPanelStateForAction = useCallback',
-        'function openResourceNotes',
-    );
-
-    assert.match(sharedMapDirectorySource, /const MOBILE_MAP_COLLAPSE_SETTLE_MS = 160;/);
-    assert.match(scrollControlSource, /mobileMapCollapseTimerRef/);
-    assert.match(scrollControlSource, /function clearMobileMapCollapseTimer/);
-    assert.match(scrollControlSource, /function scheduleMobileMapCollapse/);
-    assert.match(scrollControlSource, /window\.setTimeout/);
-    assert.match(scrollControlSource, /MOBILE_MAP_COLLAPSE_SETTLE_MS/);
-    assert.match(scrollControlSource, /window\.clearTimeout/);
-    assert.match(scrollControlSource, /if \(action === 'collapse'\) \{\s*scheduleMobileMapCollapse\(\);\s*return current;\s*\}/);
-    assert.doesNotMatch(scrollControlSource, /if \(action === 'collapse'\) \{[\s\S]{0,160}return MOBILE_MAP_PANEL_STATES\.COLLAPSED;/);
-});
-
-test('mobile map panel reschedules collapse while scroll is still moving', () => {
-    const scrollControlSource = sourceBetween(
-        sharedMapDirectorySource,
-        'function scheduleMobileMapCollapse',
-        'function openResourceNotes',
-    );
-
-    assert.match(scrollControlSource, /if \(mobileMapCollapseTimerRef\.current\) \{\s*window\.clearTimeout\(mobileMapCollapseTimerRef\.current\);\s*\}/);
-    assert.doesNotMatch(scrollControlSource, /if \(mobileMapCollapseTimerRef\.current\) return;/);
-});
-
-test('mobile map panel reveals immediately from near-top gestures and scrolls', () => {
-    const scrollControlSource = sourceBetween(
-        sharedMapDirectorySource,
-        'const handleMobileCardsWheel = useCallback',
-        'function openResourceNotes',
-    );
-    const stateActionSource = sourceBetween(
-        sharedMapDirectorySource,
-        'const getMobileMapPanelStateForAction = useCallback',
-        'function clearMobileMapCollapseTimer',
-    );
-
-    assert.match(scrollControlSource, /if \(action === 'expand'\) \{\s*clearMobileMapCollapseTimer\(\);\s*return MOBILE_MAP_PANEL_STATES\.EXPANDED;\s*\}/);
-    assert.match(stateActionSource, /case 'expand':\s*mobileMapSuppressCollapseUntilRef\.current = 0;\s*return MOBILE_MAP_PANEL_STATES\.EXPANDED;/);
-    assert.doesNotMatch(scrollControlSource, /if \(action === 'expand'\) \{\s*clearMobileMapCollapseTimer\(\);\s*\}\s*return getMobileMapPanelStateForAction\(current, action\);/);
-    assert.doesNotMatch(stateActionSource, /case 'expand':\s*if \(Date\.now\(\) < mobileMapSuppressCollapseUntilRef\.current\) return current;/);
 });
 
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
@@ -253,12 +199,11 @@ test('print V2 cards can opt into numeric right-edge resource badges', () => {
 
 test('v2 can hide the map legend while shared directory lists keep it by default', () => {
     assert.match(sharedMapDirectorySource, /showMapLegend = true/);
-    assert.match(sharedMapDirectorySource, /const mobileMapLegendClassName = isMobileMapCollapsed/);
     assert.match(sharedMapDirectorySource, /showMapLegend \? \(/);
-    assert.match(sharedMapDirectorySource, /<div className=\{mobileMapLegendClassName\}>/);
     assert.match(sharedMapDirectorySource, /<MapLegend mobile \/>/);
     assert.match(sharedMapDirectorySource, /resolvedLayout !== 'print' && showMapLegend \? <MapLegend \/> : null/);
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
+    assert.doesNotMatch(sharedMapDirectorySource, /mobileMapLegendClassName/);
 });
 
 test('v2 card ordering can opt into category pills and integrated list-only cards', () => {

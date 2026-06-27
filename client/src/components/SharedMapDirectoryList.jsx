@@ -10,9 +10,7 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     ArrowLeft,
     Bold,
-    ChevronDown,
     ChevronRight,
-    ChevronUp,
     Eye,
     Italic,
     Link2,
@@ -50,17 +48,8 @@ import {
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
-import {
-    MOBILE_MAP_PANEL_STATES,
-    getMobileMapPanelActionForScroll,
-    getMobileMapPanelStateAfterBadgeActivation,
-    shouldExpandMobileMapPanelFromTopPull,
-} from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
-const MOBILE_MAP_COLLAPSE_SETTLE_MS = 160;
-const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[grid-template-rows]';
-const MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS = 'transition-opacity duration-150 ease-out will-change-[opacity]';
 
 function useDirectoryDetailPath(path) {
     const returnTo = React.useContext(DirectoryReturnPathContext);
@@ -322,28 +311,6 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
             </span>
             <ChevronRight size={18} className="flex-shrink-0 text-slate-400" />
         </button>
-    );
-}
-
-function MobileMapDrawerHandle({ fullscreen = false, onToggle }) {
-    const { t } = useLocale();
-    const label = fullscreen ? t('returnToMapList') : t('openFullMap');
-    const Icon = fullscreen ? ChevronUp : ChevronDown;
-
-    return (
-        <div className="flex justify-center">
-            <button
-                type="button"
-                onClick={onToggle}
-                className="-mt-px inline-flex h-8 min-w-16 items-center justify-center rounded-b-2xl border border-t-0 border-brand-100 bg-brand-50 px-6 text-brand-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-100 hover:text-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                aria-label={label}
-                title={label}
-                aria-expanded={fullscreen}
-            >
-                <Icon size={20} strokeWidth={2.6} aria-hidden="true" />
-                <span className="sr-only">{label}</span>
-            </button>
-        </div>
     );
 }
 
@@ -2301,23 +2268,14 @@ export default function SharedMapDirectoryList({
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
     const mobileMapWrapperRef = useRef(null);
-    const mobileMapPullStartYRef = useRef(null);
-    const mobileMapScrollTopRef = useRef(0);
-    const mobileMapSuppressCollapseUntilRef = useRef(0);
-    const mobileMapCollapseTimerRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
-    const [mobileMapPanelState, setMobileMapPanelState] = useState(MOBILE_MAP_PANEL_STATES.EXPANDED);
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
     const resolvedLayout = layout === 'responsive'
         ? (isDesktop ? 'desktop' : 'mobile')
         : layout;
     const interactive = layout !== 'print';
     const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
-    const isMobileMapCollapsed = isMobileMapPanelEnabled
-        && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED;
-    const isMobileMapFullscreen = isMobileMapPanelEnabled
-        && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.FULLSCREEN;
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
     const displayGroups = presentation?.displayGroups || mappedGroups;
@@ -2359,219 +2317,17 @@ export default function SharedMapDirectoryList({
 
     useMobileViewportScaleLock(isMobileMapPanelEnabled);
 
-    const getMobileScrollTop = useCallback(() => {
-        if (typeof window === 'undefined') return 0;
-        return Math.max(0, Math.round(window.scrollY || document.documentElement?.scrollTop || 0));
-    }, []);
-
-    const getMobileMapPanelStateForAction = useCallback((current, action) => {
-        switch (action) {
-            case 'collapse':
-                if (Date.now() < mobileMapSuppressCollapseUntilRef.current) return current;
-                mobileMapSuppressCollapseUntilRef.current = Date.now() + 650;
-                return MOBILE_MAP_PANEL_STATES.COLLAPSED;
-            case 'expand':
-                mobileMapSuppressCollapseUntilRef.current = 0;
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            default:
-                return current;
-        }
-    }, []);
-
-    function clearMobileMapCollapseTimer() {
-        if (typeof window === 'undefined') return;
-        if (mobileMapCollapseTimerRef.current) {
-            window.clearTimeout(mobileMapCollapseTimerRef.current);
-            mobileMapCollapseTimerRef.current = null;
-        }
-    }
-
-    function scheduleMobileMapCollapse() {
-        if (typeof window === 'undefined') return;
-        if (mobileMapCollapseTimerRef.current) {
-            window.clearTimeout(mobileMapCollapseTimerRef.current);
-        }
-        mobileMapCollapseTimerRef.current = window.setTimeout(() => {
-            mobileMapCollapseTimerRef.current = null;
-            setMobileMapPanelState((current) => getMobileMapPanelStateForAction(current, 'collapse'));
-        }, MOBILE_MAP_COLLAPSE_SETTLE_MS);
-    }
-
-    const expandMobileMapForFocus = useCallback(() => {
-        if (!isMobileMapPanelEnabled) return;
-        clearMobileMapCollapseTimer();
-        mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
-        setMobileMapPanelState((current) => getMobileMapPanelStateAfterBadgeActivation({
-            isMobile: true,
-            mapPanelState: current,
-        }));
-    }, [isMobileMapPanelEnabled]);
-
-    const handleMobileMapDrawerToggle = useCallback(() => {
-        if (!isMobileMapPanelEnabled) return;
-        clearMobileMapCollapseTimer();
-        mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
-        setMobileMapPanelState((current) => (
-            current === MOBILE_MAP_PANEL_STATES.FULLSCREEN
-                ? MOBILE_MAP_PANEL_STATES.EXPANDED
-                : MOBILE_MAP_PANEL_STATES.FULLSCREEN
-        ));
-    }, [isMobileMapPanelEnabled]);
-
     const handleDirectoryViewOnMap = useCallback((placeKey) => {
-        expandMobileMapForFocus();
         onViewOnMap?.(placeKey);
-    }, [expandMobileMapForFocus, onViewOnMap]);
+    }, [onViewOnMap]);
 
     const handleMobileMapViewSection = useCallback((placeKey) => {
-        expandMobileMapForFocus();
         renderMobileMap?.().props?.onViewSection?.(placeKey);
-    }, [expandMobileMapForFocus, renderMobileMap]);
+    }, [renderMobileMap]);
 
     const handleMobileMapClusterSelect = useCallback((placeKeys) => {
-        expandMobileMapForFocus();
         renderMobileMap?.().props?.onClusterSelect?.(placeKeys);
-    }, [expandMobileMapForFocus, renderMobileMap]);
-
-    const handleMobileCardsWheel = useCallback((event) => {
-        if (!isMobileMapPanelEnabled) return;
-
-        const scrollTop = getMobileScrollTop();
-        setMobileMapPanelState((current) => {
-            if (shouldExpandMobileMapPanelFromTopPull({
-                isMobile: true,
-                mapPanelState: current,
-                scrollTop,
-                deltaY: event.deltaY,
-            })) {
-                clearMobileMapCollapseTimer();
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            }
-
-            const action = getMobileMapPanelActionForScroll({
-                isMobile: true,
-                mapPanelState: current,
-                nextScrollTop: Math.max(0, scrollTop + event.deltaY),
-                previousScrollTop: scrollTop,
-            });
-            if (action === 'collapse') {
-                scheduleMobileMapCollapse();
-                return current;
-            }
-            if (action === 'expand') {
-                clearMobileMapCollapseTimer();
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            }
-            return getMobileMapPanelStateForAction(current, action);
-        });
-    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
-
-    const handleMobileCardsTouchStart = useCallback((event) => {
-        if (!isMobileMapPanelEnabled) return;
-        mobileMapPullStartYRef.current = event.touches?.[0]?.clientY ?? null;
-    }, [isMobileMapPanelEnabled]);
-
-    const handleMobileCardsTouchMove = useCallback((event) => {
-        if (!isMobileMapPanelEnabled) return;
-        const startY = mobileMapPullStartYRef.current;
-        const currentY = event.touches?.[0]?.clientY;
-        if (startY === null || currentY === undefined) return;
-
-        const scrollTop = getMobileScrollTop();
-        const pullDistance = currentY - startY;
-        const gestureScrollTop = Math.max(0, scrollTop + Math.max(0, startY - currentY));
-
-        setMobileMapPanelState((current) => {
-            if (shouldExpandMobileMapPanelFromTopPull({
-                isMobile: true,
-                mapPanelState: current,
-                scrollTop,
-                pullDistance,
-            })) {
-                mobileMapPullStartYRef.current = currentY;
-                clearMobileMapCollapseTimer();
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            }
-
-            const action = getMobileMapPanelActionForScroll({
-                isMobile: true,
-                mapPanelState: current,
-                nextScrollTop: gestureScrollTop,
-                previousScrollTop: scrollTop,
-            });
-            if (action === 'collapse') {
-                scheduleMobileMapCollapse();
-                return current;
-            }
-            if (action === 'expand') {
-                clearMobileMapCollapseTimer();
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            }
-            return getMobileMapPanelStateForAction(current, action);
-        });
-    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
-
-    const handleMobileCardsTouchEnd = useCallback(() => {
-        mobileMapPullStartYRef.current = null;
-    }, []);
-
-    useEffect(() => {
-        if (resolvedLayout !== 'mobile') {
-            clearMobileMapCollapseTimer();
-            setMobileMapPanelState(MOBILE_MAP_PANEL_STATES.EXPANDED);
-        }
-    }, [resolvedLayout]);
-
-    useEffect(() => () => {
-        clearMobileMapCollapseTimer();
-    }, []);
-
-    useEffect(() => {
-        if (!isMobileMapFullscreen || typeof document === 'undefined') {
-            return undefined;
-        }
-
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = previousOverflow;
-        };
-    }, [isMobileMapFullscreen]);
-
-    useEffect(() => {
-        if (!isMobileMapPanelEnabled || typeof window === 'undefined') {
-            return undefined;
-        }
-
-        mobileMapScrollTopRef.current = getMobileScrollTop();
-
-        const handleWindowScroll = () => {
-            const nextScrollTop = getMobileScrollTop();
-            const previousScrollTop = mobileMapScrollTopRef.current;
-            mobileMapScrollTopRef.current = nextScrollTop;
-
-            setMobileMapPanelState((current) => {
-                const action = getMobileMapPanelActionForScroll({
-                    isMobile: true,
-                    mapPanelState: current,
-                    nextScrollTop,
-                    previousScrollTop,
-                });
-                if (action === 'collapse') {
-                    scheduleMobileMapCollapse();
-                    return current;
-                }
-                if (action === 'expand') {
-                    clearMobileMapCollapseTimer();
-                    return getMobileMapPanelStateForAction(current, action);
-                }
-                return getMobileMapPanelStateForAction(current, action);
-            });
-        };
-
-        window.addEventListener('scroll', handleWindowScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleWindowScroll);
-    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
+    }, [renderMobileMap]);
 
     function openResourceNotes(row = null) {
         if (!interactive || !noteResourceRows.length) return;
@@ -2659,72 +2415,36 @@ export default function SharedMapDirectoryList({
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
         const mobileMapBaseHeightClassName = mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]';
-        const mobileMapFrameHeightClassName = isMobileMapFullscreen
-            ? 'h-full min-h-0 max-h-none'
-            : mobileMapBaseHeightClassName;
-        const mobileMapViewportClassName = isMobileMapFullscreen
-            ? 'min-h-0 flex-1 overflow-hidden'
-            : isMobileMapCollapsed
-            ? `grid grid-rows-[0fr] overflow-hidden pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `grid grid-rows-[1fr] overflow-hidden ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
-        const mobileMapClipClassName = isMobileMapFullscreen ? 'min-h-0 h-full overflow-hidden' : 'min-h-0 overflow-hidden';
-        const mobileMapInnerClassName = isMobileMapCollapsed
-            ? `opacity-0 pointer-events-none ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`
-            : `h-full min-h-0 opacity-100 ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`;
-        const mobileMapWrapperClassName = isMobileMapFullscreen
-            ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling [overflow-anchor:none]'
-            : `${mobileMapStickyClassName} disable-font-scaling [overflow-anchor:none]`;
-        const mobileMapLegendClassName = isMobileMapCollapsed
-            ? `grid grid-rows-[0fr] overflow-hidden pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `grid grid-rows-[1fr] overflow-hidden ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
-        const mobileMapLegendClipClassName = 'min-h-0 overflow-hidden';
+        const mobileMapNotesWrapperClassName = `${mobileMapStickyClassName} [overflow-anchor:none]`;
         const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-4 ${className}`}>
                     {mobileMapElement ? (
-                        <div ref={mobileMapWrapperRef} className={mobileMapWrapperClassName}>
-                            <div className={mobileMapViewportClassName}>
-                                <div className={mobileMapClipClassName}>
-                                    <div className={mobileMapInnerClassName}>
-                                        {React.cloneElement(mobileMapElement, {
-                                            onClusterChange: setClusterMapping,
-                                            onViewSection: handleMobileMapViewSection,
-                                            onClusterSelect: handleMobileMapClusterSelect,
-                                            mapHeightClassName: mobileMapFrameHeightClassName,
-                                            layoutSignature: isMobileMapFullscreen ? 'mobile-map-fullscreen' : 'mobile-map-normal',
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="disable-font-scaling [overflow-anchor:none]">
+                            {React.cloneElement(mobileMapElement, {
+                                onClusterChange: setClusterMapping,
+                                onViewSection: handleMobileMapViewSection,
+                                onClusterSelect: handleMobileMapClusterSelect,
+                                mapHeightClassName: mobileMapBaseHeightClassName,
+                                layoutSignature: 'mobile-map-normal',
+                            })}
                             {showMapLegend ? (
-                                <div className={mobileMapLegendClassName}>
-                                    <div className={mobileMapLegendClipClassName}>
-                                        <MapLegend mobile />
-                                    </div>
-                                </div>
+                                <MapLegend mobile />
                             ) : null}
-                            <MobileMapDrawerHandle
-                                fullscreen={isMobileMapFullscreen}
-                                onToggle={handleMobileMapDrawerToggle}
-                            />
-                            <MapNotesEntryButton
-                                rows={noteResourceRows}
-                                mode={mode}
-                                onOpen={openResourceNotes}
-                            />
                         </div>
                     ) : null}
 
-                    <div
-                        className={mobileCardsClassName}
-                        onWheel={handleMobileCardsWheel}
-                        onTouchStart={handleMobileCardsTouchStart}
-                        onTouchMove={handleMobileCardsTouchMove}
-                        onTouchEnd={handleMobileCardsTouchEnd}
-                        onTouchCancel={handleMobileCardsTouchEnd}
-                    >
+                    <div ref={mobileMapWrapperRef} className={mobileMapNotesWrapperClassName}>
+                        <MapNotesEntryButton
+                            rows={noteResourceRows}
+                            mode={mode}
+                            onOpen={openResourceNotes}
+                        />
+                    </div>
+
+                    <div className={mobileCardsClassName}>
                         <DirectoryGroupColumn
                             groups={mobileDisplayGroups}
                             mode={mode}
