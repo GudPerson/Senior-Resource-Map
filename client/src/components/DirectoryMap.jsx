@@ -52,6 +52,7 @@ const DIRECTORY_PRINT_BADGE_DIAMETER = 25.5;
 const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.76;
 const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28;
 const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER * 0.74;
+const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 13.25;
 const DIRECTORY_PRINT_BADGE_BUBBLE_GAP = 1;
 const DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS = 56;
 const DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET = 44;
@@ -1168,6 +1169,35 @@ function applyPrintBadgeMarkerOffset(item, offset, solvedOffsets = null) {
     item.coreElement.style.setProperty('--print-badge-offset-y', '0px');
 }
 
+function DirectoryCategoryBubbleZoomClassSync({ enabled }) {
+    const map = useMap();
+
+    useEffect(() => {
+        const container = map?.getContainer?.();
+        if (!container) return undefined;
+
+        const syncCompactClass = () => {
+            const zoom = Number(map.getZoom?.());
+            const shouldShowDots = enabled
+                && Number.isFinite(zoom)
+                && zoom <= DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD;
+            container.classList.toggle('directory-map--category-bubbles-compact', shouldShowDots);
+        };
+
+        syncCompactClass();
+        map.on('zoomend', syncCompactClass);
+        map.on('moveend', syncCompactClass);
+
+        return () => {
+            map.off('zoomend', syncCompactClass);
+            map.off('moveend', syncCompactClass);
+            container.classList.remove('directory-map--category-bubbles-compact');
+        };
+    }, [enabled, map]);
+
+    return null;
+}
+
 function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSolvedOffsets = false }) {
     const map = useMap();
     const mapTransitionUntilRef = useRef(0);
@@ -2274,6 +2304,7 @@ export default function DirectoryMap({
                     onClusterSelect={onClusterSelect}
                 />
                 <DirectoryClusterStateSync onClusterChange={onClusterChange} />
+                <DirectoryCategoryBubbleZoomClassSync enabled={markerMode === 'category-bubble'} />
                 <DirectoryPrintBadgeCollisionSync
                     enabled={markerMode === 'print-badge' || markerMode === 'category-bubble'}
                     preserveSolvedOffsets={markerMode === 'category-bubble'}

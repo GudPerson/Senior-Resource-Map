@@ -133,7 +133,10 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /markerMode === 'category-bubble'/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER \* 0\.74/);
+    assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 13\.25/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker/);
+    assert.match(directoryMapSource, /function DirectoryCategoryBubbleZoomClassSync/);
+    assert.match(directoryMapSource, /directory-map--category-bubbles-compact/);
     assert.match(directoryMapSource, /function normalizeCategoryBubbleItems/);
     assert.match(directoryMapSource, /function getCategoryBubblePlaceKeyFromEvent\(event, fallbackPlaceKey\)/);
     assert.match(directoryMapSource, /data-category-bubble-place-key/);
@@ -167,6 +170,8 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*clip-path: circle\(50% at 50% 50%\)/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__icon[\s\S]*filter: none/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__fallback[\s\S]*width: 14px/);
+    assert.match(appCssSource, /\.directory-map--category-bubbles-compact[\s\S]*\.directory-category-bubble-marker__lobe::after[\s\S]*background: currentColor/);
+    assert.match(appCssSource, /\.directory-map--category-bubbles-compact[\s\S]*\.directory-category-bubble-marker__content[\s\S]*visibility: hidden/);
 });
 
 test('directory map can show V2 category colors inside the saved pin circle without recoloring the teal pin body', () => {

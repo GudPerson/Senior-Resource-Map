@@ -786,6 +786,27 @@
   fill: currentColor;
 }
 
+.directory-map--category-bubbles-compact .directory-category-bubble-marker__lobe {
+  background: transparent !important;
+  overflow: visible !important;
+}
+
+.directory-map--category-bubbles-compact .directory-category-bubble-marker__lobe::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: 3;
+  border: 2px solid rgba(255,255,255,0.96);
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 4px 10px rgba(15,23,42,0.22);
+}
+
+.directory-map--category-bubbles-compact .directory-category-bubble-marker__content,
+.directory-map--category-bubbles-compact .directory-category-bubble-marker__ring {
+  visibility: hidden;
+}
+
 .directory-number-marker--selected .directory-number-marker__core {
   animation: directoryNumberMarkerBeat 1.35s infinite ease-in-out;
 }

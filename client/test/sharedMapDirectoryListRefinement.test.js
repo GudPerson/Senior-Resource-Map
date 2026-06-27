@@ -106,6 +106,7 @@ test('mobile map panel exposes a full-screen handle while keeping map notes reac
     assert.match(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
     assert.match(sharedMapDirectorySource, /ChevronUp/);
     assert.match(sharedMapDirectorySource, /ChevronDown/);
+    assert.match(sharedMapDirectorySource, /const Icon = fullscreen \? ChevronUp : ChevronDown/);
     assert.match(sharedMapDirectorySource, /rounded-b-2xl/);
     assert.match(sharedMapDirectorySource, /isMobileMapFullscreen/);
     assert.match(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES\.FULLSCREEN/);

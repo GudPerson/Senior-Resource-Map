@@ -325,7 +325,7 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
 function MobileMapDrawerHandle({ fullscreen = false, onToggle }) {
     const { t } = useLocale();
     const label = fullscreen ? t('returnToMapList') : t('openFullMap');
-    const Icon = fullscreen ? ChevronDown : ChevronUp;
+    const Icon = fullscreen ? ChevronUp : ChevronDown;
 
     return (
         <div className="flex justify-center">
