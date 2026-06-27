@@ -178,6 +178,24 @@ test('mobile map panel avoids browser scroll anchoring during collapse motion', 
     assert.doesNotMatch(mobileSource, /h-0 min-h-0 max-h-0/);
 });
 
+test('mobile map panel waits for scroll to settle before collapsing layout', () => {
+    const scrollControlSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const getMobileMapPanelStateForAction = useCallback',
+        'function openResourceNotes',
+    );
+
+    assert.match(sharedMapDirectorySource, /const MOBILE_MAP_COLLAPSE_SETTLE_MS = 180;/);
+    assert.match(scrollControlSource, /mobileMapCollapseTimerRef/);
+    assert.match(scrollControlSource, /function clearMobileMapCollapseTimer/);
+    assert.match(scrollControlSource, /function scheduleMobileMapCollapse/);
+    assert.match(scrollControlSource, /window\.setTimeout/);
+    assert.match(scrollControlSource, /MOBILE_MAP_COLLAPSE_SETTLE_MS/);
+    assert.match(scrollControlSource, /window\.clearTimeout/);
+    assert.match(scrollControlSource, /if \(action === 'collapse'\) \{\s*scheduleMobileMapCollapse\(\);\s*return current;\s*\}/);
+    assert.doesNotMatch(scrollControlSource, /if \(action === 'collapse'\) \{[\s\S]{0,160}return MOBILE_MAP_PANEL_STATES\.COLLAPSED;/);
+});
+
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
     const printBadgeSource = sourceBetween(
         sharedMapDirectorySource,

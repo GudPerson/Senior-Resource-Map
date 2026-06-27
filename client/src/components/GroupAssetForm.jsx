@@ -224,11 +224,24 @@ export default function GroupAssetForm({
     const [memberRows, setMemberRows] = useState([]);
     const [memberQuery, setMemberQuery] = useState('');
     const [regionQuery, setRegionQuery] = useState('');
+    const [availableSubCategories, setAvailableSubCategories] = useState([]);
     const [loadingMembers, setLoadingMembers] = useState(Boolean(initialData?.id));
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
     const memberOptions = useMemo(() => buildMemberOptions(hardAssets, softAssets), [hardAssets, softAssets]);
+    const groupCategoryOptions = useMemo(() => {
+        const names = new Set(['Groups']);
+        availableSubCategories
+            .filter((subcategory) => !subcategory?.type || subcategory.type === 'soft')
+            .forEach((subcategory) => {
+                const name = String(subcategory?.name || '').trim();
+                if (name) names.add(name);
+            });
+        const currentName = String(form.subCategory || '').trim();
+        if (currentName) names.add(currentName);
+        return [...names].sort((left, right) => left.localeCompare(right));
+    }, [availableSubCategories, form.subCategory]);
     const regionOptions = useMemo(() => {
         const actorRole = normalizeRole(currentUser?.role);
         const allowedRegionIds = new Set((currentUser?.subregionIds || []).map(Number));
@@ -319,6 +332,20 @@ export default function GroupAssetForm({
         : initialAccess.filter((row) => row.staffRole === 'owner').length;
     const readinessLabel = getReadinessLabel({ form, ownerCount, selectedMembers, memberRows });
     const updateSummary = initialData?.id ? formatGroupUpdateSummary(initialData) : null;
+
+    useEffect(() => {
+        let active = true;
+        api.getSubCategories()
+            .then((subcategories) => {
+                if (active) setAvailableSubCategories(Array.isArray(subcategories) ? subcategories : []);
+            })
+            .catch(() => {
+                if (active) setAvailableSubCategories([]);
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -578,8 +605,12 @@ export default function GroupAssetForm({
                     <input className="input-field" value={form.name} onChange={(event) => updateField('name', event.target.value)} required />
                 </label>
                 <label className="block">
-                    <span className="mb-1 block text-sm font-bold text-slate-700">Sub-category</span>
-                    <input className="input-field" value={form.subCategory} onChange={(event) => updateField('subCategory', event.target.value)} placeholder="Groups" />
+                    <span className="mb-1 block text-sm font-bold text-slate-700">Category</span>
+                    <select className="input-field" value={form.subCategory} onChange={(event) => updateField('subCategory', event.target.value)}>
+                        {groupCategoryOptions.map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                        ))}
+                    </select>
                 </label>
                 <label className="block">
                     <span className="mb-1 block text-sm font-bold text-slate-700">Website</span>

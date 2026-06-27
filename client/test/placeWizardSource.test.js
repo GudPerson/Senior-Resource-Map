@@ -59,6 +59,9 @@ test('Place wizard keeps markdown description and protected management panels', 
     assert.match(profileStepSource, /MarkdownDescriptionField/);
     assert.match(profileStepSource, /id="place-description"/);
     assert.match(profileStepSource, /<input required value=\{form\.name\}/);
+    assert.match(profileStepSource, /Category \*/);
+    assert.match(profileStepSource, /<CreatableSelect/);
+    assert.doesNotMatch(profileStepSource, /Sub-Category/);
     assert.match(locationStepSource, /<select required value=\{form\.country\}/);
     assert.match(locationStepSource, /<input required value=\{form\.postalCode\}/);
     assert.match(locationStepSource, /<input required value=\{form\.address\}/);

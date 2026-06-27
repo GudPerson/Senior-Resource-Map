@@ -100,6 +100,9 @@ test('Offering wizard keeps description, schedule, coverage, eligibility, access
 
     assert.match(profileStepSource, /MarkdownDescriptionField/);
     assert.match(profileStepSource, /id="offering-description"/);
+    assert.match(profileStepSource, /Category \*/);
+    assert.match(profileStepSource, /<select required value=\{form\.subCategory \|\| 'Programmes'\}/);
+    assert.doesNotMatch(profileStepSource, /Sub-Category/);
     for (const fieldName of ['website', 'socialLinks', 'SOCIAL_PLATFORMS', 'contactPhone', 'whatsappContact', 'contactEmail', 'ctaLabel', 'ctaUrl', 'venueNote']) {
         assert.match(profileStepSource, new RegExp(fieldName));
     }

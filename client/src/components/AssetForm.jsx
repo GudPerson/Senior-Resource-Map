@@ -440,7 +440,7 @@ export default function AssetForm({
             ));
             setField('subCategory', created.name);
         } catch (err) {
-            setError(err.message || 'Failed to create sub-category.');
+            setError(err.message || 'Failed to create category.');
         } finally {
             setCreatingSubCategory(false);
         }
@@ -730,7 +730,7 @@ export default function AssetForm({
         if (!isHard) return '';
         if (stepIndex === 0) {
             if (!String(form.name || '').trim()) return 'Add a place name to continue.';
-            if (!String(form.subCategory || '').trim()) return 'Choose or create a place sub-category to continue.';
+            if (!String(form.subCategory || '').trim()) return 'Choose or create a place category to continue.';
             const profileContactMessage = getPlaceProfileContactValidationError();
             if (profileContactMessage) return profileContactMessage;
         }
@@ -770,7 +770,7 @@ export default function AssetForm({
         if (stepIndex === 0) {
             if (!String(form.name || '').trim()) return 'Add an offering name to continue.';
             if (!String(form.bucket || '').trim()) return 'Choose an offering bucket to continue.';
-            if (!String(form.subCategory || '').trim()) return 'Choose an offering sub-category to continue.';
+            if (!String(form.subCategory || '').trim()) return 'Choose an offering category to continue.';
             const profileContactMessage = getOfferingProfileContactValidationError();
             if (profileContactMessage) return profileContactMessage;
         }
@@ -1025,7 +1025,7 @@ export default function AssetForm({
                         </div>
 
                         <div className="md:col-span-2">
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">Sub-Category *</label>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Category *</label>
                             <CreatableSelect
                                 isClearable={false}
                                 options={hardSubCategoryOptions}
@@ -1525,7 +1525,7 @@ export default function AssetForm({
                         </div>
 
                         <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">Sub-Category *</label>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Category *</label>
                             <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
                                 {availableSubCategories.filter((subcategory) => subcategory.type === 'soft').map((subcategory) => (
                                     <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>

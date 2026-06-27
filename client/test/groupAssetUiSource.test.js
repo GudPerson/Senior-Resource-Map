@@ -184,7 +184,10 @@ test('Group asset form uses resource profile fields and system update accountabi
     const profileStepSource = sourceBetween(groupFormSource, 'function renderProfileStep()', 'function renderAccessStep()');
 
     assert.match(groupFormSource, /SOCIAL_PLATFORMS/);
-    assert.match(groupFormSource, /Sub-category/);
+    assert.match(groupFormSource, /Category/);
+    assert.match(groupFormSource, /groupCategoryOptions/);
+    assert.match(profileStepSource, /<select className="input-field" value=\{form\.subCategory\}/);
+    assert.doesNotMatch(profileStepSource, /Sub-category/);
     assert.match(groupFormSource, /Website/);
     assert.match(groupFormSource, /Social media/);
     assert.match(groupFormSource, /MarkdownDescriptionField/);

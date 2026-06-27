@@ -58,6 +58,7 @@ import {
 } from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
+const MOBILE_MAP_COLLAPSE_SETTLE_MS = 180;
 const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-[grid-template-rows,opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[grid-template-rows,opacity,transform]';
 const MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS = 'transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,transform]';
 
@@ -2303,6 +2304,7 @@ export default function SharedMapDirectoryList({
     const mobileMapPullStartYRef = useRef(null);
     const mobileMapScrollTopRef = useRef(0);
     const mobileMapSuppressCollapseUntilRef = useRef(0);
+    const mobileMapCollapseTimerRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
     const [mobileMapPanelState, setMobileMapPanelState] = useState(MOBILE_MAP_PANEL_STATES.EXPANDED);
@@ -2363,27 +2365,39 @@ export default function SharedMapDirectoryList({
     }, []);
 
     const getMobileMapPanelStateForAction = useCallback((current, action) => {
-        if (action === 'collapse' && Date.now() < mobileMapSuppressCollapseUntilRef.current) {
-            return current;
-        }
-
-        if (action === 'collapse') {
-            mobileMapSuppressCollapseUntilRef.current = Date.now() + 650;
-            return MOBILE_MAP_PANEL_STATES.COLLAPSED;
-        }
-
-        if (action === 'expand') {
-            if (Date.now() < mobileMapSuppressCollapseUntilRef.current) {
+        switch (action) {
+            case 'collapse':
+                if (Date.now() < mobileMapSuppressCollapseUntilRef.current) return current;
+                mobileMapSuppressCollapseUntilRef.current = Date.now() + 650;
+                return MOBILE_MAP_PANEL_STATES.COLLAPSED;
+            case 'expand':
+                if (Date.now() < mobileMapSuppressCollapseUntilRef.current) return current;
+                return MOBILE_MAP_PANEL_STATES.EXPANDED;
+            default:
                 return current;
-            }
-            return MOBILE_MAP_PANEL_STATES.EXPANDED;
         }
-
-        return current;
     }, []);
+
+    function clearMobileMapCollapseTimer() {
+        if (typeof window === 'undefined') return;
+        if (mobileMapCollapseTimerRef.current) {
+            window.clearTimeout(mobileMapCollapseTimerRef.current);
+            mobileMapCollapseTimerRef.current = null;
+        }
+    }
+
+    function scheduleMobileMapCollapse() {
+        if (typeof window === 'undefined') return;
+        clearMobileMapCollapseTimer();
+        mobileMapCollapseTimerRef.current = window.setTimeout(() => {
+            mobileMapCollapseTimerRef.current = null;
+            setMobileMapPanelState((current) => getMobileMapPanelStateForAction(current, 'collapse'));
+        }, MOBILE_MAP_COLLAPSE_SETTLE_MS);
+    }
 
     const expandMobileMapForFocus = useCallback(() => {
         if (!isMobileMapPanelEnabled) return;
+        clearMobileMapCollapseTimer();
         mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
         setMobileMapPanelState((current) => getMobileMapPanelStateAfterBadgeActivation({
             isMobile: true,
@@ -2393,6 +2407,7 @@ export default function SharedMapDirectoryList({
 
     const handleMobileMapDrawerToggle = useCallback(() => {
         if (!isMobileMapPanelEnabled) return;
+        clearMobileMapCollapseTimer();
         mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
         setMobileMapPanelState((current) => (
             current === MOBILE_MAP_PANEL_STATES.FULLSCREEN
@@ -2427,6 +2442,7 @@ export default function SharedMapDirectoryList({
                 scrollTop,
                 deltaY: event.deltaY,
             })) {
+                clearMobileMapCollapseTimer();
                 return MOBILE_MAP_PANEL_STATES.EXPANDED;
             }
 
@@ -2436,6 +2452,13 @@ export default function SharedMapDirectoryList({
                 nextScrollTop: Math.max(0, scrollTop + event.deltaY),
                 previousScrollTop: scrollTop,
             });
+            if (action === 'collapse') {
+                scheduleMobileMapCollapse();
+                return current;
+            }
+            if (action === 'expand') {
+                clearMobileMapCollapseTimer();
+            }
             return getMobileMapPanelStateForAction(current, action);
         });
     }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
@@ -2463,6 +2486,7 @@ export default function SharedMapDirectoryList({
                 pullDistance,
             })) {
                 mobileMapPullStartYRef.current = currentY;
+                clearMobileMapCollapseTimer();
                 return MOBILE_MAP_PANEL_STATES.EXPANDED;
             }
 
@@ -2472,6 +2496,13 @@ export default function SharedMapDirectoryList({
                 nextScrollTop: gestureScrollTop,
                 previousScrollTop: scrollTop,
             });
+            if (action === 'collapse') {
+                scheduleMobileMapCollapse();
+                return current;
+            }
+            if (action === 'expand') {
+                clearMobileMapCollapseTimer();
+            }
             return getMobileMapPanelStateForAction(current, action);
         });
     }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
@@ -2482,9 +2513,14 @@ export default function SharedMapDirectoryList({
 
     useEffect(() => {
         if (resolvedLayout !== 'mobile') {
+            clearMobileMapCollapseTimer();
             setMobileMapPanelState(MOBILE_MAP_PANEL_STATES.EXPANDED);
         }
     }, [resolvedLayout]);
+
+    useEffect(() => () => {
+        clearMobileMapCollapseTimer();
+    }, []);
 
     useEffect(() => {
         if (!isMobileMapFullscreen || typeof document === 'undefined') {
@@ -2517,6 +2553,13 @@ export default function SharedMapDirectoryList({
                     nextScrollTop,
                     previousScrollTop,
                 });
+                if (action === 'collapse') {
+                    scheduleMobileMapCollapse();
+                    return current;
+                }
+                if (action === 'expand') {
+                    clearMobileMapCollapseTimer();
+                }
                 return getMobileMapPanelStateForAction(current, action);
             });
         };
