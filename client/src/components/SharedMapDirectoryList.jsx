@@ -2317,6 +2317,7 @@ export default function SharedMapDirectoryList({
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
     const displayGroups = presentation?.displayGroups || mappedGroups;
+    const mobileDisplayGroups = presentation?.mobileDisplayGroups || displayGroups;
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
     const mapColumnGroups = presentation?.mapColumnGroups || [];
@@ -2653,7 +2654,7 @@ export default function SharedMapDirectoryList({
                         onTouchCancel={handleMobileCardsTouchEnd}
                     >
                         <DirectoryGroupColumn
-                            groups={displayGroups}
+                            groups={mobileDisplayGroups}
                             mode={mode}
                             interactive
                             fullCardLink={false}

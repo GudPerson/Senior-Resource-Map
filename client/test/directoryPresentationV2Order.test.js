@@ -218,6 +218,74 @@ test('v2 card presentation lets list-only Group cards borrow mapped Place member
     assert.deepEqual(presentation.mapFocusPlaceKeysByKey[groupCard.placeKey], ['hard-10', 'hard-20']);
 });
 
+test('v2 card presentation starts the mobile list with list-only Group cards without changing desktop order', () => {
+    const presentation = buildDirectoryPresentation({
+        places: [
+            hardPlace({
+                key: 'hard-10',
+                name: 'Alpha Active Ageing',
+                subCategory: 'Active Ageing Centre (AAC)',
+                postalCode: '200200',
+            }),
+            {
+                placeKey: 'fallback-soft-99',
+                placeId: null,
+                name: 'West Active Ageing Picks',
+                address: null,
+                postalCode: '',
+                lat: null,
+                lng: null,
+                hasCoordinates: false,
+                rows: [
+                    {
+                        rowKey: 'soft-99:fallback',
+                        assetKey: 'soft-99',
+                        resourceType: 'soft',
+                        resourceId: 99,
+                        name: 'West Active Ageing Picks',
+                        subCategory: 'Group',
+                        assetMode: 'group',
+                        status: 'list_only',
+                        mapFocusPlaceKeys: ['hard-10'],
+                    },
+                ],
+            },
+            {
+                placeKey: 'fallback-soft-90',
+                placeId: null,
+                name: 'Alpha Meals Support',
+                address: null,
+                postalCode: '',
+                lat: null,
+                lng: null,
+                hasCoordinates: false,
+                rows: [
+                    {
+                        rowKey: 'soft-90:fallback',
+                        assetKey: 'soft-90',
+                        resourceType: 'soft',
+                        resourceId: 90,
+                        name: 'Alpha Meals Support',
+                        subCategory: 'Home Base Services',
+                        status: 'list_only',
+                    },
+                ],
+            },
+        ],
+    }, { presentationMode: 'v2-cards' });
+
+    assert.deepEqual(presentation.displayGroups.map((group) => group.name), [
+        'Alpha Active Ageing',
+        'West Active Ageing Picks',
+        'Alpha Meals Support',
+    ]);
+    assert.deepEqual(presentation.mobileDisplayGroups.map((group) => group.name), [
+        'West Active Ageing Picks',
+        'Alpha Active Ageing',
+        'Alpha Meals Support',
+    ]);
+});
+
 test('v2 card presentation exposes category colors and icons for cards and pins', () => {
     const presentation = buildDirectoryPresentation(directory, { presentationMode: 'v2-cards' });
     const alphaGroup = presentation.displayGroups.find((group) => group.placeKey === 'hard-10');

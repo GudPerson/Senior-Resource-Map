@@ -171,6 +171,18 @@ function getPrimaryCategoryEntry(rows = [], options = {}) {
     };
 }
 
+function isListOnlyGroupRow(row = {}) {
+    const assetMode = normalizeText(row.assetMode || row.asset_mode);
+    const bucket = normalizeText(row.bucket);
+    const subCategory = normalizeText(row.subCategory || row.sub_category);
+
+    return assetMode === 'group'
+        || bucket === 'group'
+        || bucket === 'groups'
+        || subCategory === 'group'
+        || Boolean(row.mapFocusPlaceKeys?.length);
+}
+
 function getGroupCategoryEntries(group = {}, options = {}) {
     if (group.isPostalGroup && Array.isArray(group.nestedPlaces)) {
         return getCategoryEntriesForRows(group.nestedPlaces.flatMap((place) => place.rows || []), options);
@@ -543,6 +555,7 @@ function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
         nestedPlaces: [],
         memberPlaceKeys: [placeKey, ...mapFocusPlaceKeys],
         mapFocusPlaceKeys,
+        isListOnlyGroup: isListOnlyGroupRow(row),
         isPostalGroup: false,
         isUnmappedGroup: true,
         categoryLabel,
@@ -583,6 +596,21 @@ function compareV2DisplayGroups(left, right) {
     if (resourceCompare !== 0) return resourceCompare;
 
     return compareText(left.placeKey, right.placeKey);
+}
+
+function buildMobileDisplayGroups(groups = []) {
+    const listOnlyGroups = [];
+    const otherGroups = [];
+
+    groups.forEach((group) => {
+        if (group?.isListOnlyGroup) {
+            listOnlyGroups.push(group);
+            return;
+        }
+        otherGroups.push(group);
+    });
+
+    return [...listOnlyGroups, ...otherGroups];
 }
 
 function buildHoverPlaceKeysByKey(groups = [], pinGroups = []) {
@@ -646,6 +674,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
             ...group,
             number: index + 1,
         }));
+    const mobileDisplayGroups = buildMobileDisplayGroups(displayGroups);
     const displayGroupByKey = displayGroups.reduce((accumulator, group) => {
         accumulator[group.placeKey] = group;
         return accumulator;
@@ -693,6 +722,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
             number: displayGroupByKey[group.placeKey]?.number || null,
         })),
         displayGroups,
+        mobileDisplayGroups,
         leftGroups,
         rightGroups,
         mapColumnGroups,

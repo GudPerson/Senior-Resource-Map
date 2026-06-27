@@ -154,6 +154,7 @@ test('v2 can hide the map legend while shared directory lists keep it by default
 
 test('v2 card ordering can opt into category pills and integrated list-only cards', () => {
     assert.match(sharedMapDirectorySource, /const displayGroups = presentation\?\.displayGroups \|\| mappedGroups/);
+    assert.match(sharedMapDirectorySource, /const mobileDisplayGroups = presentation\?\.mobileDisplayGroups \|\| displayGroups/);
     assert.match(sharedMapDirectorySource, /const shouldRenderUnmappedSections = !presentation\?\.integratesUnmappedRowsAsCards/);
     assert.match(sharedMapDirectorySource, /const showCategoryPills = Boolean\(presentation\?\.showCategoryPills\)/);
     assert.match(sharedMapDirectorySource, /function DirectoryCategoryPill/);
@@ -178,7 +179,9 @@ test('v2 card ordering can opt into category pills and integrated list-only card
     assert.match(sharedMapDirectorySource, /color=\{group\.categoryColor\}/);
     assert.match(sharedMapDirectorySource, /iconUrl=\{group\.categoryIconUrl\}/);
     assert.match(sharedMapDirectorySource, /showCategoryPills=\{showCategoryPills\}/);
-    assert.match(sharedMapDirectorySource, /groups=\{displayGroups\}/);
+    assert.match(sharedMapDirectorySource, /groups=\{leftGroups\}/);
+    assert.match(sharedMapDirectorySource, /groups=\{rightGroups\}/);
+    assert.match(sharedMapDirectorySource, /groups=\{mobileDisplayGroups\}/);
     assert.match(sharedMapDirectorySource, /mappedGroups: presentation\?\.noteMappedGroups \|\| mappedGroups/);
     assert.match(sharedMapDirectorySource, /unmappedRows: presentation\?\.noteUnmappedRows \|\| unmappedRows/);
 });
