@@ -133,10 +133,14 @@ test('mobile map panel uses softened collapse and reveal animation', () => {
     assert.match(sharedMapDirectorySource, /const MOBILE_MAP_PANEL_TRANSITION_CLASS/);
     assert.match(sharedMapDirectorySource, /duration-500/);
     assert.match(sharedMapDirectorySource, /ease-\[cubic-bezier\(0\.22,1,0\.36,1\)\]/);
-    assert.match(sharedMapDirectorySource, /transition-\[grid-template-rows,opacity,transform\]/);
-    assert.match(sharedMapDirectorySource, /will-change-\[grid-template-rows,opacity,transform\]/);
-    assert.match(mobileSource, /opacity-0 -translate-y-1 pointer-events-none/);
-    assert.match(mobileSource, /opacity-100 translate-y-0/);
+    assert.match(sharedMapDirectorySource, /transition-\[grid-template-rows\]/);
+    assert.match(sharedMapDirectorySource, /will-change-\[grid-template-rows\]/);
+    assert.match(mobileSource, /grid grid-rows-\[0fr\] overflow-hidden pointer-events-none/);
+    assert.match(mobileSource, /grid grid-rows-\[1fr\] overflow-hidden/);
+    assert.doesNotMatch(mobileSource, /grid grid-rows-\[0fr\] overflow-hidden opacity-0 -translate-y-1 pointer-events-none/);
+    assert.doesNotMatch(mobileSource, /grid grid-rows-\[1fr\] overflow-hidden opacity-100 translate-y-0/);
+    assert.doesNotMatch(sharedMapDirectorySource, /transition-\[grid-template-rows,opacity,transform\]/);
+    assert.doesNotMatch(sharedMapDirectorySource, /will-change-\[grid-template-rows,opacity,transform\]/);
     assert.doesNotMatch(sharedMapDirectorySource, /const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-all/);
     assert.match(sharedMapDirectorySource, /Date\.now\(\) \+ 650/);
 });
@@ -185,7 +189,7 @@ test('mobile map panel waits for scroll to settle before collapsing layout', () 
         'function openResourceNotes',
     );
 
-    assert.match(sharedMapDirectorySource, /const MOBILE_MAP_COLLAPSE_SETTLE_MS = 180;/);
+    assert.match(sharedMapDirectorySource, /const MOBILE_MAP_COLLAPSE_SETTLE_MS = 160;/);
     assert.match(scrollControlSource, /mobileMapCollapseTimerRef/);
     assert.match(scrollControlSource, /function clearMobileMapCollapseTimer/);
     assert.match(scrollControlSource, /function scheduleMobileMapCollapse/);
@@ -196,26 +200,33 @@ test('mobile map panel waits for scroll to settle before collapsing layout', () 
     assert.doesNotMatch(scrollControlSource, /if \(action === 'collapse'\) \{[\s\S]{0,160}return MOBILE_MAP_PANEL_STATES\.COLLAPSED;/);
 });
 
-test('mobile map panel does not postpone collapse through an entire card scroll', () => {
+test('mobile map panel reschedules collapse while scroll is still moving', () => {
     const scrollControlSource = sourceBetween(
         sharedMapDirectorySource,
         'function scheduleMobileMapCollapse',
         'function openResourceNotes',
     );
 
-    assert.match(scrollControlSource, /if \(mobileMapCollapseTimerRef\.current\) return;/);
-    assert.doesNotMatch(scrollControlSource, /clearMobileMapCollapseTimer\(\);\s*mobileMapCollapseTimerRef\.current = window\.setTimeout/);
+    assert.match(scrollControlSource, /if \(mobileMapCollapseTimerRef\.current\) \{\s*window\.clearTimeout\(mobileMapCollapseTimerRef\.current\);\s*\}/);
+    assert.doesNotMatch(scrollControlSource, /if \(mobileMapCollapseTimerRef\.current\) return;/);
 });
 
-test('mobile map panel reveals immediately from direct near-top gestures', () => {
+test('mobile map panel reveals immediately from near-top gestures and scrolls', () => {
     const scrollControlSource = sourceBetween(
         sharedMapDirectorySource,
         'const handleMobileCardsWheel = useCallback',
         'function openResourceNotes',
     );
+    const stateActionSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const getMobileMapPanelStateForAction = useCallback',
+        'function clearMobileMapCollapseTimer',
+    );
 
     assert.match(scrollControlSource, /if \(action === 'expand'\) \{\s*clearMobileMapCollapseTimer\(\);\s*return MOBILE_MAP_PANEL_STATES\.EXPANDED;\s*\}/);
+    assert.match(stateActionSource, /case 'expand':\s*mobileMapSuppressCollapseUntilRef\.current = 0;\s*return MOBILE_MAP_PANEL_STATES\.EXPANDED;/);
     assert.doesNotMatch(scrollControlSource, /if \(action === 'expand'\) \{\s*clearMobileMapCollapseTimer\(\);\s*\}\s*return getMobileMapPanelStateForAction\(current, action\);/);
+    assert.doesNotMatch(stateActionSource, /case 'expand':\s*if \(Date\.now\(\) < mobileMapSuppressCollapseUntilRef\.current\) return current;/);
 });
 
 test('print V2 cards can opt into numeric right-edge resource badges', () => {

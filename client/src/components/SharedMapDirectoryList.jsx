@@ -58,9 +58,9 @@ import {
 } from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
-const MOBILE_MAP_COLLAPSE_SETTLE_MS = 180;
-const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-[grid-template-rows,opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[grid-template-rows,opacity,transform]';
-const MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS = 'transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,transform]';
+const MOBILE_MAP_COLLAPSE_SETTLE_MS = 160;
+const MOBILE_MAP_PANEL_TRANSITION_CLASS = 'transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[grid-template-rows]';
+const MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS = 'transition-opacity duration-150 ease-out will-change-[opacity]';
 
 function useDirectoryDetailPath(path) {
     const returnTo = React.useContext(DirectoryReturnPathContext);
@@ -2371,7 +2371,7 @@ export default function SharedMapDirectoryList({
                 mobileMapSuppressCollapseUntilRef.current = Date.now() + 650;
                 return MOBILE_MAP_PANEL_STATES.COLLAPSED;
             case 'expand':
-                if (Date.now() < mobileMapSuppressCollapseUntilRef.current) return current;
+                mobileMapSuppressCollapseUntilRef.current = 0;
                 return MOBILE_MAP_PANEL_STATES.EXPANDED;
             default:
                 return current;
@@ -2388,7 +2388,9 @@ export default function SharedMapDirectoryList({
 
     function scheduleMobileMapCollapse() {
         if (typeof window === 'undefined') return;
-        if (mobileMapCollapseTimerRef.current) return;
+        if (mobileMapCollapseTimerRef.current) {
+            window.clearTimeout(mobileMapCollapseTimerRef.current);
+        }
         mobileMapCollapseTimerRef.current = window.setTimeout(() => {
             mobileMapCollapseTimerRef.current = null;
             setMobileMapPanelState((current) => getMobileMapPanelStateForAction(current, 'collapse'));
@@ -2661,20 +2663,20 @@ export default function SharedMapDirectoryList({
             ? 'h-full min-h-0 max-h-none'
             : mobileMapBaseHeightClassName;
         const mobileMapViewportClassName = isMobileMapFullscreen
-            ? 'min-h-0 flex-1 overflow-hidden opacity-100 translate-y-0'
+            ? 'min-h-0 flex-1 overflow-hidden'
             : isMobileMapCollapsed
-            ? `grid grid-rows-[0fr] overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `grid grid-rows-[1fr] overflow-hidden opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+            ? `grid grid-rows-[0fr] overflow-hidden pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `grid grid-rows-[1fr] overflow-hidden ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
         const mobileMapClipClassName = isMobileMapFullscreen ? 'min-h-0 h-full overflow-hidden' : 'min-h-0 overflow-hidden';
         const mobileMapInnerClassName = isMobileMapCollapsed
-            ? `opacity-0 -translate-y-2 scale-[0.985] pointer-events-none ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`
-            : `h-full min-h-0 opacity-100 translate-y-0 scale-100 ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`;
+            ? `opacity-0 pointer-events-none ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`
+            : `h-full min-h-0 opacity-100 ${MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS}`;
         const mobileMapWrapperClassName = isMobileMapFullscreen
             ? 'fixed inset-0 z-[70] flex flex-col overflow-hidden bg-slate-50 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] disable-font-scaling [overflow-anchor:none]'
             : `${mobileMapStickyClassName} disable-font-scaling [overflow-anchor:none]`;
         const mobileMapLegendClassName = isMobileMapCollapsed
-            ? `grid grid-rows-[0fr] overflow-hidden opacity-0 -translate-y-1 pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
-            : `grid grid-rows-[1fr] opacity-100 translate-y-0 ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
+            ? `grid grid-rows-[0fr] overflow-hidden pointer-events-none ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`
+            : `grid grid-rows-[1fr] overflow-hidden ${MOBILE_MAP_PANEL_TRANSITION_CLASS}`;
         const mobileMapLegendClipClassName = 'min-h-0 overflow-hidden';
         const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
