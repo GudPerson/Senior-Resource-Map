@@ -2040,20 +2040,21 @@ function MobileMapFocusTray({
         ? selection.members
         : [selection.group];
     const isFullMap = variant === 'full-map';
+    const groupContextLabel = selection.type === 'group' ? categoryGroup.name : '';
 
     if (!trayGroups.length) return null;
 
     return (
         <section
             data-mobile-map-focus-tray="true"
-            className={`rounded-[24px] border border-brand-100 bg-brand-50/70 p-3 shadow-[0_16px_36px_-30px_rgba(15,118,110,0.42)] [overflow-anchor:none] ${
+            className={`rounded-[26px] border border-brand-200 bg-brand-100/75 p-3.5 shadow-[0_22px_48px_-26px_rgba(15,118,110,0.58),0_8px_22px_-18px_rgba(15,23,42,0.32)] ring-1 ring-white/80 [overflow-anchor:none] ${
                 isFullMap ? 'max-h-[30svh] flex-shrink-0 overflow-hidden' : ''
             }`}
         >
             <DirectoryCategoryPill
                 label={categoryGroup.categoryLabel}
-                compact
-                showUnmapped={Boolean(categoryGroup.isUnmappedGroup)}
+                showUnmapped={Boolean(categoryGroup.isUnmappedGroup && !groupContextLabel)}
+                secondaryLabel={groupContextLabel}
                 color={categoryGroup.categoryColor}
                 iconUrl={categoryGroup.categoryIconUrl}
             />
@@ -2246,7 +2247,9 @@ function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
     return (
         <span
             className={`inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white shadow-sm ${
-                compact ? 'h-10 w-10 p-1' : 'h-12 w-12 p-1.5'
+                compact
+                    ? 'h-[clamp(28px,1.75rem,32px)] w-[clamp(28px,1.75rem,32px)] p-[clamp(3px,0.175rem,4px)]'
+                    : 'h-[clamp(34px,2.1rem,38px)] w-[clamp(34px,2.1rem,38px)] p-[clamp(4px,0.2625rem,5px)]'
             }`}
             style={getCategoryIconStyle(color)}
             aria-hidden="true"
@@ -2256,25 +2259,80 @@ function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
     );
 }
 
+function DirectoryCategoryPillLabel({ label }) {
+    const labelRef = useRef(null);
+    const measureRef = useRef(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    useEffect(() => {
+        const labelElement = labelRef.current;
+        const measureElement = measureRef.current;
+        if (!labelElement || !measureElement) return undefined;
+
+        let frame = null;
+        const measure = () => {
+            if (frame) cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => {
+                const nextIsOverflowing = measureElement.scrollWidth > labelElement.clientWidth + 1;
+                setIsOverflowing(nextIsOverflowing);
+            });
+        };
+
+        measure();
+
+        let observer = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            observer = new ResizeObserver(measure);
+            observer.observe(labelElement);
+            observer.observe(measureElement);
+        }
+        window.addEventListener('resize', measure);
+
+        return () => {
+            if (frame) cancelAnimationFrame(frame);
+            observer?.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, [label]);
+
+    return (
+        <span ref={labelRef} className={`directory-category-pill-label ${isOverflowing ? 'directory-category-pill-label--marquee' : ''}`}>
+            <span className="directory-category-pill-label__track">
+                <span>{label}</span>
+                {isOverflowing ? <span aria-hidden="true">{label}</span> : null}
+            </span>
+            <span ref={measureRef} className="directory-category-pill-label__measure" aria-hidden="true">{label}</span>
+        </span>
+    );
+}
+
 function DirectoryCategoryPill({
     label,
     compact = false,
     showUnmapped = false,
+    secondaryLabel = '',
     color = null,
     iconUrl = null,
 }) {
-    if (!label && !showUnmapped) return null;
+    if (!label && !showUnmapped && !secondaryLabel) return null;
     const categoryPillStyle = getCategoryPillStyle(color);
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
+        <div className="flex max-w-full flex-nowrap items-start gap-1.5 overflow-hidden px-1 pt-1">
             <DirectoryCategoryIcon iconUrl={iconUrl} color={color} compact={compact} />
-            <span className="flex min-w-0 flex-col items-start gap-1.5">
+            <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5 overflow-hidden">
                 {label ? (
-                    <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
+                    <span className={`inline-flex w-fit max-w-full items-center overflow-hidden rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
                         compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
-                    }`} style={categoryPillStyle}>
-                        <span className="truncate">{label}</span>
+                    }`} style={categoryPillStyle} title={label}>
+                        <DirectoryCategoryPillLabel label={label} />
+                    </span>
+                ) : null}
+                {secondaryLabel ? (
+                    <span className={`inline-flex max-w-full items-center overflow-hidden rounded-full border border-slate-200 bg-white/80 font-black uppercase tracking-[0.14em] text-slate-600 ${
+                        compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+                    }`} title={secondaryLabel}>
+                        <DirectoryCategoryPillLabel label={secondaryLabel} />
                     </span>
                 ) : null}
                 {showUnmapped ? <DirectoryUnmappedPill compact={compact} /> : null}

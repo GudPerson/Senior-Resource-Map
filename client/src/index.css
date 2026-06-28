@@ -390,6 +390,53 @@
   }
 }
 
+.directory-category-pill-label {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+}
+
+.directory-category-pill-label__track {
+  display: inline-flex;
+  gap: 1.5rem;
+  min-width: max-content;
+}
+
+.directory-category-pill-label__measure {
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.directory-category-pill-label--marquee .directory-category-pill-label__track {
+  animation: directory-category-pill-roll 12s linear infinite;
+  will-change: transform;
+}
+
+@keyframes directory-category-pill-roll {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+
+  88%,
+  100% {
+    transform: translateX(calc(-50% - 0.75rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .directory-category-pill-label--marquee .directory-category-pill-label__track {
+    animation: none;
+  }
+}
+
 /* ───────────────── LEAFLET WATERMARK REMOVAL (MOBILE) ───────────────── */
 @media (max-width: 1024px) {
   .leaflet-control-attribution {

@@ -30,6 +30,10 @@ const resourceRowIconSource = readFileSync(
     new URL('../src/components/ResourceRowIcon.jsx', import.meta.url),
     'utf8',
 );
+const appCssSource = readFileSync(
+    new URL('../src/index.css', import.meta.url),
+    'utf8',
+);
 
 function sourceBetween(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
@@ -245,8 +249,13 @@ test('mobile map focus tray shows selected cards without changing list order', (
     assert.match(sharedMapDirectorySource, /if \(!selectionPlaceKey\) \{\s*setFlashPlaceKey\(null\);\s*if \(isMobileMapPanelEnabled && canClearMobileFocusTrayFromScroll\(\)\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);
     assert.match(sharedMapDirectorySource, /if \(deltaY > 0 && mobileFocusTrayPlaceKeyRef\.current && canClearMobileFocusTrayFromScroll\(\)\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);
     assert.match(traySource, /data-mobile-map-focus-tray-card="true"/);
+    assert.match(traySource, /border border-brand-200 bg-brand-100\/75/);
+    assert.match(traySource, /ring-1 ring-white\/80/);
     assert.match(traySource, /const trayGroups = selection\.type === 'group' \|\| selection\.type === 'pin-group'\s*\? selection\.members\s*: \[selection\.group\]/);
-    assert.match(traySource, /<DirectoryCategoryPill[\s\S]*showUnmapped=\{Boolean\(categoryGroup\.isUnmappedGroup\)\}/);
+    assert.match(traySource, /const groupContextLabel = selection\.type === 'group' \? categoryGroup\.name : ''/);
+    assert.match(traySource, /<DirectoryCategoryPill[\s\S]*showUnmapped=\{Boolean\(categoryGroup\.isUnmappedGroup && !groupContextLabel\)\}/);
+    assert.match(traySource, /secondaryLabel=\{groupContextLabel\}/);
+    assert.doesNotMatch(traySource, /<DirectoryCategoryPill[\s\S]*\n\s+compact\n[\s\S]*showUnmapped=/);
     assert.match(traySource, /<MobileMapFocusTrayPlaceCard[\s\S]*key=\{group\.placeKey\}/);
     assert.match(mobileSource, /<MobileMapFocusTray[\s\S]*selection=\{mobileFocusTraySelection\}/);
     assert.ok(
@@ -372,14 +381,27 @@ test('v2 card ordering can opt into category pills and integrated list-only card
     assert.match(sharedMapDirectorySource, /function getCategoryIconStyle/);
     assert.match(sharedMapDirectorySource, /--directory-category-accent/);
     assert.match(sharedMapDirectorySource, /<DirectoryCategoryIcon iconUrl=\{iconUrl\} color=\{color\} compact=\{compact\} \/>/);
-    assert.match(sharedMapDirectorySource, /compact \? 'h-10 w-10 p-1' : 'h-12 w-12 p-1\.5'/);
+    assert.match(sharedMapDirectorySource, /h-\[clamp\(28px,1\.75rem,32px\)\] w-\[clamp\(28px,1\.75rem,32px\)\]/);
+    assert.match(sharedMapDirectorySource, /h-\[clamp\(34px,2\.1rem,38px\)\] w-\[clamp\(34px,2\.1rem,38px\)\]/);
     assert.match(sharedMapDirectorySource, /style=\{getCategoryIconStyle\(color\)\}/);
     assert.match(sharedMapDirectorySource, /boxShadow: '0 0 0 2px color-mix/);
     assert.match(sharedMapDirectorySource, /function DirectoryUnmappedPill/);
+    assert.match(sharedMapDirectorySource, /function DirectoryCategoryPillLabel/);
+    assert.match(sharedMapDirectorySource, /secondaryLabel = ''/);
+    assert.match(sharedMapDirectorySource, /<DirectoryCategoryPillLabel label=\{secondaryLabel\} \/>/);
+    assert.match(sharedMapDirectorySource, /new ResizeObserver\(measure\)/);
+    assert.match(sharedMapDirectorySource, /measureElement\.scrollWidth > labelElement\.clientWidth \+ 1/);
     assert.match(sharedMapDirectorySource, /t\('unmapped'\)/);
     assert.match(sharedMapDirectorySource, /function isListOnlyGroupDisplayGroup/);
     assert.match(sharedMapDirectorySource, /return t\('groupType'\)/);
-    assert.match(sharedMapDirectorySource, /flex-col items-start/);
+    assert.match(sharedMapDirectorySource, /flex max-w-full flex-nowrap items-start/);
+    assert.match(sharedMapDirectorySource, /<DirectoryCategoryPillLabel label=\{label\} \/>/);
+    assert.match(sharedMapDirectorySource, /directory-category-pill-label--marquee/);
+    assert.doesNotMatch(sharedMapDirectorySource, /label\.length > \(compact \? 24 : 30\)/);
+    assert.doesNotMatch(sharedMapDirectorySource, /<span className="truncate">\{label\}<\/span>/);
+    assert.match(appCssSource, /\.directory-category-pill-label[\s\S]*overflow: hidden/);
+    assert.match(appCssSource, /\.directory-category-pill-label__measure[\s\S]*visibility: hidden/);
+    assert.match(appCssSource, /@keyframes directory-category-pill-roll/);
     assert.match(sharedMapDirectorySource, /const categoryStatus = group\.isUnmappedGroup \? 'unmapped' : 'mapped'/);
     assert.match(sharedMapDirectorySource, /const previousCategoryStatus = previousGroup\?\.isUnmappedGroup \? 'unmapped' : 'mapped'/);
     assert.match(sharedMapDirectorySource, /const shouldShowCategoryPill = Boolean\(showCategoryPills && group\.categoryLabel && categoryRunKey !== previousCategoryRunKey\)/);
