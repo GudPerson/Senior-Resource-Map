@@ -228,6 +228,9 @@ test('mobile map focus tray shows selected cards without changing list order', (
     assert.match(sharedMapDirectorySource, /function canClearMobileFocusTrayFromScroll/);
     assert.match(sharedMapDirectorySource, /holdMobileFocusTrayDuringMapReveal\(\);/);
     assert.match(sharedMapDirectorySource, /resolveMobileFocusTraySelection\(mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation\?\.pins \|\| \[\]\)/);
+    assert.match(sharedMapDirectorySource, /const mobileFullMapFocusRequest = useMemo/);
+    assert.match(sharedMapDirectorySource, /mobileFocusTraySelection\.type === 'group' \|\| mobileFocusTraySelection\.type === 'pin-group'/);
+    assert.match(sharedMapDirectorySource, /focusedPlaceKeys: memberKeys/);
     assert.match(sharedMapDirectorySource, /const handleMobileMapViewSection = useCallback\(\(placeKey\) => \{\s*if \(isMobileMapPanelEnabled\) \{\s*setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\);\s*holdMobileFocusTrayDuringMapReveal\(\);/);
     assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\)/);
     assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(selectionPlaceKey \? String\(selectionPlaceKey\) : null\)/);
@@ -274,9 +277,11 @@ test('mobile full map keeps explicit control with a pull-at-top fallback', () =>
     assert.match(mobileSource, /mobileFullMapOpen \? \(/);
     assert.match(mobileSource, /mobileFullMapElement/);
     assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
+    assert.match(mobileSource, /focusedPlaceKey: mobileFullMapFocusRequest\.focusedPlaceKey \|\| mobileFullMapElement\.props\?\.focusedPlaceKey/);
+    assert.match(mobileSource, /focusedPlaceKeys: mobileFullMapFocusRequest\.focusedPlaceKeys\.length[\s\S]*\? mobileFullMapFocusRequest\.focusedPlaceKeys[\s\S]*: mobileFullMapElement\.props\?\.focusedPlaceKeys/);
     assert.match(mobileSource, /t\('returnToMapList'\)/);
     assert.match(mobileSource, /<Minimize2/);
-    assert.match(mobileSource, /mobileFullMapOpen \? \([\s\S]*<MobileMapFocusTray[\s\S]*selection=\{mobileFocusTraySelection\}[\s\S]*<MapNotesEntryButton/);
+    assert.match(mobileSource, /mobileFullMapOpen \? \([\s\S]*<MobileMapFocusTray[\s\S]*selection=\{mobileFocusTraySelection\}[\s\S]*variant="full-map"[\s\S]*<MapNotesEntryButton/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*rows=\{noteResourceRows\}/);
     assert.match(sharedMapDirectorySource, /document\.body\.style\.overflow = 'hidden'/);
     assert.doesNotMatch(openFullMapSource, /setMobileFocusTrayPlaceKey\(null\)/);
@@ -296,7 +301,8 @@ test('mobile full-map overlay has visible return and notes controls', () => {
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
-    assert.match(mobileSource, /fixed inset-x-0 bottom-0 top-\[56px\] z-\[1150\]/);
+    assert.match(mobileSource, /fixed inset-x-0 bottom-0 top-\[56px\] z-\[1150\][^"`]*sm:top-\[64px\]"/);
+    assert.match(mobileSource, /<div className="relative min-h-0 flex-1 disable-font-scaling">/);
     assert.match(mobileSource, /onClick=\{closeMobileFullMap\}/);
     assert.match(mobileSource, /onTouchStart=\{handleMobileFullMapTouchStart\}/);
     assert.match(mobileSource, /onTouchMove=\{handleMobileFullMapTouchMove\}/);
@@ -305,6 +311,8 @@ test('mobile full-map overlay has visible return and notes controls', () => {
     assert.match(mobileSource, /<Minimize2 size=\{19\}/);
     assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
+    assert.match(sharedMapDirectorySource, /compactFullMap \? 'min-w-\[min\(18rem,78vw\)\] max-w-\[19rem\]' : 'min-w-\[min\(18rem,78vw\)\]'/);
+    assert.match(sharedMapDirectorySource, /isFullMap \? 'max-h-\[30svh\] flex-shrink-0 overflow-hidden' : ''/);
     assert.doesNotMatch(mobileSource, /handleMobileMapResizeTouchStart/);
     assert.doesNotMatch(mobileSource, /handleMobileMapResizeTouchEnd/);
 });

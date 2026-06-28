@@ -1951,6 +1951,7 @@ function MobileMapFocusTrayPlaceCard({
     onOpenResourceNotes,
     clusterColorData = null,
     cardBadgeMode = 'logo',
+    compactFullMap = false,
 }) {
     const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
@@ -1974,7 +1975,9 @@ function MobileMapFocusTrayPlaceCard({
     return (
         <article
             data-mobile-map-focus-tray-card="true"
-            className="group flex min-w-[min(18rem,78vw)] snap-start items-start gap-2.5 rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm"
+            className={`group flex snap-start items-start gap-2.5 rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm ${
+                compactFullMap ? 'min-w-[min(18rem,78vw)] max-w-[19rem]' : 'min-w-[min(18rem,78vw)]'
+            }`}
             onClick={handleCardClick}
             onKeyDown={handleCardKeyDown}
             role={canFocusOnMap ? 'button' : undefined}
@@ -2028,6 +2031,7 @@ function MobileMapFocusTray({
     onOpenResourceNotes,
     clusterMapping = {},
     cardBadgeMode = 'logo',
+    variant = 'default',
 }) {
     if (!selection) return null;
 
@@ -2035,13 +2039,16 @@ function MobileMapFocusTray({
     const trayGroups = selection.type === 'group' || selection.type === 'pin-group'
         ? selection.members
         : [selection.group];
+    const isFullMap = variant === 'full-map';
 
     if (!trayGroups.length) return null;
 
     return (
         <section
             data-mobile-map-focus-tray="true"
-            className="rounded-[24px] border border-brand-100 bg-brand-50/70 p-3 shadow-[0_16px_36px_-30px_rgba(15,118,110,0.42)] [overflow-anchor:none]"
+            className={`rounded-[24px] border border-brand-100 bg-brand-50/70 p-3 shadow-[0_16px_36px_-30px_rgba(15,118,110,0.42)] [overflow-anchor:none] ${
+                isFullMap ? 'max-h-[30svh] flex-shrink-0 overflow-hidden' : ''
+            }`}
         >
             <DirectoryCategoryPill
                 label={categoryGroup.categoryLabel}
@@ -2060,6 +2067,7 @@ function MobileMapFocusTray({
                         onOpenResourceNotes={onOpenResourceNotes}
                         clusterColorData={clusterMapping[group.placeKey] || null}
                         cardBadgeMode={cardBadgeMode}
+                        compactFullMap={isFullMap}
                     />
                 ))}
             </div>
@@ -2528,6 +2536,29 @@ export default function SharedMapDirectoryList({
             ? resolveMobileFocusTraySelection(mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins || [])
             : null
     ), [isMobileMapPanelEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins]);
+    const mobileFullMapFocusRequest = useMemo(() => {
+        if (!mobileFullMapOpen || !mobileFocusTraySelection) {
+            return { focusedPlaceKey: null, focusedPlaceKeys: [] };
+        }
+
+        if (mobileFocusTraySelection.type === 'group' || mobileFocusTraySelection.type === 'pin-group') {
+            const memberKeys = (mobileFocusTraySelection.members || [])
+                .map((group) => group?.placeKey)
+                .filter(Boolean)
+                .map((value) => String(value));
+
+            return memberKeys.length === 1
+                ? { focusedPlaceKey: `${memberKeys[0]}:zoom`, focusedPlaceKeys: [] }
+                : { focusedPlaceKey: null, focusedPlaceKeys: memberKeys };
+        }
+
+        const selectedKey = mobileFocusTraySelection.group?.placeKey
+            ? String(mobileFocusTraySelection.group.placeKey)
+            : null;
+        return selectedKey
+            ? { focusedPlaceKey: `${selectedKey}:zoom`, focusedPlaceKeys: [] }
+            : { focusedPlaceKey: null, focusedPlaceKeys: [] };
+    }, [mobileFocusTraySelection, mobileFullMapOpen]);
 
     useMobileViewportScaleLock(isMobileMapPanelEnabled);
     useMobileMapOverscrollLock(isMobileMapPanelEnabled);
@@ -2929,17 +2960,21 @@ export default function SharedMapDirectoryList({
                     />
                     {mobileFullMapOpen ? (
                         <div
-                            className="fixed inset-x-0 bottom-0 top-[56px] z-[1150] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 sm:top-[64px] disable-font-scaling"
+                            className="fixed inset-x-0 bottom-0 top-[56px] z-[1150] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 sm:top-[64px]"
                             onTouchStart={handleMobileFullMapTouchStart}
                             onTouchMove={handleMobileFullMapTouchMove}
                             onTouchEnd={handleMobileFullMapTouchEnd}
                             onTouchCancel={handleMobileFullMapTouchEnd}
                         >
-                            <div className="relative min-h-0 flex-1">
+                            <div className="relative min-h-0 flex-1 disable-font-scaling">
                                 {mobileFullMapElement ? React.cloneElement(mobileFullMapElement, {
                                     onClusterChange: setClusterMapping,
                                     onViewSection: handleMobileMapViewSection,
                                     onClusterSelect: handleMobileMapClusterSelect,
+                                    focusedPlaceKey: mobileFullMapFocusRequest.focusedPlaceKey || mobileFullMapElement.props?.focusedPlaceKey,
+                                    focusedPlaceKeys: mobileFullMapFocusRequest.focusedPlaceKeys.length
+                                        ? mobileFullMapFocusRequest.focusedPlaceKeys
+                                        : mobileFullMapElement.props?.focusedPlaceKeys,
                                     mapHeightClassName: 'h-full min-h-0 max-h-none',
                                     className: mobileFullMapElement.props?.className,
                                     layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
@@ -2961,6 +2996,7 @@ export default function SharedMapDirectoryList({
                                 onOpenResourceNotes={openResourceNotes}
                                 clusterMapping={clusterMapping}
                                 cardBadgeMode={cardBadgeMode}
+                                variant="full-map"
                             />
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
