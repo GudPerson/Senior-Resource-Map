@@ -107,7 +107,7 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /`\$\{mobileMapStickyClassName\} \[overflow-anchor:none\]`/);
     assert.match(sharedMapDirectorySource, /mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2'/);
     assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'/);
+    assert.match(mobileSource, /layoutSignature: `\$\{mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
     assert.match(mobileSource, /openMobileFullMap/);
     assert.match(mobileSource, /t\('openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
@@ -127,13 +127,23 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     );
 });
 
-test('mobile map no longer animates collapse or listens to card scroll gestures', () => {
+test('mobile map uses discrete scroll intent without drawer resize mechanics', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
+    assert.match(sharedMapDirectorySource, /MOBILE_MAP_HIDE_TOP_PX/);
+    assert.match(sharedMapDirectorySource, /MOBILE_MAP_REVEAL_SCROLL_Y/);
+    assert.match(sharedMapDirectorySource, /MOBILE_FULL_MAP_PULL_DISTANCE_PX/);
+    assert.match(sharedMapDirectorySource, /const \[mobileMapListFocused, setMobileMapListFocused\] = useState\(false\)/);
+    assert.match(sharedMapDirectorySource, /mobileMapListFocusedRef\.current = mobileMapListFocused/);
+    assert.match(sharedMapDirectorySource, /function shouldHideMobileMapForListFocus/);
+    assert.match(sharedMapDirectorySource, /function handleMobileScrollIntent/);
+    assert.match(sharedMapDirectorySource, /if \(isMobileMapPanelEnabled\) \{\s*setMobileMapListFocused\(false\);[\s\S]*mobileMapFrameRef\.current\.getBoundingClientRect\(\)\.top[\s\S]*window\.scrollTo\(\{ top: Math\.max\(mapFrameTop, 0\), behavior: 'smooth' \}\);[\s\S]*return undefined;/);
+    assert.match(mobileSource, /mobileMapFrameClassName/);
+    assert.match(mobileSource, /className=\{mobileMapFrameClassName\}/);
     assert.match(mobileSource, /className=\{mobileCardsClassName\}/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_TRANSITION_CLASS/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_CONTENT_TRANSITION_CLASS/);
@@ -152,7 +162,7 @@ test('mobile map keeps the supplied partial-height map without resize state', ()
     );
 
     assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'/);
+    assert.match(mobileSource, /layoutSignature: `\$\{mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
     assert.match(mobileSource, /onViewSection: handleMobileMapViewSection/);
     assert.match(mobileSource, /onClusterSelect: handleMobileMapClusterSelect/);
     assert.doesNotMatch(mobileSource, /transition-\[height,min-height,max-height\]/);
@@ -184,7 +194,45 @@ test('mobile map notes are the only sticky mobile map element', () => {
     assert.doesNotMatch(mobileSource, /h-0 min-h-0 max-h-0/);
 });
 
-test('mobile full map opens from an explicit control instead of scroll or resize gestures', () => {
+test('mobile map focus tray shows selected cards without changing list order', () => {
+    const mobileSource = sourceBetween(
+        sharedMapDirectorySource,
+        "if (resolvedLayout === 'mobile')",
+        'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
+    );
+    const traySource = sourceBetween(
+        sharedMapDirectorySource,
+        'function MobileMapFocusTrayPlaceCard',
+        'function DirectoryUnmappedRow',
+    );
+
+    assert.match(sharedMapDirectorySource, /function getFocusTrayMemberKeys/);
+    assert.match(sharedMapDirectorySource, /function resolveMobileFocusTraySelection/);
+    assert.match(sharedMapDirectorySource, /isListOnlyGroupDisplayGroup\(selected\)/);
+    assert.match(sharedMapDirectorySource, /memberKeys\.has\(String\(candidate\.placeKey\)\)/);
+    assert.match(sharedMapDirectorySource, /candidate\?\.hasCoordinates !== false/);
+    assert.match(sharedMapDirectorySource, /return members\.length \? \{ type: 'group', group: selected, members \} : null/);
+    assert.match(sharedMapDirectorySource, /const \[mobileFocusTrayPlaceKey, setMobileFocusTrayPlaceKey\] = useState\(null\)/);
+    assert.match(sharedMapDirectorySource, /resolveMobileFocusTraySelection\(mobileDisplayGroups, mobileFocusTrayPlaceKey\)/);
+    assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\)/);
+    assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(selectionPlaceKey \? String\(selectionPlaceKey\) : null\)/);
+    assert.match(sharedMapDirectorySource, /if \(deltaY > 0 && mobileFocusTrayPlaceKeyRef\.current\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);
+    assert.match(traySource, /data-mobile-map-focus-tray-card="true"/);
+    assert.match(traySource, /const trayGroups = selection\.type === 'group'\s*\? selection\.members\s*: \[selection\.group\]/);
+    assert.match(traySource, /<DirectoryCategoryPill[\s\S]*showUnmapped=\{Boolean\(categoryGroup\.isUnmappedGroup\)\}/);
+    assert.match(traySource, /<MobileMapFocusTrayPlaceCard[\s\S]*key=\{group\.placeKey\}/);
+    assert.match(mobileSource, /<MobileMapFocusTray[\s\S]*selection=\{mobileFocusTraySelection\}/);
+    assert.ok(
+        mobileSource.indexOf('<MobileMapFocusTray') < mobileSource.indexOf('<MapNotesEntryButton'),
+        'the focus tray should sit between the mobile map and Map notes',
+    );
+    assert.ok(
+        mobileSource.indexOf('<MobileMapFocusTray') < mobileSource.indexOf('groups={mobileDisplayGroups}'),
+        'the focus tray should not reorder the directory cards',
+    );
+});
+
+test('mobile full map keeps explicit control with a pull-at-top fallback', () => {
     const mobileSource = sourceBetween(
         sharedMapDirectorySource,
         "if (resolvedLayout === 'mobile')",
@@ -194,6 +242,9 @@ test('mobile full map opens from an explicit control instead of scroll or resize
     assert.match(sharedMapDirectorySource, /const \[mobileFullMapOpen, setMobileFullMapOpen\] = useState\(false\)/);
     assert.match(sharedMapDirectorySource, /const openMobileFullMap = useCallback/);
     assert.match(sharedMapDirectorySource, /const closeMobileFullMap = useCallback/);
+    assert.match(sharedMapDirectorySource, /function handleMobileTopPullTouchStart/);
+    assert.match(sharedMapDirectorySource, /function handleMobileTopPullTouchEnd/);
+    assert.match(sharedMapDirectorySource, /handleMobileTopPullWheel/);
     assert.match(mobileSource, /mobileFullMapOpen \? \(/);
     assert.match(mobileSource, /mobileFullMapElement/);
     assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
@@ -218,12 +269,15 @@ test('mobile full-map overlay has visible return and notes controls', () => {
 
     assert.match(mobileSource, /fixed inset-x-0 bottom-0 top-\[56px\] z-\[1150\]/);
     assert.match(mobileSource, /onClick=\{closeMobileFullMap\}/);
+    assert.match(mobileSource, /onTouchStart=\{handleMobileFullMapTouchStart\}/);
+    assert.match(mobileSource, /onTouchMove=\{handleMobileFullMapTouchMove\}/);
+    assert.match(mobileSource, /onTouchEnd=\{handleMobileFullMapTouchEnd\}/);
     assert.match(mobileSource, /aria-label=\{t\('returnToMapList'\)\}/);
     assert.match(mobileSource, /<Minimize2 size=\{19\}/);
     assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
-    assert.doesNotMatch(mobileSource, /onTouchStart=\{handleMobileMapResizeTouchStart\}/);
-    assert.doesNotMatch(mobileSource, /onTouchEnd=\{handleMobileMapResizeTouchEnd\}/);
+    assert.doesNotMatch(mobileSource, /handleMobileMapResizeTouchStart/);
+    assert.doesNotMatch(mobileSource, /handleMobileMapResizeTouchEnd/);
 });
 
 test('print V2 cards can opt into numeric right-edge resource badges', () => {
