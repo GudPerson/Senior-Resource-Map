@@ -1057,7 +1057,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}
-                                mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate disable-font-scaling"
+                                mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
                             />
                         </>
                     )}

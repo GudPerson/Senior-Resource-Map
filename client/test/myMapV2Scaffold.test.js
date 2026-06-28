@@ -26,6 +26,10 @@ const navbarSource = readFileSync(
     new URL('../src/components/layout/Navbar.jsx', import.meta.url),
     'utf8',
 );
+const mobileBottomSheetSource = readFileSync(
+    new URL('../src/components/mobile/MobileBottomSheet.jsx', import.meta.url),
+    'utf8',
+);
 const appSource = readFileSync(
     new URL('../src/App.jsx', import.meta.url),
     'utf8',
@@ -90,6 +94,8 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
 
     assert.match(mobileControlsSource, /compactOverlay = false/);
     assert.match(navbarSource, /hc-nav sticky top-0 z-\[1200\]/);
+    assert.match(mobileBottomSheetSource, /Drawer\.Overlay className="fixed inset-0 z-\[1600\]/);
+    assert.match(mobileBottomSheetSource, /className=\{`fixed bottom-0 left-0 right-0 z-\[1610\]/);
     assert.match(mobileControlsSource, /z-\[1100\] -mx-4 flex h-11/);
     assert.match(mobileControlsSource, /bg-slate-50\/95/);
     assert.match(mobileControlsSource, /inline-flex h-8 w-10/);
@@ -102,6 +108,8 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.match(myMapDetailPageSource, /renderPdfExportButton=\{renderPdfExportButton\}\s+compactOverlay/);
     assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
     assert.match(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
+    assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[116px\] sm:top-\[132px\]/);

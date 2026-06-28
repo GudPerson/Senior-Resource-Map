@@ -924,7 +924,7 @@ export default function SharedMapPage() {
                                 fitPaddingBottomRight={SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT}
                             />
                         )}
-                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 pt-2 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
+                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 pt-2 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] sm:-mx-6 sm:px-6 isolate"
                     />
                 )}
             </div>

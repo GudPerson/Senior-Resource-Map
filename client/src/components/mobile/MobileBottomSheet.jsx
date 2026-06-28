@@ -14,9 +14,9 @@ export default function MobileBottomSheet({
     return (
         <Drawer.Root open={open} onOpenChange={onOpenChange}>
             <Drawer.Portal>
-                <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35" />
+                <Drawer.Overlay className="fixed inset-0 z-[1600] bg-slate-950/35" />
                 <Drawer.Content
-                    className={`fixed bottom-0 left-0 right-0 z-[590] flex max-h-[86svh] flex-col rounded-t-[28px] border-t px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 ${contentClassName}`}
+                    className={`fixed bottom-0 left-0 right-0 z-[1610] flex max-h-[86svh] flex-col rounded-t-[28px] border-t px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 ${contentClassName}`}
                     style={{
                         backgroundColor: 'var(--color-drawer-bg)',
                         borderColor: 'var(--color-border)',

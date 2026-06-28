@@ -14,6 +14,14 @@ const myMapV2ScaffoldSource = readFileSync(
     new URL('../src/components/MyMapV2PreviewScaffold.jsx', import.meta.url),
     'utf8',
 );
+const sharedMapPageSource = readFileSync(
+    new URL('../src/pages/SharedMapPage.jsx', import.meta.url),
+    'utf8',
+);
+const mobileBottomSheetSource = readFileSync(
+    new URL('../src/components/mobile/MobileBottomSheet.jsx', import.meta.url),
+    'utf8',
+);
 const apiSource = readFileSync(
     new URL('../src/lib/api.js', import.meta.url),
     'utf8',
@@ -303,6 +311,8 @@ test('mobile full-map overlay has visible return and notes controls', () => {
 
     assert.match(mobileSource, /fixed inset-x-0 bottom-0 top-\[56px\] z-\[1150\][^"`]*sm:top-\[64px\]"/);
     assert.match(mobileSource, /<div className="relative min-h-0 flex-1 disable-font-scaling">/);
+    assert.match(mobileBottomSheetSource, /Drawer\.Overlay className="fixed inset-0 z-\[1600\]/);
+    assert.match(mobileBottomSheetSource, /className=\{`fixed bottom-0 left-0 right-0 z-\[1610\]/);
     assert.match(mobileSource, /onClick=\{closeMobileFullMap\}/);
     assert.match(mobileSource, /onTouchStart=\{handleMobileFullMapTouchStart\}/);
     assert.match(mobileSource, /onTouchMove=\{handleMobileFullMapTouchMove\}/);
@@ -313,6 +323,9 @@ test('mobile full-map overlay has visible return and notes controls', () => {
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
     assert.match(sharedMapDirectorySource, /compactFullMap \? 'min-w-\[min\(18rem,78vw\)\] max-w-\[19rem\]' : 'min-w-\[min\(18rem,78vw\)\]'/);
     assert.match(sharedMapDirectorySource, /isFullMap \? 'max-h-\[30svh\] flex-shrink-0 overflow-hidden' : ''/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
+    assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
+    assert.doesNotMatch(sharedMapPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(mobileSource, /handleMobileMapResizeTouchStart/);
     assert.doesNotMatch(mobileSource, /handleMobileMapResizeTouchEnd/);
 });
