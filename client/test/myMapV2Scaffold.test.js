@@ -100,9 +100,10 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.match(mobileControlsSource, /Drawer\.Overlay className="fixed inset-0 z-\[1200\]/);
     assert.match(mobileControlsSource, /className="fixed bottom-0 left-0 top-\[56px\] z-\[1210\]/);
     assert.match(myMapDetailPageSource, /renderPdfExportButton=\{renderPdfExportButton\}\s+compactOverlay/);
-    assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\] z-\[1090\]/);
-    assert.match(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\] z-\[1090\]/);
-    assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\]/);
+    assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
+    assert.match(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
+    assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
+    assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[116px\] sm:top-\[132px\]/);
 });
 
