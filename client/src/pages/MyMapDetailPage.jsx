@@ -136,7 +136,7 @@ function MyMapMobileControls({
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
     const headerClassName = compactOverlay
-        ? 'sticky top-[56px] z-40 -mx-4 flex h-11 items-center border-b border-slate-200 bg-slate-50/95 px-4 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.45)] backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-12 sm:px-6 xl:hidden disable-font-scaling'
+        ? 'sticky top-[56px] z-[1100] -mx-4 flex h-11 items-center border-b border-slate-200 bg-slate-50/95 px-4 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.45)] backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-12 sm:px-6 xl:hidden disable-font-scaling'
         : 'sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling';
     const menuButtonClassName = compactOverlay
         ? 'inline-flex h-8 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:bg-white active:scale-95 sm:h-9 sm:w-11'
@@ -1057,7 +1057,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}
-                                mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate disable-font-scaling"
+                                mobileMapStickyClassName="sticky top-[100px] sm:top-[112px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate disable-font-scaling"
                             />
                         </>
                     )}

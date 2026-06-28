@@ -111,6 +111,8 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /openMobileFullMap/);
     assert.match(mobileSource, /t\('openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
+    assert.match(mobileSource, /absolute right-3 bottom-3 z-\[1001\]/);
+    assert.doesNotMatch(mobileSource, /absolute right-3 top-14 z-\[1001\]/);
     assert.doesNotMatch(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_COLLAPSE_SETTLE_MS/);
@@ -196,6 +198,7 @@ test('mobile full map opens from an explicit control instead of scroll or resize
     assert.match(mobileSource, /mobileFullMapElement/);
     assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
     assert.match(mobileSource, /t\('returnToMapList'\)/);
+    assert.match(mobileSource, /<Minimize2/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*rows=\{noteResourceRows\}/);
     assert.match(sharedMapDirectorySource, /document\.body\.style\.overflow = 'hidden'/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_ADJUSTABLE_MAP_STEPS/);
@@ -213,10 +216,11 @@ test('mobile full-map overlay has visible return and notes controls', () => {
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
 
-    assert.match(mobileSource, /fixed inset-0 z-\[1300\]/);
+    assert.match(mobileSource, /fixed inset-x-0 bottom-0 top-\[56px\] z-\[1150\]/);
     assert.match(mobileSource, /onClick=\{closeMobileFullMap\}/);
     assert.match(mobileSource, /aria-label=\{t\('returnToMapList'\)\}/);
-    assert.match(mobileSource, /<X size=\{18\}/);
+    assert.match(mobileSource, /<Minimize2 size=\{19\}/);
+    assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
     assert.doesNotMatch(mobileSource, /onTouchStart=\{handleMobileMapResizeTouchStart\}/);
     assert.doesNotMatch(mobileSource, /onTouchEnd=\{handleMobileMapResizeTouchEnd\}/);

@@ -273,7 +273,7 @@ function SharedMapMobileControls({
 
     return (
         <>
-            <div className="sticky top-0 z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
+            <div className="sticky top-0 z-[1100] -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
                 <div className="flex items-center gap-4">
                     <button
                         type="button"
@@ -924,7 +924,7 @@ export default function SharedMapPage() {
                                 fitPaddingBottomRight={SHARED_MAP_V2_FIT_PADDING_BOTTOM_RIGHT}
                             />
                         )}
-                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-30 -mx-4 bg-[#f6f8fb] px-4 pb-5 pt-2 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
+                        mobileMapStickyClassName="sticky top-[60px] sm:top-[68px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 pt-2 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] sm:-mx-6 sm:px-6 isolate disable-font-scaling"
                     />
                 )}
             </div>

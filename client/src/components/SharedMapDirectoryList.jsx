@@ -17,6 +17,7 @@ import {
     List,
     ListOrdered,
     Maximize2,
+    Minimize2,
     Pencil,
     Plus,
     RefreshCw,
@@ -2467,7 +2468,7 @@ export default function SharedMapDirectoryList({
                                 <button
                                     type="button"
                                     onClick={openMobileFullMap}
-                                    className="absolute right-3 top-14 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:top-16"
+                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:bottom-4"
                                     aria-label={t('openFullMap')}
                                     title={t('openFullMap')}
                                 >
@@ -2534,19 +2535,8 @@ export default function SharedMapDirectoryList({
                         onUpdateResourceNotes={onUpdateResourceNotes}
                     />
                     {mobileFullMapOpen ? (
-                        <div className="fixed inset-0 z-[1300] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-[calc(env(safe-area-inset-top)+16px)] disable-font-scaling">
-                            <div className="flex min-h-11 items-center justify-between gap-3">
-                                <button
-                                    type="button"
-                                    onClick={closeMobileFullMap}
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                                    aria-label={t('returnToMapList')}
-                                >
-                                    <X size={18} strokeWidth={2.4} aria-hidden="true" />
-                                    <span>{t('returnToMapList')}</span>
-                                </button>
-                            </div>
-                            <div className="min-h-0 flex-1">
+                        <div className="fixed inset-x-0 bottom-0 top-[56px] z-[1150] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 sm:top-[64px] disable-font-scaling">
+                            <div className="relative min-h-0 flex-1">
                                 {mobileFullMapElement ? React.cloneElement(mobileFullMapElement, {
                                     onClusterChange: setClusterMapping,
                                     onViewSection: handleMobileMapViewSection,
@@ -2555,6 +2545,15 @@ export default function SharedMapDirectoryList({
                                     className: mobileFullMapElement.props?.className,
                                     layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
                                 }) : null}
+                                <button
+                                    type="button"
+                                    onClick={closeMobileFullMap}
+                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                    aria-label={t('returnToMapList')}
+                                    title={t('returnToMapList')}
+                                >
+                                    <Minimize2 size={19} strokeWidth={2.4} aria-hidden="true" />
+                                </button>
                             </div>
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
