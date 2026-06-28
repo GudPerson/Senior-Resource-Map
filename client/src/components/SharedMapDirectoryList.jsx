@@ -331,6 +331,23 @@ function useMobileViewportScaleLock(enabled) {
     }, [enabled]);
 }
 
+function useMobileMapOverscrollLock(enabled) {
+    useEffect(() => {
+        if (!enabled || typeof document === 'undefined') return undefined;
+
+        const root = document.documentElement;
+        const previousRootOverscroll = root.style.overscrollBehaviorY;
+        const previousBodyOverscroll = document.body.style.overscrollBehaviorY;
+        root.style.overscrollBehaviorY = 'none';
+        document.body.style.overscrollBehaviorY = 'none';
+
+        return () => {
+            root.style.overscrollBehaviorY = previousRootOverscroll;
+            document.body.style.overscrollBehaviorY = previousBodyOverscroll;
+        };
+    }, [enabled]);
+}
+
 function ResourceNotesEditor({
     row,
     onUpdateResourceNotes,
@@ -2513,6 +2530,7 @@ export default function SharedMapDirectoryList({
     ), [isMobileMapPanelEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins]);
 
     useMobileViewportScaleLock(isMobileMapPanelEnabled);
+    useMobileMapOverscrollLock(isMobileMapPanelEnabled);
 
     function holdMobileFocusTrayDuringMapReveal() {
         mobileFocusTrayScrollClearAfterRef.current = Date.now() + MOBILE_FOCUS_TRAY_SCROLL_CLEAR_GRACE_MS;
@@ -2532,8 +2550,12 @@ export default function SharedMapDirectoryList({
     }, [isMobileMapPanelEnabled, onViewOnMap]);
 
     const handleMobileMapViewSection = useCallback((placeKey) => {
+        if (isMobileMapPanelEnabled) {
+            setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            holdMobileFocusTrayDuringMapReveal();
+        }
         renderMobileMap?.().props?.onViewSection?.(placeKey);
-    }, [renderMobileMap]);
+    }, [isMobileMapPanelEnabled, renderMobileMap]);
 
     const handleMobileMapClusterSelect = useCallback((placeKeys) => {
         renderMobileMap?.().props?.onClusterSelect?.(placeKeys);
@@ -2542,13 +2564,11 @@ export default function SharedMapDirectoryList({
     const openMobileFullMap = useCallback(() => {
         if (!isMobileMapPanelEnabled) return;
         setMobileMapListFocused(false);
-        setMobileFocusTrayPlaceKey(null);
         setMobileFullMapOpen(true);
     }, [isMobileMapPanelEnabled]);
 
     const closeMobileFullMap = useCallback(() => {
         setMobileMapListFocused(false);
-        setMobileFocusTrayPlaceKey(null);
         setMobileFullMapOpen(false);
     }, []);
 
@@ -2934,6 +2954,14 @@ export default function SharedMapDirectoryList({
                                     <Minimize2 size={19} strokeWidth={2.4} aria-hidden="true" />
                                 </button>
                             </div>
+                            <MobileMapFocusTray
+                                selection={mobileFocusTraySelection}
+                                mode={mode}
+                                onViewOnMap={handleDirectoryViewOnMap}
+                                onOpenResourceNotes={openResourceNotes}
+                                clusterMapping={clusterMapping}
+                                cardBadgeMode={cardBadgeMode}
+                            />
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
                                 mode={mode}

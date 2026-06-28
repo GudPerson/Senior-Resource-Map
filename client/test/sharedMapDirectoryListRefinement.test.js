@@ -112,6 +112,10 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /t\('openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
     assert.match(mobileSource, /absolute right-3 bottom-3 z-\[1001\]/);
+    assert.match(sharedMapDirectorySource, /function useMobileMapOverscrollLock/);
+    assert.match(sharedMapDirectorySource, /root\.style\.overscrollBehaviorY = 'none'/);
+    assert.match(sharedMapDirectorySource, /document\.body\.style\.overscrollBehaviorY = 'none'/);
+    assert.match(sharedMapDirectorySource, /useMobileMapOverscrollLock\(isMobileMapPanelEnabled\)/);
     assert.doesNotMatch(mobileSource, /absolute right-3 top-14 z-\[1001\]/);
     assert.doesNotMatch(sharedMapDirectorySource, /function MobileMapDrawerHandle/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_PANEL_STATES/);
@@ -224,6 +228,7 @@ test('mobile map focus tray shows selected cards without changing list order', (
     assert.match(sharedMapDirectorySource, /function canClearMobileFocusTrayFromScroll/);
     assert.match(sharedMapDirectorySource, /holdMobileFocusTrayDuringMapReveal\(\);/);
     assert.match(sharedMapDirectorySource, /resolveMobileFocusTraySelection\(mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation\?\.pins \|\| \[\]\)/);
+    assert.match(sharedMapDirectorySource, /const handleMobileMapViewSection = useCallback\(\(placeKey\) => \{\s*if \(isMobileMapPanelEnabled\) \{\s*setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\);\s*holdMobileFocusTrayDuringMapReveal\(\);/);
     assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\)/);
     assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(selectionPlaceKey \? String\(selectionPlaceKey\) : null\)/);
     assert.match(sharedMapDirectorySource, /if \(!selectionPlaceKey\) \{\s*setFlashPlaceKey\(null\);\s*if \(isMobileMapPanelEnabled && canClearMobileFocusTrayFromScroll\(\)\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);
@@ -249,6 +254,16 @@ test('mobile full map keeps explicit control with a pull-at-top fallback', () =>
         "if (resolvedLayout === 'mobile')",
         'return (\n        <DirectoryReturnPathContext.Provider value={detailReturnPath}>',
     );
+    const openFullMapSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const openMobileFullMap = useCallback',
+        'const closeMobileFullMap = useCallback',
+    );
+    const closeFullMapSource = sourceBetween(
+        sharedMapDirectorySource,
+        'const closeMobileFullMap = useCallback',
+        'useEffect(() => {\n        mobileMapListFocusedRef.current = mobileMapListFocused;',
+    );
 
     assert.match(sharedMapDirectorySource, /const \[mobileFullMapOpen, setMobileFullMapOpen\] = useState\(false\)/);
     assert.match(sharedMapDirectorySource, /const openMobileFullMap = useCallback/);
@@ -261,8 +276,11 @@ test('mobile full map keeps explicit control with a pull-at-top fallback', () =>
     assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
     assert.match(mobileSource, /t\('returnToMapList'\)/);
     assert.match(mobileSource, /<Minimize2/);
+    assert.match(mobileSource, /mobileFullMapOpen \? \([\s\S]*<MobileMapFocusTray[\s\S]*selection=\{mobileFocusTraySelection\}[\s\S]*<MapNotesEntryButton/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*rows=\{noteResourceRows\}/);
     assert.match(sharedMapDirectorySource, /document\.body\.style\.overflow = 'hidden'/);
+    assert.doesNotMatch(openFullMapSource, /setMobileFocusTrayPlaceKey\(null\)/);
+    assert.doesNotMatch(closeFullMapSource, /setMobileFocusTrayPlaceKey\(null\)/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_ADJUSTABLE_MAP_STEPS/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_MAP_RESIZE_SWIPE_DELTA/);
     assert.doesNotMatch(sharedMapDirectorySource, /MOBILE_FULL_MAP_FIRST_CARD_TRIGGER_OFFSET/);
