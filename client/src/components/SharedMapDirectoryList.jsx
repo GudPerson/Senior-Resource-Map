@@ -936,6 +936,7 @@ const MOBILE_FULL_MAP_PULL_DISTANCE_PX = 96;
 const MOBILE_FULL_MAP_EXIT_SWIPE_PX = 88;
 const MOBILE_FULL_MAP_BOTTOM_EDGE_PX = 180;
 const MOBILE_SCROLL_DIRECTION_EPSILON = 8;
+const MOBILE_FOCUS_TRAY_SCROLL_CLEAR_GRACE_MS = 900;
 
 function useResponsiveDirectoryLayout(enabled) {
     const [isDesktop, setIsDesktop] = useState(() => (
@@ -1052,13 +1053,28 @@ function getFocusTrayMemberKeys(group) {
         .map((value) => String(value));
 }
 
-function resolveMobileFocusTraySelection(groups, placeKey) {
+function resolveMobileFocusTraySelection(groups, placeKey, pins = []) {
     if (!placeKey) return null;
     const normalizedPlaceKey = String(placeKey);
     const selected = groups.find((group) => String(group?.placeKey || '') === normalizedPlaceKey)
         || groups.find((group) => matchesGroupKey(group, normalizedPlaceKey));
 
-    if (!selected) return null;
+    if (!selected) {
+        const selectedPin = pins.find((pin) => (
+            String(pin?.placeKey || '') === normalizedPlaceKey
+            || String(pin?.pinKey || '') === normalizedPlaceKey
+        ));
+        const memberKeys = new Set((selectedPin?.memberPlaceKeys || [])
+            .filter(Boolean)
+            .map((value) => String(value)));
+        const members = groups.filter((candidate) => (
+            candidate?.hasCoordinates !== false
+            && candidate?.placeKey
+            && memberKeys.has(String(candidate.placeKey))
+        ));
+
+        return members.length ? { type: 'pin-group', group: members[0], members } : null;
+    }
 
     if (isListOnlyGroupDisplayGroup(selected)) {
         const memberKeys = new Set(getFocusTrayMemberKeys(selected));
@@ -1999,7 +2015,7 @@ function MobileMapFocusTray({
     if (!selection) return null;
 
     const categoryGroup = selection.group;
-    const trayGroups = selection.type === 'group'
+    const trayGroups = selection.type === 'group' || selection.type === 'pin-group'
         ? selection.members
         : [selection.group];
 
@@ -2438,6 +2454,7 @@ export default function SharedMapDirectoryList({
     const mobileLastScrollYRef = useRef(0);
     const mobileMapListFocusedRef = useRef(false);
     const mobileFocusTrayPlaceKeyRef = useRef(null);
+    const mobileFocusTrayScrollClearAfterRef = useRef(0);
     const mobileTopPullRef = useRef(null);
     const mobileFullMapSwipeRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
@@ -2491,16 +2508,25 @@ export default function SharedMapDirectoryList({
             : []);
     const mobileFocusTraySelection = useMemo(() => (
         isMobileMapPanelEnabled
-            ? resolveMobileFocusTraySelection(mobileDisplayGroups, mobileFocusTrayPlaceKey)
+            ? resolveMobileFocusTraySelection(mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins || [])
             : null
-    ), [isMobileMapPanelEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey]);
+    ), [isMobileMapPanelEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins]);
 
     useMobileViewportScaleLock(isMobileMapPanelEnabled);
+
+    function holdMobileFocusTrayDuringMapReveal() {
+        mobileFocusTrayScrollClearAfterRef.current = Date.now() + MOBILE_FOCUS_TRAY_SCROLL_CLEAR_GRACE_MS;
+    }
+
+    function canClearMobileFocusTrayFromScroll() {
+        return Date.now() >= mobileFocusTrayScrollClearAfterRef.current;
+    }
 
     const handleDirectoryViewOnMap = useCallback((placeKey) => {
         if (isMobileMapPanelEnabled) {
             setMobileMapListFocused(false);
             setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            holdMobileFocusTrayDuringMapReveal();
         }
         onViewOnMap?.(placeKey);
     }, [isMobileMapPanelEnabled, onViewOnMap]);
@@ -2558,12 +2584,14 @@ export default function SharedMapDirectoryList({
         if (Math.abs(deltaY) < MOBILE_SCROLL_DIRECTION_EPSILON) return;
 
         if (deltaY > 0 && shouldHideMobileMapForListFocus()) {
-            setMobileFocusTrayPlaceKey(null);
+            if (canClearMobileFocusTrayFromScroll()) {
+                setMobileFocusTrayPlaceKey(null);
+            }
             setMobileMapListFocused(true);
             return;
         }
 
-        if (deltaY > 0 && mobileFocusTrayPlaceKeyRef.current) {
+        if (deltaY > 0 && mobileFocusTrayPlaceKeyRef.current && canClearMobileFocusTrayFromScroll()) {
             setMobileFocusTrayPlaceKey(null);
         }
 
@@ -2712,7 +2740,7 @@ export default function SharedMapDirectoryList({
 
         if (!selectionPlaceKey) {
             setFlashPlaceKey(null);
-            if (isMobileMapPanelEnabled) {
+            if (isMobileMapPanelEnabled && canClearMobileFocusTrayFromScroll()) {
                 setMobileFocusTrayPlaceKey(null);
             }
             return undefined;
@@ -2734,6 +2762,7 @@ export default function SharedMapDirectoryList({
         if (isMobileMapPanelEnabled) {
             setMobileMapListFocused(false);
             setMobileFocusTrayPlaceKey(selectionPlaceKey ? String(selectionPlaceKey) : null);
+            holdMobileFocusTrayDuringMapReveal();
             window.requestAnimationFrame(() => {
                 const mapFrameTop = mobileMapFrameRef.current
                     ? Math.round(mobileMapFrameRef.current.getBoundingClientRect().top + window.scrollY - MOBILE_MAP_HIDE_TOP_PX)
