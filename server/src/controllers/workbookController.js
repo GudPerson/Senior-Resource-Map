@@ -43,6 +43,7 @@ import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateEx
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
 import { positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
+import { normalizeSocialLinks } from '../utils/socialLinks.js';
 
 async function recordExportAudit(db, actor, resourceType, exportKind, metadata = {}) {
     try {
@@ -98,8 +99,14 @@ const RESOURCE_TYPES = {
             ['partnerUsername', false, 'Required when ownershipMode is partner unless the uploader is the partner owner.'],
             ['phone', false, 'Optional contact phone number.'],
             ['whatsappContact', false, 'Optional public WhatsApp contact number or URL.'],
+            ['contactEmail', false, 'Optional public contact email.'],
             ['hours', false, 'Optional opening hours text.'],
             ['website', false, 'Optional absolute website URL.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
             ['description', false, 'Optional descriptive copy.'],
             ['tags', false, 'Comma-separated tag names.'],
             ['isHidden', false, 'TRUE or FALSE.'],
@@ -127,6 +134,12 @@ const RESOURCE_TYPES = {
             ['isMemberOnly', false, 'TRUE or FALSE.'],
             ['description', false, 'Optional descriptive copy.'],
             ['schedule', false, 'Optional schedule text.'],
+            ['website', false, 'Optional absolute website URL.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
             ['tags', false, 'Comma-separated tag names.'],
             ['contactPhone', false, 'Optional local contact phone.'],
             ['whatsappContact', false, 'Optional public WhatsApp contact number or URL.'],
@@ -157,6 +170,15 @@ const RESOURCE_TYPES = {
             ['isMemberOnly', false, 'TRUE or FALSE.'],
             ['description', false, 'Optional shared description.'],
             ['schedule', false, 'Optional default schedule.'],
+            ['website', false, 'Optional shared website URL.'],
+            ['contactPhone', false, 'Optional shared contact phone.'],
+            ['whatsappContact', false, 'Optional shared WhatsApp contact number or URL.'],
+            ['contactEmail', false, 'Optional shared contact email.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
             ['tags', false, 'Comma-separated tags stored on the template.'],
             ['logoUrl', false, 'Optional absolute URL.'],
             ['bannerUrl', false, 'Optional absolute URL.'],
@@ -332,6 +354,20 @@ function encodeList(value, delimiter = ', ') {
 function encodePipeList(value) {
     if (!Array.isArray(value)) return '';
     return value.filter(Boolean).join(' | ');
+}
+
+function serializeSocialLink(socialLinks, platform) {
+    return normalizeSocialLinks(socialLinks)[platform] || '';
+}
+
+function buildSocialLinksFromWorkbookRow(row = {}) {
+    return normalizeSocialLinks({
+        facebook: row.facebookUrl,
+        instagram: row.instagramUrl,
+        tiktok: row.tiktokUrl,
+        youtube: row.youtubeUrl,
+        linkedin: row.linkedinUrl,
+    });
 }
 
 function requiredColumnNames(resourceType) {
@@ -815,8 +851,14 @@ async function exportRowsForPlaces(db, actor, options = {}) {
             partnerUsername: asset.partner?.username || '',
             phone: asset.phone || '',
             whatsappContact: asset.whatsappContact || '',
+            contactEmail: asset.contactEmail || '',
             hours: asset.hours || '',
             website: asset.website || '',
+            facebookUrl: serializeSocialLink(asset.socialLinks, 'facebook'),
+            instagramUrl: serializeSocialLink(asset.socialLinks, 'instagram'),
+            tiktokUrl: serializeSocialLink(asset.socialLinks, 'tiktok'),
+            youtubeUrl: serializeSocialLink(asset.socialLinks, 'youtube'),
+            linkedinUrl: serializeSocialLink(asset.socialLinks, 'linkedin'),
             description: asset.description || '',
             tags: encodeList(asset.tags.map((entry) => entry.tag.name)),
             isHidden: asset.isHidden ? 'TRUE' : 'FALSE',
@@ -872,6 +914,12 @@ async function exportRowsForStandaloneOfferings(db, actor, options = {}) {
             isMemberOnly: asset.isMemberOnly ? 'TRUE' : 'FALSE',
             description: asset.description || '',
             schedule: asset.schedule || '',
+            website: asset.website || '',
+            facebookUrl: serializeSocialLink(asset.socialLinks, 'facebook'),
+            instagramUrl: serializeSocialLink(asset.socialLinks, 'instagram'),
+            tiktokUrl: serializeSocialLink(asset.socialLinks, 'tiktok'),
+            youtubeUrl: serializeSocialLink(asset.socialLinks, 'youtube'),
+            linkedinUrl: serializeSocialLink(asset.socialLinks, 'linkedin'),
             tags: encodeList(asset.tags.map((entry) => entry.tag.name)),
             contactPhone: asset.contactPhone || '',
             whatsappContact: asset.whatsappContact || '',
@@ -922,6 +970,15 @@ async function exportRowsForTemplates(db, actor, options = {}) {
             isMemberOnly: parent.isMemberOnly ? 'TRUE' : 'FALSE',
             description: parent.description || '',
             schedule: parent.schedule || '',
+            website: parent.website || '',
+            contactPhone: parent.contactPhone || '',
+            whatsappContact: parent.whatsappContact || '',
+            contactEmail: parent.contactEmail || '',
+            facebookUrl: serializeSocialLink(parent.socialLinks, 'facebook'),
+            instagramUrl: serializeSocialLink(parent.socialLinks, 'instagram'),
+            tiktokUrl: serializeSocialLink(parent.socialLinks, 'tiktok'),
+            youtubeUrl: serializeSocialLink(parent.socialLinks, 'youtube'),
+            linkedinUrl: serializeSocialLink(parent.socialLinks, 'linkedin'),
             tags: encodeList(Array.isArray(parent.tags) ? parent.tags : []),
             logoUrl: parent.logoUrl || '',
             bannerUrl: parent.bannerUrl || '',
@@ -1150,8 +1207,10 @@ async function importPlaces(db, actor, rows, references, env) {
                 address,
                 phone: normalizeText(row.phone) || null,
                 whatsappContact: normalizeText(row.whatsappContact) || null,
+                contactEmail: normalizeText(row.contactEmail) || null,
                 hours: normalizeText(row.hours) || null,
                 website: normalizeText(row.website) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
                 description: normalizeText(row.description) || null,
                 logoUrl: normalizeText(row.logoUrl) || null,
                 bannerUrl: normalizeText(row.bannerUrl) || null,
@@ -1192,8 +1251,10 @@ async function importPlaces(db, actor, rows, references, env) {
                         lng: sql`EXCLUDED.lng`,
                         phone: sql`EXCLUDED.phone`,
                         whatsappContact: sql`EXCLUDED.whatsapp_contact`,
+                        contactEmail: sql`EXCLUDED.contact_email`,
                         hours: sql`EXCLUDED.hours`,
                         website: sql`EXCLUDED.website`,
+                        socialLinks: sql`EXCLUDED.social_links`,
                         description: sql`EXCLUDED.description`,
                         logoUrl: sql`EXCLUDED.logo_url`,
                         bannerUrl: sql`EXCLUDED.banner_url`,
@@ -1307,6 +1368,8 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 subCategory,
                 description: normalizeText(row.description) || null,
                 schedule: normalizeText(row.schedule) || null,
+                website: normalizeText(row.website) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
                 logoUrl: normalizeText(row.logoUrl) || null,
                 bannerUrl: normalizeText(row.bannerUrl) || null,
                 galleryUrls: normalizeGalleryUrls(splitPipeList(row.galleryUrls)),
@@ -1419,6 +1482,11 @@ async function importTemplates(db, actor, rows, references, env) {
                 subCategory,
                 description: normalizeText(row.description) || null,
                 schedule: normalizeText(row.schedule) || null,
+                website: normalizeText(row.website) || null,
+                contactPhone: normalizeText(row.contactPhone) || null,
+                whatsappContact: normalizeText(row.whatsappContact) || null,
+                contactEmail: normalizeText(row.contactEmail) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
                 logoUrl: normalizeText(row.logoUrl) || null,
                 bannerUrl: normalizeText(row.bannerUrl) || null,
                 galleryUrls: normalizeGalleryUrls(splitPipeList(row.galleryUrls)),

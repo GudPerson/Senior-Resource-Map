@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Clock, Globe, Users } from 'lucide-react';
+import { Clock, ExternalLink, Globe, Mail, MessageCircle, Phone, Users } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
 import { normalizeRole } from '../lib/roles.js';
+import { createEmptySocialLinks, normalizeSocialLinks, SOCIAL_PLATFORMS } from '../lib/socialLinks.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
@@ -23,6 +24,11 @@ function buildInitialForm(initialData, currentUser) {
             subCategory: initialData.subCategory || 'Programmes',
             description: initialData.description || '',
             schedule: initialData.schedule || '',
+            website: initialData.website || '',
+            socialLinks: normalizeSocialLinks(initialData.socialLinks),
+            contactPhone: initialData.contactPhone || '',
+            whatsappContact: initialData.whatsappContact || '',
+            contactEmail: initialData.contactEmail || '',
             logoUrl: initialData.logoUrl || '',
             bannerUrl: initialData.bannerUrl || '',
             newTags: initialData.tags || [],
@@ -42,6 +48,11 @@ function buildInitialForm(initialData, currentUser) {
         subCategory: 'Programmes',
         description: '',
         schedule: '',
+        website: '',
+        socialLinks: createEmptySocialLinks(),
+        contactPhone: '',
+        whatsappContact: '',
+        contactEmail: '',
         logoUrl: '',
         bannerUrl: '',
         newTags: [],
@@ -59,6 +70,35 @@ const OWNERSHIP_OPTIONS = [
 ];
 
 const TEMPLATE_STEPS = ['Profile', 'Defaults', 'Visibility', 'Generate', 'Translate'];
+
+function normalizeExternalHref(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const candidate = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    try {
+        return new URL(candidate).toString();
+    } catch {
+        return '';
+    }
+}
+
+function isValidOptionalHttpUrl(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    if (!/^https?:\/\//i.test(text)) return false;
+    try {
+        const url = new URL(text);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function isValidOptionalEmail(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
 
 function isBlankEligibilityAge(value) {
     return value === undefined || value === null || String(value).trim() === '';
@@ -130,6 +170,39 @@ export default function SoftAssetTemplateForm({
     })), [audienceZones]);
 
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
+    const websiteHref = useMemo(() => normalizeExternalHref(form.website), [form.website]);
+    const normalizedSocialLinks = useMemo(() => normalizeSocialLinks(form.socialLinks), [form.socialLinks]);
+
+    function setSocialLink(platformKey, value) {
+        setForm((prev) => ({
+            ...prev,
+            socialLinks: {
+                ...normalizeSocialLinks(prev.socialLinks),
+                [platformKey]: value,
+            },
+        }));
+    }
+
+    function getInvalidSocialLinkMessage() {
+        const socialLinks = normalizeSocialLinks(form.socialLinks);
+        const invalidPlatform = SOCIAL_PLATFORMS.find((platform) => (
+            String(socialLinks[platform.key] || '').trim()
+            && !isValidOptionalHttpUrl(socialLinks[platform.key])
+        ));
+        return invalidPlatform ? `Enter a valid ${invalidPlatform.label} URL starting with http:// or https://.` : '';
+    }
+
+    function getTemplateProfileContactValidationError() {
+        if (!isValidOptionalHttpUrl(form.website)) {
+            return 'Enter a valid website URL starting with http:// or https://.';
+        }
+        const socialLinkMessage = getInvalidSocialLinkMessage();
+        if (socialLinkMessage) return socialLinkMessage;
+        if (!isValidOptionalEmail(form.contactEmail)) {
+            return 'Enter a valid contact email address.';
+        }
+        return '';
+    }
 
     async function handleSubmit(e) {
         e?.preventDefault?.();
@@ -144,6 +217,11 @@ export default function SoftAssetTemplateForm({
                 subCategory: form.subCategory || 'Programmes',
                 description: form.description || null,
                 schedule: form.schedule || null,
+                website: form.website || null,
+                socialLinks: normalizeSocialLinks(form.socialLinks),
+                contactPhone: form.contactPhone || null,
+                whatsappContact: form.whatsappContact || null,
+                contactEmail: form.contactEmail || null,
                 logoUrl: form.logoUrl || null,
                 bannerUrl: form.bannerUrl || null,
                 newTags: form.newTags || [],
@@ -185,6 +263,8 @@ export default function SoftAssetTemplateForm({
     function getTemplateStepValidationError(stepIndex = activeTemplateStep) {
         if (stepIndex === 0) {
             if (!String(form.name || '').trim()) return 'Add a template name to continue.';
+            const profileContactMessage = getTemplateProfileContactValidationError();
+            if (profileContactMessage) return profileContactMessage;
         }
         if (stepIndex === 2) {
             const audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
@@ -293,6 +373,87 @@ export default function SoftAssetTemplateForm({
                         placeholder="Main description shared by all place versions."
                         rows={4}
                     />
+                </div>
+
+                <div className="md:col-span-2">
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                        <label className="block text-sm font-semibold text-slate-700"><Globe size={13} className="inline mr-1" />Website</label>
+                        {websiteHref ? (
+                            <a
+                                href={websiteHref}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800 hover:underline"
+                            >
+                                Open website
+                                <ExternalLink size={13} />
+                            </a>
+                        ) : null}
+                    </div>
+                    <input
+                        type="url"
+                        value={form.website || ''}
+                        onChange={(e) => setField('website', e.target.value)}
+                        placeholder="https://example.org"
+                        className="input-field"
+                    />
+                </div>
+
+                <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <p className="text-sm font-bold text-slate-900"><Globe size={13} className="inline mr-1" />Social media links</p>
+                            <p className="mt-1 text-xs text-slate-500">Optional public channels copied into generated place versions.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {SOCIAL_PLATFORMS.map((platform) => {
+                                const href = normalizeExternalHref(normalizedSocialLinks[platform.key]);
+                                if (!href) return null;
+                                return (
+                                    <a
+                                        key={platform.key}
+                                        href={href}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full border border-brand-100 bg-white px-2.5 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+                                    >
+                                        {platform.label}
+                                        <ExternalLink size={12} />
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {SOCIAL_PLATFORMS.map((platform) => (
+                            <div key={platform.key}>
+                                <label className="mb-1 block text-xs font-bold text-slate-600">{platform.label}</label>
+                                <input
+                                    type="url"
+                                    value={form.socialLinks?.[platform.key] || ''}
+                                    onChange={(e) => setSocialLink(platform.key, e.target.value)}
+                                    placeholder={platform.placeholder}
+                                    className="input-field text-sm"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700"><Phone size={13} className="inline mr-1" />Contact phone</label>
+                    <input type="tel" value={form.contactPhone || ''} onChange={(e) => setField('contactPhone', e.target.value)} placeholder="+65 6000 0000" className="input-field" />
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700"><MessageCircle size={13} className="inline mr-1" />WhatsApp contact</label>
+                    <input value={form.whatsappContact || ''} onChange={(e) => setField('whatsappContact', e.target.value)} placeholder="87654321 or https://wa.me/6587654321" className="input-field" />
+                    <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
+                </div>
+
+                <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-semibold text-slate-700"><Mail size={13} className="inline mr-1" />Contact email</label>
+                    <input type="email" value={form.contactEmail || ''} onChange={(e) => setField('contactEmail', e.target.value)} placeholder="hello@example.org" className="input-field" />
                 </div>
 
                 <div className="md:col-span-2">
@@ -457,6 +618,12 @@ export default function SoftAssetTemplateForm({
         const targetAreaLabels = form.audienceMode === 'audience_zones'
             ? selectedAudienceZoneOptions.map((option) => option.label).filter(Boolean)
             : [];
+        const socialEntries = SOCIAL_PLATFORMS
+            .map((platform) => ({
+                ...platform,
+                url: normalizeExternalHref(form.socialLinks?.[platform.key]),
+            }))
+            .filter((entry) => entry.url);
 
         return (
             <div className="space-y-5">
@@ -521,6 +688,57 @@ export default function SoftAssetTemplateForm({
                                 <div className="min-w-0">
                                     <p className="mb-1 font-bold text-slate-900">Schedule</p>
                                     <div className="break-words text-slate-700">{form.schedule}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {form.contactPhone ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Phone size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Phone</p>
+                                    <div className="break-words text-slate-700">{form.contactPhone}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {form.whatsappContact ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><MessageCircle size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">WhatsApp contact</p>
+                                    <div className="break-words text-slate-700">{form.whatsappContact}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {form.contactEmail ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Mail size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Email</p>
+                                    <div className="break-words text-slate-700">{form.contactEmail}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {websiteHref ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Globe size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Website</p>
+                                    <div className="break-all text-brand-700">{form.website || websiteHref}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {socialEntries.length > 0 ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Globe size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Social channels</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {socialEntries.map((entry) => (
+                                            <span key={entry.key} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-700">
+                                                {entry.label}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         ) : null}

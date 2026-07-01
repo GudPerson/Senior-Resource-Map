@@ -85,6 +85,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS whatsapp_contact VARCHAR(255)`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS website TEXT`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_place_id TEXT`);
@@ -286,6 +287,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS source_type VARCHAR(80)`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS website TEXT`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS whatsapp_contact VARCHAR(255)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS overridden_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
@@ -309,6 +315,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`UPDATE hard_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET asset_mode = 'standalone' WHERE asset_mode IS NULL OR asset_mode = ''`);
+            await db.execute(sql`UPDATE soft_asset_parents SET social_links = '{}'::jsonb WHERE social_links IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET social_links = '{}'::jsonb WHERE social_links IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET overridden_fields = '[]'::jsonb WHERE overridden_fields IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET availability_enabled = FALSE WHERE availability_enabled IS NULL`);

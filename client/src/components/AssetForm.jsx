@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ArrowRightLeft, Building2, ExternalLink, Loader2, Sparkles, Globe, MapPin, MessageCircle, Phone, Clock, Package2, ShieldCheck, Users, EyeOff } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Building2, ExternalLink, Loader2, Sparkles, Globe, Mail, MapPin, MessageCircle, Phone, Clock, Package2, ShieldCheck, Users, EyeOff } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -183,6 +183,7 @@ function buildInitialForm(type, initialData, currentUser) {
             coverageRegionIds: initialData.coverageRegionIds || (initialData.subregionId ? [initialData.subregionId] : []),
             postalCode: initialData.postalCode || '',
             whatsappContact: initialData.whatsappContact || '',
+            contactEmail: initialData.contactEmail || '',
             website: initialData.website || '',
             socialLinks: normalizeSocialLinks(initialData.socialLinks),
             sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
@@ -205,6 +206,7 @@ function buildInitialForm(type, initialData, currentUser) {
             address: '',
             phone: '',
             whatsappContact: '',
+            contactEmail: '',
             hours: '',
             website: '',
             socialLinks: createEmptySocialLinks(),
@@ -628,7 +630,12 @@ export default function AssetForm({
         if (!isValidOptionalHttpUrl(form.website)) {
             return 'Enter a valid website URL starting with http:// or https://.';
         }
-        return getInvalidSocialLinkMessage();
+        const socialLinkMessage = getInvalidSocialLinkMessage();
+        if (socialLinkMessage) return socialLinkMessage;
+        if (!isValidOptionalEmail(form.contactEmail)) {
+            return 'Enter a valid contact email address.';
+        }
+        return '';
     }
 
     function getOfferingProfileContactValidationError() {
@@ -1187,6 +1194,10 @@ export default function AssetForm({
                         <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
                     </div>
                     <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><Mail size={13} className="inline mr-1" />Contact email</label>
+                        <input type="email" value={form.contactEmail || ''} onChange={(e) => setField('contactEmail', e.target.value)} placeholder="hello@example.org" className="input-field" />
+                    </div>
+                    <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700"><Clock size={13} className="inline mr-1" />Hours</label>
                         <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon-Fri 9am-5pm" className="input-field" />
                     </div>
@@ -1383,6 +1394,11 @@ export default function AssetForm({
                             icon: <MessageCircle size={22} />,
                             label: 'WhatsApp contact',
                             children: form.whatsappContact,
+                        }) : null}
+                        {form.contactEmail ? renderPlacePreviewInfoRow({
+                            icon: <Mail size={22} />,
+                            label: 'Email',
+                            children: form.contactEmail,
                         }) : null}
                         {websiteHref ? renderPlacePreviewInfoRow({
                             icon: <Globe size={22} />,

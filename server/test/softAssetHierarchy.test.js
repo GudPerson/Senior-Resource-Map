@@ -22,6 +22,11 @@ test('buildChildValuesFromParent materializes a hidden child for one host', () =
         logoUrl: 'https://example.com/logo.png',
         bannerUrl: 'https://example.com/banner.png',
         galleryUrls: ['https://example.com/1.png'],
+        website: 'https://example.com/programme',
+        socialLinks: { facebook: 'https://facebook.com/example' },
+        contactPhone: '+65 6111 2222',
+        whatsappContact: 'https://wa.me/6561112222',
+        contactEmail: 'template@example.com',
         audienceMode: 'public',
         isMemberOnly: false,
     };
@@ -44,8 +49,17 @@ test('buildChildValuesFromParent materializes a hidden child for one host', () =
     assert.equal(child.bucket, 'Programmes');
     assert.equal(child.isHidden, true);
     assert.deepEqual(child.overriddenFields, []);
-    assert.equal(child.contactPhone, '+65 6000 1111');
-    assert.equal(child.whatsappContact, '87654321');
+    assert.equal(child.website, 'https://example.com/programme');
+    assert.deepEqual(child.socialLinks, {
+        facebook: 'https://facebook.com/example',
+        instagram: '',
+        tiktok: '',
+        youtube: '',
+        linkedin: '',
+    });
+    assert.equal(child.contactPhone, '+65 6111 2222');
+    assert.equal(child.whatsappContact, 'https://wa.me/6561112222');
+    assert.equal(child.contactEmail, 'template@example.com');
 });
 
 test('buildChildPropagationPatch keeps local overrides while syncing canonical fields', () => {
@@ -59,6 +73,8 @@ test('buildChildPropagationPatch keeps local overrides while syncing canonical f
         logoUrl: null,
         bannerUrl: 'https://example.com/banner.png',
         galleryUrls: ['https://example.com/a.png'],
+        website: 'https://example.com/falls',
+        socialLinks: { instagram: 'https://instagram.com/falls' },
         audienceMode: 'partner_boundary',
         isMemberOnly: true,
     };
@@ -73,6 +89,14 @@ test('buildChildPropagationPatch keeps local overrides while syncing canonical f
     assert.equal(patch.bucket, 'Services');
     assert.equal(patch.description, 'Updated parent description');
     assert.equal(patch.schedule, undefined);
+    assert.equal(patch.website, 'https://example.com/falls');
+    assert.deepEqual(patch.socialLinks, {
+        facebook: '',
+        instagram: 'https://instagram.com/falls',
+        tiktok: '',
+        youtube: '',
+        linkedin: '',
+    });
     assert.equal(patch.audienceMode, 'partner_boundary');
     assert.equal(patch.isMemberOnly, true);
     assert.deepEqual(patch.galleryUrls, ['https://example.com/a.png']);

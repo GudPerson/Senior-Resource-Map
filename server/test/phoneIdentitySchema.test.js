@@ -153,6 +153,24 @@ test('runtime schema bootstrap includes hard asset social links column', async (
     );
 });
 
+test('runtime schema bootstrap includes hard asset public email column', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table hard_assets add column if not exists contact_email')),
+        'expected hard asset public contact_email column bootstrap SQL',
+    );
+});
+
 test('runtime schema bootstrap includes Group profile and accountability columns on soft assets', async () => {
     resetBoundarySchemaBootstrapForTests();
     const statements = [];
@@ -183,6 +201,44 @@ test('runtime schema bootstrap includes Group profile and accountability columns
             && statement.includes('references users(id)')
         )),
         'expected soft asset updater accountability bootstrap SQL',
+    );
+});
+
+test('runtime schema bootstrap includes Template public contact columns', async () => {
+    resetBoundarySchemaBootstrapForTests();
+    const statements = [];
+    const fakeDb = {
+        execute(statement) {
+            statements.push(normalizeSql(statement));
+            return Promise.resolve();
+        },
+    };
+
+    await ensureBoundarySchema(fakeDb, { NODE_ENV: 'development' });
+
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table soft_asset_parents add column if not exists website')),
+        'expected template website column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('alter table soft_asset_parents add column if not exists social_links')
+            && statement.includes('jsonb')
+            && statement.includes("default '{}'::jsonb")
+        )),
+        'expected template social_links column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table soft_asset_parents add column if not exists contact_phone')),
+        'expected template contact_phone column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table soft_asset_parents add column if not exists whatsapp_contact')),
+        'expected template whatsapp_contact column bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table soft_asset_parents add column if not exists contact_email')),
+        'expected template contact_email column bootstrap SQL',
     );
 });
 

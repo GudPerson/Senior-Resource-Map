@@ -102,6 +102,17 @@ test('Template wizard places existing fields in the intended steps', () => {
         /form\.subCategory/,
         /MarkdownDescriptionField/,
         /id="template-description"/,
+        /Website/,
+        /form\.website/,
+        /Social media links/,
+        /SOCIAL_PLATFORMS/,
+        /form\.socialLinks/,
+        /Contact phone/,
+        /form\.contactPhone/,
+        /WhatsApp contact/,
+        /form\.whatsappContact/,
+        /Contact email/,
+        /form\.contactEmail/,
         /CreatableSelect/,
         /value=\{currentTags\}/,
         /newTags/,
@@ -153,6 +164,11 @@ test('Template wizard preserves the existing save payload contract', () => {
         'subCategory',
         'description',
         'schedule',
+        'website',
+        'socialLinks',
+        'contactPhone',
+        'whatsappContact',
+        'contactEmail',
         'logoUrl',
         'bannerUrl',
         'newTags',
@@ -170,6 +186,11 @@ test('Template wizard preserves the existing save payload contract', () => {
         /subCategory: form\.subCategory \|\| 'Programmes'/,
         /description: form\.description \|\| null/,
         /schedule: form\.schedule \|\| null/,
+        /website: form\.website \|\| null/,
+        /socialLinks: normalizeSocialLinks\(form\.socialLinks\)/,
+        /contactPhone: form\.contactPhone \|\| null/,
+        /whatsappContact: form\.whatsappContact \|\| null/,
+        /contactEmail: form\.contactEmail \|\| null/,
         /logoUrl: form\.logoUrl \|\| null/,
         /bannerUrl: form\.bannerUrl \|\| null/,
         /newTags: form\.newTags \|\| \[\]/,
@@ -206,6 +227,13 @@ test('Template wizard routes validation failures to the owning steps', () => {
 
     assert.match(templateValidationSource, /if \(stepIndex === 0\)/);
     assert.match(templateValidationSource, /Add a template name to continue\./);
+    assert.match(templateValidationSource, /getTemplateProfileContactValidationError\(\)/);
+    assert.match(templateFormSource, /function getTemplateProfileContactValidationError\(\)/);
+    assert.match(templateFormSource, /form\.website/);
+    assert.match(templateFormSource, /form\.contactEmail/);
+    assert.match(templateFormSource, /getInvalidSocialLinkMessage\(\)/);
+    assert.match(templateFormSource, /isValidOptionalHttpUrl/);
+    assert.match(templateFormSource, /isValidOptionalEmail/);
     assert.match(templateValidationSource, /if \(stepIndex === 2\)/);
     assert.match(templateValidationSource, /audienceMode === 'audience_zones'/);
     assert.match(templateValidationSource, /audienceZoneIds/);

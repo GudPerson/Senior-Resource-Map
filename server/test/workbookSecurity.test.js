@@ -109,3 +109,36 @@ test('workbook parser preserves WhatsApp contact fields across resource sheets',
     assert.equal(standaloneRows[0].whatsappContact, 'https://wa.me/6587654321');
     assert.equal(rolloutRows[0].whatsappContact, '+65 8765 4321');
 });
+
+test('workbook parser preserves public contact and social fields for direct asset sheets', async () => {
+    const placeFile = mockUpload('places.csv', [
+        'externalKey,name,country,postalCode,ownershipMode,contactEmail,facebookUrl,instagramUrl,tiktokUrl,youtubeUrl,linkedinUrl',
+        'place-1,Test Place,SG,160024,system,hello@example.org,https://facebook.com/place,https://instagram.com/place,https://tiktok.com/@place,https://youtube.com/@place,https://linkedin.com/company/place',
+    ].join('\n'));
+    const standaloneFile = mockUpload('standalone_offerings.csv', [
+        'externalKey,name,bucket,subCategory,ownershipMode,audienceMode,website,facebookUrl',
+        'offering-1,Test Service,Services,Health,system,public,https://example.org,https://facebook.com/offering',
+    ].join('\n'));
+    const templateFile = mockUpload('templates.csv', [
+        'externalKey,name,bucket,subCategory,ownershipMode,audienceMode,website,contactPhone,whatsappContact,contactEmail,instagramUrl',
+        'template-1,Template Service,Services,Health,system,public,https://template.example,+65 6000 0000,https://wa.me/6560000000,template@example.org,https://instagram.com/template',
+    ].join('\n'));
+
+    const placeRows = await parseWorkbookRows(placeFile, 'places');
+    const standaloneRows = await parseWorkbookRows(standaloneFile, 'standalone-offerings');
+    const templateRows = await parseWorkbookRows(templateFile, 'templates');
+
+    assert.equal(placeRows[0].contactEmail, 'hello@example.org');
+    assert.equal(placeRows[0].facebookUrl, 'https://facebook.com/place');
+    assert.equal(placeRows[0].instagramUrl, 'https://instagram.com/place');
+    assert.equal(placeRows[0].tiktokUrl, 'https://tiktok.com/@place');
+    assert.equal(placeRows[0].youtubeUrl, 'https://youtube.com/@place');
+    assert.equal(placeRows[0].linkedinUrl, 'https://linkedin.com/company/place');
+    assert.equal(standaloneRows[0].website, 'https://example.org');
+    assert.equal(standaloneRows[0].facebookUrl, 'https://facebook.com/offering');
+    assert.equal(templateRows[0].website, 'https://template.example');
+    assert.equal(templateRows[0].contactPhone, '+65 6000 0000');
+    assert.equal(templateRows[0].whatsappContact, 'https://wa.me/6560000000');
+    assert.equal(templateRows[0].contactEmail, 'template@example.org');
+    assert.equal(templateRows[0].instagramUrl, 'https://instagram.com/template');
+});

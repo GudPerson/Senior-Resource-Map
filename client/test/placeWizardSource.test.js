@@ -65,6 +65,12 @@ test('Place wizard keeps markdown description and protected management panels', 
     assert.match(locationStepSource, /<select required value=\{form\.country\}/);
     assert.match(locationStepSource, /<input required value=\{form\.postalCode\}/);
     assert.match(locationStepSource, /<input required value=\{form\.address\}/);
+    assert.match(locationStepSource, /<Phone size=\{13\}/);
+    assert.match(locationStepSource, /form\.phone/);
+    assert.match(locationStepSource, /<MessageCircle size=\{13\}/);
+    assert.match(locationStepSource, /form\.whatsappContact/);
+    assert.match(locationStepSource, /Contact email/);
+    assert.match(locationStepSource, /form\.contactEmail/);
     assert.match(visibilityStepSource, /Visibility Settings/);
     assert.match(visibilityStepSource, /Hide from App/);
     assert.match(visibilityStepSource, /Scheduled Hide \(From\)/);
@@ -99,8 +105,10 @@ test('Place wizard routes hidden profile URL validation back to Profile', () => 
     assert.match(placeValidationSource, /if \(stepIndex === 0\)/);
     assert.match(placeValidationSource, /getPlaceProfileContactValidationError\(\)/);
     assert.match(profileContactValidationSource, /form\.website/);
+    assert.match(profileContactValidationSource, /form\.contactEmail/);
     assert.match(profileContactValidationSource, /getInvalidSocialLinkMessage\(\)/);
     assert.match(profileContactValidationSource, /isValidOptionalHttpUrl/);
+    assert.match(profileContactValidationSource, /isValidOptionalEmail/);
     assert.match(allStepsValidationSource, /for \(const stepIndex of \[0, 1\]\)/);
     assert.match(allStepsValidationSource, /setActivePlaceStep\(stepIndex\)/);
 });
