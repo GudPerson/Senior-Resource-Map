@@ -36,6 +36,11 @@ const ASSET_WORKBOOKS = [
         helper: 'Canonical parent offerings used to generate local rollouts.',
     },
     {
+        resourceType: 'groups',
+        label: 'Groups',
+        helper: 'List-only collections with profile and direct members managed by stable external keys.',
+    },
+    {
         resourceType: 'template-rollouts',
         label: 'Template Rollouts',
         helper: 'Child offerings keyed by templateExternalKey + hostExternalKey.',
@@ -3972,6 +3977,7 @@ export default function AdminPage() {
                             <ul className="text-xs text-slate-600 space-y-1">
                                 <li>• Asset upserts use stable external keys only. Names never drive updates.</li>
                                 <li>• Excel templates include a Guide sheet, importable Data sheet, and Reference sheet with allowed values.</li>
+                                <li>• Group workbooks manage list-only profile and member links; Groups never create pins.</li>
                                 <li>• Template rollouts only create or update generated child offerings keyed by template + host external keys.</li>
                                 <li>• Places derive subregion from postcode on the server. Imported subregion overrides are ignored.</li>
                             </ul>
