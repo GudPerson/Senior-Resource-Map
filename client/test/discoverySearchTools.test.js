@@ -36,3 +36,20 @@ test('Discover postal search applies automatically and no longer exposes radius 
     assert.doesNotMatch(filterPanelSource, /value=\{searchRadius\}/);
     assert.doesNotMatch(filterPanelSource, /type="submit"/);
 });
+
+test('Discover mobile map mode uses Browse as the only header action', () => {
+    const mapHeaderStart = filterPanelSource.indexOf("t('discoveryMapView')");
+    const mapHeaderEnd = filterPanelSource.indexOf('{savedAssetCount > 0 && unmappableSavedCount > 0', mapHeaderStart);
+    const mapHeaderSource = filterPanelSource.slice(mapHeaderStart, mapHeaderEnd);
+
+    assert.ok(mapHeaderStart > -1, 'mobile map header should render');
+    assert.ok(mapHeaderEnd > mapHeaderStart, 'mobile map header should include the map action block');
+    assert.match(mapHeaderSource, /onClick=\{onOpenBrowse\}/);
+    assert.match(mapHeaderSource, /t\('discoveryBrowse'\)/);
+    assert.doesNotMatch(mapHeaderSource, /onOpenMobileBrowseDrawer/);
+    assert.doesNotMatch(mapHeaderSource, /setMobileFiltersOpen\(true\)/);
+    assert.doesNotMatch(mapHeaderSource, /t\('discoveryList'\)/);
+    assert.doesNotMatch(mapHeaderSource, /t\('discoveryFilter'\)/);
+    assert.doesNotMatch(discoverPageSource, /mobileBrowseDrawerOpen/);
+    assert.doesNotMatch(discoverPageSource, /onOpenMobileBrowseDrawer/);
+});

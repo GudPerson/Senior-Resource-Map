@@ -16,7 +16,6 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
-import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
 import DesktopSavedPlaceDetailPanel from '../features/discover/DesktopSavedPlaceDetailPanel.jsx';
 import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
@@ -498,7 +497,6 @@ export default function DiscoverPage() {
     const [mapFocusRequest, setMapFocusRequest] = useState(null);
     const [mobileMode, setMobileMode] = useState('browse');
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
-    const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
     const [locationIndicatorState, setLocationIndicatorState] = useState({ contextKey: '', indicators: {} });
 
@@ -1271,12 +1269,6 @@ export default function DiscoverPage() {
     }, [effectiveOrigin, hasSavedMapPins, hasTransientFocusPins, isDesktop, mobileMode]);
 
     useEffect(() => {
-        if (isDesktop || mobileMode !== 'map') {
-            setMobileBrowseDrawerOpen(false);
-        }
-    }, [isDesktop, mobileMode]);
-
-    useEffect(() => {
         if (!isDesktop && mobileMode !== 'map' && selectedPlacePinKey) {
             setSelectedPlacePinKey(null);
         }
@@ -1628,7 +1620,6 @@ export default function DiscoverPage() {
 
         if (!isDesktop) {
             setMobileMode('map');
-            setMobileBrowseDrawerOpen(false);
         }
 
         clearHoveredCardState();
@@ -1750,7 +1741,6 @@ export default function DiscoverPage() {
         }
 
         clearLockedCardState();
-        setMobileBrowseDrawerOpen(false);
         setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click'));
     }, [
         clearHoveredCardState,
@@ -2358,7 +2348,6 @@ export default function DiscoverPage() {
             onExpand={handleExpandSearchPanel}
             onOpenBrowse={() => setMobileMode('browse')}
             onOpenMap={() => setMobileMode('map')}
-            onOpenMobileBrowseDrawer={() => setMobileBrowseDrawerOpen(true)}
             onSearchChange={handleSearchChange}
             onToggleSaveAll={handleToggleSaveAll}
             pinCount={savedPlacePins.length}
@@ -2423,60 +2412,6 @@ export default function DiscoverPage() {
     );
 
     const desktopRailWidth = listWidth;
-
-    const mobileBrowseDrawer = !isDesktop && mobileMode === 'map' ? (
-        <MobileBottomSheet
-            open={mobileBrowseDrawerOpen}
-            onOpenChange={setMobileBrowseDrawerOpen}
-            title={t('discoveryResourcesOnMap')}
-            description={t('discoveryMatchingCount', {
-                count: filtered.length,
-                label: filtered.length === 1 ? t('resource') : t('resources'),
-            })}
-            headerActions={(
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMobileBrowseDrawerOpen(false);
-                            setMobileMode('browse');
-                        }}
-                        className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
-                    >
-                        {t('discoveryBackToBrowse')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMobileBrowseDrawerOpen(false)}
-                        className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
-                    >
-                        {t('done')}
-                    </button>
-                </div>
-            )}
-            bodyClassName="-mx-4 mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0"
-        >
-            {user ? (
-                <div className="mx-4 mt-1 mb-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>
-                    <label className="flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>{t('discoverySavedResourcesOnly')}</p>
-                            <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                {t('discoverySavedOnlyHelp')}
-                            </p>
-                        </div>
-                        <input
-                            type="checkbox"
-                            checked={showFavoritesOnly}
-                            onChange={(event) => setShowFavoritesOnly(event.target.checked)}
-                            className="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                        />
-                    </label>
-                </div>
-            ) : null}
-            {resultsList}
-        </MobileBottomSheet>
-    ) : null;
 
     const mobileDetailDrawer = !isDesktop && mobileMode === 'map' && selectedPlacePin ? (
         <Drawer.Root
@@ -2571,7 +2506,6 @@ export default function DiscoverPage() {
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     {mobileMode === 'browse' ? resultsList : mapView}
                 </div>
-                {mobileBrowseDrawer}
                 {mobileDetailDrawer}
             </div>
 

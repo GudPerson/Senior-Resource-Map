@@ -848,7 +848,6 @@ export function DiscoveryFilterPanel(props) {
         onExpand,
         onOpenBrowse,
         onOpenMap,
-        onOpenMobileBrowseDrawer,
         onSearchChange,
         onToggleSaveAll,
         pinCount = 0,
@@ -1011,28 +1010,11 @@ export function DiscoveryFilterPanel(props) {
                                         : t('discoveryMapHintNoPins')}
                                 </p>
                             </div>
-                            <div className="mt-3 grid grid-cols-3 gap-2">
-                                <button
-                                    type="button"
-                                    onClick={onOpenMobileBrowseDrawer}
-                                    className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
-                                    disabled={!onOpenMobileBrowseDrawer}
-                                >
-                                    <Rows3 size={15} />
-                                    {t('discoveryList')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setMobileFiltersOpen(true)}
-                                    className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
-                                >
-                                    <SlidersHorizontal size={15} />
-                                    {t('discoveryFilter')}
-                                </button>
+                            <div className="mt-3">
                                 <button
                                     type="button"
                                     onClick={onOpenBrowse}
-                                    className="btn-ghost min-h-[44px] justify-center px-3 text-[12px] font-bold leading-none whitespace-nowrap"
+                                    className="btn-primary min-h-[44px] w-full justify-center px-4 text-[13px] font-bold leading-none whitespace-nowrap"
                                 >
                                     <Search size={15} />
                                     {t('discoveryBrowse')}
