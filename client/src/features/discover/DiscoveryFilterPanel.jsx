@@ -863,7 +863,6 @@ export function DiscoveryFilterPanel(props) {
         setShowFavoritesOnly,
         showFavoritesOnly,
         tabCounts = { all: 0, hard: 0, soft: 0 },
-        unmappableSavedCount = 0,
         user,
         userLocation,
     } = props;
@@ -992,42 +991,29 @@ export function DiscoveryFilterPanel(props) {
                                 background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(231,248,244,0.94) 100%)',
                             }}
                         >
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
-                                    {t('discoveryMapView')}
-                                </p>
-                                <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
-                                    {pinCount > 0
-                                        ? t('discoveryMapShowingSavedPlaces', {
-                                            count: pinCount,
-                                            label: pinCount === 1 ? t('placesSingular') : t('placesPlural'),
-                                        })
-                                        : t('discoveryMapShowingLocation', { label: getSearchLocationLabel(searchOrigin) })}
-                                </p>
-                                <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                    {pinCount > 0
-                                        ? t('discoveryMapHintWithPins')
-                                        : t('discoveryMapHintNoPins')}
-                                </p>
-                            </div>
-                            <div className="mt-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
+                                        {t('discoveryMapView')}
+                                    </p>
+                                    <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+                                        {pinCount > 0
+                                            ? t('discoveryMapShowingSavedPlaces', {
+                                                count: pinCount,
+                                                label: pinCount === 1 ? t('placesSingular') : t('placesPlural'),
+                                            })
+                                            : t('discoveryMapShowingLocation', { label: getSearchLocationLabel(searchOrigin) })}
+                                    </p>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={onOpenBrowse}
-                                    className="btn-primary min-h-[44px] w-full justify-center px-4 text-[13px] font-bold leading-none whitespace-nowrap"
+                                    className="btn-primary min-h-[40px] shrink-0 justify-center px-3 text-[13px] font-bold leading-none whitespace-nowrap"
                                 >
                                     <Search size={15} />
                                     {t('discoveryBrowse')}
                                 </button>
                             </div>
-                            {savedAssetCount > 0 && unmappableSavedCount > 0 ? (
-                                <p className="mt-2 text-[12px] font-medium leading-5" style={{ color: 'var(--color-text-muted)' }}>
-                                    {t('discoveryUnmappedSavedNotice', {
-                                        count: unmappableSavedCount,
-                                        label: unmappableSavedCount === 1 ? t('resource') : t('resources'),
-                                    })}
-                                </p>
-                            ) : null}
                         </div>
                     )}
                 </div>

@@ -2363,7 +2363,6 @@ export default function DiscoverPage() {
             setShowFavoritesOnly={setShowFavoritesOnly}
             showFavoritesOnly={showFavoritesOnly}
             tabCounts={tabCounts}
-            unmappableSavedCount={unmappableSavedCount}
             user={user}
             userLocation={effectiveUserLocation}
         />

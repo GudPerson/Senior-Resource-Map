@@ -39,17 +39,22 @@ test('Discover postal search applies automatically and no longer exposes radius 
 
 test('Discover mobile map mode uses Browse as the only header action', () => {
     const mapHeaderStart = filterPanelSource.indexOf("t('discoveryMapView')");
-    const mapHeaderEnd = filterPanelSource.indexOf('{savedAssetCount > 0 && unmappableSavedCount > 0', mapHeaderStart);
+    const mapHeaderEnd = filterPanelSource.indexOf('<MobileFilterSheet', mapHeaderStart);
     const mapHeaderSource = filterPanelSource.slice(mapHeaderStart, mapHeaderEnd);
 
     assert.ok(mapHeaderStart > -1, 'mobile map header should render');
     assert.ok(mapHeaderEnd > mapHeaderStart, 'mobile map header should include the map action block');
     assert.match(mapHeaderSource, /onClick=\{onOpenBrowse\}/);
     assert.match(mapHeaderSource, /t\('discoveryBrowse'\)/);
+    assert.match(mapHeaderSource, /t\('discoveryMapShowingSavedPlaces'/);
     assert.doesNotMatch(mapHeaderSource, /onOpenMobileBrowseDrawer/);
     assert.doesNotMatch(mapHeaderSource, /setMobileFiltersOpen\(true\)/);
     assert.doesNotMatch(mapHeaderSource, /t\('discoveryList'\)/);
     assert.doesNotMatch(mapHeaderSource, /t\('discoveryFilter'\)/);
+    assert.doesNotMatch(mapHeaderSource, /t\('discoveryMapHintWithPins'\)/);
+    assert.doesNotMatch(mapHeaderSource, /t\('discoveryMapHintNoPins'\)/);
+    assert.doesNotMatch(mapHeaderSource, /t\('discoveryUnmappedSavedNotice'\)/);
     assert.doesNotMatch(discoverPageSource, /mobileBrowseDrawerOpen/);
     assert.doesNotMatch(discoverPageSource, /onOpenMobileBrowseDrawer/);
+    assert.doesNotMatch(filterPanelSource, /unmappableSavedCount/);
 });
