@@ -132,7 +132,6 @@ function HomePostalCodeCta({ compact = false }) {
 
 function buildSummaryChips({
     activeTab,
-    activeSubregionLabel,
     search,
     showFavoritesOnly,
     t,
@@ -158,13 +157,6 @@ function buildSummaryChips({
         summaryChips.push({
             key: 'favorites',
             label: t('discoverySavedOnly'),
-        });
-    }
-
-    if (activeSubregionLabel) {
-        summaryChips.push({
-            key: 'subregion',
-            label: `${t('discoveryServiceArea')}: ${activeSubregionLabel}`,
         });
     }
 
@@ -253,12 +245,9 @@ function SaveAllToggleControl({
 
 function MobileFilterSheet({
     activeTab,
-    activeSubregionLabel,
     canShowSaveAll,
-    canUseSubregionScope,
     canClearLocationSearch,
     clearLocationSearch,
-    discoverySubregionOptions = [],
     favoritesActionNotice,
     handleHomeAnchor,
     handleLocateMe,
@@ -276,10 +265,8 @@ function MobileFilterSheet({
     postalInput,
     saveAllCount = 0,
     saveAllPendingLabel,
-    selectedDiscoverySubregionId,
     setActiveTab,
     setPostalInput,
-    setSelectedDiscoverySubregion,
     setShowFavoritesOnly,
     showFavoritesOnly,
     tabCounts = { all: 0, hard: 0, soft: 0 },
@@ -354,40 +341,6 @@ function MobileFilterSheet({
 
                         {user && !hasHomePostalCode ? (
                             <HomePostalCodeCta compact />
-                        ) : null}
-
-                        {canUseSubregionScope ? (
-                            <label className="space-y-2">
-                                <span className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
-                                    {t('discoveryServiceArea')}
-                                </span>
-                                <div
-                                    className="relative flex items-center gap-2 rounded-2xl border px-3"
-                                    style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.82)' }}
-                                >
-                                    <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: 'var(--color-text-muted)' }}>
-                                        {t('discoveryArea')}
-                                    </span>
-                                    <select
-                                        value={selectedDiscoverySubregionId}
-                                        onChange={(event) => setSelectedDiscoverySubregion(event.target.value)}
-                                        className="w-full appearance-none bg-transparent py-3 pr-7 text-[15px] font-semibold leading-none outline-none"
-                                        style={{ color: 'var(--color-text)' }}
-                                    >
-                                        {discoverySubregionOptions.map((option) => (
-                                            <option key={option.id} value={String(option.id)}>
-                                                {option.discoveryLabel}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-50" />
-                                </div>
-                                {activeSubregionLabel ? (
-                                    <p className="text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                        {t('discoveryAreaLimited', { area: activeSubregionLabel })}
-                                    </p>
-                                ) : null}
-                            </label>
                         ) : null}
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -517,12 +470,9 @@ function MobileFilterSheet({
 
 function DesktopFilterPanel({
     activeTab,
-    activeSubregionLabel,
     canShowSaveAll,
-    canUseSubregionScope,
     canClearLocationSearch,
     clearLocationSearch,
-    discoverySubregionOptions = [],
     favoritesActionNotice,
     handleHomeAnchor,
     handleLocateMe,
@@ -544,10 +494,8 @@ function DesktopFilterPanel({
     saveAllPendingLabel,
     search,
     searchOrigin,
-    selectedDiscoverySubregionId,
     setActiveTab,
     setPostalInput,
-    setSelectedDiscoverySubregion,
     setShowFavoritesOnly,
     showFavoritesOnly,
     tabCounts = { all: 0, hard: 0, soft: 0 },
@@ -557,7 +505,6 @@ function DesktopFilterPanel({
     const { t } = useLocale();
     const summaryChips = buildSummaryChips({
         activeTab,
-        activeSubregionLabel,
         search,
         showFavoritesOnly,
         t,
@@ -702,65 +649,22 @@ function DesktopFilterPanel({
 
             <div className="space-y-4 p-6 pt-2">
                 <div className="flex flex-col gap-3">
-                    {canUseSubregionScope ? (
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-                            <div className="relative">
-                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
-                                <input
-                                    type="search"
-                                    placeholder={t('discoverySearchPlaceholder')}
-                                    value={search}
-                                    onChange={(event) => onSearchChange(event.target.value)}
-                                    className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
-                                    style={{
-                                        ...INPUT_RING_STYLE,
-                                        backgroundColor: 'var(--color-input-bg)',
-                                        color: 'var(--color-text)',
-                                        border: '1.5px solid var(--color-border)',
-                                    }}
-                                />
-                            </div>
-
-                            <label
-                                className={`relative flex ${DISCOVERY_CONTROL_HEIGHT_CLASS} items-center gap-2 rounded-2xl border bg-white px-3`}
-                                style={{ borderColor: 'var(--color-border)' }}
-                            >
-                                <span className={`shrink-0 ${DISCOVERY_LABEL_TEXT_CLASS}`} style={{ color: 'var(--color-text-muted)' }}>
-                                    {t('discoveryArea')}
-                                </span>
-                                <select
-                                    value={selectedDiscoverySubregionId}
-                                    onChange={(event) => setSelectedDiscoverySubregion(event.target.value)}
-                                    className={`w-full ${DISCOVERY_CONTROL_HEIGHT_CLASS} cursor-pointer appearance-none bg-transparent pl-0 pr-7 py-2.5 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none transition-all`}
-                                    style={{ color: 'var(--color-text)' }}
-                                >
-                                    {discoverySubregionOptions.map((option) => (
-                                        <option key={option.id} value={String(option.id)}>
-                                            {option.discoveryLabel}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-50" />
-                            </label>
-                        </div>
-                    ) : (
-                        <div className="relative">
-                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
-                            <input
-                                type="search"
-                                placeholder={t('discoverySearchPlaceholder')}
-                                value={search}
-                                onChange={(event) => onSearchChange(event.target.value)}
-                                className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
-                                style={{
-                                    ...INPUT_RING_STYLE,
-                                    backgroundColor: 'var(--color-input-bg)',
-                                    color: 'var(--color-text)',
-                                    border: '1.5px solid var(--color-border)',
-                                }}
-                            />
-                        </div>
-                    )}
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
+                        <input
+                            type="search"
+                            placeholder={t('discoverySearchPlaceholder')}
+                            value={search}
+                            onChange={(event) => onSearchChange(event.target.value)}
+                            className={`w-full rounded-2xl py-2.5 pl-9 pr-3 ${DISCOVERY_CONTROL_TEXT_CLASS} font-medium focus:outline-none focus:ring-2 ${DISCOVERY_CONTROL_HEIGHT_CLASS} transition-all`}
+                            style={{
+                                ...INPUT_RING_STYLE,
+                                backgroundColor: 'var(--color-input-bg)',
+                                color: 'var(--color-text)',
+                                border: '1.5px solid var(--color-border)',
+                            }}
+                        />
+                    </div>
 
                     <div ref={locationControlsRef} className="flex gap-2">
                         <div className="relative flex-1">
@@ -924,12 +828,9 @@ export function DiscoveryFilterPanel(props) {
     const { t } = useLocale();
     const {
         activeTab,
-        activeSubregionLabel,
         canShowSaveAll = false,
-        canUseSubregionScope = false,
         canClearLocationSearch = true,
         clearLocationSearch,
-        discoverySubregionOptions = [],
         favoritesActionNotice = '',
         handleHomeAnchor,
         handleLocateMe,
@@ -958,10 +859,8 @@ export function DiscoveryFilterPanel(props) {
         saveAllPendingLabel,
         search,
         searchOrigin,
-        selectedDiscoverySubregionId = '',
         setActiveTab,
         setPostalInput,
-        setSelectedDiscoverySubregion = () => {},
         setShowFavoritesOnly,
         showFavoritesOnly,
         tabCounts = { all: 0, hard: 0, soft: 0 },
@@ -972,7 +871,6 @@ export function DiscoveryFilterPanel(props) {
 
     const summaryChips = buildSummaryChips({
         activeTab,
-        activeSubregionLabel,
         search,
         showFavoritesOnly,
         t,
@@ -1155,12 +1053,9 @@ export function DiscoveryFilterPanel(props) {
 
             <MobileFilterSheet
                 activeTab={activeTab}
-                activeSubregionLabel={activeSubregionLabel}
                 canShowSaveAll={canShowSaveAll}
-                canUseSubregionScope={canUseSubregionScope}
                 canClearLocationSearch={canClearLocationSearch}
                 clearLocationSearch={clearLocationSearch}
-                discoverySubregionOptions={discoverySubregionOptions}
                 favoritesActionNotice={favoritesActionNotice}
                 handleHomeAnchor={handleHomeAnchor}
                 handleLocateMe={handleLocateMe}
@@ -1179,10 +1074,8 @@ export function DiscoveryFilterPanel(props) {
                 saveAllCount={saveAllCount}
                 saveAllPendingLabel={resolvedSaveAllPendingLabel}
                 searchOrigin={searchOrigin}
-                selectedDiscoverySubregionId={selectedDiscoverySubregionId}
                 setActiveTab={setActiveTab}
                 setPostalInput={setPostalInput}
-                setSelectedDiscoverySubregion={setSelectedDiscoverySubregion}
                 setShowFavoritesOnly={setShowFavoritesOnly}
                 showFavoritesOnly={showFavoritesOnly}
                 tabCounts={tabCounts}

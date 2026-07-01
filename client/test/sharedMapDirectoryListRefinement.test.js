@@ -524,6 +524,30 @@ test('map notes preview toggles in place instead of adding a second note body', 
     assert.doesNotMatch(editorSource, /previewNoteIds\[note\.clientId\] && note\.text\.trim\(\) \? \(/);
 });
 
+test('map notes editor defaults existing notes to preview without forcing blank notes out of edit', () => {
+    const helperSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function buildDefaultPreviewNoteIds',
+        'function SharedResourceNotes',
+    );
+    const editorSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function ResourceNotesEditor',
+        'function ResourceNotesReadOnly',
+    );
+    const addNoteSource = sourceBetween(
+        editorSource,
+        'function addDraftNote',
+        'function removeDraftNote',
+    );
+
+    assert.match(helperSource, /String\(note\?\.text \|\| ''\)\.trim\(\)/);
+    assert.match(helperSource, /previewIds\[note\.clientId\] = true/);
+    assert.match(editorSource, /useState\(\(\) => \(\s*buildDefaultPreviewNoteIds\(buildNoteDrafts\(row \? \[row\] : \[\]\), rowKey\)\s*\)\)/);
+    assert.match(editorSource, /if \(previousRowKey !== rowKey\) \{\s*setPreviewNoteIds\(buildDefaultPreviewNoteIds\(nextDrafts, rowKey\)\);/);
+    assert.doesNotMatch(addNoteSource, /setPreviewNoteIds/);
+});
+
 test('map notes preview toggle uses explicit preview and edit labels', () => {
     const toolbarSource = sourceBetween(
         sharedMapDirectorySource,

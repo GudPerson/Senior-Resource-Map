@@ -9,7 +9,6 @@ import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { normalizeDiscoveryCacheRows } from '../lib/discoveryCache.js';
 import { normalizePostalCode } from '../lib/postalBoundaries.js';
-import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { useA11y } from '../contexts/A11yContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -544,8 +543,7 @@ export default function DiscoverPage() {
     );
     const { user, isAuth } = useAuth();
     const { t } = useLocale();
-    const normalizedUserRole = normalizeRole(user?.role);
-    const canUseDiscoverySubregions = isAuth && canAccessAdmin(normalizedUserRole);
+    const canUseDiscoverySubregions = false;
     const {
         bulkPending: isBulkFavoritesPending,
         bulkRemoveSavedAssets,
@@ -2339,12 +2337,9 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
-            activeSubregionLabel={activeDiscoverySubregion?.discoveryLabel || ''}
             canShowSaveAll={canShowSaveAllControl}
-            canUseSubregionScope={discoverySubregionOptions.length > 0}
             canClearLocationSearch={hasUserSelectedLocationFilter}
             clearLocationSearch={handleClearLocationSearch}
-            discoverySubregionOptions={discoverySubregionOptions}
             favoritesActionNotice={favoritesActionNotice}
             handleHomeAnchor={handleHomeAnchorAndCollapse}
             handleLocateMe={handleLocateMeAndCollapse}
@@ -2374,10 +2369,8 @@ export default function DiscoverPage() {
             saveAllPendingLabel={saveAllPendingAction === 'remove' ? t('discoverySaveAllClearing') : t('discoverySaveAllSaving')}
             search={search}
             searchOrigin={searchOrigin}
-            selectedDiscoverySubregionId={selectedDiscoverySubregionId}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
-            setSelectedDiscoverySubregion={setSelectedDiscoverySubregionId}
             setShowFavoritesOnly={setShowFavoritesOnly}
             showFavoritesOnly={showFavoritesOnly}
             tabCounts={tabCounts}

@@ -138,6 +138,15 @@ function buildNoteDrafts(rows) {
     }, {});
 }
 
+function buildDefaultPreviewNoteIds(drafts, rowKey) {
+    return (drafts?.[rowKey]?.notes || []).reduce((previewIds, note) => {
+        if (String(note?.text || '').trim()) {
+            previewIds[note.clientId] = true;
+        }
+        return previewIds;
+    }, {});
+}
+
 function SharedResourceNotes({ notes, compact = false, print = false }) {
     const { t } = useLocale();
     const items = (notes || []).filter((note) => String(note?.text || '').trim());
@@ -360,7 +369,9 @@ function ResourceNotesEditor({
     const [saveState, setSaveState] = useState('idle');
     const [showSaveStatus, setShowSaveStatus] = useState(false);
     const [error, setError] = useState('');
-    const [previewNoteIds, setPreviewNoteIds] = useState({});
+    const [previewNoteIds, setPreviewNoteIds] = useState(() => (
+        buildDefaultPreviewNoteIds(buildNoteDrafts(row ? [row] : []), rowKey)
+    ));
     const activeRowKeyRef = useRef(rowKey);
     const draftsRef = useRef(drafts);
     const rowRef = useRef(row);
@@ -486,6 +497,9 @@ function ResourceNotesEditor({
         }
         draftsRef.current = nextDrafts;
         setDrafts(nextDrafts);
+        if (previousRowKey !== rowKey) {
+            setPreviewNoteIds(buildDefaultPreviewNoteIds(nextDrafts, rowKey));
+        }
     }, [rowKey, remoteSignature]);
 
     useEffect(() => {
