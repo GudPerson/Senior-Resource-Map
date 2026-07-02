@@ -282,17 +282,99 @@ function toAbsoluteUrl(candidate, baseUrl) {
     }
 }
 
+function normalizeHostname(hostname) {
+    return String(hostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+}
+
+function parseIpv4Address(hostname) {
+    const parts = normalizeHostname(hostname).split('.');
+    if (parts.length !== 4) return null;
+    const octets = parts.map((part) => {
+        if (!/^\d{1,3}$/.test(part)) return null;
+        const value = Number.parseInt(part, 10);
+        return value >= 0 && value <= 255 ? value : null;
+    });
+    return octets.every((value) => value !== null) ? octets : null;
+}
+
+function isBlockedIpv4(hostname) {
+    const octets = parseIpv4Address(hostname);
+    if (!octets) return false;
+    const [first, second] = octets;
+    if (first === 0 || first === 10 || first === 127) return true;
+    if (first === 100 && second >= 64 && second <= 127) return true;
+    if (first === 169 && second === 254) return true;
+    if (first === 172 && second >= 16 && second <= 31) return true;
+    if (first === 192 && [0, 2, 168].includes(second)) return true;
+    if (first === 198 && (second === 18 || second === 19 || second === 51)) return true;
+    if (first === 203 && second === 0) return true;
+    if (first >= 224) return true;
+    return false;
+}
+
+function isBlockedIpv6(hostname) {
+    const host = normalizeHostname(hostname);
+    if (!host.includes(':')) return false;
+    if (host === '::' || host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
+    if (host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:')) return true;
+    if (host.startsWith('ff') || host.startsWith('2001:db8:')) return true;
+    if (host.startsWith('::ffff:')) return isBlockedIpv4(host.slice('::ffff:'.length));
+    return false;
+}
+
+export function assertSafeMetadataUrl(value, baseUrl = undefined) {
+    const parsed = new URL(value, baseUrl);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') {
+        throw new Error('Website metadata URL must use HTTP or HTTPS.');
+    }
+
+    const hostname = normalizeHostname(parsed.hostname);
+    if (!hostname
+        || hostname === 'localhost'
+        || hostname.endsWith('.localhost')
+        || hostname.endsWith('.local')
+        || hostname.endsWith('.internal')
+        || isBlockedIpv4(hostname)
+        || isBlockedIpv6(hostname)) {
+        throw new Error('Website metadata URL must point to a public site.');
+    }
+
+    parsed.hash = '';
+    return parsed.toString();
+}
+
+async function fetchSafeMetadataUrl(url, options = {}, redirectLimit = 3) {
+    let currentUrl = assertSafeMetadataUrl(url);
+
+    for (let redirectCount = 0; redirectCount <= redirectLimit; redirectCount += 1) {
+        const response = await fetch(currentUrl, {
+            ...options,
+            redirect: 'manual',
+        });
+
+        if (![301, 302, 303, 307, 308].includes(response.status)) {
+            return { response, url: currentUrl };
+        }
+
+        const location = response.headers.get('location');
+        if (!location) throw new Error('Website metadata redirect did not include a destination.');
+        currentUrl = assertSafeMetadataUrl(location, currentUrl);
+    }
+
+    throw new Error('Website metadata redirected too many times.');
+}
+
 async function fetchHtml(url) {
     const timeoutSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
         ? AbortSignal.timeout(6000)
         : undefined;
 
-    const response = await fetch(url, {
+    const { response, url: resolvedUrl } = await fetchSafeMetadataUrl(url, {
         headers: {
             Accept: 'text/html,application/xhtml+xml',
             'User-Agent': 'CareAroundSGImport/1.0',
         },
-        redirect: 'follow',
         signal: timeoutSignal,
     });
 
@@ -307,7 +389,7 @@ async function fetchHtml(url) {
 
     const html = (await response.text()).slice(0, 250_000);
     return {
-        url: response.url || url,
+        url: resolvedUrl,
         html,
     };
 }
@@ -353,14 +435,14 @@ async function validateImageUrl(url) {
     };
 
     try {
-        const headResponse = await fetch(url, { ...requestOptions, method: 'HEAD' });
+        const { response: headResponse } = await fetchSafeMetadataUrl(url, { ...requestOptions, method: 'HEAD' });
         if (await isFetchImageResponse(headResponse, url)) return true;
     } catch {
         // Some sites reject HEAD; fall back to a tiny GET below.
     }
 
     try {
-        const getResponse = await fetch(url, {
+        const { response: getResponse } = await fetchSafeMetadataUrl(url, {
             ...requestOptions,
             method: 'GET',
             headers: {

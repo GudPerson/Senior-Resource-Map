@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 
 import { Hono } from 'hono';
 
-import { me } from '../src/controllers/authController.js';
+import {
+    isVerifiedGoogleEmail,
+    me,
+    normalizeGoogleSubject,
+    shouldRejectGoogleEmailOnlyAccountLink,
+} from '../src/controllers/authController.js';
 import { createSessionToken, SESSION_HEADER_NAME } from '../src/utils/sessionAuth.js';
 
 const TEST_ENV = {
@@ -39,4 +44,21 @@ test('/auth/me returns a server error instead of clearing the session when live 
     } finally {
         console.error = originalConsoleError;
     }
+});
+
+test('Google sign-in policy requires verified stable subject identity', () => {
+    assert.equal(normalizeGoogleSubject({ sub: ' google-sub-123 ' }), 'google-sub-123');
+    assert.equal(normalizeGoogleSubject({ email: 'user@example.test' }), '');
+    assert.equal(isVerifiedGoogleEmail({ email_verified: true }), true);
+    assert.equal(isVerifiedGoogleEmail({ email_verified: 'true' }), true);
+    assert.equal(isVerifiedGoogleEmail({ email_verified: false }), false);
+});
+
+test('Google sign-in rejects email-only linking to an existing account', () => {
+    const existingEmailUser = { id: 10, email: 'user@example.test' };
+    const existingSubjectUser = { id: 11, googleSubject: 'google-sub-123' };
+
+    assert.equal(shouldRejectGoogleEmailOnlyAccountLink(null, existingEmailUser), true);
+    assert.equal(shouldRejectGoogleEmailOnlyAccountLink(existingSubjectUser, existingEmailUser), false);
+    assert.equal(shouldRejectGoogleEmailOnlyAccountLink(null, null), false);
 });

@@ -61,6 +61,23 @@ const googleAuthBodySchema = z.object({
     ...profileRegistrationFieldsSchema,
 });
 
+function normalizeText(value) {
+    if (value === undefined || value === null) return '';
+    return String(value).trim();
+}
+
+export function isVerifiedGoogleEmail(payload) {
+    return payload?.email_verified === true || String(payload?.email_verified || '').toLowerCase() === 'true';
+}
+
+export function normalizeGoogleSubject(payload) {
+    return String(payload?.sub || '').trim();
+}
+
+export function shouldRejectGoogleEmailOnlyAccountLink(subjectMatchedUser, emailMatchedUser) {
+    return !subjectMatchedUser && Boolean(emailMatchedUser);
+}
+
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
         ? rawSubregionIds
@@ -357,21 +374,36 @@ export const googleAuth = async (c) => {
         if (!credential) return c.json({ error: 'No credential provided' }, 400);
 
         // Verify with Google's native REST endpoint instead of heavy google-auth-library
-        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
         const payload = await response.json();
 
-        if (!response.ok || !payload || payload.aud !== c.env.VITE_GOOGLE_CLIENT_ID) {
+        const googleSubject = normalizeGoogleSubject(payload);
+        const email = normalizeText(payload?.email).toLowerCase();
+
+        if (!response.ok
+            || !payload
+            || payload.aud !== c.env.VITE_GOOGLE_CLIENT_ID
+            || !googleSubject
+            || !email
+            || !isVerifiedGoogleEmail(payload)) {
             return c.json({ error: 'Invalid Google token' }, 401);
         }
 
-        const { email, name } = payload;
+        const { name } = payload;
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db, c.env);
 
-        let [user] = await db.select().from(users).where(eq(users.email, email));
+        let [user] = await db.select().from(users).where(eq(users.googleSubject, googleSubject));
 
         if (!user) {
+            const [emailMatchedUser] = await db.select().from(users).where(eq(users.email, email));
+            if (shouldRejectGoogleEmailOnlyAccountLink(user, emailMatchedUser)) {
+                return c.json({
+                    error: 'This email is already registered. Sign in with email first before linking Google.',
+                }, 409);
+            }
+
             const postalCode = normalizeOptionalPostalCode(body.postalCode);
             const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
             const chasCard = normalizeChasCard(body.chasCard);
@@ -398,6 +430,7 @@ export const googleAuth = async (c) => {
             [user] = await db.insert(users).values({
                 username: finalUsername,
                 email,
+                googleSubject,
                 name: name || baseUsername,
                 passwordHash,
                 role: 'standard',

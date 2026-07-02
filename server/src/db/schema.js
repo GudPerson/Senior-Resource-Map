@@ -24,6 +24,7 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   username: varchar('username', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  googleSubject: varchar('google_subject', { length: 255 }),
   passwordHash: text('password_hash').notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   role: roleEnum('role').notNull().default('standard'),
@@ -37,7 +38,11 @@ export const users = pgTable('users', {
   propertyType: varchar('property_type', { length: 60 }),
   volunteerInterest: varchar('volunteer_interest', { length: 10 }),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => ({
+  googleSubjectUnique: uniqueIndex('users_google_subject_unique')
+    .on(table.googleSubject)
+    .where(sql`${table.googleSubject} IS NOT NULL`),
+}));
 
 export const partnerOrganizations = pgTable('partner_organizations', {
   id: serial('id').primaryKey(),
