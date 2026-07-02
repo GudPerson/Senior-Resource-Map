@@ -12,6 +12,8 @@ import {
     hasHardAssetStaffAccess,
 } from '../../lib/roles.js';
 
+export const DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME = 'hidden w-64 flex-shrink-0 flex-col gap-2 border-r border-slate-100 bg-white px-4 py-6 lg:sticky lg:top-[64px] lg:flex lg:h-[calc(100svh-64px)] lg:self-start lg:overflow-y-auto';
+
 function SidebarLink({ to, icon: Icon, id, label, onNavigate }) {
     return (
         <NavLink

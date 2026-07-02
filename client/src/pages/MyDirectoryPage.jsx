@@ -10,7 +10,7 @@ import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
 import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
-import { DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
+import { DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME, DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -416,7 +416,7 @@ export default function MyDirectoryPage() {
             {confirmDialog}
 
             <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
-                <aside className="hidden w-64 flex-shrink-0 flex-col gap-2 border-r border-slate-100 bg-white px-4 py-6 lg:flex">
+                <aside className={DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME}>
                     <DashboardSidebar
                         isImpersonating={isImpersonating}
                         onLogout={handleLogout}
