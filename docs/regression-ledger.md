@@ -340,6 +340,14 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Acceptance criteria: signed-in users remain signed in unless the primary session endpoint definitively returns an invalid or missing token; successful email, Google, or phone sign-in clears stale stored WhatsApp login attempts so the login page does not re-open an old signup-required state.
 - Verification result: `node --test client/test/*.test.js` passed 26/26, `npm run build:client` passed, `npm run test:server` passed 223/223, and production public smoke for `/` -> `/discover` passed on 2026-05-16. Full credentialed smoke was blocked because smoke credentials were not set in the shell.
 
+### 2026-07-02 WhatsApp phone-login attempt verifier
+
+- Current behavior: public WhatsApp phone-login polling and phone-first signup completion require both the serial attempt id and a browser-held high-entropy attempt verifier. The server stores only a SHA-256 verifier hash on `phone_login_attempts`; id-only poll or signup calls fail before provider polling, session issuance, or account creation.
+- Known-good reference: Codex Security finding `occ_4a70bc471388b34ce5d5bef0` for public phone-login attempt-id replay, plus the locked WhatsApp phone-login and Auth session continuity rows above.
+- Reproduction steps: start WhatsApp sign-in from `/login` or `/register`, confirm the initiating browser can poll and resume the attempt after the GudAuth return, then attempt to poll or complete signup with only `/api/auth/phone/:attemptId` and no verifier.
+- Acceptance criteria: the initiating browser can still complete existing verified-phone login and guided phone-first signup; stale stored attempts without a verifier are ignored; missing or wrong verifier returns a safe failure; raw `users.phone` is still not trusted; no Gmail/email, Google login, profile phone-linking, Discover, My Directory, dashboard resource, or secret behavior changes.
+- Verification result: `node --test server/test/phoneLogin.test.js server/test/phoneIdentitySchema.test.js client/test/phoneLoginAttemptStorage.test.js` passed 27/27, `npm run test:server` passed 383/383, `node --test client/test/*.test.js client/src/lib/*.test.js` passed 366/366, and `VITE_API_URL=https://api.carearound.sg/api npm run build:client` passed with the existing large chunk warning on 2026-07-02.
+
 ### 2026-05-30 Admin Tools selected-user view stability
 
 - Current behavior: when a Super Admin opens another user's account from Admin Tools, the selected-user session token is preserved across transient `/auth/me` failures. Temporary network, timeout, or server failures no longer clear the selected-user token and then re-check with the normal Super Admin cookie. Definitive expired or invalid selected-user tokens can still exit back to the normal Super Admin session.

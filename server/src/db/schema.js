@@ -489,6 +489,7 @@ export const phoneLoginAttempts = pgTable('phone_login_attempts', {
   id: serial('id').primaryKey(),
   provider: varchar('provider', { length: 40 }).notNull().default('gudauth'),
   providerChallengeId: varchar('provider_challenge_id', { length: 255 }),
+  attemptTokenHash: varchar('attempt_token_hash', { length: 128 }),
   requestedPhoneE164: varchar('requested_phone_e164', { length: 32 }),
   verifiedPhoneE164: varchar('verified_phone_e164', { length: 32 }),
   resolvedUserId: integer('resolved_user_id').references(() => users.id, { onDelete: 'set null' }),

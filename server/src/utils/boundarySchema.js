@@ -96,6 +96,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS snapshot JSONB`);
+            await db.execute(sql`ALTER TABLE phone_login_attempts ADD COLUMN IF NOT EXISTS attempt_token_hash VARCHAR(128)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_maps (
                     id SERIAL PRIMARY KEY,
@@ -398,6 +399,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     id SERIAL PRIMARY KEY,
                     provider VARCHAR(40) NOT NULL DEFAULT 'gudauth',
                     provider_challenge_id VARCHAR(255),
+                    attempt_token_hash VARCHAR(128),
                     requested_phone_e164 VARCHAR(32),
                     verified_phone_e164 VARCHAR(32),
                     resolved_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

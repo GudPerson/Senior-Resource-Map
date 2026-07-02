@@ -36,6 +36,44 @@ function createPhoneLoginError(message, status = 400, code = 'phone_login_error'
     return err;
 }
 
+function createPhoneLoginAttemptToken() {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map((value) => value.toString(16).padStart(2, '0')).join('');
+}
+
+export async function hashPhoneLoginAttemptToken(attemptToken) {
+    const token = String(attemptToken || '').trim();
+    if (!token) return '';
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+    return Array.from(new Uint8Array(digest))
+        .map((value) => value.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function timingSafeEqualString(a, b) {
+    const left = String(a || '');
+    const right = String(b || '');
+    if (left.length !== right.length) return false;
+    let diff = 0;
+    for (let index = 0; index < left.length; index += 1) {
+        diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+    }
+    return diff === 0;
+}
+
+async function verifyPhoneLoginAttemptToken(attempt, attemptToken) {
+    const expectedHash = String(attempt?.attemptTokenHash || '').trim();
+    if (!expectedHash) {
+        throw createPhoneLoginError('This WhatsApp sign-in has expired. Please start again.', 403, 'attempt_verifier_required');
+    }
+
+    const suppliedHash = await hashPhoneLoginAttemptToken(attemptToken);
+    if (!suppliedHash || !timingSafeEqualString(suppliedHash, expectedHash)) {
+        throw createPhoneLoginError('This WhatsApp sign-in has expired. Please start again.', 403, 'invalid_attempt_verifier');
+    }
+}
+
 function getProviderChallengePayload(payload) {
     if (!payload || typeof payload !== 'object') return null;
     if (payload.data?.challenge && typeof payload.data.challenge === 'object') return payload.data.challenge;
@@ -348,8 +386,11 @@ export async function startPhoneLoginAttempt({ store, gudAuthClient, input = {} 
         throw createPhoneLoginError('Enter a valid Singapore phone number to continue.', 400, 'invalid_phone');
     }
 
+    const attemptToken = createPhoneLoginAttemptToken();
+    const attemptTokenHash = await hashPhoneLoginAttemptToken(attemptToken);
     const attempt = await store.createAttempt({
         provider: 'gudauth',
+        attemptTokenHash,
         requestedPhoneE164: phoneE164,
         status: PHONE_LOGIN_ATTEMPT_STATUS.pending,
     });
@@ -377,17 +418,19 @@ export async function startPhoneLoginAttempt({ store, gudAuthClient, input = {} 
 
     return {
         attemptId: updatedAttempt.id,
+        attemptToken,
         status: updatedAttempt.status,
         phone: maskPhoneIdentity(phoneE164),
         challenge: sanitizedChallenge,
     };
 }
 
-export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId }) {
+export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId, attemptToken }) {
     const attempt = await store.getAttemptById(attemptId);
     if (!attempt) {
         throw createPhoneLoginError('Phone sign-in attempt was not found.', 404, 'attempt_not_found');
     }
+    await verifyPhoneLoginAttemptToken(attempt, attemptToken);
 
     if (isTerminalAttemptStatus(attempt.status)) {
         if (attempt.status === PHONE_LOGIN_ATTEMPT_STATUS.verified && attempt.resolvedUserId) {
@@ -438,11 +481,12 @@ export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId })
     });
 }
 
-export async function completePhoneLoginSignup({ store, attemptId, input = {} }) {
+export async function completePhoneLoginSignup({ store, attemptId, attemptToken, input = {} }) {
     const attempt = await store.getAttemptById(attemptId);
     if (!attempt) {
         throw createPhoneLoginError('Phone sign-up attempt was not found.', 404, 'attempt_not_found');
     }
+    await verifyPhoneLoginAttemptToken(attempt, attemptToken);
 
     if (
         attempt.status !== PHONE_LOGIN_ATTEMPT_STATUS.signupRequired

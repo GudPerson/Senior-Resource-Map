@@ -5,9 +5,12 @@ import {
     PHONE_LOGIN_ATTEMPT_STATUS,
     completePhoneLoginSignup,
     createPhoneLoginStore,
+    hashPhoneLoginAttemptToken,
     pollPhoneLoginAttempt,
     startPhoneLoginAttempt,
 } from '../src/utils/phoneLogin.js';
+
+const TEST_ATTEMPT_TOKEN = 'test-phone-login-attempt-token';
 
 const BASE_USER = {
     id: 45,
@@ -19,6 +22,13 @@ const BASE_USER = {
     postalCode: '160024',
     subregionIds: [],
 };
+
+async function createSecuredAttempt(values, token = TEST_ATTEMPT_TOKEN) {
+    return {
+        ...values,
+        attemptTokenHash: await hashPhoneLoginAttemptToken(token),
+    };
+}
 
 function createMemoryStore({
     users = [BASE_USER],
@@ -137,6 +147,9 @@ test('phone login start creates a GudAuth challenge without a browser-side GudAu
 
     assert.equal(result.status, 'pending');
     assert.equal(result.attemptId, 1);
+    assert.match(result.attemptToken, /^[a-f0-9]{64}$/);
+    assert.equal(store.state.attempts[0].attemptTokenHash.length, 64);
+    assert.notEqual(store.state.attempts[0].attemptTokenHash, result.attemptToken);
     assert.equal(result.phone, '+65****2962');
     assert.equal(result.challenge.id, 'login-challenge-1');
     assert.equal(result.challenge.whatsappUrl, 'https://wa.me/6587651901?text=WAP-111222');
@@ -157,13 +170,13 @@ test('verified phone login resolves exactly one active verified phone identity',
             source: 'gudauth',
             revokedAt: null,
         }],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 2,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-2',
             requestedPhoneE164: '+6583682962',
             status: 'pending',
-        }],
+        })],
     });
 
     const result = await pollPhoneLoginAttempt({
@@ -180,6 +193,7 @@ test('verified phone login resolves exactly one active verified phone identity',
             },
         },
         attemptId: 2,
+        attemptToken: TEST_ATTEMPT_TOKEN,
     });
 
     assert.equal(result.status, 'verified');
@@ -188,17 +202,55 @@ test('verified phone login resolves exactly one active verified phone identity',
     assert.equal(store.state.attempts[0].verifiedPhoneE164, '+6583682962');
 });
 
+test('verified phone login rejects public attempt id polling without the browser verifier', async () => {
+    const store = createMemoryStore({
+        identities: [{
+            id: 5,
+            userId: BASE_USER.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: null,
+        }],
+        attempts: [await createSecuredAttempt({
+            id: 20,
+            provider: 'gudauth',
+            providerChallengeId: 'login-challenge-20',
+            requestedPhoneE164: '+6583682962',
+            status: 'pending',
+        })],
+    });
+    let providerCalls = 0;
+
+    await assert.rejects(
+        () => pollPhoneLoginAttempt({
+            store,
+            gudAuthClient: {
+                async getChallenge() {
+                    providerCalls += 1;
+                    return { status: 'verified', phoneE164: '+6583682962' };
+                },
+            },
+            attemptId: 20,
+        }),
+        (err) => err.status === 403 && err.code === 'invalid_attempt_verifier',
+    );
+
+    assert.equal(providerCalls, 0);
+    assert.equal(store.state.attempts[0].resolvedUserId, undefined);
+});
+
 test('phone login never trusts raw users.phone without a verified identity', async () => {
     const store = createMemoryStore({
         users: [{ ...BASE_USER, phone: '83682962' }],
         identities: [],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 3,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-3',
             requestedPhoneE164: '+6583682962',
             status: 'pending',
-        }],
+        })],
     });
 
     const result = await pollPhoneLoginAttempt({
@@ -209,6 +261,7 @@ test('phone login never trusts raw users.phone without a verified identity', asy
             },
         },
         attemptId: 3,
+        attemptToken: TEST_ATTEMPT_TOKEN,
     });
 
     assert.equal(result.status, 'signup_required');
@@ -227,13 +280,13 @@ test('legacy unverified phone identities cannot be used for phone login', async 
             source: 'legacy_profile',
             revokedAt: null,
         }],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 4,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-4',
             requestedPhoneE164: '+6583682962',
             status: 'pending',
-        }],
+        })],
     });
 
     const result = await pollPhoneLoginAttempt({
@@ -244,6 +297,7 @@ test('legacy unverified phone identities cannot be used for phone login', async 
             },
         },
         attemptId: 4,
+        attemptToken: TEST_ATTEMPT_TOKEN,
     });
 
     assert.equal(result.status, 'conflict');
@@ -260,13 +314,13 @@ test('revoked phone identities cannot be used for phone login', async () => {
             source: 'gudauth',
             revokedAt: new Date('2026-05-08T10:00:00.000Z'),
         }],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 5,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-5',
             requestedPhoneE164: '+6583682962',
             status: 'pending',
-        }],
+        })],
     });
 
     const result = await pollPhoneLoginAttempt({
@@ -277,6 +331,7 @@ test('revoked phone identities cannot be used for phone login', async () => {
             },
         },
         attemptId: 5,
+        attemptToken: TEST_ATTEMPT_TOKEN,
     });
 
     assert.equal(result.status, 'signup_required');
@@ -303,13 +358,13 @@ test('defensive phone login conflict blocks multiple verified identities for one
                 revokedAt: null,
             },
         ],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 6,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-6',
             requestedPhoneE164: '+6583682962',
             status: 'pending',
-        }],
+        })],
     });
 
     const result = await pollPhoneLoginAttempt({
@@ -320,6 +375,7 @@ test('defensive phone login conflict blocks multiple verified identities for one
             },
         },
         attemptId: 6,
+        attemptToken: TEST_ATTEMPT_TOKEN,
     });
 
     assert.equal(result.status, 'conflict');
@@ -331,7 +387,7 @@ test('phone-first signup creates a standard user and verified phone identity aft
     const store = createMemoryStore({
         users: [],
         identities: [],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 7,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-7',
@@ -340,12 +396,13 @@ test('phone-first signup creates a standard user and verified phone identity aft
             status: 'signup_required',
             providerStatus: 'verified',
             failureReason: 'signup_required',
-        }],
+        })],
     });
 
     const result = await completePhoneLoginSignup({
         store,
         attemptId: 7,
+        attemptToken: TEST_ATTEMPT_TOKEN,
         input: {
             name: 'Cynthia Peace',
             postalCode: '160024',
@@ -366,6 +423,38 @@ test('phone-first signup creates a standard user and verified phone identity aft
     assert.equal(identity.nationalNumber, '90011859');
     assert.equal(identity.status, 'verified');
     assert.equal(identity.source, 'gudauth');
+});
+
+test('phone-first signup rejects public attempt id completion without the browser verifier', async () => {
+    const store = createMemoryStore({
+        users: [],
+        identities: [],
+        attempts: [await createSecuredAttempt({
+            id: 21,
+            provider: 'gudauth',
+            providerChallengeId: 'login-challenge-21',
+            requestedPhoneE164: '+6590011859',
+            verifiedPhoneE164: '+6590011859',
+            status: 'signup_required',
+            providerStatus: 'verified',
+            failureReason: 'signup_required',
+        })],
+    });
+
+    await assert.rejects(
+        () => completePhoneLoginSignup({
+            store,
+            attemptId: 21,
+            input: {
+                name: 'Cynthia Peace',
+                postalCode: '160024',
+            },
+        }),
+        (err) => err.status === 403 && err.code === 'invalid_attempt_verifier',
+    );
+
+    assert.equal(store.state.users.length, 0);
+    assert.equal(store.state.identities.length, 0);
 });
 
 test('phone-first signup store avoids unsupported Neon HTTP transactions', async () => {
@@ -432,18 +521,19 @@ test('phone-first signup rejects attempts that are not ready for signup', async 
         PHONE_LOGIN_ATTEMPT_STATUS.conflict,
     ]) {
         const store = createMemoryStore({
-            attempts: [{
+            attempts: [await createSecuredAttempt({
                 id: 8,
                 provider: 'gudauth',
                 verifiedPhoneE164: '+6590011859',
                 status,
-            }],
+            })],
         });
 
         await assert.rejects(
             () => completePhoneLoginSignup({
                 store,
                 attemptId: 8,
+                attemptToken: TEST_ATTEMPT_TOKEN,
                 input: { name: 'Test User' },
             }),
             /not ready/i,
@@ -462,7 +552,7 @@ test('phone-first signup refuses if the verified phone becomes linked before com
             source: 'gudauth',
             revokedAt: null,
         }],
-        attempts: [{
+        attempts: [await createSecuredAttempt({
             id: 9,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-9',
@@ -471,12 +561,13 @@ test('phone-first signup refuses if the verified phone becomes linked before com
             status: 'signup_required',
             providerStatus: 'verified',
             failureReason: 'signup_required',
-        }],
+        })],
     });
 
     const result = await completePhoneLoginSignup({
         store,
         attemptId: 9,
+        attemptToken: TEST_ATTEMPT_TOKEN,
         input: { name: 'New User' },
     });
 

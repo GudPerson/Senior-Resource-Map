@@ -14,12 +14,14 @@ export function readStoredPhoneLoginAttempt() {
         const parsed = JSON.parse(raw);
         const attemptId = Number.parseInt(String(parsed?.attemptId || ''), 10);
         const expiresAt = Number.parseInt(String(parsed?.expiresAt || ''), 10);
-        if (!attemptId || !expiresAt || Date.now() > expiresAt) {
+        const attemptToken = clean(parsed?.attemptToken);
+        if (!attemptId || !attemptToken || !expiresAt || Date.now() > expiresAt) {
             window.localStorage.removeItem(PHONE_LOGIN_ATTEMPT_STORAGE_KEY);
             return null;
         }
         return {
             attemptId,
+            attemptToken,
             phone: clean(parsed?.phone),
             returnTo: clean(parsed?.returnTo),
         };
@@ -33,15 +35,17 @@ export function readStoredPhoneLoginAttempt() {
     }
 }
 
-export function writeStoredPhoneLoginAttempt(attemptId, phone, returnTo) {
+export function writeStoredPhoneLoginAttempt(attemptId, phone, returnTo, attemptToken) {
     if (typeof window === 'undefined') return;
 
     const normalizedAttemptId = Number.parseInt(String(attemptId || ''), 10);
-    if (!normalizedAttemptId) return;
+    const verifier = clean(attemptToken);
+    if (!normalizedAttemptId || !verifier) return;
 
     try {
         window.localStorage.setItem(PHONE_LOGIN_ATTEMPT_STORAGE_KEY, JSON.stringify({
             attemptId: normalizedAttemptId,
+            attemptToken: verifier,
             phone: clean(phone),
             returnTo: clean(returnTo),
             expiresAt: Date.now() + STORED_ATTEMPT_TTL_MS,

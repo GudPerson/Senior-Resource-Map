@@ -295,8 +295,15 @@ export const api = {
     register: (body) => request('POST', '/auth/register', body),
     googleAuth: (body) => request('POST', '/auth/google', body),
     startPhoneLogin: (body) => request('POST', '/auth/phone/start', body),
-    getPhoneLoginAttempt: (attemptId) => request('GET', `/auth/phone/${attemptId}`),
-    completePhoneLoginSignup: (attemptId, body) => request('POST', `/auth/phone/${attemptId}/signup`, body),
+    getPhoneLoginAttempt: (attemptId, attemptToken = '') => {
+        const query = attemptToken ? `?attemptToken=${encodeURIComponent(attemptToken)}` : '';
+        return request('GET', `/auth/phone/${attemptId}${query}`);
+    },
+    completePhoneLoginSignup: (attemptId, body = {}, attemptToken = '') => request(
+        'POST',
+        `/auth/phone/${attemptId}/signup`,
+        { ...body, attemptToken: attemptToken || body.attemptToken || '' },
+    ),
     createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
     // Hard Assets

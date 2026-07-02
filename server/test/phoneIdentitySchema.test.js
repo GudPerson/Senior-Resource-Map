@@ -68,6 +68,17 @@ test('runtime schema bootstrap includes pre-session phone login attempts table',
     );
     assert.ok(
         statements.some((statement) => (
+            statement.includes('create table if not exists phone_login_attempts')
+            && statement.includes('attempt_token_hash varchar(128)')
+        )),
+        'expected phone_login_attempts verifier hash column in table SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table phone_login_attempts add column if not exists attempt_token_hash varchar(128)')),
+        'expected phone_login_attempts verifier hash migration SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
             statement.includes('create unique index if not exists phone_login_attempts_provider_challenge_unique')
             && statement.includes('where provider_challenge_id is not null')
         )),
