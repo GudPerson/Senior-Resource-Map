@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    api,
     buildRequestHeaders,
     requestFormDataWithBaseCandidates,
     requestWithBaseCandidates,
@@ -164,4 +165,28 @@ test('suppressAuthExpired option prevents auth-expired event dispatch', async ()
         globalThis.window = originalWindow;
         globalThis.CustomEvent = originalCustomEvent;
     }
+});
+
+test('phone login polling sends the verifier in a header instead of the URL', async () => {
+    const originalFetch = globalThis.fetch;
+    let requestedUrl = '';
+    let requestOptions = null;
+
+    globalThis.fetch = async (url, options) => {
+        requestedUrl = url;
+        requestOptions = options;
+        return new Response(JSON.stringify({ status: 'pending' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    try {
+        await api.getPhoneLoginAttempt(42, 'secret-verifier');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+
+    assert.equal(requestedUrl, '/api/auth/phone/42');
+    assert.equal(requestOptions.headers['X-Phone-Login-Token'], 'secret-verifier');
 });

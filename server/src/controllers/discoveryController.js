@@ -8,11 +8,14 @@ import {
     loadDiscoveryIndicatorResourceMetadata,
     normalizeDiscoveryIndicatorResources,
 } from '../utils/discoveryLocationIndicators.js';
+import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import {
     optionalOneLineTextSchema,
     positiveIntValueSchema,
     validateRequestBody,
 } from '../utils/inputValidation.js';
+import { resolveStandardAudienceZoneIds } from '../utils/audienceZones.js';
+import { isAssetVisible } from '../utils/visibility.js';
 
 const discoveryIndicatorBodySchema = z.object({
     resources: z.array(z.object({
@@ -44,14 +47,26 @@ export const getDiscoveryLocationIndicators = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        const [context, resourceMetadata] = await Promise.all([
+        const [
+            context,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+        ] = await Promise.all([
             buildDiscoveryIndicatorContext(db, user, {
                 contextPostalCode: body.contextPostalCode,
                 contextLocation: body.contextLocation,
                 env: c.env,
             }),
-            loadDiscoveryIndicatorResourceMetadata(db, resources),
+            resolveStandardAudiencePartnerIds(db, user),
+            resolveStandardAudienceZoneIds(db, user),
         ]);
+        const resourceMetadata = await loadDiscoveryIndicatorResourceMetadata(db, resources, {
+            isVisible: (asset) => isAssetVisible(asset, user, {
+                ownerPartner: asset.partner,
+                allowedPartnerAudienceIds,
+                allowedAudienceZoneIds,
+            }),
+        });
 
         return c.json({
             indicators: buildDiscoveryLocationIndicators(resourceMetadata, context),

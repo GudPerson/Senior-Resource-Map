@@ -322,6 +322,28 @@ test('getSharedMapDirectory returns the frozen share snapshot until the owner re
     assert.equal(directory.assets[0].notes.items[0].text, 'Original shared note.');
 });
 
+test('getSharedMapDirectory removes frozen hard assets that are no longer publicly visible', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap()],
+        mapAssets: [createMapAsset()],
+        shareSnapshots: [{
+            mapId: 3,
+            shareToken: 'shared-token',
+            snapshot: createSnapshotDirectory(),
+        }],
+        hardAsset: createHardAsset({ isHidden: true }),
+    });
+
+    const directory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+
+    assert.deepEqual(directory.assets, []);
+    assert.deepEqual(directory.places, []);
+    assert.deepEqual(directory.pins, []);
+    assert.equal(directory.summary.resourceCount, 0);
+    assert.equal(directory.summary.placeCount, 0);
+    assert.equal(directory.summary.mappablePlaceCount, 0);
+});
+
 test('getSharedMapDirectory returns a clean unavailable error when a token is invalid', async () => {
     const db = createFakeDb({ maps: [] });
 

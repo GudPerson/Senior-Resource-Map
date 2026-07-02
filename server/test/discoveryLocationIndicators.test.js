@@ -314,3 +314,47 @@ test('loadDiscoveryIndicatorResourceMetadata inherits host hard asset audience z
 
     assert.equal(indicators['soft:20'].withinAudienceZone, true);
 });
+
+test('loadDiscoveryIndicatorResourceMetadata drops resources hidden from the viewer', async () => {
+    const fakeDb = {
+        query: {
+            hardAssets: {
+                async findMany() {
+                    return [
+                        { id: 10, postalCode: '681809', isHidden: false, isDeleted: false },
+                        { id: 11, postalCode: '681810', isHidden: true, isDeleted: false },
+                    ];
+                },
+            },
+            softAssets: {
+                async findMany() {
+                    return [];
+                },
+            },
+        },
+        select(selection) {
+            const selectedKeys = Object.keys(selection);
+            return {
+                from() {
+                    return {
+                        async where() {
+                            if (selectedKeys.includes('subregionCode')) return [];
+                            if (selectedKeys.includes('postalCode')) return [];
+                            if (selectedKeys.includes('hardAssetId') && selectedKeys.includes('audienceZoneId')) return [];
+                            return [];
+                        },
+                    };
+                },
+            };
+        },
+    };
+
+    const metadata = await loadDiscoveryIndicatorResourceMetadata(fakeDb, [
+        { type: 'hard', id: 10 },
+        { type: 'hard', id: 11 },
+    ], {
+        isVisible: (asset) => !asset.isHidden && !asset.isDeleted,
+    });
+
+    assert.deepEqual(metadata.map((resource) => `${resource.type}:${resource.id}`), ['hard:10']);
+});

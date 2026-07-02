@@ -1,4 +1,5 @@
 import { hasHardAssetStaffAccess } from './hardAssetStaff.js';
+import { hasPartnerStaffAccess } from './partnerStaff.js';
 import { normalizePostalCode } from './postalBoundaries.js';
 import { normalizeRole } from './roles.js';
 import { hasSoftAssetStaffAccess } from './softAssetAccess.js';
@@ -101,9 +102,12 @@ export function isStandaloneSoftAsset(offering) {
 }
 
 export function filterSoftAssetsByRegionRelevance(offerings = [], actor) {
-    if (normalizeRole(actor?.role) === 'super_admin') return offerings;
+    const actorRole = normalizeRole(actor?.role);
+    if (actorRole === 'super_admin') return offerings;
     return offerings.filter((offering) => {
         if (hasSoftAssetStaffAccess(actor, offering?.id, ['owner', 'staff'])) return true;
+        if (actorRole === 'partner') return Number(offering?.partnerId) === Number(actor?.id);
+        if (hasPartnerStaffAccess(actor, offering?.partnerId, ['owner', 'editor'])) return true;
         if (isStandaloneSoftAsset(offering)) {
             return standaloneSoftAssetMatchesActorRegions(actor, offering);
         }

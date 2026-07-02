@@ -76,7 +76,7 @@ app.use('*', securityHeaders);
 app.use('*', cors({
     origin: resolveCorsOrigin,
     credentials: true,
-    allowHeaders: ['Content-Type', 'X-Session-Token'],
+    allowHeaders: ['Content-Type', 'X-Session-Token', 'X-Phone-Login-Token'],
 }));
 app.use('*', requestBodyGuard);
 

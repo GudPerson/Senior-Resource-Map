@@ -87,6 +87,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
         networkAttemptsPerBase = 2,
         suppressAuthExpired = false,
         keepalive = false,
+        headers = {},
     } = options;
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     const canUseFallbackBase = canRetryAcrossBases && canRetryAcrossBasesForPath(path);
@@ -103,7 +104,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
             try {
                 res = await fetchImpl(`${base}${path}`, {
                     method,
-                    headers: buildRequestHeaders(method, {}, body !== undefined),
+                    headers: buildRequestHeaders(method, headers, body !== undefined),
                     credentials: 'include',
                     ...(keepalive ? { keepalive: true } : {}),
                     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -296,8 +297,8 @@ export const api = {
     googleAuth: (body) => request('POST', '/auth/google', body),
     startPhoneLogin: (body) => request('POST', '/auth/phone/start', body),
     getPhoneLoginAttempt: (attemptId, attemptToken = '') => {
-        const query = attemptToken ? `?attemptToken=${encodeURIComponent(attemptToken)}` : '';
-        return request('GET', `/auth/phone/${attemptId}${query}`);
+        const headers = attemptToken ? { 'X-Phone-Login-Token': attemptToken } : {};
+        return request('GET', `/auth/phone/${attemptId}`, undefined, { headers });
     },
     completePhoneLoginSignup: (attemptId, body = {}, attemptToken = '') => request(
         'POST',

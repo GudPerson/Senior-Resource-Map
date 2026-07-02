@@ -129,11 +129,6 @@ function normalizeIp(value) {
 }
 
 function getClientKey(c) {
-    const sessionToken = c.req.header('x-session-token');
-    if (sessionToken) {
-        return `session:${sessionToken.slice(0, 24)}`;
-    }
-
     return `ip:${normalizeIp(
         c.req.header('cf-connecting-ip')
         || c.req.header('x-forwarded-for')
