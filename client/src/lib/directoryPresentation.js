@@ -9,6 +9,20 @@ function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+function normalizePlaceKeyList(values = []) {
+    const keys = [];
+    const seen = new Set();
+
+    (Array.isArray(values) ? values : []).forEach((value) => {
+        const key = String(value || '').trim();
+        if (!key || seen.has(key)) return;
+        keys.push(key);
+        seen.add(key);
+    });
+
+    return keys;
+}
+
 function parseCoordinate(value) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : null;
@@ -155,6 +169,18 @@ function getPrimaryCategoryEntry(rows = [], options = {}) {
         color: '',
         iconUrl: null,
     };
+}
+
+function isListOnlyGroupRow(row = {}) {
+    const assetMode = normalizeText(row.assetMode || row.asset_mode);
+    const bucket = normalizeText(row.bucket);
+    const subCategory = normalizeText(row.subCategory || row.sub_category);
+
+    return assetMode === 'group'
+        || bucket === 'group'
+        || bucket === 'groups'
+        || subCategory === 'group'
+        || Boolean(row.mapFocusPlaceKeys?.length);
 }
 
 function getGroupCategoryEntries(group = {}, options = {}) {
@@ -374,13 +400,18 @@ function splitMappedGroupsIntoColumns(groups) {
 
 function splitDisplayGroupsIntoColumns(groups) {
     if (!groups.length) {
-        return { leftGroups: [], rightGroups: [] };
+        return { leftGroups: [], rightGroups: [], mapColumnGroups: [] };
     }
 
-    const midpoint = Math.ceil(groups.length / 2);
+    const mapColumnGroups = groups.filter((group) => (
+        group.isUnmappedGroup && group.mapFocusPlaceKeys?.length
+    ));
+    const sideGroups = groups.filter((group) => !mapColumnGroups.includes(group));
+    const midpoint = Math.ceil(sideGroups.length / 2);
     return {
-        leftGroups: groups.slice(0, midpoint),
-        rightGroups: groups.slice(midpoint),
+        leftGroups: sideGroups.slice(0, midpoint),
+        rightGroups: sideGroups.slice(midpoint),
+        mapColumnGroups,
     };
 }
 
@@ -498,27 +529,33 @@ function buildGroupedPins(groups = [], options = {}) {
         });
 }
 
-function buildUnmappedDisplayGroup(row, index) {
+function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
     const placeKey = `unmapped:${row.rowKey || row.assetKey || index}`;
     const categoryLabel = getRowCategoryLabel(row);
     const categoryEntry = getPrimaryCategoryEntry([row]);
+    const mapFocusPlaceKeys = normalizePlaceKeyList(row.mapFocusPlaceKeys)
+        .filter((key) => mappedPlaceKeys.has(key));
+    const isMapFocusableListGroup = mapFocusPlaceKeys.length > 0;
+    const locationLine = isMapFocusableListGroup ? '' : (row.locationLabel || row.contextLabel || '');
 
     return {
         placeKey,
         placeId: null,
         name: row.name || row.placeName || 'Resource not shown on map',
-        address: row.locationLabel || row.contextLabel || null,
+        address: locationLine || null,
         postalCode: '',
         lat: null,
         lng: null,
         hasCoordinates: false,
-        shortLocationLine: row.locationLabel || row.contextLabel || '',
+        shortLocationLine: locationLine,
         distanceKm: null,
         distanceLabel: null,
         curatedCount: 1,
         rows: [{ ...row, placeKey }],
         nestedPlaces: [],
-        memberPlaceKeys: [placeKey],
+        memberPlaceKeys: [placeKey, ...mapFocusPlaceKeys],
+        mapFocusPlaceKeys,
+        isListOnlyGroup: isListOnlyGroupRow(row),
         isPostalGroup: false,
         isUnmappedGroup: true,
         categoryLabel,
@@ -559,6 +596,21 @@ function compareV2DisplayGroups(left, right) {
     if (resourceCompare !== 0) return resourceCompare;
 
     return compareText(left.placeKey, right.placeKey);
+}
+
+function buildMobileDisplayGroups(groups = []) {
+    const listOnlyGroups = [];
+    const otherGroups = [];
+
+    groups.forEach((group) => {
+        if (group?.isListOnlyGroup) {
+            listOnlyGroups.push(group);
+            return;
+        }
+        otherGroups.push(group);
+    });
+
+    return [...listOnlyGroups, ...otherGroups];
 }
 
 function buildHoverPlaceKeysByKey(groups = [], pinGroups = []) {
@@ -606,19 +658,23 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
     const orderedMappedGroups = mappedGroups
         .map(decorateV2MappedGroup)
         .sort(compareV2DisplayGroups);
+    const mappedPlaceKeys = new Set(orderedMappedGroups.map((group) => group.placeKey).filter(Boolean));
     const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(orderedMappedGroups);
     const orderedUnmappedRows = [...unmappedRows].sort((left, right) => {
         const categoryCompare = compareText(getRowCategoryLabel(left), getRowCategoryLabel(right));
         if (categoryCompare !== 0) return categoryCompare;
         return compareText(left.name, right.name);
     });
-    const unmappedDisplayGroups = orderedUnmappedRows.map(buildUnmappedDisplayGroup);
+    const unmappedDisplayGroups = orderedUnmappedRows.map((row, index) => (
+        buildUnmappedDisplayGroup(row, index, mappedPlaceKeys)
+    ));
     const displayGroups = [...orderedMappedGroups, ...unmappedDisplayGroups]
         .sort(compareV2DisplayGroups)
         .map((group, index) => ({
             ...group,
             number: index + 1,
         }));
+    const mobileDisplayGroups = buildMobileDisplayGroups(displayGroups);
     const displayGroupByKey = displayGroups.reduce((accumulator, group) => {
         accumulator[group.placeKey] = group;
         return accumulator;
@@ -642,6 +698,12 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         accumulator[group.placeKey] = group.placeKey;
         return accumulator;
     }, {});
+    const mapFocusPlaceKeysByKey = displayGroups.reduce((accumulator, group) => {
+        if (group.mapFocusPlaceKeys?.length) {
+            accumulator[group.placeKey] = [...group.mapFocusPlaceKeys];
+        }
+        return accumulator;
+    }, {});
     pinGroups.forEach((group) => {
         if (!group?.placeKey) return;
         groupKeyByPlaceKey[group.placeKey] = group.placeKey;
@@ -651,7 +713,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
             });
         }
     });
-    const { leftGroups, rightGroups } = splitDisplayGroupsIntoColumns(displayGroups);
+    const { leftGroups, rightGroups, mapColumnGroups } = splitDisplayGroupsIntoColumns(displayGroups);
 
     return {
         pins,
@@ -660,8 +722,10 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
             number: displayGroupByKey[group.placeKey]?.number || null,
         })),
         displayGroups,
+        mobileDisplayGroups,
         leftGroups,
         rightGroups,
+        mapColumnGroups,
         unmappedRows: orderedUnmappedRows,
         desktopUnmappedPlacement: 'none',
         leftUnmappedRows: [],
@@ -669,6 +733,7 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         dockedUnmappedRows: [],
         placeNumberByKey,
         groupKeyByPlaceKey,
+        mapFocusPlaceKeysByKey,
         hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(orderedMappedGroups, pinGroups),
         activeAnchor,
         activeAnchorNote: buildAnchorNote(activeAnchor),

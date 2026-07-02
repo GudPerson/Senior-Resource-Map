@@ -17,8 +17,8 @@ function buildEditableRules(rules) {
     const hasRawRules = Boolean(rules && typeof rules === 'object' && ('criteria' in rules || 'version' in rules));
     return {
         enabled: hasRawRules || Boolean(normalized),
-        ageMin: normalized?.criteria?.age?.min ?? rawCriteria?.age?.min ?? '',
-        ageMax: normalized?.criteria?.age?.max ?? rawCriteria?.age?.max ?? '',
+        ageMin: rawCriteria?.age?.min ?? normalized?.criteria?.age?.min ?? '',
+        ageMax: rawCriteria?.age?.max ?? normalized?.criteria?.age?.max ?? '',
         genders: normalized?.criteria?.gender?.anyOf ?? rawCriteria?.gender?.anyOf ?? [],
         chasCards: normalized?.criteria?.chasCard?.anyOf ?? rawCriteria?.chasCard?.anyOf ?? [],
         caregiverStatuses: normalized?.criteria?.caregiverStatus?.anyOf ?? rawCriteria?.caregiverStatus?.anyOf ?? [],
@@ -29,7 +29,7 @@ function buildEditableRules(rules) {
 
 function buildRulesPayload(state) {
     if (!state.enabled) return null;
-    return normalizeEligibilityRules({
+    return {
         version: 1,
         criteria: {
             age: {
@@ -52,7 +52,7 @@ function buildRulesPayload(state) {
                 anyOf: state.volunteerInterests,
             },
         },
-    }) || { version: 1, criteria: {} };
+    };
 }
 
 export default function EligibilityRulesEditor({

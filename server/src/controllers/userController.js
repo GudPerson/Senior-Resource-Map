@@ -55,6 +55,11 @@ export function shouldRefreshProfileSessionCookie(user) {
     return !user?.isImpersonating;
 }
 
+export function shouldRejectImpersonatedProfileUpdate(user, body = {}) {
+    if (!user?.isImpersonating) return false;
+    return Object.keys(body || {}).length > 0;
+}
+
 function normalizeRecoveryEmail(value) {
     const email = normalizeText(value).toLowerCase();
     if (!email || email.length > 255 || !recoveryEmailSchema.safeParse(email).success) {
@@ -759,6 +764,9 @@ export const updateProfile = async (c) => {
     try {
         const body = validateRequestBody(await c.req.json(), profileUpdateBodySchema, 'Profile details');
         const user = c.get('user');
+        if (shouldRejectImpersonatedProfileUpdate(user, body)) {
+            return c.json({ error: 'Exit User View before changing profile details.' }, 403);
+        }
         const currentRole = normalizeRole(user.role);
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);

@@ -1,6 +1,9 @@
+import { normalizeSocialLinks } from './socialLinks.js';
+
 export const SOFT_ASSET_MODES = Object.freeze({
     STANDALONE: 'standalone',
     CHILD: 'child',
+    GROUP: 'group',
 });
 
 export const PARENT_PROPAGATED_FIELDS = Object.freeze([
@@ -12,6 +15,11 @@ export const PARENT_PROPAGATED_FIELDS = Object.freeze([
     'logoUrl',
     'bannerUrl',
     'galleryUrls',
+    'website',
+    'socialLinks',
+    'contactPhone',
+    'whatsappContact',
+    'contactEmail',
     'audienceMode',
     'isMemberOnly',
     'eligibilityRules',
@@ -84,7 +92,15 @@ export function isChildSoftAsset(asset) {
     return (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.CHILD;
 }
 
+export function isGroupSoftAsset(asset) {
+    return (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.GROUP;
+}
+
 export function getSoftAssetLocations(asset) {
+    if (isGroupSoftAsset(asset)) {
+        return [];
+    }
+
     if (isChildSoftAsset(asset)) {
         return asset?.hostHardAsset ? [asset.hostHardAsset] : [];
     }
@@ -109,6 +125,8 @@ export function buildChildValuesFromParent(parent, host, actor, externalKey = nu
         logoUrl: parent.logoUrl || null,
         bannerUrl: parent.bannerUrl || null,
         galleryUrls: normalizeGalleryUrls(parent.galleryUrls),
+        website: parent.website || null,
+        socialLinks: normalizeSocialLinks(parent.socialLinks),
         audienceMode: parent.audienceMode || 'public',
         isMemberOnly: Boolean(parent.isMemberOnly),
         eligibilityRules: parent.eligibilityRules || null,
@@ -116,9 +134,9 @@ export function buildChildValuesFromParent(parent, host, actor, externalKey = nu
         hideFrom: null,
         hideUntil: null,
         overriddenFields: [],
-        contactPhone: host.phone || null,
-        whatsappContact: host.whatsappContact || null,
-        contactEmail: null,
+        contactPhone: parent.contactPhone || host.phone || null,
+        whatsappContact: parent.whatsappContact || host.whatsappContact || null,
+        contactEmail: parent.contactEmail || null,
         ctaLabel: null,
         ctaUrl: null,
         venueNote: null,
@@ -140,6 +158,10 @@ export function buildChildPropagationPatch(parent, child) {
 
         if (field === 'galleryUrls') {
             patch.galleryUrls = normalizeGalleryUrls(parent.galleryUrls);
+            continue;
+        }
+        if (field === 'socialLinks') {
+            patch.socialLinks = normalizeSocialLinks(parent.socialLinks);
             continue;
         }
 

@@ -7,8 +7,11 @@ import {
     audienceZones,
     hardAssets,
     sensitiveAuditLogs,
+    softAssetGroupMembers,
     softAssetLocations,
     softAssetParents,
+    softAssetRegionCoverages,
+    softAssetStaffMemberships,
     softAssets,
     subCategories,
     subregionPostalCodes,
@@ -33,6 +36,11 @@ import {
     normalizeGalleryUrls,
     normalizeTagList,
 } from '../utils/softAssetHierarchy.js';
+import {
+    getGroupMemberAsset,
+    GROUP_MEMBER_TYPES,
+    isPublicGroupMemberEntry,
+} from '../utils/softAssetGroups.js';
 import { normalizeRole } from '../utils/roles.js';
 import { actorCanManageAsset, actorCanManagePartnerOwnedEntity, canAssignPartnerOwner } from '../utils/ownership.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
@@ -41,8 +49,9 @@ import { resolveSingaporePostalFallback } from '../utils/singaporePostalFallback
 import { syncAssetTags } from '../utils/tags.js';
 import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
-import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
+import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, ensureActorCanTargetSubregion, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
 import { positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
+import { normalizeSocialLinks } from '../utils/socialLinks.js';
 
 async function recordExportAudit(db, actor, resourceType, exportKind, metadata = {}) {
     try {
@@ -98,8 +107,14 @@ const RESOURCE_TYPES = {
             ['partnerUsername', false, 'Required when ownershipMode is partner unless the uploader is the partner owner.'],
             ['phone', false, 'Optional contact phone number.'],
             ['whatsappContact', false, 'Optional public WhatsApp contact number or URL.'],
+            ['contactEmail', false, 'Optional public contact email.'],
             ['hours', false, 'Optional opening hours text.'],
             ['website', false, 'Optional absolute website URL.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
             ['description', false, 'Optional descriptive copy.'],
             ['tags', false, 'Comma-separated tag names.'],
             ['isHidden', false, 'TRUE or FALSE.'],
@@ -127,6 +142,12 @@ const RESOURCE_TYPES = {
             ['isMemberOnly', false, 'TRUE or FALSE.'],
             ['description', false, 'Optional descriptive copy.'],
             ['schedule', false, 'Optional schedule text.'],
+            ['website', false, 'Optional absolute website URL.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
             ['tags', false, 'Comma-separated tag names.'],
             ['contactPhone', false, 'Optional local contact phone.'],
             ['whatsappContact', false, 'Optional public WhatsApp contact number or URL.'],
@@ -157,7 +178,49 @@ const RESOURCE_TYPES = {
             ['isMemberOnly', false, 'TRUE or FALSE.'],
             ['description', false, 'Optional shared description.'],
             ['schedule', false, 'Optional default schedule.'],
+            ['website', false, 'Optional shared website URL.'],
+            ['contactPhone', false, 'Optional shared contact phone.'],
+            ['whatsappContact', false, 'Optional shared WhatsApp contact number or URL.'],
+            ['contactEmail', false, 'Optional shared contact email.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
             ['tags', false, 'Comma-separated tags stored on the template.'],
+            ['logoUrl', false, 'Optional absolute URL.'],
+            ['bannerUrl', false, 'Optional absolute URL.'],
+            ['galleryUrls', false, 'Pipe-separated list of absolute URLs.'],
+        ],
+    },
+    'groups': {
+        label: 'Groups',
+        fileStem: 'groups',
+        columns: [
+            ['externalKey', true, 'Stable unique identifier used for round-trip import/export.'],
+            ['name', true, 'Human-readable Group name.'],
+            ['subCategory', false, 'Optional. Defaults to Groups.'],
+            ['audienceMode', true, 'public or target_regions.'],
+            ['targetSubregionCodes', false, 'Comma-separated Region codes or names for target-region Groups.'],
+            ['memberPlaceExternalKeys', false, 'Comma-separated Place external keys to include as direct members.'],
+            ['memberOfferingExternalKeys', false, 'Comma-separated standalone Offering external keys to include as direct members.'],
+            ['description', false, 'Optional descriptive copy.'],
+            ['schedule', false, 'Optional programme or cadence note.'],
+            ['website', false, 'Optional absolute website URL.'],
+            ['facebookUrl', false, 'Optional public Facebook URL.'],
+            ['instagramUrl', false, 'Optional public Instagram URL.'],
+            ['tiktokUrl', false, 'Optional public TikTok URL.'],
+            ['youtubeUrl', false, 'Optional public YouTube URL.'],
+            ['linkedinUrl', false, 'Optional public LinkedIn URL.'],
+            ['tags', false, 'Comma-separated tag names.'],
+            ['contactPhone', false, 'Optional public contact phone.'],
+            ['whatsappContact', false, 'Optional public WhatsApp contact number or URL.'],
+            ['contactEmail', false, 'Optional public contact email.'],
+            ['ctaLabel', false, 'Optional CTA label.'],
+            ['ctaUrl', false, 'Optional CTA absolute URL.'],
+            ['isHidden', false, 'TRUE or FALSE.'],
+            ['hideFrom', false, 'Optional ISO datetime.'],
+            ['hideUntil', false, 'Optional ISO datetime.'],
             ['logoUrl', false, 'Optional absolute URL.'],
             ['bannerUrl', false, 'Optional absolute URL.'],
             ['galleryUrls', false, 'Pipe-separated list of absolute URLs.'],
@@ -334,6 +397,44 @@ function encodePipeList(value) {
     return value.filter(Boolean).join(' | ');
 }
 
+function serializeSocialLink(socialLinks, platform) {
+    return normalizeSocialLinks(socialLinks)[platform] || '';
+}
+
+function buildSocialLinksFromWorkbookRow(row = {}) {
+    return normalizeSocialLinks({
+        facebook: row.facebookUrl,
+        instagram: row.instagramUrl,
+        tiktok: row.tiktokUrl,
+        youtube: row.youtubeUrl,
+        linkedin: row.linkedinUrl,
+    });
+}
+
+function normalizeGroupAudienceModeForWorkbook(value) {
+    const mode = normalizeText(value || 'public').toLowerCase() || 'public';
+    if (mode === 'public' || mode === 'target_regions') return mode;
+    throw new Error('Group audienceMode must be public or target_regions.');
+}
+
+function encodeGroupCoverageCodes(regionIds = [], subregionMap = new Map()) {
+    return encodeList(
+        (regionIds || [])
+            .map((id) => subregionMap.get(Number(id)))
+            .filter(Boolean)
+    );
+}
+
+function serializeGroupMemberExternalKeys(groupMembers = [], memberType) {
+    return encodeList(
+        (groupMembers || [])
+            .filter((entry) => entry.memberResourceType === memberType)
+            .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))
+            .map((entry) => getGroupMemberAsset(entry)?.externalKey)
+            .filter(Boolean)
+    );
+}
+
 function requiredColumnNames(resourceType) {
     return RESOURCE_TYPES[resourceType].columns.filter(([, required]) => required).map(([key]) => key);
 }
@@ -372,6 +473,11 @@ function buildGuideRows(resourceType) {
         rows.push(['Example', 'Templates define canonical shared content only. Host linkage belongs in the Template Rollouts workbook.']);
         rows.push(['Common error', 'Audience mode is audience_zones but no valid audienceZoneCodes were supplied.']);
         rows.push(['Common error', 'Partner username is outside the uploader scope.']);
+    } else if (resourceType === 'groups') {
+        rows.push(['Upsert key', 'externalKey']);
+        rows.push(['Example', 'Groups are list-only collections. Use memberPlaceExternalKeys and memberOfferingExternalKeys to manage direct members.']);
+        rows.push(['Common error', 'A member key does not map to a public, non-hidden Place or standalone Offering.']);
+        rows.push(['Common error', 'target_regions Groups need at least one targetSubregionCodes value.']);
     } else if (resourceType === 'template-rollouts') {
         rows.push(['Upsert key', 'templateExternalKey + hostExternalKey']);
         rows.push(['Example', 'Use overrideFields to declare which child fields should remain local. Blank values only clear a field when that field is listed in overrideFields.']);
@@ -558,6 +664,36 @@ async function loadHardAssetByExternalKeys(db, keys) {
     });
 }
 
+async function loadStandaloneSoftAssetsByExternalKeys(db, keys) {
+    const normalized = [...new Set(keys.map((key) => normalizeText(key)).filter(Boolean))];
+    if (normalized.length === 0) return [];
+    return db.query.softAssets.findMany({
+        where: and(
+            inArray(softAssets.externalKey, normalized),
+            eq(softAssets.isDeleted, false),
+            eq(softAssets.assetMode, 'standalone'),
+        ),
+        with: {
+            partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+            hostHardAsset: {
+                with: {
+                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                },
+            },
+            locations: {
+                with: {
+                    hardAsset: {
+                        with: {
+                            partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                        },
+                    },
+                },
+            },
+            tags: { with: { tag: true } },
+        },
+    });
+}
+
 async function loadTemplateByExternalKey(db, externalKey) {
     return db.query.softAssetParents.findFirst({
         where: eq(softAssetParents.externalKey, externalKey),
@@ -618,6 +754,91 @@ function buildImportReport(resourceType) {
         errors: [],
         warnings: [],
     };
+}
+
+async function syncGroupRegionCoverages(db, groupId, regionIds = [], actor) {
+    await db.delete(softAssetRegionCoverages).where(eq(softAssetRegionCoverages.softAssetId, groupId));
+    if (regionIds.length === 0) return;
+
+    await db.insert(softAssetRegionCoverages).values(
+        regionIds.map((subregionId) => ({
+            softAssetId: groupId,
+            subregionId,
+            createdByUserId: actor?.id || null,
+        }))
+    ).onConflictDoNothing();
+}
+
+function resolveGroupTargetRegionIds(row, references) {
+    const codes = splitDelimitedList(row.targetSubregionCodes);
+    const ids = codes.map((code) => {
+        const region = references.subregionLookup.get(code.toLowerCase());
+        if (!region) {
+            throw new Error(`Target Region "${code}" was not found.`);
+        }
+        return region.id;
+    });
+    return [...new Set(ids)];
+}
+
+async function resolveGroupMemberRowsFromWorkbook(db, row, groupId, actor) {
+    const placeKeys = splitDelimitedList(row.memberPlaceExternalKeys);
+    const offeringKeys = splitDelimitedList(row.memberOfferingExternalKeys);
+    const duplicatePlaceKey = placeKeys.find((key, index) => placeKeys.indexOf(key) !== index);
+    const duplicateOfferingKey = offeringKeys.find((key, index) => offeringKeys.indexOf(key) !== index);
+    if (duplicatePlaceKey || duplicateOfferingKey) {
+        throw new Error('A resource can only be added to a Group once.');
+    }
+
+    const [places, offerings] = await Promise.all([
+        loadHardAssetByExternalKeys(db, placeKeys),
+        loadStandaloneSoftAssetsByExternalKeys(db, offeringKeys),
+    ]);
+    const placesByKey = new Map(places.map((asset) => [normalizeText(asset.externalKey), asset]));
+    const offeringsByKey = new Map(offerings.map((asset) => [normalizeText(asset.externalKey), asset]));
+    const missingPlace = placeKeys.find((key) => !placesByKey.has(key));
+    const missingOffering = offeringKeys.find((key) => !offeringsByKey.has(key));
+    if (missingPlace) {
+        throw new Error(`Place "${missingPlace}" was not found.`);
+    }
+    if (missingOffering) {
+        throw new Error(`Offering "${missingOffering}" was not found.`);
+    }
+
+    return [
+        ...placeKeys.map((key, index) => ({
+            groupSoftAssetId: groupId,
+            memberResourceType: GROUP_MEMBER_TYPES.HARD,
+            memberResourceId: placesByKey.get(key).id,
+            sortOrder: index,
+            hardAsset: placesByKey.get(key),
+            softAsset: null,
+            addedByUserId: actor?.id || null,
+        })),
+        ...offeringKeys.map((key, index) => ({
+            groupSoftAssetId: groupId,
+            memberResourceType: GROUP_MEMBER_TYPES.SOFT,
+            memberResourceId: offeringsByKey.get(key).id,
+            sortOrder: placeKeys.length + index,
+            hardAsset: null,
+            softAsset: offeringsByKey.get(key),
+            addedByUserId: actor?.id || null,
+        })),
+    ].map((entry) => {
+        if (entry.memberResourceType === GROUP_MEMBER_TYPES.SOFT && Number(entry.memberResourceId) === Number(groupId)) {
+            throw new Error('A Group cannot include itself.');
+        }
+        if (!isPublicGroupMemberEntry(entry)) {
+            throw new Error('Groups can only include public, non-hidden Places, Programmes, Services, or Promotions.');
+        }
+        return {
+            groupSoftAssetId: entry.groupSoftAssetId,
+            memberResourceType: entry.memberResourceType,
+            memberResourceId: entry.memberResourceId,
+            sortOrder: entry.sortOrder,
+            addedByUserId: entry.addedByUserId,
+        };
+    });
 }
 
 function rowError(report, rowNumber, message) {
@@ -703,12 +924,13 @@ function normalizeAudienceModeValue(value) {
 }
 
 async function buildWorkbookReferences(db) {
-    const [partners, allSubCategories, allSubregions, zones, places, templates] = await Promise.all([
+    const [partners, allSubCategories, allSubregions, zones, places, offerings, templates] = await Promise.all([
         db.select({ username: users.username, name: users.name, role: users.role }).from(users),
         db.select({ name: subCategories.name, type: subCategories.type }).from(subCategories),
         db.select({ subregionCode: subregions.subregionCode, name: subregions.name }).from(subregions),
         db.select({ zoneCode: audienceZones.zoneCode, name: audienceZones.name }).from(audienceZones),
         db.select({ externalKey: hardAssets.externalKey, name: hardAssets.name }).from(hardAssets).where(eq(hardAssets.isDeleted, false)),
+        db.select({ externalKey: softAssets.externalKey, name: softAssets.name }).from(softAssets).where(and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'))),
         db.select({ externalKey: softAssetParents.externalKey, name: softAssetParents.name }).from(softAssetParents).where(eq(softAssetParents.isDeleted, false)),
     ]);
 
@@ -719,6 +941,7 @@ async function buildWorkbookReferences(db) {
         subregions: allSubregions,
         audienceZones: zones,
         places,
+        offerings,
         templates,
     };
 }
@@ -742,6 +965,17 @@ function buildReferenceRows(resourceType, references) {
         references.subregions.forEach((entry) => rows.push(['Subregion', entry.subregionCode || '', entry.name || '']));
     }
 
+    if (resourceType === 'groups') {
+        rows.push(['Allowed', 'audienceMode', 'public, target_regions']);
+        references.subregions.forEach((entry) => rows.push(['Subregion', entry.subregionCode || '', entry.name || '']));
+        references.places
+            .filter((entry) => entry.externalKey)
+            .forEach((entry) => rows.push(['Place', entry.externalKey, entry.name || '']));
+        references.offerings
+            .filter((entry) => entry.externalKey)
+            .forEach((entry) => rows.push(['Offering', entry.externalKey, entry.name || '']));
+    }
+
     if (resourceType === 'standalone-offerings' || resourceType === 'templates') {
         references.audienceZones.forEach((entry) => rows.push(['Audience Zone', entry.zoneCode || '', entry.name || '']));
     }
@@ -757,7 +991,7 @@ function buildReferenceRows(resourceType, references) {
             .forEach((entry) => rows.push(['Place', entry.externalKey, entry.name || '']));
     }
 
-    if (resourceType !== 'template-rollouts') {
+    if (resourceType !== 'template-rollouts' && resourceType !== 'groups') {
         references.partners
             .filter((entry) => normalizeRole(entry.role) === 'partner')
             .forEach((entry) => rows.push(['Partner', entry.username, entry.name || '']));
@@ -815,8 +1049,14 @@ async function exportRowsForPlaces(db, actor, options = {}) {
             partnerUsername: asset.partner?.username || '',
             phone: asset.phone || '',
             whatsappContact: asset.whatsappContact || '',
+            contactEmail: asset.contactEmail || '',
             hours: asset.hours || '',
             website: asset.website || '',
+            facebookUrl: serializeSocialLink(asset.socialLinks, 'facebook'),
+            instagramUrl: serializeSocialLink(asset.socialLinks, 'instagram'),
+            tiktokUrl: serializeSocialLink(asset.socialLinks, 'tiktok'),
+            youtubeUrl: serializeSocialLink(asset.socialLinks, 'youtube'),
+            linkedinUrl: serializeSocialLink(asset.socialLinks, 'linkedin'),
             description: asset.description || '',
             tags: encodeList(asset.tags.map((entry) => entry.tag.name)),
             isHidden: asset.isHidden ? 'TRUE' : 'FALSE',
@@ -872,6 +1112,12 @@ async function exportRowsForStandaloneOfferings(db, actor, options = {}) {
             isMemberOnly: asset.isMemberOnly ? 'TRUE' : 'FALSE',
             description: asset.description || '',
             schedule: asset.schedule || '',
+            website: asset.website || '',
+            facebookUrl: serializeSocialLink(asset.socialLinks, 'facebook'),
+            instagramUrl: serializeSocialLink(asset.socialLinks, 'instagram'),
+            tiktokUrl: serializeSocialLink(asset.socialLinks, 'tiktok'),
+            youtubeUrl: serializeSocialLink(asset.socialLinks, 'youtube'),
+            linkedinUrl: serializeSocialLink(asset.socialLinks, 'linkedin'),
             tags: encodeList(asset.tags.map((entry) => entry.tag.name)),
             contactPhone: asset.contactPhone || '',
             whatsappContact: asset.whatsappContact || '',
@@ -922,11 +1168,96 @@ async function exportRowsForTemplates(db, actor, options = {}) {
             isMemberOnly: parent.isMemberOnly ? 'TRUE' : 'FALSE',
             description: parent.description || '',
             schedule: parent.schedule || '',
+            website: parent.website || '',
+            contactPhone: parent.contactPhone || '',
+            whatsappContact: parent.whatsappContact || '',
+            contactEmail: parent.contactEmail || '',
+            facebookUrl: serializeSocialLink(parent.socialLinks, 'facebook'),
+            instagramUrl: serializeSocialLink(parent.socialLinks, 'instagram'),
+            tiktokUrl: serializeSocialLink(parent.socialLinks, 'tiktok'),
+            youtubeUrl: serializeSocialLink(parent.socialLinks, 'youtube'),
+            linkedinUrl: serializeSocialLink(parent.socialLinks, 'linkedin'),
             tags: encodeList(Array.isArray(parent.tags) ? parent.tags : []),
             logoUrl: parent.logoUrl || '',
             bannerUrl: parent.bannerUrl || '',
             galleryUrls: encodePipeList(parent.galleryUrls),
         }));
+}
+
+async function exportRowsForGroups(db, actor, options = {}) {
+    const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
+    const subregionRows = await db.select({ id: subregions.id, subregionCode: subregions.subregionCode, name: subregions.name }).from(subregions);
+    const subregionMap = new Map(subregionRows.map((row) => [Number(row.id), row.subregionCode || row.name || '']));
+    const where = orderedIds
+        ? and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'group'), inArray(softAssets.id, orderedIds))
+        : and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'group'));
+    const assets = await db.query.softAssets.findMany({
+        where,
+        with: {
+            partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
+            tags: { with: { tag: true } },
+            groupMembers: {
+                with: {
+                    hardAsset: { columns: { id: true, externalKey: true, name: true } },
+                    softAsset: { columns: { id: true, externalKey: true, name: true, assetMode: true } },
+                },
+            },
+        },
+        orderBy: [desc(softAssets.updatedAt)],
+    });
+    const manageableAssets = orderScopedRecords(
+        assets.filter((asset) => actorCanManageAsset(actor, asset, asset.partner)),
+        orderedIds
+    );
+    const groupIds = manageableAssets.map((asset) => Number(asset.id)).filter(Number.isInteger);
+    const coverageRows = groupIds.length > 0
+        ? await db.select({
+            softAssetId: softAssetRegionCoverages.softAssetId,
+            subregionId: softAssetRegionCoverages.subregionId,
+        })
+            .from(softAssetRegionCoverages)
+            .where(inArray(softAssetRegionCoverages.softAssetId, groupIds))
+        : [];
+    const coverageByGroupId = new Map();
+    coverageRows.forEach((row) => {
+        const rows = coverageByGroupId.get(row.softAssetId) || [];
+        rows.push(row.subregionId);
+        coverageByGroupId.set(row.softAssetId, rows);
+    });
+    const assetsWithCoverage = manageableAssets.map((asset) => ({
+        ...asset,
+        coverageRegionIds: coverageByGroupId.get(asset.id) || [],
+    }));
+
+    return assetsWithCoverage.map((asset) => ({
+        externalKey: asset.externalKey || '',
+        name: asset.name || '',
+        subCategory: asset.subCategory || 'Groups',
+        audienceMode: asset.audienceMode || 'public',
+        targetSubregionCodes: encodeGroupCoverageCodes(asset.coverageRegionIds, subregionMap),
+        memberPlaceExternalKeys: serializeGroupMemberExternalKeys(asset.groupMembers, 'hard'),
+        memberOfferingExternalKeys: serializeGroupMemberExternalKeys(asset.groupMembers, 'soft'),
+        description: asset.description || '',
+        schedule: asset.schedule || '',
+        website: asset.website || '',
+        facebookUrl: serializeSocialLink(asset.socialLinks, 'facebook'),
+        instagramUrl: serializeSocialLink(asset.socialLinks, 'instagram'),
+        tiktokUrl: serializeSocialLink(asset.socialLinks, 'tiktok'),
+        youtubeUrl: serializeSocialLink(asset.socialLinks, 'youtube'),
+        linkedinUrl: serializeSocialLink(asset.socialLinks, 'linkedin'),
+        tags: encodeList(asset.tags.map((entry) => entry.tag.name)),
+        contactPhone: asset.contactPhone || '',
+        whatsappContact: asset.whatsappContact || '',
+        contactEmail: asset.contactEmail || '',
+        ctaLabel: asset.ctaLabel || '',
+        ctaUrl: asset.ctaUrl || '',
+        isHidden: asset.isHidden ? 'TRUE' : 'FALSE',
+        hideFrom: asset.hideFrom ? new Date(asset.hideFrom).toISOString() : '',
+        hideUntil: asset.hideUntil ? new Date(asset.hideUntil).toISOString() : '',
+        logoUrl: asset.logoUrl || '',
+        bannerUrl: asset.bannerUrl || '',
+        galleryUrls: encodePipeList(asset.galleryUrls),
+    }));
 }
 
 async function exportRowsForRollouts(db, actor, options = {}) {
@@ -990,6 +1321,7 @@ async function resolveTemplateExport(resourceType, db, actor, options = {}) {
     if (resourceType === 'places') return exportRowsForPlaces(db, actor, options);
     if (resourceType === 'standalone-offerings') return exportRowsForStandaloneOfferings(db, actor, options);
     if (resourceType === 'templates') return exportRowsForTemplates(db, actor, options);
+    if (resourceType === 'groups') return exportRowsForGroups(db, actor, options);
     if (resourceType === 'template-rollouts') return exportRowsForRollouts(db, actor, options);
     throw new Error(`Unsupported workbook resource "${resourceType}".`);
 }
@@ -1150,8 +1482,10 @@ async function importPlaces(db, actor, rows, references, env) {
                 address,
                 phone: normalizeText(row.phone) || null,
                 whatsappContact: normalizeText(row.whatsappContact) || null,
+                contactEmail: normalizeText(row.contactEmail) || null,
                 hours: normalizeText(row.hours) || null,
                 website: normalizeText(row.website) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
                 description: normalizeText(row.description) || null,
                 logoUrl: normalizeText(row.logoUrl) || null,
                 bannerUrl: normalizeText(row.bannerUrl) || null,
@@ -1192,8 +1526,10 @@ async function importPlaces(db, actor, rows, references, env) {
                         lng: sql`EXCLUDED.lng`,
                         phone: sql`EXCLUDED.phone`,
                         whatsappContact: sql`EXCLUDED.whatsapp_contact`,
+                        contactEmail: sql`EXCLUDED.contact_email`,
                         hours: sql`EXCLUDED.hours`,
                         website: sql`EXCLUDED.website`,
+                        socialLinks: sql`EXCLUDED.social_links`,
                         description: sql`EXCLUDED.description`,
                         logoUrl: sql`EXCLUDED.logo_url`,
                         bannerUrl: sql`EXCLUDED.banner_url`,
@@ -1307,6 +1643,8 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 subCategory,
                 description: normalizeText(row.description) || null,
                 schedule: normalizeText(row.schedule) || null,
+                website: normalizeText(row.website) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
                 logoUrl: normalizeText(row.logoUrl) || null,
                 bannerUrl: normalizeText(row.bannerUrl) || null,
                 galleryUrls: normalizeGalleryUrls(splitPipeList(row.galleryUrls)),
@@ -1419,6 +1757,11 @@ async function importTemplates(db, actor, rows, references, env) {
                 subCategory,
                 description: normalizeText(row.description) || null,
                 schedule: normalizeText(row.schedule) || null,
+                website: normalizeText(row.website) || null,
+                contactPhone: normalizeText(row.contactPhone) || null,
+                whatsappContact: normalizeText(row.whatsappContact) || null,
+                contactEmail: normalizeText(row.contactEmail) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
                 logoUrl: normalizeText(row.logoUrl) || null,
                 bannerUrl: normalizeText(row.bannerUrl) || null,
                 galleryUrls: normalizeGalleryUrls(splitPipeList(row.galleryUrls)),
@@ -1465,6 +1808,138 @@ async function importTemplates(db, actor, rows, references, env) {
 
     for (const subregionId of affectedSubregions) {
         await rebuildMapCache(getCacheRegionId(subregionId), env);
+    }
+
+    return report;
+}
+
+async function importGroups(db, actor, rows, references, env) {
+    const report = buildImportReport('groups');
+    const affectedCacheIds = new Set(['all']);
+
+    for (const row of rows) {
+        report.totalRows += 1;
+        const rowNumber = row.__rowNumber;
+
+        try {
+            const externalKey = normalizeText(row.externalKey);
+            const name = normalizeText(row.name);
+            const audienceMode = normalizeGroupAudienceModeForWorkbook(row.audienceMode);
+            if (!externalKey || !name) {
+                throw new Error('externalKey, name, and audienceMode are required.');
+            }
+
+            const targetRegionIds = audienceMode === 'target_regions'
+                ? resolveGroupTargetRegionIds(row, references)
+                : [];
+            if (audienceMode === 'target_regions' && targetRegionIds.length === 0) {
+                throw new Error('target_regions Groups need at least one targetSubregionCodes value.');
+            }
+            targetRegionIds.forEach((subregionId) => ensureActorCanTargetSubregion(actor, subregionId));
+
+            const existing = await db.query.softAssets.findFirst({
+                where: eq(softAssets.externalKey, externalKey),
+                with: {
+                    partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
+                    tags: { with: { tag: true } },
+                    groupMembers: true,
+                },
+            });
+            if (existing && existing.assetMode !== 'group') {
+                throw new Error('Only Groups can be imported through this workbook.');
+            }
+            if (existing && !actorCanManageAsset(actor, existing, existing.partner)) {
+                throw new Error('Existing Group is outside your allowed scope.');
+            }
+
+            const fallbackSubregionId = targetRegionIds[0]
+                || (Number.isInteger(actor?.subregionId) ? actor.subregionId : null)
+                || (Array.isArray(actor?.subregionIds) ? actor.subregionIds.find((id) => Number.isInteger(id) && id > 0) : null)
+                || existing?.subregionId
+                || null;
+            if (fallbackSubregionId) ensureActorCanTargetSubregion(actor, fallbackSubregionId);
+
+            const payload = {
+                externalKey: existing?.externalKey || await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
+                    requestedKey: externalKey,
+                    prefix: 'group',
+                    name,
+                    ignoreId: existing?.id || null,
+                }),
+                assetMode: 'group',
+                partnerId: null,
+                createdByUserId: existing?.createdByUserId || actor.id,
+                updatedByUserId: actor.id,
+                subregionId: fallbackSubregionId,
+                parentSoftAssetId: null,
+                hostHardAssetId: null,
+                name,
+                bucket: null,
+                subCategory: normalizeText(row.subCategory) || 'Groups',
+                description: normalizeText(row.description) || null,
+                schedule: normalizeText(row.schedule) || null,
+                website: normalizeText(row.website) || null,
+                socialLinks: buildSocialLinksFromWorkbookRow(row),
+                audienceMode,
+                isMemberOnly: false,
+                eligibilityRules: null,
+                contactPhone: normalizeText(row.contactPhone) || null,
+                whatsappContact: normalizeText(row.whatsappContact) || null,
+                contactEmail: normalizeText(row.contactEmail) || null,
+                ctaLabel: normalizeText(row.ctaLabel) || null,
+                ctaUrl: normalizeText(row.ctaUrl) || null,
+                venueNote: null,
+                availabilityEnabled: false,
+                availabilityCount: 0,
+                availabilityUnit: null,
+                logoUrl: normalizeText(row.logoUrl) || null,
+                bannerUrl: normalizeText(row.bannerUrl) || null,
+                galleryUrls: normalizeGalleryUrls(splitPipeList(row.galleryUrls)),
+                isHidden: parseBoolean(row.isHidden, false),
+                hideFrom: parseNullableDate(row.hideFrom),
+                hideUntil: parseNullableDate(row.hideUntil),
+                isDeleted: false,
+                updatedAt: new Date(),
+            };
+
+            let assetId;
+            if (existing) {
+                await db.update(softAssets).set(payload).where(eq(softAssets.id, existing.id));
+                assetId = existing.id;
+                report.updatedCount += 1;
+                if (existing.subregionId) affectedCacheIds.add(existing.subregionId);
+            } else {
+                const [created] = await db.insert(softAssets).values(payload).returning({ id: softAssets.id });
+                assetId = created.id;
+                report.createdCount += 1;
+                if (actor?.id) {
+                    await db.insert(softAssetStaffMemberships).values({
+                        softAssetId: assetId,
+                        userId: actor.id,
+                        staffRole: 'owner',
+                        createdByUserId: actor.id,
+                        updatedByUserId: actor.id,
+                    }).onConflictDoNothing();
+                }
+            }
+
+            const selectedMembers = await resolveGroupMemberRowsFromWorkbook(db, row, assetId, actor);
+            await db.delete(softAssetGroupMembers).where(eq(softAssetGroupMembers.groupSoftAssetId, assetId));
+            if (selectedMembers.length > 0) {
+                await db.insert(softAssetGroupMembers).values(selectedMembers).onConflictDoNothing();
+            }
+            await syncGroupRegionCoverages(db, assetId, targetRegionIds, actor);
+            await syncAssetTags(db, assetId, 'soft', splitDelimitedList(row.tags));
+
+            affectedCacheIds.add(fallbackSubregionId || 'all');
+            targetRegionIds.forEach((subregionId) => affectedCacheIds.add(subregionId));
+        } catch (error) {
+            rowError(report, rowNumber, error.message);
+        }
+    }
+
+    for (const cacheId of affectedCacheIds) {
+        await rebuildMapCache(getCacheRegionId(cacheId), env);
     }
 
     return report;
@@ -1737,6 +2212,8 @@ export async function importWorkbookData(c) {
             report = await importStandaloneOfferings(db, actor, rows, references, c.env);
         } else if (resourceType === 'templates') {
             report = await importTemplates(db, actor, rows, references, c.env);
+        } else if (resourceType === 'groups') {
+            report = await importGroups(db, actor, rows, references, c.env);
         } else if (resourceType === 'template-rollouts') {
             report = await importTemplateRollouts(db, actor, rows, c.env);
         } else {

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { AlertTriangle, ArrowRightLeft, ExternalLink, Loader2, Sparkles, Globe, MapPin, MessageCircle, Phone, Clock, Package2, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Building2, ExternalLink, Loader2, Sparkles, Globe, Mail, MapPin, MessageCircle, Phone, Clock, Package2, ShieldCheck, Users, EyeOff } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
@@ -14,10 +14,14 @@ import {
 import { normalizeRole } from '../lib/roles.js';
 import { createEmptySocialLinks, mergeSocialLinks, normalizeSocialLinks, SOCIAL_PLATFORMS } from '../lib/socialLinks.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
+import AssetAccessPanel from './AssetAccessPanel.jsx';
+import AssetAudienceZonesPanel from './AssetAudienceZonesPanel.jsx';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
+import ResourceWizardShell from './ResourceWizardShell.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 
 function formatDateTimeLocal(value) {
@@ -36,6 +40,13 @@ function formatDateInput(value) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function formatSystemUpdateDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function normalizeExternalHref(value) {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -45,6 +56,46 @@ function normalizeExternalHref(value) {
     } catch {
         return '';
     }
+}
+
+function isValidOptionalHttpUrl(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    if (!/^https?:\/\//i.test(text)) return false;
+    try {
+        const url = new URL(text);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function isValidOptionalEmail(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
+
+function isBlankEligibilityAge(value) {
+    return value === undefined || value === null || String(value).trim() === '';
+}
+
+function isWholeEligibilityAge(value) {
+    return /^\d+$/.test(String(value).trim());
+}
+
+function getEligibilityAgeValidationError(rules) {
+    const age = rules?.criteria?.age;
+    if (!age || typeof age !== 'object') return '';
+    const hasMin = !isBlankEligibilityAge(age.min);
+    const hasMax = !isBlankEligibilityAge(age.max);
+    if ((hasMin && !isWholeEligibilityAge(age.min)) || (hasMax && !isWholeEligibilityAge(age.max))) {
+        return 'Eligibility age must use whole numbers greater than or equal to 0.';
+    }
+    if (hasMin && hasMax && Number(age.min) > Number(age.max)) {
+        return 'Eligibility minimum age cannot be greater than maximum age.';
+    }
+    return '';
 }
 
 function normalizeFormText(value) {
@@ -132,6 +183,7 @@ function buildInitialForm(type, initialData, currentUser) {
             coverageRegionIds: initialData.coverageRegionIds || (initialData.subregionId ? [initialData.subregionId] : []),
             postalCode: initialData.postalCode || '',
             whatsappContact: initialData.whatsappContact || '',
+            contactEmail: initialData.contactEmail || '',
             website: initialData.website || '',
             socialLinks: normalizeSocialLinks(initialData.socialLinks),
             sourceGooglePlaceId: initialData.sourceGooglePlaceId || '',
@@ -154,6 +206,7 @@ function buildInitialForm(type, initialData, currentUser) {
             address: '',
             phone: '',
             whatsappContact: '',
+            contactEmail: '',
             hours: '',
             website: '',
             socialLinks: createEmptySocialLinks(),
@@ -219,21 +272,8 @@ const OWNERSHIP_OPTIONS = [
     { value: 'system', label: 'System-owned' },
 ];
 
-const SOURCE_TYPE_OPTIONS = [
-    { value: '', label: 'Not recorded' },
-    { value: 'official_source', label: 'Official source' },
-    { value: 'staff_verified', label: 'Staff verified' },
-    { value: 'public_directory', label: 'Public directory' },
-    { value: 'uploaded_material', label: 'Uploaded material' },
-    { value: 'ai_assisted', label: 'AI assisted' },
-];
-
-const VERIFICATION_STATUS_OPTIONS = [
-    { value: 'unverified', label: 'Not verified' },
-    { value: 'needs_review', label: 'Needs review' },
-    { value: 'verified', label: 'Verified' },
-    { value: 'stale', label: 'Stale' },
-];
+const PLACE_STEPS = ['Profile', 'Location', 'Visibility', 'Access', 'Zones', 'Translate', 'Restricted'];
+const OFFERING_STEPS = ['Profile', 'Schedule', 'Host & coverage', 'Visibility', 'Access', 'Translate', 'Restricted'];
 
 function TooltipMultiValueLabel(props) {
     const label = props.data?.label || '';
@@ -265,6 +305,7 @@ export default function AssetForm({
     importWarnings = [],
     duplicateMatches = [],
     onSelectDuplicateMatch = null,
+    onResourceToolsChanged,
 }) {
     const isHard = type === 'hard';
     const currentRole = normalizeRole(currentUser?.role);
@@ -276,6 +317,8 @@ export default function AssetForm({
     const [error, setError] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
+    const [activePlaceStep, setActivePlaceStep] = useState(0);
+    const [activeOfferingStep, setActiveOfferingStep] = useState(0);
 
     useEffect(() => {
         api.searchTags('').then((tags) => {
@@ -399,7 +442,7 @@ export default function AssetForm({
             ));
             setField('subCategory', created.name);
         } catch (err) {
-            setError(err.message || 'Failed to create sub-category.');
+            setError(err.message || 'Failed to create category.');
         } finally {
             setCreatingSubCategory(false);
         }
@@ -452,7 +495,7 @@ export default function AssetForm({
     }
 
     async function handleSubmit(e) {
-        e.preventDefault();
+        e?.preventDefault?.();
         setSaving(true);
         setError('');
 
@@ -558,10 +601,11 @@ export default function AssetForm({
         label: `${subregion.subregionCode || subregion.name} · ${subregion.name}`,
     }));
     const selectedCoverageRegionOptions = coverageRegionOptions.filter((option) => (form.coverageRegionIds || []).map(Number).includes(Number(option.value)));
-    const websiteHref = useMemo(() => (isHard ? normalizeExternalHref(form.website) : ''), [form.website, isHard]);
+    const websiteHref = useMemo(() => normalizeExternalHref(form.website), [form.website]);
     const normalizedSocialLinks = useMemo(() => normalizeSocialLinks(form.socialLinks), [form.socialLinks]);
     const hasLogoImage = Boolean(form.logoUrl);
     const hasBannerImage = Boolean(form.bannerUrl);
+    const isOfferingLinkedToHostPlace = !isHard && Array.isArray(form.locationIds) && form.locationIds.length > 0;
 
     function setSocialLink(platformKey, value) {
         setForm((prev) => ({
@@ -571,6 +615,42 @@ export default function AssetForm({
                 [platformKey]: value,
             },
         }));
+    }
+
+    function getInvalidSocialLinkMessage() {
+        const socialLinks = normalizeSocialLinks(form.socialLinks);
+        const invalidPlatform = SOCIAL_PLATFORMS.find((platform) => (
+            String(socialLinks[platform.key] || '').trim()
+            && !isValidOptionalHttpUrl(socialLinks[platform.key])
+        ));
+        return invalidPlatform ? `Enter a valid ${invalidPlatform.label} URL starting with http:// or https://.` : '';
+    }
+
+    function getPlaceProfileContactValidationError() {
+        if (!isValidOptionalHttpUrl(form.website)) {
+            return 'Enter a valid website URL starting with http:// or https://.';
+        }
+        const socialLinkMessage = getInvalidSocialLinkMessage();
+        if (socialLinkMessage) return socialLinkMessage;
+        if (!isValidOptionalEmail(form.contactEmail)) {
+            return 'Enter a valid contact email address.';
+        }
+        return '';
+    }
+
+    function getOfferingProfileContactValidationError() {
+        if (!isValidOptionalHttpUrl(form.website)) {
+            return 'Enter a valid website URL starting with http:// or https://.';
+        }
+        const socialLinkMessage = getInvalidSocialLinkMessage();
+        if (socialLinkMessage) return socialLinkMessage;
+        if (!isValidOptionalEmail(form.contactEmail)) {
+            return 'Enter a valid contact email address.';
+        }
+        if (!isValidOptionalHttpUrl(form.ctaUrl)) {
+            return 'Enter a valid action button link starting with http:// or https://.';
+        }
+        return '';
     }
 
     function moveLogoToBanner() {
@@ -600,38 +680,189 @@ export default function AssetForm({
         }));
     }
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            {isHard && importSource ? (
-                <div className="rounded-2xl border border-brand-200 bg-brand-50/70 px-4 py-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Imported Google place</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                        {importSource.googlePlaceId ? (
-                            <span className="rounded-full border border-brand-200 bg-white px-3 py-1 font-semibold text-slate-700">
-                                Place ID {importSource.googlePlaceId}
-                            </span>
-                        ) : null}
-                        {importSource.googleMapsUri ? (
-                            <a
-                                href={importSource.googleMapsUri}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-white px-3 py-1 font-semibold text-brand-700 transition hover:bg-brand-100"
-                            >
-                                Open source
-                                <ExternalLink size={13} />
-                            </a>
-                        ) : null}
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">
-                        These values are suggestions only. Review them carefully before saving this place.
-                    </p>
-                </div>
-            ) : null}
+    function getSystemUpdateSummary(resourceLabel = isHard ? 'Place' : 'Offering') {
+        const dateLabel = formatSystemUpdateDate(
+            initialData?.updatedAt
+            || initialData?.updated_at
+            || initialData?.createdAt
+            || initialData?.created_at
+        );
+        const actorName = String(
+            initialData?.updatedByName
+            || initialData?.updated_by_name
+            || initialData?.creatorName
+            || initialData?.creator_name
+            || ''
+        ).trim();
+        const detail = [
+            dateLabel,
+            actorName ? `by ${actorName}` : '',
+        ].filter(Boolean).join(' ');
 
-            {isHard ? (
+        if (detail) {
+            return {
+                label: 'Last updated',
+                detail,
+            };
+        }
+
+        return {
+            label: 'Recorded automatically',
+            detail: `CareAround SG records who saves this ${resourceLabel} and when.`,
+        };
+    }
+
+    function renderSystemUpdateRecord(resourceLabel = isHard ? 'Place' : 'Offering') {
+        const updateSummary = getSystemUpdateSummary(resourceLabel);
+        return (
+            <section className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
+                <div className="flex items-start gap-3">
+                    <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                        <ShieldCheck size={20} />
+                    </span>
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">System update record</p>
+                        <h3 className="mt-1 text-base font-bold text-slate-900">{updateSummary.label}</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-600">{updateSummary.detail}</p>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                            This replaces manual freshness entry; saving the resource keeps the recency record system-led.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    function getPlaceStepValidationError(stepIndex = activePlaceStep) {
+        if (!isHard) return '';
+        if (stepIndex === 0) {
+            if (!String(form.name || '').trim()) return 'Add a place name to continue.';
+            if (!String(form.subCategory || '').trim()) return 'Choose or create a place category to continue.';
+            const profileContactMessage = getPlaceProfileContactValidationError();
+            if (profileContactMessage) return profileContactMessage;
+        }
+        if (stepIndex === 1) {
+            if (!String(form.country || '').trim()) return 'Choose a country to continue.';
+            if (!String(form.postalCode || '').trim()) return 'Add a postal code to continue.';
+            if (!String(form.address || '').trim()) return 'Add a street address to continue.';
+        }
+        return '';
+    }
+
+    function validatePlaceStep(stepIndex = activePlaceStep) {
+        const message = getPlaceStepValidationError(stepIndex);
+        setError(message);
+        return !message;
+    }
+
+    function validateAllPlaceSteps() {
+        for (const stepIndex of [0, 1]) {
+            const message = getPlaceStepValidationError(stepIndex);
+            if (message) {
+                setActivePlaceStep(stepIndex);
+                setError(message);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    async function handlePlaceWizardSave() {
+        if (!validateAllPlaceSteps()) return;
+        await handleSubmit();
+    }
+
+    function getOfferingStepValidationError(stepIndex = activeOfferingStep) {
+        if (isHard) return '';
+        if (stepIndex === 0) {
+            if (!String(form.name || '').trim()) return 'Add an offering name to continue.';
+            if (!String(form.bucket || '').trim()) return 'Choose an offering bucket to continue.';
+            if (!String(form.subCategory || '').trim()) return 'Choose an offering category to continue.';
+            const profileContactMessage = getOfferingProfileContactValidationError();
+            if (profileContactMessage) return profileContactMessage;
+        }
+        if (stepIndex === 2) {
+            const locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
+            const coverageRegionIds = Array.isArray(form.coverageRegionIds)
+                ? form.coverageRegionIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+                : [];
+            const audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
+            if (locationIds.length === 0 && coverageRegionIds.length === 0 && !(form.audienceMode === 'audience_zones' && audienceZoneIds.length > 0)) {
+                return 'Select at least one service region or target area when no linked place is chosen.';
+            }
+            if (locationIds.length > 0 && linkedLocationSubregions.length > 1) {
+                return 'Linked places must all belong to the same service area.';
+            }
+        }
+        if (stepIndex === 3) {
+            const audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
+            if (form.audienceMode === 'partner_boundary' && form.ownershipMode !== 'partner') {
+                return 'Managed-area audience is no longer available for new offerings. Use target areas instead.';
+            }
+            if (form.audienceMode === 'audience_zones' && audienceZoneIds.length === 0) {
+                return 'Select at least one audience zone for audience-zone offerings.';
+            }
+            const eligibilityAgeMessage = getEligibilityAgeValidationError(form.eligibilityRules);
+            if (eligibilityAgeMessage) return eligibilityAgeMessage;
+        }
+        return '';
+    }
+
+    function validateOfferingStep(stepIndex = activeOfferingStep) {
+        const message = getOfferingStepValidationError(stepIndex);
+        setError(message);
+        return !message;
+    }
+
+    function validateAllOfferingSteps() {
+        for (const stepIndex of [0, 2, 3]) {
+            const message = getOfferingStepValidationError(stepIndex);
+            if (message) {
+                setActiveOfferingStep(stepIndex);
+                setError(message);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    async function handleOfferingWizardSave() {
+        if (!validateAllOfferingSteps()) return;
+        await handleSubmit();
+    }
+
+    function renderPlaceImportContext() {
+        return (
+            <>
+                {importSource ? (
+                    <div className="rounded-2xl border border-brand-200 bg-brand-50/70 px-4 py-3">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">Imported Google place</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                            {importSource.googlePlaceId ? (
+                                <span className="rounded-full border border-brand-200 bg-white px-3 py-1 font-semibold text-slate-700">
+                                    Place ID {importSource.googlePlaceId}
+                                </span>
+                            ) : null}
+                            {importSource.googleMapsUri ? (
+                                <a
+                                    href={importSource.googleMapsUri}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-white px-3 py-1 font-semibold text-brand-700 transition hover:bg-brand-100"
+                                >
+                                    Open source
+                                    <ExternalLink size={13} />
+                                </a>
+                            ) : null}
+                        </div>
+                        <p className="mt-2 text-sm text-slate-600">
+                            These values are suggestions only. Review them carefully before saving this place.
+                        </p>
+                    </div>
+                ) : null}
+
                 <div className="rounded-2xl border border-brand-200 bg-brand-50/70 px-4 py-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">AI Grounding</p>
                             <p className="mt-1 text-sm text-slate-700">
@@ -642,7 +873,7 @@ export default function AssetForm({
                             type="button"
                             onClick={handleEnrichDraft}
                             disabled={enriching || !form.name || !form.postalCode}
-                            className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-bold text-brand-700 transition-colors hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-bold text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {enriching ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                             {enriching ? 'Enriching...' : 'Enrich with AI'}
@@ -654,210 +885,154 @@ export default function AssetForm({
                         </p>
                     ) : null}
                 </div>
-            ) : null}
 
-            {isHard && duplicateMatches.length > 0 ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                    <div className="flex items-start gap-2">
-                        <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-amber-700" />
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-amber-900">Possible existing place found</p>
-                            <p className="mt-1 text-sm text-amber-800">
-                                We found {duplicateMatches.length} likely match{duplicateMatches.length === 1 ? '' : 'es'} in CareAround SG. You can still create a new place, but updating the existing one may be cleaner.
-                            </p>
-                            <div className="mt-3 space-y-2">
-                                {duplicateMatches.map((match) => (
-                                    <div key={match.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white px-3 py-3">
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-slate-900">{match.name}</p>
-                                            <p className="text-xs text-slate-500">{match.address || match.postalCode || 'Existing place'}</p>
+                {duplicateMatches.length > 0 ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <div className="flex items-start gap-2">
+                            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-amber-700" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-amber-900">Possible existing place found</p>
+                                <p className="mt-1 text-sm text-amber-800">
+                                    We found {duplicateMatches.length} likely match{duplicateMatches.length === 1 ? '' : 'es'} in CareAround SG. You can still create a new place, but updating the existing one may be cleaner.
+                                </p>
+                                <div className="mt-3 space-y-2">
+                                    {duplicateMatches.map((match) => (
+                                        <div key={match.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white px-3 py-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-slate-900">{match.name}</p>
+                                                <p className="text-xs text-slate-500">{match.address || match.postalCode || 'Existing place'}</p>
+                                            </div>
+                                            {onSelectDuplicateMatch ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onSelectDuplicateMatch(match.id)}
+                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                                                >
+                                                    Edit existing asset
+                                                </button>
+                                            ) : null}
                                         </div>
-                                        {onSelectDuplicateMatch ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => onSelectDuplicateMatch(match.id)}
-                                                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
-                                            >
-                                                Edit existing asset
-                                            </button>
-                                        ) : null}
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            ) : null}
+                ) : null}
 
-            {isHard && importWarnings.length > 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Import notes</p>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                        {importWarnings.map((warning) => (
-                            <li key={warning} className="flex items-start gap-2">
-                                <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-slate-400" />
-                                <span>{warning}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            ) : null}
-
-            <div className="grid grid-cols-2 gap-5">
-                <div className="col-span-2 space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
-                        <ImageUpload
-                            label="Logo / Icon"
-                            value={form.logoUrl}
-                            onChange={(url) => setField('logoUrl', url)}
-                            hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
-                        />
-                        <ImageUpload
-                            label="Hero Banner"
-                            value={form.bannerUrl}
-                            onChange={(url) => setField('bannerUrl', url)}
-                            hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
-                        />
+                {importWarnings.length > 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Import notes</p>
+                        <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                            {importWarnings.map((warning) => (
+                                <li key={warning} className="flex items-start gap-2">
+                                    <span className="mt-[7px] h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                    <span>{warning}</span>
+                                </li>
+                            ))}
+                        </ul>
                     </div>
+                ) : null}
+            </>
+        );
+    }
 
-                    {hasLogoImage || hasBannerImage ? (
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <div>
-                                <p className="text-sm font-semibold text-slate-800">Image placement</p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    If the imported image landed in the wrong slot, you can reassign it here without uploading it again.
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {hasLogoImage && !hasBannerImage ? (
-                                    <button
-                                        type="button"
-                                        onClick={moveLogoToBanner}
-                                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                                    >
-                                        <ArrowRightLeft size={15} />
-                                        Move logo to hero
-                                    </button>
-                                ) : null}
-                                {hasBannerImage && !hasLogoImage ? (
-                                    <button
-                                        type="button"
-                                        onClick={moveBannerToLogo}
-                                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                                    >
-                                        <ArrowRightLeft size={15} />
-                                        Move hero to logo
-                                    </button>
-                                ) : null}
-                                {hasLogoImage && hasBannerImage ? (
-                                    <button
-                                        type="button"
-                                        onClick={swapMediaImages}
-                                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-                                    >
-                                        <ArrowRightLeft size={15} />
-                                        Swap logo and hero
-                                    </button>
-                                ) : null}
-                            </div>
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className="col-span-2 md:col-span-1">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">
-                        External Key {initialData?.id ? '' : '(optional)'}
-                    </label>
-                    <input
-                        value={form.externalKey || ''}
-                        onChange={(e) => setField('externalKey', e.target.value)}
-                        readOnly={Boolean(initialData?.id)}
-                        placeholder={initialData?.id ? '' : 'Leave blank to auto-generate'}
-                        className={`input-field ${initialData?.id ? 'bg-slate-50 text-slate-500' : ''}`}
+    function renderPlaceMediaFields() {
+        return (
+            <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <ImageUpload
+                        label="Logo / Icon"
+                        value={form.logoUrl}
+                        onChange={(url) => setField('logoUrl', url)}
+                        hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
                     />
-                    <p className="mt-1 text-xs text-slate-500">
-                        Stable workbook identifier. Keep this unchanged after creation.
-                    </p>
+                    <ImageUpload
+                        label="Hero Banner"
+                        value={form.bannerUrl}
+                        onChange={(url) => setField('bannerUrl', url)}
+                        hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
+                    />
                 </div>
 
-                <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Name *</label>
-                    <input required value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder={isHard ? 'Place name' : 'Offering name'} className="input-field" />
-                </div>
-
-                {isHard ? (
-                    <div className="col-span-2 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3">
-                        <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand-700">
-                                <ShieldCheck size={18} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-slate-800">Asset access is managed outside this edit form.</p>
-                                <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    Close this editor, then use the <span className="font-bold text-brand-700">Access</span> button on this place row to add or remove Owners and Staff.
-                                </p>
-                                <p className="mt-1 text-xs font-semibold text-slate-500">
-                                    Current ownership: {initialData?.partnerId ? 'legacy scoped, kept readable during transition' : 'system-owned until direct Owners or Staff are assigned'}.
-                                </p>
-                            </div>
+                {hasLogoImage || hasBannerImage ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800">Image placement</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                If the imported image landed in the wrong slot, you can reassign it here without uploading it again.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {hasLogoImage && !hasBannerImage ? (
+                                <button
+                                    type="button"
+                                    onClick={moveLogoToBanner}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                >
+                                    <ArrowRightLeft size={15} />
+                                    Move logo to hero
+                                </button>
+                            ) : null}
+                            {hasBannerImage && !hasLogoImage ? (
+                                <button
+                                    type="button"
+                                    onClick={moveBannerToLogo}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                >
+                                    <ArrowRightLeft size={15} />
+                                    Move hero to logo
+                                </button>
+                            ) : null}
+                            {hasLogoImage && hasBannerImage ? (
+                                <button
+                                    type="button"
+                                    onClick={swapMediaImages}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                >
+                                    <ArrowRightLeft size={15} />
+                                    Swap logo and hero
+                                </button>
+                            ) : null}
                         </div>
                     </div>
-                ) : (
-                    <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1 flex items-center gap-1"><Users size={13} /> Ownership</label>
-                            <select value={form.ownershipMode} onChange={(e) => setField('ownershipMode', e.target.value)} className="input-field">
-                                {OWNERSHIP_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Access source</label>
-                            <input value="Direct offering access or linked place access" readOnly className="input-field bg-slate-50" />
-                        </div>
-                    </div>
-                )}
+                ) : null}
+            </div>
+        );
+    }
 
-                {!isHard && (
-                    <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Bucket *</label>
-                            <select required value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
-                                {SOFT_ASSET_BUCKETS.map((bucket) => (
-                                    <option key={bucket} value={bucket}>{bucket}</option>
-                                ))}
-                            </select>
+    function renderPlaceProfileStep() {
+        return (
+            <div className="space-y-5">
+                {renderPlaceImportContext()}
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                            {renderPlaceMediaFields()}
                         </div>
+
                         <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Sub-Category *</label>
-                            <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
-                                {availableSubCategories.filter((subcategory) => subcategory.type === 'soft').map((subcategory) => (
-                                    <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Host Locations (Optional)</label>
-                            <Select
-                                isMulti
-                                options={linkedLocationOptions}
-                                value={selectedLocationOptions}
-                                onChange={(selected) => setField('locationIds', Array.isArray(selected) ? selected.map((item) => item.value) : [])}
-                                components={{ MultiValueLabel: TooltipMultiValueLabel }}
-                                styles={hostLocationSelectStyles}
-                                className="react-select-container"
-                                classNamePrefix="react-select"
-                                placeholder="Select places..."
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">
+                                External Key {initialData?.id ? '' : '(optional)'}
+                            </label>
+                            <input
+                                value={form.externalKey || ''}
+                                onChange={(e) => setField('externalKey', e.target.value)}
+                                readOnly={Boolean(initialData?.id)}
+                                placeholder={initialData?.id ? '' : 'Leave blank to auto-generate'}
+                                className={`input-field ${initialData?.id ? 'bg-slate-50 text-slate-500' : ''}`}
                             />
+                            <p className="mt-1 text-xs text-slate-500">
+                                Stable workbook identifier. Keep this unchanged after creation.
+                            </p>
                         </div>
-                    </div>
-                )}
 
-                {isHard && (
-                    <>
-                        <div className="col-span-2">
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Sub-Category *</label>
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Name *</label>
+                            <input required value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Place name" className="input-field" />
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Category *</label>
                             <CreatableSelect
                                 isClearable={false}
                                 options={hardSubCategoryOptions}
@@ -874,58 +1049,17 @@ export default function AssetForm({
                                 Type to create a new place category on the fly when the right one is not already available.
                             </p>
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Globe size={13} className="inline mr-1" />Country *</label>
-                            <select required value={form.country} onChange={(e) => setField('country', e.target.value)} className="input-field">
-                                <option value="SG">Singapore</option>
-                                <option value="US">United States</option>
-                                <option value="CA">Canada</option>
-                                <option value="GB">United Kingdom</option>
-                                <option value="AU">Australia</option>
-                                <option value="MY">Malaysia</option>
-                                <option value="IN">India</option>
-                                <option value="PH">Philippines</option>
-                            </select>
+
+                        <div className="md:col-span-2">
+                            <MarkdownDescriptionField
+                                id="place-description"
+                                value={form.description || ''}
+                                onChange={(value) => setField('description', value)}
+                                rows={5}
+                            />
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1">Postal code *</label>
-                            <input required value={form.postalCode} onChange={(e) => setField('postalCode', e.target.value)} placeholder="680153" className="input-field" />
-                        </div>
-                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-                            {hardSubregionResult.status === 'ok' ? (
-                                <span className="text-green-700 font-medium">Service area found: {hardSubregionResult.subregion.subregionCode || 'No code'} · {hardSubregionResult.subregion.name}</span>
-                            ) : hardSubregionResult.status === 'ambiguous' ? (
-                                <span className="text-amber-700">
-                                    Postal code matches multiple service areas. This place can still be saved and will use {preferredHardSubregion?.subregionCode || 'No code'} · {preferredHardSubregion?.name || 'the preferred service area'} for area-based management.
-                                </span>
-                            ) : hardSubregionResult.status === 'missing' && canUseHardSingaporeFallback ? (
-                                <span className="text-amber-700">
-                                    Postal code will be checked against Singapore before saving and attached to {singaporeFallbackSubregion?.subregionCode || 'SIN'} · {singaporeFallbackSubregion?.name || 'Singapore'} if valid.
-                                </span>
-                            ) : hardSubregionResult.status === 'missing' ? (
-                                <span className="text-red-700">Postal code does not match any configured service area.</span>
-                            ) : (
-                                <span className="text-slate-500">Enter a valid 6-digit postal code to place this resource in a service area automatically.</span>
-                            )}
-                        </div>
-                        <div className="col-span-2">
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><MapPin size={13} className="inline mr-1" />Street Address *</label>
-                            <input required value={form.address} onChange={(e) => setField('address', e.target.value)} placeholder="123 Main St" className="input-field" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Phone size={13} className="inline mr-1" />Phone</label>
-                            <input type="tel" value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(312) 555-0000" className="input-field" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><MessageCircle size={13} className="inline mr-1" />WhatsApp contact</label>
-                            <input value={form.whatsappContact || ''} onChange={(e) => setField('whatsappContact', e.target.value)} placeholder="87654321 or https://wa.me/6587654321" className="input-field" />
-                            <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Hours</label>
-                            <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon–Fri 9am–5pm" className="input-field" />
-                        </div>
-                        <div className="col-span-2">
+
+                        <div className="md:col-span-2">
                             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                                 <label className="block text-sm font-semibold text-slate-700"><Globe size={13} className="inline mr-1" />Website</label>
                                 {websiteHref ? (
@@ -947,19 +1081,9 @@ export default function AssetForm({
                                 placeholder="https://example.org"
                                 className="input-field"
                             />
-                            {websiteHref ? (
-                                <a
-                                    href={websiteHref}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="mt-2 inline-flex max-w-full items-center gap-1 break-all text-sm font-medium text-brand-700 transition hover:text-brand-800 hover:underline"
-                                >
-                                    {form.website || websiteHref}
-                                    <ExternalLink size={13} className="flex-shrink-0" />
-                                </a>
-                            ) : null}
                         </div>
-                        <div className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+
+                        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <p className="text-sm font-bold text-slate-900"><Globe size={13} className="inline mr-1" />Social media links</p>
@@ -999,22 +1123,507 @@ export default function AssetForm({
                                 ))}
                             </div>
                         </div>
-                    </>
-                )}
 
-                {!isHard && (
-                    <>
-                        <div className="col-span-2">
-                            <label className="block text-sm font-semibold text-slate-700 mb-1"><Clock size={13} className="inline mr-1" />Schedule</label>
-                            <textarea
-                                rows={3}
-                                value={form.schedule || ''}
-                                onChange={(e) => setField('schedule', e.target.value)}
-                                placeholder="e.g. Every Tuesday at 10 AM"
+                        <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Tags (Press enter to add)</label>
+                            <CreatableSelect
+                                isMulti
+                                options={tagOptions}
+                                value={currentTags}
+                                onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                placeholder="Search or create tags..."
+                            />
+                        </div>
+                    </div>
+                </section>
+            </div>
+        );
+    }
+
+    function renderPlaceLocationStep() {
+        return (
+            <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><Globe size={13} className="inline mr-1" />Country *</label>
+                        <select required value={form.country} onChange={(e) => setField('country', e.target.value)} className="input-field">
+                            <option value="SG">Singapore</option>
+                            <option value="US">United States</option>
+                            <option value="CA">Canada</option>
+                            <option value="GB">United Kingdom</option>
+                            <option value="AU">Australia</option>
+                            <option value="MY">Malaysia</option>
+                            <option value="IN">India</option>
+                            <option value="PH">Philippines</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Postal code *</label>
+                        <input required value={form.postalCode} onChange={(e) => setField('postalCode', e.target.value)} placeholder="680153" className="input-field" />
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs md:col-span-2">
+                        {hardSubregionResult.status === 'ok' ? (
+                            <span className="font-medium text-green-700">Service area found: {hardSubregionResult.subregion.subregionCode || 'No code'} · {hardSubregionResult.subregion.name}</span>
+                        ) : hardSubregionResult.status === 'ambiguous' ? (
+                            <span className="text-amber-700">
+                                Postal code matches multiple service areas. This place can still be saved and will use {preferredHardSubregion?.subregionCode || 'No code'} · {preferredHardSubregion?.name || 'the preferred service area'} for area-based management.
+                            </span>
+                        ) : hardSubregionResult.status === 'missing' && canUseHardSingaporeFallback ? (
+                            <span className="text-amber-700">
+                                Postal code will be checked against Singapore before saving and attached to {singaporeFallbackSubregion?.subregionCode || 'SIN'} · {singaporeFallbackSubregion?.name || 'Singapore'} if valid.
+                            </span>
+                        ) : hardSubregionResult.status === 'missing' ? (
+                            <span className="text-red-700">Postal code does not match any configured service area.</span>
+                        ) : (
+                            <span className="text-slate-500">Enter a valid 6-digit postal code to place this resource in a service area automatically.</span>
+                        )}
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><MapPin size={13} className="inline mr-1" />Street Address *</label>
+                        <input required value={form.address} onChange={(e) => setField('address', e.target.value)} placeholder="123 Main St" className="input-field" />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><Phone size={13} className="inline mr-1" />Phone</label>
+                        <input type="tel" value={form.phone || ''} onChange={(e) => setField('phone', e.target.value)} placeholder="(312) 555-0000" className="input-field" />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><MessageCircle size={13} className="inline mr-1" />WhatsApp contact</label>
+                        <input value={form.whatsappContact || ''} onChange={(e) => setField('whatsappContact', e.target.value)} placeholder="87654321 or https://wa.me/6587654321" className="input-field" />
+                        <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><Mail size={13} className="inline mr-1" />Contact email</label>
+                        <input type="email" value={form.contactEmail || ''} onChange={(e) => setField('contactEmail', e.target.value)} placeholder="hello@example.org" className="input-field" />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700"><Clock size={13} className="inline mr-1" />Hours</label>
+                        <input value={form.hours || ''} onChange={(e) => setField('hours', e.target.value)} placeholder="Mon-Fri 9am-5pm" className="input-field" />
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    function renderPlaceVisibilityStep() {
+        return (
+            <div className="space-y-5">
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                        <Globe size={18} className="text-brand-600" />
+                        Visibility Settings
+                    </h3>
+                    <div className="mt-5 space-y-5">
+                        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">Hide from App</p>
+                                <p className="text-xs text-slate-500">Temporarily or permanently remove this Place from public discovery.</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input type="checkbox" checked={Boolean(form.isHidden)} onChange={(e) => setField('isHidden', e.target.checked)} className="peer sr-only" />
+                                <div className="h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-red-500 peer-checked:after:translate-x-full"></div>
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Scheduled Hide (From)</label>
+                                <input type="datetime-local" value={form.hideFrom} onChange={(e) => setField('hideFrom', e.target.value)} className="input-field text-sm" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Scheduled Hide (Until)</label>
+                                <input type="datetime-local" value={form.hideUntil} onChange={(e) => setField('hideUntil', e.target.value)} className="input-field text-sm" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {renderSystemUpdateRecord('Place')}
+            </div>
+        );
+    }
+
+    function renderSavedToolUnlockMessage(toolName) {
+        const resourceLabel = isHard ? 'Place' : 'Offering';
+        return (
+            <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
+                <p className="text-base font-bold text-slate-900">Save this {resourceLabel} first</p>
+                <p className="mt-1 text-sm text-slate-500">{toolName} can be managed after the {resourceLabel} exists.</p>
+            </div>
+        );
+    }
+
+    function renderPlaceAccessStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Access');
+        return (
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-5">
+                <AssetAccessPanel asset={initialData} assetType="hard" onChanged={onResourceToolsChanged} />
+            </div>
+        );
+    }
+
+    function renderPlaceZonesStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Audience zones');
+        return (
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-5">
+                <AssetAudienceZonesPanel asset={initialData} currentUser={currentUser} onChanged={onResourceToolsChanged} />
+            </div>
+        );
+    }
+
+    function renderPlaceTranslationStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Translation review');
+        return (
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-sky-200 bg-sky-50/50 p-5">
+                <TranslationReviewPanel
+                    resourceType="hard"
+                    resourceId={initialData.id}
+                />
+            </div>
+        );
+    }
+
+    function renderPlaceRestrictedStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Restricted notes and files');
+        return (
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-amber-200 bg-amber-50/40 p-5">
+                <PrivateResourceContentEditor
+                    resourceType="hard"
+                    resourceId={initialData.id}
+                />
+            </div>
+        );
+    }
+
+    function renderPlaceStep(stepIndex) {
+        if (stepIndex === 0) return renderPlaceProfileStep();
+        if (stepIndex === 1) return renderPlaceLocationStep();
+        if (stepIndex === 2) return renderPlaceVisibilityStep();
+        if (stepIndex === 3) return renderPlaceAccessStep();
+        if (stepIndex === 4) return renderPlaceZonesStep();
+        if (stepIndex === 5) return renderPlaceTranslationStep();
+        if (stepIndex === 6) return renderPlaceRestrictedStep();
+        return null;
+    }
+
+    function renderPlacePreviewInfoRow({ icon, label, children }) {
+        return (
+            <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600">{icon}</div>
+                <div className="min-w-0">
+                    <p className="mb-1 font-bold text-slate-900">{label}</p>
+                    <div className="break-words text-slate-700">{children}</div>
+                </div>
+            </div>
+        );
+    }
+
+    function renderPlaceDetailPreview() {
+        const socialEntries = SOCIAL_PLATFORMS
+            .map((platform) => ({
+                ...platform,
+                url: normalizeExternalHref(form.socialLinks?.[platform.key]),
+            }))
+            .filter((entry) => entry.url);
+        const tags = Array.isArray(form.newTags) ? form.newTags.slice(0, 8) : [];
+
+        return (
+            <div className="space-y-5">
+                {(form.bannerUrl || form.logoUrl) ? (
+                    <div className="flex h-52 items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <img
+                            src={form.bannerUrl || form.logoUrl}
+                            alt=""
+                            className={form.bannerUrl ? 'h-full w-full object-cover' : 'max-h-full max-w-full object-contain p-6'}
+                        />
+                    </div>
+                ) : null}
+
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="mb-4 flex flex-col items-start gap-4 sm:flex-row">
+                        {form.logoUrl && form.bannerUrl ? (
+                            <img
+                                src={form.logoUrl}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain"
+                            />
+                        ) : null}
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 shadow-sm">
+                                <Building2 size={16} />
+                                {form.subCategory || 'Place'}
+                            </div>
+                            <h1 className="text-3xl font-bold leading-tight text-slate-900">{form.name || 'Untitled Place'}</h1>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {form.address ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
+                                        <MapPin size={15} />
+                                        {form.address}
+                                    </span>
+                                ) : null}
+                                {form.postalCode ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                        {form.postalCode}
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-600">
+                        {form.description ? (
+                            <MarkdownLiteText text={form.description} />
+                        ) : (
+                            <p className="italic text-slate-400">No description added yet.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
+                        {form.hours ? renderPlacePreviewInfoRow({
+                            icon: <Clock size={22} />,
+                            label: 'Hours',
+                            children: form.hours,
+                        }) : null}
+                        {form.phone ? renderPlacePreviewInfoRow({
+                            icon: <Phone size={22} />,
+                            label: 'Phone',
+                            children: form.phone,
+                        }) : null}
+                        {form.whatsappContact ? renderPlacePreviewInfoRow({
+                            icon: <MessageCircle size={22} />,
+                            label: 'WhatsApp contact',
+                            children: form.whatsappContact,
+                        }) : null}
+                        {form.contactEmail ? renderPlacePreviewInfoRow({
+                            icon: <Mail size={22} />,
+                            label: 'Email',
+                            children: form.contactEmail,
+                        }) : null}
+                        {websiteHref ? renderPlacePreviewInfoRow({
+                            icon: <Globe size={22} />,
+                            label: 'Website',
+                            children: <span className="break-all text-brand-700">{form.website || websiteHref}</span>,
+                        }) : null}
+                        {socialEntries.length > 0 ? renderPlacePreviewInfoRow({
+                            icon: <Globe size={22} />,
+                            label: 'Social channels',
+                            children: (
+                                <div className="flex flex-wrap gap-2">
+                                    {socialEntries.map((entry) => (
+                                        <span key={entry.key} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-700">
+                                            {entry.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            ),
+                        }) : null}
+                    </div>
+
+                    {tags.length > 0 ? (
+                        <div className="mt-8 border-t border-slate-200 pt-6">
+                            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-900">Tags</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map((tag) => (
+                                    <span key={tag} className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                </article>
+            </div>
+        );
+    }
+
+    function renderOfferingMediaFields() {
+        return (
+            <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <ImageUpload
+                        label="Logo / Icon"
+                        value={form.logoUrl}
+                        onChange={(url) => setField('logoUrl', url)}
+                        hint="Best: 512 x 512px square PNG with a transparent background. Keep the artwork centered and within the middle 80%."
+                    />
+                    <ImageUpload
+                        label="Hero Banner"
+                        value={form.bannerUrl}
+                        onChange={(url) => setField('bannerUrl', url)}
+                        hint="Best: 1600 x 900px landscape image or wider. Keep key content near the center because banners crop responsively."
+                    />
+                </div>
+
+                {hasLogoImage || hasBannerImage ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800">Image placement</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                If the imported image landed in the wrong slot, you can reassign it here without uploading it again.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {hasLogoImage && !hasBannerImage ? (
+                                <button
+                                    type="button"
+                                    onClick={moveLogoToBanner}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                >
+                                    <ArrowRightLeft size={15} />
+                                    Move logo to hero
+                                </button>
+                            ) : null}
+                            {hasBannerImage && !hasLogoImage ? (
+                                <button
+                                    type="button"
+                                    onClick={moveBannerToLogo}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                >
+                                    <ArrowRightLeft size={15} />
+                                    Move hero to logo
+                                </button>
+                            ) : null}
+                            {hasLogoImage && hasBannerImage ? (
+                                <button
+                                    type="button"
+                                    onClick={swapMediaImages}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+                                >
+                                    <ArrowRightLeft size={15} />
+                                    Swap logo and hero
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    function renderOfferingProfileStep() {
+        return (
+            <div className="space-y-5">
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                            {renderOfferingMediaFields()}
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">
+                                External Key {initialData?.id ? '' : '(optional)'}
+                            </label>
+                            <input
+                                value={form.externalKey || ''}
+                                onChange={(e) => setField('externalKey', e.target.value)}
+                                readOnly={Boolean(initialData?.id)}
+                                placeholder={initialData?.id ? '' : 'Leave blank to auto-generate'}
+                                className={`input-field ${initialData?.id ? 'bg-slate-50 text-slate-500' : ''}`}
+                            />
+                            <p className="mt-1 text-xs text-slate-500">
+                                Stable workbook identifier. Keep this unchanged after creation.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Name *</label>
+                            <input required value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Offering name" className="input-field" />
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Bucket *</label>
+                            <select required value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
+                                {SOFT_ASSET_BUCKETS.map((bucket) => (
+                                    <option key={bucket} value={bucket}>{bucket}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Category *</label>
+                            <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
+                                {availableSubCategories.filter((subcategory) => subcategory.type === 'soft').map((subcategory) => (
+                                    <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <MarkdownDescriptionField
+                                id="offering-description"
+                                value={form.description || ''}
+                                onChange={(value) => setField('description', value)}
+                                rows={5}
+                            />
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                <label className="block text-sm font-semibold text-slate-700"><Globe size={13} className="inline mr-1" />Website</label>
+                                {websiteHref ? (
+                                    <a
+                                        href={websiteHref}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800 hover:underline"
+                                    >
+                                        Open website
+                                        <ExternalLink size={13} />
+                                    </a>
+                                ) : null}
+                            </div>
+                            <input
+                                type="url"
+                                value={form.website || ''}
+                                onChange={(e) => setField('website', e.target.value)}
+                                placeholder="https://example.org"
                                 className="input-field"
                             />
                         </div>
-                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+
+                        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-900"><Globe size={13} className="inline mr-1" />Social media links</p>
+                                    <p className="mt-1 text-xs text-slate-500">Optional public channels shown on the resource detail card.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {SOCIAL_PLATFORMS.map((platform) => {
+                                        const href = normalizeExternalHref(normalizedSocialLinks[platform.key]);
+                                        if (!href) return null;
+                                        return (
+                                            <a
+                                                key={platform.key}
+                                                href={href}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 rounded-full border border-brand-100 bg-white px-2.5 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+                                            >
+                                                {platform.label}
+                                                <ExternalLink size={12} />
+                                            </a>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {SOCIAL_PLATFORMS.map((platform) => (
+                                    <div key={platform.key}>
+                                        <label className="mb-1 block text-xs font-bold text-slate-600">{platform.label}</label>
+                                        <input
+                                            type="url"
+                                            value={form.socialLinks?.[platform.key] || ''}
+                                            onChange={(e) => setSocialLink(platform.key, e.target.value)}
+                                            placeholder={platform.placeholder}
+                                            className="input-field text-sm"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <div className="mb-4 flex items-center gap-2">
                                 <MessageCircle size={16} className="text-brand-600" />
                                 <div>
@@ -1081,236 +1690,205 @@ export default function AssetForm({
                                 </div>
                             </div>
                         </div>
-                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                            {selectedLinkedLocations.length > 0 ? (
-                                linkedLocationSubregions.length === 1 && derivedSoftSubregion ? (
-                                    <span className="text-green-700 font-medium">Service area found from linked places: {derivedSoftSubregion.subregionCode || 'No code'} · {derivedSoftSubregion.name}</span>
-                                ) : (
-                                    <span className="text-amber-700">Linked places span multiple service areas. Keep linked places within one service area.</span>
-                                )
-                            ) : (
-                                <span>Select a service area below when the offering is not linked to a place.</span>
-                            )}
+
+                        <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Tags (Press enter to add)</label>
+                            <CreatableSelect
+                                isMulti
+                                options={tagOptions}
+                                value={currentTags}
+                                onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                placeholder="Search or create tags..."
+                            />
                         </div>
-                        {selectedLinkedLocations.length === 0 ? (
-                            <div className="col-span-2">
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Service regions</label>
-                                <Select
-                                    isMulti
-                                    options={coverageRegionOptions}
-                                    value={selectedCoverageRegionOptions}
-                                    onChange={(selected) => {
-                                        const ids = Array.isArray(selected) ? selected.map((item) => item.value) : [];
-                                        setForm((prev) => ({
-                                            ...prev,
-                                            coverageRegionIds: ids,
-                                            subregionId: ids[0] || '',
-                                        }));
-                                    }}
-                                    className="react-select-container"
-                                    classNamePrefix="react-select"
-                                    placeholder="Select one or more service regions..."
-                                />
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Standalone services can cover multiple overlapping Regions, or use target areas below for audience-zone-only visibility.
-                                </p>
-                            </div>
-                        ) : null}
+                    </div>
+                </section>
+            </div>
+        );
+    }
 
-                        <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="mb-4 flex items-center gap-2">
-                                <Package2 size={16} className="text-brand-600" />
-                                <div>
-                                    <h3 className="text-sm font-semibold text-slate-800">Availability</h3>
-                                    <p className="text-xs text-slate-500">Control the public availability count shown on offering cards and detail pages.</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-700">Enable availability tracking</p>
-                                        <p className="text-xs text-slate-500">Turn this on when users should see a live remaining count.</p>
-                                    </div>
-                                    <label className="relative inline-flex cursor-pointer items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={Boolean(form.availabilityEnabled)}
-                                            onChange={(e) => setField('availabilityEnabled', e.target.checked)}
-                                            className="peer sr-only"
-                                        />
-                                        <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-brand-600 peer-checked:after:translate-x-full after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
-                                    </label>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div>
-                                        <label className="mb-1 block text-sm font-semibold text-slate-700">Availability count</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            value={form.availabilityCount}
-                                            onChange={(e) => setField('availabilityCount', e.target.value)}
-                                            placeholder="0"
-                                            className="input-field"
-                                        />
-                                        <p className="mt-1 text-xs text-slate-500">Use a whole number. The value is preserved even if tracking is switched off.</p>
-                                    </div>
-                                    <div>
-                                        <label className="mb-1 block text-sm font-semibold text-slate-700">Availability unit</label>
-                                        <input
-                                            value={form.availabilityUnit || ''}
-                                            onChange={(e) => setField('availabilityUnit', e.target.value)}
-                                            placeholder="slots, tickets, vouchers"
-                                            className="input-field"
-                                        />
-                                        <p className="mt-1 text-xs text-slate-500">Optional. If left blank, public cards will fall back to “available”.</p>
-                                    </div>
-                                </div>
-                            </div>
+    function renderOfferingScheduleStep() {
+        return (
+            <div className="space-y-5">
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                            <label className="mb-1 block text-sm font-semibold text-slate-700"><Clock size={13} className="inline mr-1" />Schedule</label>
+                            <textarea
+                                rows={4}
+                                value={form.schedule || ''}
+                                onChange={(e) => setField('schedule', e.target.value)}
+                                placeholder="e.g. Every Tuesday at 10 AM"
+                                className="input-field"
+                            />
                         </div>
-                    </>
-                )}
-
-                <div className="col-span-2">
-                    <MarkdownDescriptionField
-                        id="asset-description"
-                        value={form.description || ''}
-                        onChange={(value) => setField('description', value)}
-                        rows={3}
-                    />
-                </div>
-
-                {initialData?.id ? (
-                    <div className="col-span-2">
-                        <TranslationReviewPanel
-                            resourceType={isHard ? 'hard' : 'soft'}
-                            resourceId={initialData.id}
-                        />
                     </div>
-                ) : (
-                    <div className="col-span-2 rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
-                        Save this resource first, then edit it again to review Mandarin, Malay, and Tamil translations.
-                    </div>
-                )}
+                </section>
 
-                {initialData?.id ? (
-                    <div className="col-span-2">
-                        <PrivateResourceContentEditor
-                            resourceType={isHard ? 'hard' : 'soft'}
-                            resourceId={initialData.id}
-                        />
-                    </div>
-                ) : (
-                    <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                        Save this resource first, then edit it again to add restricted notes and files.
-                    </div>
-                )}
-
-                <div className="col-span-2 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
-                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Package2 size={16} className="text-brand-600" />
                         <div>
-                            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                                <ShieldCheck size={16} className="text-brand-600" />
-                                Freshness check
-                            </h3>
+                            <h3 className="text-sm font-semibold text-slate-800">Availability</h3>
+                            <p className="text-xs text-slate-500">Control the public availability count shown on offering cards and detail pages.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">Enable availability tracking</p>
+                                <p className="text-xs text-slate-500">Turn this on when users should see a live remaining count.</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(form.availabilityEnabled)}
+                                    onChange={(e) => setField('availabilityEnabled', e.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-brand-600 peer-checked:after:translate-x-full after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Availability count</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={form.availabilityCount}
+                                    onChange={(e) => setField('availabilityCount', e.target.value)}
+                                    placeholder="0"
+                                    className="input-field"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">Use a whole number. The value is preserved even if tracking is switched off.</p>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Availability unit</label>
+                                <input
+                                    value={form.availabilityUnit || ''}
+                                    onChange={(e) => setField('availabilityUnit', e.target.value)}
+                                    placeholder="slots, tickets, vouchers"
+                                    className="input-field"
+                                />
+                                <p className="mt-1 text-xs text-slate-500">Optional. If left blank, public cards will fall back to "available".</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                        <EyeOff size={18} className="text-red-500" />
+                        Hide window
+                    </h3>
+                    <div className="mt-5 space-y-5">
+                        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">Hide from App</p>
+                                <p className="text-xs text-slate-500">Temporarily or permanently remove from discovery.</p>
+                            </div>
+                            <label className="relative inline-flex cursor-pointer items-center">
+                                <input type="checkbox" checked={Boolean(form.isHidden)} onChange={(e) => setField('isHidden', e.target.checked)} className="peer sr-only" />
+                                <div className="h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-red-500 peer-checked:after:translate-x-full"></div>
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Scheduled Hide (From)</label>
+                                <input type="datetime-local" value={form.hideFrom} onChange={(e) => setField('hideFrom', e.target.value)} className="input-field text-sm" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-xs font-semibold text-slate-700">Scheduled Hide (Until)</label>
+                                <input type="datetime-local" value={form.hideUntil} onChange={(e) => setField('hideUntil', e.target.value)} className="input-field text-sm" />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {renderSystemUpdateRecord('Offering')}
+            </div>
+        );
+    }
+
+    function renderOfferingHostCoverageStep() {
+        return (
+            <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                <div className="grid grid-cols-1 gap-5">
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Host Locations (Optional)</label>
+                        <Select
+                            isMulti
+                            options={linkedLocationOptions}
+                            value={selectedLocationOptions}
+                            onChange={(selected) => setField('locationIds', Array.isArray(selected) ? selected.map((item) => item.value) : [])}
+                            components={{ MultiValueLabel: TooltipMultiValueLabel }}
+                            styles={hostLocationSelectStyles}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                            placeholder="Select places..."
+                        />
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                        {selectedLinkedLocations.length > 0 ? (
+                            linkedLocationSubregions.length === 1 && derivedSoftSubregion ? (
+                                <span className="font-medium text-green-700">Service area found from linked places: {derivedSoftSubregion.subregionCode || 'No code'} · {derivedSoftSubregion.name}</span>
+                            ) : (
+                                <span className="text-amber-700">Linked places span multiple service areas. Keep linked places within one service area.</span>
+                            )
+                        ) : (
+                            <span>Select a service area below when the offering is not linked to a place.</span>
+                        )}
+                    </div>
+
+                    {selectedLinkedLocations.length === 0 ? (
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Service regions</label>
+                            <Select
+                                isMulti
+                                options={coverageRegionOptions}
+                                value={selectedCoverageRegionOptions}
+                                onChange={(selected) => {
+                                    const ids = Array.isArray(selected) ? selected.map((item) => item.value) : [];
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        coverageRegionIds: ids,
+                                        subregionId: ids[0] || '',
+                                    }));
+                                }}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                placeholder="Select one or more service regions..."
+                            />
                             <p className="mt-1 text-xs text-slate-500">
-                                Track when this record was last reviewed. This is governance metadata only and does not change who can edit the resource.
+                                Standalone services can cover multiple overlapping Regions, or use target areas below for audience-zone-only visibility.
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setField('lastReviewedAt', formatDateInput(new Date()));
-                                setField('verificationStatus', 'verified');
-                            }}
-                            className="btn-secondary shrink-0 px-3 py-2 text-xs"
-                        >
-                            Mark reviewed today
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                        <div>
-                            <label className="mb-1 block text-xs font-semibold text-slate-700">Last reviewed</label>
-                            <input
-                                type="date"
-                                value={form.lastReviewedAt || ''}
-                                onChange={(event) => setField('lastReviewedAt', event.target.value)}
-                                className="input-field text-sm"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-xs font-semibold text-slate-700">Source</label>
-                            <select
-                                value={form.sourceType || ''}
-                                onChange={(event) => setField('sourceType', event.target.value)}
-                                className="input-field text-sm"
-                            >
-                                {SOURCE_TYPE_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-xs font-semibold text-slate-700">Status</label>
-                            <select
-                                value={form.verificationStatus || 'unverified'}
-                                onChange={(event) => setField('verificationStatus', event.target.value)}
-                                className="input-field text-sm"
-                            >
-                                {VERIFICATION_STATUS_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="mb-1 block text-xs font-semibold text-slate-700">Confidence</label>
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={form.verificationConfidence || ''}
-                                onChange={(event) => setField('verificationConfidence', event.target.value)}
-                                placeholder="0-100"
-                                className="input-field text-sm"
-                            />
-                        </div>
-                    </div>
+                    ) : null}
                 </div>
+            </section>
+        );
+    }
 
-                <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Tags (Press enter to add)</label>
-                    <CreatableSelect
-                        isMulti
-                        options={tagOptions}
-                        value={currentTags}
-                        onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
-                        className="react-select-container"
-                        classNamePrefix="react-select"
-                        placeholder="Search or create tags..."
-                    />
-                </div>
-            </div>
+    function renderOfferingVisibilityStep() {
+        return (
+            <div className="space-y-5">
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                        <Globe size={18} className="text-brand-600" />
+                        Visibility Settings
+                    </h3>
 
-            {!isHard ? (
-                <EligibilityRulesEditor
-                    value={form.eligibilityRules}
-                    onChange={(rules) => setField('eligibilityRules', rules)}
-                />
-            ) : null}
-
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mt-6 space-y-4">
-                <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                    <Globe size={16} className="text-brand-600" />
-                    Visibility Settings
-                </h3>
-
-                {!isHard && (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="mt-5 space-y-5">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Who can see this?</label>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Who can see this?</label>
                                 <select value={form.audienceMode || 'public'} onChange={(e) => setField('audienceMode', e.target.value)} className="input-field">
                                     <option value="public">Public</option>
                                     <option value="audience_zones">Target areas</option>
@@ -1319,20 +1897,21 @@ export default function AssetForm({
                                     Public offerings are open to everyone. Target-area offerings show only in selected postal-code areas.
                                 </p>
                             </div>
-                            <div className="flex items-center justify-between border border-slate-200 rounded-xl px-4 py-3 bg-white">
+                            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                                 <div>
                                     <p className="text-sm font-semibold text-slate-700">For linked members</p>
-                                    <p className="text-xs text-slate-500">Require users to be signed in and linked before they can view this offering</p>
+                                    <p className="text-xs text-slate-500">Require users to be signed in and linked before they can view this offering.</p>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" checked={Boolean(form.isMemberOnly)} onChange={(e) => setField('isMemberOnly', e.target.checked)} className="sr-only peer" />
-                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                                <label className="relative inline-flex cursor-pointer items-center">
+                                    <input type="checkbox" checked={Boolean(form.isMemberOnly)} onChange={(e) => setField('isMemberOnly', e.target.checked)} className="peer sr-only" />
+                                    <div className="h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-600 peer-checked:after:translate-x-full"></div>
                                 </label>
                             </div>
                         </div>
+
                         {form.audienceMode === 'audience_zones' ? (
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-1">Audience Zones</label>
+                                <label className="mb-1 block text-sm font-semibold text-slate-700">Audience Zones</label>
                                 <Select
                                     isMulti
                                     options={audienceZoneOptions}
@@ -1347,40 +1926,254 @@ export default function AssetForm({
                                 </p>
                             </div>
                         ) : null}
-                    </>
-                )}
+                    </div>
+                </section>
 
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-semibold text-slate-700">Hide from App</p>
-                        <p className="text-xs text-slate-500">Temporarily or permanently remove from discovery</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={Boolean(form.isHidden)} onChange={(e) => setField('isHidden', e.target.checked)} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
-                    </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">Scheduled Hide (From)</label>
-                        <input type="datetime-local" value={form.hideFrom} onChange={(e) => setField('hideFrom', e.target.value)} className="input-field text-sm p-2" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">Scheduled Hide (Until)</label>
-                        <input type="datetime-local" value={form.hideUntil} onChange={(e) => setField('hideUntil', e.target.value)} className="input-field text-sm p-2" />
-                    </div>
-                </div>
+                <EligibilityRulesEditor
+                    value={form.eligibilityRules}
+                    onChange={(rules) => setField('eligibilityRules', rules)}
+                />
             </div>
+        );
+    }
 
-            {error ? <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div> : null}
+    function renderOfferingAccessStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Access');
 
-            <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => onCancel(form)} className="btn-ghost flex-1 justify-center">Cancel</button>
-                <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : 'Save Asset'}
-                </button>
+        if (isOfferingLinkedToHostPlace) {
+            return (
+                <div className="rounded-3xl border border-brand-100 bg-brand-50/70 p-5">
+                    <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-700">
+                            <ShieldCheck size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-slate-900">Access is inherited from the host Place</p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                This offering is linked to {selectedLinkedLocations.length === 1 ? selectedLinkedLocations[0].name : 'host Places'}, so Owners and Staff should be managed on the host Place access tab.
+                            </p>
+                            <p className="mt-2 text-xs font-semibold text-slate-500">
+                                Direct standalone Offering access is available only when no host Place is linked.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-5">
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><Users size={13} /> Ownership</label>
+                            <select value={form.ownershipMode} onChange={(e) => setField('ownershipMode', e.target.value)} className="input-field">
+                                {OWNERSHIP_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Access source</label>
+                            <input value="Direct offering access or linked place access" readOnly className="input-field bg-slate-50" />
+                        </div>
+                    </div>
+                </section>
+
+                {!isOfferingLinkedToHostPlace ? (
+                    <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-5">
+                        <AssetAccessPanel asset={initialData} assetType="soft" onChanged={onResourceToolsChanged} />
+                    </div>
+                ) : null}
             </div>
-        </form>
+        );
+    }
+
+    function renderOfferingTranslationStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Translation review');
+        return (
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-sky-200 bg-sky-50/50 p-5">
+                <TranslationReviewPanel
+                    resourceType="soft"
+                    resourceId={initialData.id}
+                />
+            </div>
+        );
+    }
+
+    function renderOfferingRestrictedStep() {
+        if (!initialData?.id) return renderSavedToolUnlockMessage('Restricted notes and files');
+        return (
+            <div data-resource-wizard-skip-validity className="rounded-3xl border border-amber-200 bg-amber-50/40 p-5">
+                <PrivateResourceContentEditor
+                    resourceType="soft"
+                    resourceId={initialData.id}
+                />
+            </div>
+        );
+    }
+
+    function renderOfferingStep(stepIndex) {
+        if (stepIndex === 0) return renderOfferingProfileStep();
+        if (stepIndex === 1) return renderOfferingScheduleStep();
+        if (stepIndex === 2) return renderOfferingHostCoverageStep();
+        if (stepIndex === 3) return renderOfferingVisibilityStep();
+        if (stepIndex === 4) return renderOfferingAccessStep();
+        if (stepIndex === 5) return renderOfferingTranslationStep();
+        if (stepIndex === 6) return renderOfferingRestrictedStep();
+        return null;
+    }
+
+    function renderOfferingDetailPreview() {
+        const tags = Array.isArray(form.newTags) ? form.newTags.slice(0, 8) : [];
+        const ctaHref = normalizeExternalHref(form.ctaUrl);
+        const selectedCoverageLabels = selectedLinkedLocations.length > 0
+            ? selectedLinkedLocations.map((location) => location.name).filter(Boolean)
+            : selectedCoverageRegionOptions.map((option) => option.label);
+        const availabilityText = form.availabilityEnabled
+            ? `${normalizeAvailabilityCount(form.availabilityCount)} ${normalizeAvailabilityUnit(form.availabilityUnit) || 'available'}`.trim()
+            : '';
+
+        return (
+            <div className="space-y-5">
+                {(form.bannerUrl || form.logoUrl) ? (
+                    <div className="flex h-52 items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <img
+                            src={form.bannerUrl || form.logoUrl}
+                            alt=""
+                            className={form.bannerUrl ? 'h-full w-full object-cover' : 'max-h-full max-w-full object-contain p-6'}
+                        />
+                    </div>
+                ) : null}
+
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="mb-4 flex flex-col items-start gap-4 sm:flex-row">
+                        {form.logoUrl && form.bannerUrl ? (
+                            <img
+                                src={form.logoUrl}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain"
+                            />
+                        ) : null}
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 shadow-sm">
+                                <Package2 size={16} />
+                                {form.bucket || 'Programmes'} · {form.subCategory || 'Offering'}
+                            </div>
+                            <h1 className="text-3xl font-bold leading-tight text-slate-900">{form.name || 'Untitled Offering'}</h1>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {form.schedule ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
+                                        <Clock size={15} />
+                                        Scheduled
+                                    </span>
+                                ) : null}
+                                {availabilityText ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">
+                                        <Package2 size={15} />
+                                        {availabilityText}
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-600">
+                        {form.description ? (
+                            <MarkdownLiteText text={form.description} />
+                        ) : (
+                            <p className="italic text-slate-400">No description added yet.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
+                        {form.schedule ? renderPlacePreviewInfoRow({
+                            icon: <Clock size={22} />,
+                            label: 'Schedule',
+                            children: form.schedule,
+                        }) : null}
+                        {form.contactPhone ? renderPlacePreviewInfoRow({
+                            icon: <Phone size={22} />,
+                            label: 'Phone',
+                            children: form.contactPhone,
+                        }) : null}
+                        {form.whatsappContact ? renderPlacePreviewInfoRow({
+                            icon: <MessageCircle size={22} />,
+                            label: 'WhatsApp contact',
+                            children: form.whatsappContact,
+                        }) : null}
+                        {form.contactEmail ? renderPlacePreviewInfoRow({
+                            icon: <MessageCircle size={22} />,
+                            label: 'Email',
+                            children: form.contactEmail,
+                        }) : null}
+                        {ctaHref ? renderPlacePreviewInfoRow({
+                            icon: <Globe size={22} />,
+                            label: form.ctaLabel || 'Action link',
+                            children: <span className="break-all text-brand-700">{form.ctaUrl || ctaHref}</span>,
+                        }) : null}
+                        {selectedCoverageLabels.length > 0 ? renderPlacePreviewInfoRow({
+                            icon: <MapPin size={22} />,
+                            label: selectedLinkedLocations.length > 0 ? 'Host places' : 'Service regions',
+                            children: selectedCoverageLabels.join(', '),
+                        }) : null}
+                    </div>
+
+                    {tags.length > 0 ? (
+                        <div className="mt-8 border-t border-slate-200 pt-6">
+                            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-900">Tags</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map((tag) => (
+                                    <span key={tag} className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                </article>
+            </div>
+        );
+    }
+
+    if (isHard) {
+        return (
+            <ResourceWizardShell
+                steps={PLACE_STEPS}
+                activeStep={activePlaceStep}
+                setActiveStep={setActivePlaceStep}
+                validateStep={validatePlaceStep}
+                error={error}
+                renderStep={renderPlaceStep}
+                onCancel={() => onCancel(form)}
+                onSave={handlePlaceWizardSave}
+                saving={saving}
+                saveLabel="Save Place"
+                savingLabel="Saving..."
+                previewTitle="Place detail preview"
+                previewDescription="Unsaved edits shown as a public resource detail page."
+                renderPreview={renderPlaceDetailPreview}
+            />
+        );
+    }
+
+    return (
+        <ResourceWizardShell
+            steps={OFFERING_STEPS}
+            activeStep={activeOfferingStep}
+            setActiveStep={setActiveOfferingStep}
+            validateStep={validateOfferingStep}
+            error={error}
+            renderStep={renderOfferingStep}
+            onCancel={() => onCancel(form)}
+            onSave={handleOfferingWizardSave}
+            saving={saving}
+            saveLabel="Save Offering"
+            savingLabel="Saving..."
+            previewTitle="Offering detail preview"
+            previewDescription="Unsaved edits shown as a public offering detail page."
+            renderPreview={renderOfferingDetailPreview}
+        />
     );
+
 }

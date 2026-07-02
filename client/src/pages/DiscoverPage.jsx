@@ -9,7 +9,6 @@ import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { normalizeDiscoveryCacheRows } from '../lib/discoveryCache.js';
 import { normalizePostalCode } from '../lib/postalBoundaries.js';
-import { canAccessAdmin, normalizeRole } from '../lib/roles.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { useA11y } from '../contexts/A11yContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -17,7 +16,6 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
-import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
 import DesktopSavedPlaceDetailPanel from '../features/discover/DesktopSavedPlaceDetailPanel.jsx';
 import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
@@ -37,6 +35,7 @@ import {
     buildPostalGroupedSavedPlacePins,
     buildRenderedPostalGroupedSavedPins,
     buildSavedPlacePins,
+    getAssetAreaLocations,
     getAssetLocations,
     getBestLocation,
     hasValidCoordinates,
@@ -219,11 +218,20 @@ function buildDiscoverySearchHaystack(resource) {
         resource.address,
         resource.subCategory,
         resource.postalCode,
+        resource.groupMemberSearchText,
         ...(Array.isArray(resource.locations)
             ? resource.locations.flatMap((location) => [
                 location?.name,
                 location?.address,
                 location?.postalCode,
+            ])
+            : []),
+        ...(Array.isArray(resource.groupMemberLocations)
+            ? resource.groupMemberLocations.flatMap((location) => [
+                location?.name,
+                location?.address,
+                location?.postalCode,
+                location?.subCategory,
             ])
             : []),
         ...normalizeTagNames(resource.tags),
@@ -489,7 +497,6 @@ export default function DiscoverPage() {
     const [mapFocusRequest, setMapFocusRequest] = useState(null);
     const [mobileMode, setMobileMode] = useState('browse');
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
-    const [mobileBrowseDrawerOpen, setMobileBrowseDrawerOpen] = useState(false);
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
     const [locationIndicatorState, setLocationIndicatorState] = useState({ contextKey: '', indicators: {} });
 
@@ -534,8 +541,7 @@ export default function DiscoverPage() {
     );
     const { user, isAuth } = useAuth();
     const { t } = useLocale();
-    const normalizedUserRole = normalizeRole(user?.role);
-    const canUseDiscoverySubregions = isAuth && canAccessAdmin(normalizedUserRole);
+    const canUseDiscoverySubregions = false;
     const {
         bulkPending: isBulkFavoritesPending,
         bulkRemoveSavedAssets,
@@ -551,17 +557,14 @@ export default function DiscoverPage() {
         flyTarget,
         handleHomeAnchor,
         handleLocateMe,
-        handlePostalSearch,
         hasHomePostalCode,
         isGeocoding,
         locationNotice,
         pendingLocationSearchOrigin,
         postalInput,
         searchOrigin,
-        searchRadius,
         setPostalInput,
         setFlyTarget,
-        setSearchRadius,
     } = useDiscoveryLocation(hardAssets, user?.postalCode);
     const listPageSize = 20;
     const [visibleCount, setVisibleCount] = useState(listPageSize);
@@ -617,6 +620,18 @@ export default function DiscoverPage() {
                     const cachedDirectory = normalizeDiscoveryCacheRows(cacheRows);
                     hardData = cachedDirectory.hardAssets;
                     softData = cachedDirectory.softAssets;
+                    const groupData = await withTimeout(
+                        fetchAllPaginatedResults(api.getSoftAssets, { assetMode: 'group' }).catch(() => []),
+                        [],
+                        12000,
+                    );
+                    if (Array.isArray(groupData) && groupData.length > 0) {
+                        const groupIds = new Set(groupData.map((asset) => Number(asset.id)).filter(Number.isInteger));
+                        softData = [
+                            ...softData.filter((asset) => !groupIds.has(Number(asset.id))),
+                            ...groupData,
+                        ];
+                    }
                 }
 
                 if (hardData.length === 0 && softData.length === 0) {
@@ -744,7 +759,7 @@ export default function DiscoverPage() {
     // Reset visible batch when filters change
     useEffect(() => {
         setVisibleCount(listPageSize);
-    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, searchRadius, showFavoritesOnly]);
+    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, showFavoritesOnly]);
 
     const clearHoveredCardState = useCallback(() => {
         setHoveredPinKeys([]);
@@ -851,16 +866,10 @@ export default function DiscoverPage() {
                     return hasPostalCodeInBoundary(resource.postalCode, activeDiscoverySubregion.postalCodeSet);
                 }
 
-                return getAssetLocations(resource).some((location) => (
+                return getAssetAreaLocations(resource).some((location) => (
                     hasPostalCodeInBoundary(location?.postalCode, activeDiscoverySubregion.postalCodeSet)
                 ));
             });
-        }
-
-        if (effectiveUserLocation && !hasScopedDiscoverySubregion) {
-            if (searchRadius < 100) {
-                items = items.filter((resource) => resource._distance !== null && resource._distance <= searchRadius);
-            }
         }
 
         items = items.filter((resource) => {
@@ -927,7 +936,6 @@ export default function DiscoverPage() {
         hasScopedDiscoverySubregion,
         savedAssetKeys,
         searchGroups,
-        searchRadius,
         showFavoritesOnly,
         user,
     ]);
@@ -1259,12 +1267,6 @@ export default function DiscoverPage() {
             setMobileMode('browse');
         }
     }, [effectiveOrigin, hasSavedMapPins, hasTransientFocusPins, isDesktop, mobileMode]);
-
-    useEffect(() => {
-        if (isDesktop || mobileMode !== 'map') {
-            setMobileBrowseDrawerOpen(false);
-        }
-    }, [isDesktop, mobileMode]);
 
     useEffect(() => {
         if (!isDesktop && mobileMode !== 'map' && selectedPlacePinKey) {
@@ -1618,7 +1620,6 @@ export default function DiscoverPage() {
 
         if (!isDesktop) {
             setMobileMode('map');
-            setMobileBrowseDrawerOpen(false);
         }
 
         clearHoveredCardState();
@@ -1740,7 +1741,6 @@ export default function DiscoverPage() {
         }
 
         clearLockedCardState();
-        setMobileBrowseDrawerOpen(false);
         setMapFocusRequest(createSinglePinFocusRequest(pin, 'pin-click'));
     }, [
         clearHoveredCardState,
@@ -2112,15 +2112,6 @@ export default function DiscoverPage() {
         touchDesktopPanePresetWidths,
     ]);
 
-    const handleApplySearch = useCallback(async (event) => {
-        if (postalInput.trim()) {
-            await handlePostalSearch(event);
-            return;
-        }
-
-        event.preventDefault();
-    }, [handlePostalSearch, postalInput]);
-
     const handleSearchChange = useCallback((value) => {
         setFavoritesActionNotice('');
         setSearch(value);
@@ -2336,17 +2327,12 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
-            activeSubregionLabel={activeDiscoverySubregion?.discoveryLabel || ''}
             canShowSaveAll={canShowSaveAllControl}
-            canUseSubregionScope={discoverySubregionOptions.length > 0}
             canClearLocationSearch={hasUserSelectedLocationFilter}
             clearLocationSearch={handleClearLocationSearch}
-            discoverySubregionOptions={discoverySubregionOptions}
-            distanceOverridden={hasScopedDiscoverySubregion}
             favoritesActionNotice={favoritesActionNotice}
             handleHomeAnchor={handleHomeAnchorAndCollapse}
             handleLocateMe={handleLocateMeAndCollapse}
-            handlePostalSearch={handlePostalSearch}
             hasHomePostalCode={hasHomePostalCode}
             isCollapsed={isSearchPanelCollapsed}
             isGeocoding={isGeocoding}
@@ -2356,14 +2342,12 @@ export default function DiscoverPage() {
             locationNotice={locationNotice}
             mobileMode={mobileMode}
             mobileCardDensity={mobileCardDensity}
-            onApplySearch={handleApplySearch}
             onChangeMobileCardDensity={setMobileCardDensity}
             onCollapsedPullExpand={handleCollapsedSearchPanelPull}
             onCollapse={handleCollapseSearchPanel}
             onExpand={handleExpandSearchPanel}
             onOpenBrowse={() => setMobileMode('browse')}
             onOpenMap={() => setMobileMode('map')}
-            onOpenMobileBrowseDrawer={() => setMobileBrowseDrawerOpen(true)}
             onSearchChange={handleSearchChange}
             onToggleSaveAll={handleToggleSaveAll}
             pinCount={savedPlacePins.length}
@@ -2374,16 +2358,11 @@ export default function DiscoverPage() {
             saveAllPendingLabel={saveAllPendingAction === 'remove' ? t('discoverySaveAllClearing') : t('discoverySaveAllSaving')}
             search={search}
             searchOrigin={searchOrigin}
-            searchRadius={searchRadius}
-            selectedDiscoverySubregionId={selectedDiscoverySubregionId}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
-            setSelectedDiscoverySubregion={setSelectedDiscoverySubregionId}
-            setSearchRadius={setSearchRadius}
             setShowFavoritesOnly={setShowFavoritesOnly}
             showFavoritesOnly={showFavoritesOnly}
             tabCounts={tabCounts}
-            unmappableSavedCount={unmappableSavedCount}
             user={user}
             userLocation={effectiveUserLocation}
         />
@@ -2432,60 +2411,6 @@ export default function DiscoverPage() {
     );
 
     const desktopRailWidth = listWidth;
-
-    const mobileBrowseDrawer = !isDesktop && mobileMode === 'map' ? (
-        <MobileBottomSheet
-            open={mobileBrowseDrawerOpen}
-            onOpenChange={setMobileBrowseDrawerOpen}
-            title={t('discoveryResourcesOnMap')}
-            description={t('discoveryMatchingCount', {
-                count: filtered.length,
-                label: filtered.length === 1 ? t('resource') : t('resources'),
-            })}
-            headerActions={(
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMobileBrowseDrawerOpen(false);
-                            setMobileMode('browse');
-                        }}
-                        className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
-                    >
-                        {t('discoveryBackToBrowse')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMobileBrowseDrawerOpen(false)}
-                        className="btn-ghost px-3 py-2 text-[13px] leading-none whitespace-nowrap"
-                    >
-                        {t('done')}
-                    </button>
-                </div>
-            )}
-            bodyClassName="-mx-4 mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-0 pb-0"
-        >
-            {user ? (
-                <div className="mx-4 mt-1 mb-2 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)' }}>
-                    <label className="flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--color-text)' }}>{t('discoverySavedResourcesOnly')}</p>
-                            <p className="mt-1 text-[12px] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
-                                {t('discoverySavedOnlyHelp')}
-                            </p>
-                        </div>
-                        <input
-                            type="checkbox"
-                            checked={showFavoritesOnly}
-                            onChange={(event) => setShowFavoritesOnly(event.target.checked)}
-                            className="h-5 w-5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                        />
-                    </label>
-                </div>
-            ) : null}
-            {resultsList}
-        </MobileBottomSheet>
-    ) : null;
 
     const mobileDetailDrawer = !isDesktop && mobileMode === 'map' && selectedPlacePin ? (
         <Drawer.Root
@@ -2580,7 +2505,6 @@ export default function DiscoverPage() {
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     {mobileMode === 'browse' ? resultsList : mapView}
                 </div>
-                {mobileBrowseDrawer}
                 {mobileDetailDrawer}
             </div>
 

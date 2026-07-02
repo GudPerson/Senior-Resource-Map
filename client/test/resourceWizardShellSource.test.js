@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const source = readFileSync(new URL('../src/components/ResourceWizardShell.jsx', import.meta.url), 'utf8');
+const cssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+
+test('ResourceWizardShell provides static tabs, scrollable workspace, and static actions', () => {
+    assert.match(source, /export default function ResourceWizardShell/);
+    assert.match(source, /useRef/);
+    assert.match(source, /workspaceRef/);
+    assert.match(source, /resource-wizard-shell/);
+    assert.match(source, /resource-wizard-tabbar/);
+    assert.match(source, /resource-wizard-workspace/);
+    assert.match(source, /resource-wizard-footer/);
+    assert.match(source, /previewTitle/);
+    assert.match(source, /previewDescription/);
+    assert.match(source, /renderPreview/);
+    assert.match(source, /onSave/);
+    assert.match(source, /onCancel/);
+    assert.match(source, /function validateVisibleControls\(\{ report = true \} = \{\}\)/);
+    assert.match(source, /SKIP_VALIDITY_SELECTOR = '\[data-resource-wizard-skip-validity\]'/);
+    assert.match(source, /querySelectorAll\('input, select, textarea'\)/);
+    assert.match(source, /control\.closest\(SKIP_VALIDITY_SELECTOR\)/);
+    assert.match(source, /checkValidity\(\)/);
+    assert.match(source, /reportValidity\(\)/);
+    assert.match(source, /focus\?\.\(\)/);
+    assert.match(source, /function handleSave\(\)/);
+    assert.match(source, /onClick=\{handleSave\}/);
+    assert.match(source, /validationAttempted/);
+    assert.match(source, /setValidationAttempted\(true\)/);
+    assert.match(source, /validateVisibleControls\(\{ report: false \}\)/);
+    assert.match(source, /Info/);
+    assert.match(source, /Required detail needed/);
+    assert.match(source, /The field that needs attention is highlighted below/);
+    assert.match(source, /role="status"/);
+    assert.match(source, /aria-live="polite"/);
+    assert.match(source, /border-amber-200 bg-amber-50/);
+    assert.match(source, /resource-wizard-guidance-active/);
+    assert.match(cssSource, /resource-wizard-guidance-active \.input-field:invalid/);
+    assert.match(cssSource, /box-shadow: 0 0 0 3px rgba\(245, 158, 11, 0\.18\)/);
+    assert.doesNotMatch(source, /border-red-200 bg-red-50/);
+    assert.doesNotMatch(source, /<form/);
+    assert.doesNotMatch(source, />\s*Back\s*</);
+    assert.doesNotMatch(source, />\s*Next\s*</);
+});

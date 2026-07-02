@@ -43,6 +43,44 @@ function normalizeBoolean(value) {
     return ['1', 'true', 'yes', 'y'].includes(normalized);
 }
 
+function normalizeGroupAssetMode(value) {
+    return normalizeString(value).trim().toLowerCase();
+}
+
+function normalizeGroupMemberSummary(value) {
+    const parsed = parseJsonValue(value, null);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { counts: { places: 0, programmes: 0, services: 0, promotions: 0, total: 0 } };
+    }
+    const counts = parsed.counts && typeof parsed.counts === 'object' ? parsed.counts : {};
+    return {
+        ...parsed,
+        counts: {
+            places: normalizeInteger(counts.places) ?? 0,
+            programmes: normalizeInteger(counts.programmes) ?? 0,
+            services: normalizeInteger(counts.services) ?? 0,
+            promotions: normalizeInteger(counts.promotions) ?? 0,
+            total: normalizeInteger(counts.total) ?? 0,
+        },
+    };
+}
+
+function normalizeGroupMemberLocations(value) {
+    const parsed = parseJsonValue(value, []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+        .map((location) => ({
+            id: normalizeInteger(location?.id),
+            name: coalesce(location?.name, location?.title),
+            address: normalizeString(location?.address),
+            postalCode: coalesce(location?.postalCode, location?.postal_code),
+            lat: location?.lat,
+            lng: location?.lng,
+            subCategory: normalizeString(coalesce(location?.subCategory, location?.sub_category)),
+        }))
+        .filter((location) => location.id || location.name || location.postalCode);
+}
+
 function normalizeCacheType(row) {
     const type = normalizeString(row?.asset_type || row?.assetType || row?.type).trim().toLowerCase();
     if (type === 'hard' || type === 'place') return 'hard';
@@ -107,6 +145,7 @@ function buildSoftAssetFromCacheRow(row) {
         description: normalizeString(row.description),
         schedule: normalizeString(row.schedule),
         bucket: normalizeString(row.bucket),
+        assetMode: normalizeGroupAssetMode(coalesce(row.assetMode, row.asset_mode)) || 'standalone',
         phone: normalizeString(row.phone),
         whatsappContact: normalizeString(coalesce(row.whatsappContact, row.whatsapp_contact)),
         logoUrl: coalesce(row.logoUrl, row.logo_url),
@@ -117,6 +156,9 @@ function buildSoftAssetFromCacheRow(row) {
         access: 'granted',
         tags: normalizeTags(row.tags),
         translations: normalizeTranslations(row.translations),
+        groupMemberSummary: normalizeGroupMemberSummary(coalesce(row.groupMemberSummary, row.group_member_summary)),
+        groupMemberSearchText: normalizeString(coalesce(row.groupMemberSearchText, row.group_member_search_text)),
+        groupMemberLocations: normalizeGroupMemberLocations(coalesce(row.groupMemberLocations, row.group_member_locations)),
         locations: [],
         location: null,
         isHidden: false,

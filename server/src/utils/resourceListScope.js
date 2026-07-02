@@ -10,7 +10,14 @@ export function normalizeResourceListScope(value) {
 
 export function shouldRejectManagedResourceListRequest(scopeValue, actor) {
     return normalizeResourceListScope(scopeValue) === 'managed'
-        && normalizeRole(actor?.role) === 'guest';
+        && !canRequestManagedResourceList(actor);
+}
+
+export function canRequestManagedResourceList(actor) {
+    const role = normalizeRole(actor?.role);
+    if (['super_admin', 'admin', 'regional_admin', 'partner'].includes(role)) return true;
+    if (hasAnyPartnerStaffAccess(actor)) return true;
+    return hasAnyHardAssetStaffAccess(actor) || hasAnySoftAssetStaffAccess(actor);
 }
 
 export function shouldUseDirectManagedResourcePagination({ scope, actor } = {}) {

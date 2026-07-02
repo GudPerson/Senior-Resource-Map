@@ -11,6 +11,7 @@ export {
     buildSavedMapContributions,
     buildSavedPlacePins,
     findLocationForMarker,
+    getAssetAreaLocations,
     getAssetLocations,
     getBestLocation,
     hasValidCoordinates,

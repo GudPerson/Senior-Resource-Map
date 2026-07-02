@@ -16,6 +16,20 @@ test('dashboard sidebar links use document navigation for deploy-stale recovery'
     assert.match(source, /<NavLink[\s\S]*?reloadDocument[\s\S]*?>/);
 });
 
+test('desktop dashboard side menu stays sticky while list content scrolls', () => {
+    const navigationSource = readClientSource('components/dashboard/DashboardNavigation.jsx');
+    const dashboardPageSource = readClientSource('pages/dashboard/DashboardPage.jsx');
+    const myDirectoryPageSource = readClientSource('pages/MyDirectoryPage.jsx');
+
+    assert.match(navigationSource, /DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME/);
+    assert.match(navigationSource, /lg:sticky/);
+    assert.match(navigationSource, /lg:top-\[64px\]/);
+    assert.match(navigationSource, /lg:h-\[calc\(100svh-64px\)\]/);
+    assert.match(navigationSource, /lg:overflow-y-auto/);
+    assert.match(dashboardPageSource, /className=\{DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME\}/);
+    assert.match(myDirectoryPageSource, /className=\{DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME\}/);
+});
+
 test('organisation workspace sidebar link uses document navigation and section label', () => {
     const source = readClientSource('components/dashboard/DashboardNavigation.jsx');
 

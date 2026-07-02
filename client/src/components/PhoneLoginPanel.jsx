@@ -391,6 +391,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
     const [pendingRecoveryVisible, setPendingRecoveryVisible] = useState(false);
     const pollUntilRef = useRef(0);
     const pollInFlightRef = useRef(false);
+    const attemptTokenRef = useRef('');
     const statusRef = useRef(status);
     const returnToRef = useRef(clean(returnTo));
 
@@ -405,6 +406,8 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
     const finishWithResult = useCallback((result) => {
         const nextStatus = normalizeStatus(result?.status);
         const storedAttempt = readStoredPhoneLoginAttempt();
+        const activeAttemptToken = clean(result?.attemptToken || storedAttempt?.attemptToken || attemptTokenRef.current);
+        if (activeAttemptToken) attemptTokenRef.current = activeAttemptToken;
         setChallenge((previousChallenge) => mergePhoneVerificationChallenge(
             previousChallenge,
             result?.challenge || null,
@@ -415,6 +418,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
 
         if (nextStatus === 'verified' && result?.user) {
             clearStoredPhoneLoginAttempt();
+            attemptTokenRef.current = '';
             setStatus('verified');
             setAttemptId(null);
             pollUntilRef.current = 0;
@@ -429,6 +433,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
                     result.attemptId,
                     phone || storedAttempt?.phone || '',
                     storedAttempt?.returnTo || returnToRef.current,
+                    activeAttemptToken,
                 );
             }
             setSignupAcknowledged(false);
@@ -441,6 +446,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
 
         if (['no_account', 'conflict', 'failed', 'expired'].includes(nextStatus)) {
             clearStoredPhoneLoginAttempt();
+            attemptTokenRef.current = '';
             setStatus(nextStatus);
             setAttemptId(null);
             pollUntilRef.current = 0;
@@ -454,6 +460,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
                 result.attemptId,
                 phone || storedAttempt?.phone || '',
                 storedAttempt?.returnTo || returnToRef.current,
+                activeAttemptToken,
             );
             if (statusRef.current !== 'pending') {
                 setPendingRecoveryVisible(false);
@@ -468,7 +475,9 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
 
         pollInFlightRef.current = true;
         try {
-            const result = await api.getPhoneLoginAttempt(normalizedAttemptId);
+            const storedAttempt = readStoredPhoneLoginAttempt();
+            const activeAttemptToken = clean(attemptTokenRef.current || storedAttempt?.attemptToken);
+            const result = await api.getPhoneLoginAttempt(normalizedAttemptId, activeAttemptToken);
             finishWithResult(result);
         } catch (err) {
             setError(err.message || t('phoneLoginPollingError'));
@@ -483,6 +492,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
         if (!storedAttempt?.attemptId) return;
 
         setAttemptId(storedAttempt.attemptId);
+        attemptTokenRef.current = clean(storedAttempt.attemptToken);
         if (storedAttempt.phone) setPhone(storedAttempt.phone);
         pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
         setPendingRecoveryVisible(false);
@@ -574,7 +584,10 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
         try {
             const result = await api.startPhoneLogin({ phone: phoneText });
             pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS;
-            if (result?.attemptId) writeStoredPhoneLoginAttempt(result.attemptId, phoneText, returnToRef.current);
+            if (result?.attemptToken) attemptTokenRef.current = clean(result.attemptToken);
+            if (result?.attemptId) {
+                writeStoredPhoneLoginAttempt(result.attemptId, phoneText, returnToRef.current, result?.attemptToken);
+            }
             finishWithResult(result);
             launchPreparedWhatsAppWindow(preparedWhatsAppWindow, getWhatsAppUrl(result?.challenge), {
                 title: t('phoneLoginOpeningWhatsApp'),
@@ -606,7 +619,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
             const result = await api.completePhoneLoginSignup(attemptId, {
                 name: signupForm.name,
                 postalCode: signupForm.postalCode,
-            });
+            }, attemptTokenRef.current || readStoredPhoneLoginAttempt()?.attemptToken);
             finishWithResult(result);
         } catch (err) {
             setError(friendlyErrorMessage(err.message, t));
@@ -619,6 +632,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
         clearStoredPhoneLoginAttempt();
         pollUntilRef.current = 0;
         setAttemptId(null);
+        attemptTokenRef.current = '';
         setChallenge(null);
         setError('');
         setStatus('idle');
@@ -632,6 +646,7 @@ export default function PhoneLoginPanel({ t, returnTo = '', onSignedIn, onRequir
         clearStoredPhoneLoginAttempt();
         pollUntilRef.current = 0;
         setAttemptId(null);
+        attemptTokenRef.current = '';
         setChallenge(null);
         setError('');
         setPhone('');

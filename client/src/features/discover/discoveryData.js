@@ -43,9 +43,18 @@ export function hasValidCoordinates(item) {
 export function getAssetLocations(asset) {
     if (!asset) return [];
     if (asset._type === 'hard' || asset.asset_type === 'hard') return [asset];
+    if (asset.assetMode === 'group' || asset.asset_mode === 'group') return [];
     if (Array.isArray(asset.locations) && asset.locations.length > 0) return asset.locations;
     if (asset.location) return [asset.location];
     return [];
+}
+
+export function getAssetAreaLocations(asset) {
+    if (!asset) return [];
+    if (asset.assetMode === 'group' || asset.asset_mode === 'group') {
+        return Array.isArray(asset.groupMemberLocations) ? asset.groupMemberLocations : [];
+    }
+    return getAssetLocations(asset);
 }
 
 export function getBestLocation(asset, referencePoint = null) {

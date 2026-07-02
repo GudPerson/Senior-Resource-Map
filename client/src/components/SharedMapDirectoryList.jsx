@@ -16,6 +16,8 @@ import {
     Link2,
     List,
     ListOrdered,
+    Maximize2,
+    Minimize2,
     Pencil,
     Plus,
     RefreshCw,
@@ -48,12 +50,6 @@ import {
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
-import {
-    MOBILE_MAP_PANEL_STATES,
-    getMobileMapPanelActionForScroll,
-    getMobileMapPanelStateAfterBadgeActivation,
-    shouldExpandMobileMapPanelFromTopPull,
-} from '../lib/mobileMapPanelBehavior.js';
 
 const DirectoryReturnPathContext = React.createContext('');
 
@@ -139,6 +135,15 @@ function buildNoteDrafts(rows) {
             notes: items.length ? items : [createEmptyDraftNote()],
         };
         return drafts;
+    }, {});
+}
+
+function buildDefaultPreviewNoteIds(drafts, rowKey) {
+    return (drafts?.[rowKey]?.notes || []).reduce((previewIds, note) => {
+        if (String(note?.text || '').trim()) {
+            previewIds[note.clientId] = true;
+        }
+        return previewIds;
     }, {});
 }
 
@@ -320,6 +325,38 @@ function MapNotesEntryButton({ rows, mode, onOpen }) {
     );
 }
 
+function useMobileViewportScaleLock(enabled) {
+    useEffect(() => {
+        if (!enabled || typeof document === 'undefined') return undefined;
+        const meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) return undefined;
+
+        const previousContent = meta.getAttribute('content') || '';
+        meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no');
+
+        return () => {
+            meta.setAttribute('content', previousContent);
+        };
+    }, [enabled]);
+}
+
+function useMobileMapOverscrollLock(enabled) {
+    useEffect(() => {
+        if (!enabled || typeof document === 'undefined') return undefined;
+
+        const root = document.documentElement;
+        const previousRootOverscroll = root.style.overscrollBehaviorY;
+        const previousBodyOverscroll = document.body.style.overscrollBehaviorY;
+        root.style.overscrollBehaviorY = 'none';
+        document.body.style.overscrollBehaviorY = 'none';
+
+        return () => {
+            root.style.overscrollBehaviorY = previousRootOverscroll;
+            document.body.style.overscrollBehaviorY = previousBodyOverscroll;
+        };
+    }, [enabled]);
+}
+
 function ResourceNotesEditor({
     row,
     onUpdateResourceNotes,
@@ -332,7 +369,9 @@ function ResourceNotesEditor({
     const [saveState, setSaveState] = useState('idle');
     const [showSaveStatus, setShowSaveStatus] = useState(false);
     const [error, setError] = useState('');
-    const [previewNoteIds, setPreviewNoteIds] = useState({});
+    const [previewNoteIds, setPreviewNoteIds] = useState(() => (
+        buildDefaultPreviewNoteIds(buildNoteDrafts(row ? [row] : []), rowKey)
+    ));
     const activeRowKeyRef = useRef(rowKey);
     const draftsRef = useRef(drafts);
     const rowRef = useRef(row);
@@ -458,6 +497,9 @@ function ResourceNotesEditor({
         }
         draftsRef.current = nextDrafts;
         setDrafts(nextDrafts);
+        if (previousRowKey !== rowKey) {
+            setPreviewNoteIds(buildDefaultPreviewNoteIds(nextDrafts, rowKey));
+        }
     }, [rowKey, remoteSignature]);
 
     useEffect(() => {
@@ -820,7 +862,7 @@ function MapNotesOverlay({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
             onClick={() => void handleClose()}
             role="presentation"
         >
@@ -919,6 +961,13 @@ function MapNotesOverlay({
 }
 
 const DIRECTORY_DESKTOP_LAYOUT_MIN_WIDTH = 1280;
+const MOBILE_MAP_HIDE_TOP_PX = 72;
+const MOBILE_MAP_REVEAL_SCROLL_Y = 96;
+const MOBILE_FULL_MAP_PULL_DISTANCE_PX = 96;
+const MOBILE_FULL_MAP_EXIT_SWIPE_PX = 88;
+const MOBILE_FULL_MAP_BOTTOM_EDGE_PX = 180;
+const MOBILE_SCROLL_DIRECTION_EPSILON = 8;
+const MOBILE_FOCUS_TRAY_SCROLL_CLEAR_GRACE_MS = 900;
 
 function useResponsiveDirectoryLayout(enabled) {
     const [isDesktop, setIsDesktop] = useState(() => (
@@ -1012,6 +1061,67 @@ function getVisibleGroupRows(group) {
     return (group?.rows || []).filter((row) => !isRepeatedPrimaryRow(group, row));
 }
 
+function isListOnlyGroupDisplayGroup(group) {
+    if (!group?.isUnmappedGroup) return false;
+    return (group?.rows || []).some((row) => (
+        row?.resourceType === 'soft'
+        && (
+            row?.assetMode === 'group'
+            || normalizeLabel(row?.bucket) === 'groups'
+            || normalizeLabel(row?.bucket) === 'group'
+            || normalizeLabel(row?.subCategory) === 'group'
+            || Boolean(row?.mapFocusPlaceKeys?.length)
+        )
+    ));
+}
+
+function getFocusTrayMemberKeys(group) {
+    return [
+        ...(group?.mapFocusPlaceKeys || []),
+        ...(group?.memberPlaceKeys || []),
+    ]
+        .filter(Boolean)
+        .map((value) => String(value));
+}
+
+function resolveMobileFocusTraySelection(groups, placeKey, pins = []) {
+    if (!placeKey) return null;
+    const normalizedPlaceKey = String(placeKey);
+    const selected = groups.find((group) => String(group?.placeKey || '') === normalizedPlaceKey)
+        || groups.find((group) => matchesGroupKey(group, normalizedPlaceKey));
+
+    if (!selected) {
+        const selectedPin = pins.find((pin) => (
+            String(pin?.placeKey || '') === normalizedPlaceKey
+            || String(pin?.pinKey || '') === normalizedPlaceKey
+        ));
+        const memberKeys = new Set((selectedPin?.memberPlaceKeys || [])
+            .filter(Boolean)
+            .map((value) => String(value)));
+        const members = groups.filter((candidate) => (
+            candidate?.hasCoordinates !== false
+            && candidate?.placeKey
+            && memberKeys.has(String(candidate.placeKey))
+        ));
+
+        return members.length ? { type: 'pin-group', group: members[0], members } : null;
+    }
+
+    if (isListOnlyGroupDisplayGroup(selected)) {
+        const memberKeys = new Set(getFocusTrayMemberKeys(selected));
+        const members = groups.filter((candidate) => (
+            candidate !== selected
+            && candidate?.hasCoordinates !== false
+            && candidate?.placeKey
+            && memberKeys.has(String(candidate.placeKey))
+        ));
+
+        return members.length ? { type: 'group', group: selected, members } : null;
+    }
+
+    return { type: 'place', group: selected, members: [] };
+}
+
 function resolveGroupLocationLine(group) {
     if (group?.shortLocationLine) return group.shortLocationLine;
 
@@ -1026,6 +1136,13 @@ function resolveGroupLocationLine(group) {
     return candidates
         .map((item) => item?.shortLocationLine || item?.locationLabel || item?.address || item?.contextLabel)
         .find((label) => label && normalizeLabel(label) !== normalizeLabel(group?.name)) || '';
+}
+
+function resolveV2CardLocationLine(group, t) {
+    if (isListOnlyGroupDisplayGroup(group)) {
+        return t('groupType');
+    }
+    return resolveGroupLocationLine(group);
 }
 
 function getPrimaryPlaceNoteRow(group) {
@@ -1079,6 +1196,10 @@ function isGroupHighlighted(group, highlightPlaceKey, highlightPlaceKeys = []) {
 
 function isGroupLogoRevealed(group, logoRevealPlaceKeys = []) {
     return (logoRevealPlaceKeys || []).some((value) => matchesGroupKey(group, value));
+}
+
+function isInteractiveCardTarget(target) {
+    return Boolean(target?.closest?.('a,button,input,textarea,select,summary,[data-directory-card-action]'));
 }
 
 function getSecondaryCategory(row, t) {
@@ -1261,7 +1382,7 @@ function DirectoryPlaceBadge({
     const logoImageClassName = logoFitMode === 'contain'
         ? 'h-full w-full rounded-[inherit] object-contain p-[2px]'
         : 'h-full w-full rounded-[inherit] object-cover';
-    const canViewOnMap = Boolean(onViewOnMap && group?.hasCoordinates !== false);
+    const canViewOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
     const shellClassName = `relative flex flex-shrink-0 items-center justify-center ${wrapperClassName}`;
     const buttonProps = canViewOnMap ? {
         type: 'button',
@@ -1447,6 +1568,8 @@ function DirectoryPlaceGroupCard({
     compactInteractive = false,
     fullCardLink = false,
     onViewOnMap,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onRemoveResource,
     onUpdateResourceNotes,
     onOpenResourceNotes,
@@ -1461,11 +1584,38 @@ function DirectoryPlaceGroupCard({
     cardBadgeMode = 'number',
     showPrintNumberBadge = false,
 }) {
+    const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
+    const canFocusCardOnMap = Boolean(interactive && onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
+
+    function handleCardClick(event) {
+        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
+        event.preventDefault();
+        onViewOnMap?.(group.placeKey);
+    }
+
+    function handleCardKeyDown(event) {
+        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onViewOnMap?.(group.placeKey);
+    }
+
+    const cardInteractionProps = interactive ? {
+        onMouseEnter: () => onHoverPlaceStart?.(group.placeKey),
+        onMouseLeave: () => onHoverPlaceEnd?.(group.placeKey),
+        ...(canFocusCardOnMap ? {
+            onClick: handleCardClick,
+            onKeyDown: handleCardKeyDown,
+            role: 'button',
+            tabIndex: 0,
+            'aria-label': `${t('viewOnMap')}: ${group.name}`,
+        } : {}),
+    } : {};
 
     if (!interactive) {
         if (isPostalGroup) {
@@ -1690,6 +1840,8 @@ function DirectoryPlaceGroupCard({
         return (
             <section
                 ref={sectionRef}
+                data-directory-place-card="true"
+                {...cardInteractionProps}
                 className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
@@ -1708,7 +1860,7 @@ function DirectoryPlaceGroupCard({
     );
     const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
     const usesV2CardLanguage = cardBadgeMode === 'logo';
-    const resolvedLocationLine = resolveGroupLocationLine(group);
+    const resolvedLocationLine = resolveV2CardLocationLine(group, t);
     const hasLocationMeta = Boolean(resolvedLocationLine || group.distanceLabel);
 
     const cardContent = (
@@ -1775,12 +1927,14 @@ function DirectoryPlaceGroupCard({
         </>
     );
 
-    if (placeDetailPath && fullCardLink && !isPostalGroup) {
+    if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap) {
         return (
             <Link
                 to={placeDetailPath}
                 reloadDocument
                 ref={sectionRef}
+                data-directory-place-card="true"
+                {...cardInteractionProps}
                 className={`group relative block overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
                 } scroll-mt-[62svh] lg:scroll-mt-6`}
@@ -1793,11 +1947,145 @@ function DirectoryPlaceGroupCard({
     return (
         <section
             ref={sectionRef}
+            data-directory-place-card="true"
+            {...cardInteractionProps}
             className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                 highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
             } scroll-mt-[62svh] lg:scroll-mt-6`}
         >
             {cardContent}
+        </section>
+    );
+}
+
+function MobileMapFocusTrayPlaceCard({
+    group,
+    mode,
+    onViewOnMap,
+    onOpenResourceNotes,
+    clusterColorData = null,
+    cardBadgeMode = 'logo',
+    compactFullMap = false,
+}) {
+    const { t } = useLocale();
+    const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
+    const primaryNoteRow = getPrimaryPlaceNoteRow(group);
+    const locationLine = resolveV2CardLocationLine(group, t);
+    const canFocusOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
+
+    function handleCardClick(event) {
+        if (!canFocusOnMap || isInteractiveCardTarget(event.target)) return;
+        event.preventDefault();
+        onViewOnMap?.(group.placeKey);
+    }
+
+    function handleCardKeyDown(event) {
+        if (!canFocusOnMap || isInteractiveCardTarget(event.target)) return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onViewOnMap?.(group.placeKey);
+    }
+
+    return (
+        <article
+            data-mobile-map-focus-tray-card="true"
+            className={`group flex snap-start items-start gap-2.5 rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm ${
+                compactFullMap ? 'min-w-[min(18rem,78vw)] max-w-[19rem]' : 'min-w-[min(18rem,78vw)]'
+            }`}
+            onClick={handleCardClick}
+            onKeyDown={handleCardKeyDown}
+            role={canFocusOnMap ? 'button' : undefined}
+            tabIndex={canFocusOnMap ? 0 : undefined}
+            aria-label={canFocusOnMap ? `${t('viewOnMap')}: ${group.name}` : undefined}
+        >
+            <DirectoryPlaceBadge
+                group={group}
+                clusterColorData={clusterColorData}
+                compactInteractive
+                badgeMode={cardBadgeMode}
+                badgeRow={getGroupBadgeRow(group)}
+                onViewOnMap={onViewOnMap}
+            />
+            <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                        {placeDetailPath ? (
+                            <Link to={placeDetailPath} reloadDocument className="block text-[0.9375rem] font-bold leading-tight text-slate-900 transition hover:text-brand-700">
+                                {group.name}
+                            </Link>
+                        ) : (
+                            <h3 className="text-[0.9375rem] font-bold leading-tight text-slate-900">{group.name}</h3>
+                        )}
+                        {locationLine || group.distanceLabel ? (
+                            <div className="mt-0.5">
+                                <DirectoryLocationMeta
+                                    shortLocationLine={locationLine}
+                                    distanceLabel={group.distanceLabel}
+                                    compact
+                                    tight
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+                    <MapNoteIconButton
+                        row={primaryNoteRow}
+                        onOpenResourceNotes={onOpenResourceNotes}
+                        compact
+                    />
+                </div>
+            </div>
+        </article>
+    );
+}
+
+function MobileMapFocusTray({
+    selection,
+    mode,
+    onViewOnMap,
+    onOpenResourceNotes,
+    clusterMapping = {},
+    cardBadgeMode = 'logo',
+    variant = 'default',
+}) {
+    if (!selection) return null;
+
+    const categoryGroup = selection.group;
+    const trayGroups = selection.type === 'group' || selection.type === 'pin-group'
+        ? selection.members
+        : [selection.group];
+    const isFullMap = variant === 'full-map';
+    const groupContextLabel = selection.type === 'group' ? categoryGroup.name : '';
+
+    if (!trayGroups.length) return null;
+
+    return (
+        <section
+            data-mobile-map-focus-tray="true"
+            className={`rounded-[26px] border border-brand-200 bg-brand-100/75 p-3.5 shadow-[0_22px_48px_-26px_rgba(15,118,110,0.58),0_8px_22px_-18px_rgba(15,23,42,0.32)] ring-1 ring-white/80 [overflow-anchor:none] ${
+                isFullMap ? 'max-h-[30svh] flex-shrink-0 overflow-hidden' : ''
+            }`}
+        >
+            <DirectoryCategoryPill
+                label={categoryGroup.categoryLabel}
+                showUnmapped={Boolean(categoryGroup.isUnmappedGroup && !groupContextLabel)}
+                secondaryLabel={groupContextLabel}
+                color={categoryGroup.categoryColor}
+                iconUrl={categoryGroup.categoryIconUrl}
+            />
+            <div className="mt-2 flex snap-x gap-2 overflow-x-auto pb-1">
+                {trayGroups.map((group) => (
+                    <MobileMapFocusTrayPlaceCard
+                        key={group.placeKey}
+                        group={group}
+                        mode={mode}
+                        onViewOnMap={onViewOnMap}
+                        onOpenResourceNotes={onOpenResourceNotes}
+                        clusterColorData={clusterMapping[group.placeKey] || null}
+                        cardBadgeMode={cardBadgeMode}
+                        compactFullMap={isFullMap}
+                    />
+                ))}
+            </div>
         </section>
     );
 }
@@ -1973,7 +2261,9 @@ function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
     return (
         <span
             className={`inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border bg-white shadow-sm ${
-                compact ? 'h-10 w-10 p-1' : 'h-12 w-12 p-1.5'
+                compact
+                    ? 'h-[clamp(28px,1.75rem,32px)] w-[clamp(28px,1.75rem,32px)] p-[clamp(3px,0.175rem,4px)]'
+                    : 'h-[clamp(34px,2.1rem,38px)] w-[clamp(34px,2.1rem,38px)] p-[clamp(4px,0.2625rem,5px)]'
             }`}
             style={getCategoryIconStyle(color)}
             aria-hidden="true"
@@ -1983,27 +2273,84 @@ function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
     );
 }
 
+function DirectoryCategoryPillLabel({ label }) {
+    const labelRef = useRef(null);
+    const measureRef = useRef(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    useEffect(() => {
+        const labelElement = labelRef.current;
+        const measureElement = measureRef.current;
+        if (!labelElement || !measureElement) return undefined;
+
+        let frame = null;
+        const measure = () => {
+            if (frame) cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => {
+                const nextIsOverflowing = measureElement.scrollWidth > labelElement.clientWidth + 1;
+                setIsOverflowing(nextIsOverflowing);
+            });
+        };
+
+        measure();
+
+        let observer = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            observer = new ResizeObserver(measure);
+            observer.observe(labelElement);
+            observer.observe(measureElement);
+        }
+        window.addEventListener('resize', measure);
+
+        return () => {
+            if (frame) cancelAnimationFrame(frame);
+            observer?.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, [label]);
+
+    return (
+        <span ref={labelRef} className={`directory-category-pill-label ${isOverflowing ? 'directory-category-pill-label--marquee' : ''}`}>
+            <span className="directory-category-pill-label__track">
+                <span>{label}</span>
+                {isOverflowing ? <span aria-hidden="true">{label}</span> : null}
+            </span>
+            <span ref={measureRef} className="directory-category-pill-label__measure" aria-hidden="true">{label}</span>
+        </span>
+    );
+}
+
 function DirectoryCategoryPill({
     label,
     compact = false,
     showUnmapped = false,
+    secondaryLabel = '',
     color = null,
     iconUrl = null,
 }) {
-    if (!label && !showUnmapped) return null;
+    if (!label && !showUnmapped && !secondaryLabel) return null;
     const categoryPillStyle = getCategoryPillStyle(color);
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1">
+        <div className="flex max-w-full flex-nowrap items-start gap-1.5 overflow-hidden px-1 pt-1">
             <DirectoryCategoryIcon iconUrl={iconUrl} color={color} compact={compact} />
-            {label ? (
-                <span className={`inline-flex max-w-full items-center rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
-                    compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
-                }`} style={categoryPillStyle}>
-                    <span className="truncate">{label}</span>
-                </span>
-            ) : null}
-            {showUnmapped ? <DirectoryUnmappedPill compact={compact} /> : null}
+            <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5 overflow-hidden">
+                {label ? (
+                    <span className={`inline-flex w-fit max-w-full items-center overflow-hidden rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
+                        compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+                    }`} style={categoryPillStyle} title={label}>
+                        <DirectoryCategoryPillLabel label={label} />
+                    </span>
+                ) : null}
+                {secondaryLabel ? (
+                    <span className={`inline-flex max-w-full items-center overflow-hidden rounded-full border border-slate-200 bg-white/80 font-black uppercase tracking-[0.14em] text-slate-600 ${
+                        compact ? 'px-2.5 py-1 text-[0.625rem]' : 'px-3 py-1 text-[0.6875rem]'
+                    }`} title={secondaryLabel}>
+                        <DirectoryCategoryPillLabel label={secondaryLabel} />
+                    </span>
+                ) : null}
+                {showUnmapped ? <DirectoryUnmappedPill compact={compact} /> : null}
+            </span>
         </div>
     );
 }
@@ -2015,6 +2362,8 @@ function DirectoryGroupColumn({
     compactInteractive = false,
     fullCardLink = false,
     onViewOnMap,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onRemoveResource,
     onUpdateResourceNotes,
     onOpenResourceNotes,
@@ -2069,6 +2418,8 @@ function DirectoryGroupColumn({
                             compactInteractive={compactInteractive}
                             fullCardLink={fullCardLink}
                             onViewOnMap={onViewOnMap}
+                            onHoverPlaceStart={onHoverPlaceStart}
+                            onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
                             onUpdateResourceNotes={onUpdateResourceNotes}
                             onOpenResourceNotes={onOpenResourceNotes}
@@ -2170,6 +2521,8 @@ export default function SharedMapDirectoryList({
     renderDesktopMap = null,
     renderMobileMap = null,
     onViewOnMap,
+    onHoverPlaceStart,
+    onHoverPlaceEnd,
     onRemoveResource,
     onUpdateResourceNotes,
     highlightPlaceKey = null,
@@ -2193,26 +2546,32 @@ export default function SharedMapDirectoryList({
     const location = useLocation();
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
+    const mobileMapFrameRef = useRef(null);
     const mobileMapWrapperRef = useRef(null);
-    const mobileMapPullStartYRef = useRef(null);
-    const mobileMapScrollTopRef = useRef(0);
-    const mobileMapSuppressCollapseUntilRef = useRef(0);
+    const mobileLastScrollYRef = useRef(0);
+    const mobileMapListFocusedRef = useRef(false);
+    const mobileFocusTrayPlaceKeyRef = useRef(null);
+    const mobileFocusTrayScrollClearAfterRef = useRef(0);
+    const mobileTopPullRef = useRef(null);
+    const mobileFullMapSwipeRef = useRef(null);
     const [flashPlaceKey, setFlashPlaceKey] = useState(null);
     const [clusterMapping, setClusterMapping] = useState({});
-    const [mobileMapPanelState, setMobileMapPanelState] = useState(MOBILE_MAP_PANEL_STATES.EXPANDED);
+    const [mobileMapListFocused, setMobileMapListFocused] = useState(false);
+    const [mobileFullMapOpen, setMobileFullMapOpen] = useState(false);
+    const [mobileFocusTrayPlaceKey, setMobileFocusTrayPlaceKey] = useState(null);
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
     const resolvedLayout = layout === 'responsive'
         ? (isDesktop ? 'desktop' : 'mobile')
         : layout;
     const interactive = layout !== 'print';
     const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
-    const isMobileMapCollapsed = isMobileMapPanelEnabled
-        && mobileMapPanelState === MOBILE_MAP_PANEL_STATES.COLLAPSED;
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
     const displayGroups = presentation?.displayGroups || mappedGroups;
+    const mobileDisplayGroups = presentation?.mobileDisplayGroups || displayGroups;
     const leftGroups = presentation?.leftGroups || [];
     const rightGroups = presentation?.rightGroups || [];
+    const mapColumnGroups = presentation?.mapColumnGroups || [];
     const unmappedRows = presentation?.unmappedRows || [];
     const shouldRenderUnmappedSections = !presentation?.integratesUnmappedRowsAsCards;
     const showCategoryPills = Boolean(presentation?.showCategoryPills);
@@ -2244,148 +2603,229 @@ export default function SharedMapDirectoryList({
         : (showDesktopHoverLogo
             ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
             : []);
-
-    const getMobileScrollTop = useCallback(() => {
-        if (typeof window === 'undefined') return 0;
-        return Math.max(0, Math.round(window.scrollY || document.documentElement?.scrollTop || 0));
-    }, []);
-
-    const getMobileMapPanelStateForAction = useCallback((current, action) => {
-        if (action === 'collapse' && Date.now() < mobileMapSuppressCollapseUntilRef.current) {
-            return current;
+    const mobileFocusTraySelection = useMemo(() => (
+        isMobileMapPanelEnabled
+            ? resolveMobileFocusTraySelection(mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins || [])
+            : null
+    ), [isMobileMapPanelEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins]);
+    const mobileFullMapFocusRequest = useMemo(() => {
+        if (!mobileFullMapOpen || !mobileFocusTraySelection) {
+            return { focusedPlaceKey: null, focusedPlaceKeys: [] };
         }
 
-        if (action === 'collapse') {
-            return MOBILE_MAP_PANEL_STATES.COLLAPSED;
+        if (mobileFocusTraySelection.type === 'group' || mobileFocusTraySelection.type === 'pin-group') {
+            const memberKeys = (mobileFocusTraySelection.members || [])
+                .map((group) => group?.placeKey)
+                .filter(Boolean)
+                .map((value) => String(value));
+
+            return memberKeys.length === 1
+                ? { focusedPlaceKey: `${memberKeys[0]}:zoom`, focusedPlaceKeys: [] }
+                : { focusedPlaceKey: null, focusedPlaceKeys: memberKeys };
         }
 
-        if (action === 'expand') {
-            return MOBILE_MAP_PANEL_STATES.EXPANDED;
-        }
+        const selectedKey = mobileFocusTraySelection.group?.placeKey
+            ? String(mobileFocusTraySelection.group.placeKey)
+            : null;
+        return selectedKey
+            ? { focusedPlaceKey: `${selectedKey}:zoom`, focusedPlaceKeys: [] }
+            : { focusedPlaceKey: null, focusedPlaceKeys: [] };
+    }, [mobileFocusTraySelection, mobileFullMapOpen]);
 
-        return current;
-    }, []);
+    useMobileViewportScaleLock(isMobileMapPanelEnabled);
+    useMobileMapOverscrollLock(isMobileMapPanelEnabled);
 
-    const expandMobileMapForFocus = useCallback(() => {
-        if (!isMobileMapPanelEnabled) return;
-        mobileMapSuppressCollapseUntilRef.current = Date.now() + 900;
-        setMobileMapPanelState((current) => getMobileMapPanelStateAfterBadgeActivation({
-            isMobile: true,
-            mapPanelState: current,
-        }));
-    }, [isMobileMapPanelEnabled]);
+    function holdMobileFocusTrayDuringMapReveal() {
+        mobileFocusTrayScrollClearAfterRef.current = Date.now() + MOBILE_FOCUS_TRAY_SCROLL_CLEAR_GRACE_MS;
+    }
+
+    function canClearMobileFocusTrayFromScroll() {
+        return Date.now() >= mobileFocusTrayScrollClearAfterRef.current;
+    }
 
     const handleDirectoryViewOnMap = useCallback((placeKey) => {
-        expandMobileMapForFocus();
+        if (isMobileMapPanelEnabled) {
+            setMobileMapListFocused(false);
+            setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            holdMobileFocusTrayDuringMapReveal();
+        }
         onViewOnMap?.(placeKey);
-    }, [expandMobileMapForFocus, onViewOnMap]);
+    }, [isMobileMapPanelEnabled, onViewOnMap]);
 
     const handleMobileMapViewSection = useCallback((placeKey) => {
-        expandMobileMapForFocus();
+        if (isMobileMapPanelEnabled) {
+            setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            holdMobileFocusTrayDuringMapReveal();
+        }
         renderMobileMap?.().props?.onViewSection?.(placeKey);
-    }, [expandMobileMapForFocus, renderMobileMap]);
+    }, [isMobileMapPanelEnabled, renderMobileMap]);
 
     const handleMobileMapClusterSelect = useCallback((placeKeys) => {
-        expandMobileMapForFocus();
         renderMobileMap?.().props?.onClusterSelect?.(placeKeys);
-    }, [expandMobileMapForFocus, renderMobileMap]);
+    }, [renderMobileMap]);
 
-    const handleMobileCardsWheel = useCallback((event) => {
+    const openMobileFullMap = useCallback(() => {
         if (!isMobileMapPanelEnabled) return;
-
-        const scrollTop = getMobileScrollTop();
-        setMobileMapPanelState((current) => {
-            if (shouldExpandMobileMapPanelFromTopPull({
-                isMobile: true,
-                mapPanelState: current,
-                scrollTop,
-                deltaY: event.deltaY,
-            })) {
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            }
-
-            const action = getMobileMapPanelActionForScroll({
-                isMobile: true,
-                mapPanelState: current,
-                nextScrollTop: Math.max(0, scrollTop + event.deltaY),
-                previousScrollTop: scrollTop,
-            });
-            return getMobileMapPanelStateForAction(current, action);
-        });
-    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
-
-    const handleMobileCardsTouchStart = useCallback((event) => {
-        if (!isMobileMapPanelEnabled) return;
-        mobileMapPullStartYRef.current = event.touches?.[0]?.clientY ?? null;
+        setMobileMapListFocused(false);
+        setMobileFullMapOpen(true);
     }, [isMobileMapPanelEnabled]);
 
-    const handleMobileCardsTouchMove = useCallback((event) => {
-        if (!isMobileMapPanelEnabled) return;
-        const startY = mobileMapPullStartYRef.current;
-        const currentY = event.touches?.[0]?.clientY;
-        if (startY === null || currentY === undefined) return;
-
-        const scrollTop = getMobileScrollTop();
-        const pullDistance = currentY - startY;
-        const gestureScrollTop = Math.max(0, scrollTop + Math.max(0, startY - currentY));
-
-        setMobileMapPanelState((current) => {
-            if (shouldExpandMobileMapPanelFromTopPull({
-                isMobile: true,
-                mapPanelState: current,
-                scrollTop,
-                pullDistance,
-            })) {
-                mobileMapPullStartYRef.current = currentY;
-                return MOBILE_MAP_PANEL_STATES.EXPANDED;
-            }
-
-            const action = getMobileMapPanelActionForScroll({
-                isMobile: true,
-                mapPanelState: current,
-                nextScrollTop: gestureScrollTop,
-                previousScrollTop: scrollTop,
-            });
-            return getMobileMapPanelStateForAction(current, action);
-        });
-    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
-
-    const handleMobileCardsTouchEnd = useCallback(() => {
-        mobileMapPullStartYRef.current = null;
+    const closeMobileFullMap = useCallback(() => {
+        setMobileMapListFocused(false);
+        setMobileFullMapOpen(false);
     }, []);
 
     useEffect(() => {
-        if (resolvedLayout !== 'mobile') {
-            setMobileMapPanelState(MOBILE_MAP_PANEL_STATES.EXPANDED);
+        mobileMapListFocusedRef.current = mobileMapListFocused;
+    }, [mobileMapListFocused]);
+
+    useEffect(() => {
+        mobileFocusTrayPlaceKeyRef.current = mobileFocusTrayPlaceKey;
+    }, [mobileFocusTrayPlaceKey]);
+
+    useEffect(() => {
+        if (!isMobileMapPanelEnabled) {
+            setMobileMapListFocused(false);
+            setMobileFullMapOpen(false);
+            setMobileFocusTrayPlaceKey(null);
         }
-    }, [resolvedLayout]);
+    }, [isMobileMapPanelEnabled]);
+
+    function shouldHideMobileMapForListFocus() {
+        if (typeof window === 'undefined') return false;
+        if (mobileMapListFocusedRef.current || !mobileMapFrameRef.current) return false;
+        const mapRect = mobileMapFrameRef.current.getBoundingClientRect();
+        return mapRect.bottom <= MOBILE_MAP_HIDE_TOP_PX && window.scrollY > MOBILE_MAP_REVEAL_SCROLL_Y;
+    }
+
+    const handleMobileScrollIntent = useCallback(function handleMobileScrollIntent() {
+        if (!isMobileMapPanelEnabled || mobileFullMapOpen || typeof window === 'undefined') return;
+
+        const nextScrollY = Math.max(window.scrollY || 0, 0);
+        const deltaY = nextScrollY - mobileLastScrollYRef.current;
+        mobileLastScrollYRef.current = nextScrollY;
+        if (Math.abs(deltaY) < MOBILE_SCROLL_DIRECTION_EPSILON) return;
+
+        if (deltaY > 0 && shouldHideMobileMapForListFocus()) {
+            if (canClearMobileFocusTrayFromScroll()) {
+                setMobileFocusTrayPlaceKey(null);
+            }
+            setMobileMapListFocused(true);
+            return;
+        }
+
+        if (deltaY > 0 && mobileFocusTrayPlaceKeyRef.current && canClearMobileFocusTrayFromScroll()) {
+            setMobileFocusTrayPlaceKey(null);
+        }
+
+        if (deltaY < 0 && mobileMapListFocusedRef.current && nextScrollY <= MOBILE_MAP_REVEAL_SCROLL_Y) {
+            setMobileMapListFocused(false);
+        }
+    }, [isMobileMapPanelEnabled, mobileFullMapOpen]);
+
+    function handleMobileTopPullTouchStart(event) {
+        if (!isMobileMapPanelEnabled || mobileFullMapOpen || typeof window === 'undefined') {
+            mobileTopPullRef.current = null;
+            return;
+        }
+        if ((window.scrollY || 0) > MOBILE_MAP_REVEAL_SCROLL_Y) {
+            mobileTopPullRef.current = null;
+            return;
+        }
+        if (event.target?.closest?.('.leaflet-container')) {
+            mobileTopPullRef.current = null;
+            return;
+        }
+        const touch = event.touches?.[0];
+        mobileTopPullRef.current = touch
+            ? { startY: touch.clientY, pullY: 0 }
+            : null;
+    }
+
+    function handleMobileTopPullTouchMove(event) {
+        const pullState = mobileTopPullRef.current;
+        const touch = event.touches?.[0];
+        if (!pullState || !touch) return;
+        pullState.pullY = Math.max(touch.clientY - pullState.startY, 0);
+    }
+
+    function handleMobileTopPullTouchEnd() {
+        const pullState = mobileTopPullRef.current;
+        mobileTopPullRef.current = null;
+        if (!pullState || pullState.pullY < MOBILE_FULL_MAP_PULL_DISTANCE_PX) return;
+        setMobileMapListFocused(false);
+        openMobileFullMap();
+    }
+
+    const handleMobileTopPullWheel = useCallback((event) => {
+        if (!isMobileMapPanelEnabled || mobileFullMapOpen || typeof window === 'undefined') return;
+        if ((window.scrollY || 0) > 4) return;
+        if (event.deltaY > -MOBILE_FULL_MAP_PULL_DISTANCE_PX) return;
+        setMobileMapListFocused(false);
+        openMobileFullMap();
+    }, [isMobileMapPanelEnabled, mobileFullMapOpen, openMobileFullMap]);
 
     useEffect(() => {
         if (!isMobileMapPanelEnabled || typeof window === 'undefined') {
             return undefined;
         }
 
-        mobileMapScrollTopRef.current = getMobileScrollTop();
+        mobileLastScrollYRef.current = Math.max(window.scrollY || 0, 0);
+        window.addEventListener('scroll', handleMobileScrollIntent, { passive: true });
+        window.addEventListener('wheel', handleMobileTopPullWheel, { passive: true });
+        window.addEventListener('touchstart', handleMobileTopPullTouchStart, { passive: true });
+        window.addEventListener('touchmove', handleMobileTopPullTouchMove, { passive: true });
+        window.addEventListener('touchend', handleMobileTopPullTouchEnd, { passive: true });
+        window.addEventListener('touchcancel', handleMobileTopPullTouchEnd, { passive: true });
 
-        const handleWindowScroll = () => {
-            const nextScrollTop = getMobileScrollTop();
-            const previousScrollTop = mobileMapScrollTopRef.current;
-            mobileMapScrollTopRef.current = nextScrollTop;
-
-            setMobileMapPanelState((current) => {
-                const action = getMobileMapPanelActionForScroll({
-                    isMobile: true,
-                    mapPanelState: current,
-                    nextScrollTop,
-                    previousScrollTop,
-                });
-                return getMobileMapPanelStateForAction(current, action);
-            });
+        return () => {
+            window.removeEventListener('scroll', handleMobileScrollIntent);
+            window.removeEventListener('wheel', handleMobileTopPullWheel);
+            window.removeEventListener('touchstart', handleMobileTopPullTouchStart);
+            window.removeEventListener('touchmove', handleMobileTopPullTouchMove);
+            window.removeEventListener('touchend', handleMobileTopPullTouchEnd);
+            window.removeEventListener('touchcancel', handleMobileTopPullTouchEnd);
         };
+    }, [handleMobileScrollIntent, handleMobileTopPullWheel, isMobileMapPanelEnabled, mobileFullMapOpen, openMobileFullMap]);
 
-        window.addEventListener('scroll', handleWindowScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleWindowScroll);
-    }, [getMobileMapPanelStateForAction, getMobileScrollTop, isMobileMapPanelEnabled]);
+    function handleMobileFullMapTouchStart(event) {
+        const touch = event.touches?.[0];
+        if (!touch || typeof window === 'undefined') {
+            mobileFullMapSwipeRef.current = null;
+            return;
+        }
+        const startsNearBottom = touch.clientY >= window.innerHeight - MOBILE_FULL_MAP_BOTTOM_EDGE_PX;
+        mobileFullMapSwipeRef.current = startsNearBottom
+            ? { startY: touch.clientY, deltaY: 0 }
+            : null;
+    }
+
+    function handleMobileFullMapTouchMove(event) {
+        const swipeState = mobileFullMapSwipeRef.current;
+        const touch = event.touches?.[0];
+        if (!swipeState || !touch) return;
+        swipeState.deltaY = touch.clientY - swipeState.startY;
+    }
+
+    function handleMobileFullMapTouchEnd() {
+        const swipeState = mobileFullMapSwipeRef.current;
+        mobileFullMapSwipeRef.current = null;
+        if (!swipeState || swipeState.deltaY > -MOBILE_FULL_MAP_EXIT_SWIPE_PX) return;
+        closeMobileFullMap();
+    }
+
+    useEffect(() => {
+        if (!isMobileMapPanelEnabled || !mobileFullMapOpen || typeof document === 'undefined') {
+            return undefined;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isMobileMapPanelEnabled, mobileFullMapOpen]);
 
     function openResourceNotes(row = null) {
         if (!interactive || !noteResourceRows.length) return;
@@ -2423,6 +2863,9 @@ export default function SharedMapDirectoryList({
 
         if (!selectionPlaceKey) {
             setFlashPlaceKey(null);
+            if (isMobileMapPanelEnabled && canClearMobileFocusTrayFromScroll()) {
+                setMobileFocusTrayPlaceKey(null);
+            }
             return undefined;
         }
 
@@ -2436,6 +2879,19 @@ export default function SharedMapDirectoryList({
                     desktopScrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             }
+            return undefined;
+        }
+
+        if (isMobileMapPanelEnabled) {
+            setMobileMapListFocused(false);
+            setMobileFocusTrayPlaceKey(selectionPlaceKey ? String(selectionPlaceKey) : null);
+            holdMobileFocusTrayDuringMapReveal();
+            window.requestAnimationFrame(() => {
+                const mapFrameTop = mobileMapFrameRef.current
+                    ? Math.round(mobileMapFrameRef.current.getBoundingClientRect().top + window.scrollY - MOBILE_MAP_HIDE_TOP_PX)
+                    : 0;
+                window.scrollTo({ top: Math.max(mapFrameTop, 0), behavior: 'smooth' });
+            });
             return undefined;
         }
 
@@ -2458,7 +2914,7 @@ export default function SharedMapDirectoryList({
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, resolvedLayout, selectionPlaceKey, selectionScrollRequest]);
+    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, isMobileMapPanelEnabled, resolvedLayout, selectionPlaceKey, selectionScrollRequest]);
 
     if (!displayGroups.length && !unmappedRows.length) {
         return (
@@ -2472,45 +2928,72 @@ export default function SharedMapDirectoryList({
 
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
-        const mobileMapHeightClassName = isMobileMapCollapsed
-            ? 'h-[128px] min-h-[128px] max-h-[128px] transition-[height] duration-300 ease-out'
-            : `${mobileMapElement?.props?.mapHeightClassName || 'h-[32svh] min-h-[240px] max-h-[360px]'} transition-[height] duration-300 ease-out`;
+        const mobileFullMapElement = mobileFullMapOpen ? renderMobileMap?.() : null;
+        const mobileMapFrameClassName = mobileMapListFocused
+            ? 'hidden'
+            : 'disable-font-scaling [overflow-anchor:none]';
+        const mobileMapNotesWrapperClassName = `${mobileMapStickyClassName} [overflow-anchor:none]`;
+        const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-4 ${className}`}>
                     {mobileMapElement ? (
-                        <div ref={mobileMapWrapperRef} className={`${mobileMapStickyClassName} disable-font-scaling`}>
-                            {React.cloneElement(mobileMapElement, {
-                                onClusterChange: setClusterMapping,
-                                onViewSection: handleMobileMapViewSection,
-                                onClusterSelect: handleMobileMapClusterSelect,
-                                mapHeightClassName: mobileMapHeightClassName,
-                                layoutSignature: `mobile-map-${mobileMapPanelState}`,
-                            })}
-                            {showMapLegend ? <MapLegend mobile /> : null}
-                            <MapNotesEntryButton
-                                rows={noteResourceRows}
-                                mode={mode}
-                                onOpen={openResourceNotes}
-                            />
+                        <div
+                            ref={mobileMapFrameRef}
+                            className={mobileMapFrameClassName}
+                            data-mobile-map-state={mobileMapListFocused ? 'list-focus' : 'default'}
+                        >
+                            <div className="relative">
+                                {React.cloneElement(mobileMapElement, {
+                                    onClusterChange: setClusterMapping,
+                                    onViewSection: handleMobileMapViewSection,
+                                    onClusterSelect: handleMobileMapClusterSelect,
+                                    mapHeightClassName: mobileMapElement.props?.mapHeightClassName,
+                                    layoutSignature: `${mobileMapElement.props?.layoutSignature || 'mobile-map-normal'}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
+                                })}
+                                <button
+                                    type="button"
+                                    onClick={openMobileFullMap}
+                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:bottom-4"
+                                    aria-label={t('openFullMap')}
+                                    title={t('openFullMap')}
+                                >
+                                    <Maximize2 size={19} strokeWidth={2.4} aria-hidden="true" />
+                                </button>
+                            </div>
+                            {showMapLegend ? (
+                                <MapLegend mobile />
+                            ) : null}
                         </div>
                     ) : null}
 
-                    <div
-                        className="space-y-4"
-                        onWheel={handleMobileCardsWheel}
-                        onTouchStart={handleMobileCardsTouchStart}
-                        onTouchMove={handleMobileCardsTouchMove}
-                        onTouchEnd={handleMobileCardsTouchEnd}
-                        onTouchCancel={handleMobileCardsTouchEnd}
-                    >
+                    <MobileMapFocusTray
+                        selection={mobileFocusTraySelection}
+                        mode={mode}
+                        onViewOnMap={handleDirectoryViewOnMap}
+                        onOpenResourceNotes={openResourceNotes}
+                        clusterMapping={clusterMapping}
+                        cardBadgeMode={cardBadgeMode}
+                    />
+
+                    <div ref={mobileMapWrapperRef} className={mobileMapNotesWrapperClassName}>
+                        <MapNotesEntryButton
+                            rows={noteResourceRows}
+                            mode={mode}
+                            onOpen={openResourceNotes}
+                        />
+                    </div>
+
+                    <div className={mobileCardsClassName}>
                         <DirectoryGroupColumn
-                            groups={displayGroups}
+                            groups={mobileDisplayGroups}
                             mode={mode}
                             interactive
                             fullCardLink={false}
                             onViewOnMap={handleDirectoryViewOnMap}
+                            onHoverPlaceStart={onHoverPlaceStart}
+                            onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
                             onUpdateResourceNotes={onUpdateResourceNotes}
                             onOpenResourceNotes={openResourceNotes}
@@ -2547,6 +3030,53 @@ export default function SharedMapDirectoryList({
                         onClose={closeResourceNotes}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                     />
+                    {mobileFullMapOpen ? (
+                        <div
+                            className="fixed inset-x-0 bottom-0 top-[56px] z-[1150] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 sm:top-[64px]"
+                            onTouchStart={handleMobileFullMapTouchStart}
+                            onTouchMove={handleMobileFullMapTouchMove}
+                            onTouchEnd={handleMobileFullMapTouchEnd}
+                            onTouchCancel={handleMobileFullMapTouchEnd}
+                        >
+                            <div className="relative min-h-0 flex-1 disable-font-scaling">
+                                {mobileFullMapElement ? React.cloneElement(mobileFullMapElement, {
+                                    onClusterChange: setClusterMapping,
+                                    onViewSection: handleMobileMapViewSection,
+                                    onClusterSelect: handleMobileMapClusterSelect,
+                                    focusedPlaceKey: mobileFullMapFocusRequest.focusedPlaceKey || mobileFullMapElement.props?.focusedPlaceKey,
+                                    focusedPlaceKeys: mobileFullMapFocusRequest.focusedPlaceKeys.length
+                                        ? mobileFullMapFocusRequest.focusedPlaceKeys
+                                        : mobileFullMapElement.props?.focusedPlaceKeys,
+                                    mapHeightClassName: 'h-full min-h-0 max-h-none',
+                                    className: mobileFullMapElement.props?.className,
+                                    layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
+                                }) : null}
+                                <button
+                                    type="button"
+                                    onClick={closeMobileFullMap}
+                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                    aria-label={t('returnToMapList')}
+                                    title={t('returnToMapList')}
+                                >
+                                    <Minimize2 size={19} strokeWidth={2.4} aria-hidden="true" />
+                                </button>
+                            </div>
+                            <MobileMapFocusTray
+                                selection={mobileFocusTraySelection}
+                                mode={mode}
+                                onViewOnMap={handleDirectoryViewOnMap}
+                                onOpenResourceNotes={openResourceNotes}
+                                clusterMapping={clusterMapping}
+                                cardBadgeMode={cardBadgeMode}
+                                variant="full-map"
+                            />
+                            <MapNotesEntryButton
+                                rows={noteResourceRows}
+                                mode={mode}
+                                onOpen={openResourceNotes}
+                            />
+                        </div>
+                    ) : null}
                 </div>
             </DirectoryReturnPathContext.Provider>
         );
@@ -2563,6 +3093,8 @@ export default function SharedMapDirectoryList({
                         compactInteractive={compactInteractiveDesktop}
                         fullCardLink={interactive && mode !== 'owner'}
                         onViewOnMap={handleDirectoryViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}
@@ -2605,6 +3137,36 @@ export default function SharedMapDirectoryList({
                                 onOpen={openResourceNotes}
                             />
                         ) : null}
+                        {mapColumnGroups.length ? (
+                            <div className={resolvedLayout !== 'print' ? 'mt-3' : ''}>
+                                <DirectoryGroupColumn
+                                    groups={mapColumnGroups}
+                                    mode={mode}
+                                    interactive={interactive}
+                                    compactInteractive={compactInteractiveDesktop}
+                                    fullCardLink={false}
+                                    onViewOnMap={handleDirectoryViewOnMap}
+                                    onHoverPlaceStart={onHoverPlaceStart}
+                                    onHoverPlaceEnd={onHoverPlaceEnd}
+                                    onRemoveResource={onRemoveResource}
+                                    onUpdateResourceNotes={onUpdateResourceNotes}
+                                    onOpenResourceNotes={openResourceNotes}
+                                    canSaveResources={canSaveResources}
+                                    highlightPlaceKey={flashPlaceKey}
+                                    highlightPlaceKeys={highlightPlaceKeys}
+                                    sectionRefs={sectionRefs}
+                                    allowPrintLinks={allowPrintLinks}
+                                    compactPrint={compactPrint}
+                                    clusterMapping={clusterMapping}
+                                    showDesktopHoverLogo={showDesktopHoverLogo}
+                                    logoRevealPlaceKeys={logoRevealPlaceKeys}
+                                    cardBadgeMode={cardBadgeMode}
+                                    showCategoryPills={showCategoryPills}
+                                    showPrintNumberBadges={showPrintNumberBadges}
+                                    afterContent={null}
+                                />
+                            </div>
+                        ) : null}
                         {shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'map-column' && dockedUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={dockedUnmappedRows}
@@ -2626,6 +3188,8 @@ export default function SharedMapDirectoryList({
                         compactInteractive={compactInteractiveDesktop}
                         fullCardLink={interactive && mode !== 'owner'}
                         onViewOnMap={handleDirectoryViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}

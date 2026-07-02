@@ -42,12 +42,6 @@ function buildSearchOrigin({ address, lat, lng, postalCode = '', source }) {
     };
 }
 
-function getAnchorZoom(searchRadius, fallback = 15) {
-    if (searchRadius <= 0.3) return 17;
-    if (searchRadius <= 1) return 16;
-    return fallback;
-}
-
 export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') {
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
     const urlPostal = normalizePostalCode(searchParams.get('postal'));
@@ -56,7 +50,6 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
     const hasHomePostalCode = isValidPostalCode(homePostalCode);
 
     const [userLocation, setUserLocation] = useState(null);
-    const [searchRadius, setSearchRadius] = useState(100);
     const [postalInput, setPostalInput] = useState(() => (isValidUrlPostal ? urlPostal : ''));
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [flyTarget, setFlyTarget] = useState(null);
@@ -64,6 +57,8 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
     const [pendingLocationSearchOrigin, setPendingLocationSearchOrigin] = useState(null);
     const [locationNotice, setLocationNotice] = useState(null);
     const geolocationRequestRef = useRef(0);
+    const postalSearchRequestRef = useRef(0);
+    const lastAutoPostalSearchRef = useRef('');
     const initializedUrlPostalRef = useRef('');
     const latestLocationStateRef = useRef({
         userLocation: null,
@@ -127,7 +122,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
             if (focusMap) {
                 setFlyTarget({
                     ...loc,
-                    zoom: getAnchorZoom(searchRadius, 15),
+                    zoom: 15,
                     source: 'home',
                 });
             }
@@ -136,7 +131,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         } finally {
             setIsGeocoding(false);
         }
-    }, [hasHomePostalCode, homePostalCode, resolvePostalLocation, searchRadius]);
+    }, [hasHomePostalCode, homePostalCode, resolvePostalLocation]);
 
     // Handle URL-driven landing exactly once per URL postal value.
     useEffect(() => {
@@ -162,8 +157,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
                     setLocationNotice(null);
                     latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
 
-                    const zoom = searchRadius <= 0.3 ? 17 : 16;
-                    setFlyTarget({ ...loc, zoom, source: 'postal' });
+                    setFlyTarget({ ...loc, zoom: 16, source: 'postal' });
                 } else {
                     setLocationNotice({
                         type: 'error',
@@ -175,7 +169,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
             }
         }
         resolveUrlPostal();
-    }, [isValidUrlPostal, resolvePostalLocation, searchOrigin, searchRadius, urlPostal]);
+    }, [isValidUrlPostal, resolvePostalLocation, searchOrigin, urlPostal]);
 
     // Default discovery anchor: Home postal code from profile when available.
     useEffect(() => {
@@ -223,8 +217,7 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
                 saveSearchLocation(nextOrigin);
                 
                 // Neighborhood zoom (at least zoom 16 for Locate Me)
-                const zoom = searchRadius <= 0.3 ? 17 : searchRadius <= 0.5 ? 16 : 16;
-                setFlyTarget({ ...loc, zoom, source: 'geolocation' });
+                setFlyTarget({ ...loc, zoom: 16, source: 'geolocation' });
             },
             (error) => {
                 if (geolocationRequestRef.current !== requestId || resolved) return;
@@ -249,20 +242,28 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
             },
             GEOLOCATION_OPTIONS,
         );
-    }, [searchRadius]);
+    }, []);
 
     const handleLocateMe = useCallback(() => {
         runLocateMe({ silent: false });
     }, [runLocateMe]);
 
-    const handlePostalSearch = useCallback(async (e) => {
-        e.preventDefault();
-        const val = postalInput.trim();
+    const applyPostalSearch = useCallback(async (postalCode, options = {}) => {
+        const val = normalizePostalCode(postalCode);
+        const { showInvalidNotice = true } = options;
+
         if (!/^\d{6}$/.test(val)) {
+            if (!showInvalidNotice) return false;
             setLocationNotice({ type: 'error', message: 'Enter a valid 6-digit Singapore postal code.' });
             return false;
         }
 
+        if (searchOrigin?.source === 'postal' && searchOrigin.postalCode === val) {
+            return true;
+        }
+
+        const requestId = Date.now();
+        postalSearchRequestRef.current = requestId;
         setIsGeocoding(true);
         setPendingLocationSearchOrigin({
             source: 'postal',
@@ -271,6 +272,8 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         setLocationNotice(null);
         try {
             const result = await resolvePostalLocation(val);
+            if (postalSearchRequestRef.current !== requestId) return false;
+
             if (!result) {
                 setLocationNotice({ type: 'error', message: `Postal code ${val} could not be located.` });
                 return false;
@@ -292,14 +295,36 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
             latestLocationStateRef.current = { userLocation: loc, searchOrigin: nextOrigin };
             saveSearchLocation(nextOrigin);
 
-            const zoom = getAnchorZoom(searchRadius, 15);
-            setFlyTarget({ lat: nextOrigin.lat, lng: nextOrigin.lng, zoom, source: 'postal' });
+            setFlyTarget({ lat: nextOrigin.lat, lng: nextOrigin.lng, zoom: 15, source: 'postal' });
             return true;
         } finally {
-            setPendingLocationSearchOrigin(null);
-            setIsGeocoding(false);
+            if (postalSearchRequestRef.current === requestId) {
+                setPendingLocationSearchOrigin(null);
+                setIsGeocoding(false);
+            }
         }
-    }, [postalInput, resolvePostalLocation, searchRadius]);
+    }, [resolvePostalLocation, searchOrigin?.postalCode, searchOrigin?.source]);
+
+    useEffect(() => {
+        const normalizedPostalInput = normalizePostalCode(postalInput);
+        if (normalizedPostalInput.length !== 6) return undefined;
+        if (searchOrigin?.source === 'postal' && searchOrigin.postalCode === normalizedPostalInput) {
+            lastAutoPostalSearchRef.current = normalizedPostalInput;
+            return undefined;
+        }
+        if (lastAutoPostalSearchRef.current === normalizedPostalInput && searchOrigin?.source === 'postal') {
+            return undefined;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            lastAutoPostalSearchRef.current = normalizedPostalInput;
+            void applyPostalSearch(normalizedPostalInput, { showInvalidNotice: false });
+        }, 350);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [applyPostalSearch, postalInput, searchOrigin?.postalCode, searchOrigin?.source]);
 
     const effectiveOrigin = useMemo(() => searchOrigin || null, [searchOrigin]);
     const effectiveUserLocation = useMemo(() => (
@@ -314,7 +339,6 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         flyTarget,
         handleHomeAnchor,
         handleLocateMe,
-        handlePostalSearch,
         hasHomePostalCode,
         homePostalCode,
         isGeocoding,
@@ -322,11 +346,9 @@ export function useDiscoveryLocation(hardAssets = [], homePostalCodeValue = '') 
         pendingLocationSearchOrigin,
         postalInput,
         searchOrigin,
-        searchRadius,
         setFlyTarget,
         setPostalInput,
         setSearchOrigin,
-        setSearchRadius,
         userLocation,
         clearLocationSearch,
     };

@@ -12,6 +12,7 @@ export default function MyMapV2PreviewScaffold({
     presentation,
     useDesktopLayout,
     focusedPlaceKey,
+    focusedPlaceKeys = [],
     activePlaceKey,
     activePlaceKeys,
     selectionPlaceKey,
@@ -41,6 +42,7 @@ export default function MyMapV2PreviewScaffold({
             activeAnchor={activeAnchor}
             pins={presentation.pins}
             focusedPlaceKey={focusedPlaceKey}
+            focusedPlaceKeys={focusedPlaceKeys}
             activePlaceKey={activePlaceKey}
             activePlaceKeys={activePlaceKeys}
             onViewSection={onViewSection}
@@ -93,6 +95,8 @@ export default function MyMapV2PreviewScaffold({
                         mode="owner"
                         layout={useDesktopBodyLayout ? 'desktop' : 'responsive'}
                         onViewOnMap={onViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         highlightPlaceKey={activePlaceKey}
@@ -106,7 +110,7 @@ export default function MyMapV2PreviewScaffold({
                         desktopGridClassName={V2_DESKTOP_GRID_CLASS}
                         renderDesktopMap={() => renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}
                         renderMobileMap={() => renderMap(V2_MOBILE_MAP_HEIGHT_CLASS)}
-                        mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-30 -mx-4 bg-[#f6f8fb] px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate disable-font-scaling"
+                        mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
                     />
                 )}
             </div>

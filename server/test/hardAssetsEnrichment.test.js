@@ -29,6 +29,14 @@ function imageResponse(contentType = 'image/png') {
     });
 }
 
+function testEnv(overrides = {}) {
+    return {
+        JWT_SECRET: 'test-secret',
+        AUTH_TEST_LIVE_SESSION_USER_RESOLVER: async (user) => user,
+        ...overrides,
+    };
+}
+
 function createVertexServiceAccountJson() {
     const { privateKey } = generateKeyPairSync('rsa', {
         modulusLength: 2048,
@@ -103,7 +111,7 @@ test('manual hard asset enrichment falls back to official directory details', as
                     subCategory: 'Active Ageing Centre (AAC)',
                 }),
             }),
-            { JWT_SECRET: 'test-secret' },
+            testEnv(),
             { waitUntil() {} },
         );
         const payload = await response.json();
@@ -154,7 +162,7 @@ test('manual hard asset enrichment uses static official directory entries when l
                     subCategory: 'Active Ageing Centre (AAC)',
                 }),
             }),
-            { JWT_SECRET: 'test-secret' },
+            testEnv(),
             { waitUntil() {} },
         );
         const payload = await response.json();
@@ -312,11 +320,10 @@ test('manual hard asset enrichment continues to grounded search when first AI pa
                     subCategory: 'Active Ageing Centre (AAC)',
                 }),
             }),
-            {
-                JWT_SECRET: 'test-secret',
+            testEnv({
                 VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
-            },
+            }),
             { waitUntil() {} },
         );
         const payload = await response.json();
@@ -451,11 +458,10 @@ test('manual hard asset enrichment stabilizes All Saints Silver Lifestyle Club d
                     subCategory: 'Active Ageing Centre (AAC)',
                 }),
             }),
-            {
-                JWT_SECRET: 'test-secret',
+            testEnv({
                 VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
-            },
+            }),
             { waitUntil() {} },
         );
         const payload = await response.json();
@@ -601,11 +607,10 @@ test('manual hard asset enrichment stabilizes SASCO@Khatib details when AI retur
                     subCategory: 'Active Ageing Centre (AAC)',
                 }),
             }),
-            {
-                JWT_SECRET: 'test-secret',
+            testEnv({
                 VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
-            },
+            }),
             { waitUntil() {} },
         );
         const payload = await response.json();
@@ -724,7 +729,7 @@ test('manual hard asset enrichment falls back to Google Places for any matching 
                     subCategory: 'Clinic',
                 }),
             }),
-            { JWT_SECRET: 'test-secret', GOOGLE_MAPS_API_KEY: 'test-google-key' },
+            testEnv({ GOOGLE_MAPS_API_KEY: 'test-google-key' }),
             { waitUntil() {} },
         );
         const payload = await response.json();
@@ -823,7 +828,7 @@ test('manual hard asset enrichment does not use Google Maps preview images as lo
                     subCategory: 'Active Ageing Centre (AAC)',
                 }),
             }),
-            { JWT_SECRET: 'test-secret', GOOGLE_MAPS_API_KEY: 'test-google-key' },
+            testEnv({ GOOGLE_MAPS_API_KEY: 'test-google-key' }),
             { waitUntil() {} },
         );
         const payload = await response.json();

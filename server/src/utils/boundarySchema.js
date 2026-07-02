@@ -1,23 +1,71 @@
 import { sql } from 'drizzle-orm';
 
 let ensureBoundarySchemaPromise = null;
+let ensureGroupAssetSchemaPromise = null;
 let ensureUserPreferenceColumnsPromise = null;
 
-export function shouldRunRuntimeSchemaBootstrap(envVars = {}) {
+export function getRuntimeSchemaBootstrapMode(envVars = {}) {
     const env = envVars?.env ?? envVars ?? {};
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
     const nodeEnv = String(env.NODE_ENV || processEnv.NODE_ENV || '').trim().toLowerCase();
     const explicitFlag = String(env.ALLOW_RUNTIME_SCHEMA_BOOTSTRAP || processEnv.ALLOW_RUNTIME_SCHEMA_BOOTSTRAP || '').trim().toLowerCase();
 
     if (explicitFlag) {
-        return ['1', 'true', 'yes', 'on'].includes(explicitFlag);
+        if (['group', 'group-only', 'groups'].includes(explicitFlag)) {
+            return 'group-only';
+        }
+        return ['1', 'true', 'yes', 'on'].includes(explicitFlag) ? 'full' : 'off';
     }
 
-    return nodeEnv !== 'production';
+    return nodeEnv !== 'production' ? 'full' : 'off';
+}
+
+export function shouldRunRuntimeSchemaBootstrap(envVars = {}) {
+    return getRuntimeSchemaBootstrapMode(envVars) !== 'off';
+}
+
+export async function ensureGroupAssetSchema(db) {
+    if (!ensureGroupAssetSchemaPromise) {
+        ensureGroupAssetSchemaPromise = (async () => {
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS asset_mode VARCHAR(20) NOT NULL DEFAULT 'standalone'`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS website TEXT`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
+            await db.execute(sql`UPDATE soft_assets SET asset_mode = 'standalone' WHERE asset_mode IS NULL OR asset_mode = ''`);
+            await db.execute(sql`UPDATE soft_assets SET social_links = '{}'::jsonb WHERE social_links IS NULL`);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS soft_asset_group_members (
+                    id SERIAL PRIMARY KEY,
+                    group_soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    member_resource_type VARCHAR(20) NOT NULL,
+                    member_resource_id INTEGER NOT NULL,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    added_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    added_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_group_members_unique_member_idx ON soft_asset_group_members (group_soft_asset_id, member_resource_type, member_resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_group_idx ON soft_asset_group_members (group_soft_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_member_idx ON soft_asset_group_members (member_resource_type, member_resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_assets_asset_mode_idx ON soft_assets (asset_mode)`);
+        })().catch((err) => {
+            ensureGroupAssetSchemaPromise = null;
+            throw err;
+        });
+    }
+
+    await ensureGroupAssetSchemaPromise;
 }
 
 export async function ensureBoundarySchema(db, envVars = {}) {
-    if (!shouldRunRuntimeSchemaBootstrap(envVars)) {
+    const bootstrapMode = getRuntimeSchemaBootstrapMode(envVars);
+    if (bootstrapMode === 'off') {
+        return;
+    }
+
+    if (bootstrapMode === 'group-only') {
+        await ensureGroupAssetSchema(db);
         return;
     }
 
@@ -33,10 +81,13 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS property_type VARCHAR(60)`);
             await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS volunteer_interest VARCHAR(10)`);
+            await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_subject VARCHAR(255)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS users_google_subject_unique ON users (google_subject) WHERE google_subject IS NOT NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS users_manager_user_idx ON users (manager_user_id)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS whatsapp_contact VARCHAR(255)`);
+            await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS website TEXT`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS source_google_place_id TEXT`);
@@ -47,6 +98,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS snapshot JSONB`);
+            await db.execute(sql`ALTER TABLE phone_login_attempts ADD COLUMN IF NOT EXISTS attempt_token_hash VARCHAR(128)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_maps (
                     id SERIAL PRIMARY KEY,
@@ -223,6 +275,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS external_key VARCHAR(160)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS audience_mode VARCHAR(40) NOT NULL DEFAULT 'public'`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS eligibility_rules JSONB`);
@@ -237,6 +290,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS source_type VARCHAR(80)`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS verification_status VARCHAR(40) NOT NULL DEFAULT 'unverified'`);
             await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS website TEXT`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS whatsapp_contact VARCHAR(255)`);
+            await db.execute(sql`ALTER TABLE soft_asset_parents ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS bucket VARCHAR(20)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS overridden_fields JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)`);
@@ -245,6 +303,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS cta_label VARCHAR(255)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS cta_url TEXT`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS venue_note TEXT`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS website TEXT`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS social_links JSONB NOT NULL DEFAULT '{}'::jsonb`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_enabled BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_count INTEGER NOT NULL DEFAULT 0`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS availability_unit TEXT`);
@@ -258,6 +318,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`UPDATE hard_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET created_by_user_id = partner_id WHERE created_by_user_id IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET asset_mode = 'standalone' WHERE asset_mode IS NULL OR asset_mode = ''`);
+            await db.execute(sql`UPDATE soft_asset_parents SET social_links = '{}'::jsonb WHERE social_links IS NULL`);
+            await db.execute(sql`UPDATE soft_assets SET social_links = '{}'::jsonb WHERE social_links IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET overridden_fields = '[]'::jsonb WHERE overridden_fields IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET availability_enabled = FALSE WHERE availability_enabled IS NULL`);
             await db.execute(sql`UPDATE soft_assets SET availability_count = 0 WHERE availability_count IS NULL OR availability_count < 0`);
@@ -339,6 +401,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     id SERIAL PRIMARY KEY,
                     provider VARCHAR(40) NOT NULL DEFAULT 'gudauth',
                     provider_challenge_id VARCHAR(255),
+                    attempt_token_hash VARCHAR(128),
                     requested_phone_e164 VARCHAR(32),
                     verified_phone_e164 VARCHAR(32),
                     resolved_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -614,6 +677,18 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS soft_asset_group_members (
+                    id SERIAL PRIMARY KEY,
+                    group_soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    member_resource_type VARCHAR(20) NOT NULL,
+                    member_resource_id INTEGER NOT NULL,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    added_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    added_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
             await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS hard_asset_id INTEGER REFERENCES hard_assets(id) ON DELETE SET NULL`);
             await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS sharing_status VARCHAR(40) NOT NULL DEFAULT 'approved'`);
             await db.execute(sql`ALTER TABLE audience_zones ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL`);
@@ -753,6 +828,9 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_soft_asset_idx ON soft_asset_staff_memberships (soft_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_user_idx ON soft_asset_staff_memberships (user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_staff_memberships_role_idx ON soft_asset_staff_memberships (staff_role)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS soft_asset_group_members_unique_member_idx ON soft_asset_group_members (group_soft_asset_id, member_resource_type, member_resource_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_group_idx ON soft_asset_group_members (group_soft_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_asset_group_members_member_idx ON soft_asset_group_members (member_resource_type, member_resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_hard_asset_idx ON audience_zones (hard_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS audience_zones_sharing_status_idx ON audience_zones (sharing_status)`);
             await db.execute(sql`
@@ -811,6 +889,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
 
 export function resetBoundarySchemaBootstrapForTests() {
     ensureBoundarySchemaPromise = null;
+    ensureGroupAssetSchemaPromise = null;
     ensureUserPreferenceColumnsPromise = null;
 }
 

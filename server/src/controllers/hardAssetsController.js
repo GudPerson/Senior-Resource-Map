@@ -1079,6 +1079,47 @@ async function triggerHardAssetTranslation(db, env, asset, user) {
     }
 }
 
+function isWorkerSubrequestLimitError(error) {
+    return /too many subrequests/i.test(String(error?.message || ''));
+}
+
+export function formatHardAssetSaveError(error) {
+    if (isWorkerSubrequestLimitError(error)) {
+        return 'We could not finish saving this asset right now. Please try again in a moment.';
+    }
+    return error?.message || 'Failed to update hard asset';
+}
+
+export async function runHardAssetPostSaveTask(taskName, task) {
+    try {
+        return {
+            ok: true,
+            result: await task(),
+        };
+    } catch (error) {
+        console.error(`Hard asset post-save task failed: ${taskName}`, {
+            message: error?.message,
+        });
+        return {
+            ok: false,
+            taskName,
+            message: error?.message || 'Background update failed.',
+        };
+    }
+}
+
+export function buildHardAssetPostSaveStatus(issues = []) {
+    const safeIssues = Array.isArray(issues) ? issues.filter((issue) => issue && !issue.ok) : [];
+    if (safeIssues.length === 0) {
+        return { status: 'ok', issues: [] };
+    }
+    return {
+        status: 'partial',
+        issues: safeIssues.map((issue) => issue.taskName).filter(Boolean),
+        message: 'Your main changes were saved, but some background updates may take a moment to refresh.',
+    };
+}
+
 async function countHardAssetRows(db, where) {
     const [row] = await db.select({
         totalCount: sql`count(*)`.mapWith(Number),
@@ -1096,6 +1137,7 @@ function sanitizeHardAssetPayload(body = {}) {
         address: cleanOneLineText(body.address, 1000),
         phone: cleanOptionalOneLineText(body.phone, 50),
         whatsappContact: cleanOptionalOneLineText(body.whatsappContact, 255),
+        contactEmail: cleanOptionalOneLineText(body.contactEmail, 255),
         hours: cleanOptionalText(body.hours, 3000),
         website: normalizeUrlText(body.website, 2000),
         socialLinks: normalizeSocialLinks(body.socialLinks),
@@ -1123,6 +1165,7 @@ function sanitizeHardAssetPatch(body = {}) {
         'address',
         'phone',
         'whatsappContact',
+        'contactEmail',
         'hours',
         'website',
         'socialLinks',
@@ -1707,6 +1750,7 @@ export const createHardAsset = async (c) => {
             address,
             phone,
             whatsappContact,
+            contactEmail,
             hours,
             website,
             socialLinks,
@@ -1757,6 +1801,7 @@ export const createHardAsset = async (c) => {
             address,
             phone: phone || null,
             whatsappContact: whatsappContact || null,
+            contactEmail: contactEmail || null,
             hours: hours || null,
             website: website || null,
             socialLinks: normalizeSocialLinks(socialLinks),
@@ -1908,6 +1953,7 @@ export const updateHardAsset = async (c) => {
             subCategory: body.subCategory ?? existing.subCategory,
             phone: body.phone !== undefined ? (body.phone || null) : existing.phone,
             whatsappContact: body.whatsappContact !== undefined ? (body.whatsappContact || null) : existing.whatsappContact,
+            contactEmail: body.contactEmail !== undefined ? (body.contactEmail || null) : existing.contactEmail,
             hours: body.hours !== undefined ? (body.hours || null) : existing.hours,
             website: body.website !== undefined ? (body.website || null) : existing.website,
             socialLinks: body.socialLinks !== undefined ? normalizeSocialLinks(body.socialLinks) : normalizeSocialLinks(existing.socialLinks),
@@ -1925,35 +1971,55 @@ export const updateHardAsset = async (c) => {
         };
         await db.update(hardAssets).set(updatePatch).where(eq(hardAssets.id, id));
 
+        const postSaveIssues = [];
         if (body.newTags) {
-            await syncAssetTags(db, id, 'hard', body.newTags);
+            const tagSyncStatus = await runHardAssetPostSaveTask('tags', () => syncAssetTags(db, id, 'hard', body.newTags));
+            if (!tagSyncStatus.ok) postSaveIssues.push(tagSyncStatus);
         }
 
-        const refreshed = await db.query.hardAssets.findFirst({
-            where: eq(hardAssets.id, id),
+        let refreshed = null;
+        const reloadStatus = await runHardAssetPostSaveTask('reload', async () => {
+            refreshed = await db.query.hardAssets.findFirst({
+                where: eq(hardAssets.id, id),
+            });
+            return refreshed;
         });
+        if (!reloadStatus.ok) postSaveIssues.push(reloadStatus);
+
         const translationStatus = refreshed
             ? await triggerHardAssetTranslation(db, c.env, refreshed, user)
             : { status: 'skipped', message: 'Asset was saved but could not be reloaded for translation.' };
 
-        await rebuildMapCache(getCacheRegionId(existing.subregionId, derivedSubregion.id), c.env);
+        const cacheStatus = await runHardAssetPostSaveTask('mapCache', () => (
+            rebuildMapCache(getCacheRegionId(existing.subregionId, derivedSubregion.id), c.env)
+        ));
+        if (!cacheStatus.ok) postSaveIssues.push(cacheStatus);
+
         const changedFields = diffAuditFieldNames(existing, updatePatch)
             .concat(body.newTags !== undefined ? ['tags'] : []);
         if (changedFields.length) {
-            await recordHardAssetAudit(
-                db,
-                user,
-                refreshed || { ...existing, ...updatePatch, id },
-                isResourceVisibilityAction(existing, updatePatch)
-                    ? (updatePatch.isHidden ? 'hidden' : 'shown')
-                    : 'updated',
-                changedFields,
-            );
+            const auditStatus = await runHardAssetPostSaveTask('audit', () => (
+                recordHardAssetAudit(
+                    db,
+                    user,
+                    refreshed || { ...existing, ...updatePatch, id },
+                    isResourceVisibilityAction(existing, updatePatch)
+                        ? (updatePatch.isHidden ? 'hidden' : 'shown')
+                        : 'updated',
+                    changedFields,
+                )
+            ));
+            if (!auditStatus.ok) postSaveIssues.push(auditStatus);
         }
-        return c.json({ success: true, id, translationStatus });
+        return c.json({
+            success: true,
+            id,
+            translationStatus,
+            postSaveStatus: buildHardAssetPostSaveStatus(postSaveIssues),
+        });
     } catch (err) {
         console.error(err);
-        return c.json({ error: err.message || 'Failed to update hard asset' }, err.status || 500);
+        return c.json({ error: formatHardAssetSaveError(err) }, err.status || 500);
     }
 };
 

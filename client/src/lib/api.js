@@ -295,8 +295,15 @@ export const api = {
     register: (body) => request('POST', '/auth/register', body),
     googleAuth: (body) => request('POST', '/auth/google', body),
     startPhoneLogin: (body) => request('POST', '/auth/phone/start', body),
-    getPhoneLoginAttempt: (attemptId) => request('GET', `/auth/phone/${attemptId}`),
-    completePhoneLoginSignup: (attemptId, body) => request('POST', `/auth/phone/${attemptId}/signup`, body),
+    getPhoneLoginAttempt: (attemptId, attemptToken = '') => {
+        const query = attemptToken ? `?attemptToken=${encodeURIComponent(attemptToken)}` : '';
+        return request('GET', `/auth/phone/${attemptId}${query}`);
+    },
+    completePhoneLoginSignup: (attemptId, body = {}, attemptToken = '') => request(
+        'POST',
+        `/auth/phone/${attemptId}/signup`,
+        { ...body, attemptToken: attemptToken || body.attemptToken || '' },
+    ),
     createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
     // Hard Assets
@@ -339,6 +346,8 @@ export const api = {
     updateSoftAssetAvailability: (id, body) => request('PATCH', `/soft-assets/${id}/availability`, body),
     resetSoftAssetOverrides: (id, body) => request('POST', `/soft-assets/${id}/reset-overrides`, body),
     deleteSoftAsset: (id) => request('DELETE', `/soft-assets/${id}`),
+    getSoftAssetGroupMembers: (id) => request('GET', `/soft-assets/${id}/group-members`),
+    replaceSoftAssetGroupMembers: (id, body) => request('PUT', `/soft-assets/${id}/group-members`, body),
     getSoftAssetStaff: (id) => request('GET', `/soft-assets/${id}/staff`),
     getSoftAssetStaffCandidates: (id, query = '') => request('GET', `/soft-assets/${id}/staff-candidates?q=${encodeURIComponent(query)}`),
     addSoftAssetStaff: (id, body) => request('POST', `/soft-assets/${id}/staff`, body),

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Mail, MapPin, MessageCircle, Navigation, Phone, Share2 } from 'lucide-react';
+import { Building2, CalendarDays, Check, Clock, ExternalLink, Globe, Layers3, Mail, MapPin, MessageCircle, Navigation, Phone, Share2 } from 'lucide-react';
 
 import { getDistance } from '../lib/geo.js';
 import {
@@ -21,11 +21,19 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import PartnerPrivatePanel from './PartnerPrivatePanel.jsx';
+import SaveAssetButton from './SaveAssetButton.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { localizeResource } from '../lib/localization.js';
 import { getSocialLinkEntries, mergeSocialLinks, splitWebsiteAndSocialLinks } from '../lib/socialLinks.js';
 import { buildWhatsAppContactHref, formatWhatsAppContactLabel } from '../lib/whatsappContact.js';
 import { shareResourceLink } from '../lib/resourceShare.js';
+import {
+    formatGroupMemberCountLine,
+    formatGroupUpdateSummary,
+    getGroupGalleryUrls,
+    getGroupVisibilitySummary,
+    isGroupAsset,
+} from '../lib/groupAssets.js';
 import {
     getResourceDetailPhone,
     getResourceHeroPresentation,
@@ -50,6 +58,44 @@ function formatDistance(distance, t) {
     return distance < 1
         ? t('distanceMetersAway', { distance: Math.round(distance * 1000) })
         : t('distanceKmAway', { distance: distance.toFixed(1) });
+}
+
+function getGroupMemberSections(asset = {}) {
+    const members = asset.groupMembers || {};
+    return [
+        { key: 'places', label: 'Places', members: Array.isArray(members.places) ? members.places : [] },
+        { key: 'programmes', label: 'Programmes', members: Array.isArray(members.programmes) ? members.programmes : [] },
+        { key: 'services', label: 'Services', members: Array.isArray(members.services) ? members.services : [] },
+        { key: 'promotions', label: 'Promotions', members: Array.isArray(members.promotions) ? members.promotions : [] },
+    ];
+}
+
+function buildNestedResourceSaveSummary(resource = {}, resourceType, host = null) {
+    const firstLocation = Array.isArray(resource.locations) ? resource.locations[0] : null;
+    const location = resource.location || firstLocation || {};
+    const fallbackLocation = host || {};
+
+    return {
+        name: resource.name,
+        subCategory: resource.subCategory,
+        address: resource.address || location.address || fallbackLocation.address || null,
+        lat: resource.lat ?? location.lat ?? fallbackLocation.lat ?? null,
+        lng: resource.lng ?? location.lng ?? fallbackLocation.lng ?? null,
+        detailPath: `/resource/${resourceType}/${resource.id}`,
+    };
+}
+
+function handleRelatedResourceCardKeyDown(event, onActivate) {
+    if (event.target !== event.currentTarget && event.target?.closest?.('a,button,input,textarea,select,summary')) {
+        return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+    }
+
+    event.preventDefault();
+    onActivate?.();
 }
 
 function normalizeExternalHref(value) {
@@ -199,6 +245,7 @@ export default function ResourceDetailContent({
     if (!asset) return null;
 
     const isHard = type === 'hard';
+    const isGroup = !isHard && isGroupAsset(asset);
     const isEmbeddedPane = layoutMode === 'pane';
     const isCompact = isEmbeddedPane ? (containerWidth ?? 0) <= 560 : isPhone;
     const rootSpacingClass = isCompact ? 'space-y-5' : 'space-y-6';
@@ -230,11 +277,11 @@ export default function ResourceDetailContent({
         ? 'rounded-2xl border px-3 py-3 text-left transition-colors'
         : 'rounded-2xl border px-2.5 py-2 text-left transition-colors sm:px-3';
     const relatedItemClass = isCompact
-        ? 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md cursor-pointer'
-        : 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md sm:gap-4 sm:p-4 cursor-pointer';
+        ? 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2 cursor-pointer'
+        : 'flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-brand-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2 sm:gap-4 sm:p-4 cursor-pointer';
 
     const softLocations = useMemo(() => {
-        if (isHard) return [];
+        if (isHard || isGroup) return [];
 
         const locations = Array.isArray(asset.locations) && asset.locations.length > 0
             ? asset.locations
@@ -261,26 +308,26 @@ export default function ResourceDetailContent({
                 if (right._distance === null) return -1;
                 return left._distance - right._distance;
             });
-    }, [asset, isHard, sortOrigin]);
+    }, [asset, isGroup, isHard, sortOrigin]);
 
-    const primaryLocation = isHard ? asset : (softLocations[0] || asset.location || null);
+    const primaryLocation = isHard ? asset : (isGroup ? null : (softLocations[0] || asset.location || null));
     const primaryAddress = isHard ? asset?.address : primaryLocation?.address;
     const phone = getResourceDetailPhone({ asset, primaryLocation, isHard });
     const whatsappContact = String(asset?.whatsappContact || primaryLocation?.whatsappContact || '').trim();
     const whatsappHref = buildWhatsAppContactHref(whatsappContact);
     const whatsappLabel = formatWhatsAppContactLabel(whatsappContact);
-    const websiteParts = isHard ? splitWebsiteAndSocialLinks(asset?.website) : { website: '', socialLinks: {} };
-    const websiteHref = isHard ? normalizeExternalHref(websiteParts.website) : '';
-    const visibleSocialLinks = isHard ? mergeSocialLinks(asset?.socialLinks, websiteParts.socialLinks) : {};
+    const websiteParts = (isHard || isGroup) ? splitWebsiteAndSocialLinks(asset?.website) : { website: '', socialLinks: {} };
+    const websiteHref = (isHard || isGroup) ? normalizeExternalHref(websiteParts.website) : '';
+    const visibleSocialLinks = (isHard || isGroup) ? mergeSocialLinks(asset?.socialLinks, websiteParts.socialLinks) : {};
     const contactEmail = !isHard ? String(asset?.contactEmail || '').trim() : '';
     const externalCtaLabel = !isHard ? String(asset?.ctaLabel || '').trim() || t('openLink') : '';
     const externalCtaHref = !isHard ? normalizeExternalHref(asset?.ctaUrl) : '';
     const availablePlaceCount = isHard ? 0 : softLocations.length;
     const hasLinkedPlaceDetails = shouldShowLinkedPlaceDetails({ isHard, softLocations });
-    const availabilityEnabled = !isHard && Boolean(asset.availabilityEnabled);
+    const availabilityEnabled = !isHard && !isGroup && Boolean(asset.availabilityEnabled);
     const availabilityCount = normalizeAvailabilityCount(asset.availabilityCount);
     const availabilityUnit = normalizeAvailabilityUnit(asset.availabilityUnit);
-    const access = !isHard ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
+    const access = !isHard && !isGroup ? (asset.access || OFFERING_ACCESS.GRANTED) : null;
     const relatedSoftAssetGroups = useMemo(() => (
         isHard ? groupSoftAssetsByBucket(asset?.softAssets || []) : { Programmes: [], Services: [], Promotions: [] }
     ), [asset?.softAssets, isHard]);
@@ -290,7 +337,11 @@ export default function ResourceDetailContent({
     const activeSoftBucketLabel = getSoftAssetBucketLabel(t, activeSoftBucket);
     const hasDirectionsTarget = isHard
         ? Boolean(asset && (asset.address || hasValidCoordinates(asset)))
-        : Boolean(primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
+        : Boolean(!isGroup && primaryLocation && (primaryLocation.address || hasValidCoordinates(primaryLocation)));
+    const groupMemberSections = isGroup ? getGroupMemberSections(asset) : [];
+    const groupVisibilitySummary = isGroup ? getGroupVisibilitySummary(asset) : null;
+    const groupUpdateSummary = isGroup ? formatGroupUpdateSummary(asset, locale) : null;
+    const groupGalleryUrls = isGroup ? getGroupGalleryUrls(asset, isCompact ? 4 : 6) : [];
     const grabAddress = String(primaryAddress || '').trim();
     const grabPlaceName = String(((isHard ? asset?.name : primaryLocation?.name) || asset?.name || '')).trim();
     const grabClipboardText = buildGrabClipboardDestination({
@@ -495,12 +546,41 @@ export default function ResourceDetailContent({
                             className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 rounded-full bg-white text-sm font-bold border shadow-sm"
                             style={{ color: subCatColors[asset.subCategory] || '#334155', borderColor: 'var(--color-border)' }}
                         >
-                            {isHard ? <Building2 size={16} /> : <CalendarDays size={16} />}
-                            {asset.subCategory || (isHard ? t('place') : t('offering'))}
+                            {isHard ? <Building2 size={16} /> : isGroup ? <Layers3 size={16} /> : <CalendarDays size={16} />}
+                            {isGroup ? (asset.subCategory || 'Group') : (asset.subCategory || (isHard ? t('place') : t('offering')))}
                         </div>
                         <h1 className={introTitleClass}>{asset.name}</h1>
                         {!isHard ? (
                             <div className="mt-3 flex flex-wrap gap-2">
+                                {isGroup ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold border"
+                                        style={{
+                                            backgroundColor: 'var(--color-brand-light)',
+                                            color: 'var(--color-brand-strong)',
+                                            borderColor: 'var(--color-border)',
+                                        }}
+                                    >
+                                        <Layers3 size={15} />
+                                        {formatGroupMemberCountLine(asset)}
+                                    </span>
+                                ) : null}
+                                {isGroup && groupVisibilitySummary ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-sm font-bold text-slate-700 border border-slate-200"
+                                    >
+                                        <Globe size={15} />
+                                        {groupVisibilitySummary.label}
+                                    </span>
+                                ) : null}
+                                {isGroup && groupUpdateSummary?.detail ? (
+                                    <span
+                                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-sm font-bold text-slate-700 border border-slate-200"
+                                    >
+                                        <Check size={15} />
+                                        {groupUpdateSummary.label} · {groupUpdateSummary.detail}
+                                    </span>
+                                ) : null}
                                 {hasLinkedPlaceDetails ? (
                                     <span
                                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border"
@@ -528,7 +608,7 @@ export default function ResourceDetailContent({
                             </div>
                         ) : null}
 
-                        {!isHard ? (
+                        {!isHard && !isGroup ? (
                             <OfferingAccessNotice
                                 access={access}
                                 missingProfileFields={asset.missingProfileFields}
@@ -593,6 +673,27 @@ export default function ResourceDetailContent({
                                 </div>
                             </div>
                         ))
+                    ) : null}
+
+                    {isGroup && groupVisibilitySummary ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Globe size={22} /></div>
+                            <div>
+                                <p className="font-bold text-slate-900 mb-1">Collection visibility</p>
+                                <p className="text-slate-700">{groupVisibilitySummary.label}</p>
+                                <p className="text-sm text-slate-500">{groupVisibilitySummary.detail}</p>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {isGroup && groupUpdateSummary?.detail ? (
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-brand-50 rounded-xl text-brand-600 shrink-0"><Check size={22} /></div>
+                            <div>
+                                <p className="font-bold text-slate-900 mb-1">{groupUpdateSummary.label}</p>
+                                <p className="text-slate-700">{groupUpdateSummary.detail}</p>
+                            </div>
+                        </div>
                     ) : null}
 
                     {(asset.schedule || asset.hours) ? (
@@ -688,8 +789,25 @@ export default function ResourceDetailContent({
                         </div>
                     ) : null}
 
-                    {isHard ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
+                    {(isHard || isGroup) ? <SocialLinksStrip socialLinks={visibleSocialLinks} t={t} /> : null}
                 </div>
+
+                {groupGalleryUrls.length > 0 ? (
+                    <div className="mt-8 pt-6 border-t border-slate-200">
+                        <h3 className="font-bold text-slate-900 mb-3 text-sm uppercase tracking-wider">Gallery</h3>
+                        <div className={isCompact ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-2 gap-3 sm:grid-cols-3'}>
+                            {groupGalleryUrls.map((url, index) => (
+                                <div key={`${url}-${index}`} className="aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                                    <img
+                                        src={url}
+                                        alt={`${asset.name || 'Group'} gallery image ${index + 1}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
 
                 {asset.tags && asset.tags.length > 0 ? (
                     <div className="mt-8 pt-6 border-t border-slate-200">
@@ -762,6 +880,77 @@ export default function ResourceDetailContent({
                 />
             </div>
 
+            {isGroup ? (
+                <div
+                    className={relatedCardClass}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.88)', borderColor: 'var(--color-border)' }}
+                >
+                    <div className={relatedHeaderClass}>
+                        <div>
+                            <h2 className={isCompact ? 'text-2xl font-bold text-slate-900 leading-tight' : 'text-xl font-bold text-slate-900 sm:text-2xl'}>Included resources</h2>
+                            <p className="mt-1 text-sm text-slate-500">{formatGroupMemberCountLine(asset)}</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-5">
+                        {groupMemberSections.map((section) => (
+                            section.members.length > 0 ? (
+                                <section key={section.key} className="grid gap-3">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{section.label}</h3>
+                                    <div className="grid gap-3">
+                                        {section.members.map((member) => (
+                                            <div
+                                                key={`${member.resourceType}-${member.id}`}
+                                                onClick={() => onNavigateToResource?.(member.resourceType, member.id)}
+                                                onKeyDown={(event) => handleRelatedResourceCardKeyDown(
+                                                    event,
+                                                    () => onNavigateToResource?.(member.resourceType, member.id),
+                                                )}
+                                                role="button"
+                                                tabIndex={0}
+                                                className={relatedItemClass}
+                                            >
+                                                {member.logoUrl ? (
+                                                    <div className={isCompact ? 'flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1' : 'flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white p-1 sm:h-14 sm:w-14'}>
+                                                        <img src={member.logoUrl} alt={t('logoImageAlt')} className="max-w-full max-h-full object-contain" />
+                                                    </div>
+                                                ) : (
+                                                    <div className={isCompact ? 'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600' : 'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600 sm:h-14 sm:w-14'}>
+                                                        {member.resourceType === 'hard' ? <Building2 size={24} /> : <CalendarDays size={24} />}
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0 flex-1 text-left">
+                                                    <h4 className={isCompact ? 'line-clamp-3 text-lg font-bold leading-tight text-slate-900' : 'line-clamp-2 text-base font-bold leading-tight text-slate-900 sm:text-lg'}>{member.name}</h4>
+                                                    {member.subCategory ? (
+                                                        <p className="mt-1 text-sm font-semibold text-slate-500">{member.subCategory}</p>
+                                                    ) : null}
+                                                    {member.description ? (
+                                                        <MarkdownLiteText
+                                                            text={member.description}
+                                                            compact
+                                                            className={isCompact ? 'mt-2 line-clamp-3 text-sm text-slate-600' : 'mt-2 line-clamp-2 text-xs text-slate-600 sm:text-sm'}
+                                                        />
+                                                    ) : null}
+                                                </div>
+                                                <div className="ml-1 flex flex-shrink-0 items-start">
+                                                    <SaveAssetButton
+                                                        resourceType={member.resourceType}
+                                                        resourceId={member.id}
+                                                        summary={buildNestedResourceSaveSummary(member, member.resourceType)}
+                                                        variant="card"
+                                                        iconSize={20}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            ) : null
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
             {isHard && asset.softAssets && asset.softAssets.length > 0 ? (
                 <div
                     className={relatedCardClass}
@@ -805,6 +994,12 @@ export default function ResourceDetailContent({
                             <div
                                 key={softAsset.id}
                                 onClick={() => onNavigateToResource?.('soft', softAsset.id)}
+                                onKeyDown={(event) => handleRelatedResourceCardKeyDown(
+                                    event,
+                                    () => onNavigateToResource?.('soft', softAsset.id),
+                                )}
+                                role="button"
+                                tabIndex={0}
                                 className={relatedItemClass}
                             >
                                 {softAsset.logoUrl ? (
@@ -831,6 +1026,15 @@ export default function ResourceDetailContent({
                                             className={isCompact ? 'mt-2 line-clamp-3 text-sm text-slate-600' : 'mt-2 line-clamp-2 text-xs text-slate-600 sm:text-sm'}
                                         />
                                     ) : null}
+                                </div>
+                                <div className="ml-1 flex flex-shrink-0 items-start">
+                                    <SaveAssetButton
+                                        resourceType="soft"
+                                        resourceId={softAsset.id}
+                                        summary={buildNestedResourceSaveSummary(softAsset, 'soft', asset)}
+                                        variant="card"
+                                        iconSize={20}
+                                    />
                                 </div>
                             </div>
                         )) : (

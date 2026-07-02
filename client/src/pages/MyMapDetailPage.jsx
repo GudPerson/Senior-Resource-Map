@@ -17,6 +17,10 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
+import {
+    getGroupFocusFallbackResourceIds,
+    mergeGroupFocusDetailsIntoDirectory,
+} from '../lib/directoryGroupFocus.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
@@ -127,9 +131,16 @@ function MyMapMobileControls({
     onOpenPrintView,
     onOpenShare,
     renderPdfExportButton,
+    compactOverlay = false,
 }) {
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
+    const headerClassName = compactOverlay
+        ? 'sticky top-[56px] z-[1100] -mx-4 flex h-11 items-center border-b border-slate-200 bg-slate-50/95 px-4 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.45)] backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-12 sm:px-6 xl:hidden disable-font-scaling'
+        : 'sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling';
+    const menuButtonClassName = compactOverlay
+        ? 'inline-flex h-8 w-10 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:bg-white active:scale-95 sm:h-9 sm:w-11'
+        : 'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95 transition-transform';
 
     const runDrawerAction = useCallback((action) => {
         setOpen(false);
@@ -140,28 +151,28 @@ function MyMapMobileControls({
 
     return (
         <>
-            <div className="sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling">
-                <div className="flex items-center gap-4">
+            <div className={headerClassName}>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
-                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95 transition-transform"
+                        className={menuButtonClassName}
                         aria-label={t('openMapControls')}
                     >
-                        <Menu size={20} />
+                        <Menu size={compactOverlay ? 18 : 20} strokeWidth={compactOverlay ? 2.3 : 2} />
                     </button>
 
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-bold text-slate-900 sm:text-[17px]">{directory.name}</p>
+                        <p className={`${compactOverlay ? 'text-[15px] sm:text-base' : 'text-base sm:text-[17px]'} truncate font-bold text-slate-900`}>{directory.name}</p>
                     </div>
                 </div>
             </div>
 
             <Drawer.Root direction="left" open={open} onOpenChange={setOpen}>
                 <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 z-[580] bg-slate-950/35 xl:hidden" />
+                    <Drawer.Overlay className="fixed inset-0 z-[1200] bg-slate-950/35 xl:hidden" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 top-[56px] z-[590] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
+                        className="fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
                         style={{
                             borderColor: 'var(--color-border)',
                             background: 'linear-gradient(180deg, #ffffff 0%, #f6fcfb 100%)',
@@ -408,6 +419,23 @@ async function backfillMissingHardPlaceAddresses(directory) {
     return applyHardAddressBackfillsToDirectory(directory, addressByHardAssetId);
 }
 
+async function backfillGroupFocusPlaceKeys(directory) {
+    const resourceIds = getGroupFocusFallbackResourceIds(directory);
+    if (!resourceIds.length) return directory;
+
+    const details = await Promise.all(
+        resourceIds.map((id) => api.getSoftAsset(id, { suppressAuthExpired: true }).catch(() => null)),
+    );
+    const groupDetailsByResourceId = new Map();
+    details.forEach((detail, index) => {
+        if (detail?.assetMode === 'group') {
+            groupDetailsByResourceId.set(resourceIds[index], detail);
+        }
+    });
+
+    return mergeGroupFocusDetailsIntoDirectory(directory, groupDetailsByResourceId);
+}
+
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -420,6 +448,7 @@ export default function MyMapDetailPage() {
     const [actionError, setActionError] = useState('');
     const [query, setQuery] = useState('');
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
+    const [focusedPlaceKeys, setFocusedPlaceKeys] = useState([]);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
     const [hoveredPlaceKey, setHoveredPlaceKey] = useState(null);
     const [hoveredClusterPlaceKeys, setHoveredClusterPlaceKeys] = useState([]);
@@ -458,7 +487,8 @@ export default function MyMapDetailPage() {
                 api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
             ]);
             const enrichedDirectory = applySubCategoryMetaToDirectory(item, subcategories);
-            setDirectory(await backfillMissingHardPlaceAddresses(enrichedDirectory));
+            const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses(enrichedDirectory);
+            setDirectory(await backfillGroupFocusPlaceKeys(addressBackfilledDirectory));
         } catch (err) {
             console.error(err);
             setError(err.message || t('failedLoadMap'));
@@ -503,6 +533,7 @@ export default function MyMapDetailPage() {
             pendingFocusFrameRef.current = null;
         }
         setFocusedPlaceKey(null);
+        setFocusedPlaceKeys([]);
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -511,12 +542,15 @@ export default function MyMapDetailPage() {
 
     const handleMapFocusHandled = useCallback((handledPlaceKey) => {
         setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
+        setFocusedPlaceKeys((current) => (current.join('|') === handledPlaceKey ? [] : current));
     }, []);
 
     const getHoverPlaceKeys = useCallback((placeKey) => {
         const normalizedPlaceKey = placeKey ? String(placeKey) : '';
-        return ownerPresentation.hoverPlaceKeysByKey?.[normalizedPlaceKey] || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
-    }, [ownerPresentation.hoverPlaceKeysByKey]);
+        return ownerPresentation.mapFocusPlaceKeysByKey?.[normalizedPlaceKey]
+            || ownerPresentation.hoverPlaceKeysByKey?.[normalizedPlaceKey]
+            || (normalizedPlaceKey ? [normalizedPlaceKey] : []);
+    }, [ownerPresentation.hoverPlaceKeysByKey, ownerPresentation.mapFocusPlaceKeysByKey]);
 
     const activePlaceKey = (hoveredClusterPlaceKeys.length || selectedClusterPlaceKeys.length)
         ? null
@@ -629,14 +663,23 @@ export default function MyMapDetailPage() {
     }
 
     function focusPlaceOnMap(placeKey) {
+        const mapFocusPlaceKeys = ownerPresentation.mapFocusPlaceKeysByKey?.[placeKey] || [];
         const resolvedPlaceKey = ownerPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
-        if (!resolvedPlaceKey) return;
+        const singleFocusPlaceKey = mapFocusPlaceKeys.length === 1
+            ? (ownerPresentation.groupKeyByPlaceKey?.[mapFocusPlaceKeys[0]] || mapFocusPlaceKeys[0])
+            : resolvedPlaceKey;
+        if (!singleFocusPlaceKey && !mapFocusPlaceKeys.length) return;
         clearMapSelection();
         pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
             pendingFocusFrameRef.current = null;
             setSelectionScrollRequest((value) => value + 1);
-            setFocusedPlaceKey(`${resolvedPlaceKey}:zoom`);
-            setHighlightPlaceKey(String(resolvedPlaceKey));
+            if (mapFocusPlaceKeys.length > 1) {
+                setFocusedPlaceKeys(mapFocusPlaceKeys);
+                setHighlightPlaceKey(String(placeKey));
+                return;
+            }
+            setFocusedPlaceKey(`${singleFocusPlaceKey}:zoom`);
+            setHighlightPlaceKey(String(placeKey));
         });
     }
 
@@ -677,6 +720,7 @@ export default function MyMapDetailPage() {
     const handleMapClusterSelect = useCallback((placeKeys) => {
         if (suspendMapInteraction || !placeKeys?.length) return;
         setFocusedPlaceKey(null);
+        setFocusedPlaceKeys([]);
         setHighlightPlaceKey(null);
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
@@ -786,6 +830,7 @@ export default function MyMapDetailPage() {
                     useDesktopLayout={useDesktopOwnerLayout}
                     useDesktopBodyLayout={useDesktopDirectoryBodyLayout}
                     focusedPlaceKey={effectiveFocusedPlaceKey}
+                    focusedPlaceKeys={focusedPlaceKeys}
                     activePlaceKey={activePlaceKey}
                     activePlaceKeys={activePlaceKeys}
                     selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
@@ -839,6 +884,7 @@ export default function MyMapDetailPage() {
                                 setShareOpen(true);
                             }}
                             renderPdfExportButton={renderPdfExportButton}
+                            compactOverlay
                         />
                     )}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
@@ -954,6 +1000,8 @@ export default function MyMapDetailPage() {
                                 mode="owner"
                                 layout={useDesktopOwnerLayout ? 'desktop' : 'responsive'}
                                 onViewOnMap={handleViewOnMap}
+                                onHoverPlaceStart={handleMapHoverStart}
+                                onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={handleRemoveResource}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}
@@ -968,6 +1016,7 @@ export default function MyMapDetailPage() {
                                         activeAnchor={activeAnchor}
                                         pins={interactivePresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
+                                        focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
                                         activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
@@ -990,6 +1039,7 @@ export default function MyMapDetailPage() {
                                         activeAnchor={activeAnchor}
                                         pins={interactivePresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
+                                        focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
                                         activePlaceKeys={activePlaceKeys}
                                         onViewSection={handleViewSection}
@@ -1007,7 +1057,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
                                     />
                                 )}
-                                mobileMapStickyClassName="sticky top-[116px] sm:top-[132px] z-30 -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate disable-font-scaling"
+                                mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
                             />
                         </>
                     )}

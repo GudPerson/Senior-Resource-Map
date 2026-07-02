@@ -20,6 +20,7 @@ import { createSessionToken, SESSION_HEADER_NAME } from '../src/utils/sessionAut
 const TEST_ENV = {
     NODE_ENV: 'production',
     JWT_SECRET: 'access-control-test-secret',
+    AUTH_TEST_LIVE_SESSION_USER_RESOLVER: async (user) => user,
 };
 
 function createActor(overrides = {}) {

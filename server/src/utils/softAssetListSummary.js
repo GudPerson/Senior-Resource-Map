@@ -6,6 +6,13 @@ import {
     normalizeOverrideFields,
     SOFT_ASSET_MODES,
 } from './softAssetHierarchy.js';
+import {
+    buildGroupDiscoverMetadata,
+    buildGroupMemberSummary,
+    buildGroupReadiness,
+    getPublicGroupMemberEntries,
+    isGroupSoftAsset,
+} from './softAssetGroups.js';
 
 function formatLocationSummary(location) {
     if (!location) return null;
@@ -35,6 +42,10 @@ export function formatSoftAssetListSummary(asset, options = {}) {
         .filter(Boolean);
     const location = locations[0] || null;
     const hostLocation = isChildSoftAsset(asset) ? location : null;
+    const isGroup = isGroupSoftAsset(asset);
+    const groupMemberSummary = isGroup ? buildGroupMemberSummary(asset) : null;
+    const groupDiscoverMetadata = isGroup ? buildGroupDiscoverMetadata(asset) : null;
+    const groupReadiness = isGroup ? buildGroupReadiness(asset) : null;
 
     return {
         id: asset.id,
@@ -82,6 +93,20 @@ export function formatSoftAssetListSummary(asset, options = {}) {
         locations,
         location,
         hostLocation,
+        ...(isGroup ? {
+            galleryUrls: Array.isArray(asset.galleryUrls) ? asset.galleryUrls : [],
+            website: asset.website || null,
+            socialLinks: asset.socialLinks || {},
+            creatorName: asset.creator?.name || null,
+            updatedByName: asset.updater?.name || asset.creator?.name || null,
+            groupMemberSummary,
+            groupDiscoverMetadata,
+            groupReadinessStatus: groupReadiness.status,
+            groupOwnerCount: groupReadiness.ownerCount,
+            isDiscoverReady: groupReadiness.isDiscoverReady,
+            selectedGroupMemberCount: Array.isArray(asset.groupMembers) ? asset.groupMembers.length : 0,
+            publicGroupMemberCount: getPublicGroupMemberEntries(asset).length,
+        } : {}),
         coverageRegionIds: asset.coverageRegionIds || [],
         matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
         primaryRegionId: asset.subregionId || null,

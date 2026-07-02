@@ -1,15 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Clock, Globe, Loader2, Users } from 'lucide-react';
+import { Clock, ExternalLink, Globe, Mail, MessageCircle, Phone, Users } from 'lucide-react';
 
 import { api } from '../lib/api.js';
 import { normalizeEligibilityRules } from '../lib/eligibility.js';
 import { normalizeRole } from '../lib/roles.js';
+import { createEmptySocialLinks, normalizeSocialLinks, SOCIAL_PLATFORMS } from '../lib/socialLinks.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
+import MarkdownLiteText from './MarkdownLiteText.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
+import ResourceWizardShell from './ResourceWizardShell.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
 
 function buildInitialForm(initialData, currentUser) {
@@ -21,6 +24,11 @@ function buildInitialForm(initialData, currentUser) {
             subCategory: initialData.subCategory || 'Programmes',
             description: initialData.description || '',
             schedule: initialData.schedule || '',
+            website: initialData.website || '',
+            socialLinks: normalizeSocialLinks(initialData.socialLinks),
+            contactPhone: initialData.contactPhone || '',
+            whatsappContact: initialData.whatsappContact || '',
+            contactEmail: initialData.contactEmail || '',
             logoUrl: initialData.logoUrl || '',
             bannerUrl: initialData.bannerUrl || '',
             newTags: initialData.tags || [],
@@ -40,6 +48,11 @@ function buildInitialForm(initialData, currentUser) {
         subCategory: 'Programmes',
         description: '',
         schedule: '',
+        website: '',
+        socialLinks: createEmptySocialLinks(),
+        contactPhone: '',
+        whatsappContact: '',
+        contactEmail: '',
         logoUrl: '',
         bannerUrl: '',
         newTags: [],
@@ -56,6 +69,59 @@ const OWNERSHIP_OPTIONS = [
     { value: 'system', label: 'System-owned' },
 ];
 
+const TEMPLATE_STEPS = ['Profile', 'Defaults', 'Visibility', 'Generate', 'Translate'];
+
+function normalizeExternalHref(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const candidate = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    try {
+        return new URL(candidate).toString();
+    } catch {
+        return '';
+    }
+}
+
+function isValidOptionalHttpUrl(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    if (!/^https?:\/\//i.test(text)) return false;
+    try {
+        const url = new URL(text);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function isValidOptionalEmail(value) {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+}
+
+function isBlankEligibilityAge(value) {
+    return value === undefined || value === null || String(value).trim() === '';
+}
+
+function isWholeEligibilityAge(value) {
+    return /^\d+$/.test(String(value).trim());
+}
+
+function getEligibilityAgeValidationError(rules) {
+    const age = rules?.criteria?.age;
+    if (!age || typeof age !== 'object') return '';
+    const hasMin = !isBlankEligibilityAge(age.min);
+    const hasMax = !isBlankEligibilityAge(age.max);
+    if ((hasMin && !isWholeEligibilityAge(age.min)) || (hasMax && !isWholeEligibilityAge(age.max))) {
+        return 'Eligibility age must use whole numbers greater than or equal to 0.';
+    }
+    if (hasMin && hasMax && Number(age.min) > Number(age.max)) {
+        return 'Eligibility minimum age cannot be greater than maximum age.';
+    }
+    return '';
+}
+
 export default function SoftAssetTemplateForm({
     initialData,
     currentUser,
@@ -67,6 +133,7 @@ export default function SoftAssetTemplateForm({
     const [form, setForm] = useState(() => buildInitialForm(initialData, currentUser));
     const [availableTags, setAvailableTags] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
+    const [activeTemplateStep, setActiveTemplateStep] = useState(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     // Only reset when opening a different template record; browser refocus after uploads
@@ -75,6 +142,7 @@ export default function SoftAssetTemplateForm({
 
     useEffect(() => {
         setForm(buildInitialForm(initialData, currentUser));
+        setActiveTemplateStep(0);
     }, [templateResetKey]);
 
     useEffect(() => {
@@ -102,9 +170,42 @@ export default function SoftAssetTemplateForm({
     })), [audienceZones]);
 
     const selectedAudienceZoneOptions = audienceZoneOptions.filter((option) => (form.audienceZoneIds || []).includes(option.value));
+    const websiteHref = useMemo(() => normalizeExternalHref(form.website), [form.website]);
+    const normalizedSocialLinks = useMemo(() => normalizeSocialLinks(form.socialLinks), [form.socialLinks]);
+
+    function setSocialLink(platformKey, value) {
+        setForm((prev) => ({
+            ...prev,
+            socialLinks: {
+                ...normalizeSocialLinks(prev.socialLinks),
+                [platformKey]: value,
+            },
+        }));
+    }
+
+    function getInvalidSocialLinkMessage() {
+        const socialLinks = normalizeSocialLinks(form.socialLinks);
+        const invalidPlatform = SOCIAL_PLATFORMS.find((platform) => (
+            String(socialLinks[platform.key] || '').trim()
+            && !isValidOptionalHttpUrl(socialLinks[platform.key])
+        ));
+        return invalidPlatform ? `Enter a valid ${invalidPlatform.label} URL starting with http:// or https://.` : '';
+    }
+
+    function getTemplateProfileContactValidationError() {
+        if (!isValidOptionalHttpUrl(form.website)) {
+            return 'Enter a valid website URL starting with http:// or https://.';
+        }
+        const socialLinkMessage = getInvalidSocialLinkMessage();
+        if (socialLinkMessage) return socialLinkMessage;
+        if (!isValidOptionalEmail(form.contactEmail)) {
+            return 'Enter a valid contact email address.';
+        }
+        return '';
+    }
 
     async function handleSubmit(e) {
-        e.preventDefault();
+        e?.preventDefault?.();
         setSaving(true);
         setError('');
 
@@ -116,6 +217,11 @@ export default function SoftAssetTemplateForm({
                 subCategory: form.subCategory || 'Programmes',
                 description: form.description || null,
                 schedule: form.schedule || null,
+                website: form.website || null,
+                socialLinks: normalizeSocialLinks(form.socialLinks),
+                contactPhone: form.contactPhone || null,
+                whatsappContact: form.whatsappContact || null,
+                contactEmail: form.contactEmail || null,
                 logoUrl: form.logoUrl || null,
                 bannerUrl: form.bannerUrl || null,
                 newTags: form.newTags || [],
@@ -130,7 +236,7 @@ export default function SoftAssetTemplateForm({
             };
 
             if (!payload.name?.trim()) {
-                throw new Error('Template name is required.');
+                throw new Error('Add a template name to continue.');
             }
 
             if ((currentRole === 'super_admin' || currentRole === 'regional_admin') && payload.ownershipMode === 'partner' && !payload.partnerId) {
@@ -154,10 +260,50 @@ export default function SoftAssetTemplateForm({
         }
     }
 
-    return (
-        <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-2 gap-5">
-                <div className="col-span-2 grid grid-cols-2 gap-4">
+    function getTemplateStepValidationError(stepIndex = activeTemplateStep) {
+        if (stepIndex === 0) {
+            if (!String(form.name || '').trim()) return 'Add a template name to continue.';
+            const profileContactMessage = getTemplateProfileContactValidationError();
+            if (profileContactMessage) return profileContactMessage;
+        }
+        if (stepIndex === 2) {
+            const audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
+            if (form.audienceMode === 'audience_zones' && audienceZoneIds.length === 0) {
+                return 'Select at least one audience zone for audience-zone templates.';
+            }
+            const eligibilityAgeMessage = getEligibilityAgeValidationError(form.eligibilityRules);
+            if (eligibilityAgeMessage) return eligibilityAgeMessage;
+        }
+        return '';
+    }
+
+    function validateTemplateStep(stepIndex = activeTemplateStep) {
+        const message = getTemplateStepValidationError(stepIndex);
+        setError(message);
+        return !message;
+    }
+
+    function validateAllTemplateSteps() {
+        for (const stepIndex of [0, 2]) {
+            const message = getTemplateStepValidationError(stepIndex);
+            if (message) {
+                setActiveTemplateStep(stepIndex);
+                setError(message);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    async function handleTemplateWizardSave() {
+        if (!validateAllTemplateSteps()) return;
+        await handleSubmit();
+    }
+
+    function renderTemplateProfileStep() {
+        return (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
                     <ImageUpload
                         label="Logo / Icon"
                         value={form.logoUrl}
@@ -188,7 +334,7 @@ export default function SoftAssetTemplateForm({
                     </p>
                 </div>
 
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                     <label className="mb-1 block text-sm font-semibold text-slate-700">Template Name *</label>
                     <input
                         required
@@ -199,6 +345,136 @@ export default function SoftAssetTemplateForm({
                     />
                 </div>
 
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Bucket *</label>
+                    <select required value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
+                        {SOFT_ASSET_BUCKETS.map((bucket) => (
+                            <option key={bucket} value={bucket}>{bucket}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Sub-Category *</label>
+                    <select required value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
+                        {availableSubCategories
+                            .filter((subcategory) => subcategory.type === 'soft')
+                            .map((subcategory) => (
+                                <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
+                            ))}
+                    </select>
+                </div>
+
+                <div className="md:col-span-2">
+                    <MarkdownDescriptionField
+                        id="template-description"
+                        value={form.description || ''}
+                        onChange={(value) => setField('description', value)}
+                        placeholder="Main description shared by all place versions."
+                        rows={4}
+                    />
+                </div>
+
+                <div className="md:col-span-2">
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                        <label className="block text-sm font-semibold text-slate-700"><Globe size={13} className="inline mr-1" />Website</label>
+                        {websiteHref ? (
+                            <a
+                                href={websiteHref}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 transition hover:text-brand-800 hover:underline"
+                            >
+                                Open website
+                                <ExternalLink size={13} />
+                            </a>
+                        ) : null}
+                    </div>
+                    <input
+                        type="url"
+                        value={form.website || ''}
+                        onChange={(e) => setField('website', e.target.value)}
+                        placeholder="https://example.org"
+                        className="input-field"
+                    />
+                </div>
+
+                <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <p className="text-sm font-bold text-slate-900"><Globe size={13} className="inline mr-1" />Social media links</p>
+                            <p className="mt-1 text-xs text-slate-500">Optional public channels copied into generated place versions.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {SOCIAL_PLATFORMS.map((platform) => {
+                                const href = normalizeExternalHref(normalizedSocialLinks[platform.key]);
+                                if (!href) return null;
+                                return (
+                                    <a
+                                        key={platform.key}
+                                        href={href}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full border border-brand-100 bg-white px-2.5 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-50"
+                                    >
+                                        {platform.label}
+                                        <ExternalLink size={12} />
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {SOCIAL_PLATFORMS.map((platform) => (
+                            <div key={platform.key}>
+                                <label className="mb-1 block text-xs font-bold text-slate-600">{platform.label}</label>
+                                <input
+                                    type="url"
+                                    value={form.socialLinks?.[platform.key] || ''}
+                                    onChange={(e) => setSocialLink(platform.key, e.target.value)}
+                                    placeholder={platform.placeholder}
+                                    className="input-field text-sm"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700"><Phone size={13} className="inline mr-1" />Contact phone</label>
+                    <input type="tel" value={form.contactPhone || ''} onChange={(e) => setField('contactPhone', e.target.value)} placeholder="+65 6000 0000" className="input-field" />
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700"><MessageCircle size={13} className="inline mr-1" />WhatsApp contact</label>
+                    <input value={form.whatsappContact || ''} onChange={(e) => setField('whatsappContact', e.target.value)} placeholder="87654321 or https://wa.me/6587654321" className="input-field" />
+                    <p className="mt-1 text-xs text-slate-500">Public contact only. This is not used for WhatsApp sign-in.</p>
+                </div>
+
+                <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-semibold text-slate-700"><Mail size={13} className="inline mr-1" />Contact email</label>
+                    <input type="email" value={form.contactEmail || ''} onChange={(e) => setField('contactEmail', e.target.value)} placeholder="hello@example.org" className="input-field" />
+                </div>
+
+                <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Tags</label>
+                    <CreatableSelect
+                        isMulti
+                        options={tagOptions}
+                        value={currentTags}
+                        onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        placeholder="Search or create tags..."
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    function renderTemplateDefaultsStep() {
+        return (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
                     <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><Users size={13} /> Ownership</label>
                     <select
@@ -218,26 +494,6 @@ export default function SoftAssetTemplateForm({
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Bucket *</label>
-                    <select value={form.bucket || 'Programmes'} onChange={(e) => setField('bucket', e.target.value)} className="input-field">
-                        {SOFT_ASSET_BUCKETS.map((bucket) => (
-                            <option key={bucket} value={bucket}>{bucket}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Sub-Category *</label>
-                    <select value={form.subCategory || 'Programmes'} onChange={(e) => setField('subCategory', e.target.value)} className="input-field">
-                        {availableSubCategories
-                            .filter((subcategory) => subcategory.type === 'soft')
-                            .map((subcategory) => (
-                                <option key={subcategory.id} value={subcategory.name}>{subcategory.name}</option>
-                            ))}
-                    </select>
-                </div>
-
-                <div>
                     <label className="mb-1 flex items-center gap-1 text-sm font-semibold text-slate-700"><Clock size={13} /> Default Schedule</label>
                     <input
                         value={form.schedule || ''}
@@ -246,44 +502,12 @@ export default function SoftAssetTemplateForm({
                         className="input-field"
                     />
                 </div>
-
-                <div className="col-span-2">
-                    <MarkdownDescriptionField
-                        id="template-description"
-                        value={form.description || ''}
-                        onChange={(value) => setField('description', value)}
-                        placeholder="Main description shared by all place versions."
-                        rows={4}
-                    />
-                </div>
-
-                {initialData?.id ? (
-                    <div className="col-span-2">
-                        <TranslationReviewPanel
-                            resourceType="template"
-                            resourceId={initialData.id}
-                        />
-                    </div>
-                ) : (
-                    <div className="col-span-2 rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
-                        Save this template first, then edit it again to review Mandarin, Malay, and Tamil translations.
-                    </div>
-                )}
-
-                <div className="col-span-2">
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Tags</label>
-                    <CreatableSelect
-                        isMulti
-                        options={tagOptions}
-                        value={currentTags}
-                        onChange={(selected) => setField('newTags', selected.map((item) => item.value))}
-                        className="react-select-container"
-                        classNamePrefix="react-select"
-                        placeholder="Search or create tags..."
-                    />
-                </div>
             </div>
+        );
+    }
 
+    function renderTemplateVisibilityStep() {
+        return (
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2">
                     <Globe size={16} className="text-brand-600" />
@@ -335,20 +559,234 @@ export default function SoftAssetTemplateForm({
                     onChange={(rules) => setField('eligibilityRules', rules)}
                     description="These demographic rules are copied into generated place versions."
                 />
+            </div>
+        );
+    }
 
+    function renderTemplateGenerateStep() {
+        return (
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2">
+                    <Globe size={16} className="text-brand-600" />
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-800">Generate place versions</h3>
+                        <p className="text-xs text-slate-500">Generated place versions are created from the saved template and use the existing row action.</p>
+                    </div>
+                </div>
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Access source</label>
+                    <input value="Inherited from generated place access" readOnly className="input-field bg-white" />
+                </div>
                 <div className="rounded-xl border border-dashed border-brand-200 bg-white px-4 py-3 text-xs text-slate-600">
                     Save the template first, then generate hidden place-specific offerings from the template panel.
                 </div>
             </div>
+        );
+    }
 
-            {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+    function renderTemplateTranslationStep() {
+        if (initialData?.id) {
+            return (
+                <div data-resource-wizard-skip-validity>
+                    <TranslationReviewPanel
+                        resourceType="template"
+                        resourceId={initialData.id}
+                    />
+                </div>
+            );
+        }
 
-            <div className="flex gap-3 pt-2">
-                <button type="button" onClick={onCancel} className="btn-ghost flex-1 justify-center">Cancel</button>
-                <button type="submit" disabled={saving} className="btn-primary flex-1 justify-center">
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : initialData?.id ? 'Save Template' : 'Create Template'}
-                </button>
+        return (
+            <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
+                Save this template first, then edit it again to review Mandarin, Malay, and Tamil translations.
             </div>
-        </form>
+        );
+    }
+
+    function renderTemplateStep(stepIndex) {
+        if (stepIndex === 0) return renderTemplateProfileStep();
+        if (stepIndex === 1) return renderTemplateDefaultsStep();
+        if (stepIndex === 2) return renderTemplateVisibilityStep();
+        if (stepIndex === 3) return renderTemplateGenerateStep();
+        if (stepIndex === 4) return renderTemplateTranslationStep();
+        return null;
+    }
+
+    function renderTemplatePreview() {
+        const tags = Array.isArray(form.newTags) ? form.newTags.slice(0, 8) : [];
+        const visibilityLabel = form.audienceMode === 'audience_zones' ? 'Target areas' : 'Public';
+        const targetAreaLabels = form.audienceMode === 'audience_zones'
+            ? selectedAudienceZoneOptions.map((option) => option.label).filter(Boolean)
+            : [];
+        const socialEntries = SOCIAL_PLATFORMS
+            .map((platform) => ({
+                ...platform,
+                url: normalizeExternalHref(form.socialLinks?.[platform.key]),
+            }))
+            .filter((entry) => entry.url);
+
+        return (
+            <div className="space-y-5">
+                {(form.bannerUrl || form.logoUrl) ? (
+                    <div className="flex h-52 items-center justify-center overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                        <img
+                            src={form.bannerUrl || form.logoUrl}
+                            alt=""
+                            className={form.bannerUrl ? 'h-full w-full object-cover' : 'max-h-full max-w-full object-contain p-6'}
+                        />
+                    </div>
+                ) : null}
+
+                <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="mb-4 flex flex-col items-start gap-4 sm:flex-row">
+                        {form.logoUrl && form.bannerUrl ? (
+                            <img
+                                src={form.logoUrl}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-2xl border border-slate-200 bg-white object-contain"
+                            />
+                        ) : null}
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700 shadow-sm">
+                                <Globe size={16} />
+                                {form.bucket || 'Programmes'} · {form.subCategory || 'Template'}
+                            </div>
+                            <h1 className="text-3xl font-bold leading-tight text-slate-900">{form.name || 'Untitled Template'}</h1>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {form.schedule ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
+                                        <Clock size={15} />
+                                        Scheduled
+                                    </span>
+                                ) : null}
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                    <Globe size={15} />
+                                    {visibilityLabel}
+                                </span>
+                                {form.isMemberOnly ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-bold text-slate-700">
+                                        <Users size={15} />
+                                        Linked members
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-600">
+                        {form.description ? (
+                            <MarkdownLiteText text={form.description} />
+                        ) : (
+                            <p className="italic text-slate-400">No description added yet.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
+                        {form.schedule ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Clock size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Schedule</p>
+                                    <div className="break-words text-slate-700">{form.schedule}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {form.contactPhone ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Phone size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Phone</p>
+                                    <div className="break-words text-slate-700">{form.contactPhone}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {form.whatsappContact ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><MessageCircle size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">WhatsApp contact</p>
+                                    <div className="break-words text-slate-700">{form.whatsappContact}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {form.contactEmail ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Mail size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Email</p>
+                                    <div className="break-words text-slate-700">{form.contactEmail}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {websiteHref ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Globe size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Website</p>
+                                    <div className="break-all text-brand-700">{form.website || websiteHref}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {socialEntries.length > 0 ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Globe size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Social channels</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {socialEntries.map((entry) => (
+                                            <span key={entry.key} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-bold text-slate-700">
+                                                {entry.label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {targetAreaLabels.length > 0 ? (
+                            <div className="flex items-start gap-3">
+                                <div className="shrink-0 rounded-xl bg-brand-50 p-2.5 text-brand-600"><Globe size={22} /></div>
+                                <div className="min-w-0">
+                                    <p className="mb-1 font-bold text-slate-900">Target areas</p>
+                                    <div className="break-words text-slate-700">{targetAreaLabels.join(', ')}</div>
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {tags.length > 0 ? (
+                        <div className="mt-8 border-t border-slate-200 pt-6">
+                            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-900">Tags</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {tags.map((tag) => (
+                                    <span key={tag} className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                </article>
+            </div>
+        );
+    }
+
+    return (
+        <ResourceWizardShell
+            steps={TEMPLATE_STEPS}
+            activeStep={activeTemplateStep}
+            setActiveStep={setActiveTemplateStep}
+            validateStep={validateTemplateStep}
+            error={error}
+            renderStep={renderTemplateStep}
+            onCancel={onCancel}
+            onSave={handleTemplateWizardSave}
+            saving={saving}
+            saveLabel={initialData?.id ? 'Save Template' : 'Create Template'}
+            savingLabel="Saving..."
+            previewLabel="Preview"
+            previewTitle="Template preview"
+            previewDescription="Unsaved edits shown as the parent template profile."
+            renderPreview={renderTemplatePreview}
+        />
     );
 }

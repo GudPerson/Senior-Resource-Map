@@ -11,6 +11,7 @@ test('clean-slate default plan preserves platform scaffolding', () => {
         'userFavorites',
         'softAssetAudienceZones',
         'softAssetParentAudienceZones',
+        'softAssetGroupMembers',
         'softAssetLocations',
         'softAssetTags',
         'hardAssetTags',

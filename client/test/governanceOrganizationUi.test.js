@@ -201,8 +201,8 @@ test('candidate refreshes do not clear organisation action errors', () => {
     );
 });
 
-test('super admin gets region group coordination tab without expanding admin tabs', () => {
-    assert.equal(getAdminTabs('super_admin').includes('groups'), true);
+test('region group coordination tab stays hidden from normal admin navigation', () => {
+    assert.equal(getAdminTabs('super_admin').includes('groups'), false);
     assert.equal(getAdminTabs('regional_admin').includes('groups'), false);
 });
 

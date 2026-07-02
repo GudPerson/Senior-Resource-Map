@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fetchWebsiteMetadata } from '../src/utils/websiteMetadata.js';
+import { assertSafeMetadataUrl, fetchWebsiteMetadata } from '../src/utils/websiteMetadata.js';
 
 function htmlResponse(html, url = 'https://example.org/') {
     return new Response(html, {
@@ -247,4 +247,54 @@ test('fetchWebsiteMetadata skips invalid image candidates before using fallback'
     } finally {
         global.fetch = originalFetch;
     }
+});
+
+test('fetchWebsiteMetadata blocks private-network metadata targets before fetching', async () => {
+    const originalFetch = global.fetch;
+    let fetchCalled = false;
+
+    global.fetch = async () => {
+        fetchCalled = true;
+        throw new Error('private target should not be fetched');
+    };
+
+    try {
+        const metadata = await fetchWebsiteMetadata('http://169.254.169.254/latest/meta-data/');
+
+        assert.equal(fetchCalled, false);
+        assert.equal(metadata.logoUrl, '');
+        assert.match(metadata.warnings[0], /public site/i);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('fetchWebsiteMetadata blocks redirects to private-network targets', async () => {
+    const originalFetch = global.fetch;
+    const calls = [];
+
+    global.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+        calls.push(url);
+        return new Response('', {
+            status: 302,
+            headers: {
+                Location: 'http://127.0.0.1/admin',
+            },
+        });
+    };
+
+    try {
+        const metadata = await fetchWebsiteMetadata('https://example.org/');
+
+        assert.deepEqual(calls, ['https://example.org/']);
+        assert.equal(metadata.logoUrl, '');
+        assert.match(metadata.warnings[0], /public site/i);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('assertSafeMetadataUrl allows normal public website URLs', () => {
+    assert.equal(assertSafeMetadataUrl('/about', 'https://example.org/'), 'https://example.org/about');
 });

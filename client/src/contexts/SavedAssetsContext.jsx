@@ -20,6 +20,7 @@ export function SavedAssetsProvider({ children }) {
     const { user } = useAuth();
     const [savedAssets, setSavedAssets] = useState([]);
     const [savedAssetsLoading, setSavedAssetsLoading] = useState(false);
+    const [savedAssetsLoadError, setSavedAssetsLoadError] = useState('');
     const [pendingKeys, setPendingKeys] = useState([]);
     const pendingKeysRef = useRef(new Set());
 
@@ -36,18 +37,24 @@ export function SavedAssetsProvider({ children }) {
         if (!user) {
             setSavedAssets([]);
             setSavedAssetsLoading(false);
+            setSavedAssetsLoadError('');
             return [];
         }
 
         setSavedAssetsLoading(true);
+        setSavedAssetsLoadError('');
         try {
             const items = await loadSavedAssetsWithRetry(() => api.getSavedAssets({ suppressAuthExpired: true }));
             setSavedAssets(items);
             return items;
+        } catch (err) {
+            console.error(err);
+            setSavedAssetsLoadError(err.message || 'Saved resources could not be loaded.');
+            return savedAssets;
         } finally {
             setSavedAssetsLoading(false);
         }
-    }, [user]);
+    }, [savedAssets, user]);
 
     useEffect(() => {
         let isActive = true;
@@ -56,21 +63,24 @@ export function SavedAssetsProvider({ children }) {
             if (!user) {
                 setSavedAssets([]);
                 setSavedAssetsLoading(false);
+                setSavedAssetsLoadError('');
                 pendingKeysRef.current.clear();
                 syncPendingKeys();
                 return;
             }
 
             setSavedAssetsLoading(true);
+            setSavedAssetsLoadError('');
             try {
                 const items = await loadSavedAssetsWithRetry(() => api.getSavedAssets({ suppressAuthExpired: true }));
                 if (isActive) {
                     setSavedAssets(items);
+                    setSavedAssetsLoadError('');
                 }
             } catch (err) {
                 console.error(err);
                 if (isActive) {
-                    setSavedAssets([]);
+                    setSavedAssetsLoadError(err.message || 'Saved resources could not be loaded.');
                 }
             } finally {
                 if (isActive) {
@@ -95,7 +105,7 @@ export function SavedAssetsProvider({ children }) {
     ), []);
 
     const toggleSavedAsset = useCallback(async (resourceType, resourceId, summary = null) => {
-        if (!user) return null;
+        if (!user || savedAssetsLoading || savedAssetsLoadError) return null;
 
         const assetKey = buildSavedAssetKey(resourceType, resourceId);
         if (pendingKeysRef.current.has(assetKey)) {
@@ -140,13 +150,14 @@ export function SavedAssetsProvider({ children }) {
             pendingKeysRef.current.delete(assetKey);
             syncPendingKeys();
         }
-    }, [savedAssetKeys, savedAssets, syncPendingKeys, user]);
+    }, [savedAssetKeys, savedAssets, savedAssetsLoadError, savedAssetsLoading, syncPendingKeys, user]);
 
     return (
         <SavedAssetsContext.Provider
             value={{
                 savedAssets,
                 savedAssetsLoading,
+                savedAssetsLoadError,
                 savedAssetKeys,
                 pendingKeys,
                 refreshSavedAssets,

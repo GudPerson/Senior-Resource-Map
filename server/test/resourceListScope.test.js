@@ -184,8 +184,13 @@ test('managed standalone soft asset lists follow service coverage', () => {
 
 test('managed resource list scope rejects guest access instead of returning silent zeroes', () => {
     assert.equal(shouldRejectManagedResourceListRequest('managed', { role: 'guest' }), true);
+    assert.equal(shouldRejectManagedResourceListRequest('managed', actor({ role: 'standard' })), true);
     assert.equal(shouldRejectManagedResourceListRequest('visible', { role: 'guest' }), false);
     assert.equal(shouldRejectManagedResourceListRequest('managed', { role: 'super_admin' }), false);
+    assert.equal(shouldRejectManagedResourceListRequest('managed', actor({
+        role: 'standard',
+        softAssetStaffAccess: [{ softAssetId: 21, staffRole: 'staff' }],
+    })), false);
 });
 
 test('super admin managed lists can use direct database pagination safely', () => {

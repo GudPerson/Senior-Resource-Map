@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
@@ -34,6 +34,11 @@ const ASSET_WORKBOOKS = [
         resourceType: 'templates',
         label: 'Templates',
         helper: 'Canonical parent offerings used to generate local rollouts.',
+    },
+    {
+        resourceType: 'groups',
+        label: 'Groups',
+        helper: 'List-only collections with profile and direct members managed by stable external keys.',
     },
     {
         resourceType: 'template-rollouts',
@@ -658,6 +663,7 @@ export default function AdminPage() {
     const [importReport, setImportReport] = useState(null);
     const [importCopyNotice, setImportCopyNotice] = useState('');
     const [partnerBoundaryModalUser, setPartnerBoundaryModalUser] = useState(null);
+    const subCategoryFormRef = useRef(null);
     const [partnerBoundaryData, setPartnerBoundaryData] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
     const [regionScopeModalUser, setRegionScopeModalUser] = useState(null);
@@ -1162,6 +1168,9 @@ export default function AdminPage() {
             type: category.type || 'hard',
             color: category.color || '#3b82f6',
             iconUrl: category.iconUrl || '',
+        });
+        window.requestAnimationFrame(() => {
+            subCategoryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     }
 
@@ -3429,7 +3438,7 @@ export default function AdminPage() {
             ) : tab === 'subcats' ? (
                 /* ======== SubCategories Table ======== */
                 <div className="space-y-6">
-                    <form onSubmit={handleAddSubCategory} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+                    <form ref={subCategoryFormRef} onSubmit={handleAddSubCategory} className="scroll-mt-28 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <h2 className="text-lg font-bold text-slate-900">
@@ -3968,6 +3977,7 @@ export default function AdminPage() {
                             <ul className="text-xs text-slate-600 space-y-1">
                                 <li>• Asset upserts use stable external keys only. Names never drive updates.</li>
                                 <li>• Excel templates include a Guide sheet, importable Data sheet, and Reference sheet with allowed values.</li>
+                                <li>• Group workbooks manage list-only profile and member links; Groups never create pins.</li>
                                 <li>• Template rollouts only create or update generated child offerings keyed by template + host external keys.</li>
                                 <li>• Places derive subregion from postcode on the server. Imported subregion overrides are ignored.</li>
                             </ul>

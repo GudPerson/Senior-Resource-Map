@@ -24,6 +24,7 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   username: varchar('username', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  googleSubject: varchar('google_subject', { length: 255 }),
   passwordHash: text('password_hash').notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   role: roleEnum('role').notNull().default('standard'),
@@ -37,7 +38,11 @@ export const users = pgTable('users', {
   propertyType: varchar('property_type', { length: 60 }),
   volunteerInterest: varchar('volunteer_interest', { length: 10 }),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => ({
+  googleSubjectUnique: uniqueIndex('users_google_subject_unique')
+    .on(table.googleSubject)
+    .where(sql`${table.googleSubject} IS NOT NULL`),
+}));
 
 export const partnerOrganizations = pgTable('partner_organizations', {
   id: serial('id').primaryKey(),
@@ -277,6 +282,7 @@ export const hardAssets = pgTable('hard_assets', {
   postalCode: varchar('postal_code', { length: 20 }).notNull().default(''),
   phone: varchar('phone', { length: 50 }),
   whatsappContact: varchar('whatsapp_contact', { length: 255 }),
+  contactEmail: varchar('contact_email', { length: 255 }),
   hours: text('hours'),
   website: text('website'),
   socialLinks: jsonb('social_links').default({}),
@@ -311,6 +317,11 @@ export const softAssetParents = pgTable('soft_asset_parents', {
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
   galleryUrls: jsonb('gallery_urls').default('[]'),
+  website: text('website'),
+  socialLinks: jsonb('social_links').default({}),
+  contactPhone: varchar('contact_phone', { length: 50 }),
+  whatsappContact: varchar('whatsapp_contact', { length: 255 }),
+  contactEmail: varchar('contact_email', { length: 255 }),
   audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
   eligibilityRules: jsonb('eligibility_rules'),
@@ -330,6 +341,7 @@ export const softAssets = pgTable('soft_assets', {
   externalKey: varchar('external_key', { length: 160 }).unique(),
   partnerId: integer('partner_id').references(() => users.id, { onDelete: 'set null' }),
   createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'set null' }),
   assetMode: varchar('asset_mode', { length: 20 }).notNull().default('standalone'),
   parentSoftAssetId: integer('parent_soft_asset_id').references(() => softAssetParents.id, { onDelete: 'set null' }),
@@ -342,6 +354,8 @@ export const softAssets = pgTable('soft_assets', {
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
   galleryUrls: jsonb('gallery_urls').default('[]'),
+  website: text('website'),
+  socialLinks: jsonb('social_links').default({}),
   audienceMode: varchar('audience_mode', { length: 40 }).notNull().default('public'),
   isMemberOnly: boolean('is_member_only').default(false),
   eligibilityRules: jsonb('eligibility_rules'),
@@ -480,6 +494,7 @@ export const phoneLoginAttempts = pgTable('phone_login_attempts', {
   id: serial('id').primaryKey(),
   provider: varchar('provider', { length: 40 }).notNull().default('gudauth'),
   providerChallengeId: varchar('provider_challenge_id', { length: 255 }),
+  attemptTokenHash: varchar('attempt_token_hash', { length: 128 }),
   requestedPhoneE164: varchar('requested_phone_e164', { length: 32 }),
   verifiedPhoneE164: varchar('verified_phone_e164', { length: 32 }),
   resolvedUserId: integer('resolved_user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -779,6 +794,22 @@ export const softAssetLocations = pgTable('soft_asset_locations', {
   softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
   hardAssetId: integer('hard_asset_id').references(() => hardAssets.id, { onDelete: 'cascade' }).notNull(),
 });
+
+export const softAssetGroupMembers = pgTable('soft_asset_group_members', {
+  id: serial('id').primaryKey(),
+  groupSoftAssetId: integer('group_soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  memberResourceType: varchar('member_resource_type', { length: 20 }).notNull(),
+  memberResourceId: integer('member_resource_id').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  addedByUserId: integer('added_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  addedAt: timestamp('added_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  uniqueMember: uniqueIndex('soft_asset_group_members_unique_member_idx')
+    .on(table.groupSoftAssetId, table.memberResourceType, table.memberResourceId),
+  groupIdx: index('soft_asset_group_members_group_idx').on(table.groupSoftAssetId),
+  memberIdx: index('soft_asset_group_members_member_idx').on(table.memberResourceType, table.memberResourceId),
+}));
 
 export const userSubregions = pgTable('user_subregions', {
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
@@ -1080,6 +1111,10 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
     fields: [softAssets.createdByUserId],
     references: [users.id],
   }),
+  updater: one(users, {
+    fields: [softAssets.updatedByUserId],
+    references: [users.id],
+  }),
   parent: one(softAssetParents, {
     fields: [softAssets.parentSoftAssetId],
     references: [softAssetParents.id],
@@ -1095,6 +1130,7 @@ export const softAssetsRelations = relations(softAssets, ({ one, many }) => ({
   audienceZones: many(softAssetAudienceZones),
   regionCoverages: many(softAssetRegionCoverages),
   staffMemberships: many(softAssetStaffMemberships),
+  groupMembers: many(softAssetGroupMembers, { relationName: 'soft_asset_group_members_group' }),
 }));
 
 export const partnerPostalCodesRelations = relations(partnerPostalCodes, ({ one }) => ({
@@ -1193,6 +1229,28 @@ export const softAssetLocationsRelations = relations(softAssetLocations, ({ one 
   hardAsset: one(hardAssets, {
     fields: [softAssetLocations.hardAssetId],
     references: [hardAssets.id],
+  }),
+}));
+
+export const softAssetGroupMembersRelations = relations(softAssetGroupMembers, ({ one }) => ({
+  groupSoftAsset: one(softAssets, {
+    fields: [softAssetGroupMembers.groupSoftAssetId],
+    references: [softAssets.id],
+    relationName: 'soft_asset_group_members_group',
+  }),
+  hardAsset: one(hardAssets, {
+    fields: [softAssetGroupMembers.memberResourceId],
+    references: [hardAssets.id],
+    relationName: 'soft_asset_group_members_hard_member',
+  }),
+  softAsset: one(softAssets, {
+    fields: [softAssetGroupMembers.memberResourceId],
+    references: [softAssets.id],
+    relationName: 'soft_asset_group_members_soft_member',
+  }),
+  addedBy: one(users, {
+    fields: [softAssetGroupMembers.addedByUserId],
+    references: [users.id],
   }),
 }));
 

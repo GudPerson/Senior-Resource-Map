@@ -6,7 +6,7 @@ import { api } from '../../lib/api.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { DEFAULT_LOCALE } from '../../lib/i18n.js';
 import { isStandardUserRole } from '../../lib/roles.js';
-import { DashboardMobileNavigation, DashboardSidebar, getDashboardSectionLabel } from '../../components/dashboard/DashboardNavigation.jsx';
+import { DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME, DashboardMobileNavigation, DashboardSidebar, getDashboardSectionLabel } from '../../components/dashboard/DashboardNavigation.jsx';
 
 export default function DashboardPage() {
     const { user, login, logout, isImpersonating } = useAuth();
@@ -85,7 +85,7 @@ export default function DashboardPage() {
 
     return (
         <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
-            <aside className="hidden w-64 bg-white border-r border-slate-100 lg:flex flex-col py-6 px-4 gap-2 flex-shrink-0">
+            <aside className={DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME}>
                 <DashboardSidebar
                     isImpersonating={isImpersonating}
                     onLogout={handleLogout}

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes } from '../db/schema.js';
+import { hardAssets, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
@@ -12,7 +12,7 @@ import {
 } from '../utils/audienceZones.js';
 import { actorCanManageAsset } from '../utils/ownership.js';
 import { hasAnyHardAssetStaffAccess } from '../utils/hardAssetStaff.js';
-import { hasSoftAssetStaffAccess } from '../utils/softAssetAccess.js';
+import { hasSoftAssetStaffAccess, normalizeSoftAssetStaffRole } from '../utils/softAssetAccess.js';
 import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules, shouldExposeOfferingToViewer } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
@@ -48,6 +48,18 @@ import {
     normalizeOverrideFields,
     SOFT_ASSET_MODES,
 } from '../utils/softAssetHierarchy.js';
+import {
+    buildGroupDiscoverMetadata,
+    buildGroupReadiness,
+    buildPublicGroupPayload,
+    getGroupMemberAsset,
+    getGroupMemberType,
+    getPublicGroupMemberEntries,
+    GROUP_MEMBER_TYPES,
+    isDiscoverReadyGroup,
+    isGroupSoftAsset,
+    isPublicGroupMemberEntry,
+} from '../utils/softAssetGroups.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import {
@@ -72,6 +84,7 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import { normalizeSocialLinks } from '../utils/socialLinks.js';
 import {
     buildResourceAuditPayload,
     diffAuditFieldNames,
@@ -150,6 +163,7 @@ function buildFreshnessUpdate(body, existing, user) {
 const softAssetWithRelations = {
     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
     creator: { columns: { id: true, name: true } },
+    updater: { columns: { id: true, name: true } },
     parent: {
         columns: {
             id: true,
@@ -199,6 +213,13 @@ const softAssetWithRelations = {
         },
     },
     tags: { with: { tag: true } },
+    staffMemberships: {
+        columns: {
+            id: true,
+            staffRole: true,
+            revokedAt: true,
+        },
+    },
     locations: {
         with: {
             hardAsset: {
@@ -208,10 +229,41 @@ const softAssetWithRelations = {
             },
         },
     },
+    groupMembers: {
+        with: {
+            hardAsset: {
+                with: {
+                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                },
+            },
+            softAsset: {
+                with: {
+                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                    hostHardAsset: {
+                        with: {
+                            partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                        },
+                    },
+                    locations: {
+                        with: {
+                            hardAsset: {
+                                with: {
+                                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                                },
+                            },
+                        },
+                    },
+                    tags: { with: { tag: true } },
+                },
+            },
+        },
+    },
 };
 
 const softAssetListSummaryRelations = {
     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+    creator: { columns: { id: true, name: true } },
+    updater: { columns: { id: true, name: true } },
     parent: {
         columns: {
             id: true,
@@ -265,6 +317,13 @@ const softAssetListSummaryRelations = {
         },
     },
     tags: { with: { tag: true } },
+    staffMemberships: {
+        columns: {
+            id: true,
+            staffRole: true,
+            revokedAt: true,
+        },
+    },
     locations: {
         columns: {
             softAssetId: true,
@@ -289,6 +348,100 @@ const softAssetListSummaryRelations = {
                 },
                 with: {
                     partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                },
+            },
+        },
+    },
+    groupMembers: {
+        columns: {
+            id: true,
+            groupSoftAssetId: true,
+            memberResourceType: true,
+            memberResourceId: true,
+            sortOrder: true,
+        },
+        with: {
+            hardAsset: {
+                columns: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    country: true,
+                    postalCode: true,
+                    lat: true,
+                    lng: true,
+                    subregionId: true,
+                    subCategory: true,
+                    logoUrl: true,
+                    partnerId: true,
+                    isHidden: true,
+                    hideFrom: true,
+                    hideUntil: true,
+                    isDeleted: true,
+                },
+            },
+            softAsset: {
+                columns: {
+                    id: true,
+                    name: true,
+                    assetMode: true,
+                    bucket: true,
+                    subCategory: true,
+                    description: true,
+                    logoUrl: true,
+                    audienceMode: true,
+                    isMemberOnly: true,
+                    isHidden: true,
+                    hideFrom: true,
+                    hideUntil: true,
+                    isDeleted: true,
+                    hostHardAssetId: true,
+                },
+                with: {
+                    hostHardAsset: {
+                        columns: {
+                            id: true,
+                            name: true,
+                            address: true,
+                            country: true,
+                            postalCode: true,
+                            lat: true,
+                            lng: true,
+                            subregionId: true,
+                            subCategory: true,
+                            logoUrl: true,
+                            isHidden: true,
+                            hideFrom: true,
+                            hideUntil: true,
+                            isDeleted: true,
+                        },
+                    },
+                    locations: {
+                        columns: {
+                            softAssetId: true,
+                            hardAssetId: true,
+                        },
+                        with: {
+                            hardAsset: {
+                                columns: {
+                                    id: true,
+                                    name: true,
+                                    address: true,
+                                    country: true,
+                                    postalCode: true,
+                                    lat: true,
+                                    lng: true,
+                                    subregionId: true,
+                                    subCategory: true,
+                                    logoUrl: true,
+                                    isHidden: true,
+                                    hideFrom: true,
+                                    hideUntil: true,
+                                    isDeleted: true,
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },
@@ -324,6 +477,12 @@ function normalizeCoverageRegionIds(value) {
             .map((entry) => Number.parseInt(String(entry), 10))
             .filter((entry) => Number.isInteger(entry) && entry > 0)
     )];
+}
+
+function normalizeGroupAudienceMode(value) {
+    const mode = String(value || 'public').trim().toLowerCase() || 'public';
+    if (mode === 'public' || mode === 'target_regions') return mode;
+    throw clientError('Invalid Group visibility mode.', 400);
 }
 
 function getRequestedCoverageRegionIds(body = {}) {
@@ -400,6 +559,8 @@ function sanitizeSoftAssetPayload(body = {}) {
         galleryUrls: Array.isArray(body.galleryUrls)
             ? body.galleryUrls.map((url) => normalizeUrlText(url, 2000)).filter(Boolean).slice(0, 12)
             : [],
+        website: normalizeUrlText(body.website, 2000),
+        socialLinks: normalizeSocialLinks(body.socialLinks),
         newTags: cleanTagList(body.newTags),
         contactPhone: cleanOptionalOneLineText(body.contactPhone, 50),
         whatsappContact: cleanOptionalOneLineText(body.whatsappContact, 255),
@@ -424,6 +585,8 @@ function sanitizeSoftAssetPatch(body = {}) {
         'logoUrl',
         'bannerUrl',
         'galleryUrls',
+        'website',
+        'socialLinks',
         'newTags',
         'contactPhone',
         'whatsappContact',
@@ -444,8 +607,11 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
     const allLocations = getSoftAssetLocations(asset);
     const visibleLocations = allLocations
         .filter((location) => isAssetVisible(location, viewer, { ownerPartner: location.partner, allowedPartnerAudienceIds, allowedAudienceZoneIds }));
-    const { parent, hostHardAsset, tags, locations, audienceZones, ...assetRest } = asset;
+    const { parent, hostHardAsset, tags, locations, audienceZones, groupMembers, updater, ...assetRest } = asset;
     const resolvedAudienceZones = getAssetAudienceZones(asset);
+    const groupPayload = isGroupSoftAsset(asset) ? buildPublicGroupPayload(asset) : null;
+    const groupMetadata = isGroupSoftAsset(asset) ? buildGroupDiscoverMetadata(asset) : null;
+    const groupReadiness = isGroupSoftAsset(asset) ? buildGroupReadiness(asset) : null;
 
     return {
         ...assetRest,
@@ -454,6 +620,7 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         partnerRole: asset.partner?.role ? normalizeRole(asset.partner.role) : null,
         ownershipMode: asset.partnerId ? 'partner' : 'system',
         creatorName: asset.creator?.name || null,
+        updatedByName: asset.updater?.name || asset.creator?.name || null,
         audienceMode: asset.audienceMode || 'public',
         tags: asset.tags.map((entry) => entry.tag.name),
         audienceZones: resolvedAudienceZones,
@@ -467,6 +634,18 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         location: visibleLocations[0] || null,
         hostLocation: isChildSoftAsset(asset) ? (visibleLocations[0] || null) : null,
         boundaryStatus: resolveSoftAssetBoundaryStatus(visibleLocations, boundaryContext),
+        ...(groupPayload ? {
+            groupMemberSummary: groupPayload.groupMemberSummary,
+            groupMembers: groupPayload.groupMembers,
+            groupMemberSearchText: groupPayload.groupMemberSearchText,
+            groupMemberLocations: groupPayload.groupMemberLocations,
+            groupDiscoverMetadata: groupMetadata,
+            groupReadinessStatus: groupReadiness.status,
+            groupOwnerCount: groupReadiness.ownerCount,
+            isDiscoverReady: groupReadiness.isDiscoverReady,
+            selectedGroupMemberCount: Array.isArray(groupMembers) ? groupMembers.length : 0,
+            publicGroupMemberCount: getPublicGroupMemberEntries(asset).length,
+        } : {}),
     };
 }
 
@@ -494,11 +673,15 @@ function isStandaloneOffering(asset) {
         && (asset?.assetMode || SOFT_ASSET_MODES.STANDALONE) === SOFT_ASSET_MODES.STANDALONE;
 }
 
+function isDirectAccessManagedSoftAsset(asset) {
+    return isStandaloneOffering(asset) || isGroupSoftAsset(asset);
+}
+
 function buildSoftAssetPermissionSummary(viewer, asset) {
     const role = normalizeRole(viewer?.role);
     const isSuperAdmin = role === 'super_admin';
 
-    if (isStandaloneOffering(asset)) {
+    if (isDirectAccessManagedSoftAsset(asset)) {
         const isOwner = hasSoftAssetStaffAccess(viewer, asset?.id, ['owner']);
         const isStaff = hasSoftAssetStaffAccess(viewer, asset?.id, ['staff']);
         return {
@@ -544,17 +727,17 @@ async function attachSoftAssetRegionMetadata(db, assets = []) {
         hardAssetsWithRegions.map((asset) => [Number(asset.id), asset.matchingRegionIds || []])
     );
 
-    const standaloneIds = assets
-        .filter(isStandaloneOffering)
+    const coverageTrackedIds = assets
+        .filter((asset) => isStandaloneOffering(asset) || isGroupSoftAsset(asset))
         .map((asset) => Number(asset.id))
         .filter((id) => Number.isInteger(id) && id > 0);
-    const coverageRows = standaloneIds.length > 0
+    const coverageRows = coverageTrackedIds.length > 0
         ? await db.select({
             softAssetId: softAssetRegionCoverages.softAssetId,
             subregionId: softAssetRegionCoverages.subregionId,
         })
             .from(softAssetRegionCoverages)
-            .where(inArray(softAssetRegionCoverages.softAssetId, standaloneIds))
+            .where(inArray(softAssetRegionCoverages.softAssetId, coverageTrackedIds))
         : [];
     const standaloneWithCoverage = attachStandaloneSoftAssetCoverage(assets, coverageRows);
     const coverageBySoftAssetId = new Map(
@@ -636,7 +819,12 @@ async function triggerSoftAssetTranslation(db, env, asset, user) {
     }
 }
 
-function canExposeFormattedSoftAsset(asset, formatted) {
+function canExposeFormattedSoftAsset(asset, formatted, viewer = null) {
+    if (isGroupSoftAsset(asset)) {
+        if (isDiscoverReadyGroup(asset)) return true;
+        return buildSoftAssetPermissionSummary(viewer, asset).canEdit;
+    }
+
     const allLocations = getSoftAssetLocations(asset);
     if (isChildSoftAsset(asset)) {
         return formatted.locations.length > 0;
@@ -671,6 +859,508 @@ async function rebuildSoftAssetCaches(subregionIds, env, user) {
     }
 }
 
+function isGroupAssetMode(value) {
+    return String(value || '').trim().toLowerCase() === SOFT_ASSET_MODES.GROUP;
+}
+
+function assertNoGroupHostLinks(body = {}, linkedIds = []) {
+    if (linkedIds.length > 0 || body.locationId || body.hostId || body.parentSoftAssetId || body.hostHardAssetId) {
+        throw clientError('Groups do not link directly to places. Add places as Group members instead.');
+    }
+}
+
+function resolveGroupSubregionId(actor, body = {}) {
+    const explicitSubregionId = getExplicitSubregionId(body);
+    if (explicitSubregionId) {
+        ensureActorCanTargetSubregion(actor, explicitSubregionId);
+        return explicitSubregionId;
+    }
+
+    if (Number.isInteger(actor?.subregionId) && actor.subregionId > 0) {
+        return actor.subregionId;
+    }
+
+    const fallback = Array.isArray(actor?.subregionIds)
+        ? actor.subregionIds.find((id) => Number.isInteger(id) && id > 0)
+        : null;
+    return fallback || null;
+}
+
+function normalizeInitialGroupAccessPayload(body = {}, actor = {}) {
+    const rawAccess = Array.isArray(body.initialAccess)
+        ? body.initialAccess
+        : (Array.isArray(body.initialStaff)
+            ? body.initialStaff
+            : (Array.isArray(body.initialOwnerUserIds)
+                ? body.initialOwnerUserIds.map((userId) => ({ userId, staffRole: 'owner' }))
+                : []));
+    const actorRole = normalizeRole(actor?.role);
+    const byUserId = new Map();
+
+    for (const row of rawAccess) {
+        const userId = Number.parseInt(String(row?.userId ?? row?.id ?? ''), 10);
+        const staffRole = normalizeSoftAssetStaffRole(row?.staffRole || row?.role || 'staff');
+        if (!Number.isInteger(userId) || userId <= 0) {
+            throw clientError('Each Group access row needs a user id.');
+        }
+        if (!staffRole) {
+            throw clientError('Group access role must be Owner or Staff.');
+        }
+        if (actorRole !== 'super_admin' && Number(userId) !== Number(actor?.id)) {
+            throw clientError('Only Super Admins can assign other initial Group managers.', 403);
+        }
+        if (actorRole !== 'super_admin' && staffRole !== 'owner') {
+            throw clientError('Group creators must save themselves as an Owner first.', 403);
+        }
+
+        const previous = byUserId.get(userId);
+        byUserId.set(userId, {
+            userId,
+            staffRole: previous?.staffRole === 'owner' || staffRole === 'owner' ? 'owner' : 'staff',
+        });
+    }
+
+    if (byUserId.size === 0 && actorRole !== 'super_admin' && actor?.id) {
+        byUserId.set(Number(actor.id), { userId: Number(actor.id), staffRole: 'owner' });
+    }
+
+    const rows = [...byUserId.values()];
+    if (!rows.some((row) => row.staffRole === 'owner')) {
+        throw clientError('Select at least one active Group Owner.');
+    }
+    return rows;
+}
+
+async function validateInitialGroupAccessUsers(db, rows = []) {
+    if (!rows.length) return rows;
+    const userIds = rows.map((row) => Number(row.userId));
+    const foundUsers = await db.select({ id: users.id })
+        .from(users)
+        .where(inArray(users.id, userIds));
+    const foundIds = new Set(foundUsers.map((row) => Number(row.id)));
+    const missingId = userIds.find((id) => !foundIds.has(id));
+    if (missingId) {
+        throw clientError(`Group Owner or Staff user #${missingId} could not be found.`, 404);
+    }
+    return rows;
+}
+
+async function createGroupSoftAsset(c, db, user, body, linkedIds) {
+    assertNoGroupHostLinks(body, linkedIds);
+
+    const {
+        name,
+        description,
+        schedule,
+        logoUrl,
+        bannerUrl,
+        galleryUrls,
+        newTags = [],
+        subCategory,
+        website,
+        socialLinks,
+        isHidden,
+        hideFrom,
+        hideUntil,
+        contactPhone,
+        whatsappContact,
+        contactEmail,
+        ctaLabel,
+        ctaUrl,
+        venueNote,
+    } = body;
+
+    if (!name) {
+        return c.json({ error: 'Name is required' }, 400);
+    }
+
+    const initialAccessRows = await validateInitialGroupAccessUsers(
+        db,
+        normalizeInitialGroupAccessPayload(body, user),
+    );
+    const requestedMembers = Array.isArray(body.groupMembers) ? body.groupMembers : body.members;
+    const audienceMode = normalizeGroupAudienceMode(body.audienceMode);
+    const coverageRegionIds = audienceMode === 'target_regions' ? getRequestedCoverageRegionIds(body) : [];
+    if (audienceMode === 'target_regions' && coverageRegionIds.length === 0) {
+        throw clientError('Select at least one target Region for target-region Groups.');
+    }
+    assertManageableCoverageRegions(user, coverageRegionIds);
+    const finalSubregionId = resolveGroupSubregionId(user, withCoverageSubregionFallback(body, [], coverageRegionIds));
+    const [asset] = await db.insert(softAssets).values({
+        assetMode: SOFT_ASSET_MODES.GROUP,
+        externalKey: await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
+            requestedKey: body.externalKey,
+            prefix: 'group',
+            name,
+        }),
+        partnerId: null,
+        createdByUserId: user.id,
+        updatedByUserId: user.id,
+        subregionId: finalSubregionId,
+        name,
+        bucket: null,
+        subCategory: subCategory || 'Groups',
+        description: description || null,
+        schedule: schedule || null,
+        logoUrl: logoUrl || null,
+        bannerUrl: bannerUrl || null,
+        galleryUrls: normalizeGalleryUrls(galleryUrls),
+        website: website || null,
+        socialLinks: normalizeSocialLinks(socialLinks),
+        audienceMode,
+        isMemberOnly: false,
+        eligibilityRules: null,
+        contactPhone: contactPhone || null,
+        whatsappContact: whatsappContact || null,
+        contactEmail: contactEmail || null,
+        ctaLabel: ctaLabel || null,
+        ctaUrl: ctaUrl || null,
+        venueNote: venueNote || null,
+        availabilityEnabled: false,
+        availabilityCount: 0,
+        availabilityUnit: null,
+        ...buildFreshnessInsert(body, user),
+        isHidden: Boolean(isHidden),
+        hideFrom: hideFrom ? new Date(hideFrom) : null,
+        hideUntil: hideUntil ? new Date(hideUntil) : null,
+    }).returning();
+
+    try {
+        await db.insert(softAssetStaffMemberships).values(initialAccessRows.map((row) => ({
+            softAssetId: asset.id,
+            userId: row.userId,
+            staffRole: row.staffRole,
+            createdByUserId: user.id,
+            updatedByUserId: user.id,
+        }))).onConflictDoNothing();
+        const selectedMembers = await validateGroupMemberSelection(db, asset.id, { members: requestedMembers || [] });
+        if (selectedMembers.length > 0) {
+            await db.insert(softAssetGroupMembers).values(selectedMembers.map((member) => ({
+                groupSoftAssetId: asset.id,
+                memberResourceType: member.memberResourceType,
+                memberResourceId: member.memberResourceId,
+                sortOrder: member.sortOrder,
+                addedByUserId: user?.id || null,
+            }))).onConflictDoNothing();
+        }
+        await syncSoftAssetRegionCoverages(db, asset.id, coverageRegionIds, user);
+        await syncAssetTags(db, asset.id, 'soft', newTags);
+    } catch (syncError) {
+        await db.delete(softAssets).where(eq(softAssets.id, asset.id));
+        throw syncError;
+    }
+
+    const translationStatus = await triggerSoftAssetTranslation(db, c.env, asset, user);
+    await rebuildSoftAssetCaches([finalSubregionId, ...coverageRegionIds, 'all'], c.env, user);
+    await recordSoftAssetAudit(db, user, asset, 'created', ['created'], {
+        assetMode: SOFT_ASSET_MODES.GROUP,
+        visibility: asset.isHidden ? 'hidden' : 'visible',
+        ownerCount: initialAccessRows.filter((row) => row.staffRole === 'owner').length,
+        selectedMemberCount: Array.isArray(requestedMembers) ? requestedMembers.length : 0,
+    });
+
+    return c.json({ ...asset, translationStatus }, 201);
+}
+
+async function updateGroupSoftAsset(c, db, user, existing, body) {
+    assertNoGroupHostLinks(body, parseLinkedHardAssetIds(body));
+
+    const [existingWithCoverage] = await attachSoftAssetRegionMetadata(db, [existing]);
+    const existingCoverageRegionIds = existingWithCoverage?.coverageRegionIds || [];
+    const audienceMode = normalizeGroupAudienceMode(body.audienceMode ?? existing.audienceMode);
+    const coveragePatchRequested = hasCoverageRegionPatch(body) || body.audienceMode !== undefined;
+    const nextCoverageRegionIds = audienceMode === 'target_regions'
+        ? (coveragePatchRequested ? getRequestedCoverageRegionIds(body) : existingCoverageRegionIds)
+        : [];
+    if (audienceMode === 'target_regions' && nextCoverageRegionIds.length === 0) {
+        throw clientError('Select at least one target Region for target-region Groups.');
+    }
+    assertManageableCoverageRegions(user, nextCoverageRegionIds);
+    const groupRoutingBody = withCoverageSubregionFallback(body, [], nextCoverageRegionIds);
+    const finalSubregionId = body.subregionId !== undefined || nextCoverageRegionIds.length > 0
+        ? resolveGroupSubregionId(user, groupRoutingBody)
+        : (existing.subregionId || resolveGroupSubregionId(user, groupRoutingBody));
+
+    const updatePatch = {
+        partnerId: existing.partnerId || null,
+        subregionId: finalSubregionId,
+        name: body.name ?? existing.name,
+        bucket: null,
+        subCategory: body.subCategory !== undefined ? (body.subCategory || 'Groups') : (existing.subCategory || 'Groups'),
+        description: body.description !== undefined ? (body.description || null) : existing.description,
+        schedule: body.schedule !== undefined ? (body.schedule || null) : existing.schedule,
+        logoUrl: body.logoUrl !== undefined ? (body.logoUrl || null) : existing.logoUrl,
+        bannerUrl: body.bannerUrl !== undefined ? (body.bannerUrl || null) : existing.bannerUrl,
+        galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : existing.galleryUrls,
+        website: body.website !== undefined ? (body.website || null) : existing.website,
+        socialLinks: body.socialLinks !== undefined ? normalizeSocialLinks(body.socialLinks) : normalizeSocialLinks(existing.socialLinks),
+        audienceMode,
+        isMemberOnly: false,
+        eligibilityRules: null,
+        contactPhone: body.contactPhone !== undefined ? (body.contactPhone || null) : existing.contactPhone,
+        whatsappContact: body.whatsappContact !== undefined ? (body.whatsappContact || null) : existing.whatsappContact,
+        contactEmail: body.contactEmail !== undefined ? (body.contactEmail || null) : existing.contactEmail,
+        ctaLabel: body.ctaLabel !== undefined ? (body.ctaLabel || null) : existing.ctaLabel,
+        ctaUrl: body.ctaUrl !== undefined ? (body.ctaUrl || null) : existing.ctaUrl,
+        venueNote: body.venueNote !== undefined ? (body.venueNote || null) : existing.venueNote,
+        availabilityEnabled: false,
+        availabilityCount: 0,
+        availabilityUnit: null,
+        ...buildFreshnessUpdate(body, existing, user),
+        isHidden: body.isHidden !== undefined ? Boolean(body.isHidden) : existing.isHidden,
+        hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,
+        hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
+        updatedByUserId: user.id,
+        updatedAt: new Date(),
+    };
+
+    await db.update(softAssets).set(updatePatch).where(eq(softAssets.id, existing.id));
+
+    if (body.newTags !== undefined) {
+        await syncAssetTags(db, existing.id, 'soft', body.newTags || []);
+    }
+
+    await syncSoftAssetRegionCoverages(db, existing.id, nextCoverageRegionIds, user);
+
+    const refreshed = await loadSoftAssetById(db, existing.id);
+    const translationStatus = refreshed
+        ? await triggerSoftAssetTranslation(db, c.env, refreshed, user)
+        : { status: 'skipped', message: 'Group was saved but could not be reloaded for translation.' };
+
+    await rebuildSoftAssetCaches([finalSubregionId, existing.subregionId, ...nextCoverageRegionIds, ...existingCoverageRegionIds, 'all'], c.env, user);
+    const changedFields = diffAuditFieldNames(existing, updatePatch)
+        .concat(body.newTags !== undefined ? ['tags'] : [])
+        .concat(coveragePatchRequested ? ['targetRegions'] : []);
+    if (changedFields.length) {
+        await recordSoftAssetAudit(
+            db,
+            user,
+            refreshed || { ...existing, ...updatePatch },
+            isResourceVisibilityAction(existing, updatePatch)
+                ? (updatePatch.isHidden ? 'hidden' : 'shown')
+                : 'updated',
+            changedFields,
+            { assetMode: SOFT_ASSET_MODES.GROUP },
+        );
+    }
+
+    return c.json({ success: true, id: existing.id, assetMode: SOFT_ASSET_MODES.GROUP, translationStatus });
+}
+
+function normalizeGroupMemberPayload(body = {}) {
+    const rawMembers = Array.isArray(body) ? body : (Array.isArray(body.members) ? body.members : []);
+    const seen = new Set();
+
+    return rawMembers.map((member, index) => {
+        const type = String(member?.memberResourceType || member?.resourceType || member?.type || '').trim().toLowerCase();
+        const normalizedType = type === GROUP_MEMBER_TYPES.HARD ? GROUP_MEMBER_TYPES.HARD : (type === GROUP_MEMBER_TYPES.SOFT ? GROUP_MEMBER_TYPES.SOFT : '');
+        const id = Number.parseInt(String(member?.memberResourceId ?? member?.resourceId ?? member?.id ?? ''), 10);
+
+        if (!normalizedType || !Number.isInteger(id) || id <= 0) {
+            throw clientError('Each Group member needs a hard or soft resource type and resource id.');
+        }
+
+        const key = `${normalizedType}:${id}`;
+        if (seen.has(key)) {
+            throw clientError('A resource can only be added to a Group once.');
+        }
+        seen.add(key);
+
+        const sortOrder = Number.isInteger(Number(member?.sortOrder))
+            ? Number(member.sortOrder)
+            : index;
+
+        return {
+            memberResourceType: normalizedType,
+            memberResourceId: id,
+            sortOrder,
+        };
+    });
+}
+
+function summarizeGroupMemberForAdmin(entry = {}) {
+    const asset = getGroupMemberAsset(entry);
+    const type = getGroupMemberType(entry);
+    return {
+        id: entry.id || null,
+        memberResourceType: type,
+        memberResourceId: Number(entry.memberResourceId || asset?.id || 0) || null,
+        sortOrder: Number(entry.sortOrder || 0),
+        isPublicEligible: isPublicGroupMemberEntry(entry),
+        resource: asset ? {
+            id: asset.id,
+            resourceType: type,
+            name: asset.name,
+            assetMode: asset.assetMode || null,
+            bucket: asset.bucket || null,
+            subCategory: asset.subCategory || null,
+            description: asset.description || null,
+            logoUrl: asset.logoUrl || null,
+            address: asset.address || null,
+            postalCode: asset.postalCode || null,
+            isHidden: Boolean(asset.isHidden),
+            isMemberOnly: Boolean(asset.isMemberOnly),
+            audienceMode: asset.audienceMode || null,
+            detailPath: `/resource/${type}/${asset.id}`,
+        } : null,
+    };
+}
+
+async function validateGroupMemberSelection(db, groupId, body = {}) {
+    const members = normalizeGroupMemberPayload(body);
+    if (members.length === 0) return [];
+
+    const hardIds = members
+        .filter((member) => member.memberResourceType === GROUP_MEMBER_TYPES.HARD)
+        .map((member) => member.memberResourceId);
+    const softIds = members
+        .filter((member) => member.memberResourceType === GROUP_MEMBER_TYPES.SOFT)
+        .map((member) => member.memberResourceId);
+
+    if (softIds.includes(groupId)) {
+        throw clientError('A Group cannot include itself.');
+    }
+
+    const [hardRows, softRows] = await Promise.all([
+        hardIds.length > 0
+            ? db.query.hardAssets.findMany({
+                where: inArray(hardAssets.id, hardIds),
+                with: {
+                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                },
+            })
+            : [],
+        softIds.length > 0
+            ? db.query.softAssets.findMany({
+                where: inArray(softAssets.id, softIds),
+                with: {
+                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                    hostHardAsset: {
+                        with: {
+                            partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                        },
+                    },
+                    locations: {
+                        with: {
+                            hardAsset: {
+                                with: {
+                                    partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                                },
+                            },
+                        },
+                    },
+                    tags: { with: { tag: true } },
+                },
+            })
+            : [],
+    ]);
+
+    const hardById = new Map(hardRows.map((asset) => [Number(asset.id), asset]));
+    const softById = new Map(softRows.map((asset) => [Number(asset.id), asset]));
+
+    return members.map((member) => {
+        const entry = {
+            ...member,
+            hardAsset: member.memberResourceType === GROUP_MEMBER_TYPES.HARD ? hardById.get(member.memberResourceId) : null,
+            softAsset: member.memberResourceType === GROUP_MEMBER_TYPES.SOFT ? softById.get(member.memberResourceId) : null,
+        };
+        const asset = getGroupMemberAsset(entry);
+        if (!asset) {
+            throw clientError('One or more Group members could not be found.', 404);
+        }
+        if (!isPublicGroupMemberEntry(entry)) {
+            throw clientError('Groups can only include public, non-hidden Places, Programmes, Services, or Promotions.');
+        }
+        return entry;
+    });
+}
+
+export const getSoftAssetGroupMembers = async (c) => {
+    try {
+        const id = Number.parseInt(c.req.param('id'), 10);
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const group = await loadSoftAssetById(db, id);
+        if (!group) return c.json({ error: 'Not found' }, 404);
+        if (!isGroupSoftAsset(group)) return c.json({ error: 'This soft asset is not a Group.' }, 400);
+        if (!buildSoftAssetPermissionSummary(user, group).canEdit) {
+            return c.json({ error: 'Insufficient permissions to manage this Group' }, 403);
+        }
+
+        return c.json({
+            groupId: id,
+            members: (group.groupMembers || [])
+                .slice()
+                .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))
+                .map(summarizeGroupMemberForAdmin),
+            publicPayload: buildPublicGroupPayload(group),
+            readiness: {
+                ...buildGroupReadiness(group),
+                selectedMemberCount: Array.isArray(group.groupMembers) ? group.groupMembers.length : 0,
+                publicMemberCount: getPublicGroupMemberEntries(group).length,
+            },
+        });
+    } catch (err) {
+        console.error('getSoftAssetGroupMembers Error:', err);
+        return c.json({ error: err.message || 'Failed to fetch Group members' }, err.status || 500);
+    }
+};
+
+export const replaceSoftAssetGroupMembers = async (c) => {
+    try {
+        const id = Number.parseInt(c.req.param('id'), 10);
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+
+        const group = await loadSoftAssetById(db, id);
+        if (!group) return c.json({ error: 'Not found' }, 404);
+        if (!isGroupSoftAsset(group)) return c.json({ error: 'This soft asset is not a Group.' }, 400);
+        if (!buildSoftAssetPermissionSummary(user, group).canEdit) {
+            return c.json({ error: 'Insufficient permissions to manage this Group' }, 403);
+        }
+
+        const selectedMembers = await validateGroupMemberSelection(db, id, await c.req.json());
+        await db.delete(softAssetGroupMembers).where(eq(softAssetGroupMembers.groupSoftAssetId, id));
+        if (selectedMembers.length > 0) {
+            await db.insert(softAssetGroupMembers).values(selectedMembers.map((member) => ({
+                groupSoftAssetId: id,
+                memberResourceType: member.memberResourceType,
+                memberResourceId: member.memberResourceId,
+                sortOrder: member.sortOrder,
+                addedByUserId: user?.id || null,
+            }))).onConflictDoNothing();
+        }
+
+        const refreshed = await loadSoftAssetById(db, id);
+        await rebuildSoftAssetCaches([group.subregionId, 'all'], c.env, user);
+        await recordSoftAssetAudit(db, user, refreshed || group, 'updated', ['groupMembers'], {
+            assetMode: SOFT_ASSET_MODES.GROUP,
+            selectedMemberCount: selectedMembers.length,
+        });
+
+        return c.json({
+            success: true,
+            groupId: id,
+            members: (refreshed?.groupMembers || [])
+                .slice()
+                .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))
+                .map(summarizeGroupMemberForAdmin),
+            publicPayload: refreshed ? buildPublicGroupPayload(refreshed) : null,
+            readiness: {
+                ...(refreshed ? buildGroupReadiness(refreshed) : { status: 'hidden', isDiscoverReady: false, ownerCount: 0 }),
+                selectedMemberCount: Array.isArray(refreshed?.groupMembers) ? refreshed.groupMembers.length : 0,
+                publicMemberCount: refreshed ? getPublicGroupMemberEntries(refreshed).length : 0,
+            },
+        });
+    } catch (err) {
+        console.error('replaceSoftAssetGroupMembers Error:', err);
+        return c.json({ error: err.message || 'Failed to update Group members' }, err.status || 500);
+    }
+};
+
 export const getSoftAssets = async (c) => {
     try {
         const user = c.get('user');
@@ -686,10 +1376,14 @@ export const getSoftAssets = async (c) => {
         });
         const listScope = normalizeResourceListScope(c.req.query('scope'));
         const query = c.req.query('q');
+        const assetModeFilter = String(c.req.query('assetMode') || '').trim().toLowerCase();
         const summaryOnly = isQueryFlagEnabled(c.req.query('summary'));
         const useManagedSummary = summaryOnly && listScope === 'managed';
 
         const whereClauses = [eq(softAssets.isDeleted, false)];
+        if (assetModeFilter === SOFT_ASSET_MODES.GROUP) {
+            whereClauses.push(eq(softAssets.assetMode, SOFT_ASSET_MODES.GROUP));
+        }
         const isDirectStaffManagedScope = listScope === 'managed' && isStandardDirectResourceOperator(user);
 
         if (isDirectStaffManagedScope) {
@@ -806,7 +1500,7 @@ export const getSoftAssets = async (c) => {
             .filter(({ raw, formatted }) => (
                 listScope === 'managed'
                 || (
-                    canExposeFormattedSoftAsset(raw, formatted)
+                    canExposeFormattedSoftAsset(raw, formatted, user)
                     && shouldExposeOfferingToViewer(
                         raw,
                         user,
@@ -861,12 +1555,14 @@ export const getSoftAssetById = async (c) => {
 
         const loadedAsset = await loadSoftAssetById(db, id);
         const [asset] = loadedAsset ? await attachSoftAssetRegionMetadata(db, [loadedAsset]) : [];
-        if (!asset || !isAssetVisible(asset, user, {
+        const permissions = asset ? buildSoftAssetPermissionSummary(user, asset) : null;
+        const isVisibleToViewer = asset ? isAssetVisible(asset, user, {
             ownerPartner: asset.partner,
             allowedPartnerAudienceIds,
             allowedAudienceZoneIds,
             treatMemberOnlyAsVisible: true,
-        })) {
+        }) : false;
+        if (!asset || (!isVisibleToViewer && !permissions?.canEdit)) {
             return c.json({ error: 'Not found' }, 404);
         }
 
@@ -881,7 +1577,7 @@ export const getSoftAssetById = async (c) => {
             eligibilityContext,
             membershipHostIdMap,
         );
-        if (!canExposeFormattedSoftAsset(asset, formatted)) {
+        if (!canExposeFormattedSoftAsset(asset, formatted, user)) {
             return c.json({ error: 'Not found' }, 404);
         }
         if (!shouldExposeOfferingToViewer(
@@ -899,7 +1595,7 @@ export const getSoftAssetById = async (c) => {
             matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
             primaryRegionId: asset.subregionId || null,
             organizationLinks: (await loadOrganizationContextsForResources(db, [{ resourceType: 'soft', resourceId: asset.id }])).get(`soft:${asset.id}`) || [],
-            permissions: buildSoftAssetPermissionSummary(user, asset),
+            permissions,
         }));
     } catch (err) {
         console.error('getSoftAssetById Error:', err);
@@ -915,7 +1611,20 @@ export const createSoftAsset = async (c) => {
         await ensureBoundarySchema(db, c.env);
 
         const body = sanitizeSoftAssetPayload(await c.req.json());
+        const requestedAssetMode = body?.assetMode || SOFT_ASSET_MODES.STANDALONE;
+        if (![SOFT_ASSET_MODES.STANDALONE, SOFT_ASSET_MODES.GROUP].includes(requestedAssetMode)) {
+            return c.json({ error: 'Generated child offerings must be created from a parent template.' }, 400);
+        }
         const linkedIds = parseLinkedHardAssetIds(body);
+        if (isGroupAssetMode(requestedAssetMode)) {
+            if (
+                (role === 'standard' || role === 'guest')
+                && !hasAnyPartnerStaffAccess(user)
+            ) {
+                return c.json({ error: 'Only admins and partner resource staff can create Groups' }, 403);
+            }
+            return await createGroupSoftAsset(c, db, user, body, linkedIds);
+        }
         const explicitSubregionId = getExplicitSubregionId(body);
         const requestedCoverageRegionIds = getRequestedCoverageRegionIds(body);
         const coverageRegionIds = linkedIds.length === 0
@@ -1196,6 +1905,10 @@ export const updateSoftAsset = async (c) => {
                 );
             }
             return c.json({ success: true, id, assetMode: existing.assetMode, translationStatus });
+        }
+
+        if (isGroupSoftAsset(existing)) {
+            return await updateGroupSoftAsset(c, db, user, existing, body);
         }
 
         const [existingWithCoverage] = await attachSoftAssetRegionMetadata(db, [existing]);

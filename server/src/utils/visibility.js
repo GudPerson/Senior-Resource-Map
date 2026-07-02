@@ -18,6 +18,7 @@ export function isAssetVisible(asset, user, options = {}) {
 
     const isPartnerBoundaryAsset = asset.audienceMode === 'partner_boundary';
     const isAudienceZoneAsset = asset.audienceMode === 'audience_zones';
+    const isTargetRegionAsset = asset.audienceMode === 'target_regions';
 
     if (role === 'regional_admin' && user?.subregionIds?.includes(asset.subregionId)) {
         if (!isPartnerBoundaryAsset) return true;
@@ -45,6 +46,22 @@ export function isAssetVisible(asset, user, options = {}) {
         if (!audienceZoneIds.some((zoneId) => allowedAudienceZoneIds.has(zoneId))) {
             return false;
         }
+    }
+
+    if (isTargetRegionAsset) {
+        if (!user || role === 'guest') return false;
+        const targetRegionIds = Array.isArray(asset.coverageRegionIds)
+            ? asset.coverageRegionIds
+                .map((value) => Number.parseInt(String(value), 10))
+                .filter((value) => Number.isInteger(value) && value > 0)
+            : [];
+        const viewerRegionIds = new Set(
+            (Array.isArray(user.subregionIds) ? user.subregionIds : [user.subregionId])
+                .map((value) => Number.parseInt(String(value), 10))
+                .filter((value) => Number.isInteger(value) && value > 0)
+        );
+        if (targetRegionIds.length === 0) return false;
+        if (!targetRegionIds.some((regionId) => viewerRegionIds.has(regionId))) return false;
     }
 
     // Manually hidden (unless you are owner/admin)

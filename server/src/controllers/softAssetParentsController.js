@@ -47,6 +47,7 @@ import {
     cleanTagList,
     normalizeUrlText,
 } from '../utils/inputValidation.js';
+import { normalizeSocialLinks } from '../utils/socialLinks.js';
 import {
     buildResourceAuditPayload,
     diffAuditFieldNames,
@@ -67,6 +68,11 @@ const baseParentColumns = {
     logoUrl: true,
     bannerUrl: true,
     galleryUrls: true,
+    website: true,
+    socialLinks: true,
+    contactPhone: true,
+    whatsappContact: true,
+    contactEmail: true,
     audienceMode: true,
     isMemberOnly: true,
     eligibilityRules: true,
@@ -121,6 +127,11 @@ function formatSoftAssetParent(parent, options = {}) {
         logoUrl: parent.logoUrl,
         bannerUrl: parent.bannerUrl,
         galleryUrls: Array.isArray(parent.galleryUrls) ? parent.galleryUrls : [],
+        website: parent.website,
+        socialLinks: normalizeSocialLinks(parent.socialLinks),
+        contactPhone: parent.contactPhone,
+        whatsappContact: parent.whatsappContact,
+        contactEmail: parent.contactEmail,
         audienceMode: parent.audienceMode || 'public',
         isMemberOnly: Boolean(parent.isMemberOnly),
         eligibilityRules: parent.eligibilityRules || null,
@@ -196,6 +207,11 @@ function buildParentPatch(body, existingParent, owner, audienceMode) {
         logoUrl: body.logoUrl !== undefined ? (body.logoUrl || null) : existingParent.logoUrl,
         bannerUrl: body.bannerUrl !== undefined ? (body.bannerUrl || null) : existingParent.bannerUrl,
         galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : (Array.isArray(existingParent.galleryUrls) ? existingParent.galleryUrls : []),
+        website: body.website !== undefined ? (body.website || null) : existingParent.website,
+        socialLinks: body.socialLinks !== undefined ? normalizeSocialLinks(body.socialLinks) : normalizeSocialLinks(existingParent.socialLinks),
+        contactPhone: body.contactPhone !== undefined ? (body.contactPhone || null) : existingParent.contactPhone,
+        whatsappContact: body.whatsappContact !== undefined ? (body.whatsappContact || null) : existingParent.whatsappContact,
+        contactEmail: body.contactEmail !== undefined ? (body.contactEmail || null) : existingParent.contactEmail,
         audienceMode,
         isMemberOnly: body.isMemberOnly !== undefined ? Boolean(body.isMemberOnly) : Boolean(existingParent.isMemberOnly),
         eligibilityRules: body.eligibilityRules !== undefined
@@ -222,6 +238,11 @@ function sanitizeParentPayload(body = {}) {
         galleryUrls: Array.isArray(body.galleryUrls)
             ? body.galleryUrls.map((url) => normalizeUrlText(url, 2000)).filter(Boolean).slice(0, 12)
             : [],
+        website: normalizeUrlText(body.website, 2000),
+        socialLinks: normalizeSocialLinks(body.socialLinks),
+        contactPhone: cleanOptionalOneLineText(body.contactPhone, 50),
+        whatsappContact: cleanOptionalOneLineText(body.whatsappContact, 255),
+        contactEmail: cleanOptionalOneLineText(body.contactEmail, 255),
         newTags: cleanTagList(body.newTags),
         tags: cleanTagList(body.tags),
     };
@@ -240,6 +261,11 @@ function sanitizeParentPatch(body = {}) {
         'logoUrl',
         'bannerUrl',
         'galleryUrls',
+        'website',
+        'socialLinks',
+        'contactPhone',
+        'whatsappContact',
+        'contactEmail',
         'newTags',
         'tags',
     ].forEach((field) => {

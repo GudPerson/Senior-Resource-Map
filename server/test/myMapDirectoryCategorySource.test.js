@@ -137,3 +137,134 @@ test('hosted programme rows expose the host place category for My Map V2 present
     assert.equal(row.mapCategoryColor, '#f59e0b');
     assert.equal(row.mapCategoryIconUrl, '/icons/aac.svg');
 });
+
+test('Group rows expose only direct public Place member keys for My Map focus', async () => {
+    const publicPlace = {
+        id: 10,
+        name: 'Bukit Batok Care Hub',
+        subCategory: 'Active Ageing Centre (AAC)',
+        address: 'Blk 10 Example Street Singapore 650010',
+        postalCode: '650010',
+        lat: '1.3500',
+        lng: '103.7500',
+        isHidden: false,
+        hideFrom: null,
+        hideUntil: null,
+        isDeleted: false,
+        partner: null,
+    };
+    const hiddenPlace = {
+        ...publicPlace,
+        id: 11,
+        name: 'Hidden Care Hub',
+        isHidden: true,
+    };
+    const publicProgramme = {
+        id: 20,
+        name: 'Falls Prevention Workshop',
+        assetMode: 'standalone',
+        bucket: 'Programmes',
+        subCategory: 'Falls prevention',
+        audienceMode: 'public',
+        isMemberOnly: false,
+        isHidden: false,
+        isDeleted: false,
+        partner: null,
+        hostHardAsset: publicPlace,
+        locations: [{ hardAsset: publicPlace }],
+    };
+    const liveGroup = {
+        id: 99,
+        name: 'West Active Ageing Picks',
+        bucket: 'Groups',
+        subCategory: 'Group',
+        description: null,
+        schedule: null,
+        venueNote: null,
+        logoUrl: null,
+        audienceMode: 'public',
+        isMemberOnly: false,
+        isHidden: false,
+        hideFrom: null,
+        hideUntil: null,
+        isDeleted: false,
+        assetMode: 'group',
+        partnerId: null,
+        subregionId: null,
+        hostHardAssetId: null,
+        availabilityEnabled: false,
+        availabilityCount: 0,
+        availabilityUnit: null,
+        eligibilityRules: null,
+        partner: null,
+        hostHardAsset: null,
+        locations: [],
+        groupMembers: [
+            { memberResourceType: 'hard', memberResourceId: 10, hardAsset: publicPlace, sortOrder: 0 },
+            { memberResourceType: 'hard', memberResourceId: 11, hardAsset: hiddenPlace, sortOrder: 1 },
+            { memberResourceType: 'soft', memberResourceId: 20, softAsset: publicProgramme, sortOrder: 2 },
+            {
+                memberResourceType: 'soft',
+                memberResourceId: 21,
+                softAsset: {
+                    ...publicProgramme,
+                    id: 21,
+                    name: 'Nested Group',
+                    assetMode: 'group',
+                },
+                sortOrder: 3,
+            },
+        ],
+    };
+    const hardAssets = [publicPlace];
+    const db = {
+        query: {
+            subCategories: { findMany: async () => [] },
+            hardAssets: {
+                findFirst: async () => hardAssets.shift() || null,
+            },
+            softAssets: {
+                findFirst: async () => liveGroup,
+            },
+        },
+    };
+    const map = {
+        id: 88,
+        name: 'Group member focus map',
+        userId: 5,
+        assets: [
+            {
+                id: 9101,
+                resourceType: 'hard',
+                resourceId: 10,
+                addedAt: new Date('2026-06-26T00:00:00.000Z'),
+                snapshot: null,
+            },
+            {
+                id: 9102,
+                resourceType: 'soft',
+                resourceId: 99,
+                addedAt: new Date('2026-06-26T00:05:00.000Z'),
+                snapshot: null,
+            },
+        ],
+    };
+
+    const { directory } = await buildMyMapDirectory(db, {
+        map,
+        viewerUser: { id: 5, role: 'standard' },
+        visibilityUser: { id: 5, role: 'standard' },
+        resolutionContext: {
+            allowedPartnerAudienceIds: new Set(),
+            allowedAudienceZoneIds: new Set(),
+        },
+        mode: 'owner',
+    });
+
+    const groupRow = directory.places
+        .flatMap((place) => place.rows)
+        .find((row) => row.resourceType === 'soft' && row.resourceId === 99);
+
+    assert.equal(groupRow.status, 'list_only');
+    assert.deepEqual(groupRow.mapFocusPlaceKeys, ['hard-10']);
+});

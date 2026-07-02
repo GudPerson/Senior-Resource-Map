@@ -25,6 +25,7 @@ const startPhoneLoginBodySchema = z.object({
 const phoneLoginSignupBodySchema = z.object({
     name: requiredOneLineTextSchema('Name', 255),
     postalCode: optionalOneLineTextSchema(20),
+    attemptToken: optionalOneLineTextSchema(160),
 });
 
 function statusForError(err) {
@@ -70,12 +71,21 @@ function safePhoneLoginMessage(result) {
 function publicAttemptPayload(result) {
     return {
         attemptId: result.attemptId,
+        ...(result.attemptToken ? { attemptToken: result.attemptToken } : {}),
         status: result.status,
         phone: result.phone,
         reason: result.reason,
         message: safePhoneLoginMessage(result),
         ...(result.challenge ? { challenge: result.challenge } : {}),
     };
+}
+
+function readAttemptToken(c, body = {}) {
+    return body?.attemptToken
+        || c.req.query('attemptToken')
+        || c.req.query('token')
+        || c.req.header('x-phone-login-token')
+        || '';
 }
 
 export async function startPhoneLogin(c) {
@@ -107,6 +117,7 @@ export async function getPhoneLoginAttempt(c) {
             store,
             gudAuthClient,
             attemptId,
+            attemptToken: readAttemptToken(c),
         });
 
         if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.verified && result.user) {
@@ -136,6 +147,7 @@ export async function completePhoneSignup(c) {
         const result = await completePhoneLoginSignup({
             store,
             attemptId,
+            attemptToken: readAttemptToken(c, input),
             input,
         });
 

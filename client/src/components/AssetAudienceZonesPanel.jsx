@@ -19,7 +19,7 @@ function formatSharingStatus(status) {
     return 'Local';
 }
 
-export default function AssetAudienceZonesPanel({ asset, currentUser }) {
+export default function AssetAudienceZonesPanel({ asset, currentUser, onChanged }) {
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -72,6 +72,7 @@ export default function AssetAudienceZonesPanel({ asset, currentUser }) {
             setDraft({ name: '', zoneCode: '', sharingStatus: 'local', postalCodes: '' });
             setFeedback({ type: 'success', message: 'Audience zone created.' });
             await loadZones();
+            await onChanged?.();
         } catch (err) {
             setFeedback({ type: 'error', message: err.message || 'Unable to create audience zone.' });
         } finally {
@@ -95,6 +96,7 @@ export default function AssetAudienceZonesPanel({ asset, currentUser }) {
             await api.deleteAudienceZone(zone.id);
             setFeedback({ type: 'success', message: 'Audience zone deleted.' });
             await loadZones();
+            await onChanged?.();
         } catch (err) {
             setFeedback({ type: 'error', message: err.message || 'Unable to delete audience zone.' });
         } finally {

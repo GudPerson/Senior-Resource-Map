@@ -10,7 +10,7 @@ import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
 import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
-import { DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
+import { DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME, DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -146,6 +146,27 @@ function MyMapsLoadErrorState({ message, onRetry, retrying = false }) {
     );
 }
 
+function SavedAssetsLoadErrorState({ message, onRetry, retrying = false }) {
+    const { t } = useLocale();
+    return (
+        <div className="rounded-3xl border border-dashed border-amber-200 bg-amber-50 px-6 py-14 text-center">
+            <p className="text-lg font-semibold text-amber-900">{t('savedResourcesLoadFailedTitle')}</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-amber-800/85">
+                {message || t('savedResourcesLoadFailedHelp')}
+            </p>
+            <button
+                type="button"
+                onClick={onRetry}
+                disabled={retrying}
+                className="btn-primary mx-auto mt-5 justify-center disabled:cursor-not-allowed disabled:opacity-60"
+            >
+                <RefreshCw size={16} className={retrying ? 'animate-spin' : ''} />
+                {retrying ? t('loadingResources') : t('savedResourcesLoadFailedAction')}
+            </button>
+        </div>
+    );
+}
+
 function DirectoryTabs({ activeSection, onSelect }) {
     const { t } = useLocale();
     return (
@@ -185,6 +206,8 @@ export default function MyDirectoryPage() {
     const {
         savedAssets,
         savedAssetsLoading,
+        savedAssetsLoadError,
+        refreshSavedAssets,
         toggleSavedAsset,
         isSavedAssetPending,
     } = useSavedAssets();
@@ -393,7 +416,7 @@ export default function MyDirectoryPage() {
             {confirmDialog}
 
             <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
-                <aside className="hidden w-64 flex-shrink-0 flex-col gap-2 border-r border-slate-100 bg-white px-4 py-6 lg:flex">
+                <aside className={DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME}>
                     <DashboardSidebar
                         isImpersonating={isImpersonating}
                         onLogout={handleLogout}
@@ -503,6 +526,12 @@ export default function MyDirectoryPage() {
 
                                 {savedAssetsLoading && !hasSavedAssets ? (
                                     <SavedAssetsLoadingState />
+                                ) : savedAssetsLoadError && !hasSavedAssets ? (
+                                    <SavedAssetsLoadErrorState
+                                        message={savedAssetsLoadError}
+                                        onRetry={refreshSavedAssets}
+                                        retrying={savedAssetsLoading}
+                                    />
                                 ) : !hasSavedAssets ? (
                                     <SavedAssetsEmptyState mode="empty" />
                                 ) : !hasResults ? (

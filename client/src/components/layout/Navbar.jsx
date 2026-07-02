@@ -33,7 +33,7 @@ export default function Navbar() {
     return (
         <>
             <nav
-                className="hc-nav sticky top-0 z-50 shadow-sm disable-font-scaling navbar-static-scale"
+                className="hc-nav sticky top-0 z-[1200] shadow-sm disable-font-scaling navbar-static-scale"
                 style={{
                     backgroundColor: 'var(--color-nav-bg)',
                     borderBottom: '1px solid var(--color-border)',

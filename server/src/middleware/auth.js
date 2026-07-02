@@ -1,5 +1,7 @@
 import { normalizeRole } from '../utils/roles.js';
 import { getDb } from '../db/index.js';
+import { eq } from 'drizzle-orm';
+import { users, userSubregions } from '../db/schema.js';
 import {
     getActiveHardAssetStaffAccess,
     hasAnyHardAssetStaffAccess,
@@ -51,12 +53,47 @@ export async function hydrateLiveAccessForUser(user, options = {}) {
     };
 }
 
-async function hydrateRequestUser(c, user) {
-    try {
-        return await hydrateLiveAccessForUser(user, { db: getDb(c.env) });
-    } catch {
-        return user;
+export async function hydrateRequestUserFromDb(user, options = {}) {
+    if (!user?.id) throw new Error('Session user is missing.');
+    const { db = null } = options;
+    if (!db) throw new Error('Session user lookup is unavailable.');
+
+    const liveUser = await db.query.users.findFirst({
+        where: eq(users.id, user.id),
+    });
+
+    if (!liveUser) throw new Error('Session user no longer exists.');
+
+    const subregionRows = await db.query.userSubregions.findMany({
+        where: eq(userSubregions.userId, liveUser.id),
+    });
+
+    const extraClaims = {};
+    if (user?.isImpersonating) {
+        extraClaims.isImpersonating = true;
+        extraClaims.impersonatedBy = user.impersonatedBy || null;
     }
+
+    return hydrateLiveAccessForUser({
+        ...liveUser,
+        subregionIds: subregionRows.map((row) => row.subregionId),
+        ...extraClaims,
+    }, options);
+}
+
+async function hydrateRequestUser(c, user) {
+    if (typeof c.env?.AUTH_TEST_LIVE_SESSION_USER_RESOLVER === 'function') {
+        const liveUser = await c.env.AUTH_TEST_LIVE_SESSION_USER_RESOLVER(user, c);
+        return {
+            ...liveUser,
+            ...(user?.isImpersonating ? {
+                isImpersonating: true,
+                impersonatedBy: user.impersonatedBy || null,
+            } : {}),
+        };
+    }
+
+    return hydrateRequestUserFromDb(user, { db: getDb(c.env) });
 }
 
 export async function authenticateToken(c, next) {

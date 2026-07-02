@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { Hono } from 'hono';
 
+import { hydrateRequestUserFromDb } from '../src/middleware/auth.js';
 import { buildSessionPayload, clearAuthCookie, getSessionSecret, setAuthCookie } from '../src/utils/sessionAuth.js';
 
 test('production session cookie is cross-site compatible', async () => {
@@ -127,4 +128,40 @@ test('production sessions require an explicit JWT secret', () => {
 
 test('development sessions keep the local fallback secret', () => {
     assert.equal(getSessionSecret({ env: { NODE_ENV: 'development' } }), 'seniorcare-secret-key');
+});
+
+test('request authentication hydrates live role instead of trusting stale token claims', async () => {
+    const hydrated = await hydrateRequestUserFromDb({
+        id: 5,
+        username: 'stale-admin',
+        email: 'stale@example.test',
+        role: 'super_admin',
+        name: 'Stale Admin',
+        subregionIds: [],
+    }, {
+        db: {
+            query: {
+                users: {
+                    findFirst: async () => ({
+                        id: 5,
+                        username: 'stale-admin',
+                        email: 'stale@example.test',
+                        role: 'standard',
+                        name: 'Stale Admin',
+                        postalCode: '680153',
+                    }),
+                },
+                userSubregions: {
+                    findMany: async () => [{ subregionId: 12 }],
+                },
+            },
+        },
+        loadPartnerStaffAccess: async () => [],
+        loadHardAssetStaffAccess: async () => [],
+        loadSoftAssetStaffAccess: async () => [],
+        loadOrganizationAccess: async () => [],
+    });
+
+    assert.equal(hydrated.role, 'standard');
+    assert.deepEqual(hydrated.subregionIds, [12]);
 });
