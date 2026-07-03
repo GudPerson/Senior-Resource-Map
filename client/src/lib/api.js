@@ -295,6 +295,7 @@ export const api = {
     login: (body) => request('POST', '/auth/login', body),
     register: (body) => request('POST', '/auth/register', body),
     googleAuth: (body) => request('POST', '/auth/google', body),
+    linkGoogleAuth: (body) => request('POST', '/auth/google/link', body),
     startPhoneLogin: (body) => request('POST', '/auth/phone/start', body),
     getPhoneLoginAttempt: (attemptId, attemptToken = '') => {
         const headers = attemptToken ? { 'X-Phone-Login-Token': attemptToken } : {};

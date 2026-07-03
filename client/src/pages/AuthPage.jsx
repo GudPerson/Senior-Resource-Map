@@ -10,6 +10,11 @@ import PhoneLoginPanel from '../components/PhoneLoginPanel.jsx';
 import { buildMembershipLinkPath, getPendingMembershipToken } from '../lib/membershipLink.js';
 import { shouldShowPhoneLoginHandoff } from '../lib/authHandoff.js';
 import { clearStoredPhoneLoginAttempt, readStoredPhoneLoginAttempt } from '../lib/phoneLoginAttemptStorage.js';
+import {
+    finishEmailLoginWithPendingGoogleLink,
+    getGoogleLinkRequiredMessage,
+    isGoogleLinkRequiredError,
+} from '../lib/googleLinking.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
 function normalizeReturnTo(value) {
@@ -28,6 +33,7 @@ export default function AuthPage({ isPartner = false }) {
     const [showPass, setShowPass] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
     const [handoffVisible, setHandoffVisible] = useState(() => (
         shouldShowPhoneLoginHandoff(location.search, readStoredPhoneLoginAttempt())
     ));
@@ -105,7 +111,15 @@ export default function AuthPage({ isPartner = false }) {
             const res = tab === 'login'
                 ? await api.login(loginPayload)
                 : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user' });
-            completeLogin(res.user);
+            const authResult = tab === 'login' && !isPartner
+                ? await finishEmailLoginWithPendingGoogleLink({
+                    apiClient: api,
+                    emailLoginResult: res,
+                    pendingGoogleCredential,
+                })
+                : { user: res.user, linkedGoogle: false };
+            if (authResult.linkedGoogle) setPendingGoogleCredential('');
+            completeLogin(authResult.user);
         } catch (err) {
             setHandoffVisible(false);
             setError(err.message);
@@ -125,10 +139,17 @@ export default function AuthPage({ isPartner = false }) {
                 payload.postalCode = form.postalCode;
             }
             const res = await api.googleAuth(payload);
+            setPendingGoogleCredential('');
             completeLogin(res.user);
         } catch (err) {
             setHandoffVisible(false);
-            setError(err.message || t('googleSignInFailed'));
+            if (isGoogleLinkRequiredError(err) && credentialResponse.credential) {
+                setPendingGoogleCredential(credentialResponse.credential);
+                setTab('login');
+                setError(getGoogleLinkRequiredMessage());
+            } else {
+                setError(err.message || t('googleSignInFailed'));
+            }
         } finally {
             setLoading(false);
         }

@@ -13,6 +13,7 @@ router.get('/phone/:attemptId', phoneLoginController.getPhoneLoginAttempt);
 router.get('/me', authController.me);
 router.post('/logout', authController.logout);
 router.post('/google', authController.googleAuth);
+router.post('/google/link', authenticateToken, authController.linkGoogleAuth);
 router.post('/impersonate/:id', authenticateToken, authController.impersonate);
 
 export default router;

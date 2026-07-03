@@ -78,6 +78,97 @@ export function shouldRejectGoogleEmailOnlyAccountLink(subjectMatchedUser, email
     return !subjectMatchedUser && Boolean(emailMatchedUser);
 }
 
+function normalizeComparableEmail(value) {
+    return normalizeText(value).toLowerCase();
+}
+
+export function validateAuthenticatedGoogleLink({
+    currentDbUser,
+    subjectMatchedUser,
+    googleEmail,
+    googleSubject,
+}) {
+    if (!currentDbUser?.id) {
+        return {
+            allowed: false,
+            status: 401,
+            error: 'Sign in with email before linking Google.',
+        };
+    }
+
+    if (!googleSubject || !normalizeComparableEmail(googleEmail)) {
+        return {
+            allowed: false,
+            status: 401,
+            error: 'Invalid Google token',
+        };
+    }
+
+    if (subjectMatchedUser && Number(subjectMatchedUser.id) !== Number(currentDbUser.id)) {
+        return {
+            allowed: false,
+            status: 409,
+            error: 'This Google account is already linked to another CareAround SG account.',
+        };
+    }
+
+    if (
+        currentDbUser.googleSubject
+        && String(currentDbUser.googleSubject) !== String(googleSubject)
+    ) {
+        return {
+            allowed: false,
+            status: 409,
+            error: 'This CareAround SG account is already linked to another Google account.',
+        };
+    }
+
+    if (normalizeComparableEmail(currentDbUser.email) !== normalizeComparableEmail(googleEmail)) {
+        return {
+            allowed: false,
+            status: 409,
+            error: 'Sign in with the CareAround SG account that matches this Google email before linking.',
+        };
+    }
+
+    return {
+        allowed: true,
+        alreadyLinked: String(currentDbUser.googleSubject || '') === String(googleSubject),
+    };
+}
+
+async function verifyGoogleCredential(c, credential) {
+    if (!credential) {
+        const error = new Error('No credential provided');
+        error.status = 400;
+        throw error;
+    }
+
+    // Verify with Google's native REST endpoint instead of heavy google-auth-library.
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    const payload = await response.json();
+
+    const googleSubject = normalizeGoogleSubject(payload);
+    const email = normalizeComparableEmail(payload?.email);
+
+    if (!response.ok
+        || !payload
+        || payload.aud !== c.env.VITE_GOOGLE_CLIENT_ID
+        || !googleSubject
+        || !email
+        || !isVerifiedGoogleEmail(payload)) {
+        const error = new Error('Invalid Google token');
+        error.status = 401;
+        throw error;
+    }
+
+    return {
+        payload,
+        googleSubject,
+        email,
+    };
+}
+
 function parseSubregionIds(rawSubregionIds) {
     const input = Array.isArray(rawSubregionIds)
         ? rawSubregionIds
@@ -371,23 +462,7 @@ export const googleAuth = async (c) => {
     try {
         const body = validateRequestBody(await c.req.json(), googleAuthBodySchema, 'Google sign-in details');
         const { credential } = body;
-        if (!credential) return c.json({ error: 'No credential provided' }, 400);
-
-        // Verify with Google's native REST endpoint instead of heavy google-auth-library
-        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
-        const payload = await response.json();
-
-        const googleSubject = normalizeGoogleSubject(payload);
-        const email = normalizeText(payload?.email).toLowerCase();
-
-        if (!response.ok
-            || !payload
-            || payload.aud !== c.env.VITE_GOOGLE_CLIENT_ID
-            || !googleSubject
-            || !email
-            || !isVerifiedGoogleEmail(payload)) {
-            return c.json({ error: 'Invalid Google token' }, 401);
-        }
+        const { payload, googleSubject, email } = await verifyGoogleCredential(c, credential);
 
         const { name } = payload;
         const db = getDb(c.env);
@@ -400,7 +475,8 @@ export const googleAuth = async (c) => {
             const [emailMatchedUser] = await db.select().from(users).where(eq(users.email, email));
             if (shouldRejectGoogleEmailOnlyAccountLink(user, emailMatchedUser)) {
                 return c.json({
-                    error: 'This email is already registered. Sign in with email first before linking Google.',
+                    error: "That Google account matches your email account. Sign in with email once and we'll link Google for next time.",
+                    code: 'google_link_required',
                 }, 409);
             }
 
@@ -463,6 +539,60 @@ export const googleAuth = async (c) => {
     } catch (err) {
         if (!err.status || err.status >= 500) console.error('Google Auth Error:', err);
         return c.json({ error: err.status ? err.message : 'Google authentication failed' }, err.status || 500);
+    }
+};
+
+export const linkGoogleAuth = async (c) => {
+    try {
+        const sessionUser = c.get('user');
+        if (!sessionUser?.id) {
+            return c.json({ error: 'Sign in with email before linking Google.' }, 401);
+        }
+
+        const body = validateRequestBody(await c.req.json(), googleAuthBodySchema, 'Google link details');
+        const { credential } = body;
+        const { googleSubject, email } = await verifyGoogleCredential(c, credential);
+
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        await ensureUserPreferenceColumns(db, c.env);
+
+        const [currentDbUser] = await db.select().from(users).where(eq(users.id, sessionUser.id));
+        const [subjectMatchedUser] = await db.select().from(users).where(eq(users.googleSubject, googleSubject));
+        const decision = validateAuthenticatedGoogleLink({
+            currentDbUser,
+            subjectMatchedUser,
+            googleEmail: email,
+            googleSubject,
+        });
+
+        if (!decision.allowed) {
+            return c.json({ error: decision.error }, decision.status);
+        }
+
+        if (!decision.alreadyLinked) {
+            await db.update(users)
+                .set({ googleSubject })
+                .where(eq(users.id, currentDbUser.id))
+                .returning();
+        }
+
+        const linkedUser = await loadUserWithSubregions(db, currentDbUser.id);
+        if (!linkedUser) {
+            return c.json({ error: 'Sign in with email before linking Google.' }, 401);
+        }
+
+        linkedUser.partnerStaffAccess = await loadPartnerStaffAccessForUser(db, linkedUser.id);
+        linkedUser.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, linkedUser.id);
+        linkedUser.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, linkedUser.id);
+        linkedUser.organizationAccess = await loadOrganizationAccessForUser(db, linkedUser.id);
+
+        const token = await createSessionToken(linkedUser, c);
+        setAuthCookie(c, token);
+        return c.json({ user: buildSessionPayload(linkedUser), linkedGoogle: true });
+    } catch (err) {
+        if (!err.status || err.status >= 500) console.error('Google Link Error:', err);
+        return c.json({ error: err.status ? err.message : 'Google link failed' }, err.status || 500);
     }
 };
 
