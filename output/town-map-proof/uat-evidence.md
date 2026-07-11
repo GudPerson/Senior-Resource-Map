@@ -2,6 +2,35 @@
 
 Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
 
+## July 11 Standard fractional-zoom recovery — local, release pending
+
+- Production owner map 150 reproduced a blank Standard surface while its
+  visible counter showed level 14. Browser inspection found 0 live tiles and 0
+  fixed chunks, while Leaflet's transform showed that the fitted camera was
+  actually at zoom 14.30. Map 87 remained healthy at zoom 13.50 (displayed as
+  14), which explained why only one of the three owner maps exposed the gap.
+- The cause was the deliberate Standard tile ceiling at exact level 14. The
+  rounded Detailed threshold begins at 14.50, so a fitted camera between 14.00
+  and 14.50 could remain in Standard mode while its tile layer was already
+  gated. Detailed itself was healthy and continued to load at the next step.
+- The narrow correction normalizes only a settled camera inside that hidden
+  14.00–14.50 gap back to exact level 14. It does not alter cameras already at
+  or below 14, the rounded Detailed threshold, manual Standard mode, the fixed
+  surface, pins, fit bounds, or DirectoryMap defaults for unflagged callers.
+- Signed-in local UAT on map 150 passed: initial level 14 rendered 12 Standard
+  tiles; level 15 rendered 28 fixed chunks and 0 live tiles; returning to level
+  14 rendered 12 Standard tiles again and restored the same first-pin transform.
+  Map 87 remained healthy with 20 Standard tiles, and map 25 remained healthy
+  in Detailed with 0 live tiles.
+- Focused map/My Map coverage passed 127/127, full client coverage passed
+  391/391, and the exact enabled production build passed with 2,385 modules and
+  only the existing large-chunk advisory. `git diff --check` passed. No server
+  test was required because no API, server, data, auth, permission, schema, or
+  visibility code changed.
+- This recovery is not committed, pushed, or deployed at this evidence point.
+  Production remains on the previously recorded hosted activation until the
+  user explicitly approves the client release.
+
 ## July 11 hosted R2 activation and production release
 
 - Cloudflare R2 bucket `carearound-town-map-assets` now serves the accepted

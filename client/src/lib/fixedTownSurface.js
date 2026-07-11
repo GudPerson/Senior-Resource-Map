@@ -696,6 +696,23 @@ export function isFixedTownSurfaceZoomEligible(zoom, minZoom) {
         && Math.round(normalizedZoom) >= Math.round(normalizedMinZoom);
 }
 
+export function normalizeFixedTownStandardZoom(zoom, minZoom) {
+    const normalizedZoom = Number(zoom);
+    if (minZoom === null || minZoom === undefined || minZoom === '') {
+        return normalizedZoom;
+    }
+    const normalizedMinZoom = Math.round(Number(minZoom));
+    if (!Number.isFinite(normalizedZoom) || !Number.isFinite(normalizedMinZoom)) {
+        return normalizedZoom;
+    }
+
+    const maximumStandardZoom = normalizedMinZoom - 1;
+    const detailedThreshold = normalizedMinZoom - 0.5;
+    return normalizedZoom > maximumStandardZoom && normalizedZoom < detailedThreshold
+        ? maximumStandardZoom
+        : normalizedZoom;
+}
+
 export function resolveFixedTownBasemapMode({
     preference = 'live',
     townAvailable = false,

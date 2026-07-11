@@ -8,6 +8,7 @@ import {
     doWsenBoundsIntersect,
     isFixedTownSurfaceZoomEligible,
     isPointWithinWsenBounds,
+    normalizeFixedTownStandardZoom,
     normalizeFixedTownAssetBaseUrl,
     parseFixedTownSurfaceManifest,
     resolveFixedTownChunkUrl,
@@ -273,6 +274,17 @@ test('town map zoom eligibility follows Leaflet\'s rounded tile level', () => {
     assert.equal(isFixedTownSurfaceZoomEligible(15.1, 15), true);
     assert.equal(isFixedTownSurfaceZoomEligible(undefined, 15), false);
     assert.equal(isFixedTownSurfaceZoomEligible(16, undefined), false);
+});
+
+test('Standard map normalizes only the fractional gap below Detailed', () => {
+    assert.equal(normalizeFixedTownStandardZoom(14.3, 15), 14);
+    assert.equal(normalizeFixedTownStandardZoom(14.49, 15), 14);
+    assert.equal(normalizeFixedTownStandardZoom(14, 15), 14);
+    assert.equal(normalizeFixedTownStandardZoom(13.5, 15), 13.5);
+    assert.equal(normalizeFixedTownStandardZoom(14.5, 15), 14.5);
+    assert.equal(normalizeFixedTownStandardZoom(15, 15), 15);
+    assert.equal(normalizeFixedTownStandardZoom(14.3, null), 14.3);
+    assert.equal(normalizeFixedTownStandardZoom(undefined, 15), Number.NaN);
 });
 
 test('town map auto mode respects availability, zoom, and the Live override', () => {

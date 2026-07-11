@@ -791,6 +791,25 @@ Active next recovery family:
   No Worker/API deploy, schema, auth, permission, data, Discover, Shared Maps,
   print/export, ranking, filtering, visibility, or saved-resource change was
   performed.
+- Standard fractional-step recovery (local, release pending): production owner
+  map 150 reproduced a blank Standard surface at a displayed level 14 while
+  Detailed remained healthy at the next step. Signed-in inspection found the
+  fitted camera was actually at Leaflet zoom 14.30, inside the gap between the
+  exact Standard tile ceiling of 14 and the rounded Detailed threshold of
+  14.50. The narrow client correction normalizes only a settled camera inside
+  that hidden gap back to exact level 14; maps already at or below 14, the
+  Detailed threshold, manual Standard mode, fixed chunks, camera fit bounds,
+  pins, and every unflagged DirectoryMap caller remain unchanged. Signed-in
+  local UAT on map 150 rendered 12 Standard tiles at 14, 28 fixed chunks and 0
+  live tiles at 15, then 12 Standard tiles at 14 again with the first pin's
+  transform restored. Map 87 remained healthy with 20 Standard tiles and map
+  25 remained healthy in Detailed with 0 live tiles. Focused coverage passed
+  127/127, full client coverage passed 391/391, the exact enabled production
+  build passed with the existing large-chunk advisory, and `git diff --check`
+  passed. This recovery is not committed, pushed, or deployed at ledger-write
+  time. No API, Worker, schema, auth, permission, data, Discover, Shared Maps,
+  print/export, ranking, filtering, visibility, or saved-resource change was
+  made.
 
 ## Recovery workflow
 

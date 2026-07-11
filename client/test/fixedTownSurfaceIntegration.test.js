@@ -39,6 +39,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /basemapMode = 'live'/);
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
     assert.match(directoryMapSource, /function DirectoryMapZoomSync/);
+    assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
+    assert.match(directoryMapSource, /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles/);
+    assert.match(directoryMapSource, /map\.setView\(map\.getCenter\(\), normalizedZoom, \{ animate: false \}\)/);
     assert.match(directoryMapSource, /map\.on\('zoom', handleZoom\)/);
     assert.match(directoryMapSource, /map\.on\('zoomend', handleZoomEnd\)/);
     assert.match(directoryMapSource, /effectiveBasemapMode === 'town' \? \(/);

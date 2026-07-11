@@ -36,6 +36,7 @@ import {
 } from '../lib/directoryMapCamera.js';
 import {
     isFixedTownSurfaceZoomEligible,
+    normalizeFixedTownStandardZoom,
     resolveFixedTownBasemapMode,
 } from '../lib/fixedTownSurface.js';
 
@@ -1826,7 +1827,7 @@ function DirectoryMapInstanceSync({ onMapReady }) {
     return null;
 }
 
-function DirectoryMapZoomSync({ enabled = false, onZoomChange }) {
+function DirectoryMapZoomSync({ enabled = false, normalizeStandardZoomBelow = null, onZoomChange }) {
     const map = useMap();
 
     useEffect(() => {
@@ -1835,6 +1836,13 @@ function DirectoryMapZoomSync({ enabled = false, onZoomChange }) {
         let lastTileZoom = null;
         const emitZoomChange = (force = false) => {
             const zoom = Number(map.getZoom());
+            const normalizedZoom = force
+                ? normalizeFixedTownStandardZoom(zoom, normalizeStandardZoomBelow)
+                : zoom;
+            if (Number.isFinite(normalizedZoom) && normalizedZoom !== zoom) {
+                map.setView(map.getCenter(), normalizedZoom, { animate: false });
+                return;
+            }
             const tileZoom = Number.isFinite(zoom) ? Math.round(zoom) : null;
             if (!force && tileZoom === lastTileZoom) return;
             lastTileZoom = tileZoom;
@@ -1842,14 +1850,14 @@ function DirectoryMapZoomSync({ enabled = false, onZoomChange }) {
         };
         const handleZoom = () => emitZoomChange(false);
         const handleZoomEnd = () => emitZoomChange(true);
-        emitZoomChange(true);
         map.on('zoom', handleZoom);
         map.on('zoomend', handleZoomEnd);
+        emitZoomChange(true);
         return () => {
             map.off('zoom', handleZoom);
             map.off('zoomend', handleZoomEnd);
         };
-    }, [enabled, map, onZoomChange]);
+    }, [enabled, map, normalizeStandardZoomBelow, onZoomChange]);
 
     return null;
 }
@@ -2465,6 +2473,9 @@ export default function DirectoryMap({
                 }} />
                 <DirectoryMapZoomSync
                     enabled={shouldTrackFixedTownSurfaceZoom}
+                    normalizeStandardZoomBelow={shouldGateTownRequestedLiveTiles
+                        ? resolvedFixedTownSurfaceMinZoom
+                        : null}
                     onZoomChange={setFixedTownSurfaceZoom}
                 />
                 <DirectoryMapZoomLevelControl
