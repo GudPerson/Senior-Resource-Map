@@ -1,155 +1,112 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-06-17 (Asia/Singapore)
+Last updated: 2026-07-12 (Asia/Singapore)
 
-## Intent / Goal
+## Current release state
 
-CareAround SG is a Singapore senior-care discovery and coordination platform. It helps seniors, caregivers, care teams, and community partners find support resources, save useful assets, build private/shared maps, and coordinate around resource information without turning every collaboration into a heavy approval workflow.
+- Production app: `https://app.carearound.sg`
+- Production client bundle: `assets/index-Qri8mQ9i.js`
+- Production client CSS: `assets/index-B86VNPto.css`
+- Production Pages deployment: `https://c9114285.senior-resource-map.pages.dev`
+- Production API: `https://api.carearound.sg/api/health` returned OK after the
+  client release. No Worker/API deployment was performed.
+- Map asset domain: `https://maps.carearound.sg`
+  - Default W01: `/v1/w01`
+  - Gray W01: `/v1/w01/gray`
 
-Current product pillars:
+## Repo and worktree state
 
-- Public Discover for care and support resources, with relevance from postal search, audience zones, and region boundaries.
-- My Directory and My Maps for saved assets, private maps, shared maps, map notes, print/export, and resource-detail handoff.
-- Resource stewardship through direct resource Owner/Staff access for places, offerings, templates, and local rollouts.
-- Lightweight organisation governance for access lists, linked assets, covered offerings, and agreements.
-- Admin support coverage based on Admin Region Scope and user profile location.
-- Audit Trail for meaningful governance/resource changes, excluding everyday browsing and personal map actions.
+- The user's original worktree remains `/Users/sweetbuns/CareAroundSG` on
+  `codex/ai-cost-governor` at `437a4677930a268021affddbaf80d1f879f7727e`.
+  Its unrelated AI changes and untracked files were not modified, staged, or
+  reverted.
+- The map-style release used the isolated worktree
+  `/Users/sweetbuns/CareAroundSG-map-style-preference` on
+  `codex/map-style-preference`.
+- Exact base: `5e27379acdec98d8c2e8ed0f575d2b3ee8215639` (`Record Standard map recovery release`).
+- Implementation commit: `a41b6c80d` (`Add persistent Default and Gray map styles`).
+- Branch pushed to `origin/codex/map-style-preference`.
+- Generated `output/playwright/test-results/` is local smoke noise and must not
+  be staged.
 
-## Operating Guardrails
+## Locked map behavior
 
-- Work only in `/Users/sweetbuns/CareAroundSG`.
-- Do not use archived or old checkout folders unless the user explicitly asks.
-- Before code work, read `AGENTS.md`, `docs/regression-ledger.md`, and this handoff, then run `git status --short --branch`.
-- Treat production as the source of truth for deployed behavior, but treat the current dirty branch as the source of truth for the in-progress My Map V2 work.
-- Do not print, copy, summarize, commit, or modify secrets, `.env` values, smoke credentials, production auth, Gmail/email, GudAuth, or Worker secret values.
-- Use narrow, ledger-backed changes. Do not refactor broad stable surfaces while fixing one visible UI issue.
-- Commit, push, and deploy only when the user explicitly asks. Use `docs/release-checklist.md` before any release.
+- `Default | Gray` is one persistent device preference across Discover, My
+  Maps, Shared Maps, and print map rendering.
+- Default uses OneMap `Default_HD`; Gray uses native OneMap `Grey_HD`.
+- My Map owner `Standard | Detailed` remains a separate control. Detailed stays
+  owner-only and activates automatically at zoom 15.
+- Detailed Default uses the accepted colour CCK/W01 fixed surface. Detailed
+  Gray uses the accepted native OneMap Grey CCK/W01 fixed surface.
+- Both W01 manifests preload. Switching colour while Detailed is active loads
+  only visible fixed chunks and does not fall through to live OneMap tiles.
+- Pins, clustering, card focus, camera, reset, selection, full map, attribution,
+  outside-coverage fallback, ranking, filtering, visibility, and resource data
+  remain unchanged.
+- Discover remounts only its TileLayer when the preference changes. This avoids
+  Leaflet's fractional-zoom redraw path without remounting the MapContainer or
+  moving the camera.
 
-## Current Repo And Runtime State
+## Release evidence
 
-- Repo: `/Users/sweetbuns/CareAroundSG`
-- Remote: `https://github.com/GudPerson/Senior-Resource-Map.git`
-- Branch: `codex/my-map-print-v2-refresh`
-- Current HEAD: `23810915 Order My Map V2 cards by category`
-- Worktree state: dirty, with uncommitted My Map V2 category/spacing follow-up work. The owner print-numbering experiment is parked locally and is not part of the intended release.
-- Untracked files:
-  - `server/test/myMapDirectoryCategorySource.test.js` is part of the current V2 category-color work and should be included when staging.
-  - `output/playwright/test-results/.last-run.json` is generated Playwright output/noise and should not be staged unless deliberately needed.
-- Local preview at handoff time: `http://localhost:5175/my-directory/maps/87?ui=v2` returned `200 OK`; it was started with `VITE_API_URL=https://api.carearound.sg/api npm run dev --workspace=client -- --host localhost --port 5175`.
-- Production app at handoff time: `https://app.carearound.sg` served `assets/index-mJXDVc69.js` and `assets/index-BkuzdP3Y.css`.
-- Production API health at handoff time: `https://api.carearound.sg/api/health` returned OK with timestamp `2026-06-16T16:28:43.106Z`.
+- Full client: 394/394 passed.
+- Full server: 396/396 passed.
+- R2 contract: 5/5 passed.
+- Production-configured `npm run build:client`: passed with only the existing
+  large-chunk advisory.
+- `git diff --check`: passed.
+- Production smoke: all five flows completed; dashboard resources passed on the
+  configured retry after one 30-second visibility timeout.
+- Gray R2 verifier: 88 chunks, 48,817,738 bytes, manifest SHA-256
+  `58bb3880ee09b9b6bac938545048694b8d6a38728ddaf874db5e606971603640`,
+  50.8 ms warm median and 382.5 ms p95.
+- Production owner Detailed Default → Gray requested only six Gray chunks and
+  zero live tiles. Four pin transforms were identical before/after.
+- Production mobile retained two Gray chunks, fit both segmented controls in
+  one row, and showed no end-scroll jitter.
+- Production Discover used valid integer `Grey_HD` tiles; guest Shared Maps used
+  12 `Grey_HD` tiles. Production browser consoles were clean.
+- Screenshots and request details:
+  `output/town-map-proof/uat-evidence.md`.
 
-## Locked Stable Behavior
+## Rollback
 
-- Classic/stable My Map remains available through `/my-directory/maps/:id?ui=stable`.
-- Print view still takes priority when `view=print` is present.
-- V2 keeps the stable V1 owner toolbar/search/distance header; only the map/list body was refreshed.
-- V2 uses badge-free saved-place pins instead of cluster bubble markers; same-postal hard assets share one split-color pin while their cards remain separate.
-- V2 card ordering is mapped resources first, then not-shown-on-map resources; within each group it sorts by category A-Z and resource name A-Z.
-- Desktop columns split the ordered sequence in half left to right; mobile renders the same sequence vertically.
-- Not-shown-on-map resources render as normal cards with a gray `Unmapped` pill rather than a separate special section.
-- Postal codes with multiple hard assets render one card per hard asset but one shared same-postal saved-place pin; same-postal hover peer highlighting remains.
-- Owner print refinement is KIV for this release after UAT showed the latest print pin-numbering/spreading experiment was not improving enough. Do not include the parked print experiment unless the user explicitly reopens it.
-- Shared-map print intentionally remains on the classic numbered print format until explicitly refreshed.
-- Existing auth/session, schema, permissions, postal validation, Discover ranking/filtering/visibility, Gmail/email, GudAuth, and production database behavior should not change as part of this V2 UI work.
+- Previous verified production baseline: commit
+  `5e27379acdec98d8c2e8ed0f575d2b3ee8215639`, Pages deployment
+  `https://65925a9b.senior-resource-map.pages.dev`.
+- Client rollback does not require an API, schema, data, or R2 mutation. The
+  separately versioned Gray objects can remain dormant.
 
-## Current In-Progress My Map V2 Work
+## Recommended next step
 
-The following files are currently changed and should be reviewed before any commit:
+Keep Detailed fixed-surface cartography owner-only until a separate expansion
+is approved. If expanded, take Shared Maps before Discover because Shared Maps
+already uses DirectoryMap while Discover has broader camera, filtering,
+ranking, and islandwide coverage behavior.
 
-- `client/src/components/DirectoryMap.jsx`
-- `client/src/components/MyMapV2PreviewScaffold.jsx`
-- `client/src/components/SharedMapDirectoryList.jsx`
-- `client/src/features/discover/discoverUtils.js`
-- `client/src/lib/directoryPresentation.js`
-- `client/src/lib/i18n.js`
-- `client/src/pages/MyMapDetailPage.jsx`
-- `client/test/directoryMapMarkerMode.test.js`
-- `client/test/directoryPresentationV2Order.test.js`
-- `client/test/myMapV2Scaffold.test.js`
-- `client/test/sharedMapDirectoryListRefinement.test.js`
-- `docs/regression-ledger.md`
-- `server/src/utils/myMapDirectory.js`
-- `server/test/myMapDirectoryCategorySource.test.js`
-
-Current local behavior intended by these changes:
-
-- Category pills use configured sub-category colors.
-- Category icons sit beside the category pill, stay on a white tile, and use the category color only for the tile outline/accent.
-- V2 saved-place pins keep the original teal saved-place body.
-- The inner saved-place pin circle uses hard-asset category color only; it splits when multiple hard asset categories share the same postal code, ignores soft asset categories for pin fill, and same-postal hard assets share one pin instead of drawing duplicate spread pins.
-- V2 My Map cards show resource name first, then address underneath.
-- Interactive V2 card address spacing was tightened on 2026-06-17 by keeping the address inside the title column, so the note badge no longer pushes AAC addresses farther down than Day Rehab, SCC, or Homebase cards.
-- V2 presentation can recover hard-asset addresses from row data when an older place snapshot is missing the address, keeps postal-only Singapore addresses visible, and owner My Map can backfill missing hard-asset addresses from the existing detail endpoint without mutating map data.
-- My Map V2 hydrates rows from public sub-category metadata so colors appear even when an older My Map directory payload contains icons but not color fields.
-
-## Verification Evidence
-
-Latest checks on the dirty branch:
-
-- Focused V2 category/map coverage passed `48/48` after the owner print experiment was parked:
-  `node --test client/test/myMapV2Scaffold.test.js client/test/sharedMapDirectoryListRefinement.test.js client/test/directoryPresentationV2Order.test.js client/test/directoryMapMarkerMode.test.js server/test/myMapDirectoryCategorySource.test.js`
-- Full client coverage passed `282/282` after the KIV separation:
-  `node --test client/test/*.test.js client/src/lib/*.test.js`
-- Full server coverage passed `352/352`:
-  `npm run test:server`
-- Production-style client build passed with the existing large chunk warning:
-  `VITE_API_URL=https://api.carearound.sg/api npm run build:client`
-- Localhost returned HTTP 200 for `http://localhost:5175/my-directory/maps/87?ui=v2` before the release split.
-- Authenticated Chrome visual smoke against `http://localhost:5175/my-directory/maps/87` confirmed `Singapore 680153` appears under `REACH-SLEC Active Ageing Centre @ Teck Whye Vista`, category icon tiles stay white with colored outlines, the Precious AAC + Diaverum same-postal pair renders as one orange/red split pin, hovering that one split pin highlights both member cards, single-hard-asset pins keep one inner color, soft asset category green is absent from marker fills, and AAC, Day Rehab, SCC, and Homebase cards all measured the same 2.92px title-to-address gap in the visible browser viewport.
-- `git diff --check` passed after the KIV separation and evidence updates.
-
-Not yet verified:
-
-- Production smoke with credentials. Do not claim smoke passed unless the smoke environment is loaded and `npm run test:smoke` passes without printing secrets.
-
-## Known Traps
-
-- If `localhost:5175` shows `ERR_CONNECTION_REFUSED`, the local Vite preview is not running. Restart it with:
-  `VITE_API_URL=https://api.carearound.sg/api npm run dev --workspace=client -- --host localhost --port 5175`
-- Clean automated browser sessions usually redirect protected My Map routes to Login, so they are not a substitute for the user's authenticated Chrome view.
-- Do not stage `output/playwright/test-results/.last-run.json` unless it is intentionally needed as test output.
-- Do not widen this patch into auth, session, schema, access control, public visibility, Discover ranking, postal validation, or database changes.
-- If releasing, keep Cloudflare Pages client deploy and Cloudflare Worker API deploy evidence separate. This V2 work should only need a Pages client deploy unless a later change truly touches Worker behavior.
-
-## Recommended Next Step
-
-First, refresh `http://localhost:5175/my-directory/maps/87?ui=v2` and visually confirm the interactive V2 address spacing, recovered Teck Whye Vista address, white outlined category icon tiles, and teal pins with colored/split inner circles. Keep owner print as KIV unless the user explicitly reopens that work.
-
-If the visual check passes, run the final release gate:
-
-```bash
-node --test client/test/myMapV2Scaffold.test.js client/test/sharedMapDirectoryListRefinement.test.js client/test/directoryPresentationV2Order.test.js client/test/directoryMapMarkerMode.test.js server/test/myMapDirectoryCategorySource.test.js
-node --test client/test/*.test.js client/src/lib/*.test.js
-npm run test:server
-VITE_API_URL=https://api.carearound.sg/api npm run build:client
-git diff --check
-```
-
-Then stage only the intended files, excluding generated Playwright output. Commit, push, and deploy only when the user says to proceed.
-
-## Fresh Chat Starter Prompt
+## Fresh chat starter
 
 ```text
 Continue CareAround SG from the active repo only: /Users/sweetbuns/CareAroundSG.
 
-Act as the CareAround SG orchestrator. Before changing anything, read AGENTS.md, docs/regression-ledger.md, docs/release-checklist.md, and docs/session-handoff.md. Then run git status --short --branch and summarize the current branch, dirty files, untracked files, and release risk.
+Act as the CareAround SG orchestrator. Read AGENTS.md,
+docs/regression-ledger.md, docs/session-handoff.md, and
+docs/release-checklist.md, then run git status --short --branch before changing
+anything.
 
-Current context:
-- We are on branch codex/my-map-print-v2-refresh.
-- HEAD is 23810915 Order My Map V2 cards by category.
-- There is uncommitted My Map V2 category/spacing work after that commit.
-- The latest release focus is stable interactive My Map V2 styling: category-colored pills, colored/split inner saved-place pin circles, larger category icons beside category pills, V2 cards with resource name first and address below, and tighter interactive address spacing. Owner print numbering/spreading is KIV and excluded from the release unless explicitly reopened.
-- Classic/stable My Map remains available with ?ui=stable and must not be broken.
-- Shared-map print stays classic until explicitly refreshed.
-- Do not touch auth/session, schema, permissions, postal validation, Discover ranking/filtering/visibility, Gmail/email, GudAuth, secrets, or production data unless I explicitly reopen those areas.
+The persistent Default/Gray map-style release is live. Production serves
+assets/index-Qri8mQ9i.js from Pages deployment
+https://c9114285.senior-resource-map.pages.dev. Default/Gray applies across
+Discover, My Maps, Shared Maps, and print maps. Owner Detailed mode remains
+CCK/W01-only and uses fixed colour or native Gray assets from
+https://maps.carearound.sg/v1/w01 and /v1/w01/gray with zero live tiles during
+an active style switch.
 
-First task:
-1. Confirm the local dirty branch state.
-2. Inspect the V2 My Map files and the regression ledger row around "2026-06-14 My Map V2 preview scaffold".
-3. Help me finish the final visual/UAT gate for http://localhost:5175/my-directory/maps/87?ui=v2.
-4. If localhost is down, restart it with VITE_API_URL=https://api.carearound.sg/api npm run dev --workspace=client -- --host localhost --port 5175.
-5. Do not commit, push, or deploy unless I explicitly ask.
+The user's original worktree is still on codex/ai-cost-governor with unrelated
+dirty AI work. Do not revert, stage, or modify it accidentally. The completed
+map release is on origin/codex/map-style-preference; its isolated worktree is
+/Users/sweetbuns/CareAroundSG-map-style-preference.
 
-If I ask to release, run the final gate from docs/session-handoff.md, stage only the intended files, exclude output/playwright/test-results/.last-run.json, then commit, push, and deploy the Cloudflare Pages client with VITE_API_URL=https://api.carearound.sg/api.
+Recommended next gate: keep Detailed owner-only unless explicitly expanding;
+if approved, evaluate Shared Maps before Discover.
 ```

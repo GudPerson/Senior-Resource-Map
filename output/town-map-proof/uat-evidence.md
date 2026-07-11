@@ -582,6 +582,18 @@ July 11 rerun after the automatic zoom, low-zoom guard, and grayscale preview:
   deterministic at the recorded manifest and chunk-set hashes.
 - Preview: `https://c71aa53a.senior-resource-map.pages.dev` with stable alias
   `https://codex-map-style-preference.senior-resource-map.pages.dev`.
+- Production Pages deployment:
+  `https://c9114285.senior-resource-map.pages.dev`. The custom domain serves
+  `assets/index-Qri8mQ9i.js` and `assets/index-B86VNPto.css`; API health was OK.
+- Fresh production owner UAT showed six colour chunks in Default Detailed, then
+  exactly six newly requested Gray chunks and no live OneMap tiles. The same
+  four pin transforms remained exact, attribution stayed visible, mobile kept
+  two Gray chunks and no live tiles, Discover rendered valid integer
+  `Grey_HD` tiles, and guest Shared Maps rendered 12 `Grey_HD` tiles. Both
+  production browser sessions had zero application warnings or errors.
+- Production smoke completed all five flows. The dashboard resources assertion
+  timed out once and passed on Playwright's configured retry; the other four
+  flows passed immediately.
 
 Screenshots:
 
@@ -593,6 +605,12 @@ Screenshots:
   `output/town-map-proof/release/map-style-preview-mobile-gray-detailed.png`
 - Discover Gray after fractional-step recovery:
   `output/town-map-proof/release/map-style-local-discover-gray-fixed.png`
+- Production desktop Default Detailed:
+  `output/town-map-proof/release/map-style-production-desktop-default-detailed.png`
+- Production desktop Shared Maps Gray:
+  `output/town-map-proof/release/map-style-production-desktop-shared-gray.png`
+- Production mobile Gray Detailed:
+  `output/town-map-proof/release/map-style-production-mobile-gray-detailed.png`
 
 ## Recommendation
 

@@ -862,7 +862,18 @@ Active next recovery family:
   valid integer Discover tiles after the narrow layer-remount correction, zero
   mobile scroll jitter, and a clean guest-browser console. Screenshots and exact
   request evidence are in `output/town-map-proof/uat-evidence.md`. Production
-  deployment evidence is recorded after the final release gate below.
+  Pages deployment `https://c9114285.senior-resource-map.pages.dev` completed;
+  `https://app.carearound.sg` serves `assets/index-Qri8mQ9i.js` and
+  `assets/index-B86VNPto.css`, API health returned OK, and production smoke
+  completed all five flows (dashboard resources passed on its configured retry
+  after one 30-second visibility timeout). Fresh production browser UAT matched
+  the preview: Default Detailed used six colour chunks, Default → Gray requested
+  only six Gray chunks and zero live tiles, all four pin transforms stayed
+  identical, mobile retained two Gray chunks, Discover used valid integer Gray
+  tiles, guest Shared Maps used 12 Gray tiles, attribution remained visible,
+  and both production browser sessions had zero application warnings or errors.
+  No Worker/API deploy, schema, auth, permission, ranking, filtering,
+  visibility, saved-resource, or production-data mutation was made.
 
 ## Recovery workflow
 
