@@ -8,6 +8,10 @@ import {
   normalizeR2Prefix,
   validateW01ManifestBuffer,
 } from "./r2-w01-lib.mjs";
+import {
+  DEFAULT_W01_GRAY_MANIFEST_PATH,
+  validateW01GrayManifestBuffer,
+} from "./r2-w01-gray-lib.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +25,19 @@ test("committed W01 manifest passes the R2 deployment contract", async () => {
   assert.equal(
     validated.manifestSha256,
     "be5f6ed4dfdea33606354f4457aebdc513c0f274f4ea7cb429bdce5d73056c76",
+  );
+});
+
+test("committed Gray W01 manifest passes its isolated R2 deployment contract", async () => {
+  const manifestBuffer = await readFile(DEFAULT_W01_GRAY_MANIFEST_PATH);
+  const validated = validateW01GrayManifestBuffer(manifestBuffer);
+
+  assert.equal(validated.manifest.map.style, "gray");
+  assert.equal(validated.manifest.chunks.length, 88);
+  assert.equal(validated.totalBytes, 48817738);
+  assert.equal(
+    validated.manifestSha256,
+    "58bb3880ee09b9b6bac938545048694b8d6a38728ddaf874db5e606971603640",
   );
 });
 
@@ -49,6 +66,7 @@ test("R2 CORS stays read-only and limited to CareAround release origins", async 
   assert.deepEqual(cors.rules[0].allowed.origins, [
     "https://app.carearound.sg",
     "https://codex-cck-w01-town-map-proof.senior-resource-map.pages.dev",
+    "https://codex-map-style-preference.senior-resource-map.pages.dev",
   ]);
   assert.ok(cors.rules[0].allowed.headers.includes("Cache-Control"));
   assert.ok(cors.rules[0].allowed.headers.includes("Pragma"));

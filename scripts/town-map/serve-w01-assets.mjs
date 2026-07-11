@@ -14,8 +14,14 @@ const DEFAULT_MANIFEST_PATH = path.join(
   REPO_ROOT,
   "output/town-map-proof/assets/v1/w01/manifest.json",
 );
+const DEFAULT_GRAY_MANIFEST_PATH = path.join(
+  REPO_ROOT,
+  "output/town-map-proof/assets/v1/w01/gray/manifest.json",
+);
 const MANIFEST_ROUTE = "/v1/w01/manifest.json";
 const CHUNK_ROUTE_PREFIX = "/v1/w01/chunks/";
+const GRAY_MANIFEST_ROUTE = "/v1/w01/gray/manifest.json";
+const GRAY_CHUNK_ROUTE_PREFIX = "/v1/w01/gray/chunks/";
 const EXPECTED_SCHEMA = "carearound.fixed-town-surface";
 const EXPECTED_SCHEMA_VERSION = 1;
 
@@ -26,8 +32,15 @@ const CHUNK_ROOT = path.join(
   SOURCE_ROOT,
   "output/static-town-maps/production-pilots/chunks/W01-s50-q95",
 );
+const GRAY_CHUNK_ROOT = path.join(
+  SOURCE_ROOT,
+  "output/static-town-maps-grey/assets/chunks/W01-s50-q95",
+);
 const MANIFEST_PATH = path.resolve(
   process.env.TOWN_MAP_MANIFEST_PATH || DEFAULT_MANIFEST_PATH,
+);
+const GRAY_MANIFEST_PATH = path.resolve(
+  process.env.TOWN_MAP_GRAY_MANIFEST_PATH || DEFAULT_GRAY_MANIFEST_PATH,
 );
 const HOST = process.env.TOWN_MAP_ASSET_HOST || "127.0.0.1";
 const PORT = Number(process.env.TOWN_MAP_ASSET_PORT || 4174);
@@ -141,13 +154,8 @@ function hasUnsafeRawPath(requestUrl) {
   return decodedPath.split("/").some((segment) => segment === "." || segment === "..");
 }
 
-async function loadAssets() {
-  invariant(
-    Number.isSafeInteger(PORT) && PORT >= 1 && PORT <= 65535,
-    `Invalid TOWN_MAP_ASSET_PORT: ${process.env.TOWN_MAP_ASSET_PORT}`,
-  );
-
-  const manifestBuffer = await readFile(MANIFEST_PATH);
+async function loadAssets({ manifestPath, chunkRoot, expectedChunkCount, expectedStyle }) {
+  const manifestBuffer = await readFile(manifestPath);
   const manifest = JSON.parse(manifestBuffer.toString("utf8"));
   invariant(
     manifest.schema === EXPECTED_SCHEMA &&
@@ -155,12 +163,12 @@ async function loadAssets() {
     `Expected ${EXPECTED_SCHEMA} v${EXPECTED_SCHEMA_VERSION} manifest`,
   );
   invariant(
-    manifest.map?.id === "W01",
+    manifest.map?.id === "W01" && (manifest.map?.style || "default") === expectedStyle,
     `Expected W01, received ${manifest.map?.id}`,
   );
   invariant(
-    Array.isArray(manifest.chunks) && manifest.chunks.length === 300,
-    "W01 manifest must contain exactly 300 chunks",
+    Array.isArray(manifest.chunks) && manifest.chunks.length === expectedChunkCount,
+    `W01 ${expectedStyle} manifest must contain exactly ${expectedChunkCount} chunks`,
   );
 
   const chunksByFileName = new Map();
@@ -177,7 +185,7 @@ async function loadAssets() {
     );
     invariant(!chunksByFileName.has(fileName), `Duplicate W01 chunk: ${fileName}`);
 
-    const filePath = path.join(CHUNK_ROOT, fileName);
+    const filePath = path.join(chunkRoot, fileName);
     const fileStats = await stat(filePath);
     invariant(fileStats.isFile(), `Missing W01 source chunk: ${fileName}`);
     invariant(
@@ -207,7 +215,24 @@ async function loadAssets() {
 }
 
 async function main() {
-  const assets = await loadAssets();
+  invariant(
+    Number.isSafeInteger(PORT) && PORT >= 1 && PORT <= 65535,
+    `Invalid TOWN_MAP_ASSET_PORT: ${process.env.TOWN_MAP_ASSET_PORT}`,
+  );
+  const [assets, grayAssets] = await Promise.all([
+    loadAssets({
+      manifestPath: MANIFEST_PATH,
+      chunkRoot: CHUNK_ROOT,
+      expectedChunkCount: 300,
+      expectedStyle: "default",
+    }),
+    loadAssets({
+      manifestPath: GRAY_MANIFEST_PATH,
+      chunkRoot: GRAY_CHUNK_ROOT,
+      expectedChunkCount: 88,
+      expectedStyle: "gray",
+    }),
+  ]);
   const server = http.createServer((request, response) => {
     if (request.method === "OPTIONS") {
       setCorsHeaders(response);
@@ -247,14 +272,28 @@ async function main() {
       return;
     }
 
-    if (!pathname.startsWith(CHUNK_ROUTE_PREFIX)) {
+    if (pathname === GRAY_MANIFEST_ROUTE) {
+      sendBuffer(request, response, grayAssets.manifestBuffer, {
+        contentType: "application/json; charset=utf-8",
+        cacheControl: "no-cache",
+        etag: grayAssets.manifestEtag,
+      });
+      return;
+    }
+
+    const chunkRoute = pathname.startsWith(GRAY_CHUNK_ROUTE_PREFIX)
+      ? { prefix: GRAY_CHUNK_ROUTE_PREFIX, assets: grayAssets }
+      : pathname.startsWith(CHUNK_ROUTE_PREFIX)
+        ? { prefix: CHUNK_ROUTE_PREFIX, assets }
+        : null;
+    if (!chunkRoute) {
       sendError(response, 404, "W01 asset not found");
       return;
     }
 
     let fileName;
     try {
-      fileName = decodeURIComponent(pathname.slice(CHUNK_ROUTE_PREFIX.length));
+      fileName = decodeURIComponent(pathname.slice(chunkRoute.prefix.length));
     } catch {
       sendError(response, 400, "Invalid W01 asset path");
       return;
@@ -268,7 +307,7 @@ async function main() {
       return;
     }
 
-    const metadata = assets.chunksByFileName.get(fileName);
+    const metadata = chunkRoute.assets.chunksByFileName.get(fileName);
     if (!metadata) {
       sendError(response, 404, "W01 asset not found");
       return;
@@ -288,9 +327,9 @@ async function main() {
     console.log(
       [
         `W01 asset server: http://${HOST}:${PORT}/v1/w01`,
-        `Manifest: ${MANIFEST_PATH}`,
-        `Source chunks (read-only): ${CHUNK_ROOT}`,
-        `Version: ${assets.manifest.map.version}`,
+        `Default: ${assets.manifest.map.version} (${assets.manifest.chunks.length} chunks)`,
+        `Gray: ${grayAssets.manifest.map.version} (${grayAssets.manifest.chunks.length} chunks)`,
+        `Source chunks remain read-only under ${SOURCE_ROOT}`,
       ].join("\n"),
     );
   });

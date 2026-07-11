@@ -7,9 +7,11 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import OneMapBadge from './OneMapBadge.jsx';
+import MapStyleControl from './MapStyleControl.jsx';
 import DirectoryMapZoomLevelControl from './DirectoryMapZoomLevelControl.jsx';
 import FixedTownSurfaceLayer, { FIXED_TOWN_SURFACE_MIN_ZOOM } from './FixedTownSurfaceLayer.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../assets/home-anchor.png';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
 import {
@@ -18,7 +20,7 @@ import {
     CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
     CAREAROUND_BASEMAP_MIN_ZOOM,
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
-    CAREAROUND_BASEMAP_URL,
+    getCareAroundBasemapUrl,
 } from '../lib/mapTheme.js';
 import {
     buildClusterToken,
@@ -2006,7 +2008,7 @@ export default function DirectoryMap({
     onClusterChange,
     onFocusHandled,
     onResetView,
-    basemapUrl = CAREAROUND_BASEMAP_URL,
+    basemapUrl = '',
     mapMinZoom = CAREAROUND_BASEMAP_MIN_ZOOM,
     showZoomLevelCounter = false,
     minimumZoomCenter = null,
@@ -2024,7 +2026,9 @@ export default function DirectoryMap({
     onFixedTownSurfaceFallback,
     onFixedTownSurfaceMetricsChange,
     mapModeControl = null,
+    showMapStyleControl = interactive,
 }) {
+    const { mapStyle } = useMapStyle();
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
     const tileLoadedRef = useRef(false);
@@ -2034,6 +2038,7 @@ export default function DirectoryMap({
     const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
     const mapInstanceRef = useRef(null);
+    const resolvedBasemapUrl = basemapUrl || getCareAroundBasemapUrl(mapStyle);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const lastCategoryBubbleHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
@@ -2497,10 +2502,10 @@ export default function DirectoryMap({
                     />
                     ) : (
                         <TileLayer
-                            key={`${shouldGateTownRequestedLiveTiles ? 'town-request-live-gated' : 'carearound-live'}:${basemapUrl}`}
+                            key={`${shouldGateTownRequestedLiveTiles ? 'town-request-live-gated' : 'carearound-live'}:${resolvedBasemapUrl}`}
                             attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                         minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
-                        url={basemapUrl}
+                        url={resolvedBasemapUrl}
                         maxZoom={shouldGateTownRequestedLiveTiles
                             ? Math.round(resolvedFixedTownSurfaceMinZoom) - 1
                             : undefined}
@@ -2580,9 +2585,12 @@ export default function DirectoryMap({
                 ) : null}
                 {renderedMarkers}
             </MapContainer>
-            {resolvedMapModeControl ? (
+            {resolvedMapModeControl || showMapStyleControl ? (
                 <div className="absolute left-[52px] right-2 top-14 z-[1002] flex justify-center sm:left-14 sm:right-14 sm:top-3">
-                    {resolvedMapModeControl}
+                    <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
+                        {resolvedMapModeControl}
+                        {showMapStyleControl ? <MapStyleControl /> : null}
+                    </div>
                 </div>
             ) : null}
             <OneMapBadge showLogo={showProviderBadgeLogo} />

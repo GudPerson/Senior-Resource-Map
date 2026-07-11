@@ -53,10 +53,11 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /fixedTownSurfaceFallbackScope === 'local'/);
     assert.match(directoryMapSource, /<FixedTownSurfaceLayer/);
     assert.match(directoryMapSource, /\) : \(\s*<TileLayer/);
-    assert.match(directoryMapSource, /basemapUrl = CAREAROUND_BASEMAP_URL/);
+    assert.match(directoryMapSource, /basemapUrl = ''/);
+    assert.match(directoryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
     assert.match(directoryMapSource, /\['auto', 'town'\]\.includes\(fixedTownBasemapPreference\)/);
     assert.match(directoryMapSource, /town-request-live-gated/);
-    assert.match(directoryMapSource, /:\$\{basemapUrl\}/);
+    assert.match(directoryMapSource, /:\$\{resolvedBasemapUrl\}/);
     assert.match(directoryMapSource, /maxZoom=\{shouldGateTownRequestedLiveTiles/);
     assert.match(directoryMapSource, /fixedTownSurfaceFaultReason === 'viewport-memory-limit'/);
     assert.match(directoryMapSource, /currentTileZoom > fixedTownSurfaceFaultTileZoomRef\.current/);
@@ -67,7 +68,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /minimumZoomCenter = null/);
     assert.match(directoryMapSource, /lockMinimumZoomCamera = false/);
     assert.match(directoryMapSource, /minZoom=\{resolvedMapMinZoom\}/);
-    assert.match(directoryMapSource, /url=\{basemapUrl\}/);
+    assert.match(directoryMapSource, /url=\{resolvedBasemapUrl\}/);
     assert.match(directoryMapSource, /<DirectoryMapZoomLevelControl/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);
 });
@@ -120,16 +121,16 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
 test('town map proof is owner-only, local-flagged, and keeps full owner coverage for fallback', () => {
     assert.match(ownerPageSource, /VITE_TOWN_MAP_PROOF_ENABLED/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_ASSET_BASE_URL/);
-    assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAYSCALE/);
-    assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAYSCALE === 'true'/);
-    assert.match(ownerPageSource, /CAREAROUND_DEFAULT_BASEMAP_URL/);
+    assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
+    assert.match(ownerPageSource, /mapStyle === CAREAROUND_MAP_STYLE_GRAY/);
     assert.match(ownerPageSource, /mapMinZoom=\{TOWN_MAP_PROOF_ENABLED \? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined\}/);
     assert.match(ownerPageSource, /showZoomLevelCounter=\{TOWN_MAP_PROOF_ENABLED\}/);
     assert.match(ownerPageSource, /minimumZoomCenter=\{TOWN_MAP_PROOF_ENABLED \? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null\}/);
     assert.match(ownerPageSource, /TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = \[1\.3521, 103\.846\]/);
     assert.match(ownerPageSource, /lockMinimumZoomCamera=\{TOWN_MAP_PROOF_ENABLED\}/);
     assert.match(ownerPageSource, /preserveMobileMapFrameInFlow=\{TOWN_MAP_PROOF_ENABLED\}/);
-    assert.match(ownerPageSource, /resolveFixedTownManifestUrl\(TOWN_MAP_ASSET_BASE_URL\)/);
+    assert.match(ownerPageSource, /resolveFixedTownManifestUrl\(assetBaseUrl\)/);
+    assert.match(ownerPageSource, /Object\.entries\(assetBaseUrls\)\.forEach/);
     assert.match(ownerPageSource, /buildDirectoryPresentation\(directory, \{ activeAnchor, presentationMode: 'v2-cards' \}\)/);
     assert.match(ownerPageSource, /isPointWithinWsenBounds\(point, nominalBounds\)/);
     assert.match(ownerPageSource, /setBasemapMode\('live'\)/);
@@ -164,4 +165,14 @@ test('owner mode control uses compact layman labels and aligns automatic guidanc
     assert.match(townMapControlSource, /aria-live="polite"/);
     assert.doesNotMatch(townMapControlSource, /\sdisabled=\{!townAvailable\}/);
     assert.match(townMapControlSource, /aria-pressed=\{mode === 'town'\}/);
+});
+
+test('Default and Gray are shared across directory and Discover maps without fractional tile redraws', () => {
+    assert.match(directoryMapSource, /<MapStyleControl/);
+    assert.match(directoryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
+    assert.match(discoveryMapSource, /<MapStyleControl/);
+    assert.match(discoveryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
+    assert.match(discoveryMapSource, /key=\{`carearound-discover:\$\{mapStyle\}`\}/);
+    assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
+    assert.match(ownerPageSource, /fixedTownAssetBaseUrl=\{townMapAssetBaseUrl\}/);
 });

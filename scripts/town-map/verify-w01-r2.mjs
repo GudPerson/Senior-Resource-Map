@@ -7,11 +7,23 @@ import {
   sha256,
   validateW01ManifestBuffer,
 } from "./r2-w01-lib.mjs";
+import {
+  DEFAULT_W01_GRAY_PUBLIC_BASE_URL,
+  validateW01GrayManifestBuffer,
+} from "./r2-w01-gray-lib.mjs";
+
+const STYLE = process.argv.find((argument) => argument.startsWith("--style="))?.slice(8)
+  || process.env.TOWN_MAP_STYLE
+  || "default";
+if (!["default", "gray"].includes(STYLE)) {
+  throw new Error(`Unsupported town-map style: ${STYLE}`);
+}
+const gray = STYLE === "gray";
 
 const BASE_URL = String(
   process.argv.find((argument) => argument.startsWith("--base-url="))?.slice(11) ||
     process.env.TOWN_MAP_PUBLIC_BASE_URL ||
-    DEFAULT_W01_PUBLIC_BASE_URL,
+    (gray ? DEFAULT_W01_GRAY_PUBLIC_BASE_URL : DEFAULT_W01_PUBLIC_BASE_URL),
 ).replace(/\/+$/, "");
 const ORIGIN =
   process.env.TOWN_MAP_VERIFY_ORIGIN || "https://app.carearound.sg";
@@ -59,7 +71,8 @@ async function fetchObject(url, expected, { cors = false } = {}) {
 async function main() {
   const manifestUrl = `${BASE_URL}/manifest.json`;
   const manifestResult = await fetchObject(manifestUrl, {}, { cors: true });
-  const validated = validateW01ManifestBuffer(manifestResult.buffer);
+  const validateManifest = gray ? validateW01GrayManifestBuffer : validateW01ManifestBuffer;
+  const validated = validateManifest(manifestResult.buffer);
   if (![ORIGIN, "*"].includes(manifestResult.corsAllowOrigin)) {
     throw new Error(
       `Manifest CORS did not allow ${ORIGIN}; received ${manifestResult.corsAllowOrigin || "no header"}`,
@@ -104,6 +117,7 @@ async function main() {
     JSON.stringify(
       {
         status: "verified",
+        style: STYLE,
         baseUrl: BASE_URL,
         mapId: validated.manifest.map.id,
         version: validated.manifest.map.version,

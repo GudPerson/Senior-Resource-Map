@@ -821,6 +821,49 @@ Active next recovery family:
   mutation, schema, auth, permission, data, Discover, Shared Maps, print/export,
   ranking, filtering, visibility, or saved-resource change was made.
 
+### 2026-07-12 persistent Default/Gray map colour preference
+
+- Current behavior: a device-level `Default | Gray` control is available on
+  Discover, My Maps, and Shared Maps, persists between routes, and also governs
+  non-interactive print map rendering. Default uses OneMap `Default_HD`; Gray
+  uses native OneMap `Grey_HD`. Owner W01 Detailed mode keeps the existing
+  colour surface for Default and selects the completed native Grey fixed
+  surface for Gray. The two Detailed manifests preload so an active
+  fixed-surface colour switch does not fall through to live OneMap tiles.
+  Standard/Detailed remains a separate owner-only control. Pins, clustering,
+  camera, reset, cards, selection, attribution, full map, ranking, filtering,
+  visibility, and data behavior are unchanged.
+- Reproduction steps: clear the map-style preference and confirm Default on
+  first load; select Gray on Discover and navigate to My Maps and a public
+  Shared Map; verify the selection persists and live tile URLs use `Grey_HD`.
+  On owned W01 map 25 at Detailed zoom, switch Default → Gray and inspect image
+  requests, visible chunk count, marker transforms, selected card/camera state,
+  attribution, console, and failed requests. Repeat at 390 px and overscroll
+  past the final resource card.
+- Acceptance criteria: Default is the safe fallback for missing/invalid stored
+  values; Gray never uses a CSS grayscale filter; Detailed uses only the chosen
+  fixed surface and loads only visible chunks; no live OneMap tile is requested
+  by an active Detailed colour switch; Default/Gray changes do not remount the
+  Leaflet MapContainer or move pins/camera; Discover fractional zoom stays
+  valid; Shared Maps remains guest-readable; mobile controls fit and end-scroll
+  does not oscillate.
+- Verification result: the Gray W01 source validation and source-alignment QA
+  passed. R2 published 88 allowlisted chunks under the isolated
+  `v1/w01/gray` prefix, then the manifest. Public verification matched
+  48,817,738 chunk bytes, manifest SHA-256
+  `58bb3880ee09b9b6bac938545048694b8d6a38728ddaf874db5e606971603640`,
+  and chunk-set SHA-256
+  `5456cd4fb905dccaea7ba7f30610a34750163bff225bfc09634eb370600cb281`;
+  warm-cache delivery was 50.8 ms median and 382.5 ms p95. Preview UAT at
+  `https://codex-map-style-preference.senior-resource-map.pages.dev` showed six
+  desktop chunks (~84.4 MiB decoded) and two mobile chunks (~28.1 MiB decoded),
+  zero live tiles during the preloaded Detailed switch, exact four-pin transform
+  parity between Default and Gray, persistent My Map/Discover/Shared selection,
+  valid integer Discover tiles after the narrow layer-remount correction, zero
+  mobile scroll jitter, and a clean guest-browser console. Screenshots and exact
+  request evidence are in `output/town-map-proof/uat-evidence.md`. Production
+  deployment evidence is recorded after the final release gate below.
+
 ## Recovery workflow
 
 For each regression family:

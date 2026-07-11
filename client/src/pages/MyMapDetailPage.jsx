@@ -17,6 +17,7 @@ import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import {
@@ -27,7 +28,8 @@ import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/direc
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import {
     CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
-    CAREAROUND_DEFAULT_BASEMAP_URL,
+    CAREAROUND_MAP_STYLE_DEFAULT,
+    CAREAROUND_MAP_STYLE_GRAY,
 } from '../lib/mapTheme.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import {
@@ -42,7 +44,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 const MapImageExportButton = lazy(() => import('../components/MapImageExportButton.jsx'));
 const TOWN_MAP_PROOF_ENABLED = import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED === 'true';
 const TOWN_MAP_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_ASSET_BASE_URL || '');
-const TOWN_MAP_GRAYSCALE_ENABLED = import.meta.env.VITE_TOWN_MAP_GRAYSCALE === 'true';
+const TOWN_MAP_GRAY_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL || '');
 const TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = [1.3521, 103.846];
 
 function MapDetailLoadingState() {
@@ -457,6 +459,7 @@ export default function MyMapDetailPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { t } = useLocale();
+    const { mapStyle } = useMapStyle();
     const { savedAssets } = useSavedAssets();
     const [directory, setDirectory] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -480,8 +483,16 @@ export default function MyMapDetailPage() {
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
-    const [townMapManifestState, setTownMapManifestState] = useState({ status: 'idle', manifest: null });
+    const [townMapManifestStates, setTownMapManifestStates] = useState({
+        [CAREAROUND_MAP_STYLE_DEFAULT]: { status: 'idle', manifest: null },
+        [CAREAROUND_MAP_STYLE_GRAY]: { status: 'idle', manifest: null },
+    });
     const [townMapFallbackReason, setTownMapFallbackReason] = useState('');
+    const townMapAssetBaseUrl = mapStyle === CAREAROUND_MAP_STYLE_GRAY
+        ? TOWN_MAP_GRAY_ASSET_BASE_URL
+        : TOWN_MAP_ASSET_BASE_URL;
+    const townMapManifestState = townMapManifestStates[mapStyle]
+        || { status: 'idle', manifest: null };
     const pendingFocusFrameRef = useRef(null);
     const desktopSelectionSnapRef = useRef(null);
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
@@ -526,36 +537,53 @@ export default function MyMapDetailPage() {
     }, [mapId]);
 
     useEffect(() => {
-        if (!TOWN_MAP_PROOF_ENABLED || !TOWN_MAP_ASSET_BASE_URL) {
-            setTownMapManifestState({ status: 'idle', manifest: null });
+        if (!TOWN_MAP_PROOF_ENABLED) {
             return undefined;
         }
 
         const controller = new AbortController();
-        setTownMapManifestState({ status: 'loading', manifest: null });
+        const assetBaseUrls = {
+            [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_ASSET_BASE_URL,
+            [CAREAROUND_MAP_STYLE_GRAY]: TOWN_MAP_GRAY_ASSET_BASE_URL,
+        };
 
-        fetch(resolveFixedTownManifestUrl(TOWN_MAP_ASSET_BASE_URL), {
-            signal: controller.signal,
-            cache: 'no-store',
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`Town map manifest request failed (${response.status}).`);
-                }
-                return response.json();
+        setTownMapManifestStates(Object.fromEntries(
+            Object.entries(assetBaseUrls).map(([style, assetBaseUrl]) => [
+                style,
+                { status: assetBaseUrl ? 'loading' : 'error', manifest: null },
+            ]),
+        ));
+
+        Object.entries(assetBaseUrls).forEach(([style, assetBaseUrl]) => {
+            if (!assetBaseUrl) return;
+            fetch(resolveFixedTownManifestUrl(assetBaseUrl), {
+                signal: controller.signal,
+                cache: 'no-store',
             })
-            .then((payload) => {
-                const manifest = parseFixedTownSurfaceManifest(payload);
-                if (!manifest) {
-                    throw new Error('Town map manifest is invalid.');
-                }
-                setTownMapManifestState({ status: 'ready', manifest });
-            })
-            .catch((error) => {
-                if (error?.name === 'AbortError') return;
-                setTownMapManifestState({ status: 'error', manifest: null });
-                setBasemapMode('live');
-            });
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`Town map manifest request failed (${response.status}).`);
+                    }
+                    return response.json();
+                })
+                .then((payload) => {
+                    const manifest = parseFixedTownSurfaceManifest(payload);
+                    if (!manifest) {
+                        throw new Error('Town map manifest is invalid.');
+                    }
+                    setTownMapManifestStates((current) => ({
+                        ...current,
+                        [style]: { status: 'ready', manifest },
+                    }));
+                })
+                .catch((error) => {
+                    if (error?.name === 'AbortError') return;
+                    setTownMapManifestStates((current) => ({
+                        ...current,
+                        [style]: { status: 'error', manifest: null },
+                    }));
+                });
+        });
 
         return () => controller.abort();
     }, []);
@@ -607,7 +635,7 @@ export default function MyMapDetailPage() {
     }, [townMapCoveragePoints, townMapManifestState.manifest]);
     const townMapAvailable = Boolean(
         TOWN_MAP_PROOF_ENABLED
-        && TOWN_MAP_ASSET_BASE_URL
+        && townMapAssetBaseUrl
         && townMapManifestState.status === 'ready'
         && townMapManifestState.manifest
         && townMapCoveragePoints.length
@@ -645,7 +673,7 @@ export default function MyMapDetailPage() {
                 compactMessage: 'Loading detailed…',
             };
         }
-        if (townMapManifestState.status === 'error' || !TOWN_MAP_ASSET_BASE_URL) {
+        if (townMapManifestState.status === 'error' || !townMapAssetBaseUrl) {
             return {
                 message: 'Detailed map is unavailable. Standard map is still on.',
                 compactMessage: 'Detailed unavailable',
@@ -664,7 +692,7 @@ export default function MyMapDetailPage() {
             };
         }
         return { message: '', compactMessage: '' };
-    }, [townMapFallbackReason, townMapManifestState.status, townMapOutsidePointCount]);
+    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.status, townMapOutsidePointCount]);
 
     const renderTownMapModeControl = useCallback(({
         mode = 'live',
@@ -1062,17 +1090,16 @@ export default function MyMapDetailPage() {
                     )}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                     emptyState={<EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />}
-                    basemapUrl={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_DEFAULT_BASEMAP_URL : undefined}
                     mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                     showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
                     minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                     lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                     basemapMode={basemapMode}
                     fixedTownSurfaceManifest={townMapManifestState.manifest}
-                    fixedTownAssetBaseUrl={TOWN_MAP_ASSET_BASE_URL}
+                    fixedTownAssetBaseUrl={townMapAssetBaseUrl}
                     fixedTownSurfaceAvailable={townMapAvailable}
                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
-                    fixedTownSurfaceGrayscale={TOWN_MAP_GRAYSCALE_ENABLED}
+                    fixedTownSurfaceGrayscale={false}
                     fixedTownSurfaceLockMinZoom={false}
                     fixedTownSurfaceFallbackBelowMinZoom={false}
                     fixedTownSurfaceFallbackScope="local"
@@ -1224,17 +1251,16 @@ export default function MyMapDetailPage() {
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName="h-[42vh] min-h-[400px] max-h-[620px]"
-                                        basemapUrl={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_DEFAULT_BASEMAP_URL : undefined}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                                         showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
                                         minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                                         lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                                         basemapMode={basemapMode}
                                         fixedTownSurfaceManifest={townMapManifestState.manifest}
-                                        fixedTownAssetBaseUrl={TOWN_MAP_ASSET_BASE_URL}
+                                        fixedTownAssetBaseUrl={townMapAssetBaseUrl}
                                         fixedTownSurfaceAvailable={townMapAvailable}
                                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
-                                        fixedTownSurfaceGrayscale={TOWN_MAP_GRAYSCALE_ENABLED}
+                                        fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
                                         fixedTownSurfaceFallbackScope="local"
@@ -1264,17 +1290,16 @@ export default function MyMapDetailPage() {
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
-                                        basemapUrl={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_DEFAULT_BASEMAP_URL : undefined}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                                         showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
                                         minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                                         lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                                         basemapMode={basemapMode}
                                         fixedTownSurfaceManifest={townMapManifestState.manifest}
-                                        fixedTownAssetBaseUrl={TOWN_MAP_ASSET_BASE_URL}
+                                        fixedTownAssetBaseUrl={townMapAssetBaseUrl}
                                         fixedTownSurfaceAvailable={townMapAvailable}
                                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
-                                        fixedTownSurfaceGrayscale={TOWN_MAP_GRAYSCALE_ENABLED}
+                                        fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
                                         fixedTownSurfaceFallbackScope="local"

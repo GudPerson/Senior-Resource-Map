@@ -23,6 +23,10 @@ const GENERATED_MANIFEST_URL = new URL(
     import.meta.url,
 );
 const GENERATED_MANIFEST = JSON.parse(readFileSync(GENERATED_MANIFEST_URL, 'utf8'));
+const GENERATED_GRAY_MANIFEST = JSON.parse(readFileSync(new URL(
+    '../../output/town-map-proof/assets/v1/w01/gray/manifest.json',
+    import.meta.url,
+), 'utf8'));
 
 function buildManifest() {
     return structuredClone(GENERATED_MANIFEST);
@@ -39,6 +43,19 @@ test('fixed town surface manifest accepts the complete v1 contract', () => {
     assert.equal(FIXED_TOWN_SURFACE_SCHEMA_VERSION, 1);
     assert.equal(validateFixedTownSurfaceManifest(manifest), true);
     assert.equal(parseFixedTownSurfaceManifest(manifest), manifest);
+});
+
+test('fixed town surface manifest accepts the completed native Gray W01 edition', () => {
+    assert.equal(validateFixedTownSurfaceManifest(GENERATED_GRAY_MANIFEST), true);
+    assert.equal(parseFixedTownSurfaceManifest(GENERATED_GRAY_MANIFEST), GENERATED_GRAY_MANIFEST);
+
+    const changedStyle = structuredClone(GENERATED_GRAY_MANIFEST);
+    changedStyle.map.style = 'default';
+    assert.equal(validateFixedTownSurfaceManifest(changedStyle), false);
+
+    const changedSource = structuredClone(GENERATED_GRAY_MANIFEST);
+    changedSource.integrity.sourceAlignmentSha256 = '0'.repeat(64);
+    assert.equal(validateFixedTownSurfaceManifest(changedSource), false);
 });
 
 function assertManifestMutationRejected(label, mutate) {

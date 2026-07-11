@@ -11,7 +11,7 @@ const WEB_MERCATOR_WORLD_SIZE = WEB_MERCATOR_TILE_SIZE * (2 ** WEB_MERCATOR_ZOOM
 const WORLD_PIXEL_TOLERANCE = 1e-6;
 const GEOGRAPHIC_TOLERANCE = 1e-9;
 
-const ACCEPTED_W01 = Object.freeze({
+const ACCEPTED_W01_DEFAULT = Object.freeze({
     id: 'W01',
     name: 'Choa Chu Kang Town Family',
     provider: 'OneMap',
@@ -22,6 +22,9 @@ const ACCEPTED_W01 = Object.freeze({
     jpegQuality: 95,
     jpegChromaSubsampling: '4:4:4',
     generatorVersion: 3,
+    mapStyle: 'default',
+    sourceStyle: null,
+    version: 'w01-s50-q95-g3-81bd26441edaff1d',
     profile: 'urban-50',
     profileLabel: '50% z19 residential',
     readabilityPercent: 175,
@@ -75,6 +78,31 @@ const ACCEPTED_W01 = Object.freeze({
         validatedReadabilityPdfSha256: '9ebfbf89efa754102122c681bc25ca0158a055349791c8ed503c786f7bc9ade2',
         embeddedImageStreamSignature: 'e50b42303fb256ae694fd39c3b914526d81459a53e10ee83ab8a732dfb2ce67e',
         extractedTextSignature: '2be2501882971a3efb42cbde00fe3e6f42ce78d7340fd9632a03f023d1f19458',
+    }),
+});
+
+const ACCEPTED_W01_GRAY = Object.freeze({
+    ...ACCEPTED_W01_DEFAULT,
+    generatorVersion: 1,
+    mapStyle: 'gray',
+    sourceStyle: 'Grey',
+    version: 'w01-grey-s50-q95-g1-5456cd4fb905dcca',
+    chunkCount: 88,
+    chunkBytes: 48817738,
+    chunkSetSha256: '5456cd4fb905dccaea7ba7f30610a34750163bff225bfc09634eb370600cb281',
+    chunkGridRetainedPixelDimensions: Object.freeze([19813, 14982]),
+    tileGrid: Object.freeze({
+        columns: 156,
+        rows: 118,
+        sourceTiles: 18408,
+        chunkColumns: 11,
+        chunkRows: 8,
+        chunkCount: 88,
+    }),
+    integrity: Object.freeze({
+        sourceManifestSha256: 'c1f4bd12830ec9659a5d4b3240acd5455555e8282f834d1e9687cbc5f5208d0e',
+        collectionValidationSha256: 'b67566aa234d8fe22cea40f1a1e03f0018b11d6858f86823ead1415811c80b0a',
+        sourceAlignmentSha256: 'a43a0e16458dc15e160968631a3d0c45d3e23f6d27142a2eda6ef52c4ff3718f',
     }),
 });
 
@@ -264,81 +292,83 @@ function parseChunkIdentity(chunk) {
     return { xStart, yStart, xEnd, yEnd };
 }
 
-function hasAcceptedSourceProfile(source) {
+function hasAcceptedSourceProfile(source, accepted) {
     if (!isRecord(source)) return false;
     const readability = source.readability;
-    return source.provider === ACCEPTED_W01.provider
-        && source.crs === ACCEPTED_W01.crs
-        && source.zoom === ACCEPTED_W01.zoom
-        && source.tileSize === ACCEPTED_W01.tileSize
-        && source.retainedScale === ACCEPTED_W01.retainedScale
-        && source.jpegQuality === ACCEPTED_W01.jpegQuality
-        && source.jpegChromaSubsampling === ACCEPTED_W01.jpegChromaSubsampling
-        && source.generatorVersion === ACCEPTED_W01.generatorVersion
-        && source.profile === ACCEPTED_W01.profile
-        && source.profileLabel === ACCEPTED_W01.profileLabel
+    return source.provider === accepted.provider
+        && source.crs === accepted.crs
+        && source.zoom === accepted.zoom
+        && source.tileSize === accepted.tileSize
+        && source.retainedScale === accepted.retainedScale
+        && source.jpegQuality === accepted.jpegQuality
+        && source.jpegChromaSubsampling === accepted.jpegChromaSubsampling
+        && source.generatorVersion === accepted.generatorVersion
+        && source.profile === accepted.profile
+        && source.profileLabel === accepted.profileLabel
+        && (!accepted.sourceStyle || source.style === accepted.sourceStyle)
         && source.onemapNativeLabels === true
         && source.hdbOverlay === false
-        && source.readabilityPercent === ACCEPTED_W01.readabilityPercent
+        && source.readabilityPercent === accepted.readabilityPercent
         && isRecord(readability)
-        && readability.edition === ACCEPTED_W01.readabilityEdition
-        && readability.scaleFactor === ACCEPTED_W01.readabilityScaleFactor
+        && readability.edition === accepted.readabilityEdition
+        && readability.scaleFactor === accepted.readabilityScaleFactor
         && readability.rasterResampled === false
         && readability.embeddedImageStreamsPreserved === true
         && readability.textPreserved === true
         && readability.contentPreserved === true;
 }
 
-function hasAcceptedIntegrity(integrity) {
+function hasAcceptedIntegrity(integrity, accepted) {
     if (
         !isRecord(integrity)
         || integrity.algorithm !== 'sha256'
-        || integrity.chunkSetSha256 !== ACCEPTED_W01.chunkSetSha256
-        || integrity.chunkSetCanonicalization !== ACCEPTED_W01.chunkSetCanonicalization
+        || integrity.chunkSetSha256 !== accepted.chunkSetSha256
+        || integrity.chunkSetCanonicalization !== accepted.chunkSetCanonicalization
     ) {
         return false;
     }
 
-    return Object.entries(ACCEPTED_W01.integrity).every(
+    return Object.entries(accepted.integrity).every(
         ([field, expectedValue]) => integrity[field] === expectedValue,
     );
 }
 
-export function validateFixedTownSurfaceManifest(manifest) {
+function validateFixedTownSurfaceManifestAgainst(manifest, accepted) {
     if (!isRecord(manifest)) return false;
     if (
         manifest.schema !== FIXED_TOWN_SURFACE_SCHEMA
         || manifest.schemaVersion !== FIXED_TOWN_SURFACE_SCHEMA_VERSION
         || !isRecord(manifest.map)
-        || manifest.map.id !== ACCEPTED_W01.id
-        || manifest.map.name !== ACCEPTED_W01.name
-        || manifest.map.version !== `w01-s50-q95-g3-${ACCEPTED_W01.chunkSetSha256.slice(0, 16)}`
+        || manifest.map.id !== accepted.id
+        || manifest.map.name !== accepted.name
+        || (manifest.map.style || 'default') !== accepted.mapStyle
+        || manifest.map.version !== accepted.version
         || !isRecord(manifest.bounds)
         || !readWsenBounds(manifest.bounds.nominal)
         || !readWsenBounds(manifest.bounds.surface)
         || !areBoundsContained(manifest.bounds.nominal, manifest.bounds.surface)
         || !arraysNearlyEqual(
             manifest.bounds.nominal,
-            ACCEPTED_W01.nominalBounds,
+            accepted.nominalBounds,
             GEOGRAPHIC_TOLERANCE,
         )
         || !arraysNearlyEqual(
             manifest.bounds.surface,
-            ACCEPTED_W01.surfaceBounds,
+            accepted.surfaceBounds,
             GEOGRAPHIC_TOLERANCE,
         )
-        || !hasAcceptedSourceProfile(manifest.source)
+        || !hasAcceptedSourceProfile(manifest.source, accepted)
         || !isRecord(manifest.retainedPixelDimensions)
         || !isValidPixelSize(manifest.retainedPixelDimensions.nominal)
         || !isValidPixelSize(manifest.retainedPixelDimensions.chunkGrid)
         || !arraysNearlyEqual(
             manifest.retainedPixelDimensions.nominal,
-            ACCEPTED_W01.nominalRetainedPixelDimensions,
+            accepted.nominalRetainedPixelDimensions,
             0,
         )
         || !arraysNearlyEqual(
             manifest.retainedPixelDimensions.chunkGrid,
-            ACCEPTED_W01.chunkGridRetainedPixelDimensions,
+            accepted.chunkGridRetainedPixelDimensions,
             0,
         )
         || !isRecord(manifest.attribution)
@@ -348,12 +378,12 @@ export function validateFixedTownSurfaceManifest(manifest) {
         || !/OneMap/i.test(manifest.attribution.html)
         || !/Singapore Land Authority/i.test(manifest.attribution.html)
         || !normalizeHttpUrl(manifest.attribution.logoUrl)
-        || !hasAcceptedIntegrity(manifest.integrity)
+        || !hasAcceptedIntegrity(manifest.integrity, accepted)
         || !isRecord(manifest.transport)
         || !Number.isSafeInteger(manifest.transport.chunkCount)
-        || manifest.transport.chunkCount !== ACCEPTED_W01.chunkCount
+        || manifest.transport.chunkCount !== accepted.chunkCount
         || !Number.isSafeInteger(manifest.transport.totalBytes)
-        || manifest.transport.totalBytes !== ACCEPTED_W01.chunkBytes
+        || manifest.transport.totalBytes !== accepted.chunkBytes
         || !Array.isArray(manifest.chunks)
         || manifest.chunks.length !== manifest.transport.chunkCount
     ) {
@@ -370,17 +400,17 @@ export function validateFixedTownSurfaceManifest(manifest) {
         || !isRecord(source.tileGrid)
         || !arraysNearlyEqual(
             source.worldPixelBounds.nominal,
-            ACCEPTED_W01.nominalWorldPixelBounds,
+            accepted.nominalWorldPixelBounds,
             WORLD_PIXEL_TOLERANCE,
         )
         || !arraysNearlyEqual(
             source.worldPixelBounds.surface,
-            ACCEPTED_W01.surfaceWorldPixelBounds,
+            accepted.surfaceWorldPixelBounds,
             0,
         )
         || !arraysNearlyEqual(
             source.nativePixelDimensions,
-            ACCEPTED_W01.nativePixelDimensions,
+            accepted.nativePixelDimensions,
             0,
         )
     ) {
@@ -451,7 +481,7 @@ export function validateFixedTownSurfaceManifest(manifest) {
         - Math.floor(surfaceTop / source.tileSize);
     const tileGrid = source.tileGrid;
     if (
-        !Object.entries(ACCEPTED_W01.tileGrid).every(
+        !Object.entries(accepted.tileGrid).every(
             ([field, expectedValue]) => tileGrid[field] === expectedValue,
         )
         || tileGrid.columns !== expectedTileColumns
@@ -464,7 +494,7 @@ export function validateFixedTownSurfaceManifest(manifest) {
         || tileGrid.chunkCount !== manifest.chunks.length
         || tileGrid.chunkColumns * tileGrid.chunkRows !== manifest.chunks.length
         || manifest.integrity.chunkCount !== manifest.chunks.length
-        || manifest.integrity.chunkBytes !== ACCEPTED_W01.chunkBytes
+        || manifest.integrity.chunkBytes !== accepted.chunkBytes
         || manifest.integrity.chunkBytes !== manifest.transport.totalBytes
     ) {
         return false;
@@ -609,6 +639,13 @@ export function validateFixedTownSurfaceManifest(manifest) {
         chunkGridPixelDimensions,
         0,
     );
+}
+
+export function validateFixedTownSurfaceManifest(manifest) {
+    const accepted = manifest?.map?.style === 'gray'
+        ? ACCEPTED_W01_GRAY
+        : ACCEPTED_W01_DEFAULT;
+    return validateFixedTownSurfaceManifestAgainst(manifest, accepted);
 }
 
 export function parseFixedTownSurfaceManifest(manifest) {

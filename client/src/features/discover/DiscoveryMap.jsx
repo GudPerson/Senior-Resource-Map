@@ -5,7 +5,9 @@ import 'leaflet/dist/leaflet.css';
 import { Minus, Plus } from 'lucide-react';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
+import MapStyleControl from '../../components/MapStyleControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
 import {
@@ -14,7 +16,7 @@ import {
     CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
     CAREAROUND_BASEMAP_MIN_ZOOM,
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
-    CAREAROUND_BASEMAP_URL,
+    getCareAroundBasemapUrl,
 } from '../../lib/mapTheme.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
@@ -590,6 +592,7 @@ export function DiscoveryMap({
     transientPlacePins = [],
     userLocation,
 }) {
+    const { mapStyle } = useMapStyle();
     const emphasisLookup = useMemo(() => pinEmphasisByKey, [pinEmphasisByKey]);
     const renderedPins = useMemo(
         () => [...(renderedSavedPlacePins || savedPlacePins), ...transientPlacePins],
@@ -609,9 +612,10 @@ export function DiscoveryMap({
                 zoomSnap={DISCOVER_ZOOM_SNAP}
             >
                 <TileLayer
+                    key={`carearound-discover:${mapStyle}`}
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                     minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
-                    url={CAREAROUND_BASEMAP_URL}
+                    url={getCareAroundBasemapUrl(mapStyle)}
                     maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
                 />
                 <SavedMapCameraController
@@ -703,6 +707,9 @@ export function DiscoveryMap({
                     </Marker>
                 ) : null}
             </MapContainer>
+            <div className="absolute left-12 right-12 top-2.5 z-[1002] flex justify-center sm:top-3">
+                <MapStyleControl />
+            </div>
             <div className="hidden lg:block">
                 <OneMapBadge />
             </div>

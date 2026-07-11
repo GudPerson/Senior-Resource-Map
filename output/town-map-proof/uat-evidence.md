@@ -543,6 +543,61 @@ July 11 rerun after the automatic zoom, low-zoom guard, and grayscale preview:
   untracked-file trailing-whitespace checks passed.
 - Final local health: client 200, W01 manifest 200, API health 200.
 
+## 2026-07-12 Default/Gray preference release
+
+- One persistent `Default | Gray` preference now applies to Discover, My Maps,
+  Shared Maps, and non-interactive print map rendering. Default resolves to
+  OneMap `Default_HD`; Gray resolves to native OneMap `Grey_HD`.
+- Owner Detailed mode keeps the accepted colour W01 surface for Default and
+  uses the completed native OneMap Grey W01 surface for Gray. Both manifests
+  preload, and switching an active Detailed map fetched only the visible Gray
+  chunks; no live `Default_HD` or `Grey_HD` requests were observed.
+- Gray W01 is published separately at
+  `https://maps.carearound.sg/v1/w01/gray`. Public verification passed all 88
+  chunk hashes and 48,817,738 bytes against manifest SHA-256
+  `58bb3880ee09b9b6bac938545048694b8d6a38728ddaf874db5e606971603640`.
+  Warm-cache delivery measured 50.8 ms median, 382.5 ms p95, and 681.6 ms max.
+- Desktop Default → Gray Detailed alignment was exact: all four CareAround pin
+  transforms were unchanged (`474,292`, `143,193`, `207,210`, `401,291`). The
+  same style switch at focused mobile zoom 18 also preserved every marker
+  transform and the camera zoom.
+- Desktop Gray Detailed retained six visible chunks: 4,023,792 transfer bytes
+  and approximately 84.4 MiB decoded. Mobile retained two visible chunks:
+  1,918,465 transfer bytes and approximately 28.1 MiB decoded. Both remain
+  below the existing 256 MiB fixed-surface guard.
+- The two segmented controls fit on one row at 390 px (`139.06 px` for
+  Standard/Detailed and `110.19 px` for Default/Gray). Mobile end-scroll stayed
+  at `418.5 px` across three samples after an additional downward scroll, for
+  zero measured jitter.
+- Discover UAT found and fixed a Leaflet redraw edge case: changing colour at a
+  fractional camera step initially requested a fractional tile path. Remounting
+  only the Discover TileLayer on preference change retained the camera and
+  restored valid integer Gray tiles (`naturalWidth=256`).
+- Guest Shared Maps showed the same preference control and rendered 12 native
+  `Grey_HD` tiles after selection. Its in-app browser console had zero warnings
+  or errors. Owner preview logs contained only the known unrelated Chrome
+  extension message-channel noise.
+- Full client coverage passed 394/394, full server coverage passed 396/396,
+  and the R2 delivery contract passed 5/5. Gray manifest regeneration remained
+  deterministic at the recorded manifest and chunk-set hashes.
+- Preview: `https://c71aa53a.senior-resource-map.pages.dev` with stable alias
+  `https://codex-map-style-preference.senior-resource-map.pages.dev`.
+
+Screenshots:
+
+- Desktop Default Detailed:
+  `output/town-map-proof/release/map-style-preview-desktop-default-detailed.png`
+- Desktop Gray Detailed:
+  `output/town-map-proof/release/map-style-preview-desktop-gray-detailed.png`
+- Mobile Gray Detailed:
+  `output/town-map-proof/release/map-style-preview-mobile-gray-detailed.png`
+- Discover Gray after fractional-step recovery:
+  `output/town-map-proof/release/map-style-local-discover-gray-fixed.png`
+
 ## Recommendation
 
-Expand to Shared Maps next, not Discover. Shared Maps already shares the DirectoryMap/list interaction stack, so the next proof can validate public/read-only ownership boundaries and multi-resource coverage with a smaller blast radius. Discover adds ranking, filtering, moving search context, and broader coverage behavior, so it should wait until asset hosting, multi-town selection, and mobile full-map memory are settled.
+Keep Detailed fixed-surface cartography owner-only for this release. If its scope
+expands later, add it to Shared Maps before Discover: Shared Maps already uses
+the DirectoryMap interaction stack, while Discover has broader moving-camera,
+ranking, filtering, and islandwide coverage behavior. The Default/Gray colour
+preference itself is now safe across all three surfaces.

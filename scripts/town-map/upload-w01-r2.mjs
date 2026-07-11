@@ -12,6 +12,13 @@ import {
   loadW01R2DeploymentPlan,
   mapWithConcurrency,
 } from "./r2-w01-lib.mjs";
+import {
+  DEFAULT_W01_GRAY_MANIFEST_PATH,
+  DEFAULT_W01_GRAY_R2_BUCKET,
+  DEFAULT_W01_GRAY_R2_PREFIX,
+  DEFAULT_W01_GRAY_SOURCE_ROOT,
+  loadW01GrayR2DeploymentPlan,
+} from "./r2-w01-gray-lib.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "../..");
@@ -23,11 +30,14 @@ function argumentValue(name, fallback) {
   return value ? value.slice(prefix.length) : fallback;
 }
 
-const BUCKET = argumentValue("bucket", process.env.TOWN_MAP_R2_BUCKET || DEFAULT_W01_R2_BUCKET);
-const PREFIX = argumentValue("prefix", process.env.TOWN_MAP_R2_PREFIX || DEFAULT_W01_R2_PREFIX);
+const STYLE = argumentValue("style", process.env.TOWN_MAP_STYLE || "default");
+invariant(["default", "gray"].includes(STYLE), `Unsupported town-map style: ${STYLE}`);
+const gray = STYLE === "gray";
+const BUCKET = argumentValue("bucket", process.env.TOWN_MAP_R2_BUCKET || (gray ? DEFAULT_W01_GRAY_R2_BUCKET : DEFAULT_W01_R2_BUCKET));
+const PREFIX = argumentValue("prefix", process.env.TOWN_MAP_R2_PREFIX || (gray ? DEFAULT_W01_GRAY_R2_PREFIX : DEFAULT_W01_R2_PREFIX));
 const CONCURRENCY = Number(argumentValue("concurrency", process.env.TOWN_MAP_R2_CONCURRENCY || "3"));
-const SOURCE_ROOT = process.env.TOWN_MAP_SOURCE_ROOT || DEFAULT_W01_SOURCE_ROOT;
-const MANIFEST_PATH = process.env.TOWN_MAP_MANIFEST_PATH || DEFAULT_W01_MANIFEST_PATH;
+const SOURCE_ROOT = process.env.TOWN_MAP_SOURCE_ROOT || (gray ? DEFAULT_W01_GRAY_SOURCE_ROOT : DEFAULT_W01_SOURCE_ROOT);
+const MANIFEST_PATH = process.env.TOWN_MAP_MANIFEST_PATH || (gray ? DEFAULT_W01_GRAY_MANIFEST_PATH : DEFAULT_W01_MANIFEST_PATH);
 
 invariant(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(BUCKET), `Unsafe R2 bucket name: ${BUCKET}`);
 invariant(Number.isSafeInteger(CONCURRENCY) && CONCURRENCY >= 1 && CONCURRENCY <= 8, "Concurrency must be between 1 and 8");
@@ -80,13 +90,15 @@ function runWranglerPut(object) {
 }
 
 async function main() {
-  const plan = await loadW01R2DeploymentPlan({
+  const loadPlan = gray ? loadW01GrayR2DeploymentPlan : loadW01R2DeploymentPlan;
+  const plan = await loadPlan({
     manifestPath: MANIFEST_PATH,
     sourceRoot: SOURCE_ROOT,
     prefix: PREFIX,
   });
   const summary = {
     apply: APPLY,
+    style: STYLE,
     bucket: BUCKET,
     prefix: plan.prefix,
     mapId: plan.mapId,
