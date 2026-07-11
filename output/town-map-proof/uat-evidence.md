@@ -2,6 +2,30 @@
 
 Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
 
+## July 11 dormant production client release
+
+- Implementation commit `ba69345ee` was pushed to
+  `codex/cck-w01-town-map-proof`.
+- Cloudflare Pages branch preview:
+  `https://9311acad.senior-resource-map.pages.dev`, with alias
+  `https://codex-cck-w01-town-map-proof.senior-resource-map.pages.dev`.
+- The exact preview bundle was published to the Pages production branch at
+  `https://88ed4e38.senior-resource-map.pages.dev`.
+- `https://app.carearound.sg` serves `assets/index-BasuxQyR.js` and
+  `assets/index-E_ESjyBS.css`; the app root, Discover, an owner-map route, and
+  production API health all returned HTTP 200 after release.
+- The release explicitly omitted every `VITE_TOWN_MAP_*` variable. The deployed
+  bundle contains no local W01 asset URL or Town Map environment name, so the
+  proof is dormant and existing production map behavior is unchanged. No W01
+  chunks were uploaded to Pages or R2.
+- Production smoke completed with four immediate passes and one flaky flow:
+  dashboard resources missed its first 30-second `New Place` visibility check,
+  then passed on the configured retry. Postal import, create-map selection and
+  submission, saved-resource detail, and public app loading passed.
+- No Worker/API deployment, R2 creation, schema bootstrap, authentication,
+  permission, data, ranking, filtering, visibility, or saved-resource change
+  was performed.
+
 ## July 11 wrong-zoom Detailed guidance
 
 - Below zoom level 15, `Detailed` remains visually unavailable but can now be

@@ -751,8 +751,18 @@ Active next recovery family:
   signed-in check at zoom 14 kept 12 live tiles and zero fixed chunks while
   showing the guidance; zoom 15 then cleared it and switched to 20 fixed chunks
   with zero live tiles. Full local evidence is in
-  `output/town-map-proof/uat-evidence.md`. No commit, push, or deploy was
-  performed.
+  `output/town-map-proof/uat-evidence.md`. Release follow-up: implementation
+  commit `ba69345ee` was pushed to `codex/cck-w01-town-map-proof`; Pages preview
+  `https://9311acad.senior-resource-map.pages.dev` and production publish
+  `https://88ed4e38.senior-resource-map.pages.dev` completed; the custom domain
+  serves `assets/index-BasuxQyR.js` and returned 200 for the app, Discover, an
+  owner-map route, and API health. Every `VITE_TOWN_MAP_*` build variable was
+  omitted and the deployed bundle contains no localhost W01 URL, so this proof
+  remains dormant and existing production map behavior is unchanged. Production
+  smoke had four immediate passes and one dashboard-resources flow that passed
+  on retry after a transient 30-second visibility timeout. No Worker/API or R2
+  deployment, schema bootstrap, auth, permission, data, ranking, filtering,
+  visibility, or saved-resource change was performed.
 
 ## Recovery workflow
 
