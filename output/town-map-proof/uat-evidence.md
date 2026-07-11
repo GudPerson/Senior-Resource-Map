@@ -2,7 +2,7 @@
 
 Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
 
-## July 11 Standard fractional-zoom recovery — local, release pending
+## July 11 Standard fractional-zoom recovery and production release
 
 - Production owner map 150 reproduced a blank Standard surface while its
   visible counter showed level 14. Browser inspection found 0 live tiles and 0
@@ -27,9 +27,24 @@ Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
   only the existing large-chunk advisory. `git diff --check` passed. No server
   test was required because no API, server, data, auth, permission, schema, or
   visibility code changed.
-- This recovery is not committed, pushed, or deployed at this evidence point.
-  Production remains on the previously recorded hosted activation until the
-  user explicitly approves the client release.
+- Release follow-up: commit `bbdc37d94` was pushed to
+  `codex/cck-w01-town-map-proof`, and the exact enabled client build was
+  published to the Pages production branch at
+  `https://65925a9b.senior-resource-map.pages.dev`. The custom domain serves
+  `assets/index-Al1p94v0.js`.
+- Fresh signed-in production verification on map 150 rendered 9 Standard tiles
+  at level 14, 20 fixed chunks and 0 live tiles at level 15, then 9 Standard
+  tiles at level 14 again. The first pin's geographic transform returned to the
+  same `translate3d(283px, 102px, 0px)` position. Production map 87 remained
+  healthy with 20 Standard tiles; map 25 remained healthy in Detailed with 6
+  fixed chunks and 0 live tiles.
+- Production API health returned OK and production smoke passed 5/5. Browser
+  logs contained no CareAround application warnings or errors; the only error
+  was an unrelated Chrome-extension content-script load failure present on all
+  three checked tabs.
+- This was a Pages client-only release. No Worker/API deploy, R2 mutation,
+  schema, auth, permission, data, Discover, Shared Maps, print/export, ranking,
+  filtering, visibility, or saved-resource change was performed.
 
 ## July 11 hosted R2 activation and production release
 

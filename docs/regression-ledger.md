@@ -791,7 +791,7 @@ Active next recovery family:
   No Worker/API deploy, schema, auth, permission, data, Discover, Shared Maps,
   print/export, ranking, filtering, visibility, or saved-resource change was
   performed.
-- Standard fractional-step recovery (local, release pending): production owner
+- Standard fractional-step recovery and production release: production owner
   map 150 reproduced a blank Standard surface at a displayed level 14 while
   Detailed remained healthy at the next step. Signed-in inspection found the
   fitted camera was actually at Leaflet zoom 14.30, inside the gap between the
@@ -806,10 +806,20 @@ Active next recovery family:
   25 remained healthy in Detailed with 0 live tiles. Focused coverage passed
   127/127, full client coverage passed 391/391, the exact enabled production
   build passed with the existing large-chunk advisory, and `git diff --check`
-  passed. This recovery is not committed, pushed, or deployed at ledger-write
-  time. No API, Worker, schema, auth, permission, data, Discover, Shared Maps,
-  print/export, ranking, filtering, visibility, or saved-resource change was
-  made.
+  passed. Release follow-up: commit `bbdc37d94` was pushed to
+  `codex/cck-w01-town-map-proof`; Pages production deployment
+  `https://65925a9b.senior-resource-map.pages.dev` completed; and
+  `https://app.carearound.sg` serves `assets/index-Al1p94v0.js`. Fresh signed-in
+  production verification on map 150 rendered 9 Standard tiles at 14, 20 fixed
+  chunks and 0 live tiles at 15, then 9 Standard tiles at 14 again with the
+  first pin returning to the same geographic transform. Map 87 remained healthy
+  with 20 Standard tiles and map 25 remained healthy with 6 fixed chunks and 0
+  live tiles in Detailed. Production API health returned OK and production
+  smoke passed 5/5. Browser logs contained no CareAround application warnings
+  or errors; the only logged error was an unrelated Chrome-extension
+  content-script load failure on all checked tabs. No API/Worker deploy, R2
+  mutation, schema, auth, permission, data, Discover, Shared Maps, print/export,
+  ranking, filtering, visibility, or saved-resource change was made.
 
 ## Recovery workflow
 
