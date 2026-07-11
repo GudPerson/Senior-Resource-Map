@@ -2532,6 +2532,7 @@ export default function SharedMapDirectoryList({
     desktopGridClassName = 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]',
     desktopMapWrapperClassName = '',
     mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2',
+    preserveMobileMapFrameInFlow = false,
     allowPrintLinks = false,
     autoScrollToHighlight = true,
     showDesktopHoverLogo = false,
@@ -2929,9 +2930,10 @@ export default function SharedMapDirectoryList({
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
         const mobileFullMapElement = mobileFullMapOpen ? renderMobileMap?.() : null;
-        const mobileMapFrameClassName = mobileMapListFocused
+        const mobileMapFrameClassName = mobileMapListFocused && !preserveMobileMapFrameInFlow
             ? 'hidden'
             : 'disable-font-scaling [overflow-anchor:none]';
+        const mobileMapLayoutSignature = mobileMapElement?.props?.layoutSignature || 'mobile-map-normal';
         const mobileMapNotesWrapperClassName = `${mobileMapStickyClassName} [overflow-anchor:none]`;
         const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
@@ -2950,7 +2952,9 @@ export default function SharedMapDirectoryList({
                                     onViewSection: handleMobileMapViewSection,
                                     onClusterSelect: handleMobileMapClusterSelect,
                                     mapHeightClassName: mobileMapElement.props?.mapHeightClassName,
-                                    layoutSignature: `${mobileMapElement.props?.layoutSignature || 'mobile-map-normal'}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
+                                    layoutSignature: preserveMobileMapFrameInFlow
+                                        ? mobileMapLayoutSignature
+                                        : `${mobileMapLayoutSignature}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
                                 })}
                                 <button
                                     type="button"

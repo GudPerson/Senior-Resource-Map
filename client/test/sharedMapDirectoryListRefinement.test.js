@@ -119,7 +119,12 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /`\$\{mobileMapStickyClassName\} \[overflow-anchor:none\]`/);
     assert.match(sharedMapDirectorySource, /mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2'/);
     assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: `\$\{mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
+    assert.match(sharedMapDirectorySource, /preserveMobileMapFrameInFlow = false/);
+    assert.match(mobileSource, /mobileMapListFocused && !preserveMobileMapFrameInFlow/);
+    assert.match(mobileSource, /const mobileMapLayoutSignature = mobileMapElement\?\.props\?\.layoutSignature \|\| 'mobile-map-normal'/);
+    assert.match(mobileSource, /layoutSignature: preserveMobileMapFrameInFlow/);
+    assert.match(mobileSource, /\? mobileMapLayoutSignature/);
+    assert.match(mobileSource, /: `\$\{mobileMapLayoutSignature\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
     assert.match(mobileSource, /openMobileFullMap/);
     assert.match(mobileSource, /t\('openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
@@ -178,7 +183,7 @@ test('mobile map keeps the supplied partial-height map without resize state', ()
     );
 
     assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: `\$\{mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
+    assert.match(mobileSource, /layoutSignature: preserveMobileMapFrameInFlow/);
     assert.match(mobileSource, /onViewSection: handleMobileMapViewSection/);
     assert.match(mobileSource, /onClusterSelect: handleMobileMapClusterSelect/);
     assert.doesNotMatch(mobileSource, /transition-\[height,min-height,max-height\]/);

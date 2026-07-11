@@ -34,6 +34,25 @@ export default function MyMapV2PreviewScaffold({
     useDesktopBodyLayout = useDesktopLayout,
     emptyLabel,
     emptyState = null,
+    basemapUrl,
+    mapMinZoom,
+    showZoomLevelCounter = false,
+    minimumZoomCenter = null,
+    lockMinimumZoomCamera = false,
+    basemapMode = 'live',
+    fixedTownSurfaceManifest = null,
+    fixedTownAssetBaseUrl = '',
+    fixedTownSurfaceAvailable,
+    fixedTownSurfaceMinZoom,
+    fixedTownSurfaceGrayscale = false,
+    fixedTownSurfaceLockMinZoom = true,
+    fixedTownSurfaceFallbackBelowMinZoom = true,
+    fixedTownSurfaceFallbackScope = 'global',
+    onBasemapModeChange,
+    onFixedTownSurfaceFallback,
+    onFixedTownSurfaceMetricsChange,
+    mapModeControl = null,
+    preserveMobileMapFrameInFlow = false,
 }) {
     const resourceCount = Number(directory?.summary?.resourceCount || 0);
 
@@ -63,6 +82,24 @@ export default function MyMapV2PreviewScaffold({
             mapHeightClassName={mapHeightClassName}
             layoutSignature="v2-map"
             fitPaddingBottomRight={V2_FIT_PADDING_BOTTOM_RIGHT}
+            basemapUrl={basemapUrl}
+            mapMinZoom={mapMinZoom}
+            showZoomLevelCounter={showZoomLevelCounter}
+            minimumZoomCenter={minimumZoomCenter}
+            lockMinimumZoomCamera={lockMinimumZoomCamera}
+            basemapMode={basemapMode}
+            fixedTownSurfaceManifest={fixedTownSurfaceManifest}
+            fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
+            fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+            fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+            fixedTownSurfaceGrayscale={fixedTownSurfaceGrayscale}
+            fixedTownSurfaceLockMinZoom={fixedTownSurfaceLockMinZoom}
+            fixedTownSurfaceFallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}
+            fixedTownSurfaceFallbackScope={fixedTownSurfaceFallbackScope}
+            onBasemapModeChange={onBasemapModeChange}
+            onFixedTownSurfaceFallback={onFixedTownSurfaceFallback}
+            onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
+            mapModeControl={mapModeControl}
         />
     );
 
@@ -106,6 +143,7 @@ export default function MyMapV2PreviewScaffold({
                         showDesktopHoverLogo
                         showMapLegend={false}
                         cardBadgeMode="logo"
+                        preserveMobileMapFrameInFlow={preserveMobileMapFrameInFlow}
                         desktopScrollTargetRef={desktopScrollTargetRef}
                         desktopGridClassName={V2_DESKTOP_GRID_CLASS}
                         renderDesktopMap={() => renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}

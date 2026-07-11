@@ -10,6 +10,8 @@
     "dev:client": "npm run dev --workspace=client -- --host localhost --port 5173",
     "dev:server": "npm run dev:worker --workspace=server",
     "dev:server:node": "npm run dev:node --workspace=server",
+    "dev:town-map-assets": "node scripts/town-map/serve-w01-assets.mjs",
+    "town-map:manifest": "node scripts/town-map/generate-w01-manifest.mjs",
     "build:client": "npm run build --workspace=client",
     "build:cloudflare": "npm run build:client",
     "deploy:client": "node scripts/validate-cloudflare-client-env.mjs && npm run build --workspace=client && cd client && npx wrangler pages deploy dist --project-name senior-resource-map",

@@ -37,3 +37,18 @@ export function getFocusedDirectoryCameraPins(pins = [], focusedPlaceKeys = []) 
         return pinKeys.some((key) => keySet.has(key));
     });
 }
+
+export function shouldCenterDirectoryMapAtMinimumZoom({
+    previousZoom,
+    currentZoom,
+    minZoom,
+} = {}) {
+    const previous = Number(previousZoom);
+    const current = Number(currentZoom);
+    const minimum = Number(minZoom);
+    return Number.isFinite(previous)
+        && Number.isFinite(current)
+        && Number.isFinite(minimum)
+        && previous > minimum
+        && current <= minimum;
+}

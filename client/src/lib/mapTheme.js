@@ -1,5 +1,6 @@
 export const CAREAROUND_BASEMAP_ATTRIBUTION = '<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> &copy; Singapore Land Authority';
 export const CAREAROUND_BASEMAP_URL = 'https://www.onemap.gov.sg/maps/tiles/Grey_HD/{z}/{x}/{y}.png';
+export const CAREAROUND_DEFAULT_BASEMAP_URL = 'https://www.onemap.gov.sg/maps/tiles/Default_HD/{z}/{x}/{y}.png';
 export const CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM = 11;
 export const CAREAROUND_BASEMAP_MIN_ZOOM = CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM - 1;
 export const CAREAROUND_BASEMAP_NATIVE_ZOOM = 19;

@@ -710,6 +710,50 @@ Completed and locked:
 Active next recovery family:
 - Release smoke and final deployment check
 
+### 2026-07-11 local CCK/W01 fixed-surface owner proof
+
+- Current behavior: behind the local `VITE_TOWN_MAP_PROOF_ENABLED` flag, My Map
+  owner view keeps Leaflet, the existing pins, clustering, selection, camera,
+  reset, cards, and full-map interaction while switching automatically between
+  a OneMap `Default_HD` `Standard` surface and the fixed CCK/W01 `Detailed`
+  surface at zoom level 15. Detailed mode loads only visible geographically
+  positioned W01 image chunks and renders no live OneMap tile images. The
+  repository-wide `Grey_HD` default and all unflagged callers remain unchanged.
+  If an owner selects the unavailable-looking `Detailed` control below level
+  15, the map stays on `Standard` and explains that zooming in to level 15 will
+  turn on Detailed automatically. The guidance clears at the eligible level.
+  The flagged owner proof also keeps the normal mobile map frame in page flow
+  at the end of a short resource list so touch momentum cannot alternate the
+  page height and produce vertical vibration; the shared list component keeps
+  its existing default behavior.
+- Reproduction steps: start the local client with the proof flag and W01 asset
+  base, open an owned `/my-directory/maps/:id`, verify `Standard` below zoom 15
+  and automatic `Detailed` at zoom 15, select `Detailed` at zoom 14 and verify
+  the plain-language guidance without a mode change, inspect tile/chunk
+  requests, focus a card and switch modes, open/close full map, then at mobile
+  width scroll beyond the last resource card and sample map height, page
+  height, and scroll position.
+- Acceptance criteria: Standard uses only `Default_HD` in the flagged owner
+  proof; Detailed shows fixed W01 chunks with zero live OneMap tile images;
+  selecting Detailed below level 15 explains the automatic threshold while
+  leaving Standard active, and the guidance clears when Detailed activates;
+  selection and pin alignment survive mode changes; the normal mobile map and
+  page height do not collapse or oscillate at list end; Discover, Shared Maps,
+  print/export, data, auth, and unflagged live maps are unchanged.
+- Verification result: signed-in mobile UAT showed 6 `Default_HD` images and no
+  `Original_HD`/`Grey_HD` images in Standard, then 6 visible W01 chunks and zero
+  live tile images in Detailed. Before the mobile guard, list focus removed the
+  approximately 300 px map footprint; after the guard, map height stayed
+  298.44 px, page height stayed 1,266 px, and 16 samples over approximately
+  560 ms showed no oscillation. Focused map/My Map coverage passed 126/126,
+  full client coverage passed 390/390, `npm run build:client` passed with only
+  the existing large-chunk advisory, and `git diff --check` passed. A follow-up
+  signed-in check at zoom 14 kept 12 live tiles and zero fixed chunks while
+  showing the guidance; zoom 15 then cleared it and switched to 20 fixed chunks
+  with zero live tiles. Full local evidence is in
+  `output/town-map-proof/uat-evidence.md`. No commit, push, or deploy was
+  performed.
+
 ## Recovery workflow
 
 For each regression family:

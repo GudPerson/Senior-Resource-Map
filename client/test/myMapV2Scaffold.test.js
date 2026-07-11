@@ -72,6 +72,11 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapV2ScaffoldSource, /layout=\{useDesktopBodyLayout \? 'desktop' : 'responsive'\}/);
     assert.match(myMapV2ScaffoldSource, /onHoverPlaceStart=\{onHoverPlaceStart\}/);
     assert.match(myMapV2ScaffoldSource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
+    assert.match(myMapV2ScaffoldSource, /basemapUrl=\{basemapUrl\}/);
+    assert.match(myMapV2ScaffoldSource, /mapMinZoom=\{mapMinZoom\}/);
+    assert.match(myMapV2ScaffoldSource, /showZoomLevelCounter=\{showZoomLevelCounter\}/);
+    assert.match(myMapV2ScaffoldSource, /minimumZoomCenter=\{minimumZoomCenter\}/);
+    assert.match(myMapV2ScaffoldSource, /lockMinimumZoomCamera=\{lockMinimumZoomCamera\}/);
     assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);
     assert.match(myMapDetailPageSource, /const useDesktopOwnerLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
@@ -108,6 +113,8 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.match(myMapDetailPageSource, /renderPdfExportButton=\{renderPdfExportButton\}\s+compactOverlay/);
     assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
     assert.match(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
+    assert.match(myMapV2ScaffoldSource, /preserveMobileMapFrameInFlow=\{preserveMobileMapFrameInFlow\}/);
+    assert.match(myMapDetailPageSource, /preserveMobileMapFrameInFlow=\{TOWN_MAP_PROOF_ENABLED\}/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
