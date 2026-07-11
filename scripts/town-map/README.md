@@ -37,11 +37,10 @@ The accepted source colours are unchanged by default. Set
 comparison; the manifest bytes, hashes, bounds, labels, and attribution remain
 unchanged.
 
-For a normal production client build, omit all `VITE_TOWN_MAP_*` variables. The
-proof then remains dormant and every existing map keeps its current behavior.
-Do not enable the proof in a hosted build until the manifest and chunks have an
-approved public versioned asset URL; never use the local `127.0.0.1` base in a
-deployed client.
+For a dormant or rollback production client build, omit all
+`VITE_TOWN_MAP_*` variables. Every existing map then keeps its unflagged
+behavior. Hosted builds must use the approved versioned R2 base below; never use
+the local `127.0.0.1` base in a deployed client.
 
 The server exposes only:
 
@@ -66,8 +65,8 @@ versioned public base `https://maps.carearound.sg/v1/w01`. The upload remains
 allowlist-only: the 300 accepted JPEGs are read from the source folder and are
 never copied into the CareAround client or repository.
 
-After the account owner enables the R2 subscription, create and configure the
-bucket:
+The account owner enabled R2 on 2026-07-11. The bucket was created and
+configured with:
 
 ```sh
 npx wrangler r2 bucket create carearound-town-map-assets --location apac --storage-class Standard
@@ -99,12 +98,14 @@ bytes, and delivery timings through the custom domain:
 npm run town-map:r2:verify
 ```
 
-Only after that verification passes should a Pages preview be built with:
+After that verification passes, build a Pages preview or production client
+with:
 
 ```sh
 VITE_API_URL=https://api.carearound.sg/api \
 VITE_TOWN_MAP_PROOF_ENABLED=true \
 VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01 \
+VITE_TOWN_MAP_GRAYSCALE=false \
 npm run build:client
 ```
 

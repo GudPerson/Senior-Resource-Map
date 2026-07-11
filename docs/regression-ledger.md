@@ -710,9 +710,9 @@ Completed and locked:
 Active next recovery family:
 - Release smoke and final deployment check
 
-### 2026-07-11 local CCK/W01 fixed-surface owner proof
+### 2026-07-11 CCK/W01 fixed-surface owner proof and hosted activation
 
-- Current behavior: behind the local `VITE_TOWN_MAP_PROOF_ENABLED` flag, My Map
+- Current behavior: behind the build-time `VITE_TOWN_MAP_PROOF_ENABLED` flag, My Map
   owner view keeps Leaflet, the existing pins, clustering, selection, camera,
   reset, cards, and full-map interaction while switching automatically between
   a OneMap `Default_HD` `Standard` surface and the fixed CCK/W01 `Detailed`
@@ -751,7 +751,7 @@ Active next recovery family:
   signed-in check at zoom 14 kept 12 live tiles and zero fixed chunks while
   showing the guidance; zoom 15 then cleared it and switched to 20 fixed chunks
   with zero live tiles. Full local evidence is in
-  `output/town-map-proof/uat-evidence.md`. Release follow-up: implementation
+  `output/town-map-proof/uat-evidence.md`. Dormant release follow-up: implementation
   commit `ba69345ee` was pushed to `codex/cck-w01-town-map-proof`; Pages preview
   `https://9311acad.senior-resource-map.pages.dev` and production publish
   `https://88ed4e38.senior-resource-map.pages.dev` completed; the custom domain
@@ -763,6 +763,34 @@ Active next recovery family:
   on retry after a transient 30-second visibility timeout. No Worker/API or R2
   deployment, schema bootstrap, auth, permission, data, ranking, filtering,
   visibility, or saved-resource change was performed.
+- Hosted activation follow-up: R2 bucket `carearound-town-map-assets` now serves
+  versioned W01 assets at `https://maps.carearound.sg/v1/w01` through an active
+  custom domain with minimum TLS 1.2 and read-only, release-origin CORS. The
+  public verifier passed all 300 chunk hashes and 53,590,423 bytes, matching
+  manifest SHA-256
+  `be5f6ed4dfdea33606354f4457aebdc513c0f274f4ea7cb429bdce5d73056c76`
+  and chunk-set SHA-256
+  `81bd26441edaff1d761f9e395575f8e00b9303f25e1d7896307f7f3036bbc8c6`;
+  chunk delivery measured 40.6 ms median and 652.7 ms p95. Enabled preview
+  `https://ea750ad6.senior-resource-map.pages.dev` passed signed-in desktop,
+  mobile, full-map, mode-swap, threshold, selection, alignment, viewport-culling,
+  memory, end-scroll, clean-console, and zero-live-tile Detailed checks. A
+  non-mutating mocked outside-W01 pin check kept Standard and the resource card
+  visible with no fixed chunks. Exact production build gates passed focused map
+  93/93, full client 390/390, full server 396/396, R2 contract 4/4,
+  `npm run build:client`, and `git diff --check`. Pages production deployment
+  `https://3ceb94d7.senior-resource-map.pages.dev` activated the flag using
+  `https://maps.carearound.sg/v1/w01`; `https://app.carearound.sg` serves
+  `assets/index-Du2wVU3_.js`, production API health returned OK, production
+  smoke passed 5/5, and a fresh signed-in owner check showed 9 R2 chunks, 0 live
+  OneMap tiles, attribution present, and 0 console errors or warnings. The
+  pre-existing external OneMap badge SVG remains blocked by Chromium ORB while
+  its attribution text remains visible. Immediate rollback is a Pages rebuild
+  with all `VITE_TOWN_MAP_*` values omitted; dormant deployment
+  `https://88ed4e38.senior-resource-map.pages.dev` is the verified reference.
+  No Worker/API deploy, schema, auth, permission, data, Discover, Shared Maps,
+  print/export, ranking, filtering, visibility, or saved-resource change was
+  performed.
 
 ## Recovery workflow
 

@@ -2,6 +2,70 @@
 
 Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
 
+## July 11 hosted R2 activation and production release
+
+- Cloudflare R2 bucket `carearound-town-map-assets` now serves the accepted
+  colour W01 surface through the versioned custom-domain base
+  `https://maps.carearound.sg/v1/w01`. The custom domain is active with minimum
+  TLS 1.2; the `r2.dev` development hostname was not enabled.
+- The read-only CORS policy permits only `GET` and `HEAD` from
+  `https://app.carearound.sg` and the stable proof preview alias. It exposes
+  cache, length, range, and ETag response metadata without a wildcard origin.
+- The upload published 300 immutable JPEG chunks before the short-cache
+  manifest. The public verifier downloaded and SHA-256 checked every chunk:
+  300/300 passed, 53,590,423 chunk bytes matched, manifest SHA-256
+  `be5f6ed4dfdea33606354f4457aebdc513c0f274f4ea7cb429bdce5d73056c76`
+  matched, and chunk-set SHA-256
+  `81bd26441edaff1d761f9e395575f8e00b9303f25e1d7896307f7f3036bbc8c6`
+  matched version `w01-s50-q95-g3-81bd26441edaff1d`.
+- Public delivery timing for the full verifier run was 256.6 ms for the
+  manifest and 40.6 ms median / 652.7 ms p95 / 1,576 ms maximum for chunks.
+  Versioned chunks returned immutable cache metadata; the manifest returned
+  `public, max-age=300, must-revalidate`.
+- Enabled branch preview:
+  `https://ea750ad6.senior-resource-map.pages.dev`, with stable alias
+  `https://codex-cck-w01-town-map-proof.senior-resource-map.pages.dev`.
+- Production Pages deployment:
+  `https://3ceb94d7.senior-resource-map.pages.dev`. The production custom domain
+  serves `assets/index-Du2wVU3_.js`, `assets/index-E_ESjyBS.css`, and the
+  owner-map chunk `assets/MyMapDetailPage-DBwVwYUt.js`.
+- Fresh signed-in production verification on owner map 45 found 9 visible R2
+  chunks, 0 live OneMap tile images, a selected `Detailed` control, visible
+  Singapore Land Authority attribution, and 0 console errors or warnings. The
+  only failed external request was the pre-existing OneMap badge SVG blocked by
+  Chromium ORB; attribution text stayed visible and no cartographic tile failed.
+- Standard/Detailed swaps preserved the marker transform and selected resource.
+  At zoom 15, Detailed loaded 30 visible chunks and no live tiles; card focus at
+  deep zoom pruned that to 1 visible chunk. At zoom 14, Standard stayed active,
+  selecting Detailed showed `Zoom in to level 15. Detailed map will turn on
+  automatically.`, and one zoom-in activated Detailed without losing context.
+- A non-mutating mocked owner-response check moved the only pin outside W01.
+  Standard stayed selected, Detailed became unavailable, 0 fixed chunks and 6
+  live tiles rendered, and the resource card remained visible. No production
+  map or resource data was changed for this check.
+- Desktop preview at zoom 15 decoded 30 visible chunks without seams. Mobile
+  normal-map UAT decoded 6 chunks (about 24 MiB); full-map UAT kept the normal
+  map mounted and added 1 focused chunk (about 28 MiB combined), then returned
+  to the list with selection intact. Sixteen end-scroll samples were identical
+  (`scrollY=50`, page height 894 px, map height 284.953 px), so no jitter was
+  observed.
+- Production screenshots:
+  `output/town-map-proof/release/production-desktop-detailed.png` and
+  `output/town-map-proof/release/production-mobile-detailed.png`. Preview
+  full-map evidence remains at
+  `output/playwright/cck-w01-town-map-proof/preview-r2-mobile-full-map-detailed.png`.
+- Final release gates passed: focused map coverage 93/93, full client coverage
+  390/390, full server coverage 396/396, R2 contract coverage 4/4, exact enabled
+  production build (2,385 modules, existing large-chunk advisory only),
+  `git diff --check`, production API health, and production smoke 5/5.
+- Fast rollback remains a Pages rebuild/deploy with every
+  `VITE_TOWN_MAP_*` variable omitted. The last verified dormant deployment is
+  `https://88ed4e38.senior-resource-map.pages.dev`; rollback requires no Worker,
+  schema, data, auth, permission, DNS, or R2 mutation.
+- Blast radius remains client-only and owner-view-only: no Discover, Shared
+  Maps, print/export, API, schema, authentication, permission, ranking,
+  filtering, visibility, or saved-resource behavior changed.
+
 ## July 11 R2 activation preparation
 
 - The intended hosted boundary is the dedicated
@@ -17,10 +81,9 @@ Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
   content types, immutable cache metadata, production-origin CORS, and reports
   manifest and chunk latency percentiles.
 - R2 tooling coverage passed 4/4, the full source dry run passed, script/JSON
-  syntax checks passed, and `git diff --check` passed. Cloudflare account access
-  still returns code `10042` until the account owner completes the R2
-  subscription checkout; no bucket, object, custom domain, DNS, or billing
-  mutation was made while that prerequisite remained unmet.
+  syntax checks passed, and `git diff --check` passed. This preparation gate was
+  later cleared when the account owner enabled R2; the completed hosted rollout
+  is recorded above.
 
 ## July 11 dormant production client release
 
