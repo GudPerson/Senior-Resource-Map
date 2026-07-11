@@ -2,6 +2,26 @@
 
 Initial proof: 2026-07-10; owner refinements: 2026-07-11 (Asia/Singapore)
 
+## July 11 R2 activation preparation
+
+- The intended hosted boundary is the dedicated
+  `carearound-town-map-assets` bucket with versioned object prefix `v1/w01` and
+  public base `https://maps.carearound.sg/v1/w01`.
+- The deployment dry run verifies the committed manifest, the exact 300-file
+  source allowlist, every JPEG size and SHA-256 hash, the 53,590,423-byte total,
+  and chunk-set integrity before any Cloudflare write. Apply mode uploads every
+  immutable chunk first and publishes the five-minute-cache manifest last.
+- The CORS policy is read-only (`GET` and `HEAD`), excludes wildcard origins,
+  and allows only the production app plus the stable proof preview alias.
+- The public verifier downloads and hashes all 300 chunks, checks total bytes,
+  content types, immutable cache metadata, production-origin CORS, and reports
+  manifest and chunk latency percentiles.
+- R2 tooling coverage passed 4/4, the full source dry run passed, script/JSON
+  syntax checks passed, and `git diff --check` passed. Cloudflare account access
+  still returns code `10042` until the account owner completes the R2
+  subscription checkout; no bucket, object, custom domain, DNS, or billing
+  mutation was made while that prerequisite remained unmet.
+
 ## July 11 dormant production client release
 
 - Implementation commit `ba69345ee` was pushed to
