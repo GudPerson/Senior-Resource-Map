@@ -1117,19 +1117,16 @@ export default function MyMapDetailPage() {
         return (
             <div className="min-h-screen bg-white">
                 <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
-                    <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-                        <button
-                            type="button"
-                            onClick={closePrintView}
-                            className="btn-ghost justify-center border border-slate-200 text-slate-700"
-                        >
-                            <ArrowLeft size={16} />
-                            {t('backToInteractiveView')}
-                        </button>
-                        <p className="order-3 w-full text-center text-sm font-semibold text-slate-600 lg:order-none lg:w-auto">
-                            Your saved image and printed copy will match this preview.
-                        </p>
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
+                        <div className="flex flex-wrap items-center justify-start gap-2" data-print-toolbar-actions="true">
+                            <button
+                                type="button"
+                                onClick={closePrintView}
+                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                            >
+                                <ArrowLeft size={16} />
+                                {t('backToInteractiveView')}
+                            </button>
                             <button
                                 type="button"
                                 onClick={resetPrintMap}
@@ -1154,15 +1151,10 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                                 />
                             </Suspense>
-                            <button
-                                type="button"
-                                onClick={() => window.print()}
-                                className="btn-primary justify-center"
-                            >
-                                <Printer size={16} />
-                                {t('print')}
-                            </button>
                         </div>
+                        <p className="w-full text-left text-sm font-semibold text-slate-600 lg:ml-auto lg:w-auto lg:text-right">
+                            Your saved image will match this preview.
+                        </p>
                     </div>
                 </div>
 

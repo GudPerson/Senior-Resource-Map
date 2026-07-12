@@ -1122,6 +1122,24 @@ Active next recovery family:
   The export library emits one non-fatal CSP console notice while resolving its
   data-image placeholder; both downloads complete and render correctly. No
   Worker/API or R2 deployment was performed.
+  Toolbar-alignment follow-up: the owner Print Map toolbar now keeps Back to
+  interactive view, Reset print map, and Save as image together in one
+  left-aligned responsive action group. The redundant in-app Print button is
+  removed; browser/system printing remains available and still uses the same
+  configured preview. The helper copy now describes the saved image only. The
+  map-settings trigger uses a 13 px mobile right inset and the established
+  12 px desktop inset so its centre aligns exactly with the differently sized
+  zoom-control frame. Local signed-in browser UAT at 1440x1000 and 390x844
+  measured a 0 px horizontal-centre delta at both widths, confirmed the Print
+  button absent, kept all remaining actions left-aligned, downloaded the image,
+  preserved exact preview/export state, and found no horizontal overflow or
+  page errors. Focused print/map coverage passed 40/40, full client coverage
+  passed 399/399, full server coverage passed 396/396, the exact
+  Detailed-enabled production build passed with only the existing large-chunk
+  advisory, pre-deploy production smoke passed 5/5, and `git diff --check`
+  passed. No map camera, map data, export state, Shared Map, PDF ledger,
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data behavior is changed.
 
 ## Recovery workflow
 

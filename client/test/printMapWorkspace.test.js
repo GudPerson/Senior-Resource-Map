@@ -79,8 +79,10 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /printMapCaptureKey/);
     assert.match(exportPanelSource, /printMapState=\{printMapState\}/);
     assert.match(printViewSource, /captureReadyKey=\{printMapState \? buildPrintMapCaptureKey\(printMapState\) : ''\}/);
-    assert.match(ownerPageSource, /Your saved image and printed copy will match this preview/);
-    assert.match(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);
+    assert.match(ownerPageSource, /data-print-toolbar-actions="true"/);
+    assert.match(ownerPageSource, /Your saved image will match this preview/);
+    assert.doesNotMatch(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);
+    assert.match(directoryMapSource, /right-\[13px\] top-3 z-\[1002\] lg:right-3/);
 });
 
 test('DirectoryMap controlled print hooks stay optional for Shared Maps and existing callers', () => {

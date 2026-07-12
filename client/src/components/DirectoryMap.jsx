@@ -2718,7 +2718,7 @@ export default function DirectoryMap({
                 {renderedMarkers}
             </MapContainer>
             {resolvedMapModeControl || showMapStyleControl ? (
-                <div className="absolute right-3 top-3 z-[1002]">
+                <div className="absolute right-[13px] top-3 z-[1002] lg:right-3">
                     <MapSettingsControl
                         mapModeControl={resolvedMapModeControl}
                         mapStyleDescription={mapStyleDescription}
