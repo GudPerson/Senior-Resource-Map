@@ -999,6 +999,24 @@ Active next recovery family:
   only expected Cloudflare RUM cancellations, the pre-existing external OneMap
   badge SVG Chromium ORB block, and OneMap tile aborts during camera, viewport,
   style, and route changes.
+- Mobile My Map entry-position follow-up: opening an owner My Map on a phone,
+  including returning from an interactive resource detail with browser Back,
+  now starts at the map and first card instead of restoring the previous
+  card-list offset. A route-key observer in the app shell is limited to mobile
+  `/my-directory/maps/:id` interactive routes; it absorbs Chrome's delayed
+  history scroll restoration for 120 ms and then releases normal page
+  scrolling. Desktop My Map, print view, Shared Maps, Discover, map selection,
+  camera state, card ordering, and resource navigation remain unchanged.
+  Focused map/navigation coverage passed 53/53, full client coverage passed
+  399/399, the production-configured client build passed with only the existing
+  large-chunk advisory, and `git diff --check` passed. Pixel 7 browser UAT
+  forced a 2,156 px pre-navigation scroll offset, opened an interactive
+  resource within the SPA, then used browser Back; My Map returned at scroll
+  position 0 with `data-mobile-map-state="default"`, the map visible, the first
+  card following Map notes, and zero page or application console errors. The
+  local R2 manifest CORS failures remain expected for the `127.0.0.1` origin.
+  No Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data change is included.
 
 ## Recovery workflow
 

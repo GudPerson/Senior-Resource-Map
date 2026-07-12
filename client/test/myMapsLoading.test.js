@@ -16,6 +16,14 @@ const myMapDetailPageSource = readFileSync(
     new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url),
     'utf8',
 );
+const mobileMyMapEntryScrollResetSource = readFileSync(
+    new URL('../src/components/MobileMyMapEntryScrollReset.jsx', import.meta.url),
+    'utf8',
+);
+const appSource = readFileSync(
+    new URL('../src/App.jsx', import.meta.url),
+    'utf8',
+);
 
 test('my maps list retries a transient first load failure', async () => {
     let attempts = 0;
@@ -107,4 +115,17 @@ test('my maps pages use resilient loading helpers', () => {
     assert.match(myMapDetailPageSource, /return `\$\{userId\}:\$\{resolvedMapId\}`/);
     assert.match(myMapDetailPageSource, /const cachedDirectory = getCachedMyMapDetail\(user, mapId\)/);
     assert.match(myMapDetailPageSource, /cacheMyMapDetail\(user, mapId, nextDirectory\)/);
+});
+
+test('mobile My Map entry resets restored card-list scroll before showing the map', () => {
+    assert.match(appSource, /<MobileMyMapEntryScrollReset \/>/);
+    assert.match(mobileMyMapEntryScrollResetSource, /MOBILE_MY_MAP_PATH_PATTERN/);
+    assert.match(mobileMyMapEntryScrollResetSource, /new URLSearchParams\(location\.search\)\.get\('view'\) !== 'print'/);
+    assert.match(mobileMyMapEntryScrollResetSource, /!window\.matchMedia\('\(min-width: 1024px\)'\)\.matches/);
+    assert.match(mobileMyMapEntryScrollResetSource, /window\.scrollTo\(\{ top: 0, left: 0, behavior: 'auto' \}\)/);
+    assert.match(mobileMyMapEntryScrollResetSource, /window\.requestAnimationFrame\(\(\) => \{/);
+    assert.match(mobileMyMapEntryScrollResetSource, /window\.setTimeout\(resetEntryScroll, 50\)/);
+    assert.match(mobileMyMapEntryScrollResetSource, /window\.addEventListener\('scroll', resetEntryScroll, \{ passive: true \}\)/);
+    assert.match(mobileMyMapEntryScrollResetSource, /window\.removeEventListener\('scroll', resetEntryScroll\);[\s\S]*\}, 120\)/);
+    assert.match(mobileMyMapEntryScrollResetSource, /\[location\.key, location\.pathname, location\.search\]/);
 });
