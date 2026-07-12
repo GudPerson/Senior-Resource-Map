@@ -5,9 +5,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-B_XnqLS2.js`
+- Production client bundle: `assets/index-DYIrd1Ol.js`
 - Production client CSS: `assets/index-C_bw69gG.css`
-- Production Pages deployment: `https://1b4ba521.senior-resource-map.pages.dev`
+- Production Pages deployment: `https://aebc0610.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK after the
   client release. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -73,6 +73,11 @@ Last updated: 2026-07-12 (Asia/Singapore)
   Gray uses the accepted native OneMap Grey CCK/W01 fixed surface.
 - Both W01 manifests preload. Switching colour while Detailed is active loads
   only visible fixed chunks and does not fall through to live OneMap tiles.
+- Every production client rebuild must include all four values:
+  `VITE_API_URL=https://api.carearound.sg/api`,
+  `VITE_TOWN_MAP_PROOF_ENABLED=true`, the Default W01 asset base, and the Gray
+  W01 asset base. Omitting the town-map variables intentionally compiles the
+  owner Map detail control out of the bundle and is now rollback-only behavior.
 - Pins, clustering, card focus, camera, reset, selection, full map, attribution,
   outside-coverage fallback, ranking, filtering, visibility, and resource data
   remain unchanged.
@@ -112,6 +117,12 @@ Last updated: 2026-07-12 (Asia/Singapore)
   and reset to 480 px through Home and double click. The 390x844 mobile view
   showed no resize handle. Both environments recorded zero application console
   or page errors.
+- A corrective enabled rebuild restored owner Map detail after the first resize
+  deployment omitted the build-time town-map flag. Production map 45 showed
+  Standard at zoom 14 and automatic Detailed at zoom 15 with 30 fixed chunks,
+  zero visible live tiles, the resize handle present, and zero console/page
+  errors. Default and Gray R2 integrity checks and post-correction smoke 5/5
+  passed.
 
 ## Rollback
 
@@ -138,8 +149,8 @@ docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
 The responsive shared map-settings release is live. Production serves
-assets/index-B_XnqLS2.js from Pages deployment
-https://1b4ba521.senior-resource-map.pages.dev. My Maps and Discover now use
+assets/index-DYIrd1Ol.js from Pages deployment
+https://aebc0610.senior-resource-map.pages.dev. My Maps and Discover now use
 one compact upper-right icon-only Map settings button, an anchored desktop
 popover, and the shared mobile bottom sheet. Default/Gray remains persistent
 across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
@@ -153,6 +164,8 @@ Desktop owner My Maps with mapped resources now have a centred bottom-edge
 resize handle that expands the existing map in place up to 78vh/840 px. It is
 session-only, keyboard accessible, absent on mobile, and preserves the Leaflet
 instance, selection, markers, and camera context.
+Production client builds must retain the enabled `VITE_TOWN_MAP_*` values;
+omitting them hides Map detail and is reserved only for an intentional rollback.
 
 The user's original worktree is still on codex/ai-cost-governor with unrelated
 dirty AI work. Do not revert, stage, or modify it accidentally. The completed

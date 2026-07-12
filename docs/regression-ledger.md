@@ -1062,6 +1062,22 @@ Active next recovery family:
   application console or page errors. Production network inspection found
   only expected route-change/favorites cancellations, Cloudflare RUM aborts,
   and the pre-existing external OneMap badge SVG Chromium ORB block.
+  Corrective build follow-up: the first resize production build at
+  `https://1b4ba521.senior-resource-map.pages.dev` omitted the build-time
+  `VITE_TOWN_MAP_*` values and therefore hid the owner `Map detail` control.
+  No source behavior was removed. The same commit was rebuilt with the locked
+  production flag and both versioned W01 asset bases, then published at
+  `https://aebc0610.senior-resource-map.pages.dev`. The custom domain now serves
+  `assets/index-DYIrd1Ol.js`. Fresh signed-in production UAT on owner map 45
+  confirmed Map detail and Detailed are visible; zoom 14 uses Standard; zoom 15
+  automatically selects Detailed; 30 fixed chunks render with zero live
+  OneMap tiles visible; the desktop resize handle remains available; and the
+  browser recorded zero application console or page errors. Default and Gray
+  R2 verification passed all 300/88 chunks and their manifest/chunk-set hashes,
+  focused map coverage passed 43/43, the exact enabled production build passed,
+  post-correction smoke passed 5/5, and API health returned OK. The release
+  checklist now records all four required production build variables so a
+  normal client rebuild cannot silently disable Detailed again.
 
 ## Recovery workflow
 
