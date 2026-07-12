@@ -5,9 +5,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-Dz8Yaxgj.js`
-- Production client CSS: `assets/index-CXgnAuHp.css`
-- Production Pages deployment: `https://825e09b9.senior-resource-map.pages.dev`
+- Production client bundle: `assets/index-B_XnqLS2.js`
+- Production client CSS: `assets/index-C_bw69gG.css`
+- Production Pages deployment: `https://1b4ba521.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK after the
   client release. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -28,7 +28,8 @@ Last updated: 2026-07-12 (Asia/Singapore)
 - Implementation commits: `e0fbb31a2` (`Unify responsive map settings layout`),
   `430114e9` (`Compact shared map controls`), `4aa119777`
   (`Refine mobile map controls and Back recovery`), and `4f3ea03a5`
-  (`Reset mobile My Map entry position`).
+  (`Reset mobile My Map entry position`), and `5b31f77ce`
+  (`Add accessible desktop My Map resizing`).
 - Branch pushed to `origin/codex/shared-map-settings-layout`.
 - Generated `output/playwright/test-results/` and
   `output/playwright/shared-map-settings-layout/` are local UAT evidence and
@@ -59,6 +60,12 @@ Last updated: 2026-07-12 (Asia/Singapore)
   browser Back from resource detail, instead of restoring the previous
   card-list position. The brief restoration guard is owner-My-Map-only and
   releases normal scrolling after 120 ms.
+- Desktop owner My Maps with mapped resources have a centred bottom-edge
+  resize handle. Dragging expands the existing map in place up to 78vh/840 px;
+  Arrow Up/Down, Home/End, and double-click reset are also supported. The
+  adjustment is session-only and absent from mobile, Discover, Shared Maps,
+  print, and empty maps. The same Leaflet map instance, zoom, selected card,
+  pins, and interaction state remain intact.
 - Default uses OneMap `Default_HD`; Gray uses native OneMap `Grey_HD`.
 - My Map owner `Standard | Detailed` remains a separate control. Detailed stays
   owner-only and activates automatically at zoom 15.
@@ -75,15 +82,13 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 ## Release evidence
 
-- Focused mobile entry/map/navigation checks: 53/53 passed.
-- Full client: 399/399 passed.
+- Focused desktop-resize/map checks: 58/58 passed.
+- Full client: 393/393 passed.
 - Full server: 396/396 passed.
 - Production-configured `npm run build:client`: passed with only the existing
   large-chunk advisory.
 - `git diff --check`: passed.
-- Pre-deploy production smoke completed all five flows after the postal-import
-  check passed its configured retry; its separate targeted rerun passed cleanly.
-  Post-deploy production smoke passed 5/5 without retry.
+- Pre-deploy and post-deploy production smoke both passed 5/5 without retry.
 - Signed-in production browser UAT at 1440x1000 and 390x844 confirmed 34 px
   desktop controls, 30 px mobile controls, the right-side control rail,
   unchanged map bounds while opening settings and changing colour, 0 px
@@ -101,20 +106,26 @@ Last updated: 2026-07-12 (Asia/Singapore)
   resource through SPA navigation, and used browser Back. The map returned at
   scroll 0 with map state `default`, the map visible, and zero console or page
   errors. Post-deploy production smoke passed 5/5.
+- Fresh preview and production desktop UAT expanded owner map 45 from 480 px
+  to 700 px by drag and to its 780 px viewport cap by keyboard, retained its
+  620 px width, the same Leaflet element, marker count, and selected FRCS card,
+  and reset to 480 px through Home and double click. The 390x844 mobile view
+  showed no resize handle. Both environments recorded zero application console
+  or page errors.
 
 ## Rollback
 
-- Previous verified production baseline: commit `745156488`, Pages deployment
-  `https://65b0b64d.senior-resource-map.pages.dev`.
+- Previous verified production baseline: commit `8cdc996cc`, Pages deployment
+  `https://825e09b9.senior-resource-map.pages.dev`.
 - Client rollback does not require an API, schema, data, or R2 mutation. The
   separately versioned Gray objects can remain dormant.
 
 ## Recommended next step
 
-Confirm the corrected top-of-map entry on the user's affected Android device.
-Then monitor the 30 px visual controls for mis-taps; if the rail feels too
-precise, keep the 30 px artwork but expand the effective hit area without
-increasing the visible footprint.
+Try the desktop resize handle on a multi-resource owner map and confirm the
+78vh cap feels sufficient. If users later need the taller size remembered,
+add an explicit device preference only after observing the session-only
+behavior; do not silently persist the experimental height yet.
 
 ## Fresh chat starter
 
@@ -127,8 +138,8 @@ docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
 The responsive shared map-settings release is live. Production serves
-assets/index-Dz8Yaxgj.js from Pages deployment
-https://825e09b9.senior-resource-map.pages.dev. My Maps and Discover now use
+assets/index-B_XnqLS2.js from Pages deployment
+https://1b4ba521.senior-resource-map.pages.dev. My Maps and Discover now use
 one compact upper-right icon-only Map settings button, an anchored desktop
 popover, and the shared mobile bottom sheet. Default/Gray remains persistent
 across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
@@ -138,12 +149,17 @@ wider right-side camera padding. Resource-detail browser Back restores the
 owner map from a user-scoped in-memory snapshot while fresh data loads.
 Mobile owner My Maps also reset delayed browser scroll restoration so every
 entry starts at the map and first card instead of the previous list position.
+Desktop owner My Maps with mapped resources now have a centred bottom-edge
+resize handle that expands the existing map in place up to 78vh/840 px. It is
+session-only, keyboard accessible, absent on mobile, and preserves the Leaflet
+instance, selection, markers, and camera context.
 
 The user's original worktree is still on codex/ai-cost-governor with unrelated
 dirty AI work. Do not revert, stage, or modify it accidentally. The completed
 release is on origin/codex/shared-map-settings-layout; its isolated worktree is
 /Users/sweetbuns/CareAroundSG-shared-map-settings-layout.
 
-Recommended next gate: confirm the corrected top-of-map entry on the affected
-Android device, then keep Detailed owner-only unless explicitly expanding it.
+Recommended next gate: try the resize handle on a multi-resource desktop owner
+map and decide whether the current 78vh cap is sufficient. Keep the height
+session-only until there is evidence that persistence is useful.
 ```

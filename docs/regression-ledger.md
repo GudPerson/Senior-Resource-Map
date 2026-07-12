@@ -1050,6 +1050,18 @@ Active next recovery family:
   expected for the `127.0.0.1` origin and must be rechecked on the production
   custom domain. No Worker/API, R2, schema, auth, permission, ranking,
   filtering, visibility, saved-resource, or production-data change is included.
+  Release follow-up: implementation commit `5b31f77ce` was pushed to
+  `codex/shared-map-settings-layout`; branch preview
+  `https://f841058e.senior-resource-map.pages.dev` and production deployment
+  `https://1b4ba521.senior-resource-map.pages.dev` completed from the same
+  validated build. The custom domain serves `assets/index-B_XnqLS2.js` and
+  `assets/index-C_bw69gG.css`; API health returned OK at
+  `2026-07-12T08:34:57.939Z`; and post-deploy production smoke passed 5/5.
+  Fresh signed-in preview and production UAT repeated every resize, reset,
+  selection, marker, map-identity, width, and mobile-exclusion check with zero
+  application console or page errors. Production network inspection found
+  only expected route-change/favorites cancellations, Cloudflare RUM aborts,
+  and the pre-existing external OneMap badge SVG Chromium ORB block.
 
 ## Recovery workflow
 
