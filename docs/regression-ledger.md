@@ -926,6 +926,17 @@ Active next recovery family:
   OneMap badge SVG Chromium ORB block; attribution text stayed visible. API
   health returned OK. No Worker/API, R2, schema, auth, permission, ranking,
   filtering, visibility, saved-resource, or production-data change was made.
+- Local follow-up candidate, not yet deployed: replace the visible `Map` label
+  with the accessible settings icon, add a current zoom-step indicator to
+  Discover, and place desktop settings, reset, and zoom controls in one compact
+  upper-right rail. My Map keeps the existing intentional reset behavior: the
+  reset/recenter button only appears when there is more than one camera target
+  to fit. Mobile keeps zoom on the left and uses compact 40 px map-control
+  buttons when those controls are available. UI/UX spacing is 8 px between
+  control groups; desktop controls are 34 px. Pre-deploy focused map coverage
+  passed 17/17, full client coverage passed 397/397, full server coverage passed
+  396/396, the production-configured client build passed with only the existing
+  large-chunk advisory, and `git diff --check` passed.
 
 ## Recovery workflow
 

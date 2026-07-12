@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -514,51 +514,71 @@ function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPi
 function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     const map = useMap();
     const { t } = useLocale();
+    const [zoomLevel, setZoomLevel] = useState(() => Math.round(Number(map.getZoom())));
+
+    useEffect(() => {
+        const updateZoomLevel = () => {
+            const nextZoomLevel = Math.round(Number(map.getZoom()));
+            setZoomLevel(Number.isFinite(nextZoomLevel) ? nextZoomLevel : null);
+        };
+
+        updateZoomLevel();
+        map.on('zoom', updateZoomLevel);
+        return () => map.off('zoom', updateZoomLevel);
+    }, [map]);
+
+    const desktopZoomRailDepth = canReset ? 'two' : 'one';
 
     return (
         <>
-            <div className="leaflet-top leaflet-left z-[1000] pointer-events-auto ml-2.5 mt-2.5 absolute left-0 top-0 sm:ml-3 sm:mt-3">
-                <div className="flex flex-col gap-2">
-                    <div className="leaflet-control leaflet-bar border-none shadow-none ml-0 mt-0">
-                        <button
-                            type="button"
-                            title={t('mapZoomIn')}
-                            aria-label={t('mapZoomIn')}
-                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                event.preventDefault();
-                                map.zoomIn();
-                            }}
-                        >
-                            <Plus size={18} />
-                        </button>
+            <div className={`carearound-discovery-zoom-control carearound-discovery-zoom-control--${desktopZoomRailDepth} leaflet-top leaflet-left z-[1000] pointer-events-auto absolute`}>
+                <div className="leaflet-control leaflet-bar m-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:rounded-[10px]">
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        aria-label={zoomLevel === null ? 'Zoom level unavailable' : `Zoom level ${zoomLevel}`}
+                        data-map-zoom-level="true"
+                        className="flex h-7 w-10 select-none items-center justify-center border-b border-slate-200 bg-white text-[11px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:w-8 lg:text-[10px]"
+                        title="Current zoom level"
+                    >
+                        {zoomLevel ?? '—'}
                     </div>
-                    <div className="leaflet-control leaflet-bar border-none shadow-none ml-0 mt-0">
-                        <button
-                            type="button"
-                            title={t('mapZoomOut')}
-                            aria-label={t('mapZoomOut')}
-                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                event.preventDefault();
-                                map.zoomOut();
-                            }}
-                        >
-                            <Minus size={18} />
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        title={t('mapZoomIn')}
+                        aria-label={t('mapZoomIn')}
+                        className="flex h-10 w-10 touch-manipulation items-center justify-center border-b border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            map.zoomIn();
+                        }}
+                    >
+                        <Plus size={18} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        title={t('mapZoomOut')}
+                        aria-label={t('mapZoomOut')}
+                        className="flex h-10 w-10 touch-manipulation items-center justify-center bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            map.zoomOut();
+                        }}
+                    >
+                        <Minus size={18} aria-hidden="true" />
+                    </button>
                 </div>
             </div>
             {canReset ? (
-                <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mr-2.5 mt-2.5 absolute right-0 top-0 sm:mr-3 sm:mt-3">
+                <div className="carearound-discovery-recenter-control leaflet-top leaflet-right z-[1000] pointer-events-auto absolute">
                     <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                         <button
                             type="button"
                             title={t('mapResetView')}
                             aria-label={t('mapResetView')}
-                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                            className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 event.preventDefault();
@@ -712,7 +732,7 @@ export function DiscoveryMap({
                     </Marker>
                 ) : null}
             </MapContainer>
-            <div className={`absolute right-2.5 z-[1002] sm:right-3 ${canResetMap ? 'top-[52px] sm:top-[54px]' : 'top-2.5 sm:top-3'}`}>
+            <div className="absolute right-3 top-3 z-[1002]">
                 <MapSettingsControl showMapStyleControl />
             </div>
             <div className="hidden lg:block">

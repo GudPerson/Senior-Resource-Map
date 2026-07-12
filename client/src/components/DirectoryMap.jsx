@@ -1454,6 +1454,7 @@ function fitDirectoryCamera(map, pins, anchorPoint, {
 
 function DirectoryMapRecenterControl({
     activeAnchor,
+    hasMapSettingsControl = false,
     pins,
     interactive,
     fitPaddingTopLeft,
@@ -1465,15 +1466,18 @@ function DirectoryMapRecenterControl({
     const anchorPoint = normalizeAnchorPoint(activeAnchor);
     const totalPointCount = (pins?.length || 0) + (anchorPoint ? 1 : 0);
     if (!interactive || totalPointCount <= 1) return null;
+    const positionClassName = hasMapSettingsControl
+        ? 'carearound-map-recenter-control--with-settings'
+        : '';
     
     return (
-        <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
+        <div className={`carearound-map-recenter-control ${positionClassName} leaflet-top leaflet-right z-[1000] pointer-events-auto absolute`}>
             <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                 <button
                     type="button"
                     title={t('mapResetView')}
                     aria-label={t('mapResetView')}
-                    className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                    className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -2157,6 +2161,7 @@ export default function DirectoryMap({
     }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const showRecenterControl = interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
+    const hasMapSettingsControl = Boolean(resolvedMapModeControl || showMapStyleControl);
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
         hasReportedReadyRef.current = true;
@@ -2456,6 +2461,14 @@ export default function DirectoryMap({
         className,
         interactive,
     });
+    const mapControlRailDepth = hasMapSettingsControl && showRecenterControl
+        ? 'two'
+        : hasMapSettingsControl || showRecenterControl
+            ? 'one'
+            : 'none';
+    const resolvedContainerClassName = showZoomControl
+        ? `${containerClassName} carearound-map-control-rail carearound-map-control-rail--${mapControlRailDepth}`
+        : containerClassName;
 
     return (
         <div className={frameClassName}>
@@ -2471,7 +2484,7 @@ export default function DirectoryMap({
                 boxZoom={interactive}
                 keyboard={interactive}
                 zoomControl={showZoomControl}
-                className={containerClassName}
+                className={resolvedContainerClassName}
                 attributionControl={showAttribution}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
             >
@@ -2546,6 +2559,7 @@ export default function DirectoryMap({
                 />
                 <DirectoryMapRecenterControl
                     activeAnchor={anchorPoint}
+                    hasMapSettingsControl={hasMapSettingsControl}
                     pins={displayPins}
                     interactive={interactive}
                     fitPaddingTopLeft={fitPaddingTopLeft}
@@ -2588,7 +2602,7 @@ export default function DirectoryMap({
                 {renderedMarkers}
             </MapContainer>
             {resolvedMapModeControl || showMapStyleControl ? (
-                <div className={`absolute right-2.5 z-[1002] sm:right-3 ${showRecenterControl ? 'top-[52px] sm:top-[54px]' : 'top-2.5 sm:top-3'}`}>
+                <div className="absolute right-3 top-3 z-[1002]">
                     <MapSettingsControl
                         mapModeControl={resolvedMapModeControl}
                         showMapStyleControl={showMapStyleControl}

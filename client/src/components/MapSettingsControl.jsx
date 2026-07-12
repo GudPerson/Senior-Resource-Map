@@ -10,7 +10,7 @@ function CloseButton({ onClick }) {
         <button
             type="button"
             aria-label="Close map settings"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-10 lg:w-10"
             onClick={onClick}
         >
             <X size={18} aria-hidden="true" />
@@ -111,12 +111,11 @@ export default function MapSettingsControl({ mapModeControl = null, showMapStyle
                 aria-label="Map settings"
                 aria-expanded={open}
                 aria-haspopup="dialog"
-                className="inline-flex h-11 min-w-[68px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:min-w-[62px] lg:px-2.5 lg:text-[11px]"
+                className="inline-flex h-10 w-10 min-w-10 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white p-0 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:min-w-[34px] lg:rounded-[10px]"
                 title="Map settings"
                 onClick={() => setOpen((current) => !current)}
             >
-                <Settings2 size={17} aria-hidden="true" />
-                <span>Map</span>
+                <Settings2 size={18} aria-hidden="true" />
             </button>
 
             {isDesktop && open ? (

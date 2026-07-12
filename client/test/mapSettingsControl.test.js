@@ -22,11 +22,17 @@ const discoveryMapSource = await readFile(
     new URL('../src/features/discover/DiscoveryMap.jsx', import.meta.url),
     'utf8',
 );
+const globalStylesSource = await readFile(
+    new URL('../src/index.css', import.meta.url),
+    'utf8',
+);
 
 test('one shared Map settings trigger opens responsive map appearance controls', () => {
     assert.match(mapSettingsSource, /data-map-settings-control="true"/);
     assert.match(mapSettingsSource, /aria-label="Map settings"/);
     assert.match(mapSettingsSource, /aria-expanded=\{open\}/);
+    assert.match(mapSettingsSource, /h-10 w-10 min-w-10 touch-manipulation/);
+    assert.doesNotMatch(mapSettingsSource, /<span>Map<\/span>/);
     assert.match(mapSettingsSource, /<MobileBottomSheet/);
     assert.match(mapSettingsSource, /useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(mapSettingsSource, /role="dialog"/);
@@ -54,13 +60,25 @@ test('Directory Map and Discover share settings placement while preserving map i
     assert.match(directoryMapSource, /<MapSettingsControl/);
     assert.match(directoryMapSource, /mapModeControl=\{resolvedMapModeControl\}/);
     assert.match(directoryMapSource, /showMapStyleControl=\{showMapStyleControl\}/);
-    assert.match(directoryMapSource, /showRecenterControl \? 'top-\[52px\]/);
+    assert.match(directoryMapSource, /carearound-map-control-rail--\$\{mapControlRailDepth\}/);
+    assert.match(directoryMapSource, /hasMapSettingsControl=\{hasMapSettingsControl\}/);
+    assert.match(directoryMapSource, /carearound-map-recenter-control--with-settings/);
+    assert.match(directoryMapSource, /totalPointCount <= 1/);
+    assert.match(directoryMapSource, /displayPins\.length \+ \(anchorPoint \? 1 : 0\)\) > 1/);
     assert.doesNotMatch(directoryMapSource, /left-\[52px\] right-2 top-14/);
 
     assert.match(discoveryMapSource, /<MapSettingsControl showMapStyleControl \/>/);
-    assert.match(discoveryMapSource, /leaflet-top leaflet-left/);
-    assert.match(discoveryMapSource, /canResetMap \? 'top-\[52px\]/);
+    assert.match(discoveryMapSource, /data-map-zoom-level="true"/);
+    assert.match(discoveryMapSource, /carearound-discovery-zoom-control--\$\{desktopZoomRailDepth\}/);
+    assert.match(discoveryMapSource, /carearound-discovery-recenter-control/);
     assert.doesNotMatch(discoveryMapSource, /left-12 right-12 top-2\.5/);
+
+    assert.match(globalStylesSource, /\.carearound-map-recenter-control--with-settings/);
+    assert.match(globalStylesSource, /\.carearound-discovery-zoom-control--two/);
+    assert.match(globalStylesSource, /height: 40px !important/);
+    assert.match(globalStylesSource, /top: 60px !important/);
+    assert.match(globalStylesSource, /right: 12px !important/);
+    assert.match(globalStylesSource, /top: 96px !important/);
 
     assert.match(directoryMapSource, /<MapContainer/);
     assert.match(discoveryMapSource, /<MapContainer/);
