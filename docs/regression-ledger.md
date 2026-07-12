@@ -1106,6 +1106,22 @@ Active next recovery family:
   domain. No Worker/API, R2, schema, auth, permission, ranking, filtering,
   visibility, saved-resource, PDF-ledger, Shared Map, or production-data change
   is included.
+  Release follow-up: implementation commit `e031e266f` was pushed to
+  `codex/shared-map-settings-layout`; Cloudflare Pages branch preview deployed
+  `https://a1860626.senior-resource-map.pages.dev` with alias
+  `https://codex-shared-map-settings-la.senior-resource-map.pages.dev`; and the
+  same validated build was explicitly published to production at
+  `https://c39e8088.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-ByfQM4vi.js` and `assets/index-46zy6Sgb.css`; API
+  health returned OK at `2026-07-12T10:20:40.749Z`; and post-deploy production
+  smoke passed 5/5 without retry. Fresh signed-in production UAT on owner map
+  45 confirmed Detailed Default with 9 visible/export chunks and Detailed Gray
+  with 3 visible/export chunks, exact preview/export state parity, successful
+  5920 px-wide PNG downloads for both styles, zero visible live tiles, zero
+  live OneMap tile requests after Detailed was selected, and zero page errors.
+  The export library emits one non-fatal CSP console notice while resolving its
+  data-image placeholder; both downloads complete and render correctly. No
+  Worker/API or R2 deployment was performed.
 
 ## Recovery workflow
 

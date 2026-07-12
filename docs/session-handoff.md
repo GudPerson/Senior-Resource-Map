@@ -5,9 +5,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-DYIrd1Ol.js`
-- Production client CSS: `assets/index-C_bw69gG.css`
-- Production Pages deployment: `https://aebc0610.senior-resource-map.pages.dev`
+- Production client bundle: `assets/index-ByfQM4vi.js`
+- Production client CSS: `assets/index-46zy6Sgb.css`
+- Production Pages deployment: `https://c39e8088.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK after the
   client release. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -29,7 +29,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
   `430114e9` (`Compact shared map controls`), `4aa119777`
   (`Refine mobile map controls and Back recovery`), and `4f3ea03a5`
   (`Reset mobile My Map entry position`), and `5b31f77ce`
-  (`Add accessible desktop My Map resizing`).
+  (`Add accessible desktop My Map resizing`), `a02d14d75`
+  (`Lock enabled Detailed map release build`), and `e031e266f`
+  (`Add configurable owner print map workspace`).
 - Branch pushed to `origin/codex/shared-map-settings-layout`.
 - Generated `output/playwright/test-results/` and
   `output/playwright/shared-map-settings-layout/` are local UAT evidence and
@@ -71,6 +73,12 @@ Last updated: 2026-07-12 (Asia/Singapore)
   owner-only and activates automatically at zoom 15.
 - Detailed Default uses the accepted colour CCK/W01 fixed surface. Detailed
   Gray uses the accepted native OneMap Grey CCK/W01 fixed surface.
+- Owner Print Map is an independent print workspace. It starts from fit all,
+  Standard, and 360 px while carrying only the current Default/Gray preference.
+  Owners can pan, zoom, choose Standard/Detailed and Default/Gray, and resize
+  the print map from 300-720 px. Reset print map restores that safe baseline.
+  Save as image and browser Print use the exact controlled preview state.
+  Shared Map print and the owner PDF ledger retain their existing behavior.
 - Both W01 manifests preload. Switching colour while Detailed is active loads
   only visible fixed chunks and does not fall through to live OneMap tiles.
 - Every production client rebuild must include all four values:
@@ -87,8 +95,8 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 ## Release evidence
 
-- Focused desktop-resize/map checks: 58/58 passed.
-- Full client: 393/393 passed.
+- Focused Print Map/map checks: 44/44 passed.
+- Full client: 399/399 passed.
 - Full server: 396/396 passed.
 - Production-configured `npm run build:client`: passed with only the existing
   large-chunk advisory.
@@ -123,20 +131,28 @@ Last updated: 2026-07-12 (Asia/Singapore)
   zero visible live tiles, the resize handle present, and zero console/page
   errors. Default and Gray R2 integrity checks and post-correction smoke 5/5
   passed.
+- Owner Print Map production UAT on map 45 confirmed identical visible/export
+  state for Standard Gray after camera and height changes, plus Detailed
+  Default and Detailed Gray. Detailed loaded only the 9/3 visible fixed chunks,
+  left zero live map tiles in the map, made zero live OneMap tile requests, and
+  downloaded both 5920 px-wide PNGs successfully. Browser print hides the
+  print-workspace toolbar, the 390x844 layout has no horizontal overflow, and
+  post-deploy smoke passed 5/5. The image library emits one non-fatal CSP notice
+  while resolving its data-image placeholder; the files render correctly.
 
 ## Rollback
 
-- Previous verified production baseline: commit `8cdc996cc`, Pages deployment
-  `https://825e09b9.senior-resource-map.pages.dev`.
+- Previous verified production baseline: commit `a02d14d75`, Pages deployment
+  `https://aebc0610.senior-resource-map.pages.dev`.
 - Client rollback does not require an API, schema, data, or R2 mutation. The
   separately versioned Gray objects can remain dormant.
 
 ## Recommended next step
 
-Try the desktop resize handle on a multi-resource owner map and confirm the
-78vh cap feels sufficient. If users later need the taller size remembered,
-add an explicit device preference only after observing the session-only
-behavior; do not silently persist the experimental height yet.
+Use the owner Print Map workspace across a few real multi-resource maps and
+confirm the independent print baseline is understandable. If that UAT stays
+positive, expand the same controlled-state boundary to Shared Map print next;
+keep Discover and the separate PDF ledger out of that follow-up.
 
 ## Fresh chat starter
 
@@ -148,9 +164,9 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-The responsive shared map-settings release is live. Production serves
-assets/index-DYIrd1Ol.js from Pages deployment
-https://aebc0610.senior-resource-map.pages.dev. My Maps and Discover now use
+The owner Print Map workspace is live. Production serves
+assets/index-ByfQM4vi.js from Pages deployment
+https://c39e8088.senior-resource-map.pages.dev. My Maps and Discover use
 one compact upper-right icon-only Map settings button, an anchored desktop
 popover, and the shared mobile bottom sheet. Default/Gray remains persistent
 across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
@@ -164,6 +180,10 @@ Desktop owner My Maps with mapped resources now have a centred bottom-edge
 resize handle that expands the existing map in place up to 78vh/840 px. It is
 session-only, keyboard accessible, absent on mobile, and preserves the Leaflet
 instance, selection, markers, and camera context.
+Owner print starts independently at fit all, Standard, and 360 px while carrying
+only the Default/Gray preference. Print allows zoom, pan, detail, colour, and a
+300-720 px height. Save as image and browser Print match the configured preview;
+Shared Map print and the owner PDF ledger are unchanged.
 Production client builds must retain the enabled `VITE_TOWN_MAP_*` values;
 omitting them hides Map detail and is reserved only for an intentional rollback.
 
@@ -172,7 +192,7 @@ dirty AI work. Do not revert, stage, or modify it accidentally. The completed
 release is on origin/codex/shared-map-settings-layout; its isolated worktree is
 /Users/sweetbuns/CareAroundSG-shared-map-settings-layout.
 
-Recommended next gate: try the resize handle on a multi-resource desktop owner
-map and decide whether the current 78vh cap is sufficient. Keep the height
-session-only until there is evidence that persistence is useful.
+Recommended next gate: UAT owner Print Map on a few real multi-resource maps.
+If it remains clear and stable, expand the controlled print workspace to Shared
+Map print only; leave Discover and the owner PDF ledger unchanged.
 ```
