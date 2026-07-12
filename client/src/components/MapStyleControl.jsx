@@ -4,8 +4,12 @@ import {
     CAREAROUND_MAP_STYLE_GRAY,
 } from '../lib/mapTheme.js';
 
-export default function MapStyleControl({ className = '', variant = 'overlay' }) {
+export default function MapStyleControl({ className = '', variant = 'overlay', value = null, onChange = null }) {
     const { mapStyle, setMapStyle } = useMapStyle();
+    const resolvedMapStyle = value === CAREAROUND_MAP_STYLE_GRAY
+        ? CAREAROUND_MAP_STYLE_GRAY
+        : (value === CAREAROUND_MAP_STYLE_DEFAULT ? CAREAROUND_MAP_STYLE_DEFAULT : mapStyle);
+    const handleChange = onChange || setMapStyle;
     const isPanel = variant === 'panel';
     const groupClassName = isPanel
         ? 'pointer-events-auto inline-flex w-full rounded-2xl border border-slate-200 bg-slate-50 p-1'
@@ -23,10 +27,10 @@ export default function MapStyleControl({ className = '', variant = 'overlay' })
         >
             <button
                 type="button"
-                aria-pressed={mapStyle === CAREAROUND_MAP_STYLE_DEFAULT}
-                onClick={() => setMapStyle(CAREAROUND_MAP_STYLE_DEFAULT)}
+                aria-pressed={resolvedMapStyle === CAREAROUND_MAP_STYLE_DEFAULT}
+                onClick={() => handleChange(CAREAROUND_MAP_STYLE_DEFAULT)}
                 className={`${optionClassName} ${
-                    mapStyle === CAREAROUND_MAP_STYLE_DEFAULT
+                    resolvedMapStyle === CAREAROUND_MAP_STYLE_DEFAULT
                         ? 'bg-brand-700 text-white shadow-sm'
                         : 'text-slate-600 hover:bg-slate-100'
                 }`}
@@ -35,10 +39,10 @@ export default function MapStyleControl({ className = '', variant = 'overlay' })
             </button>
             <button
                 type="button"
-                aria-pressed={mapStyle === CAREAROUND_MAP_STYLE_GRAY}
-                onClick={() => setMapStyle(CAREAROUND_MAP_STYLE_GRAY)}
+                aria-pressed={resolvedMapStyle === CAREAROUND_MAP_STYLE_GRAY}
+                onClick={() => handleChange(CAREAROUND_MAP_STYLE_GRAY)}
                 className={`${optionClassName} ${
-                    mapStyle === CAREAROUND_MAP_STYLE_GRAY
+                    resolvedMapStyle === CAREAROUND_MAP_STYLE_GRAY
                         ? 'bg-brand-700 text-white shadow-sm'
                         : 'text-slate-600 hover:bg-slate-100'
                 }`}

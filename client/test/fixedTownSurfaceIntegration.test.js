@@ -54,7 +54,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /<FixedTownSurfaceLayer/);
     assert.match(directoryMapSource, /\) : \(\s*<TileLayer/);
     assert.match(directoryMapSource, /basemapUrl = ''/);
-    assert.match(directoryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
+    assert.match(directoryMapSource, /getCareAroundBasemapUrl\(resolvedMapStyle\)/);
     assert.match(directoryMapSource, /\['auto', 'town'\]\.includes\(fixedTownBasemapPreference\)/);
     assert.match(directoryMapSource, /town-request-live-gated/);
     assert.match(directoryMapSource, /:\$\{resolvedBasemapUrl\}/);
@@ -170,7 +170,7 @@ test('owner mode control keeps layman labels and accessible guidance inside map 
 
 test('Default and Gray are shared across directory and Discover maps without fractional tile redraws', () => {
     assert.match(directoryMapSource, /<MapSettingsControl/);
-    assert.match(directoryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
+    assert.match(directoryMapSource, /getCareAroundBasemapUrl\(resolvedMapStyle\)/);
     assert.match(discoveryMapSource, /<MapSettingsControl/);
     assert.match(discoveryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
     assert.match(discoveryMapSource, /key=\{`carearound-discover:\$\{mapStyle\}`\}/);

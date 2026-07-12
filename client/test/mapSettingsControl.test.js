@@ -47,8 +47,9 @@ test('one shared Map settings trigger opens responsive map appearance controls',
 test('map choices use full-width panel variants without changing their state handlers', () => {
     assert.match(mapStyleSource, /variant === 'panel'/);
     assert.match(mapStyleSource, /inline-flex w-full/);
-    assert.match(mapStyleSource, /onClick=\{\(\) => setMapStyle\(CAREAROUND_MAP_STYLE_DEFAULT\)\}/);
-    assert.match(mapStyleSource, /onClick=\{\(\) => setMapStyle\(CAREAROUND_MAP_STYLE_GRAY\)\}/);
+    assert.match(mapStyleSource, /const handleChange = onChange \|\| setMapStyle/);
+    assert.match(mapStyleSource, /onClick=\{\(\) => handleChange\(CAREAROUND_MAP_STYLE_DEFAULT\)\}/);
+    assert.match(mapStyleSource, /onClick=\{\(\) => handleChange\(CAREAROUND_MAP_STYLE_GRAY\)\}/);
     assert.match(townMapControlSource, /variant === 'panel'/);
     assert.match(townMapControlSource, /aria-label="Map detail"/);
     assert.match(townMapControlSource, /onClick=\{handleLiveSelect\}/);

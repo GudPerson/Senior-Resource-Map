@@ -21,6 +21,7 @@ import {
     CAREAROUND_BASEMAP_MIN_ZOOM,
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
     getCareAroundBasemapUrl,
+    normalizeCareAroundMapStyle,
 } from '../lib/mapTheme.js';
 import {
     buildClusterToken,
@@ -1902,6 +1903,43 @@ function DirectoryMapZoomSync({ enabled = false, normalizeStandardZoomBelow = nu
     return null;
 }
 
+function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null }) {
+    const map = useMap();
+
+    useEffect(() => {
+        const lat = Number(value?.center?.[0]);
+        const lng = Number(value?.center?.[1]);
+        const zoom = Number(value?.zoom);
+        if (![lat, lng, zoom].every(Number.isFinite)) return undefined;
+        const currentCenter = map.getCenter();
+        const currentZoom = Number(map.getZoom());
+        const alreadyApplied = (
+            Math.abs(currentCenter.lat - lat) <= 0.0000001
+            && Math.abs(currentCenter.lng - lng) <= 0.0000001
+            && Math.abs(currentZoom - zoom) <= 0.001
+        );
+        if (!alreadyApplied) map.setView([lat, lng], zoom, { animate: false });
+        const settledTimeout = window.setTimeout(() => onSettled?.(), 250);
+        return () => window.clearTimeout(settledTimeout);
+    }, [map, onSettled, value?.center?.[0], value?.center?.[1], value?.zoom]);
+
+    useEffect(() => {
+        if (!onChange) return undefined;
+        const emit = () => {
+            const center = map.getCenter();
+            onChange({ center: [center.lat, center.lng], zoom: Number(map.getZoom()) });
+        };
+        const frame = window.requestAnimationFrame(emit);
+        map.on('moveend zoomend', emit);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            map.off('moveend zoomend', emit);
+        };
+    }, [map, onChange]);
+
+    return null;
+}
+
 function DirectoryMapController({
     activeAnchor,
     pins,
@@ -2066,6 +2104,13 @@ export default function DirectoryMap({
     mapModeControl = null,
     showMapStyleControl = interactive,
     observeFrameResize = false,
+    mapStyleOverride = null,
+    onMapStyleOverrideChange = null,
+    mapStyleDescription = 'Your colour choice is used on every map.',
+    mapHeightPx = null,
+    mapViewState = null,
+    onMapViewStateChange = null,
+    captureReadyKey = '',
 }) {
     const { mapStyle } = useMapStyle();
     const hasReportedReadyRef = useRef(false);
@@ -2078,7 +2123,11 @@ export default function DirectoryMap({
     const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
     const mapInstanceRef = useRef(null);
-    const resolvedBasemapUrl = basemapUrl || getCareAroundBasemapUrl(mapStyle);
+    const resolvedMapStyle = normalizeCareAroundMapStyle(mapStyleOverride ?? mapStyle);
+    const resolvedBasemapUrl = basemapUrl || getCareAroundBasemapUrl(resolvedMapStyle);
+    const resolvedMapHeightPx = Number.isFinite(Number(mapHeightPx)) && Number(mapHeightPx) > 0
+        ? Math.round(Number(mapHeightPx))
+        : null;
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const lastCategoryBubbleHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
@@ -2214,6 +2263,10 @@ export default function DirectoryMap({
         if (!tileLoadedRef.current) return;
         notifyReady();
     }, [notifyReady]);
+    const handleCaptureMapSettled = useCallback(() => {
+        mapSettledRef.current = true;
+        tryNotifyReady();
+    }, [tryNotifyReady]);
 
     useEffect(() => {
         hasReportedReadyRef.current = false;
@@ -2239,7 +2292,18 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [anchorPoint, clusterMarkerMode, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, pins, placeNumberByKey, spreadCoincidentPins]);
+    }, [anchorPoint, captureReadyKey, clusterMarkerMode, effectiveBasemapMode, mapViewState?.center?.[0], mapViewState?.center?.[1], mapViewState?.zoom, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, pins, placeNumberByKey, resolvedMapHeightPx, resolvedMapStyle, spreadCoincidentPins]);
+
+    const handleFixedTownSurfaceMetricsChange = useCallback((metrics) => {
+        onFixedTownSurfaceMetricsChange?.(metrics);
+        if (!onMapReadyForCapture) return;
+        const visibleChunkCount = Number(metrics?.visibleChunkCount || 0);
+        const loadedChunkCount = Number(metrics?.loadedChunkCount || 0);
+        if (visibleChunkCount > 0 && loadedChunkCount >= visibleChunkCount) {
+            tileLoadedRef.current = true;
+            tryNotifyReady();
+        }
+    }, [onFixedTownSurfaceMetricsChange, onMapReadyForCapture, tryNotifyReady]);
 
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
@@ -2507,7 +2571,16 @@ export default function DirectoryMap({
         : containerClassName;
 
     return (
-        <div ref={mapFrameRef} className={frameClassName}>
+        <div
+            ref={mapFrameRef}
+            className={frameClassName}
+            style={resolvedMapHeightPx ? { height: `${resolvedMapHeightPx}px` } : undefined}
+            data-map-style={resolvedMapStyle}
+            data-map-controlled-height={resolvedMapHeightPx || undefined}
+            data-map-controlled-center={mapViewState?.center?.join(',') || undefined}
+            data-map-controlled-zoom={Number.isFinite(Number(mapViewState?.zoom)) ? Number(mapViewState.zoom) : undefined}
+            data-map-basemap-mode={effectiveBasemapMode}
+        >
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
@@ -2546,6 +2619,7 @@ export default function DirectoryMap({
                 />
                 {effectiveBasemapMode === 'town' ? (
                     <FixedTownSurfaceLayer
+                        key={onMapReadyForCapture ? `capture-town:${captureReadyKey}` : 'carearound-town'}
                         manifest={fixedTownSurfaceManifest}
                         assetBaseUrl={fixedTownAssetBaseUrl}
                         minZoom={resolvedFixedTownSurfaceMinZoom}
@@ -2553,11 +2627,11 @@ export default function DirectoryMap({
                         lockMinZoom={fixedTownSurfaceLockMinZoom}
                         fallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}
                         onFallback={handleFixedTownSurfaceFallback}
-                        onMetricsChange={onFixedTownSurfaceMetricsChange}
+                        onMetricsChange={handleFixedTownSurfaceMetricsChange}
                     />
                     ) : (
                         <TileLayer
-                            key={`${shouldGateTownRequestedLiveTiles ? 'town-request-live-gated' : 'carearound-live'}:${resolvedBasemapUrl}`}
+                            key={`${shouldGateTownRequestedLiveTiles ? 'town-request-live-gated' : 'carearound-live'}:${resolvedBasemapUrl}:${onMapReadyForCapture ? captureReadyKey : ''}`}
                             attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                         minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
                         url={resolvedBasemapUrl}
@@ -2592,10 +2666,12 @@ export default function DirectoryMap({
                     fitPaddingTopLeft={fitPaddingTopLeft}
                     fitPaddingBottomRight={fitPaddingBottomRight}
                     onFocusHandled={onFocusHandled}
-                    onMapSettled={onMapReadyForCapture ? () => {
-                        mapSettledRef.current = true;
-                        tryNotifyReady();
-                    } : undefined}
+                    onMapSettled={onMapReadyForCapture ? handleCaptureMapSettled : undefined}
+                />
+                <DirectoryMapViewStateSync
+                    value={mapViewState}
+                    onChange={onMapViewStateChange}
+                    onSettled={onMapReadyForCapture ? handleCaptureMapSettled : null}
                 />
                 <DirectoryMapRecenterControl
                     activeAnchor={anchorPoint}
@@ -2645,6 +2721,9 @@ export default function DirectoryMap({
                 <div className="absolute right-3 top-3 z-[1002]">
                     <MapSettingsControl
                         mapModeControl={resolvedMapModeControl}
+                        mapStyleDescription={mapStyleDescription}
+                        mapStyleValue={mapStyleOverride}
+                        onMapStyleChange={onMapStyleOverrideChange}
                         showMapStyleControl={showMapStyleControl}
                     />
                 </div>

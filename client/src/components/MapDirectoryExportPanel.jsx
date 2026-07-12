@@ -8,6 +8,11 @@ export default function MapDirectoryExportPanel({
     exportWidth,
     onMapReadyForCapture,
     onMapCaptureError,
+    printMapState = null,
+    fixedTownSurfaceManifest = null,
+    fixedTownAssetBaseUrl = '',
+    fixedTownSurfaceAvailable = false,
+    fixedTownSurfaceMinZoom,
 }) {
     return (
         <DirectoryPrintView
@@ -21,6 +26,11 @@ export default function MapDirectoryExportPanel({
             footerNote={directory?.share?.isShared ? 'Open the shared link for the full interactive map.' : ''}
             onMapReadyForCapture={onMapReadyForCapture}
             onMapCaptureError={onMapCaptureError}
+            printMapState={printMapState}
+            fixedTownSurfaceManifest={fixedTownSurfaceManifest}
+            fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
+            fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+            fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
         />
     );
 }

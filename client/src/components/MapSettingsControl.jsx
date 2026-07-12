@@ -18,7 +18,7 @@ function CloseButton({ onClick }) {
     );
 }
 
-function MapSettingsPanelContent({ mapModeControl, panelId, showMapStyleControl }) {
+function MapSettingsPanelContent({ mapModeControl, mapStyleDescription, mapStyleValue, onMapStyleChange, panelId, showMapStyleControl }) {
     return (
         <div id={panelId} className="space-y-5" data-map-settings-panel="true">
             {mapModeControl ? (
@@ -39,10 +39,10 @@ function MapSettingsPanelContent({ mapModeControl, panelId, showMapStyleControl 
                         Map colour
                     </h3>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Your colour choice is used on every map.
+                        {mapStyleDescription}
                     </p>
                     <div className="mt-3">
-                        <MapStyleControl variant="panel" />
+                        <MapStyleControl variant="panel" value={mapStyleValue} onChange={onMapStyleChange} />
                     </div>
                 </section>
             ) : null}
@@ -50,7 +50,13 @@ function MapSettingsPanelContent({ mapModeControl, panelId, showMapStyleControl 
     );
 }
 
-export default function MapSettingsControl({ mapModeControl = null, showMapStyleControl = true }) {
+export default function MapSettingsControl({
+    mapModeControl = null,
+    mapStyleDescription = 'Your colour choice is used on every map.',
+    mapStyleValue = null,
+    onMapStyleChange = null,
+    showMapStyleControl = true,
+}) {
     const [open, setOpen] = useState(false);
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const wrapperRef = useRef(null);
@@ -92,6 +98,9 @@ export default function MapSettingsControl({ mapModeControl = null, showMapStyle
     const panelContent = (
         <MapSettingsPanelContent
             mapModeControl={mapModeControl}
+            mapStyleDescription={mapStyleDescription}
+            mapStyleValue={mapStyleValue}
+            onMapStyleChange={onMapStyleChange}
             panelId={panelId}
             showMapStyleControl={showMapStyleControl}
         />

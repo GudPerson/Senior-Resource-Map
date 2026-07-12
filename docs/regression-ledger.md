@@ -1078,6 +1078,34 @@ Active next recovery family:
   post-correction smoke passed 5/5, and API health returned OK. The release
   checklist now records all four required production build variables so a
   normal client rebuild cannot silently disable Detailed again.
+- Owner Print Map workspace: the private owner `?view=print` route now starts
+  from an independent, safe print baseline: fit-all camera, 360 px map height,
+  and Standard detail, while carrying the user's existing Default/Gray colour
+  preference. Owners can adjust zoom, pan, Standard/Detailed, Default/Gray, and
+  map height from 300-720 px, then reset only the print map. The visible print
+  preview and the hidden Save-as-image surface consume the same controlled
+  camera, colour, detail, height, and fixed 1480 px capture width; browser Print
+  uses that same visible preview. A capture-state key remounts only the hidden
+  export basemap layer, ensuring a fresh tile/chunk readiness event after each
+  visual change without altering interactive My Map behavior. Detailed remains
+  owner-only and auto-applies at zoom 15; selecting it below zoom 15 keeps the
+  request and shows the existing plain-language zoom guidance. Shared Map print
+  callers retain their optional-prop defaults, and the separate owner PDF
+  ledger is unchanged. Reproduction: open an owned map with `?view=print`,
+  change colour, zoom/pan, detail, and height, then compare the preview with
+  Save as image and browser Print; use Reset print map to restore the baseline.
+  Pre-deploy verification passed focused print/map coverage 44/44, full client
+  coverage 399/399, full server coverage 396/396, the exact Detailed-enabled
+  production build with only the existing large-chunk advisory, pre-deploy
+  production smoke 5/5, and `git diff --check`. Signed-in local browser UAT at
+  1440x1000 and 390x844 confirmed identical screen/export state, a successful
+  Gray PNG download after height and camera changes, print-only toolbar hiding,
+  an accessible resize handle, and no horizontal mobile overflow. Local R2
+  manifest CORS failures remain expected for `127.0.0.1`; Detailed Default/Gray
+  capture and network behavior must be rechecked on the production custom
+  domain. No Worker/API, R2, schema, auth, permission, ranking, filtering,
+  visibility, saved-resource, PDF-ledger, Shared Map, or production-data change
+  is included.
 
 ## Recovery workflow
 

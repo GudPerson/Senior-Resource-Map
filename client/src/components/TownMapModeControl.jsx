@@ -8,6 +8,7 @@ export default function TownMapModeControl({
     townUnavailableMessage = '',
     townUnavailableCompactMessage = townUnavailableMessage,
     onModeChange,
+    onUnavailableTownSelect,
     variant = 'overlay',
 }) {
     const [showTownUnavailableMessage, setShowTownUnavailableMessage] = useState(false);
@@ -27,6 +28,7 @@ export default function TownMapModeControl({
     const handleTownSelect = () => {
         if (!townAvailable) {
             setShowTownUnavailableMessage(Boolean(townUnavailableMessage));
+            onUnavailableTownSelect?.();
             return;
         }
         setShowTownUnavailableMessage(false);

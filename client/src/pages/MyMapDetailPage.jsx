@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, X } from 'lucide-react';
+import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, RotateCcw, X } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -40,6 +40,10 @@ import {
 } from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import {
+    createOwnerPrintMapState,
+    resetOwnerPrintMapState,
+} from '../lib/printMapState.js';
 
 const MapImageExportButton = lazy(() => import('../components/MapImageExportButton.jsx'));
 const TOWN_MAP_PROOF_ENABLED = import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED === 'true';
@@ -512,6 +516,7 @@ export default function MyMapDetailPage() {
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
+    const [printMapState, setPrintMapState] = useState(() => createOwnerPrintMapState(mapStyle));
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: { status: 'idle', manifest: null },
         [CAREAROUND_MAP_STYLE_GRAY]: { status: 'idle', manifest: null },
@@ -528,6 +533,7 @@ export default function MyMapDetailPage() {
     const useDesktopDirectoryBodyLayout = useMediaQuery('(min-width: 1024px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
+    const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
     const anchorState = useDirectoryDistanceAnchor({
@@ -583,6 +589,14 @@ export default function MyMapDetailPage() {
         setBasemapMode(TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live');
         setTownMapFallbackReason('');
     }, [mapId]);
+
+    useEffect(() => {
+        const wasPrintView = previousPrintViewRef.current;
+        previousPrintViewRef.current = isPrintView;
+        if (isPrintView && !wasPrintView) {
+            setPrintMapState(createOwnerPrintMapState(mapStyle));
+        }
+    }, [isPrintView, mapStyle]);
 
     useEffect(() => {
         if (!TOWN_MAP_PROOF_ENABLED) {
@@ -689,6 +703,24 @@ export default function MyMapDetailPage() {
         && townMapCoveragePoints.length
         && townMapOutsidePointCount === 0
     );
+    const printTownMapAssetBaseUrl = printMapState.mapStyle === CAREAROUND_MAP_STYLE_GRAY
+        ? TOWN_MAP_GRAY_ASSET_BASE_URL
+        : TOWN_MAP_ASSET_BASE_URL;
+    const printTownMapManifestState = townMapManifestStates[printMapState.mapStyle]
+        || { status: 'idle', manifest: null };
+    const printTownMapOutsidePointCount = useMemo(() => {
+        const nominalBounds = printTownMapManifestState.manifest?.bounds?.nominal;
+        if (!nominalBounds) return 0;
+        return townMapCoveragePoints.filter((point) => !isPointWithinWsenBounds(point, nominalBounds)).length;
+    }, [printTownMapManifestState.manifest, townMapCoveragePoints]);
+    const printTownMapAvailable = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && printTownMapAssetBaseUrl
+        && printTownMapManifestState.status === 'ready'
+        && printTownMapManifestState.manifest
+        && townMapCoveragePoints.length
+        && printTownMapOutsidePointCount === 0
+    );
 
     useEffect(() => {
         if (townMapOutsidePointCount <= 0) return;
@@ -777,6 +809,51 @@ export default function MyMapDetailPage() {
         );
     }, [basemapMode, townMapAvailable, townMapStatus]);
     const mapModeControl = TOWN_MAP_PROOF_ENABLED ? renderTownMapModeControl : null;
+    const renderPrintTownMapModeControl = useCallback(({
+        mode = 'live',
+        townZoomEligible = false,
+        fallbackReason = '',
+        onModeChange,
+        controlVariant = 'overlay',
+    } = {}) => {
+        const wantsDetailed = printMapState.basemapMode === 'auto';
+        const townUnavailableMessage = wantsDetailed && printTownMapAvailable && !townZoomEligible
+            ? `Zoom in to level ${FIXED_TOWN_SURFACE_MIN_ZOOM}. Detailed map will turn on automatically.`
+            : '';
+        const unavailable = printTownMapManifestState.status === 'error'
+            || !printTownMapAssetBaseUrl
+            || printTownMapOutsidePointCount > 0
+            || fallbackReason;
+        const statusMessage = unavailable
+            ? (printTownMapOutsidePointCount > 0
+                ? 'Some places are outside this map area. Standard map is still on.'
+                : 'Detailed map is unavailable. Standard map is still on.')
+            : '';
+        const handleModeChange = (nextMode) => {
+            setPrintMapState((current) => ({
+                ...current,
+                basemapMode: nextMode === 'town' ? 'auto' : 'live',
+            }));
+            onModeChange?.(nextMode);
+        };
+        return (
+            <TownMapModeControl
+                mode={mode}
+                townAvailable={printTownMapAvailable && townZoomEligible}
+                statusMessage={statusMessage}
+                compactStatusMessage={statusMessage}
+                townUnavailableMessage={townUnavailableMessage}
+                townUnavailableCompactMessage={townUnavailableMessage ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.` : ''}
+                onModeChange={handleModeChange}
+                onUnavailableTownSelect={() => {
+                    if (!printTownMapAvailable) return;
+                    setPrintMapState((current) => ({ ...current, basemapMode: 'auto' }));
+                }}
+                variant={controlVariant}
+            />
+        );
+    }, [printMapState.basemapMode, printTownMapAssetBaseUrl, printTownMapAvailable, printTownMapManifestState.status, printTownMapOutsidePointCount]);
+    const printMapModeControl = TOWN_MAP_PROOF_ENABLED ? renderPrintTownMapModeControl : null;
 
     const clearMapSelection = useCallback(() => {
         if (pendingFocusFrameRef.current !== null) {
@@ -986,6 +1063,7 @@ export default function MyMapDetailPage() {
     }, []);
 
     function openPrintView() {
+        setPrintMapState(createOwnerPrintMapState(mapStyle));
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('view', 'print');
         setSearchParams(nextParams);
@@ -995,6 +1073,10 @@ export default function MyMapDetailPage() {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('view');
         setSearchParams(nextParams);
+    }
+
+    function resetPrintMap() {
+        setPrintMapState((current) => resetOwnerPrintMapState(current, mapStyle));
     }
 
     if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
@@ -1035,7 +1117,7 @@ export default function MyMapDetailPage() {
         return (
             <div className="min-h-screen bg-white">
                 <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
-                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+                    <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
                         <button
                             type="button"
                             onClick={closePrintView}
@@ -1044,13 +1126,43 @@ export default function MyMapDetailPage() {
                             <ArrowLeft size={16} />
                             {t('backToInteractiveView')}
                         </button>
-                        <Suspense fallback={(
-                            <span className="btn-ghost justify-center border border-slate-200 text-slate-500">
-                                {t('loadingPage')}
-                            </span>
-                        )}>
-                            <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={sharedDirectoryUrl} />
-                        </Suspense>
+                        <p className="order-3 w-full text-center text-sm font-semibold text-slate-600 lg:order-none lg:w-auto">
+                            Your saved image and printed copy will match this preview.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={resetPrintMap}
+                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                            >
+                                <RotateCcw size={16} />
+                                Reset print map
+                            </button>
+                            <Suspense fallback={(
+                                <span className="btn-ghost justify-center border border-slate-200 text-slate-500">
+                                    {t('loadingPage')}
+                                </span>
+                            )}>
+                                <MapImageExportButton
+                                    directory={directory}
+                                    activeAnchor={activeAnchor}
+                                    shareUrl={sharedDirectoryUrl}
+                                    printMapState={printMapState}
+                                    fixedTownSurfaceManifest={printTownMapManifestState.manifest}
+                                    fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
+                                    fixedTownSurfaceAvailable={printTownMapAvailable}
+                                    fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                />
+                            </Suspense>
+                            <button
+                                type="button"
+                                onClick={() => window.print()}
+                                className="btn-primary justify-center"
+                            >
+                                <Printer size={16} />
+                                {t('print')}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1063,6 +1175,13 @@ export default function MyMapDetailPage() {
                         shareUrl={sharedDirectoryUrl}
                         footerNote={directory.share?.isShared ? t('openSharedLinkForInteractiveMap') : ''}
                         className="w-full"
+                        printMapState={printMapState}
+                        onPrintMapStateChange={setPrintMapState}
+                        mapModeControl={printMapModeControl}
+                        fixedTownSurfaceManifest={printTownMapManifestState.manifest}
+                        fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
+                        fixedTownSurfaceAvailable={printTownMapAvailable}
+                        fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                     />
                 </div>
             </div>
