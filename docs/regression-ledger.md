@@ -982,6 +982,23 @@ Active next recovery family:
   service timeout and then passed a separate clean targeted rerun. No
   Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
   saved-resource, or production-data change is included.
+  Release follow-up: implementation commit `4aa119777` was pushed to
+  `codex/shared-map-settings-layout`; Cloudflare Pages branch preview deployed
+  `https://a8808cb1.senior-resource-map.pages.dev`; and the same build was
+  published to production at
+  `https://65b0b64d.senior-resource-map.pages.dev`. The custom domain serves
+  `assets/index-CGK0FNHf.js` and `assets/index-CXgnAuHp.css`; production API
+  health returned OK at `2026-07-12T05:30:37.919Z`; and post-deploy production
+  smoke passed 5/5 without retry. Fresh signed-in production UAT at 1440x1000
+  and 390x844 repeated the 34 px desktop and 30 px mobile control measurements,
+  the upper-right mobile rail, stable map bounds, and 0 px end-scroll movement.
+  Device-style history Back from resource detail restored owner map 45 in
+  16 ms from the user-scoped cache; the explicit in-app Back also restored the
+  fully rendered map. Both paths preserved the same SPA document marker and
+  recorded zero application console or page errors. Network inspection found
+  only expected Cloudflare RUM cancellations, the pre-existing external OneMap
+  badge SVG Chromium ORB block, and OneMap tile aborts during camera, viewport,
+  style, and route changes.
 
 ## Recovery workflow
 
