@@ -148,11 +148,12 @@ test('town map proof is owner-only, local-flagged, and keeps full owner coverage
     assert.doesNotMatch(discoveryMapSource, /fixedTownSurface|TownMapModeControl|VITE_TOWN_MAP/);
 });
 
-test('owner mode control uses compact layman labels and aligns automatic guidance in one row', () => {
-    assert.match(townMapControlSource, /aria-label="Map style"/);
+test('owner mode control keeps layman labels and accessible guidance inside map settings', () => {
+    assert.match(townMapControlSource, /aria-label="Map detail"/);
     assert.match(townMapControlSource, />\s*Standard\s*</);
     assert.match(townMapControlSource, />\s*Detailed\s*</);
-    assert.match(townMapControlSource, /flex-nowrap items-center/);
+    assert.match(townMapControlSource, /variant === 'panel'/);
+    assert.match(townMapControlSource, /flex w-full flex-col items-start/);
     assert.match(townMapControlSource, /compactStatusMessage/);
     assert.match(ownerPageSource, /Zoom in to level.*Detailed map will turn on automatically/);
     assert.match(ownerPageSource, /Zoom in to.*for Detailed/);
@@ -168,9 +169,9 @@ test('owner mode control uses compact layman labels and aligns automatic guidanc
 });
 
 test('Default and Gray are shared across directory and Discover maps without fractional tile redraws', () => {
-    assert.match(directoryMapSource, /<MapStyleControl/);
+    assert.match(directoryMapSource, /<MapSettingsControl/);
     assert.match(directoryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
-    assert.match(discoveryMapSource, /<MapStyleControl/);
+    assert.match(discoveryMapSource, /<MapSettingsControl/);
     assert.match(discoveryMapSource, /getCareAroundBasemapUrl\(mapStyle\)/);
     assert.match(discoveryMapSource, /key=\{`carearound-discover:\$\{mapStyle\}`\}/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);

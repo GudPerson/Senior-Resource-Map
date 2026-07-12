@@ -875,6 +875,45 @@ Active next recovery family:
   No Worker/API deploy, schema, auth, permission, ranking, filtering,
   visibility, saved-resource, or production-data mutation was made.
 
+### 2026-07-12 shared responsive map settings layout
+
+- Current behavior: My Maps and Discover use one compact `Map` button in the
+  map's upper-right control lane instead of keeping the map-detail and
+  map-colour choices permanently across the map centre. Desktop opens the same
+  `Map appearance` content in an anchored popover; mobile opens it in the
+  existing CareAround bottom sheet. My Map owners see `Map detail` and
+  `Map colour`; Discover and guest Shared Maps show only the choices available
+  on those surfaces. Discover zoom controls now occupy the upper-left lane so
+  the placement matches DirectoryMap. Closing the settings restores the full
+  unobstructed map while the existing Leaflet map instance, camera, pins,
+  clusters, selection, reset, full-map control, attribution, and persistent
+  Default/Gray preference remain unchanged.
+- Reproduction steps: open an owned `/my-directory/maps/:id` and Discover at
+  desktop and 390 px widths; verify one upper-right `Map` button; open and close
+  `Map appearance`; confirm the owner sheet contains Map detail plus Map colour
+  while Discover contains Map colour only; switch Default/Gray; and confirm the
+  map rectangle, selected resource, camera, and pin positions do not change.
+  On mobile, scroll beyond the final My Map card and sample page scroll
+  position after momentum settles.
+- Acceptance criteria: My Maps and Discover share the same settings placement
+  and responsive interaction; no permanent segmented controls consume the map
+  centre; the mobile sheet is readable without shrinking the map; opening,
+  closing, or changing a choice does not resize or remount MapContainer; the
+  wrong-zoom Detailed guidance remains plain language inside the owner sheet;
+  Shared Maps remain guest-readable; and no map, ranking, filtering,
+  visibility, resource, auth, API, schema, or permission behavior changes.
+- Verification result: focused map/layout coverage passed 35/35; full client
+  coverage passed 397/397; full server coverage passed 396/396; local smoke
+  passed 5/5; `npm run build:client` passed with only the existing large-chunk
+  advisory; and `git diff --check` passed. Signed-in browser UAT on owner map 45
+  and Discover at 1440x1000 and 390x844 confirmed the same popover/sheet
+  pattern, stable map bounds while opening settings and changing colour, and a
+  0 px mobile end-scroll range across 20 animation frames. Local-only CORS and
+  OneMap badge ORB failures were expected for the `127.0.0.1` origin and must
+  be rechecked from the production custom domain after deployment. No
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data change is included.
+
 ## Recovery workflow
 
 For each regression family:

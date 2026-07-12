@@ -699,6 +699,7 @@ export default function MyMapDetailPage() {
         townZoomEligible = false,
         fallbackReason = '',
         onModeChange,
+        controlVariant = 'overlay',
     } = {}) => {
         const townUnavailableMessage = basemapMode === 'auto'
             && townMapAvailable
@@ -723,6 +724,7 @@ export default function MyMapDetailPage() {
                 townUnavailableMessage={townUnavailableMessage}
                 townUnavailableCompactMessage={townUnavailableCompactMessage}
                 onModeChange={onModeChange}
+                variant={controlVariant}
             />
         );
     }, [basemapMode, townMapAvailable, townMapStatus]);

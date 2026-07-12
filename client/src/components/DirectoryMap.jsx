@@ -7,7 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import OneMapBadge from './OneMapBadge.jsx';
-import MapStyleControl from './MapStyleControl.jsx';
+import MapSettingsControl from './MapSettingsControl.jsx';
 import DirectoryMapZoomLevelControl from './DirectoryMapZoomLevelControl.jsx';
 import FixedTownSurfaceLayer, { FIXED_TOWN_SURFACE_MIN_ZOOM } from './FixedTownSurfaceLayer.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -2133,6 +2133,7 @@ export default function DirectoryMap({
             zoom: fixedTownSurfaceZoom,
             fallbackReason: fixedTownSurfaceFaultReason,
             onModeChange: handleMapModeChange,
+            controlVariant: 'panel',
         })
         : mapModeControl;
     const shouldGateTownRequestedLiveTiles = ['auto', 'town'].includes(fixedTownBasemapPreference)
@@ -2155,6 +2156,7 @@ export default function DirectoryMap({
         return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${markerKeys}`;
     }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
+    const showRecenterControl = interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
         hasReportedReadyRef.current = true;
@@ -2586,11 +2588,11 @@ export default function DirectoryMap({
                 {renderedMarkers}
             </MapContainer>
             {resolvedMapModeControl || showMapStyleControl ? (
-                <div className="absolute left-[52px] right-2 top-14 z-[1002] flex justify-center sm:left-14 sm:right-14 sm:top-3">
-                    <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
-                        {resolvedMapModeControl}
-                        {showMapStyleControl ? <MapStyleControl /> : null}
-                    </div>
+                <div className={`absolute right-2.5 z-[1002] sm:right-3 ${showRecenterControl ? 'top-[52px] sm:top-[54px]' : 'top-2.5 sm:top-3'}`}>
+                    <MapSettingsControl
+                        mapModeControl={resolvedMapModeControl}
+                        showMapStyleControl={showMapStyleControl}
+                    />
                 </div>
             ) : null}
             <OneMapBadge showLogo={showProviderBadgeLogo} />

@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Minus, Plus } from 'lucide-react';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
-import MapStyleControl from '../../components/MapStyleControl.jsx';
+import MapSettingsControl from '../../components/MapSettingsControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
@@ -516,39 +516,43 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     const { t } = useLocale();
 
     return (
-        <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
-            <div className="flex flex-col gap-2">
-                <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
-                    <button
-                        type="button"
-                        title={t('mapZoomIn')}
-                        aria-label={t('mapZoomIn')}
-                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            event.preventDefault();
-                            map.zoomIn();
-                        }}
-                    >
-                        <Plus size={18} />
-                    </button>
+        <>
+            <div className="leaflet-top leaflet-left z-[1000] pointer-events-auto ml-2.5 mt-2.5 absolute left-0 top-0 sm:ml-3 sm:mt-3">
+                <div className="flex flex-col gap-2">
+                    <div className="leaflet-control leaflet-bar border-none shadow-none ml-0 mt-0">
+                        <button
+                            type="button"
+                            title={t('mapZoomIn')}
+                            aria-label={t('mapZoomIn')}
+                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                map.zoomIn();
+                            }}
+                        >
+                            <Plus size={18} />
+                        </button>
+                    </div>
+                    <div className="leaflet-control leaflet-bar border-none shadow-none ml-0 mt-0">
+                        <button
+                            type="button"
+                            title={t('mapZoomOut')}
+                            aria-label={t('mapZoomOut')}
+                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                map.zoomOut();
+                            }}
+                        >
+                            <Minus size={18} />
+                        </button>
+                    </div>
                 </div>
-                <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
-                    <button
-                        type="button"
-                        title={t('mapZoomOut')}
-                        aria-label={t('mapZoomOut')}
-                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            event.preventDefault();
-                            map.zoomOut();
-                        }}
-                    >
-                        <Minus size={18} />
-                    </button>
-                </div>
-                {canReset ? (
+            </div>
+            {canReset ? (
+                <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mr-2.5 mt-2.5 absolute right-0 top-0 sm:mr-3 sm:mt-3">
                     <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                         <button
                             type="button"
@@ -566,9 +570,9 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                             </svg>
                         </button>
                     </div>
-                ) : null}
-            </div>
-        </div>
+                </div>
+            ) : null}
+        </>
     );
 }
 
@@ -598,6 +602,7 @@ export function DiscoveryMap({
         () => [...(renderedSavedPlacePins || savedPlacePins), ...transientPlacePins],
         [renderedSavedPlacePins, savedPlacePins, transientPlacePins]
     );
+    const canResetMap = Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor));
 
     return (
         <div className="relative h-full w-full">
@@ -636,7 +641,7 @@ export function DiscoveryMap({
                     onMapMoveEnd={onMapMoveEnd}
                 />
                 <DiscoveryMapControlStack
-                    canReset={Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor))}
+                    canReset={canResetMap}
                     onResetView={onResetView}
                 />
                 {renderedPins.map((pin) => {
@@ -707,8 +712,8 @@ export function DiscoveryMap({
                     </Marker>
                 ) : null}
             </MapContainer>
-            <div className="absolute left-12 right-12 top-2.5 z-[1002] flex justify-center sm:top-3">
-                <MapStyleControl />
+            <div className={`absolute right-2.5 z-[1002] sm:right-3 ${canResetMap ? 'top-[52px] sm:top-[54px]' : 'top-2.5 sm:top-3'}`}>
+                <MapSettingsControl showMapStyleControl />
             </div>
             <div className="hidden lg:block">
                 <OneMapBadge />
