@@ -1017,6 +1017,16 @@ Active next recovery family:
   local R2 manifest CORS failures remain expected for the `127.0.0.1` origin.
   No Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
   saved-resource, or production-data change is included.
+  Release follow-up: implementation commit `4f3ea03a5` was pushed to
+  `codex/shared-map-settings-layout`; preview
+  `https://67fc2b24.senior-resource-map.pages.dev` and production deployment
+  `https://825e09b9.senior-resource-map.pages.dev` completed. The production
+  custom domain serves `assets/index-Dz8Yaxgj.js` and
+  `assets/index-CXgnAuHp.css`; API health returned OK at
+  `2026-07-12T07:05:34.812Z`; and post-deploy production smoke passed 5/5.
+  Fresh production Pixel 7 UAT repeated the forced 2,156 px scroll → resource
+  → browser Back flow and returned at scroll 0 with map state `default`, the
+  map visible, the SPA marker preserved, and zero console or page errors.
 
 ## Recovery workflow
 

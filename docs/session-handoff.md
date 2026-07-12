@@ -5,9 +5,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-CGK0FNHf.js`
+- Production client bundle: `assets/index-Dz8Yaxgj.js`
 - Production client CSS: `assets/index-CXgnAuHp.css`
-- Production Pages deployment: `https://65b0b64d.senior-resource-map.pages.dev`
+- Production Pages deployment: `https://825e09b9.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK after the
   client release. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -26,8 +26,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 - Exact base: `b9fb904b51c49fdf9068aca21f0b99124077d338` (verified
   persistent Default/Gray production baseline).
 - Implementation commits: `e0fbb31a2` (`Unify responsive map settings layout`),
-  `430114e9` (`Compact shared map controls`), and `4aa119777`
-  (`Refine mobile map controls and Back recovery`).
+  `430114e9` (`Compact shared map controls`), `4aa119777`
+  (`Refine mobile map controls and Back recovery`), and `4f3ea03a5`
+  (`Reset mobile My Map entry position`).
 - Branch pushed to `origin/codex/shared-map-settings-layout`.
 - Generated `output/playwright/test-results/` and
   `output/playwright/shared-map-settings-layout/` are local UAT evidence and
@@ -54,6 +55,10 @@ Last updated: 2026-07-12 (Asia/Singapore)
   browser/device Back action reuses a user-ID-plus-map-ID-scoped in-memory map
   snapshot while fresh data loads, avoiding the empty loading-card screen.
   Print resource links retain document navigation.
+- Mobile owner My Maps start at the map and first card on entry, including
+  browser Back from resource detail, instead of restoring the previous
+  card-list position. The brief restoration guard is owner-My-Map-only and
+  releases normal scrolling after 120 ms.
 - Default uses OneMap `Default_HD`; Gray uses native OneMap `Grey_HD`.
 - My Map owner `Standard | Detailed` remains a separate control. Detailed stays
   owner-only and activates automatically at zoom 15.
@@ -70,8 +75,8 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 ## Release evidence
 
-- Focused map/layout/navigation checks: 89/89 passed.
-- Full client: 398/398 passed.
+- Focused mobile entry/map/navigation checks: 53/53 passed.
+- Full client: 399/399 passed.
 - Full server: 396/396 passed.
 - Production-configured `npm run build:client`: passed with only the existing
   large-chunk advisory.
@@ -92,21 +97,24 @@ Last updated: 2026-07-12 (Asia/Singapore)
   pre-existing external OneMap badge SVG Chromium ORB block.
 - Screenshots and UAT results are local under
   `output/playwright/shared-map-settings-layout/`.
+- Fresh production Pixel 7 UAT forced a 2,156 px My Map scroll, opened a
+  resource through SPA navigation, and used browser Back. The map returned at
+  scroll 0 with map state `default`, the map visible, and zero console or page
+  errors. Post-deploy production smoke passed 5/5.
 
 ## Rollback
 
-- Previous verified production baseline: commit `f9bceea48`, Pages deployment
-  `https://7d55a391.senior-resource-map.pages.dev`.
+- Previous verified production baseline: commit `745156488`, Pages deployment
+  `https://65b0b64d.senior-resource-map.pages.dev`.
 - Client rollback does not require an API, schema, data, or R2 mutation. The
   separately versioned Gray objects can remain dormant.
 
 ## Recommended next step
 
-Monitor the 30 px visual controls on real Android and iPhone devices for
-mis-taps. If the rail feels too precise, keep the 30 px artwork but expand the
-effective hit area without increasing the visible footprint. Any future map
-choice should stay inside the shared panel, and Detailed fixed-surface
-cartography should remain owner-only unless a separate expansion is approved.
+Confirm the corrected top-of-map entry on the user's affected Android device.
+Then monitor the 30 px visual controls for mis-taps; if the rail feels too
+precise, keep the 30 px artwork but expand the effective hit area without
+increasing the visible footprint.
 
 ## Fresh chat starter
 
@@ -119,8 +127,8 @@ docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
 The responsive shared map-settings release is live. Production serves
-assets/index-CGK0FNHf.js from Pages deployment
-https://65b0b64d.senior-resource-map.pages.dev. My Maps and Discover now use
+assets/index-Dz8Yaxgj.js from Pages deployment
+https://825e09b9.senior-resource-map.pages.dev. My Maps and Discover now use
 one compact upper-right icon-only Map settings button, an anchored desktop
 popover, and the shared mobile bottom sheet. Default/Gray remains persistent
 across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
@@ -128,12 +136,14 @@ CCK/W01-only. My Map reset/recenter remains intentionally hidden on maps with
 only one camera target. Mobile map controls use a 30 px upper-right rail with
 wider right-side camera padding. Resource-detail browser Back restores the
 owner map from a user-scoped in-memory snapshot while fresh data loads.
+Mobile owner My Maps also reset delayed browser scroll restoration so every
+entry starts at the map and first card instead of the previous list position.
 
 The user's original worktree is still on codex/ai-cost-governor with unrelated
 dirty AI work. Do not revert, stage, or modify it accidentally. The completed
 release is on origin/codex/shared-map-settings-layout; its isolated worktree is
 /Users/sweetbuns/CareAroundSG-shared-map-settings-layout.
 
-Recommended next gate: monitor the shared Map panel before adding more map
-choices, and keep Detailed owner-only unless explicitly expanding it.
+Recommended next gate: confirm the corrected top-of-map entry on the affected
+Android device, then keep Detailed owner-only unless explicitly expanding it.
 ```
