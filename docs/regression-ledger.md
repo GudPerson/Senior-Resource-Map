@@ -1140,6 +1140,19 @@ Active next recovery family:
   passed. No map camera, map data, export state, Shared Map, PDF ledger,
   Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
   saved-resource, or production-data behavior is changed.
+  Release follow-up: implementation commit `68acd838f` was pushed to
+  `codex/shared-map-settings-layout`; Cloudflare Pages branch preview deployed
+  `https://fed3ada1.senior-resource-map.pages.dev` with the existing branch
+  alias; and the same validated build was explicitly published to production
+  at `https://61833821.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-tuaHPNyy.js` and `assets/index-gdJR9SuY.css`; API
+  health returned OK at `2026-07-12T11:07:03.863Z`; and post-deploy production
+  smoke passed 5/5 without retry. Fresh signed-in production UAT repeated the
+  0 px desktop/mobile control-centre delta, left-aligned toolbar grouping,
+  absent Print button, exact preview/export state, successful image download,
+  no horizontal overflow, and zero page errors. The known non-fatal image
+  placeholder CSP notice remains unchanged. No Worker/API or R2 deploy was
+  performed.
 
 ## Recovery workflow
 

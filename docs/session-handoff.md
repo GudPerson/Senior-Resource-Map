@@ -5,9 +5,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-ByfQM4vi.js`
-- Production client CSS: `assets/index-46zy6Sgb.css`
-- Production Pages deployment: `https://c39e8088.senior-resource-map.pages.dev`
+- Production client bundle: `assets/index-tuaHPNyy.js`
+- Production client CSS: `assets/index-gdJR9SuY.css`
+- Production Pages deployment: `https://61833821.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK after the
   client release. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -31,7 +31,8 @@ Last updated: 2026-07-12 (Asia/Singapore)
   (`Reset mobile My Map entry position`), and `5b31f77ce`
   (`Add accessible desktop My Map resizing`), `a02d14d75`
   (`Lock enabled Detailed map release build`), and `e031e266f`
-  (`Add configurable owner print map workspace`).
+  (`Add configurable owner print map workspace`), and `68acd838f`
+  (`Refine owner print toolbar alignment`).
 - Branch pushed to `origin/codex/shared-map-settings-layout`.
 - Generated `output/playwright/test-results/` and
   `output/playwright/shared-map-settings-layout/` are local UAT evidence and
@@ -79,6 +80,11 @@ Last updated: 2026-07-12 (Asia/Singapore)
   the print map from 300-720 px. Reset print map restores that safe baseline.
   Save as image and browser Print use the exact controlled preview state.
   Shared Map print and the owner PDF ledger retain their existing behavior.
+- The visible owner print toolbar contains only Back to interactive view,
+  Reset print map, and Save as image in one left-aligned responsive group. The
+  in-app Print button is removed; browser/system printing remains available.
+  Map settings is centre-aligned with the zoom rail at desktop and mobile
+  widths despite the different responsive control sizes.
 - Both W01 manifests preload. Switching colour while Detailed is active loads
   only visible fixed chunks and does not fall through to live OneMap tiles.
 - Every production client rebuild must include all four values:
@@ -139,11 +145,15 @@ Last updated: 2026-07-12 (Asia/Singapore)
   print-workspace toolbar, the 390x844 layout has no horizontal overflow, and
   post-deploy smoke passed 5/5. The image library emits one non-fatal CSP notice
   while resolving its data-image placeholder; the files render correctly.
+- Print-toolbar production UAT measured a 0 px Map settings/zoom centre delta at
+  1440x1000 and 390x844, confirmed the left-aligned Back/Reset/Save group and
+  absent Print button, preserved preview/export state, downloaded the image,
+  and found no horizontal overflow or page errors. Post-deploy smoke passed 5/5.
 
 ## Rollback
 
-- Previous verified production baseline: commit `a02d14d75`, Pages deployment
-  `https://aebc0610.senior-resource-map.pages.dev`.
+- Previous verified production baseline: commit `e031e266f`, Pages deployment
+  `https://c39e8088.senior-resource-map.pages.dev`.
 - Client rollback does not require an API, schema, data, or R2 mutation. The
   separately versioned Gray objects can remain dormant.
 
@@ -164,9 +174,9 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-The owner Print Map workspace is live. Production serves
-assets/index-ByfQM4vi.js from Pages deployment
-https://c39e8088.senior-resource-map.pages.dev. My Maps and Discover use
+The refined owner Print Map workspace is live. Production serves
+assets/index-tuaHPNyy.js from Pages deployment
+https://61833821.senior-resource-map.pages.dev. My Maps and Discover use
 one compact upper-right icon-only Map settings button, an anchored desktop
 popover, and the shared mobile bottom sheet. Default/Gray remains persistent
 across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
@@ -184,6 +194,9 @@ Owner print starts independently at fit all, Standard, and 360 px while carrying
 only the Default/Gray preference. Print allows zoom, pan, detail, colour, and a
 300-720 px height. Save as image and browser Print match the configured preview;
 Shared Map print and the owner PDF ledger are unchanged.
+The print toolbar now keeps Back, Reset, and Save as image left-aligned and no
+longer shows an in-app Print button. Map settings aligns exactly with the zoom
+rail on desktop and mobile.
 Production client builds must retain the enabled `VITE_TOWN_MAP_*` values;
 omitting them hides Map detail and is reserved only for an intentional rollback.
 
