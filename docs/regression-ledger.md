@@ -1027,6 +1027,29 @@ Active next recovery family:
   Fresh production Pixel 7 UAT repeated the forced 2,156 px scroll → resource
   → browser Back flow and returned at scroll 0 with map state `default`, the
   map visible, the SPA marker preserved, and zero console or page errors.
+- Desktop owner-map resize follow-up: an owned My Map with mapped resources now
+  has a centred bottom-edge handle that can expand the map from its existing
+  48vh/440-700 px baseline up to 78vh/840 px. The adjustment is deliberately
+  desktop-only and session-only; it does not change mobile My Map, Discover,
+  Shared Maps, print, saved preferences, or the default height on a future
+  visit. Pointer dragging, Arrow Up/Down, Home/End, and double-click reset are
+  supported through an accessible separator control. The existing Leaflet map
+  instance is retained and receives only an opt-in size invalidation, without
+  changing the layout signature or triggering a fit, so zoom, selected card,
+  markers, and map interaction state remain intact. Focused map coverage passed
+  58/58; full client coverage passed 393/393; full server coverage passed
+  396/396; the production-configured client build passed with only the existing
+  large-chunk advisory; pre-deploy production smoke passed 5/5; and
+  `git diff --check` passed. Signed-in local browser UAT on owner map 45 at
+  1440x1000 expanded the frame from 480 px to 700 px by drag and to the 780 px
+  viewport cap by keyboard, kept its 620 px width, retained the same Leaflet
+  element, zoom step 18, marker count, and selected FRCS card, then reset to
+  480 px by Home and double click. At 390x844 the resize handle was absent and
+  the existing mobile map and first card remained unchanged. The local R2
+  manifest CORS failures and external OneMap badge SVG Chromium block remain
+  expected for the `127.0.0.1` origin and must be rechecked on the production
+  custom domain. No Worker/API, R2, schema, auth, permission, ranking,
+  filtering, visibility, saved-resource, or production-data change is included.
 
 ## Recovery workflow
 

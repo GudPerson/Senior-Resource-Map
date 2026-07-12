@@ -62,6 +62,7 @@ test('my map detail routes v2 by default while print view keeps priority', () =>
 
 test('my map v2 scaffold reuses the existing presentation stack and delegates the toolbar', () => {
     assert.match(myMapV2ScaffoldSource, /import DirectoryMap from '\.\/DirectoryMap\.jsx';/);
+    assert.match(myMapV2ScaffoldSource, /import ResizableDesktopMapSurface from '\.\/ResizableDesktopMapSurface\.jsx';/);
     assert.match(myMapV2ScaffoldSource, /import SharedMapDirectoryList from '\.\/SharedMapDirectoryList\.jsx';/);
     assert.match(myMapV2ScaffoldSource, /toolbar = null/);
     assert.match(myMapV2ScaffoldSource, /\{toolbar\}/);
@@ -230,7 +231,7 @@ test('my map v2 uses the restored normal map sizing without enabling full-map mo
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);
     assert.match(myMapV2ScaffoldSource, /sm:px-6 sm:py-6 lg:px-8 xl:px-10/);
     assert.match(myMapV2ScaffoldSource, /desktopGridClassName=\{V2_DESKTOP_GRID_CLASS\}/);
-    assert.match(myMapV2ScaffoldSource, /renderDesktopMap=\{\(\) => renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)\}/);
+    assert.match(myMapV2ScaffoldSource, /renderDesktopMap=\{\(\) => \([\s\S]*presentation\.pins\.length \? \([\s\S]*<ResizableDesktopMapSurface[\s\S]*mapElement=\{renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)\}[\s\S]*\) : renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)[\s\S]*\)\}/);
     assert.match(myMapV2ScaffoldSource, /renderMobileMap=\{\(\) => renderMap\(V2_MOBILE_MAP_HEIGHT_CLASS\)\}/);
 });
 

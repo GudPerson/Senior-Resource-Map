@@ -1,4 +1,5 @@
 import DirectoryMap from './DirectoryMap.jsx';
+import ResizableDesktopMapSurface from './ResizableDesktopMapSurface.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 
 const V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[700px]';
@@ -149,7 +150,13 @@ export default function MyMapV2PreviewScaffold({
                         preserveMobileMapFrameInFlow={preserveMobileMapFrameInFlow}
                         desktopScrollTargetRef={desktopScrollTargetRef}
                         desktopGridClassName={V2_DESKTOP_GRID_CLASS}
-                        renderDesktopMap={() => renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}
+                        renderDesktopMap={() => (
+                            presentation.pins.length ? (
+                                <ResizableDesktopMapSurface
+                                    mapElement={renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}
+                                />
+                            ) : renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)
+                        )}
                         renderMobileMap={() => renderMap(V2_MOBILE_MAP_HEIGHT_CLASS)}
                         mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
                     />

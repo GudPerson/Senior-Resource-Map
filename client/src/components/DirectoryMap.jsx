@@ -1833,6 +1833,40 @@ function DirectoryMapInstanceSync({ onMapReady }) {
     return null;
 }
 
+function DirectoryMapFrameResizeSync({ enabled = false, frameRef }) {
+    const map = useMap();
+
+    useEffect(() => {
+        const frame = frameRef?.current;
+        if (!enabled || !frame || typeof ResizeObserver === 'undefined') return undefined;
+
+        let resizeFrame = null;
+        let previousWidth = frame.clientWidth;
+        let previousHeight = frame.clientHeight;
+        const observer = new ResizeObserver((entries) => {
+            const rect = entries[0]?.contentRect;
+            const nextWidth = Math.round(Number(rect?.width ?? frame.clientWidth));
+            const nextHeight = Math.round(Number(rect?.height ?? frame.clientHeight));
+            if (nextWidth === previousWidth && nextHeight === previousHeight) return;
+            previousWidth = nextWidth;
+            previousHeight = nextHeight;
+            if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+            resizeFrame = window.requestAnimationFrame(() => {
+                resizeFrame = null;
+                map.invalidateSize({ animate: false, pan: false });
+            });
+        });
+
+        observer.observe(frame);
+        return () => {
+            observer.disconnect();
+            if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+        };
+    }, [enabled, frameRef, map]);
+
+    return null;
+}
+
 function DirectoryMapZoomSync({ enabled = false, normalizeStandardZoomBelow = null, onZoomChange }) {
     const map = useMap();
 
@@ -2031,6 +2065,7 @@ export default function DirectoryMap({
     onFixedTownSurfaceMetricsChange,
     mapModeControl = null,
     showMapStyleControl = interactive,
+    observeFrameResize = false,
 }) {
     const { mapStyle } = useMapStyle();
     const hasReportedReadyRef = useRef(false);
@@ -2038,6 +2073,7 @@ export default function DirectoryMap({
     const tileLoadedRef = useRef(false);
     const readyTimeoutRef = useRef(null);
     const captureErrorRef = useRef(null);
+    const mapFrameRef = useRef(null);
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, spreadCoincidentPins), [interactive, pins, spreadCoincidentPins]);
     const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
@@ -2471,7 +2507,7 @@ export default function DirectoryMap({
         : containerClassName;
 
     return (
-        <div className={frameClassName}>
+        <div ref={mapFrameRef} className={frameClassName}>
             <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
@@ -2491,6 +2527,10 @@ export default function DirectoryMap({
                 <DirectoryMapInstanceSync onMapReady={(map) => {
                     mapInstanceRef.current = map;
                 }} />
+                <DirectoryMapFrameResizeSync
+                    enabled={observeFrameResize}
+                    frameRef={mapFrameRef}
+                />
                 <DirectoryMapZoomSync
                     enabled={shouldTrackFixedTownSurfaceZoom}
                     normalizeStandardZoomBelow={shouldGateTownRequestedLiveTiles
