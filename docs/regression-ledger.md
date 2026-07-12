@@ -910,9 +910,22 @@ Active next recovery family:
   pattern, stable map bounds while opening settings and changing colour, and a
   0 px mobile end-scroll range across 20 animation frames. Local-only CORS and
   OneMap badge ORB failures were expected for the `127.0.0.1` origin and must
-  be rechecked from the production custom domain after deployment. No
-  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
-  saved-resource, or production-data change is included.
+  be rechecked from the production custom domain after deployment. Release
+  follow-up: implementation commit `e0fbb31a2` was pushed to
+  `codex/shared-map-settings-layout`; preview
+  `https://8e0fec65.senior-resource-map.pages.dev` and production deployment
+  `https://12fec3c0.senior-resource-map.pages.dev` completed; and
+  `https://app.carearound.sg` serves `assets/index-Ds2cwQWb.js` with
+  `assets/index-r02V7GVR.css`. Production smoke completed all five flows; the
+  postal-import flow passed on its configured retry after one 45-second
+  anchor-result timeout. Fresh signed-in production UAT repeated the stable
+  desktop/mobile map-bound and 0 px end-scroll checks on My Map and Discover,
+  and recorded zero application console errors. Network inspection found only
+  expected Leaflet/R2 image cancellations during camera, style, viewport, and
+  route changes, Cloudflare RUM cancellation, and the pre-existing external
+  OneMap badge SVG Chromium ORB block; attribution text stayed visible. API
+  health returned OK. No Worker/API, R2, schema, auth, permission, ranking,
+  filtering, visibility, saved-resource, or production-data change was made.
 
 ## Recovery workflow
 
