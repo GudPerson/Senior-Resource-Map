@@ -5,9 +5,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-Ds2cwQWb.js`
-- Production client CSS: `assets/index-r02V7GVR.css`
-- Production Pages deployment: `https://12fec3c0.senior-resource-map.pages.dev`
+- Production client bundle: `assets/index-DtQwAvZb.js`
+- Production client CSS: `assets/index-B5_qVJbt.css`
+- Production Pages deployment: `https://7d55a391.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK after the
   client release. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -25,7 +25,8 @@ Last updated: 2026-07-12 (Asia/Singapore)
   `codex/shared-map-settings-layout`.
 - Exact base: `b9fb904b51c49fdf9068aca21f0b99124077d338` (verified
   persistent Default/Gray production baseline).
-- Implementation commit: `e0fbb31a2` (`Unify responsive map settings layout`).
+- Implementation commits: `e0fbb31a2` (`Unify responsive map settings layout`)
+  and `430114e9` (`Compact shared map controls`).
 - Branch pushed to `origin/codex/shared-map-settings-layout`.
 - Generated `output/playwright/test-results/` is local smoke noise and must not
   be staged.
@@ -34,10 +35,13 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 - `Default | Gray` is one persistent device preference across Discover, My
   Maps, Shared Maps, and print map rendering.
-- My Maps and Discover now use the same compact upper-right `Map` settings
-  button. Desktop opens an anchored popover; mobile opens the existing
+- My Maps and Discover now use the same compact upper-right icon-only map
+  settings button. Desktop opens an anchored popover; mobile opens the existing
   CareAround bottom sheet. The settings no longer permanently cover the map
   centre.
+- My Map reset/recenter remains intentionally conditional: it appears only when
+  there is more than one camera target to fit. Mobile map-control buttons are
+  compacted to 40 px where present; desktop controls are 34 px.
 - My Map owners see Map detail plus Map colour. Discover and guest Shared Maps
   show only Map colour. Discover zoom controls now use the upper-left lane,
   matching DirectoryMap placement.
@@ -57,23 +61,22 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 ## Release evidence
 
-- Focused map/layout checks: 35/35 passed.
+- Focused map/layout checks: 17/17 passed for the compact-control follow-up
+  after the broader shared-layout release checks.
 - Full client: 397/397 passed.
 - Full server: 396/396 passed.
 - Production-configured `npm run build:client`: passed with only the existing
   large-chunk advisory.
 - `git diff --check`: passed.
-- Production smoke completed all five flows; the postal-import flow passed on
-  its configured retry after one 45-second anchor-result timeout.
-- Signed-in production browser UAT at 1440x1000 and 390x844 confirmed the same
-  popover/sheet placement on My Maps and Discover, unchanged map bounds while
-  opening settings and changing colour, and 0 px end-scroll movement across 20
-  animation frames.
+- Production smoke completed all five flows.
+- Signed-in production browser UAT at 1440x1000 and 390x844 confirmed compact
+  map-control sizing, unchanged map bounds while opening settings and changing
+  colour, 0 px end-scroll movement across 20 animation frames, and the
+  intentional single-target My Map reset-button absence.
 - Production browser UAT recorded zero application console errors. Network
-  inspection found only expected Leaflet/R2 request cancellation during camera,
+  inspection found only expected OneMap tile request aborts during camera,
   style, viewport, and route changes, Cloudflare RUM cancellation, and the
-  pre-existing external OneMap badge SVG Chromium ORB block. Attribution text
-  remained visible.
+  pre-existing external OneMap badge SVG Chromium ORB block.
 - Screenshots and UAT results are local under
   `output/playwright/shared-map-settings-layout/`.
 
@@ -87,9 +90,9 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 ## Recommended next step
 
-Monitor the shared `Map` button and mobile sheet in normal use before adding
-more map settings. Any future choice should go inside this shared panel rather
-than returning permanent controls to the map centre. Keep Detailed
+Monitor the compact icon-only `Map` button and mobile sheet in normal use before
+adding more map settings. Any future choice should go inside this shared panel
+rather than returning permanent controls to the map centre. Keep Detailed
 fixed-surface cartography owner-only unless a separate expansion is approved.
 
 ## Fresh chat starter
@@ -103,11 +106,13 @@ docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
 The responsive shared map-settings release is live. Production serves
-assets/index-Ds2cwQWb.js from Pages deployment
-https://12fec3c0.senior-resource-map.pages.dev. My Maps and Discover now use
-one upper-right Map button, an anchored desktop popover, and the shared mobile
-bottom sheet. Default/Gray remains persistent across Discover, My Maps, Shared
-Maps, and print maps. Owner Detailed remains CCK/W01-only.
+assets/index-DtQwAvZb.js from Pages deployment
+https://7d55a391.senior-resource-map.pages.dev. My Maps and Discover now use
+one compact upper-right icon-only Map settings button, an anchored desktop
+popover, and the shared mobile bottom sheet. Default/Gray remains persistent
+across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
+CCK/W01-only. My Map reset/recenter remains intentionally hidden on maps with
+only one camera target.
 
 The user's original worktree is still on codex/ai-cost-governor with unrelated
 dirty AI work. Do not revert, stage, or modify it accidentally. The completed

@@ -926,17 +926,36 @@ Active next recovery family:
   OneMap badge SVG Chromium ORB block; attribution text stayed visible. API
   health returned OK. No Worker/API, R2, schema, auth, permission, ranking,
   filtering, visibility, saved-resource, or production-data change was made.
-- Local follow-up candidate, not yet deployed: replace the visible `Map` label
-  with the accessible settings icon, add a current zoom-step indicator to
-  Discover, and place desktop settings, reset, and zoom controls in one compact
-  upper-right rail. My Map keeps the existing intentional reset behavior: the
-  reset/recenter button only appears when there is more than one camera target
-  to fit. Mobile keeps zoom on the left and uses compact 40 px map-control
-  buttons when those controls are available. UI/UX spacing is 8 px between
-  control groups; desktop controls are 34 px. Pre-deploy focused map coverage
-  passed 17/17, full client coverage passed 397/397, full server coverage passed
-  396/396, the production-configured client build passed with only the existing
-  large-chunk advisory, and `git diff --check` passed.
+- Compact-control release follow-up: commit `430114e9` replaced the visible
+  `Map` label with the accessible settings icon, added a current zoom-step
+  indicator to Discover, and placed desktop settings, reset, and zoom controls
+  in one compact upper-right rail. My Map keeps the existing intentional reset
+  behavior: the reset/recenter button only appears when there is more than one
+  camera target to fit. Mobile keeps zoom on the left and uses compact 40 px
+  map-control buttons when those controls are available. UI/UX spacing is 8 px
+  between control groups; desktop controls are 34 px. Pre-deploy focused map
+  coverage passed 17/17, full client coverage passed 397/397, full server
+  coverage passed 396/396, the production-configured client build passed with
+  only the existing large-chunk advisory, and `git diff --check` passed.
+  Cloudflare Pages branch preview deployed
+  `https://cc2ccc4f.senior-resource-map.pages.dev` with alias
+  `https://codex-shared-map-settings-la.senior-resource-map.pages.dev`; the
+  same built client was explicitly published to production at
+  `https://7d55a391.senior-resource-map.pages.dev`. Production custom domain
+  `https://app.carearound.sg` served `assets/index-DtQwAvZb.js` and
+  `assets/index-B5_qVJbt.css`; production API health returned OK at
+  `2026-07-12T04:04:28.562Z`; production smoke passed 5/5 using `smoke.env`
+  without printing credentials. Signed-in production browser UAT on My Map 45
+  and Discover confirmed desktop settings controls at 34 px, mobile settings
+  and reset controls at 40 px where present, stable map bounds while opening
+  settings and changing colour, 0 px mobile end-scroll movement, and zero
+  application console errors. My Map 45 still hides reset because it has only
+  one camera target, preserving the intentional behavior. Network inspection
+  showed only expected Cloudflare RUM aborts, the pre-existing external OneMap
+  badge SVG Chromium ORB block, and OneMap tile request aborts during camera,
+  style, viewport, and route changes. No Worker/API, R2, schema, auth,
+  permission, ranking, filtering, visibility, saved-resource, or production-data
+  change was made.
 
 ## Recovery workflow
 
