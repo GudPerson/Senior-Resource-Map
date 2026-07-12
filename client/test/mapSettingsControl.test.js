@@ -31,7 +31,7 @@ test('one shared Map settings trigger opens responsive map appearance controls',
     assert.match(mapSettingsSource, /data-map-settings-control="true"/);
     assert.match(mapSettingsSource, /aria-label="Map settings"/);
     assert.match(mapSettingsSource, /aria-expanded=\{open\}/);
-    assert.match(mapSettingsSource, /h-10 w-10 min-w-10 touch-manipulation/);
+    assert.match(mapSettingsSource, /h-\[30px\] w-\[30px\] min-w-\[30px\] touch-manipulation/);
     assert.doesNotMatch(mapSettingsSource, /<span>Map<\/span>/);
     assert.match(mapSettingsSource, /<MobileBottomSheet/);
     assert.match(mapSettingsSource, /useMediaQuery\('\(min-width: 1024px\)'\)/);
@@ -75,10 +75,11 @@ test('Directory Map and Discover share settings placement while preserving map i
 
     assert.match(globalStylesSource, /\.carearound-map-recenter-control--with-settings/);
     assert.match(globalStylesSource, /\.carearound-discovery-zoom-control--two/);
-    assert.match(globalStylesSource, /height: 40px !important/);
-    assert.match(globalStylesSource, /top: 60px !important/);
+    assert.match(globalStylesSource, /height: 30px !important/);
+    assert.match(globalStylesSource, /top: 50px !important/);
     assert.match(globalStylesSource, /right: 12px !important/);
-    assert.match(globalStylesSource, /top: 96px !important/);
+    assert.match(globalStylesSource, /top: 88px !important/);
+    assert.match(globalStylesSource, /\.carearound-map-control-rail \.leaflet-top\.leaflet-left[\s\S]*left: auto;[\s\S]*right: 0;/);
 
     assert.match(directoryMapSource, /<MapContainer/);
     assert.match(discoveryMapSource, /<MapContainer/);

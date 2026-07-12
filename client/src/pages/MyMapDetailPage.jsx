@@ -46,6 +46,33 @@ const TOWN_MAP_PROOF_ENABLED = import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED === '
 const TOWN_MAP_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_ASSET_BASE_URL || '');
 const TOWN_MAP_GRAY_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL || '');
 const TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = [1.3521, 103.846];
+const MY_MAP_DETAIL_CACHE_LIMIT = 8;
+const myMapDetailCache = new Map();
+
+function getMyMapDetailCacheKey(user, mapId) {
+    const userId = Number(user?.id);
+    const resolvedMapId = Number(mapId);
+    if (!Number.isSafeInteger(userId) || userId <= 0) return '';
+    if (!Number.isSafeInteger(resolvedMapId) || resolvedMapId <= 0) return '';
+    return `${userId}:${resolvedMapId}`;
+}
+
+function getCachedMyMapDetail(user, mapId) {
+    const cacheKey = getMyMapDetailCacheKey(user, mapId);
+    return cacheKey ? myMapDetailCache.get(cacheKey) || null : null;
+}
+
+function cacheMyMapDetail(user, mapId, directory) {
+    const cacheKey = getMyMapDetailCacheKey(user, mapId);
+    if (!cacheKey || !directory) return;
+
+    myMapDetailCache.delete(cacheKey);
+    myMapDetailCache.set(cacheKey, directory);
+    while (myMapDetailCache.size > MY_MAP_DETAIL_CACHE_LIMIT) {
+        const oldestKey = myMapDetailCache.keys().next().value;
+        myMapDetailCache.delete(oldestKey);
+    }
+}
 
 function MapDetailLoadingState() {
     return (
@@ -461,8 +488,10 @@ export default function MyMapDetailPage() {
     const { t } = useLocale();
     const { mapStyle } = useMapStyle();
     const { savedAssets } = useSavedAssets();
-    const [directory, setDirectory] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const currentMapCacheKey = getMyMapDetailCacheKey(user, mapId);
+    const [directory, setDirectory] = useState(() => getCachedMyMapDetail(user, mapId));
+    const [loading, setLoading] = useState(() => !getCachedMyMapDetail(user, mapId));
+    const directoryCacheKeyRef = useRef(directory ? currentMapCacheKey : '');
     const [error, setError] = useState('');
     const [actionError, setActionError] = useState('');
     const [query, setQuery] = useState('');
@@ -509,7 +538,16 @@ export default function MyMapDetailPage() {
 
     const loadMap = useCallback(async () => {
         if (!mapId) return;
-        setLoading(true);
+        const cachedDirectory = getCachedMyMapDetail(user, mapId);
+        if (cachedDirectory) {
+            directoryCacheKeyRef.current = currentMapCacheKey;
+            setDirectory(cachedDirectory);
+            setLoading(false);
+        } else {
+            directoryCacheKeyRef.current = '';
+            setDirectory(null);
+            setLoading(true);
+        }
         setError('');
         try {
             const [item, subcategories] = await Promise.all([
@@ -518,18 +556,28 @@ export default function MyMapDetailPage() {
             ]);
             const enrichedDirectory = applySubCategoryMetaToDirectory(item, subcategories);
             const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses(enrichedDirectory);
-            setDirectory(await backfillGroupFocusPlaceKeys(addressBackfilledDirectory));
+            const nextDirectory = await backfillGroupFocusPlaceKeys(addressBackfilledDirectory);
+            cacheMyMapDetail(user, mapId, nextDirectory);
+            directoryCacheKeyRef.current = currentMapCacheKey;
+            setDirectory(nextDirectory);
         } catch (err) {
             console.error(err);
-            setError(err.message || t('failedLoadMap'));
+            if (!cachedDirectory) {
+                setError(err.message || t('failedLoadMap'));
+            }
         } finally {
             setLoading(false);
         }
-    }, [mapId, t]);
+    }, [currentMapCacheKey, mapId, t, user]);
 
     useEffect(() => {
         loadMap();
     }, [loadMap]);
+
+    useEffect(() => {
+        if (directoryCacheKeyRef.current !== currentMapCacheKey) return;
+        cacheMyMapDetail(user, mapId, directory);
+    }, [currentMapCacheKey, directory, mapId, user]);
 
     useEffect(() => {
         setBasemapMode(TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live');
@@ -949,7 +997,7 @@ export default function MyMapDetailPage() {
         setSearchParams(nextParams);
     }
 
-    if (loading) {
+    if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
                 <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 xl:px-10 2xl:px-14">

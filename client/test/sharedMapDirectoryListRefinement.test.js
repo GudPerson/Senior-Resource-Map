@@ -44,6 +44,23 @@ function sourceBetween(source, startMarker, endMarker) {
     return source.slice(start, end);
 }
 
+test('interactive map resource links keep browser Back inside the SPA', () => {
+    const interactiveResourceRowSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryResourceRow',
+        'function DirectoryNestedPlaceSection',
+    );
+    const mobileFocusTraySource = sourceBetween(
+        sharedMapDirectorySource,
+        'function MobileMapFocusTrayPlaceCard',
+        'function MobileMapFocusTray({',
+    );
+
+    assert.match(interactiveResourceRowSource, /<Link to=\{detailPath\} className=/);
+    assert.match(mobileFocusTraySource, /<Link to=\{placeDetailPath\} className=/);
+    assert.equal((sharedMapDirectorySource.match(/\breloadDocument\b/g) || []).length, 4);
+});
+
 test('list-only resource badges use the row logo before falling back to icon artwork', () => {
     assert.match(resourceRowIconSource, /logoUrl\s*=\s*null/);
     assert.match(resourceRowIconSource, /<img[\s\S]*src=\{logoUrl\}/);
@@ -332,7 +349,8 @@ test('mobile full-map overlay has visible return and notes controls', () => {
     assert.match(mobileSource, /onTouchMove=\{handleMobileFullMapTouchMove\}/);
     assert.match(mobileSource, /onTouchEnd=\{handleMobileFullMapTouchEnd\}/);
     assert.match(mobileSource, /aria-label=\{t\('returnToMapList'\)\}/);
-    assert.match(mobileSource, /<Minimize2 size=\{19\}/);
+    assert.match(mobileSource, /h-\[30px\] w-\[30px\]/);
+    assert.match(mobileSource, /<Minimize2 size=\{15\}/);
     assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
     assert.match(sharedMapDirectorySource, /compactFullMap \? 'min-w-\[min\(18rem,78vw\)\] max-w-\[19rem\]' : 'min-w-\[min\(18rem,78vw\)\]'/);

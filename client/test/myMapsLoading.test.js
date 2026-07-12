@@ -103,4 +103,8 @@ test('my maps pages use resilient loading helpers', () => {
     assert.match(myDirectoryPageSource, /getMyMapsListStatus\(/);
     assert.match(myDirectoryPageSource, /MyMapsLoadErrorState/);
     assert.match(myMapDetailPageSource, /fetchMyMapWithResilience\(\(\) => api\.getMyMap\(mapId\)\)/);
+    assert.match(myMapDetailPageSource, /getMyMapDetailCacheKey\(user, mapId\)/);
+    assert.match(myMapDetailPageSource, /return `\$\{userId\}:\$\{resolvedMapId\}`/);
+    assert.match(myMapDetailPageSource, /const cachedDirectory = getCachedMyMapDetail\(user, mapId\)/);
+    assert.match(myMapDetailPageSource, /cacheMyMapDetail\(user, mapId, nextDirectory\)/);
 });

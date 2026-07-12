@@ -35,9 +35,9 @@ const DESKTOP_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [40, 60];
 const DESKTOP_GROUP_FOCUS_PADDING_TOP_LEFT = [40, 40];
 const DESKTOP_GROUP_FOCUS_PADDING_BOTTOM_RIGHT = [40, 40];
 const MOBILE_FIT_PADDING_TOP_LEFT = [60, 60];
-const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [96, 72];
+const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [112, 72];
 const MOBILE_ANCHOR_FIT_PADDING_TOP_LEFT = [20, 60];
-const MOBILE_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [28, 92];
+const MOBILE_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [88, 92];
 const SINGLE_PIN_FOCUS_NOOP_DISTANCE_PX = 4;
 const SINGLE_PIN_FOCUS_SETTLE_DISTANCE_PX = 22;
 const SINGLE_PIN_FOCUS_SETTLE_ZOOM_DELTA = 0.18;
@@ -538,7 +538,7 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                         aria-live="polite"
                         aria-label={zoomLevel === null ? 'Zoom level unavailable' : `Zoom level ${zoomLevel}`}
                         data-map-zoom-level="true"
-                        className="flex h-7 w-10 select-none items-center justify-center border-b border-slate-200 bg-white text-[11px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:w-8 lg:text-[10px]"
+                        className="flex h-[22px] w-[30px] select-none items-center justify-center border-b border-slate-200 bg-white text-[10px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:w-8 lg:text-[10px]"
                         title="Current zoom level"
                     >
                         {zoomLevel ?? '—'}
@@ -547,27 +547,27 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                         type="button"
                         title={t('mapZoomIn')}
                         aria-label={t('mapZoomIn')}
-                        className="flex h-10 w-10 touch-manipulation items-center justify-center border-b border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
+                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center border-b border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
                         onClick={(event) => {
                             event.stopPropagation();
                             event.preventDefault();
                             map.zoomIn();
                         }}
                     >
-                        <Plus size={18} aria-hidden="true" />
+                        <Plus size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
                     </button>
                     <button
                         type="button"
                         title={t('mapZoomOut')}
                         aria-label={t('mapZoomOut')}
-                        className="flex h-10 w-10 touch-manipulation items-center justify-center bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
+                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
                         onClick={(event) => {
                             event.stopPropagation();
                             event.preventDefault();
                             map.zoomOut();
                         }}
                     >
-                        <Minus size={18} aria-hidden="true" />
+                        <Minus size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -578,14 +578,14 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                             type="button"
                             title={t('mapResetView')}
                             aria-label={t('mapResetView')}
-                            className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
+                            className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 event.preventDefault();
                                 onResetView?.();
                             }}
                         >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="h-[15px] w-[15px] lg:h-[18px] lg:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M15 21h6v-6M9 3H3v6M21 21l-7-7M3 3l7 7" />
                             </svg>
                         </button>

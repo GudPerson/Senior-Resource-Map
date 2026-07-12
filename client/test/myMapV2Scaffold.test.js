@@ -194,7 +194,8 @@ test('my map v2 enriches directory rows with configured category colors from the
     assert.match(myMapDetailPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
     assert.match(myMapDetailPageSource, /const enrichedDirectory = applySubCategoryMetaToDirectory\(item, subcategories\)/);
     assert.match(myMapDetailPageSource, /const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses\(enrichedDirectory\)/);
-    assert.match(myMapDetailPageSource, /setDirectory\(await backfillGroupFocusPlaceKeys\(addressBackfilledDirectory\)\)/);
+    assert.match(myMapDetailPageSource, /const nextDirectory = await backfillGroupFocusPlaceKeys\(addressBackfilledDirectory\)/);
+    assert.match(myMapDetailPageSource, /setDirectory\(nextDirectory\)/);
     assert.match(myMapDetailPageSource, /categoryColor: nextCategoryColor/);
     assert.match(myMapDetailPageSource, /categoryIconUrl: nextCategoryIconUrl/);
 });
@@ -221,8 +222,9 @@ test('my map v2 can backfill Group member focus keys from public Group details',
 test('my map v2 uses the restored normal map sizing without enabling full-map mode', () => {
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-\[48vh\] min-h-\[440px\] max-h-\[700px\]'/);
     assert.match(myMapV2ScaffoldSource, /V2_MOBILE_MAP_HEIGHT_CLASS = 'h-\[34svh\] min-h-\[260px\] max-h-\[390px\]'/);
-    assert.match(myMapV2ScaffoldSource, /V2_FIT_PADDING_BOTTOM_RIGHT = \[44, 24\]/);
-    assert.match(myMapV2ScaffoldSource, /fitPaddingBottomRight=\{V2_FIT_PADDING_BOTTOM_RIGHT\}/);
+    assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT = \[44, 24\]/);
+    assert.match(myMapV2ScaffoldSource, /V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT = \[104, 44\]/);
+    assert.match(myMapV2ScaffoldSource, /fitPaddingBottomRight=\{useDesktopLayout[\s\S]*V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT[\s\S]*V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT\}/);
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-\[minmax\(230px,0\.78fr\)_minmax\(430px,1\.32fr\)_minmax\(240px,0\.84fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /xl:gap-5 xl:grid-cols-\[minmax\(320px,0\.85fr\)_minmax\(620px,1\.45fr\)_minmax\(360px,0\.95fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);

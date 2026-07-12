@@ -111,11 +111,11 @@ export default function MapSettingsControl({ mapModeControl = null, showMapStyle
                 aria-label="Map settings"
                 aria-expanded={open}
                 aria-haspopup="dialog"
-                className="inline-flex h-10 w-10 min-w-10 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white p-0 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:min-w-[34px] lg:rounded-[10px]"
+                className="inline-flex h-[30px] w-[30px] min-w-[30px] touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white p-0 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:min-w-[34px] lg:rounded-[10px]"
                 title="Map settings"
                 onClick={() => setOpen((current) => !current)}
             >
-                <Settings2 size={18} aria-hidden="true" />
+                <Settings2 size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
             </button>
 
             {isDesktop && open ? (

@@ -50,9 +50,9 @@ const DIRECTORY_FIT_PADDING_TOP_LEFT = [44, 72];
 const DIRECTORY_FIT_PADDING_BOTTOM_RIGHT = [44, 52];
 const DIRECTORY_CLUSTER_BOUNDS_PADDING = [56, 56];
 const DIRECTORY_COMPACT_CLUSTER_PADDING_TOP_LEFT = [72, 118];
-const DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT = [72, 84];
+const DIRECTORY_COMPACT_CLUSTER_PADDING_BOTTOM_RIGHT = [112, 84];
 const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_TOP_LEFT = [64, 54];
-const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_BOTTOM_RIGHT = [64, 56];
+const DIRECTORY_COMPACT_CLUSTER_FIT_PADDING_BOTTOM_RIGHT = [104, 56];
 const DIRECTORY_COMPACT_MAP_HEIGHT = 380;
 const DIRECTORY_MOBILE_MAP_LAYOUT_TRANSITION_MS = 300;
 const DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE = 8;
@@ -1477,7 +1477,7 @@ function DirectoryMapRecenterControl({
                     type="button"
                     title={t('mapResetView')}
                     aria-label={t('mapResetView')}
-                    className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
+                    className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -1490,7 +1490,7 @@ function DirectoryMapRecenterControl({
                         });
                     }}
                 >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="h-[15px] w-[15px] lg:h-[18px] lg:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M15 21h6v-6M9 3H3v6M21 21l-7-7M3 3l7 7" />
                     </svg>
                 </button>

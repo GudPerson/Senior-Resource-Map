@@ -19,7 +19,7 @@ export default function DirectoryMapZoomLevelControl({
         const counter = zoomControlContainer
             ? L.DomUtil.create(
                 'div',
-                'carearound-map-zoom-level flex h-7 min-w-10 select-none items-center justify-center rounded-t-[4px] border-b border-slate-300 bg-white text-[11px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:min-w-[32px] lg:text-[10px]',
+                'carearound-map-zoom-level flex h-[22px] min-w-[30px] select-none items-center justify-center rounded-t-[4px] border-b border-slate-300 bg-white text-[10px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:min-w-[32px] lg:text-[10px]',
             )
             : null;
         const zoomInButton = zoomControlContainer?.querySelector('.leaflet-control-zoom-in') || null;

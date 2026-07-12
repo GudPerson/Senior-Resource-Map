@@ -956,6 +956,32 @@ Active next recovery family:
   style, viewport, and route changes. No Worker/API, R2, schema, auth,
   permission, ranking, filtering, visibility, saved-resource, or production-data
   change was made.
+- Mobile right-rail and Back-navigation follow-up: mobile My Map, Shared Map,
+  and Discover map controls now use a 30 px visual size. Settings, conditional
+  reset/recenter, zoom indicator, and zoom actions form one upper-right rail
+  with 8 px gaps; the mobile full-map enter/exit controls use the same compact
+  size. Desktop remains at the verified 34 px size. Mobile automatic camera
+  fits and compact-cluster reframing reserve a wider right-side safe area so
+  pins do not settle beneath the control rail. Interactive My Map/Shared Map
+  resource links stay within React Router, while print links retain document
+  navigation. A user-scoped, eight-entry in-memory My Map detail cache keeps a
+  previously loaded owner map visible while its fresh API response settles,
+  preventing the mobile browser/device Back action from restoring only empty
+  loading-card outlines. The cache key requires both the signed-in user ID and
+  map ID, so one account cannot reuse another account's cached map. Reproduction
+  covered My Maps list → owner map → resource detail → browser Back and the
+  explicit resource-detail Back action at a Pixel 7 / 390x844 viewport.
+  Pre-deploy verification passed focused map/navigation coverage 89/89, full
+  client coverage 398/398, full server coverage 396/396, the
+  production-configured client build with only the existing large-chunk
+  advisory, and `git diff --check`. Signed-in local browser UAT measured 30 px
+  mobile settings/reset controls, 30 px zoom actions, 8 px control-group gaps,
+  stable map bounds while settings opened, 0 px end-scroll movement, and a
+  fully visible map after both Back paths. Production smoke completed all five
+  flows; the postal-import flow passed its configured retry after one live
+  service timeout and then passed a separate clean targeted rerun. No
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data change is included.
 
 ## Recovery workflow
 

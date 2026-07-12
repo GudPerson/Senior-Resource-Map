@@ -447,18 +447,35 @@
 /* Keep map controls compact on phones and align them into one right-side rail on desktop. */
 .carearound-map-control-rail .leaflet-control-zoom {
   border-width: 1px !important;
-  margin-left: 12px !important;
-  margin-top: 12px !important;
+  margin-left: 0 !important;
+  margin-right: 12px !important;
 }
 
 .carearound-map-control-rail .leaflet-control-zoom a {
-  height: 40px !important;
-  line-height: 40px !important;
-  width: 40px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  width: 30px !important;
 }
 
 .carearound-map-control-rail .carearound-map-zoom-level {
-  min-width: 40px;
+  min-width: 30px;
+}
+
+.carearound-map-control-rail .leaflet-top.leaflet-left {
+  left: auto;
+  right: 0;
+}
+
+.carearound-map-control-rail--none .leaflet-control-zoom {
+  margin-top: 12px !important;
+}
+
+.carearound-map-control-rail--one .leaflet-control-zoom {
+  margin-top: 50px !important;
+}
+
+.carearound-map-control-rail--two .leaflet-control-zoom {
+  margin-top: 88px !important;
 }
 
 .carearound-map-recenter-control {
@@ -467,17 +484,25 @@
 }
 
 .carearound-map-recenter-control--with-settings {
-  top: 60px !important;
+  top: 50px !important;
 }
 
 .carearound-discovery-zoom-control {
-  left: 12px !important;
-  top: 12px !important;
+  left: auto !important;
+  right: 12px !important;
 }
 
 .carearound-discovery-recenter-control {
   right: 12px !important;
-  top: 60px !important;
+  top: 50px !important;
+}
+
+.carearound-discovery-zoom-control--one {
+  top: 50px !important;
+}
+
+.carearound-discovery-zoom-control--two {
+  top: 88px !important;
 }
 
 .carearound-map-recenter-control > .leaflet-control,
