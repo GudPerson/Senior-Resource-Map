@@ -1,4 +1,10 @@
 import { mergeSocialLinks } from './socialLinks.js';
+import {
+    assertGroundedAiAllowed,
+    getCachedAiResult,
+    readEnvValue,
+    setCachedAiResult,
+} from './aiCostControls.js';
 
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash';
@@ -7,21 +13,6 @@ function clientError(message, status = 400) {
     const err = new Error(message);
     err.status = status;
     return err;
-}
-
-function readEnvValue(runtimeEnv = {}, ...keys) {
-    const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
-
-    for (const source of [runtimeEnv || {}, processEnv]) {
-        for (const key of keys) {
-            const raw = source?.[key];
-            if (raw === undefined || raw === null) continue;
-            const value = String(raw).trim().replace(/^['"]|['"]$/g, '');
-            if (value) return value;
-        }
-    }
-
-    return '';
 }
 
 function resolveVertexConfig(runtimeEnv = {}) {
@@ -304,6 +295,18 @@ export async function searchVertexGroundedPlaceSuggestions({
     radiusLabel = '1 km',
 }) {
     const config = resolveVertexConfig(env);
+    const cachePayload = {
+        model: config.model,
+        anchor,
+        keywordQuery,
+        categoryHints,
+        preferredResultCount,
+        radiusLabel,
+    };
+    const cached = await getCachedAiResult(env, 'grounded-place-suggestions', cachePayload);
+    if (cached) return cached;
+
+    await assertGroundedAiAllowed(env);
     const accessToken = await getVertexAccessToken(config);
     const host = config.location === 'global'
         ? 'aiplatform.googleapis.com'
@@ -372,7 +375,7 @@ export async function searchVertexGroundedPlaceSuggestions({
         ? parsed.warnings.map((warning) => normalizeText(warning)).filter(Boolean)
         : [];
 
-    return { candidates, warnings };
+    return setCachedAiResult(env, 'grounded-place-suggestions', cachePayload, { candidates, warnings });
 }
 
 // ---------------------------------------------------------------------------
@@ -461,11 +464,28 @@ export async function enrichPlaceCandidatesWithVertex({ env, candidates, keyword
         return new Map();
     }
 
+    const cachePayload = {
+        model: config.model,
+        keywordQuery,
+        candidates: candidates.map((candidate) => ({
+            googlePlaceId: normalizeText(candidate?.googlePlaceId),
+            name: normalizeText(candidate?.name),
+            address: normalizeText(candidate?.address),
+            postalCode: normalizeText(candidate?.postalCode),
+            website: normalizeUrl(candidate?.website),
+        })),
+    };
+    const cached = await getCachedAiResult(env, 'grounded-place-enrichment', cachePayload);
+    if (Array.isArray(cached)) {
+        return new Map(cached);
+    }
+
     let accessToken;
     try {
+        await assertGroundedAiAllowed(env);
         accessToken = await getVertexAccessToken(config);
     } catch (err) {
-        console.warn('enrichPlaceCandidatesWithVertex: token error, skipping enrichment.', err?.message);
+        console.warn('enrichPlaceCandidatesWithVertex: cost control or token error, skipping enrichment.', err?.message);
         return new Map();
     }
 
@@ -555,5 +575,6 @@ export async function enrichPlaceCandidatesWithVertex({ env, candidates, keyword
         }
     }
 
+    await setCachedAiResult(env, 'grounded-place-enrichment', cachePayload, [...result.entries()]);
     return result;
 }

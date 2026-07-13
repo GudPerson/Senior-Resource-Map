@@ -181,6 +181,8 @@ test('manual hard asset enrichment uses static official directory entries when l
 
 test('manual hard asset enrichment continues to grounded search when first AI pass only returns tags', async () => {
     const originalFetch = global.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
     const serviceAccountJson = createVertexServiceAccountJson();
     let groundedFallbackCalls = 0;
 
@@ -323,6 +325,7 @@ test('manual hard asset enrichment continues to grounded search when first AI pa
             testEnv({
                 VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+                GROUNDED_AI_ENABLED: 'true',
             }),
             { waitUntil() {} },
         );
@@ -480,6 +483,8 @@ test('manual hard asset enrichment stabilizes All Saints Silver Lifestyle Club d
 
 test('manual hard asset enrichment stabilizes SASCO@Khatib details when AI returns partial fields', async () => {
     const originalFetch = global.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
     const serviceAccountJson = createVertexServiceAccountJson();
 
     global.fetch = async (input, init = {}) => {
@@ -610,6 +615,7 @@ test('manual hard asset enrichment stabilizes SASCO@Khatib details when AI retur
             testEnv({
                 VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+                GROUNDED_AI_ENABLED: 'true',
             }),
             { waitUntil() {} },
         );

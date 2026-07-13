@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     attachTranslations,
     extractTranslatableFields,
+    resolveTranslationConfig,
     saveManualTranslation,
     sanitizeTranslationsForPublicPayload,
     syncResourceTranslations,
@@ -47,6 +48,38 @@ const fakeEnv = {
         private_key: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
     }),
 };
+
+test('resolveTranslationConfig prefers dedicated Google Translate credentials over Vertex fallback', () => {
+    const config = resolveTranslationConfig({
+        GOOGLE_TRANSLATE_PROJECT_ID: 'translate-project',
+        GOOGLE_TRANSLATE_SERVICE_ACCOUNT_JSON: JSON.stringify({
+            client_email: 'translate@example.iam.gserviceaccount.com',
+            private_key: '-----BEGIN PRIVATE KEY-----\ntranslate\n-----END PRIVATE KEY-----\n',
+        }),
+        VERTEX_AI_PROJECT_ID: 'vertex-project',
+        VERTEX_AI_SERVICE_ACCOUNT_JSON: JSON.stringify({
+            client_email: 'vertex@example.iam.gserviceaccount.com',
+            private_key: '-----BEGIN PRIVATE KEY-----\nvertex\n-----END PRIVATE KEY-----\n',
+        }),
+    });
+
+    assert.equal(config.projectId, 'translate-project');
+    assert.equal(config.clientEmail, 'translate@example.iam.gserviceaccount.com');
+    assert.match(config.privateKey, /translate/);
+});
+
+test('resolveTranslationConfig keeps Vertex-named credentials as a transitional fallback', () => {
+    const config = resolveTranslationConfig({
+        VERTEX_AI_PROJECT_ID: 'legacy-translate-project',
+        VERTEX_AI_SERVICE_ACCOUNT_JSON: JSON.stringify({
+            client_email: 'legacy-translate@example.iam.gserviceaccount.com',
+            private_key: '-----BEGIN PRIVATE KEY-----\nlegacy\n-----END PRIVATE KEY-----\n',
+        }),
+    });
+
+    assert.equal(config.projectId, 'legacy-translate-project');
+    assert.equal(config.clientEmail, 'legacy-translate@example.iam.gserviceaccount.com');
+});
 
 test('extractTranslatableFields keeps public text clean and bounded', () => {
     const fields = extractTranslatableFields('soft', {
