@@ -1198,6 +1198,19 @@ Active next recovery family:
   clustering, card focus, map colour, print state, Shared Map, Discover,
   Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
   saved-resource, or production-data behavior is changed.
+  Release follow-up: implementation commit `f4778e592` was pushed to
+  `codex/shared-map-settings-layout` and the validated client build was
+  explicitly published to the production Pages branch at
+  `https://6abe2592.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-DdUQLiMS.js`,
+  `assets/MyMapDetailPage-D8TIxT43.js`, and
+  `assets/index-gdJR9SuY.css`; deployed bundle inspection confirmed the
+  manifest retry path and bounded delay markers. Signed-in production browser
+  UAT at 1280x800 confirmed zoom 14 retained nine Standard tiles, then zoom 15
+  automatically switched to 20/20 loaded fixed chunks with zero live OneMap
+  tiles. Production API health returned OK at
+  `2026-07-13T02:44:14.037Z`, and production smoke passed 5/5. No Worker/API
+  or R2 deployment was performed.
 
 ## Recovery workflow
 
