@@ -1181,6 +1181,23 @@ Active next recovery family:
   `/my-directory/maps/150` returned 200; and production smoke passed 5/5 using
   the shared smoke environment without printing credentials. No Worker/API or
   R2 deployment was performed.
+- Owner Detailed tablet-load resilience follow-up: subsequent Android tablet
+  UAT showed the same W01 viewport remaining on Standard at zoom 15/16 while
+  mobile activated Detailed normally. Production reproduction at a 1280x800
+  viewport loaded 20 fixed chunks and zero OneMap tiles at zoom 15, narrowing
+  the device-specific failure to the one-shot manifest/chunk transport path.
+  The recovery keeps all manifest integrity, W01 coverage, zoom, memory, and
+  Standard fallback checks intact while retrying only transient manifest
+  responses and individual failed chunk images with bounded delays. Permanent
+  manifest 4xx responses and invalid manifests still fail closed, and chunks
+  still fall back to Standard after their bounded retries are exhausted.
+  Focused fixed-town and map-settings coverage passed 26/26, full client
+  coverage and full server coverage (396/396) passed, the exact
+  Detailed-enabled production build passed with only the existing large-chunk
+  advisory, and `git diff --check` passed. No map camera, selection, pins,
+  clustering, card focus, map colour, print state, Shared Map, Discover,
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data behavior is changed.
 
 ## Recovery workflow
 

@@ -19,6 +19,7 @@ const FIXED_TOWN_SURFACE_PRUNE_SETTLE_MS = 180;
 const FIXED_TOWN_SURFACE_RETENTION_PAD = 0.5;
 const FIXED_TOWN_SURFACE_LOW_ZOOM_RANGE = 1;
 const FIXED_TOWN_SURFACE_MAX_DECODED_BYTES = 256 * 1024 * 1024;
+const FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS = [350, 1200, 4000];
 
 function getDecodedBytes(chunks) {
     return chunks.reduce((sum, chunk) => {
@@ -155,6 +156,7 @@ export default function FixedTownSurfaceLayer({
         const removeOverlay = (chunkId) => {
             const entry = overlays.get(chunkId);
             if (!entry) return;
+            if (entry.retryTimer !== null) window.clearTimeout(entry.retryTimer);
             map.removeLayer(entry.overlay);
             entry.overlay.off();
             overlays.delete(chunkId);
@@ -269,11 +271,40 @@ export default function FixedTownSurfaceLayer({
 
                 overlay.on('load', () => {
                     if (disposed || failed) return;
+                    const entry = overlays.get(chunkId);
+                    if (entry?.retryTimer !== null) {
+                        window.clearTimeout(entry.retryTimer);
+                        entry.retryTimer = null;
+                    }
                     loadedChunkIds.add(chunkId);
                     emitMetrics();
                 });
-                overlay.on('error', () => fallback('chunk-load-error', { chunkId }));
-                overlays.set(chunkId, { chunk, overlay });
+                overlay.on('error', () => {
+                    if (disposed || failed) return;
+                    loadedChunkIds.delete(chunkId);
+                    const entry = overlays.get(chunkId);
+                    if (!entry || entry.retryTimer !== null) return;
+                    const retryDelay = FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS[entry.retryCount];
+                    if (retryDelay === undefined) {
+                        fallback('chunk-load-error', {
+                            chunkId,
+                            attempts: entry.retryCount + 1,
+                        });
+                        return;
+                    }
+                    entry.retryCount += 1;
+                    entry.retryTimer = window.setTimeout(() => {
+                        entry.retryTimer = null;
+                        if (disposed || failed || !overlays.has(chunkId)) return;
+                        entry.overlay.setUrl(resolveFixedTownChunkUrl(assetBaseUrl, chunk.url));
+                    }, retryDelay);
+                });
+                overlays.set(chunkId, {
+                    chunk,
+                    overlay,
+                    retryCount: 0,
+                    retryTimer: null,
+                });
                 overlay.addTo(map);
                 const overlayElement = overlay.getElement();
                 if (grayscale && overlayElement) {

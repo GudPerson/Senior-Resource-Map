@@ -100,6 +100,7 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /map\.removeLayer\(entry\.overlay\);\s*entry\.overlay\.off\(\)/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_RETENTION_PAD = 0\.5/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_MAX_DECODED_BYTES = 256 \* 1024 \* 1024/);
+    assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS = \[350, 1200, 4000\]/);
     assert.match(fixedTownSurfaceSource, /zoom <= townMinZoom \+ FIXED_TOWN_SURFACE_LOW_ZOOM_RANGE/);
     assert.match(fixedTownSurfaceSource, /getViewportBounds\(map, retentionPad\)/);
     assert.match(fixedTownSurfaceSource, /getDecodedBytes\(paddedChunks\)/);
@@ -121,6 +122,7 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /map\.attributionControl\.addAttribution\(attribution\)/);
     assert.match(fixedTownSurfaceSource, /fallback\('zoom-too-low'/);
     assert.match(fixedTownSurfaceSource, /fallback\('chunk-load-error'/);
+    assert.match(fixedTownSurfaceSource, /entry\.overlay\.setUrl\(resolveFixedTownChunkUrl/);
 });
 
 test('town map proof is owner-only, local-flagged, and uses viewport coverage for fallback', () => {
@@ -134,7 +136,7 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = \[1\.3521, 103\.846\]/);
     assert.match(ownerPageSource, /lockMinimumZoomCamera=\{TOWN_MAP_PROOF_ENABLED\}/);
     assert.match(ownerPageSource, /preserveMobileMapFrameInFlow=\{TOWN_MAP_PROOF_ENABLED\}/);
-    assert.match(ownerPageSource, /resolveFixedTownManifestUrl\(assetBaseUrl\)/);
+    assert.match(ownerPageSource, /fetchFixedTownSurfaceManifest\(assetBaseUrl/);
     assert.match(ownerPageSource, /Object\.entries\(assetBaseUrls\)\.forEach/);
     assert.match(ownerPageSource, /buildDirectoryPresentation\(directory, \{ activeAnchor, presentationMode: 'v2-cards' \}\)/);
     assert.match(ownerPageSource, /isPointWithinWsenBounds\(point, nominalBounds\)/);

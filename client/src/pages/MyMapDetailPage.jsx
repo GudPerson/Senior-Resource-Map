@@ -33,10 +33,9 @@ import {
 } from '../lib/mapTheme.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import {
+    fetchFixedTownSurfaceManifest,
     isPointWithinWsenBounds,
     normalizeFixedTownAssetBaseUrl,
-    parseFixedTownSurfaceManifest,
-    resolveFixedTownManifestUrl,
 } from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -618,21 +617,8 @@ export default function MyMapDetailPage() {
 
         Object.entries(assetBaseUrls).forEach(([style, assetBaseUrl]) => {
             if (!assetBaseUrl) return;
-            fetch(resolveFixedTownManifestUrl(assetBaseUrl), {
-                signal: controller.signal,
-                cache: 'no-store',
-            })
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error(`Town map manifest request failed (${response.status}).`);
-                    }
-                    return response.json();
-                })
-                .then((payload) => {
-                    const manifest = parseFixedTownSurfaceManifest(payload);
-                    if (!manifest) {
-                        throw new Error('Town map manifest is invalid.');
-                    }
+            fetchFixedTownSurfaceManifest(assetBaseUrl, { signal: controller.signal })
+                .then((manifest) => {
                     setTownMapManifestStates((current) => ({
                         ...current,
                         [style]: { status: 'ready', manifest },

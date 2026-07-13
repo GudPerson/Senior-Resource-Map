@@ -6,6 +6,7 @@ import {
     FIXED_TOWN_SURFACE_SCHEMA,
     FIXED_TOWN_SURFACE_SCHEMA_VERSION,
     doWsenBoundsIntersect,
+    fetchFixedTownSurfaceManifest,
     isFixedTownSurfaceZoomEligible,
     isPointWithinWsenBounds,
     normalizeFixedTownStandardZoom,
@@ -241,6 +242,52 @@ test('asset base and fixed-surface URLs stay version-rooted and reject unsafe sc
     assert.equal(resolveFixedTownChunkUrl('https://maps.example.test/v1/w01', '../secret'), '');
     assert.equal(resolveFixedTownChunkUrl('https://maps.example.test/v1/w01', 'data:image/jpeg;base64,abc'), '');
     assert.equal(resolveFixedTownManifestUrl(''), '');
+});
+
+test('fixed town manifest loading retries transient failures and then returns the accepted manifest', async () => {
+    const responses = [
+        () => Promise.reject(new TypeError('temporary network failure')),
+        () => Promise.resolve({ ok: false, status: 503 }),
+        () => Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => buildManifest(),
+        }),
+    ];
+    const requestedUrls = [];
+    const fetchImpl = async (url) => {
+        requestedUrls.push(url);
+        return responses.shift()();
+    };
+
+    const manifest = await fetchFixedTownSurfaceManifest('https://maps.example.test/v1/w01', {
+        fetchImpl,
+        retryDelaysMs: [0, 0, 0],
+    });
+
+    assert.equal(manifest.map.id, 'W01');
+    assert.deepEqual(requestedUrls, [
+        'https://maps.example.test/v1/w01/manifest.json',
+        'https://maps.example.test/v1/w01/manifest.json',
+        'https://maps.example.test/v1/w01/manifest.json',
+    ]);
+});
+
+test('fixed town manifest loading fails closed without retrying permanent responses', async () => {
+    let requestCount = 0;
+    const fetchImpl = async () => {
+        requestCount += 1;
+        return { ok: false, status: 404 };
+    };
+
+    await assert.rejects(
+        fetchFixedTownSurfaceManifest('https://maps.example.test/v1/w01', {
+            fetchImpl,
+            retryDelaysMs: [0, 0, 0],
+        }),
+        /failed \(404\)/,
+    );
+    assert.equal(requestCount, 1);
 });
 
 test('point coverage uses lat and lng against nominal WSEN bounds', () => {

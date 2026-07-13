@@ -696,6 +696,82 @@ export function resolveFixedTownChunkUrl(assetBaseUrl, chunkUrl) {
     return resolveFixedTownAssetUrl(assetBaseUrl, chunkUrl);
 }
 
+function createFixedTownAbortError() {
+    const error = new Error('Fixed town surface request was aborted.');
+    error.name = 'AbortError';
+    return error;
+}
+
+function waitForFixedTownRetry(delayMs, signal) {
+    const normalizedDelay = Math.max(0, Number(delayMs) || 0);
+    if (signal?.aborted) return Promise.reject(createFixedTownAbortError());
+    if (normalizedDelay === 0) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            signal?.removeEventListener?.('abort', handleAbort);
+            resolve();
+        }, normalizedDelay);
+        const handleAbort = () => {
+            clearTimeout(timeout);
+            reject(createFixedTownAbortError());
+        };
+        signal?.addEventListener?.('abort', handleAbort, { once: true });
+    });
+}
+
+function isRetryableFixedTownManifestStatus(status) {
+    const normalizedStatus = Number(status);
+    return normalizedStatus === 408
+        || normalizedStatus === 425
+        || normalizedStatus === 429
+        || normalizedStatus >= 500;
+}
+
+export async function fetchFixedTownSurfaceManifest(assetBaseUrl, {
+    signal,
+    fetchImpl = globalThis.fetch,
+    retryDelaysMs = [0, 800, 2400, 8000],
+} = {}) {
+    const manifestUrl = resolveFixedTownManifestUrl(assetBaseUrl);
+    if (!manifestUrl || typeof fetchImpl !== 'function') {
+        throw new Error('Fixed town surface manifest URL is unavailable.');
+    }
+
+    const attempts = Array.isArray(retryDelaysMs) && retryDelaysMs.length
+        ? retryDelaysMs
+        : [0];
+    let lastError = null;
+
+    for (let index = 0; index < attempts.length; index += 1) {
+        await waitForFixedTownRetry(attempts[index], signal);
+        try {
+            const response = await fetchImpl(manifestUrl, {
+                signal,
+                cache: 'no-store',
+            });
+            if (!response?.ok) {
+                const error = new Error(`Town map manifest request failed (${response?.status || 'network'}).`);
+                error.retryable = isRetryableFixedTownManifestStatus(response?.status);
+                throw error;
+            }
+            const manifest = parseFixedTownSurfaceManifest(await response.json());
+            if (!manifest) {
+                const error = new Error('Town map manifest is invalid.');
+                error.retryable = false;
+                throw error;
+            }
+            return manifest;
+        } catch (error) {
+            if (error?.name === 'AbortError' || signal?.aborted) throw error;
+            lastError = error;
+            if (error?.retryable === false || index === attempts.length - 1) break;
+        }
+    }
+
+    throw lastError || new Error('Town map manifest could not load.');
+}
+
 export function isPointWithinWsenBounds(point, bounds) {
     if (!isRecord(point)) return false;
     const normalizedBounds = readWsenBounds(bounds);
