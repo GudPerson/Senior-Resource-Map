@@ -39,7 +39,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /basemapMode = 'live'/);
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
     assert.match(directoryMapSource, /function DirectoryMapZoomSync/);
+    assert.match(directoryMapSource, /function DirectoryMapFixedTownViewportSync/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
+    assert.match(directoryMapSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
     assert.match(directoryMapSource, /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles/);
     assert.match(directoryMapSource, /map\.setView\(map\.getCenter\(\), normalizedZoom, \{ animate: false \}\)/);
     assert.match(directoryMapSource, /map\.on\('zoom', handleZoom\)/);
@@ -47,6 +49,8 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /effectiveBasemapMode === 'town' \? \(/);
     assert.match(directoryMapSource, /typeof mapModeControl === 'function'/);
     assert.match(directoryMapSource, /configuredFixedTownSurfaceAvailable/);
+    assert.match(directoryMapSource, /fixedTownSurfaceViewportEligible !== false/);
+    assert.match(directoryMapSource, /townViewportEligible: fixedTownSurfaceInViewport/);
     assert.match(directoryMapSource, /fixedTownManualLiveOverride/);
     assert.match(directoryMapSource, /else if \(townMapZoomEligible\)/);
     assert.match(directoryMapSource, /if \(!townMapZoomEligible\)/);
@@ -70,6 +74,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /minZoom=\{resolvedMapMinZoom\}/);
     assert.match(directoryMapSource, /url=\{resolvedBasemapUrl\}/);
     assert.match(directoryMapSource, /<DirectoryMapZoomLevelControl/);
+    assert.match(directoryMapSource, /<DirectoryMapFixedTownViewportSync/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);
 });
 
@@ -118,7 +123,7 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /fallback\('chunk-load-error'/);
 });
 
-test('town map proof is owner-only, local-flagged, and keeps full owner coverage for fallback', () => {
+test('town map proof is owner-only, local-flagged, and uses viewport coverage for fallback', () => {
     assert.match(ownerPageSource, /VITE_TOWN_MAP_PROOF_ENABLED/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_ASSET_BASE_URL/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
@@ -133,10 +138,12 @@ test('town map proof is owner-only, local-flagged, and keeps full owner coverage
     assert.match(ownerPageSource, /Object\.entries\(assetBaseUrls\)\.forEach/);
     assert.match(ownerPageSource, /buildDirectoryPresentation\(directory, \{ activeAnchor, presentationMode: 'v2-cards' \}\)/);
     assert.match(ownerPageSource, /isPointWithinWsenBounds\(point, nominalBounds\)/);
+    assert.doesNotMatch(ownerPageSource, /const townMapOutsidePointCount/);
     assert.match(ownerPageSource, /setBasemapMode\('live'\)/);
     assert.match(ownerPageSource, /setBasemapMode\('auto'\)/);
     assert.match(ownerPageSource, /const mapModeControl = TOWN_MAP_PROOF_ENABLED \? renderTownMapModeControl : null/);
-    assert.match(ownerPageSource, /townMapFallbackReason !== 'outside-coverage'/);
+    assert.match(ownerPageSource, /townViewportEligible = true/);
+    assert.match(ownerPageSource, /Detailed map covers Choa Chu Kang only/);
     assert.match(ownerPageSource, /onFixedTownSurfaceFallback=\{handleFixedTownSurfaceFallback\}/);
     assert.match(ownerScaffoldSource, /basemapMode=\{basemapMode\}/);
     assert.match(ownerScaffoldSource, /fixedTownSurfaceAvailable=\{fixedTownSurfaceAvailable\}/);

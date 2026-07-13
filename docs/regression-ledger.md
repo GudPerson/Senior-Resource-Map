@@ -1153,6 +1153,21 @@ Active next recovery family:
   no horizontal overflow, and zero page errors. The known non-fatal image
   placeholder CSP notice remains unchanged. No Worker/API or R2 deploy was
   performed.
+- Owner Detailed viewport-coverage correction: production tablet UAT showed a
+  15-resource owner map staying on Standard at zoom 15 while the current
+  viewport was inside the CCK/W01 Detailed surface. The root cause was the
+  owner page disabling Detailed when any mapped resource in the full map was
+  outside W01, even if the current viewport had visible W01 chunks. The
+  recovery keeps the CCK/W01-only safety boundary but moves interactive owner
+  availability to viewport coverage: Detailed can turn on at zoom 15 when the
+  current viewport intersects W01 chunks, and the map falls back to Standard
+  with plain-language copy when the current viewport is outside the Detailed
+  area. Print keeps its existing full-map coverage guard. Focused fixed-town
+  and map-settings coverage passed 24/24, the exact Detailed-enabled production
+  build passed with only the existing large-chunk advisory, and `git diff
+  --check` passed. No Worker/API, R2, schema, auth, permission, ranking,
+  filtering, visibility, saved-resource, PDF-ledger, Shared Map, Discover, or
+  production-data behavior is changed.
 
 ## Recovery workflow
 

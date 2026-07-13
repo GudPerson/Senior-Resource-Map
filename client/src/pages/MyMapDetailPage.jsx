@@ -690,18 +690,12 @@ export default function MyMapDetailPage() {
             : [];
         return [...pinPoints, ...anchorPoint];
     }, [activeAnchor, townMapCoveragePresentation.pins]);
-    const townMapOutsidePointCount = useMemo(() => {
-        const nominalBounds = townMapManifestState.manifest?.bounds?.nominal;
-        if (!nominalBounds) return 0;
-        return townMapCoveragePoints.filter((point) => !isPointWithinWsenBounds(point, nominalBounds)).length;
-    }, [townMapCoveragePoints, townMapManifestState.manifest]);
     const townMapAvailable = Boolean(
         TOWN_MAP_PROOF_ENABLED
         && townMapAssetBaseUrl
         && townMapManifestState.status === 'ready'
         && townMapManifestState.manifest
         && townMapCoveragePoints.length
-        && townMapOutsidePointCount === 0
     );
     const printTownMapAssetBaseUrl = printMapState.mapStyle === CAREAROUND_MAP_STYLE_GRAY
         ? TOWN_MAP_GRAY_ASSET_BASE_URL
@@ -721,16 +715,6 @@ export default function MyMapDetailPage() {
         && townMapCoveragePoints.length
         && printTownMapOutsidePointCount === 0
     );
-
-    useEffect(() => {
-        if (townMapOutsidePointCount <= 0) return;
-        setTownMapFallbackReason('outside-coverage');
-    }, [townMapOutsidePointCount]);
-
-    useEffect(() => {
-        if (townMapFallbackReason !== 'outside-coverage' || townMapOutsidePointCount > 0) return;
-        setTownMapFallbackReason('');
-    }, [townMapFallbackReason, townMapOutsidePointCount]);
 
     const handleBasemapModeChange = useCallback((nextMode) => {
         if (nextMode !== 'town') return;
@@ -759,12 +743,6 @@ export default function MyMapDetailPage() {
                 compactMessage: 'Detailed unavailable',
             };
         }
-        if (townMapOutsidePointCount > 0) {
-            return {
-                message: 'Some places are outside this map area. Standard map is still on.',
-                compactMessage: 'Outside map area — Standard on',
-            };
-        }
         if (townMapFallbackReason) {
             return {
                 message: 'Detailed map could not load. Standard map is still on.',
@@ -772,10 +750,11 @@ export default function MyMapDetailPage() {
             };
         }
         return { message: '', compactMessage: '' };
-    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.status, townMapOutsidePointCount]);
+    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.status]);
 
     const renderTownMapModeControl = useCallback(({
         mode = 'live',
+        townViewportEligible = true,
         townZoomEligible = false,
         fallbackReason = '',
         onModeChange,
@@ -783,22 +762,32 @@ export default function MyMapDetailPage() {
     } = {}) => {
         const townUnavailableMessage = basemapMode === 'auto'
             && townMapAvailable
+            && townViewportEligible
             && !townZoomEligible
             ? `Zoom in to level ${FIXED_TOWN_SURFACE_MIN_ZOOM}. Detailed map will turn on automatically.`
             : '';
         const townUnavailableCompactMessage = townUnavailableMessage
             ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.`
             : '';
-        const statusMessage = (fallbackReason
-            ? 'Detailed map could not load. Standard map is still on.'
-            : townMapStatus.message);
-        const compactStatusMessage = (fallbackReason
-            ? 'Detailed unavailable'
-            : townMapStatus.compactMessage);
+        const viewportStatusMessage = !townViewportEligible && townMapAvailable
+            ? 'Detailed map covers Choa Chu Kang only. Standard map is still on here.'
+            : '';
+        const compactViewportStatusMessage = viewportStatusMessage
+            ? 'Outside Detailed area'
+            : '';
+        const fallbackStatusMessage = fallbackReason === 'outside-surface'
+            ? 'Detailed map covers Choa Chu Kang only. Standard map is still on here.'
+            : 'Detailed map could not load. Standard map is still on.';
+        const statusMessage = fallbackReason
+            ? fallbackStatusMessage
+            : (viewportStatusMessage || townMapStatus.message);
+        const compactStatusMessage = fallbackReason
+            ? (fallbackReason === 'outside-surface' ? 'Outside Detailed area' : 'Detailed unavailable')
+            : (compactViewportStatusMessage || townMapStatus.compactMessage);
         return (
             <TownMapModeControl
                 mode={mode}
-                townAvailable={townMapAvailable && townZoomEligible}
+                townAvailable={townMapAvailable && townViewportEligible && townZoomEligible}
                 statusMessage={statusMessage}
                 compactStatusMessage={compactStatusMessage}
                 townUnavailableMessage={townUnavailableMessage}

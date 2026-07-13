@@ -41,6 +41,7 @@ import {
     isFixedTownSurfaceZoomEligible,
     normalizeFixedTownStandardZoom,
     resolveFixedTownBasemapMode,
+    selectVisibleFixedTownChunks,
 } from '../lib/fixedTownSurface.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
@@ -1903,6 +1904,42 @@ function DirectoryMapZoomSync({ enabled = false, normalizeStandardZoomBelow = nu
     return null;
 }
 
+function DirectoryMapFixedTownViewportSync({ enabled = false, manifest = null, onViewportEligibleChange }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!enabled || !manifest?.chunks?.length) {
+            onViewportEligibleChange?.(null);
+            return undefined;
+        }
+
+        let frame = null;
+        let lastEligible = null;
+        const emitViewportEligible = () => {
+            frame = null;
+            const bounds = map.getBounds();
+            const viewportBounds = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+            const eligible = selectVisibleFixedTownChunks(manifest.chunks, viewportBounds).length > 0;
+            if (eligible === lastEligible) return;
+            lastEligible = eligible;
+            onViewportEligibleChange?.(eligible);
+        };
+        const scheduleViewportEligible = () => {
+            if (frame !== null) return;
+            frame = window.requestAnimationFrame(emitViewportEligible);
+        };
+
+        map.on('move zoom resize moveend zoomend', scheduleViewportEligible);
+        scheduleViewportEligible();
+        return () => {
+            if (frame !== null) window.cancelAnimationFrame(frame);
+            map.off('move zoom resize moveend zoomend', scheduleViewportEligible);
+        };
+    }, [enabled, manifest, map, onViewportEligibleChange]);
+
+    return null;
+}
+
 function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null }) {
     const map = useMap();
 
@@ -2133,6 +2170,7 @@ export default function DirectoryMap({
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
     const [compactCategoryBubbles, setCompactCategoryBubbles] = useState(false);
     const [fixedTownSurfaceZoom, setFixedTownSurfaceZoom] = useState(null);
+    const [fixedTownSurfaceViewportEligible, setFixedTownSurfaceViewportEligible] = useState(null);
     const [fixedTownManualLiveOverride, setFixedTownManualLiveOverride] = useState(false);
     const [fixedTownSurfaceFaultReason, setFixedTownSurfaceFaultReason] = useState('');
     const fixedTownSurfaceFaultTileZoomRef = useRef(null);
@@ -2145,7 +2183,9 @@ export default function DirectoryMap({
     const configuredFixedTownSurfaceAvailable = fixedTownSurfaceAvailable ?? Boolean(
         fixedTownSurfaceManifest && fixedTownAssetBaseUrl,
     );
+    const fixedTownSurfaceInViewport = fixedTownSurfaceViewportEligible !== false;
     const resolvedFixedTownSurfaceAvailable = configuredFixedTownSurfaceAvailable
+        && fixedTownSurfaceInViewport
         && !fixedTownSurfaceFaultReason;
     const townMapZoomEligible = isFixedTownSurfaceZoomEligible(
         fixedTownSurfaceZoom,
@@ -2207,9 +2247,14 @@ export default function DirectoryMap({
             setFixedTownSurfaceFaultReason('');
             fixedTownSurfaceFaultTileZoomRef.current = null;
         }
+        if (fixedTownSurfaceFaultReason === 'outside-surface' && fixedTownSurfaceInViewport) {
+            setFixedTownSurfaceFaultReason('');
+            fixedTownSurfaceFaultTileZoomRef.current = null;
+        }
     }, [
         configuredFixedTownSurfaceAvailable,
         fixedTownSurfaceFaultReason,
+        fixedTownSurfaceInViewport,
         fixedTownSurfaceZoom,
         townMapZoomEligible,
     ]);
@@ -2218,6 +2263,7 @@ export default function DirectoryMap({
         ? mapModeControl({
             mode: effectiveBasemapMode,
             townAvailable: configuredFixedTownSurfaceAvailable,
+            townViewportEligible: fixedTownSurfaceInViewport,
             townZoomEligible: townMapZoomEligible,
             zoom: fixedTownSurfaceZoom,
             fallbackReason: fixedTownSurfaceFaultReason,
@@ -2610,6 +2656,11 @@ export default function DirectoryMap({
                         ? resolvedFixedTownSurfaceMinZoom
                         : null}
                     onZoomChange={setFixedTownSurfaceZoom}
+                />
+                <DirectoryMapFixedTownViewportSync
+                    enabled={shouldTrackFixedTownSurfaceZoom && configuredFixedTownSurfaceAvailable}
+                    manifest={fixedTownSurfaceManifest}
+                    onViewportEligibleChange={setFixedTownSurfaceViewportEligible}
                 />
                 <DirectoryMapZoomLevelControl
                     enabled={showZoomLevelCounter && showZoomControl}
