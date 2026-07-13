@@ -1168,6 +1168,19 @@ Active next recovery family:
   --check` passed. No Worker/API, R2, schema, auth, permission, ranking,
   filtering, visibility, saved-resource, PDF-ledger, Shared Map, Discover, or
   production-data behavior is changed.
+  Release follow-up: implementation commit `1cd0e3fcd` was pushed to
+  `codex/shared-map-settings-layout`; branch preview deployed at
+  `https://3a359e9c.senior-resource-map.pages.dev`; and the same validated
+  build was explicitly published to the production branch at
+  `https://31a7e541.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-CIEHs-Cl.js`,
+  `assets/MyMapDetailPage-CNTXUkYK.js`, and `assets/index-gdJR9SuY.css`; the
+  deployed owner-map chunk contains the viewport Detailed coverage correction
+  and both W01 asset bases. Production API health returned OK at
+  `2026-07-13T02:11:38.937Z`; public `/discover` and owner
+  `/my-directory/maps/150` returned 200; and production smoke passed 5/5 using
+  the shared smoke environment without printing credentials. No Worker/API or
+  R2 deployment was performed.
 
 ## Recovery workflow
 
