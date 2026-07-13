@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 
-import { enrichPlaceCandidatesWithVertex } from '../src/utils/vertexGroundedPlaceSearch.js';
+import {
+    enrichPlaceCandidatesWithVertex,
+    searchVertexGroundedPlaceSuggestions,
+} from '../src/utils/vertexGroundedPlaceSearch.js';
 
 function jsonResponse(payload, status = 200) {
     return new Response(JSON.stringify(payload), {
@@ -28,6 +31,8 @@ function createVertexServiceAccountJson() {
 
 test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, description, and tags', async () => {
     const originalFetch = global.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
     const serviceAccountJson = createVertexServiceAccountJson();
     let sawGroundedJsonRequestWithoutSchema = false;
 
@@ -93,6 +98,7 @@ test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, descrip
             env: {
                 VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+                GROUNDED_AI_ENABLED: 'true',
             },
             candidates: [
                 {
@@ -116,6 +122,109 @@ test('enrichPlaceCandidatesWithVertex preserves address, contact, hours, descrip
         assert.deepEqual(enrichment.services, ['active ageing', 'senior activities']);
         assert.equal(enrichment.socialLinks.facebook, 'https://www.facebook.com/preciousactiveageing');
         assert.equal(enrichment.socialLinks.instagram, 'https://www.instagram.com/preciousactiveageing/');
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('enrichPlaceCandidatesWithVertex skips grounded AI when cost controls disable it', async () => {
+    const originalFetch = global.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
+    const serviceAccountJson = createVertexServiceAccountJson();
+    let fetchCount = 0;
+
+    global.fetch = async () => {
+        fetchCount += 1;
+        throw new Error('grounded AI should not be called');
+    };
+
+    try {
+        const result = await enrichPlaceCandidatesWithVertex({
+            env: {
+                VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
+                VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+            },
+            candidates: [
+                {
+                    name: 'Fei Yue Active Ageing Centre (Senja)',
+                    postalCode: '672634',
+                },
+            ],
+        });
+
+        assert.equal(result.size, 0);
+        assert.equal(fetchCount, 0);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('searchVertexGroundedPlaceSuggestions caches repeated grounded search calls', async () => {
+    const originalFetch = global.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
+    const serviceAccountJson = createVertexServiceAccountJson();
+    let generateContentCalls = 0;
+
+    global.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+
+        if (url === 'https://oauth2.googleapis.com/token') {
+            return jsonResponse({
+                access_token: 'vertex-access-token',
+                expires_in: 3600,
+            });
+        }
+
+        if (url.includes(':generateContent')) {
+            generateContentCalls += 1;
+            return jsonResponse({
+                candidates: [
+                    {
+                        content: {
+                            parts: [
+                                {
+                                    text: JSON.stringify({
+                                        candidates: [
+                                            {
+                                                name: 'Precious Active Ageing Centre',
+                                                address: 'Blk 488B Choa Chu Kang Avenue 5',
+                                                postalCode: '681488',
+                                            },
+                                        ],
+                                    }),
+                                },
+                            ],
+                        },
+                    },
+                ],
+            });
+        }
+
+        throw new Error(`Unexpected fetch in test: ${url}`);
+    };
+
+    const request = {
+        env: {
+            VERTEX_AI_PROJECT_ID: 'carearound-enrichment-test',
+            VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+            GROUNDED_AI_ENABLED: 'true',
+        },
+        anchor: {
+            postalCode: '681488',
+            address: 'Blk 488B Choa Chu Kang Avenue 5',
+        },
+        keywordQuery: 'active ageing',
+    };
+
+    try {
+        const first = await searchVertexGroundedPlaceSuggestions(request);
+        const second = await searchVertexGroundedPlaceSuggestions(request);
+
+        assert.equal(generateContentCalls, 1);
+        assert.equal(first.candidates[0].name, 'Precious Active Ageing Centre');
+        assert.equal(second.candidates[0].name, 'Precious Active Ageing Centre');
     } finally {
         global.fetch = originalFetch;
     }

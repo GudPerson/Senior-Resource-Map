@@ -1146,7 +1146,7 @@ export async function searchGooglePlaceCandidatesByPostal(
         warnings.push('Google could not resolve the postal anchor, so OneMap was used to locate this postal code.');
     }
 
-    // Enrich Google Places candidates with Vertex AI grounded search
+    // Enrich Google Places candidates only when explicitly enabled by AI cost controls.
     // This runs only when we have real Places results (not web-fallback, which already has AI data)
     const hasGooglePlacesCandidates = exactCandidates.length > 0 || nearbyCandidates.length > 0;
     if (hasGooglePlacesCandidates && options?.enrich === true) {

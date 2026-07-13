@@ -258,6 +258,8 @@ test('postal search fills one result slot with nearby Google candidate when no e
 
 test('postal search uses Vertex web fallback when Google returns zero place candidates', async () => {
     const originalFetch = global.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
     const serviceAccountJson = createVertexServiceAccountJson();
     let sawGroundedVertexRequest = false;
 
@@ -369,6 +371,7 @@ test('postal search uses Vertex web fallback when Google returns zero place cand
                 GOOGLE_MAPS_API_KEY: 'test-google-key',
                 VERTEX_AI_PROJECT_ID: 'carearound-test',
                 VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+                GROUNDED_AI_ENABLED: 'true',
             },
             '681811',
             ['Active Ageing Centre'],

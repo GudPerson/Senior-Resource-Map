@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { Hono } from 'hono';
 
 import {
+    validateAuthenticatedGoogleLink,
     isVerifiedGoogleEmail,
     me,
     normalizeGoogleSubject,
@@ -61,4 +62,37 @@ test('Google sign-in rejects email-only linking to an existing account', () => {
     assert.equal(shouldRejectGoogleEmailOnlyAccountLink(null, existingEmailUser), true);
     assert.equal(shouldRejectGoogleEmailOnlyAccountLink(existingSubjectUser, existingEmailUser), false);
     assert.equal(shouldRejectGoogleEmailOnlyAccountLink(null, null), false);
+});
+
+test('Google account linking requires the signed-in matching email owner', () => {
+    const currentDbUser = { id: 10, email: 'User@Example.test', googleSubject: null };
+
+    assert.deepEqual(validateAuthenticatedGoogleLink({
+        currentDbUser,
+        subjectMatchedUser: null,
+        googleEmail: 'user@example.test',
+        googleSubject: 'google-sub-123',
+    }), { allowed: true, alreadyLinked: false });
+
+    assert.deepEqual(validateAuthenticatedGoogleLink({
+        currentDbUser,
+        subjectMatchedUser: { id: 22, email: 'other@example.test', googleSubject: 'google-sub-123' },
+        googleEmail: 'user@example.test',
+        googleSubject: 'google-sub-123',
+    }), {
+        allowed: false,
+        status: 409,
+        error: 'This Google account is already linked to another CareAround SG account.',
+    });
+
+    assert.deepEqual(validateAuthenticatedGoogleLink({
+        currentDbUser,
+        subjectMatchedUser: null,
+        googleEmail: 'other@example.test',
+        googleSubject: 'google-sub-123',
+    }), {
+        allowed: false,
+        status: 409,
+        error: 'Sign in with the CareAround SG account that matches this Google email before linking.',
+    });
 });

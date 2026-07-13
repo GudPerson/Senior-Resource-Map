@@ -76,13 +76,14 @@ app.use('*', securityHeaders);
 app.use('*', cors({
     origin: resolveCorsOrigin,
     credentials: true,
-    allowHeaders: ['Content-Type', 'X-Session-Token'],
+    allowHeaders: ['Content-Type', 'X-Session-Token', 'X-Phone-Login-Token'],
 }));
 app.use('*', requestBodyGuard);
 
 app.use('/api/auth/login', authRateLimit);
 app.use('/api/auth/register', authRateLimit);
 app.use('/api/auth/google', authRateLimit);
+app.use('/api/auth/google/*', authRateLimit);
 app.use('/api/auth/phone/*', authPollingRateLimit);
 app.use('/api/auth/phone/*', authRateLimit);
 app.use('/api/phone-identities/link/start', authRateLimit);

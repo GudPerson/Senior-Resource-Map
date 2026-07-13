@@ -149,8 +149,21 @@ test('consolidateCollateralDraftRows excludes closure and venue notices from off
     assert.ok(warnings.every((warning) => warning.includes('looks like a notice')));
 });
 
-test('resolveAiImportProviderConfig prefers Vertex when both providers are configured', () => {
+test('resolveAiImportProviderConfig prefers Gemini when both providers are configured', () => {
     const config = resolveAiImportProviderConfig({
+        VERTEX_AI_PROJECT_ID: 'carearound-test',
+        VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
+        GEMINI_API_KEY: 'gemini-test-key',
+    });
+
+    assert.equal(config.provider, 'gemini');
+    assert.equal(config.apiKey, 'gemini-test-key');
+    assert.equal(config.model, 'gemini-2.5-flash-lite');
+});
+
+test('resolveAiImportProviderConfig can explicitly select Vertex', () => {
+    const config = resolveAiImportProviderConfig({
+        AI_IMPORT_PROVIDER: 'vertex',
         VERTEX_AI_PROJECT_ID: 'carearound-test',
         VERTEX_AI_SERVICE_ACCOUNT_JSON: serviceAccountJson,
         GEMINI_API_KEY: 'gemini-test-key',
@@ -181,6 +194,8 @@ test('resolveAiImportProviderConfig reports friendly setup error when no provide
 
 test('extractCollateralDraftRows calls Gemini fallback and consolidates returned draft rows', async () => {
     const originalFetch = globalThis.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
     let capturedUrl = '';
     let capturedBody = null;
 
@@ -262,4 +277,98 @@ test('extractCollateralDraftRows calls Gemini fallback and consolidates returned
     } finally {
         globalThis.fetch = originalFetch;
     }
+});
+
+test('extractCollateralDraftRows caches repeated collateral extraction without a second AI call', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
+    let fetchCount = 0;
+
+    globalThis.fetch = async () => {
+        fetchCount += 1;
+        return {
+            ok: true,
+            status: 200,
+            async json() {
+                return {
+                    candidates: [
+                        {
+                            content: {
+                                parts: [
+                                    {
+                                        text: JSON.stringify({
+                                            draftRows: [
+                                                {
+                                                    bucket: 'Programmes',
+                                                    name: 'Chair Yoga',
+                                                    schedule: '20 May 2026 (Wednesday), 9am-10am',
+                                                },
+                                            ],
+                                        }),
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                };
+            },
+        };
+    };
+
+    const request = {
+        env: {
+            GEMINI_API_KEY: 'gemini-test-key',
+            GEMINI_API_MODEL: 'gemini-test-model',
+        },
+        hostAsset: {
+            name: 'Precious Active Ageing Centre',
+            address: 'Blk 488B Choa Chu Kang Avenue 5',
+        },
+        files: [
+            {
+                type: 'image/png',
+                size: 14,
+                async arrayBuffer() {
+                    return new TextEncoder().encode('same file').buffer;
+                },
+            },
+        ],
+    };
+
+    try {
+        const first = await extractCollateralDraftRows(request);
+        const second = await extractCollateralDraftRows(request);
+
+        assert.equal(fetchCount, 1);
+        assert.equal(first.draftRows[0].name, 'Chair Yoga');
+        assert.equal(second.draftRows[0].name, 'Chair Yoga');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('extractCollateralDraftRows respects the AI import daily quota', async () => {
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
+
+    await assert.rejects(
+        () => extractCollateralDraftRows({
+            env: {
+                GEMINI_API_KEY: 'gemini-test-key',
+                AI_IMPORT_DAILY_LIMIT: '0',
+            },
+            hostAsset: { name: 'Precious Active Ageing Centre' },
+            files: [
+                {
+                    type: 'image/jpeg',
+                    size: 12,
+                    async arrayBuffer() {
+                        return new TextEncoder().encode('quota file').buffer;
+                    },
+                },
+            ],
+        }),
+        /daily quota is set to 0/,
+    );
 });

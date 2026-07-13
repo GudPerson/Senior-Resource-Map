@@ -81,10 +81,8 @@ function publicAttemptPayload(result) {
 }
 
 function readAttemptToken(c, body = {}) {
-    return body?.attemptToken
-        || c.req.query('attemptToken')
-        || c.req.query('token')
-        || c.req.header('x-phone-login-token')
+    return c.req.header('x-phone-login-token')
+        || body?.attemptToken
         || '';
 }
 

@@ -25,7 +25,7 @@ export function isAssetVisible(asset, user, options = {}) {
         return !asset.partnerId || ownerPartner?.managerUserId === user.id;
     }
 
-    if (user && user.id === asset.partnerId) return true;
+    if (user?.id && asset.partnerId && Number(user.id) === Number(asset.partnerId)) return true;
 
     if (asset.isMemberOnly && (!user || role === 'guest') && !treatMemberOnlyAsVisible) {
         return false;

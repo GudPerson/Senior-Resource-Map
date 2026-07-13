@@ -154,6 +154,45 @@ test('rate limiter blocks repeated requests without relying on a database', asyn
     }
 });
 
+test('rate limiter ignores unverified session-token headers when grouping unauthenticated requests', async () => {
+    const previousStore = globalThis.__carearoundRateLimitBuckets;
+    globalThis.__carearoundRateLimitBuckets = new Map();
+
+    try {
+        const limited = new Hono();
+        limited.use('*', createRateLimiter({
+            name: 'unit-test-unverified-session',
+            limit: 2,
+            windowMs: 60_000,
+        }));
+        limited.post('/api/auth/login', (c) => c.json({ ok: true }));
+
+        assert.equal((await limited.request('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'CF-Connecting-IP': '203.0.113.10',
+                'X-Session-Token': 'random-token-one',
+            },
+        })).status, 200);
+        assert.equal((await limited.request('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'CF-Connecting-IP': '203.0.113.10',
+                'X-Session-Token': 'random-token-two',
+            },
+        })).status, 200);
+        assert.equal((await limited.request('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'CF-Connecting-IP': '203.0.113.10',
+                'X-Session-Token': 'random-token-three',
+            },
+        })).status, 429);
+    } finally {
+        globalThis.__carearoundRateLimitBuckets = previousStore;
+    }
+});
+
 test('auth rate limiter does not spend login budget on phone status polling', async () => {
     const previousStore = globalThis.__carearoundRateLimitBuckets;
     globalThis.__carearoundRateLimitBuckets = new Map();

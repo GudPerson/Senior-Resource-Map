@@ -192,9 +192,10 @@ async function attachRegionMetadataToHardAssets(db, assets = []) {
     });
 }
 
-export async function loadDiscoveryIndicatorResourceMetadata(db, resources = []) {
+export async function loadDiscoveryIndicatorResourceMetadata(db, resources = [], options = {}) {
     const refs = normalizeDiscoveryIndicatorResources(resources);
     if (refs.length === 0) return [];
+    const isVisible = typeof options.isVisible === 'function' ? options.isVisible : () => true;
 
     const hardIds = refs.filter((resource) => resource.type === 'hard').map((resource) => resource.id);
     const softIds = refs.filter((resource) => resource.type === 'soft').map((resource) => resource.id);
@@ -208,7 +209,7 @@ export async function loadDiscoveryIndicatorResourceMetadata(db, resources = [])
     const hardRowsWithRegions = await attachRegionMetadataToHardAssets(db, hardRows);
     const audienceZoneIdsByHardAssetId = await loadAudienceZoneIdsByHardAssetId(db, hardIds);
 
-    for (const asset of hardRowsWithRegions) {
+    for (const asset of hardRowsWithRegions.filter((asset) => isVisible(asset, 'hard'))) {
         const audienceZoneIds = uniqueSortedIntegers(audienceZoneIdsByHardAssetId.get(Number(asset.id)) || []);
         metadata.push({
             type: 'hard',
@@ -265,7 +266,7 @@ export async function loadDiscoveryIndicatorResourceMetadata(db, resources = [])
         linkedHardAssets.map((asset) => asset.id),
     );
 
-    for (const asset of softRows) {
+    for (const asset of softRows.filter((asset) => isVisible(asset, 'soft'))) {
         const linkedAudienceZoneIds = [
             ...(linkedAudienceZoneIdsByHardAssetId.get(Number(asset.hostHardAsset?.id)) || []),
             ...(Array.isArray(asset.locations)

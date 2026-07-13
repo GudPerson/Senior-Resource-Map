@@ -1,11 +1,12 @@
 import { and, asc, eq } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
+import { hardAssets, myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
+import { isAssetVisible } from '../utils/visibility.js';
 
 function createHttpError(status, message) {
     const error = new Error(message);
@@ -117,6 +118,50 @@ function normalizeSnapshotDirectory(map, viewerUser) {
     };
 }
 
+async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
+    if (!directory) return null;
+    const hiddenKeys = new Set();
+
+    for (const asset of directory.assets || []) {
+        const resourceId = Number.parseInt(String(asset?.resourceId ?? ''), 10);
+        if (asset?.resourceType !== 'hard' || !Number.isInteger(resourceId) || resourceId <= 0) continue;
+        const liveAsset = await db.query.hardAssets.findFirst({
+            where: eq(hardAssets.id, resourceId),
+        });
+        if (!liveAsset || !isAssetVisible(liveAsset, { role: 'guest' }, { ownerPartner: liveAsset.partner })) {
+            hiddenKeys.add(`${asset.resourceType}:${resourceId}`);
+        }
+    }
+
+    if (hiddenKeys.size === 0) return directory;
+
+    const assets = (directory.assets || [])
+        .filter((asset) => !hiddenKeys.has(`${asset.resourceType}:${asset.resourceId}`));
+    const places = (directory.places || [])
+        .map((place) => ({
+            ...place,
+            rows: (place.rows || [])
+                .filter((row) => !hiddenKeys.has(`${row.resourceType}:${row.resourceId}`)),
+        }))
+        .filter((place) => place.rows.length > 0);
+    const visiblePlaceKeys = new Set(places.map((place) => place.placeKey));
+    const pins = (directory.pins || [])
+        .filter((pin) => visiblePlaceKeys.has(pin.placeKey));
+
+    return {
+        ...directory,
+        assets,
+        places,
+        pins,
+        summary: {
+            ...(directory.summary || {}),
+            resourceCount: assets.length,
+            placeCount: places.length,
+            mappablePlaceCount: pins.length,
+        },
+    };
+}
+
 function getSnapshotRows(directory) {
     return (directory?.places || []).flatMap((place) => (
         (place.rows || []).map((row) => ({ place, row }))
@@ -175,7 +220,7 @@ export async function getSharedMapDirectory(db, token, viewerUser) {
     const map = await requireSharedMap(db, token, true);
     const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser);
     if (snapshotDirectory) {
-        return snapshotDirectory;
+        return filterSnapshotDirectoryByLiveVisibility(db, snapshotDirectory);
     }
 
     const { directory, snapshotUpdates } = await buildMyMapDirectory(db, {

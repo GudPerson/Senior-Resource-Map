@@ -163,6 +163,26 @@ test('managed soft asset lists include directly assigned offerings', () => {
     assert.deepEqual(scoped.map((asset) => asset.id), [21]);
 });
 
+test('partner managed soft asset lists exclude unrelated offerings in the same region', () => {
+    const user = actor({
+        id: 101,
+        role: 'partner',
+        subregionIds: [30],
+    });
+    const assets = [
+        { id: 21, partnerId: 101, assetMode: 'standalone', coverageRegionIds: [30] },
+        { id: 22, partnerId: 202, assetMode: 'standalone', coverageRegionIds: [30] },
+    ];
+
+    const scoped = filterSoftAssetsForResourceList(assets, user, {
+        scope: 'managed',
+        isVisible: () => true,
+        canExpose: () => true,
+    });
+
+    assert.deepEqual(scoped.map((asset) => asset.id), [21]);
+});
+
 test('managed standalone soft asset lists follow service coverage', () => {
     const user = actor({
         role: 'regional_admin',

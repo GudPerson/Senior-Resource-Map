@@ -1,8 +1,15 @@
 import { inferSoftAssetBucket, normalizeSoftAssetBucket } from './softAssetBuckets.js';
+import {
+    assertAiImportAllowed,
+    fingerprintAiValue,
+    getCachedAiResult,
+    readEnvValue,
+    setCachedAiResult,
+} from './aiCostControls.js';
 
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash';
-const DEFAULT_GEMINI_MODEL = DEFAULT_VERTEX_MODEL;
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite';
 const MAX_TOTAL_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_FILES = 6;
 const AI_IMPORT_NOT_CONFIGURED_MESSAGE = 'AI import is not set up for this environment yet. Ask the system administrator to enable the AI collateral import service before trying again.';
@@ -11,21 +18,6 @@ function clientError(message, status = 400) {
     const err = new Error(message);
     err.status = status;
     return err;
-}
-
-function readEnvValue(runtimeEnv = {}, ...keys) {
-    const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
-
-    for (const source of [runtimeEnv || {}, processEnv]) {
-        for (const key of keys) {
-            const raw = source?.[key];
-            if (raw === undefined || raw === null) continue;
-            const value = String(raw).trim().replace(/^['"]|['"]$/g, '');
-            if (value) return value;
-        }
-    }
-
-    return '';
 }
 
 function resolveVertexConfig(runtimeEnv = {}) {
@@ -71,11 +63,20 @@ function resolveGeminiConfig(runtimeEnv = {}) {
 }
 
 export function resolveAiImportProviderConfig(runtimeEnv = {}) {
+    const providerPreference = readEnvValue(runtimeEnv, 'AI_IMPORT_PROVIDER').toLowerCase();
     const vertexConfig = resolveVertexConfig(runtimeEnv);
-    if (vertexConfig) return vertexConfig;
-
     const geminiConfig = resolveGeminiConfig(runtimeEnv);
+    if (providerPreference === 'vertex') {
+        if (vertexConfig) return vertexConfig;
+        throw clientError('AI_IMPORT_PROVIDER is set to Vertex, but Vertex AI is not configured for this environment.', 503);
+    }
+    if (providerPreference === 'gemini') {
+        if (geminiConfig) return geminiConfig;
+        throw clientError('AI_IMPORT_PROVIDER is set to Gemini, but Gemini API is not configured for this environment.', 503);
+    }
+
     if (geminiConfig) return geminiConfig;
+    if (vertexConfig) return vertexConfig;
 
     throw clientError(AI_IMPORT_NOT_CONFIGURED_MESSAGE, 503);
 }
@@ -778,6 +779,20 @@ export async function extractCollateralDraftRows({
 
     const fileParts = await buildFileParts(files);
     const prompt = buildCollateralPrompt({ hostAsset, softSubCategoryNames, tagNames: knownTagNames });
+    const cachePayload = {
+        provider: config.provider,
+        model: config.model,
+        prompt,
+        files: fileParts.map((part) => ({
+            mimeType: part.inlineData.mimeType,
+            dataLength: part.inlineData.data.length,
+            dataFingerprint: fingerprintAiValue(part.inlineData.data),
+        })),
+    };
+    const cached = await getCachedAiResult(env, 'collateral-import', cachePayload);
+    if (cached) return cached;
+
+    await assertAiImportAllowed(env);
     const responseJson = await callAiGenerateContent(
         config,
         buildGenerateContentBody({ prompt, fileParts }),
@@ -814,5 +829,5 @@ export async function extractCollateralDraftRows({
 
     const warnings = [...parsedWarnings, ...consolidation.warnings];
 
-    return { draftRows, warnings };
+    return setCachedAiResult(env, 'collateral-import', cachePayload, { draftRows, warnings });
 }

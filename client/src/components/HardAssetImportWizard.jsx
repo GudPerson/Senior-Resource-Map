@@ -1116,7 +1116,7 @@ export default function HardAssetImportWizard({
 
                     <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50/50 px-4 py-3">
                         <div>
-                            <p className="text-sm font-semibold text-slate-900">Enrich top 4 places with Vertex AI</p>
+                            <p className="text-sm font-semibold text-slate-900">Enrich top 4 places with grounded AI</p>
                             <p className="mt-1 text-xs text-slate-600">Extracts services, refines description and improves quality (takes longer).</p>
                         </div>
                         <label className="relative inline-flex cursor-pointer items-center">
