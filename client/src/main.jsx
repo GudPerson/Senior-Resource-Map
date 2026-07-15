@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext.jsx'
 import { A11yProvider } from './contexts/A11yContext.jsx'
 import { MapStyleProvider } from './contexts/MapStyleContext.jsx'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { registerCareAroundPwa } from './lib/pwaRegistration.js'
 
 createRoot(document.getElementById('root')).render(
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
@@ -18,3 +19,5 @@ createRoot(document.getElementById('root')).render(
         </A11yProvider>
     </GoogleOAuthProvider>
 )
+
+registerCareAroundPwa()

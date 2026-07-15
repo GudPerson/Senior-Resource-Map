@@ -17,9 +17,27 @@ Last updated: 2026-07-15 (Asia/Singapore)
 
 ## Repo and worktree state
 
-- The user's original worktree remains `/Users/sweetbuns/CareAroundSG` on
-  current main `a1544508b46e9933e5f9f3c8b71412885264095f` with unrelated dirty
-  local files. Those dirty files were not modified, staged, or reverted.
+- Current in-progress branch for PWA hardening:
+  `codex/pwa-hardening`, created from current `origin/main` `347b05397`.
+- The pre-existing dirty `docs/session-handoff.md` rewrite from the original
+  checkout was preserved in the local stash named
+  `preserve pre-pwa session handoff` before this branch was created.
+- Current PWA scope is client-only: service worker registration, static
+  offline fallback, manifest metadata, Cloudflare Pages headers, tests, and
+  ledger/handoff documentation.
+- The service worker must not cache `/api` traffic, auth/session checks,
+  uploads, Worker responses, R2 map manifests/chunks, or production data.
+- This active worktree is now `/Users/sweetbuns/CareAroundSG` on
+  `codex/pwa-hardening`, not `main`. Before this branch was created, the
+  checkout was `main` at `a1544508b46e9933e5f9f3c8b71412885264095f` and was
+  30 commits behind `origin/main`.
+- Existing untracked local artifacts remain local and should not be staged by
+  default: `.agents/`, `.superpowers/`,
+  `docs/competitor-analysis-2026-06-25.md`,
+  `docs/map-stable-baseline-2026-07-12.md`,
+  `docs/superpowers/plans/2026-06-26-resource-editor-wizard-conversion.md`,
+  `output/playwright/test-results/`, and
+  `output/playwright/wizard-uat-2026-06-26/`.
 - Production recovery used the isolated worktree
   `/Users/sweetbuns/CareAroundSG-map-baseline-recovery` on
   `codex/map-baseline-recovery`.
@@ -113,6 +131,12 @@ Last updated: 2026-07-15 (Asia/Singapore)
 - Recovery validation passed focused map coverage 102/102, full client coverage
   411/411, full server coverage 405/405, R2 contract checks 5/5, the exact
   Detailed-enabled production build, and `git diff --check`.
+- PWA hardening validation on `codex/pwa-hardening` passed focused PWA
+  contract coverage 5/5, full client coverage 416/416, full server coverage
+  405/405, the exact Detailed-enabled production build with required map
+  environment variables, built-output checks for `carearound-sw.js`,
+  `offline.html`, `site.webmanifest`, and `_headers`, and `git diff --check`.
+  No deploy or production smoke has been run for this PWA branch yet.
 - Post-recovery production smoke passed 5/5 against `https://app.carearound.sg`
   and `https://api.carearound.sg/api`.
 - Signed-in production Chrome UAT on owner map 150 confirmed Map appearance

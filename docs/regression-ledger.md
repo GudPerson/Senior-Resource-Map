@@ -1280,6 +1280,51 @@ Active next recovery family:
   auth, permission, data, Discover ranking/filtering, visibility,
   saved-resource, or production-data behavior was changed.
 
+### 2026-07-15 PWA hardening baseline
+
+- Current behavior: CareAround SG keeps its existing installable web-app
+  foundation and adds a narrow production service worker registration. The
+  worker precaches only static PWA shell assets, uses cache-first behavior only
+  for same-origin static assets, excludes `/api` traffic entirely, and returns a
+  static offline fallback only for failed navigation requests. The manifest now
+  records a stable app ID/scope, language, display fallback preferences,
+  categories, and Discover/My Directory shortcuts. Cloudflare Pages serves the
+  service worker, manifest, and offline page with `Cache-Control: no-cache` so
+  update checks do not get trapped behind stale metadata.
+- Known-good reference: `codex/pwa-hardening` from current `origin/main`
+  `347b05397` after preserving the pre-existing dirty handoff doc in a local
+  stash. Existing app shell, auth/session recovery, route chunk recovery, map
+  baseline, Discover, My Directory/My Maps, Shared Maps, Dashboard resources,
+  Worker/API, R2 map assets, schema, permissions, ranking, filtering,
+  visibility, saved resources, and production data remain unchanged.
+- Reproduction steps: build the client, open `https://app.carearound.sg` or a
+  Pages preview over HTTPS, confirm `/site.webmanifest` links the app metadata
+  and `/carearound-sw.js` registers in production, inspect DevTools Application
+  storage to confirm the worker scope is `/`, go offline, and navigate to a new
+  app route to confirm `/offline.html` appears. While online, verify API
+  requests such as `/api/auth/me` or `/api/health` remain network-owned and are
+  not served from Cache Storage.
+- Acceptance criteria: app installation metadata is present without changing
+  route behavior; the service worker does not cache or replay API/auth/upload
+  responses; failed navigations show only the static offline fallback; static
+  asset caching does not change Discover ranking/filtering/visibility, map
+  camera/pin behavior, saved resources, auth/session state, dashboard resource
+  loading, Worker/API behavior, or production data; route chunk recovery still
+  handles stale lazy-loaded bundles.
+- Verification result: focused PWA contract coverage passed 5/5 with
+  `node --test client/test/pwaHardening.test.js` on 2026-07-15. Full client
+  coverage passed 416/416 with
+  `node --test client/test/*.test.js client/src/lib/*.test.js`; full server
+  coverage passed 405/405 with `npm run test:server`; the exact
+  Detailed-enabled production client build passed with only the existing
+  large-chunk advisory using `VITE_API_URL=https://api.carearound.sg/api`,
+  `VITE_TOWN_MAP_PROOF_ENABLED=true`,
+  `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01`, and
+  `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01/gray`;
+  built output included `carearound-sw.js`, `offline.html`,
+  `site.webmanifest`, and `_headers`; and `git diff --check` passed. No
+  deploy or production smoke was performed in this pass.
+
 ## Recovery workflow
 
 For each regression family:

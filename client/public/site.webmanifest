@@ -2,20 +2,63 @@
   "name": "CareAround SG",
   "short_name": "CareAround",
   "description": "Find nearby care, support, and community resources for seniors in Singapore.",
+  "id": "/",
   "start_url": "/discover",
+  "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
   "background_color": "#f4fbfa",
   "theme_color": "#0fa39a",
+  "lang": "en-SG",
+  "dir": "ltr",
+  "categories": [
+    "health",
+    "lifestyle",
+    "navigation",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Discover resources",
+      "short_name": "Discover",
+      "url": "/discover",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "My Directory",
+      "short_name": "Directory",
+      "url": "/my-directory",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

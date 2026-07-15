@@ -1,0 +1,98 @@
+const CACHE_PREFIX = 'carearound-pwa';
+const CACHE_VERSION = 'v1';
+const STATIC_CACHE = `${CACHE_PREFIX}:${CACHE_VERSION}:static`;
+const OFFLINE_URL = '/offline.html';
+const PRECACHE_URLS = [
+    OFFLINE_URL,
+    '/site.webmanifest',
+    '/favicon.png',
+    '/apple-touch-icon.png',
+    '/icon-192.png',
+    '/icon-512.png',
+];
+
+function isSameOrigin(url) {
+    return url.origin === self.location.origin;
+}
+
+function isApiRequest(url) {
+    return isSameOrigin(url) && (url.pathname === '/api' || url.pathname.startsWith('/api/'));
+}
+
+function isCacheableStaticRequest(url) {
+    if (!isSameOrigin(url)) return false;
+    return url.pathname.startsWith('/assets/')
+        || url.pathname === '/site.webmanifest'
+        || url.pathname === '/favicon.png'
+        || url.pathname === '/favicon.svg'
+        || url.pathname === '/apple-touch-icon.png'
+        || url.pathname === '/icon-192.png'
+        || url.pathname === '/icon-512.png';
+}
+
+async function cacheFirst(request) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const response = await fetch(request);
+    if (response?.ok) {
+        const cache = await caches.open(STATIC_CACHE);
+        await cache.put(request, response.clone());
+    }
+    return response;
+}
+
+async function navigationWithOfflineFallback(request) {
+    try {
+        return await fetch(request);
+    } catch {
+        return await caches.match(OFFLINE_URL)
+            || new Response('CareAround SG is offline. Reconnect and try again.', {
+                status: 503,
+                headers: {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                },
+            });
+    }
+}
+
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(STATIC_CACHE)
+            .then((cache) => cache.addAll(PRECACHE_URLS))
+            .catch(() => {})
+    );
+});
+
+self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((keys) => Promise.all(
+                keys
+                    .filter((key) => key.startsWith(CACHE_PREFIX) && key !== STATIC_CACHE)
+                    .map((key) => caches.delete(key))
+            ))
+            .then(() => self.clients.claim())
+    );
+});
+
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+
+    const url = new URL(event.request.url);
+    if (isApiRequest(url)) return;
+
+    if (event.request.mode === 'navigate') {
+        event.respondWith(navigationWithOfflineFallback(event.request));
+        return;
+    }
+
+    if (isCacheableStaticRequest(url)) {
+        event.respondWith(cacheFirst(event.request));
+    }
+});
