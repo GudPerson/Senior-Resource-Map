@@ -1284,13 +1284,15 @@ Active next recovery family:
 
 - Current behavior: CareAround SG keeps its existing installable web-app
   foundation and adds a narrow production service worker registration. The
-  worker precaches only static PWA shell assets, uses cache-first behavior only
-  for same-origin static assets, excludes `/api` traffic entirely, and returns a
-  static offline fallback only for failed navigation requests. The manifest now
-  records a stable app ID/scope, language, display fallback preferences,
-  categories, and Discover/My Directory shortcuts. Cloudflare Pages serves the
-  service worker, manifest, and offline page with `Cache-Control: no-cache` so
-  update checks do not get trapped behind stale metadata.
+  worker is served from `/assets/carearound-sw.js` with
+  `Service-Worker-Allowed: /`, precaches only static PWA shell assets, uses
+  cache-first behavior only for same-origin static assets, excludes `/api`
+  traffic entirely, and returns a static offline fallback only for failed
+  navigation requests. The manifest now records a stable app ID/scope,
+  language, display fallback preferences, categories, and Discover/My Directory
+  shortcuts. Cloudflare Pages serves the service worker, manifest, and offline
+  page with `Cache-Control: no-cache` so update checks do not get trapped behind
+  stale metadata.
 - Known-good reference: `codex/pwa-hardening` from current `origin/main`
   `347b05397` after preserving the pre-existing dirty handoff doc in a local
   stash. Existing app shell, auth/session recovery, route chunk recovery, map
@@ -1299,9 +1301,9 @@ Active next recovery family:
   visibility, saved resources, and production data remain unchanged.
 - Reproduction steps: build the client, open `https://app.carearound.sg` or a
   Pages preview over HTTPS, confirm `/site.webmanifest` links the app metadata
-  and `/carearound-sw.js` registers in production, inspect DevTools Application
-  storage to confirm the worker scope is `/`, go offline, and navigate to a new
-  app route to confirm `/offline.html` appears. While online, verify API
+  and `/assets/carearound-sw.js` registers in production, inspect DevTools
+  Application storage to confirm the worker scope is `/`, go offline, and
+  navigate to a new app route to confirm `/offline` appears. While online, verify API
   requests such as `/api/auth/me` or `/api/health` remain network-owned and are
   not served from Cache Storage.
 - Acceptance criteria: app installation metadata is present without changing
@@ -1321,7 +1323,7 @@ Active next recovery family:
   `VITE_TOWN_MAP_PROOF_ENABLED=true`,
   `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01`, and
   `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01/gray`;
-  built output included `carearound-sw.js`, `offline.html`,
+  built output included `assets/carearound-sw.js`, `offline.html`,
   `site.webmanifest`, and `_headers`; and `git diff --check` passed. No
   deploy or production smoke was performed in this pass.
 

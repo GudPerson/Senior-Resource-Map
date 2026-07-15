@@ -1,7 +1,7 @@
 const CACHE_PREFIX = 'carearound-pwa';
 const CACHE_VERSION = 'v1';
 const STATIC_CACHE = `${CACHE_PREFIX}:${CACHE_VERSION}:static`;
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = '/offline';
 const PRECACHE_URLS = [
     OFFLINE_URL,
     '/site.webmanifest',
