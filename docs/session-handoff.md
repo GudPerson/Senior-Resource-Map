@@ -1,15 +1,16 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-12 (Asia/Singapore)
+Last updated: 2026-07-15 (Asia/Singapore)
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-tuaHPNyy.js`
+- Production client bundle: `assets/index-Ds9nT_2R.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-Bt2dyQYF.js`
 - Production client CSS: `assets/index-gdJR9SuY.css`
-- Production Pages deployment: `https://61833821.senior-resource-map.pages.dev`
-- Production API: `https://api.carearound.sg/api/health` returned OK after the
-  client release. No Worker/API deployment was performed.
+- Production Pages deployment: `https://cb703fe6.senior-resource-map.pages.dev`
+- Production API: `https://api.carearound.sg/api/health` returned OK at
+  `2026-07-15T13:45:36.101Z`. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
@@ -17,14 +18,18 @@ Last updated: 2026-07-12 (Asia/Singapore)
 ## Repo and worktree state
 
 - The user's original worktree remains `/Users/sweetbuns/CareAroundSG` on
-  `codex/ai-cost-governor` at `437a4677930a268021affddbaf80d1f879f7727e`.
-  Its unrelated AI changes and untracked files were not modified, staged, or
-  reverted.
-- The shared-settings release used the isolated worktree
+  current main `a1544508b46e9933e5f9f3c8b71412885264095f` with unrelated dirty
+  local files. Those dirty files were not modified, staged, or reverted.
+- Production recovery used the isolated worktree
+  `/Users/sweetbuns/CareAroundSG-map-baseline-recovery` on
+  `codex/map-baseline-recovery`.
+- Recovery commit: `8cd242ea0`, merging current main `a1544508b` with the
+  validated map baseline `eb84067a1` from `codex/shared-map-settings-layout`.
+- The shared-settings release source remains available in
   `/Users/sweetbuns/CareAroundSG-shared-map-settings-layout` on
   `codex/shared-map-settings-layout`.
-- Exact base: `b9fb904b51c49fdf9068aca21f0b99124077d338` (verified
-  persistent Default/Gray production baseline).
+- Original map baseline base: `b9fb904b51c49fdf9068aca21f0b99124077d338`
+  (verified persistent Default/Gray production baseline).
 - Implementation commits: `e0fbb31a2` (`Unify responsive map settings layout`),
   `430114e9` (`Compact shared map controls`), `4aa119777`
   (`Refine mobile map controls and Back recovery`), and `4f3ea03a5`
@@ -33,7 +38,7 @@ Last updated: 2026-07-12 (Asia/Singapore)
   (`Lock enabled Detailed map release build`), and `e031e266f`
   (`Add configurable owner print map workspace`), and `68acd838f`
   (`Refine owner print toolbar alignment`).
-- Branch pushed to `origin/codex/shared-map-settings-layout`.
+- Branch pushed to `origin/codex/map-baseline-recovery`.
 - Generated `output/playwright/test-results/` and
   `output/playwright/shared-map-settings-layout/` are local UAT evidence and
   must not be staged.
@@ -101,6 +106,22 @@ Last updated: 2026-07-12 (Asia/Singapore)
 
 ## Release evidence
 
+- July 15 production recovery: current main deployment `a1544508b` had omitted
+  the validated map branch and visibly removed the shared map controls and
+  Detailed-map behavior. Recovery merge commit `8cd242ea0` restored the locked
+  map baseline onto current main while preserving the newer AI/security files.
+- Recovery validation passed focused map coverage 102/102, full client coverage
+  411/411, full server coverage 405/405, R2 contract checks 5/5, the exact
+  Detailed-enabled production build, and `git diff --check`.
+- Post-recovery production smoke passed 5/5 against `https://app.carearound.sg`
+  and `https://api.carearound.sg/api`.
+- Signed-in production Chrome UAT on owner map 150 confirmed Map appearance
+  contains Map detail, Detailed, Map colour, Default, and Gray; zoom 14 showed
+  Standard with nine visible live tiles; zoom 15 automatically showed 20 fixed
+  W01 chunks, zero visible live tiles, and zero new live OneMap tile requests.
+  The map settings button, zoom counter, and desktop resize handle were
+  visible. The only console error was an unrelated Chrome-extension
+  content-script load failure.
 - Focused Print Map/map checks: 44/44 passed.
 - Full client: 399/399 passed.
 - Full server: 396/396 passed.
@@ -174,9 +195,10 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-The refined owner Print Map workspace is live. Production serves
-assets/index-tuaHPNyy.js from Pages deployment
-https://61833821.senior-resource-map.pages.dev. My Maps and Discover use
+The recovered map baseline is live on current main. Production serves
+assets/index-Ds9nT_2R.js and owner-map chunk
+assets/MyMapDetailPage-Bt2dyQYF.js from Pages deployment
+https://cb703fe6.senior-resource-map.pages.dev. My Maps and Discover use
 one compact upper-right icon-only Map settings button, an anchored desktop
 popover, and the shared mobile bottom sheet. Default/Gray remains persistent
 across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
@@ -200,10 +222,12 @@ rail on desktop and mobile.
 Production client builds must retain the enabled `VITE_TOWN_MAP_*` values;
 omitting them hides Map detail and is reserved only for an intentional rollback.
 
-The user's original worktree is still on codex/ai-cost-governor with unrelated
-dirty AI work. Do not revert, stage, or modify it accidentally. The completed
-release is on origin/codex/shared-map-settings-layout; its isolated worktree is
-/Users/sweetbuns/CareAroundSG-shared-map-settings-layout.
+The user's original worktree is still `/Users/sweetbuns/CareAroundSG` on current
+main with unrelated dirty local files. Do not revert, stage, or modify it
+accidentally. The completed recovery release is on
+origin/codex/map-baseline-recovery; its isolated worktree is
+/Users/sweetbuns/CareAroundSG-map-baseline-recovery. It merges current main
+`a1544508b` with validated map branch `eb84067a1`.
 
 Recommended next gate: UAT owner Print Map on a few real multi-resource maps.
 If it remains clear and stable, expand the controlled print workspace to Shared

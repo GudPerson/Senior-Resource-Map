@@ -1260,8 +1260,25 @@ Active next recovery family:
   passed 411/411, full server coverage passed 405/405 after refreshing local
   dependencies, the exact Detailed-enabled production build passed with only
   the existing large-chunk advisory, R2 contract checks passed 5/5, and
-  `git diff --check` passed. Deployment evidence is added after the recovered
-  client is published.
+  `git diff --check` passed. Release follow-up: recovery merge commit
+  `8cd242ea0` was pushed to `origin/codex/map-baseline-recovery`, and the same
+  validated client build was explicitly published to the production Pages
+  branch at `https://cb703fe6.senior-resource-map.pages.dev`. The production
+  custom domain serves `assets/index-Ds9nT_2R.js`,
+  `assets/MyMapDetailPage-Bt2dyQYF.js`, and
+  `assets/index-gdJR9SuY.css`; API health returned OK at
+  `2026-07-15T13:45:36.101Z`; public route checks returned 200; and production
+  smoke passed 5/5. Fresh signed-in production Chrome UAT on owner map 150
+  confirmed the recovered `Map appearance` settings with Map detail, Detailed,
+  Map colour, Default, and Gray; zoom level 14 rendered Standard with nine
+  visible live tiles; zooming to level 15 automatically rendered 20 fixed W01
+  chunks with zero visible live tiles and zero new OneMap tile requests during
+  Detailed. The map settings button, zoom counter, and desktop resize handle
+  were visible. Console inspection found no CareAround application errors; the
+  only error was the unrelated Chrome-extension content-script load failure
+  previously seen during map checks. No Worker/API deploy, R2 mutation, schema,
+  auth, permission, data, Discover ranking/filtering, visibility,
+  saved-resource, or production-data behavior was changed.
 
 ## Recovery workflow
 
