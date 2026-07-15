@@ -5,12 +5,12 @@ Last updated: 2026-07-15 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-Ds9nT_2R.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-Bt2dyQYF.js`
+- Production client bundle: `assets/index-BAhyRlx3.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-CFsb5dOE.js`
 - Production client CSS: `assets/index-gdJR9SuY.css`
-- Production Pages deployment: `https://cb703fe6.senior-resource-map.pages.dev`
+- Production Pages deployment: `https://5e4e0f2a.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-15T13:45:36.101Z`. No Worker/API deployment was performed.
+  `2026-07-15T15:46:46.412Z`. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
@@ -137,7 +137,14 @@ Last updated: 2026-07-15 (Asia/Singapore)
   405/405, the exact Detailed-enabled production build with required map
   environment variables, built-output checks for `pwa/carearound-sw`,
   `offline.html`, `site.webmanifest`, and `_headers`, and `git diff --check`.
-  No deploy or production smoke has been run for this PWA branch yet.
+  Production Pages deployment `https://5e4e0f2a.senior-resource-map.pages.dev`
+  reached `https://app.carearound.sg` as `assets/index-BAhyRlx3.js`.
+  `https://app.carearound.sg/pwa/carearound-sw` returned
+  `Content-Type: application/javascript`, `Cache-Control: no-cache`, and
+  `Service-Worker-Allowed: /`; `/offline` and `/site.webmanifest` returned the
+  hardened PWA metadata; production smoke passed all 5 checks, with the postal
+  import wizard passing on retry and then passing a targeted rerun. No
+  Worker/API, schema, auth, data, map asset, or secret changes were deployed.
 - Post-recovery production smoke passed 5/5 against `https://app.carearound.sg`
   and `https://api.carearound.sg/api`.
 - Signed-in production Chrome UAT on owner map 150 confirmed Map appearance

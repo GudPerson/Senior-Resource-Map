@@ -1324,8 +1324,18 @@ Active next recovery family:
   `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01`, and
   `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01/gray`;
   built output included `pwa/carearound-sw`, `offline.html`,
-  `site.webmanifest`, and `_headers`; and `git diff --check` passed. No
-  deploy or production smoke was performed in this pass.
+  `site.webmanifest`, and `_headers`; and `git diff --check` passed.
+  Production Pages deployment `https://5e4e0f2a.senior-resource-map.pages.dev`
+  reached `https://app.carearound.sg` as `assets/index-BAhyRlx3.js`.
+  `https://app.carearound.sg/pwa/carearound-sw` returned JavaScript with
+  `Cache-Control: no-cache` and `Service-Worker-Allowed: /`;
+  `/site.webmanifest` included the stable app ID, scope, language, categories,
+  and shortcuts; `/offline` returned the static offline page with
+  `Cache-Control: no-cache`; and `https://api.carearound.sg/api/health`
+  returned OK at `2026-07-15T15:46:46.412Z`. Production smoke passed all 5
+  checks, with the postal import wizard passing on retry and then passing a
+  targeted rerun. No Worker/API, schema, auth, data, map asset, or secret
+  changes were deployed.
 
 ## Recovery workflow
 
