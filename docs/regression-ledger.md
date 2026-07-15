@@ -718,6 +718,551 @@ Completed and locked:
 Active next recovery family:
 - Release smoke and final deployment check
 
+### 2026-07-11 CCK/W01 fixed-surface owner proof and hosted activation
+
+- Current behavior: behind the build-time `VITE_TOWN_MAP_PROOF_ENABLED` flag, My Map
+  owner view keeps Leaflet, the existing pins, clustering, selection, camera,
+  reset, cards, and full-map interaction while switching automatically between
+  a OneMap `Default_HD` `Standard` surface and the fixed CCK/W01 `Detailed`
+  surface at zoom level 15. Detailed mode loads only visible geographically
+  positioned W01 image chunks and renders no live OneMap tile images. The
+  repository-wide `Grey_HD` default and all unflagged callers remain unchanged.
+  If an owner selects the unavailable-looking `Detailed` control below level
+  15, the map stays on `Standard` and explains that zooming in to level 15 will
+  turn on Detailed automatically. The guidance clears at the eligible level.
+  The flagged owner proof also keeps the normal mobile map frame in page flow
+  at the end of a short resource list so touch momentum cannot alternate the
+  page height and produce vertical vibration; the shared list component keeps
+  its existing default behavior.
+- Reproduction steps: start the local client with the proof flag and W01 asset
+  base, open an owned `/my-directory/maps/:id`, verify `Standard` below zoom 15
+  and automatic `Detailed` at zoom 15, select `Detailed` at zoom 14 and verify
+  the plain-language guidance without a mode change, inspect tile/chunk
+  requests, focus a card and switch modes, open/close full map, then at mobile
+  width scroll beyond the last resource card and sample map height, page
+  height, and scroll position.
+- Acceptance criteria: Standard uses only `Default_HD` in the flagged owner
+  proof; Detailed shows fixed W01 chunks with zero live OneMap tile images;
+  selecting Detailed below level 15 explains the automatic threshold while
+  leaving Standard active, and the guidance clears when Detailed activates;
+  selection and pin alignment survive mode changes; the normal mobile map and
+  page height do not collapse or oscillate at list end; Discover, Shared Maps,
+  print/export, data, auth, and unflagged live maps are unchanged.
+- Verification result: signed-in mobile UAT showed 6 `Default_HD` images and no
+  `Original_HD`/`Grey_HD` images in Standard, then 6 visible W01 chunks and zero
+  live tile images in Detailed. Before the mobile guard, list focus removed the
+  approximately 300 px map footprint; after the guard, map height stayed
+  298.44 px, page height stayed 1,266 px, and 16 samples over approximately
+  560 ms showed no oscillation. Focused map/My Map coverage passed 126/126,
+  full client coverage passed 390/390, `npm run build:client` passed with only
+  the existing large-chunk advisory, and `git diff --check` passed. A follow-up
+  signed-in check at zoom 14 kept 12 live tiles and zero fixed chunks while
+  showing the guidance; zoom 15 then cleared it and switched to 20 fixed chunks
+  with zero live tiles. Full local evidence is in
+  `output/town-map-proof/uat-evidence.md`. Dormant release follow-up: implementation
+  commit `ba69345ee` was pushed to `codex/cck-w01-town-map-proof`; Pages preview
+  `https://9311acad.senior-resource-map.pages.dev` and production publish
+  `https://88ed4e38.senior-resource-map.pages.dev` completed; the custom domain
+  serves `assets/index-BasuxQyR.js` and returned 200 for the app, Discover, an
+  owner-map route, and API health. Every `VITE_TOWN_MAP_*` build variable was
+  omitted and the deployed bundle contains no localhost W01 URL, so this proof
+  remains dormant and existing production map behavior is unchanged. Production
+  smoke had four immediate passes and one dashboard-resources flow that passed
+  on retry after a transient 30-second visibility timeout. No Worker/API or R2
+  deployment, schema bootstrap, auth, permission, data, ranking, filtering,
+  visibility, or saved-resource change was performed.
+- Hosted activation follow-up: R2 bucket `carearound-town-map-assets` now serves
+  versioned W01 assets at `https://maps.carearound.sg/v1/w01` through an active
+  custom domain with minimum TLS 1.2 and read-only, release-origin CORS. The
+  public verifier passed all 300 chunk hashes and 53,590,423 bytes, matching
+  manifest SHA-256
+  `be5f6ed4dfdea33606354f4457aebdc513c0f274f4ea7cb429bdce5d73056c76`
+  and chunk-set SHA-256
+  `81bd26441edaff1d761f9e395575f8e00b9303f25e1d7896307f7f3036bbc8c6`;
+  chunk delivery measured 40.6 ms median and 652.7 ms p95. Enabled preview
+  `https://ea750ad6.senior-resource-map.pages.dev` passed signed-in desktop,
+  mobile, full-map, mode-swap, threshold, selection, alignment, viewport-culling,
+  memory, end-scroll, clean-console, and zero-live-tile Detailed checks. A
+  non-mutating mocked outside-W01 pin check kept Standard and the resource card
+  visible with no fixed chunks. Exact production build gates passed focused map
+  93/93, full client 390/390, full server 396/396, R2 contract 4/4,
+  `npm run build:client`, and `git diff --check`. Pages production deployment
+  `https://3ceb94d7.senior-resource-map.pages.dev` activated the flag using
+  `https://maps.carearound.sg/v1/w01`; `https://app.carearound.sg` serves
+  `assets/index-Du2wVU3_.js`, production API health returned OK, production
+  smoke passed 5/5, and a fresh signed-in owner check showed 9 R2 chunks, 0 live
+  OneMap tiles, attribution present, and 0 console errors or warnings. The
+  pre-existing external OneMap badge SVG remains blocked by Chromium ORB while
+  its attribution text remains visible. Immediate rollback is a Pages rebuild
+  with all `VITE_TOWN_MAP_*` values omitted; dormant deployment
+  `https://88ed4e38.senior-resource-map.pages.dev` is the verified reference.
+  No Worker/API deploy, schema, auth, permission, data, Discover, Shared Maps,
+  print/export, ranking, filtering, visibility, or saved-resource change was
+  performed.
+- Standard fractional-step recovery and production release: production owner
+  map 150 reproduced a blank Standard surface at a displayed level 14 while
+  Detailed remained healthy at the next step. Signed-in inspection found the
+  fitted camera was actually at Leaflet zoom 14.30, inside the gap between the
+  exact Standard tile ceiling of 14 and the rounded Detailed threshold of
+  14.50. The narrow client correction normalizes only a settled camera inside
+  that hidden gap back to exact level 14; maps already at or below 14, the
+  Detailed threshold, manual Standard mode, fixed chunks, camera fit bounds,
+  pins, and every unflagged DirectoryMap caller remain unchanged. Signed-in
+  local UAT on map 150 rendered 12 Standard tiles at 14, 28 fixed chunks and 0
+  live tiles at 15, then 12 Standard tiles at 14 again with the first pin's
+  transform restored. Map 87 remained healthy with 20 Standard tiles and map
+  25 remained healthy in Detailed with 0 live tiles. Focused coverage passed
+  127/127, full client coverage passed 391/391, the exact enabled production
+  build passed with the existing large-chunk advisory, and `git diff --check`
+  passed. Release follow-up: commit `bbdc37d94` was pushed to
+  `codex/cck-w01-town-map-proof`; Pages production deployment
+  `https://65925a9b.senior-resource-map.pages.dev` completed; and
+  `https://app.carearound.sg` serves `assets/index-Al1p94v0.js`. Fresh signed-in
+  production verification on map 150 rendered 9 Standard tiles at 14, 20 fixed
+  chunks and 0 live tiles at 15, then 9 Standard tiles at 14 again with the
+  first pin returning to the same geographic transform. Map 87 remained healthy
+  with 20 Standard tiles and map 25 remained healthy with 6 fixed chunks and 0
+  live tiles in Detailed. Production API health returned OK and production
+  smoke passed 5/5. Browser logs contained no CareAround application warnings
+  or errors; the only logged error was an unrelated Chrome-extension
+  content-script load failure on all checked tabs. No API/Worker deploy, R2
+  mutation, schema, auth, permission, data, Discover, Shared Maps, print/export,
+  ranking, filtering, visibility, or saved-resource change was made.
+
+### 2026-07-12 persistent Default/Gray map colour preference
+
+- Current behavior: a device-level `Default | Gray` control is available on
+  Discover, My Maps, and Shared Maps, persists between routes, and also governs
+  non-interactive print map rendering. Default uses OneMap `Default_HD`; Gray
+  uses native OneMap `Grey_HD`. Owner W01 Detailed mode keeps the existing
+  colour surface for Default and selects the completed native Grey fixed
+  surface for Gray. The two Detailed manifests preload so an active
+  fixed-surface colour switch does not fall through to live OneMap tiles.
+  Standard/Detailed remains a separate owner-only control. Pins, clustering,
+  camera, reset, cards, selection, attribution, full map, ranking, filtering,
+  visibility, and data behavior are unchanged.
+- Reproduction steps: clear the map-style preference and confirm Default on
+  first load; select Gray on Discover and navigate to My Maps and a public
+  Shared Map; verify the selection persists and live tile URLs use `Grey_HD`.
+  On owned W01 map 25 at Detailed zoom, switch Default → Gray and inspect image
+  requests, visible chunk count, marker transforms, selected card/camera state,
+  attribution, console, and failed requests. Repeat at 390 px and overscroll
+  past the final resource card.
+- Acceptance criteria: Default is the safe fallback for missing/invalid stored
+  values; Gray never uses a CSS grayscale filter; Detailed uses only the chosen
+  fixed surface and loads only visible chunks; no live OneMap tile is requested
+  by an active Detailed colour switch; Default/Gray changes do not remount the
+  Leaflet MapContainer or move pins/camera; Discover fractional zoom stays
+  valid; Shared Maps remains guest-readable; mobile controls fit and end-scroll
+  does not oscillate.
+- Verification result: the Gray W01 source validation and source-alignment QA
+  passed. R2 published 88 allowlisted chunks under the isolated
+  `v1/w01/gray` prefix, then the manifest. Public verification matched
+  48,817,738 chunk bytes, manifest SHA-256
+  `58bb3880ee09b9b6bac938545048694b8d6a38728ddaf874db5e606971603640`,
+  and chunk-set SHA-256
+  `5456cd4fb905dccaea7ba7f30610a34750163bff225bfc09634eb370600cb281`;
+  warm-cache delivery was 50.8 ms median and 382.5 ms p95. Preview UAT at
+  `https://codex-map-style-preference.senior-resource-map.pages.dev` showed six
+  desktop chunks (~84.4 MiB decoded) and two mobile chunks (~28.1 MiB decoded),
+  zero live tiles during the preloaded Detailed switch, exact four-pin transform
+  parity between Default and Gray, persistent My Map/Discover/Shared selection,
+  valid integer Discover tiles after the narrow layer-remount correction, zero
+  mobile scroll jitter, and a clean guest-browser console. Screenshots and exact
+  request evidence are in `output/town-map-proof/uat-evidence.md`. Production
+  Pages deployment `https://c9114285.senior-resource-map.pages.dev` completed;
+  `https://app.carearound.sg` serves `assets/index-Qri8mQ9i.js` and
+  `assets/index-B86VNPto.css`, API health returned OK, and production smoke
+  completed all five flows (dashboard resources passed on its configured retry
+  after one 30-second visibility timeout). Fresh production browser UAT matched
+  the preview: Default Detailed used six colour chunks, Default → Gray requested
+  only six Gray chunks and zero live tiles, all four pin transforms stayed
+  identical, mobile retained two Gray chunks, Discover used valid integer Gray
+  tiles, guest Shared Maps used 12 Gray tiles, attribution remained visible,
+  and both production browser sessions had zero application warnings or errors.
+  No Worker/API deploy, schema, auth, permission, ranking, filtering,
+  visibility, saved-resource, or production-data mutation was made.
+
+### 2026-07-12 shared responsive map settings layout
+
+- Current behavior: My Maps and Discover use one compact `Map` button in the
+  map's upper-right control lane instead of keeping the map-detail and
+  map-colour choices permanently across the map centre. Desktop opens the same
+  `Map appearance` content in an anchored popover; mobile opens it in the
+  existing CareAround bottom sheet. My Map owners see `Map detail` and
+  `Map colour`; Discover and guest Shared Maps show only the choices available
+  on those surfaces. Discover zoom controls now occupy the upper-left lane so
+  the placement matches DirectoryMap. Closing the settings restores the full
+  unobstructed map while the existing Leaflet map instance, camera, pins,
+  clusters, selection, reset, full-map control, attribution, and persistent
+  Default/Gray preference remain unchanged.
+- Reproduction steps: open an owned `/my-directory/maps/:id` and Discover at
+  desktop and 390 px widths; verify one upper-right `Map` button; open and close
+  `Map appearance`; confirm the owner sheet contains Map detail plus Map colour
+  while Discover contains Map colour only; switch Default/Gray; and confirm the
+  map rectangle, selected resource, camera, and pin positions do not change.
+  On mobile, scroll beyond the final My Map card and sample page scroll
+  position after momentum settles.
+- Acceptance criteria: My Maps and Discover share the same settings placement
+  and responsive interaction; no permanent segmented controls consume the map
+  centre; the mobile sheet is readable without shrinking the map; opening,
+  closing, or changing a choice does not resize or remount MapContainer; the
+  wrong-zoom Detailed guidance remains plain language inside the owner sheet;
+  Shared Maps remain guest-readable; and no map, ranking, filtering,
+  visibility, resource, auth, API, schema, or permission behavior changes.
+- Verification result: focused map/layout coverage passed 35/35; full client
+  coverage passed 397/397; full server coverage passed 396/396; local smoke
+  passed 5/5; `npm run build:client` passed with only the existing large-chunk
+  advisory; and `git diff --check` passed. Signed-in browser UAT on owner map 45
+  and Discover at 1440x1000 and 390x844 confirmed the same popover/sheet
+  pattern, stable map bounds while opening settings and changing colour, and a
+  0 px mobile end-scroll range across 20 animation frames. Local-only CORS and
+  OneMap badge ORB failures were expected for the `127.0.0.1` origin and must
+  be rechecked from the production custom domain after deployment. Release
+  follow-up: implementation commit `e0fbb31a2` was pushed to
+  `codex/shared-map-settings-layout`; preview
+  `https://8e0fec65.senior-resource-map.pages.dev` and production deployment
+  `https://12fec3c0.senior-resource-map.pages.dev` completed; and
+  `https://app.carearound.sg` serves `assets/index-Ds2cwQWb.js` with
+  `assets/index-r02V7GVR.css`. Production smoke completed all five flows; the
+  postal-import flow passed on its configured retry after one 45-second
+  anchor-result timeout. Fresh signed-in production UAT repeated the stable
+  desktop/mobile map-bound and 0 px end-scroll checks on My Map and Discover,
+  and recorded zero application console errors. Network inspection found only
+  expected Leaflet/R2 image cancellations during camera, style, viewport, and
+  route changes, Cloudflare RUM cancellation, and the pre-existing external
+  OneMap badge SVG Chromium ORB block; attribution text stayed visible. API
+  health returned OK. No Worker/API, R2, schema, auth, permission, ranking,
+  filtering, visibility, saved-resource, or production-data change was made.
+- Compact-control release follow-up: commit `430114e9` replaced the visible
+  `Map` label with the accessible settings icon, added a current zoom-step
+  indicator to Discover, and placed desktop settings, reset, and zoom controls
+  in one compact upper-right rail. My Map keeps the existing intentional reset
+  behavior: the reset/recenter button only appears when there is more than one
+  camera target to fit. Mobile keeps zoom on the left and uses compact 40 px
+  map-control buttons when those controls are available. UI/UX spacing is 8 px
+  between control groups; desktop controls are 34 px. Pre-deploy focused map
+  coverage passed 17/17, full client coverage passed 397/397, full server
+  coverage passed 396/396, the production-configured client build passed with
+  only the existing large-chunk advisory, and `git diff --check` passed.
+  Cloudflare Pages branch preview deployed
+  `https://cc2ccc4f.senior-resource-map.pages.dev` with alias
+  `https://codex-shared-map-settings-la.senior-resource-map.pages.dev`; the
+  same built client was explicitly published to production at
+  `https://7d55a391.senior-resource-map.pages.dev`. Production custom domain
+  `https://app.carearound.sg` served `assets/index-DtQwAvZb.js` and
+  `assets/index-B5_qVJbt.css`; production API health returned OK at
+  `2026-07-12T04:04:28.562Z`; production smoke passed 5/5 using `smoke.env`
+  without printing credentials. Signed-in production browser UAT on My Map 45
+  and Discover confirmed desktop settings controls at 34 px, mobile settings
+  and reset controls at 40 px where present, stable map bounds while opening
+  settings and changing colour, 0 px mobile end-scroll movement, and zero
+  application console errors. My Map 45 still hides reset because it has only
+  one camera target, preserving the intentional behavior. Network inspection
+  showed only expected Cloudflare RUM aborts, the pre-existing external OneMap
+  badge SVG Chromium ORB block, and OneMap tile request aborts during camera,
+  style, viewport, and route changes. No Worker/API, R2, schema, auth,
+  permission, ranking, filtering, visibility, saved-resource, or production-data
+  change was made.
+- Mobile right-rail and Back-navigation follow-up: mobile My Map, Shared Map,
+  and Discover map controls now use a 30 px visual size. Settings, conditional
+  reset/recenter, zoom indicator, and zoom actions form one upper-right rail
+  with 8 px gaps; the mobile full-map enter/exit controls use the same compact
+  size. Desktop remains at the verified 34 px size. Mobile automatic camera
+  fits and compact-cluster reframing reserve a wider right-side safe area so
+  pins do not settle beneath the control rail. Interactive My Map/Shared Map
+  resource links stay within React Router, while print links retain document
+  navigation. A user-scoped, eight-entry in-memory My Map detail cache keeps a
+  previously loaded owner map visible while its fresh API response settles,
+  preventing the mobile browser/device Back action from restoring only empty
+  loading-card outlines. The cache key requires both the signed-in user ID and
+  map ID, so one account cannot reuse another account's cached map. Reproduction
+  covered My Maps list → owner map → resource detail → browser Back and the
+  explicit resource-detail Back action at a Pixel 7 / 390x844 viewport.
+  Pre-deploy verification passed focused map/navigation coverage 89/89, full
+  client coverage 398/398, full server coverage 396/396, the
+  production-configured client build with only the existing large-chunk
+  advisory, and `git diff --check`. Signed-in local browser UAT measured 30 px
+  mobile settings/reset controls, 30 px zoom actions, 8 px control-group gaps,
+  stable map bounds while settings opened, 0 px end-scroll movement, and a
+  fully visible map after both Back paths. Production smoke completed all five
+  flows; the postal-import flow passed its configured retry after one live
+  service timeout and then passed a separate clean targeted rerun. No
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data change is included.
+  Release follow-up: implementation commit `4aa119777` was pushed to
+  `codex/shared-map-settings-layout`; Cloudflare Pages branch preview deployed
+  `https://a8808cb1.senior-resource-map.pages.dev`; and the same build was
+  published to production at
+  `https://65b0b64d.senior-resource-map.pages.dev`. The custom domain serves
+  `assets/index-CGK0FNHf.js` and `assets/index-CXgnAuHp.css`; production API
+  health returned OK at `2026-07-12T05:30:37.919Z`; and post-deploy production
+  smoke passed 5/5 without retry. Fresh signed-in production UAT at 1440x1000
+  and 390x844 repeated the 34 px desktop and 30 px mobile control measurements,
+  the upper-right mobile rail, stable map bounds, and 0 px end-scroll movement.
+  Device-style history Back from resource detail restored owner map 45 in
+  16 ms from the user-scoped cache; the explicit in-app Back also restored the
+  fully rendered map. Both paths preserved the same SPA document marker and
+  recorded zero application console or page errors. Network inspection found
+  only expected Cloudflare RUM cancellations, the pre-existing external OneMap
+  badge SVG Chromium ORB block, and OneMap tile aborts during camera, viewport,
+  style, and route changes.
+- Mobile My Map entry-position follow-up: opening an owner My Map on a phone,
+  including returning from an interactive resource detail with browser Back,
+  now starts at the map and first card instead of restoring the previous
+  card-list offset. A route-key observer in the app shell is limited to mobile
+  `/my-directory/maps/:id` interactive routes; it absorbs Chrome's delayed
+  history scroll restoration for 120 ms and then releases normal page
+  scrolling. Desktop My Map, print view, Shared Maps, Discover, map selection,
+  camera state, card ordering, and resource navigation remain unchanged.
+  Focused map/navigation coverage passed 53/53, full client coverage passed
+  399/399, the production-configured client build passed with only the existing
+  large-chunk advisory, and `git diff --check` passed. Pixel 7 browser UAT
+  forced a 2,156 px pre-navigation scroll offset, opened an interactive
+  resource within the SPA, then used browser Back; My Map returned at scroll
+  position 0 with `data-mobile-map-state="default"`, the map visible, the first
+  card following Map notes, and zero page or application console errors. The
+  local R2 manifest CORS failures remain expected for the `127.0.0.1` origin.
+  No Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data change is included.
+  Release follow-up: implementation commit `4f3ea03a5` was pushed to
+  `codex/shared-map-settings-layout`; preview
+  `https://67fc2b24.senior-resource-map.pages.dev` and production deployment
+  `https://825e09b9.senior-resource-map.pages.dev` completed. The production
+  custom domain serves `assets/index-Dz8Yaxgj.js` and
+  `assets/index-CXgnAuHp.css`; API health returned OK at
+  `2026-07-12T07:05:34.812Z`; and post-deploy production smoke passed 5/5.
+  Fresh production Pixel 7 UAT repeated the forced 2,156 px scroll → resource
+  → browser Back flow and returned at scroll 0 with map state `default`, the
+  map visible, the SPA marker preserved, and zero console or page errors.
+- Desktop owner-map resize follow-up: an owned My Map with mapped resources now
+  has a centred bottom-edge handle that can expand the map from its existing
+  48vh/440-700 px baseline up to 78vh/840 px. The adjustment is deliberately
+  desktop-only and session-only; it does not change mobile My Map, Discover,
+  Shared Maps, print, saved preferences, or the default height on a future
+  visit. Pointer dragging, Arrow Up/Down, Home/End, and double-click reset are
+  supported through an accessible separator control. The existing Leaflet map
+  instance is retained and receives only an opt-in size invalidation, without
+  changing the layout signature or triggering a fit, so zoom, selected card,
+  markers, and map interaction state remain intact. Focused map coverage passed
+  58/58; full client coverage passed 393/393; full server coverage passed
+  396/396; the production-configured client build passed with only the existing
+  large-chunk advisory; pre-deploy production smoke passed 5/5; and
+  `git diff --check` passed. Signed-in local browser UAT on owner map 45 at
+  1440x1000 expanded the frame from 480 px to 700 px by drag and to the 780 px
+  viewport cap by keyboard, kept its 620 px width, retained the same Leaflet
+  element, zoom step 18, marker count, and selected FRCS card, then reset to
+  480 px by Home and double click. At 390x844 the resize handle was absent and
+  the existing mobile map and first card remained unchanged. The local R2
+  manifest CORS failures and external OneMap badge SVG Chromium block remain
+  expected for the `127.0.0.1` origin and must be rechecked on the production
+  custom domain. No Worker/API, R2, schema, auth, permission, ranking,
+  filtering, visibility, saved-resource, or production-data change is included.
+  Release follow-up: implementation commit `5b31f77ce` was pushed to
+  `codex/shared-map-settings-layout`; branch preview
+  `https://f841058e.senior-resource-map.pages.dev` and production deployment
+  `https://1b4ba521.senior-resource-map.pages.dev` completed from the same
+  validated build. The custom domain serves `assets/index-B_XnqLS2.js` and
+  `assets/index-C_bw69gG.css`; API health returned OK at
+  `2026-07-12T08:34:57.939Z`; and post-deploy production smoke passed 5/5.
+  Fresh signed-in preview and production UAT repeated every resize, reset,
+  selection, marker, map-identity, width, and mobile-exclusion check with zero
+  application console or page errors. Production network inspection found
+  only expected route-change/favorites cancellations, Cloudflare RUM aborts,
+  and the pre-existing external OneMap badge SVG Chromium ORB block.
+  Corrective build follow-up: the first resize production build at
+  `https://1b4ba521.senior-resource-map.pages.dev` omitted the build-time
+  `VITE_TOWN_MAP_*` values and therefore hid the owner `Map detail` control.
+  No source behavior was removed. The same commit was rebuilt with the locked
+  production flag and both versioned W01 asset bases, then published at
+  `https://aebc0610.senior-resource-map.pages.dev`. The custom domain now serves
+  `assets/index-DYIrd1Ol.js`. Fresh signed-in production UAT on owner map 45
+  confirmed Map detail and Detailed are visible; zoom 14 uses Standard; zoom 15
+  automatically selects Detailed; 30 fixed chunks render with zero live
+  OneMap tiles visible; the desktop resize handle remains available; and the
+  browser recorded zero application console or page errors. Default and Gray
+  R2 verification passed all 300/88 chunks and their manifest/chunk-set hashes,
+  focused map coverage passed 43/43, the exact enabled production build passed,
+  post-correction smoke passed 5/5, and API health returned OK. The release
+  checklist now records all four required production build variables so a
+  normal client rebuild cannot silently disable Detailed again.
+- Owner Print Map workspace: the private owner `?view=print` route now starts
+  from an independent, safe print baseline: fit-all camera, 360 px map height,
+  and Standard detail, while carrying the user's existing Default/Gray colour
+  preference. Owners can adjust zoom, pan, Standard/Detailed, Default/Gray, and
+  map height from 300-720 px, then reset only the print map. The visible print
+  preview and the hidden Save-as-image surface consume the same controlled
+  camera, colour, detail, height, and fixed 1480 px capture width; browser Print
+  uses that same visible preview. A capture-state key remounts only the hidden
+  export basemap layer, ensuring a fresh tile/chunk readiness event after each
+  visual change without altering interactive My Map behavior. Detailed remains
+  owner-only and auto-applies at zoom 15; selecting it below zoom 15 keeps the
+  request and shows the existing plain-language zoom guidance. Shared Map print
+  callers retain their optional-prop defaults, and the separate owner PDF
+  ledger is unchanged. Reproduction: open an owned map with `?view=print`,
+  change colour, zoom/pan, detail, and height, then compare the preview with
+  Save as image and browser Print; use Reset print map to restore the baseline.
+  Pre-deploy verification passed focused print/map coverage 44/44, full client
+  coverage 399/399, full server coverage 396/396, the exact Detailed-enabled
+  production build with only the existing large-chunk advisory, pre-deploy
+  production smoke 5/5, and `git diff --check`. Signed-in local browser UAT at
+  1440x1000 and 390x844 confirmed identical screen/export state, a successful
+  Gray PNG download after height and camera changes, print-only toolbar hiding,
+  an accessible resize handle, and no horizontal mobile overflow. Local R2
+  manifest CORS failures remain expected for `127.0.0.1`; Detailed Default/Gray
+  capture and network behavior must be rechecked on the production custom
+  domain. No Worker/API, R2, schema, auth, permission, ranking, filtering,
+  visibility, saved-resource, PDF-ledger, Shared Map, or production-data change
+  is included.
+  Release follow-up: implementation commit `e031e266f` was pushed to
+  `codex/shared-map-settings-layout`; Cloudflare Pages branch preview deployed
+  `https://a1860626.senior-resource-map.pages.dev` with alias
+  `https://codex-shared-map-settings-la.senior-resource-map.pages.dev`; and the
+  same validated build was explicitly published to production at
+  `https://c39e8088.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-ByfQM4vi.js` and `assets/index-46zy6Sgb.css`; API
+  health returned OK at `2026-07-12T10:20:40.749Z`; and post-deploy production
+  smoke passed 5/5 without retry. Fresh signed-in production UAT on owner map
+  45 confirmed Detailed Default with 9 visible/export chunks and Detailed Gray
+  with 3 visible/export chunks, exact preview/export state parity, successful
+  5920 px-wide PNG downloads for both styles, zero visible live tiles, zero
+  live OneMap tile requests after Detailed was selected, and zero page errors.
+  The export library emits one non-fatal CSP console notice while resolving its
+  data-image placeholder; both downloads complete and render correctly. No
+  Worker/API or R2 deployment was performed.
+  Toolbar-alignment follow-up: the owner Print Map toolbar now keeps Back to
+  interactive view, Reset print map, and Save as image together in one
+  left-aligned responsive action group. The redundant in-app Print button is
+  removed; browser/system printing remains available and still uses the same
+  configured preview. The helper copy now describes the saved image only. The
+  map-settings trigger uses a 13 px mobile right inset and the established
+  12 px desktop inset so its centre aligns exactly with the differently sized
+  zoom-control frame. Local signed-in browser UAT at 1440x1000 and 390x844
+  measured a 0 px horizontal-centre delta at both widths, confirmed the Print
+  button absent, kept all remaining actions left-aligned, downloaded the image,
+  preserved exact preview/export state, and found no horizontal overflow or
+  page errors. Focused print/map coverage passed 40/40, full client coverage
+  passed 399/399, full server coverage passed 396/396, the exact
+  Detailed-enabled production build passed with only the existing large-chunk
+  advisory, pre-deploy production smoke passed 5/5, and `git diff --check`
+  passed. No map camera, map data, export state, Shared Map, PDF ledger,
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data behavior is changed.
+  Release follow-up: implementation commit `68acd838f` was pushed to
+  `codex/shared-map-settings-layout`; Cloudflare Pages branch preview deployed
+  `https://fed3ada1.senior-resource-map.pages.dev` with the existing branch
+  alias; and the same validated build was explicitly published to production
+  at `https://61833821.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-tuaHPNyy.js` and `assets/index-gdJR9SuY.css`; API
+  health returned OK at `2026-07-12T11:07:03.863Z`; and post-deploy production
+  smoke passed 5/5 without retry. Fresh signed-in production UAT repeated the
+  0 px desktop/mobile control-centre delta, left-aligned toolbar grouping,
+  absent Print button, exact preview/export state, successful image download,
+  no horizontal overflow, and zero page errors. The known non-fatal image
+  placeholder CSP notice remains unchanged. No Worker/API or R2 deploy was
+  performed.
+- Owner Detailed viewport-coverage correction: production tablet UAT showed a
+  15-resource owner map staying on Standard at zoom 15 while the current
+  viewport was inside the CCK/W01 Detailed surface. The root cause was the
+  owner page disabling Detailed when any mapped resource in the full map was
+  outside W01, even if the current viewport had visible W01 chunks. The
+  recovery keeps the CCK/W01-only safety boundary but moves interactive owner
+  availability to viewport coverage: Detailed can turn on at zoom 15 when the
+  current viewport intersects W01 chunks, and the map falls back to Standard
+  with plain-language copy when the current viewport is outside the Detailed
+  area. Print keeps its existing full-map coverage guard. Focused fixed-town
+  and map-settings coverage passed 24/24, the exact Detailed-enabled production
+  build passed with only the existing large-chunk advisory, and `git diff
+  --check` passed. No Worker/API, R2, schema, auth, permission, ranking,
+  filtering, visibility, saved-resource, PDF-ledger, Shared Map, Discover, or
+  production-data behavior is changed.
+  Release follow-up: implementation commit `1cd0e3fcd` was pushed to
+  `codex/shared-map-settings-layout`; branch preview deployed at
+  `https://3a359e9c.senior-resource-map.pages.dev`; and the same validated
+  build was explicitly published to the production branch at
+  `https://31a7e541.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-CIEHs-Cl.js`,
+  `assets/MyMapDetailPage-CNTXUkYK.js`, and `assets/index-gdJR9SuY.css`; the
+  deployed owner-map chunk contains the viewport Detailed coverage correction
+  and both W01 asset bases. Production API health returned OK at
+  `2026-07-13T02:11:38.937Z`; public `/discover` and owner
+  `/my-directory/maps/150` returned 200; and production smoke passed 5/5 using
+  the shared smoke environment without printing credentials. No Worker/API or
+  R2 deployment was performed.
+- Owner Detailed tablet-load resilience follow-up: subsequent Android tablet
+  UAT showed the same W01 viewport remaining on Standard at zoom 15/16 while
+  mobile activated Detailed normally. Production reproduction at a 1280x800
+  viewport loaded 20 fixed chunks and zero OneMap tiles at zoom 15, narrowing
+  the device-specific failure to the one-shot manifest/chunk transport path.
+  The recovery keeps all manifest integrity, W01 coverage, zoom, memory, and
+  Standard fallback checks intact while retrying only transient manifest
+  responses and individual failed chunk images with bounded delays. Permanent
+  manifest 4xx responses and invalid manifests still fail closed, and chunks
+  still fall back to Standard after their bounded retries are exhausted.
+  Focused fixed-town and map-settings coverage passed 26/26, full client
+  coverage and full server coverage (396/396) passed, the exact
+  Detailed-enabled production build passed with only the existing large-chunk
+  advisory, and `git diff --check` passed. No map camera, selection, pins,
+  clustering, card focus, map colour, print state, Shared Map, Discover,
+  Worker/API, R2, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data behavior is changed.
+  Release follow-up: implementation commit `f4778e592` was pushed to
+  `codex/shared-map-settings-layout` and the validated client build was
+  explicitly published to the production Pages branch at
+  `https://6abe2592.senior-resource-map.pages.dev`. The production custom
+  domain serves `assets/index-DdUQLiMS.js`,
+  `assets/MyMapDetailPage-D8TIxT43.js`, and
+  `assets/index-gdJR9SuY.css`; deployed bundle inspection confirmed the
+  manifest retry path and bounded delay markers. Signed-in production browser
+  UAT at 1280x800 confirmed zoom 14 retained nine Standard tiles, then zoom 15
+  automatically switched to 20/20 loaded fixed chunks with zero live OneMap
+  tiles. Production API health returned OK at
+  `2026-07-13T02:44:14.037Z`, and production smoke passed 5/5. No Worker/API
+  or R2 deployment was performed.
+
+### 2026-07-15 map baseline recovery on current main
+
+- Current behavior: production was observed on 2026-07-15 serving current main
+  commit `a1544508b`, which preserved the newer security and AI cost-control
+  work but omitted the validated map baseline from
+  `codex/shared-map-settings-layout`. The visible result was that My Map owner
+  pages lost the shared upper-right map settings surface, zoom-step indicator,
+  desktop resize handle, owner print workspace, and resilient Detailed-map
+  behavior. This was a release-source regression, not a W01 asset, API, Worker,
+  R2, data, or browser-cache failure.
+- Known-good reference: `codex/shared-map-settings-layout` at `eb84067a1`,
+  especially implementation commit `f4778e592`, production deployment
+  `https://6abe2592.senior-resource-map.pages.dev`, and production bundles
+  `assets/index-DdUQLiMS.js`, `assets/MyMapDetailPage-D8TIxT43.js`, and
+  `assets/index-gdJR9SuY.css`.
+- Reproduction steps: open `https://app.carearound.sg/my-directory/maps/150`
+  and compare the live UI with the locked July map baseline. Inspect the live
+  app bundle/source deployment, confirm it comes from `a1544508b`, and compare
+  git history against `codex/shared-map-settings-layout`.
+- Acceptance criteria: recover the validated map baseline onto current main
+  without reverting the newer security/AI work; keep the original dirty user
+  checkout untouched; preserve client-only scope; rebuild production with
+  `VITE_API_URL`, `VITE_TOWN_MAP_PROOF_ENABLED`, `VITE_TOWN_MAP_ASSET_BASE_URL`,
+  and `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL`; verify focused map behavior, full
+  client tests, full server tests, R2 contract checks, exact enabled client
+  build, and `git diff --check`; then verify production serves the recovered
+  bundle and API health remains OK. No Worker/API deploy, schema, auth,
+  permission, ranking, filtering, visibility, saved-resource, R2, or
+  production-data change is required.
+- Verification result: clean recovery worktree
+  `/Users/sweetbuns/CareAroundSG-map-baseline-recovery` on
+  `codex/map-baseline-recovery` was created from current main `a1544508b` and
+  merged with `codex/shared-map-settings-layout` before editing. A targeted diff
+  against main confirmed the newer AI/security files under
+  `client/src/components/HardAssetImportWizard.jsx`, `server/`,
+  `docs/ai-cost-control-stack.md`, and `server/wrangler.toml` were unchanged by
+  the recovery. Focused map coverage passed 102/102, full client coverage
+  passed 411/411, full server coverage passed 405/405 after refreshing local
+  dependencies, the exact Detailed-enabled production build passed with only
+  the existing large-chunk advisory, R2 contract checks passed 5/5, and
+  `git diff --check` passed. Deployment evidence is added after the recovered
+  client is published.
+
 ## Recovery workflow
 
 For each regression family:

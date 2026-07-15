@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import {
     getFocusedDirectoryCameraPins,
+    shouldCenterDirectoryMapAtMinimumZoom,
     shouldRefitDirectoryCameraAfterResize,
 } from '../src/lib/directoryMapCamera.js';
 
@@ -67,4 +68,37 @@ test('directory map keeps hooks stable when an empty map gains a distance anchor
     assert.ok(markerMemoIndex > 0, 'marker memo should exist');
     assert.ok(emptyMapReturnIndex > 0, 'empty-map return should exist');
     assert.ok(markerMemoIndex < emptyMapReturnIndex, 'empty-map return must not skip marker memo hooks');
+});
+
+test('owner proof recenters only when a settled zoom enters the configured minimum', () => {
+    assert.equal(shouldCenterDirectoryMapAtMinimumZoom({
+        previousZoom: 12,
+        currentZoom: 11,
+        minZoom: 11,
+    }), true);
+    assert.equal(shouldCenterDirectoryMapAtMinimumZoom({
+        previousZoom: 11,
+        currentZoom: 11,
+        minZoom: 11,
+    }), false);
+    assert.equal(shouldCenterDirectoryMapAtMinimumZoom({
+        previousZoom: 16,
+        currentZoom: 15,
+        minZoom: 11,
+    }), false);
+    assert.equal(shouldCenterDirectoryMapAtMinimumZoom({
+        previousZoom: 11,
+        currentZoom: 12,
+        minZoom: 11,
+    }), false);
+    assert.equal(shouldCenterDirectoryMapAtMinimumZoom({
+        previousZoom: 12,
+        currentZoom: 11,
+        minZoom: undefined,
+    }), false);
+    assert.equal(shouldCenterDirectoryMapAtMinimumZoom({
+        previousZoom: undefined,
+        currentZoom: 11,
+        minZoom: 11,
+    }), false);
 });

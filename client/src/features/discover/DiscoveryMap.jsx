@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Minus, Plus } from 'lucide-react';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
+import MapSettingsControl from '../../components/MapSettingsControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
 import {
@@ -14,7 +16,7 @@ import {
     CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
     CAREAROUND_BASEMAP_MIN_ZOOM,
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
-    CAREAROUND_BASEMAP_URL,
+    getCareAroundBasemapUrl,
 } from '../../lib/mapTheme.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
@@ -33,9 +35,9 @@ const DESKTOP_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [40, 60];
 const DESKTOP_GROUP_FOCUS_PADDING_TOP_LEFT = [40, 40];
 const DESKTOP_GROUP_FOCUS_PADDING_BOTTOM_RIGHT = [40, 40];
 const MOBILE_FIT_PADDING_TOP_LEFT = [60, 60];
-const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [96, 72];
+const MOBILE_FIT_PADDING_BOTTOM_RIGHT = [112, 72];
 const MOBILE_ANCHOR_FIT_PADDING_TOP_LEFT = [20, 60];
-const MOBILE_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [28, 92];
+const MOBILE_ANCHOR_FIT_PADDING_BOTTOM_RIGHT = [88, 92];
 const SINGLE_PIN_FOCUS_NOOP_DISTANCE_PX = 4;
 const SINGLE_PIN_FOCUS_SETTLE_DISTANCE_PX = 22;
 const SINGLE_PIN_FOCUS_SETTLE_ZOOM_DELTA = 0.18;
@@ -512,61 +514,85 @@ function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPi
 function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     const map = useMap();
     const { t } = useLocale();
+    const [zoomLevel, setZoomLevel] = useState(() => Math.round(Number(map.getZoom())));
+
+    useEffect(() => {
+        const updateZoomLevel = () => {
+            const nextZoomLevel = Math.round(Number(map.getZoom()));
+            setZoomLevel(Number.isFinite(nextZoomLevel) ? nextZoomLevel : null);
+        };
+
+        updateZoomLevel();
+        map.on('zoom', updateZoomLevel);
+        return () => map.off('zoom', updateZoomLevel);
+    }, [map]);
+
+    const desktopZoomRailDepth = canReset ? 'two' : 'one';
 
     return (
-        <div className="leaflet-top leaflet-right z-[1000] pointer-events-auto mt-2.5 mr-2.5 sm:mt-3 sm:mr-3 absolute right-0 top-0">
-            <div className="flex flex-col gap-2">
-                <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
+        <>
+            <div className={`carearound-discovery-zoom-control carearound-discovery-zoom-control--${desktopZoomRailDepth} leaflet-top leaflet-left z-[1000] pointer-events-auto absolute`}>
+                <div className="leaflet-control leaflet-bar m-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:rounded-[10px]">
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        aria-label={zoomLevel === null ? 'Zoom level unavailable' : `Zoom level ${zoomLevel}`}
+                        data-map-zoom-level="true"
+                        className="flex h-[22px] w-[30px] select-none items-center justify-center border-b border-slate-200 bg-white text-[10px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:w-8 lg:text-[10px]"
+                        title="Current zoom level"
+                    >
+                        {zoomLevel ?? '—'}
+                    </div>
                     <button
                         type="button"
                         title={t('mapZoomIn')}
                         aria-label={t('mapZoomIn')}
-                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center border-b border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
                         onClick={(event) => {
                             event.stopPropagation();
                             event.preventDefault();
                             map.zoomIn();
                         }}
                     >
-                        <Plus size={18} />
+                        <Plus size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
                     </button>
-                </div>
-                <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                     <button
                         type="button"
                         title={t('mapZoomOut')}
                         aria-label={t('mapZoomOut')}
-                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
                         onClick={(event) => {
                             event.stopPropagation();
                             event.preventDefault();
                             map.zoomOut();
                         }}
                     >
-                        <Minus size={18} />
+                        <Minus size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
                     </button>
                 </div>
-                {canReset ? (
+            </div>
+            {canReset ? (
+                <div className="carearound-discovery-recenter-control leaflet-top leaflet-right z-[1000] pointer-events-auto absolute">
                     <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                         <button
                             type="button"
                             title={t('mapResetView')}
                             aria-label={t('mapResetView')}
-                            className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700"
+                            className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:rounded-[10px]"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 event.preventDefault();
                                 onResetView?.();
                             }}
                         >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="h-[15px] w-[15px] lg:h-[18px] lg:w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M15 21h6v-6M9 3H3v6M21 21l-7-7M3 3l7 7" />
                             </svg>
                         </button>
                     </div>
-                ) : null}
-            </div>
-        </div>
+                </div>
+            ) : null}
+        </>
     );
 }
 
@@ -590,11 +616,13 @@ export function DiscoveryMap({
     transientPlacePins = [],
     userLocation,
 }) {
+    const { mapStyle } = useMapStyle();
     const emphasisLookup = useMemo(() => pinEmphasisByKey, [pinEmphasisByKey]);
     const renderedPins = useMemo(
         () => [...(renderedSavedPlacePins || savedPlacePins), ...transientPlacePins],
         [renderedSavedPlacePins, savedPlacePins, transientPlacePins]
     );
+    const canResetMap = Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor));
 
     return (
         <div className="relative h-full w-full">
@@ -609,9 +637,10 @@ export function DiscoveryMap({
                 zoomSnap={DISCOVER_ZOOM_SNAP}
             >
                 <TileLayer
+                    key={`carearound-discover:${mapStyle}`}
                     attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                     minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
-                    url={CAREAROUND_BASEMAP_URL}
+                    url={getCareAroundBasemapUrl(mapStyle)}
                     maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
                 />
                 <SavedMapCameraController
@@ -632,7 +661,7 @@ export function DiscoveryMap({
                     onMapMoveEnd={onMapMoveEnd}
                 />
                 <DiscoveryMapControlStack
-                    canReset={Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor))}
+                    canReset={canResetMap}
                     onResetView={onResetView}
                 />
                 {renderedPins.map((pin) => {
@@ -703,6 +732,9 @@ export function DiscoveryMap({
                     </Marker>
                 ) : null}
             </MapContainer>
+            <div className="absolute right-3 top-3 z-[1002]">
+                <MapSettingsControl showMapStyleControl />
+            </div>
             <div className="hidden lg:block">
                 <OneMapBadge />
             </div>

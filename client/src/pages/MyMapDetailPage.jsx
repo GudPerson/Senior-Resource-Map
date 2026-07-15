@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, X } from 'lucide-react';
+import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, RotateCcw, X } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -9,12 +9,15 @@ import DirectoryMap from '../components/DirectoryMap.jsx';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
+import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
+import TownMapModeControl from '../components/TownMapModeControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import {
@@ -23,11 +26,56 @@ import {
 } from '../lib/directoryGroupFocus.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
+import {
+    CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
+    CAREAROUND_MAP_STYLE_DEFAULT,
+    CAREAROUND_MAP_STYLE_GRAY,
+} from '../lib/mapTheme.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
+import {
+    fetchFixedTownSurfaceManifest,
+    isPointWithinWsenBounds,
+    normalizeFixedTownAssetBaseUrl,
+} from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import {
+    createOwnerPrintMapState,
+    resetOwnerPrintMapState,
+} from '../lib/printMapState.js';
 
 const MapImageExportButton = lazy(() => import('../components/MapImageExportButton.jsx'));
+const TOWN_MAP_PROOF_ENABLED = import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED === 'true';
+const TOWN_MAP_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_ASSET_BASE_URL || '');
+const TOWN_MAP_GRAY_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL || '');
+const TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = [1.3521, 103.846];
+const MY_MAP_DETAIL_CACHE_LIMIT = 8;
+const myMapDetailCache = new Map();
+
+function getMyMapDetailCacheKey(user, mapId) {
+    const userId = Number(user?.id);
+    const resolvedMapId = Number(mapId);
+    if (!Number.isSafeInteger(userId) || userId <= 0) return '';
+    if (!Number.isSafeInteger(resolvedMapId) || resolvedMapId <= 0) return '';
+    return `${userId}:${resolvedMapId}`;
+}
+
+function getCachedMyMapDetail(user, mapId) {
+    const cacheKey = getMyMapDetailCacheKey(user, mapId);
+    return cacheKey ? myMapDetailCache.get(cacheKey) || null : null;
+}
+
+function cacheMyMapDetail(user, mapId, directory) {
+    const cacheKey = getMyMapDetailCacheKey(user, mapId);
+    if (!cacheKey || !directory) return;
+
+    myMapDetailCache.delete(cacheKey);
+    myMapDetailCache.set(cacheKey, directory);
+    while (myMapDetailCache.size > MY_MAP_DETAIL_CACHE_LIMIT) {
+        const oldestKey = myMapDetailCache.keys().next().value;
+        myMapDetailCache.delete(oldestKey);
+    }
+}
 
 function MapDetailLoadingState() {
     return (
@@ -441,9 +489,12 @@ export default function MyMapDetailPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { t } = useLocale();
+    const { mapStyle } = useMapStyle();
     const { savedAssets } = useSavedAssets();
-    const [directory, setDirectory] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const currentMapCacheKey = getMyMapDetailCacheKey(user, mapId);
+    const [directory, setDirectory] = useState(() => getCachedMyMapDetail(user, mapId));
+    const [loading, setLoading] = useState(() => !getCachedMyMapDetail(user, mapId));
+    const directoryCacheKeyRef = useRef(directory ? currentMapCacheKey : '');
     const [error, setError] = useState('');
     const [actionError, setActionError] = useState('');
     const [query, setQuery] = useState('');
@@ -463,12 +514,25 @@ export default function MyMapDetailPage() {
     const [addOpen, setAddOpen] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
+    const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
+    const [printMapState, setPrintMapState] = useState(() => createOwnerPrintMapState(mapStyle));
+    const [townMapManifestStates, setTownMapManifestStates] = useState({
+        [CAREAROUND_MAP_STYLE_DEFAULT]: { status: 'idle', manifest: null },
+        [CAREAROUND_MAP_STYLE_GRAY]: { status: 'idle', manifest: null },
+    });
+    const [townMapFallbackReason, setTownMapFallbackReason] = useState('');
+    const townMapAssetBaseUrl = mapStyle === CAREAROUND_MAP_STYLE_GRAY
+        ? TOWN_MAP_GRAY_ASSET_BASE_URL
+        : TOWN_MAP_ASSET_BASE_URL;
+    const townMapManifestState = townMapManifestStates[mapStyle]
+        || { status: 'idle', manifest: null };
     const pendingFocusFrameRef = useRef(null);
     const desktopSelectionSnapRef = useRef(null);
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const useDesktopDirectoryBodyLayout = useMediaQuery('(min-width: 1024px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
     const isPrintView = searchParams.get('view') === 'print';
+    const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
     const anchorState = useDirectoryDistanceAnchor({
@@ -479,7 +543,16 @@ export default function MyMapDetailPage() {
 
     const loadMap = useCallback(async () => {
         if (!mapId) return;
-        setLoading(true);
+        const cachedDirectory = getCachedMyMapDetail(user, mapId);
+        if (cachedDirectory) {
+            directoryCacheKeyRef.current = currentMapCacheKey;
+            setDirectory(cachedDirectory);
+            setLoading(false);
+        } else {
+            directoryCacheKeyRef.current = '';
+            setDirectory(null);
+            setLoading(true);
+        }
         setError('');
         try {
             const [item, subcategories] = await Promise.all([
@@ -488,18 +561,80 @@ export default function MyMapDetailPage() {
             ]);
             const enrichedDirectory = applySubCategoryMetaToDirectory(item, subcategories);
             const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses(enrichedDirectory);
-            setDirectory(await backfillGroupFocusPlaceKeys(addressBackfilledDirectory));
+            const nextDirectory = await backfillGroupFocusPlaceKeys(addressBackfilledDirectory);
+            cacheMyMapDetail(user, mapId, nextDirectory);
+            directoryCacheKeyRef.current = currentMapCacheKey;
+            setDirectory(nextDirectory);
         } catch (err) {
             console.error(err);
-            setError(err.message || t('failedLoadMap'));
+            if (!cachedDirectory) {
+                setError(err.message || t('failedLoadMap'));
+            }
         } finally {
             setLoading(false);
         }
-    }, [mapId, t]);
+    }, [currentMapCacheKey, mapId, t, user]);
 
     useEffect(() => {
         loadMap();
     }, [loadMap]);
+
+    useEffect(() => {
+        if (directoryCacheKeyRef.current !== currentMapCacheKey) return;
+        cacheMyMapDetail(user, mapId, directory);
+    }, [currentMapCacheKey, directory, mapId, user]);
+
+    useEffect(() => {
+        setBasemapMode(TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live');
+        setTownMapFallbackReason('');
+    }, [mapId]);
+
+    useEffect(() => {
+        const wasPrintView = previousPrintViewRef.current;
+        previousPrintViewRef.current = isPrintView;
+        if (isPrintView && !wasPrintView) {
+            setPrintMapState(createOwnerPrintMapState(mapStyle));
+        }
+    }, [isPrintView, mapStyle]);
+
+    useEffect(() => {
+        if (!TOWN_MAP_PROOF_ENABLED) {
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const assetBaseUrls = {
+            [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_ASSET_BASE_URL,
+            [CAREAROUND_MAP_STYLE_GRAY]: TOWN_MAP_GRAY_ASSET_BASE_URL,
+        };
+
+        setTownMapManifestStates(Object.fromEntries(
+            Object.entries(assetBaseUrls).map(([style, assetBaseUrl]) => [
+                style,
+                { status: assetBaseUrl ? 'loading' : 'error', manifest: null },
+            ]),
+        ));
+
+        Object.entries(assetBaseUrls).forEach(([style, assetBaseUrl]) => {
+            if (!assetBaseUrl) return;
+            fetchFixedTownSurfaceManifest(assetBaseUrl, { signal: controller.signal })
+                .then((manifest) => {
+                    setTownMapManifestStates((current) => ({
+                        ...current,
+                        [style]: { status: 'ready', manifest },
+                    }));
+                })
+                .catch((error) => {
+                    if (error?.name === 'AbortError') return;
+                    setTownMapManifestStates((current) => ({
+                        ...current,
+                        [style]: { status: 'error', manifest: null },
+                    }));
+                });
+        });
+
+        return () => controller.abort();
+    }, []);
 
     const existingAssetKeys = useMemo(
         () => new Set((directory?.assets || []).map((asset) => asset.assetKey || `${asset.resourceType}-${asset.resourceId}`)),
@@ -512,6 +647,9 @@ export default function MyMapDetailPage() {
     const v2Presentation = useMemo(() => (
         buildDirectoryPresentation(directory, { query, activeAnchor, presentationMode: 'v2-cards' })
     ), [activeAnchor, directory, query]);
+    const townMapCoveragePresentation = useMemo(() => (
+        buildDirectoryPresentation(directory, { activeAnchor, presentationMode: 'v2-cards' })
+    ), [activeAnchor, directory]);
     const ownerPresentation = isV2View ? v2Presentation : interactivePresentation;
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
@@ -526,6 +664,171 @@ export default function MyMapDetailPage() {
             className={className}
         />
     ), [directory, pdfPresentation]);
+
+    const townMapCoveragePoints = useMemo(() => {
+        const pinPoints = (townMapCoveragePresentation.pins || []).map((pin) => ({
+            id: pin.placeKey,
+            lat: pin.lat,
+            lng: pin.lng,
+        }));
+        const anchorPoint = activeAnchor
+            ? [{ id: 'active-anchor', lat: activeAnchor.lat, lng: activeAnchor.lng }]
+            : [];
+        return [...pinPoints, ...anchorPoint];
+    }, [activeAnchor, townMapCoveragePresentation.pins]);
+    const townMapAvailable = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && townMapAssetBaseUrl
+        && townMapManifestState.status === 'ready'
+        && townMapManifestState.manifest
+        && townMapCoveragePoints.length
+    );
+    const printTownMapAssetBaseUrl = printMapState.mapStyle === CAREAROUND_MAP_STYLE_GRAY
+        ? TOWN_MAP_GRAY_ASSET_BASE_URL
+        : TOWN_MAP_ASSET_BASE_URL;
+    const printTownMapManifestState = townMapManifestStates[printMapState.mapStyle]
+        || { status: 'idle', manifest: null };
+    const printTownMapOutsidePointCount = useMemo(() => {
+        const nominalBounds = printTownMapManifestState.manifest?.bounds?.nominal;
+        if (!nominalBounds) return 0;
+        return townMapCoveragePoints.filter((point) => !isPointWithinWsenBounds(point, nominalBounds)).length;
+    }, [printTownMapManifestState.manifest, townMapCoveragePoints]);
+    const printTownMapAvailable = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && printTownMapAssetBaseUrl
+        && printTownMapManifestState.status === 'ready'
+        && printTownMapManifestState.manifest
+        && townMapCoveragePoints.length
+        && printTownMapOutsidePointCount === 0
+    );
+
+    const handleBasemapModeChange = useCallback((nextMode) => {
+        if (nextMode !== 'town') return;
+        if (!townMapAvailable) {
+            return;
+        }
+        setTownMapFallbackReason('');
+        setBasemapMode('auto');
+    }, [townMapAvailable]);
+
+    const handleFixedTownSurfaceFallback = useCallback(({ reason } = {}) => {
+        setBasemapMode('live');
+        setTownMapFallbackReason(reason || 'surface-unavailable');
+    }, []);
+
+    const townMapStatus = useMemo(() => {
+        if (townMapManifestState.status === 'loading') {
+            return {
+                message: 'Preparing the detailed map…',
+                compactMessage: 'Loading detailed…',
+            };
+        }
+        if (townMapManifestState.status === 'error' || !townMapAssetBaseUrl) {
+            return {
+                message: 'Detailed map is unavailable. Standard map is still on.',
+                compactMessage: 'Detailed unavailable',
+            };
+        }
+        if (townMapFallbackReason) {
+            return {
+                message: 'Detailed map could not load. Standard map is still on.',
+                compactMessage: 'Detailed unavailable',
+            };
+        }
+        return { message: '', compactMessage: '' };
+    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.status]);
+
+    const renderTownMapModeControl = useCallback(({
+        mode = 'live',
+        townViewportEligible = true,
+        townZoomEligible = false,
+        fallbackReason = '',
+        onModeChange,
+        controlVariant = 'overlay',
+    } = {}) => {
+        const townUnavailableMessage = basemapMode === 'auto'
+            && townMapAvailable
+            && townViewportEligible
+            && !townZoomEligible
+            ? `Zoom in to level ${FIXED_TOWN_SURFACE_MIN_ZOOM}. Detailed map will turn on automatically.`
+            : '';
+        const townUnavailableCompactMessage = townUnavailableMessage
+            ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.`
+            : '';
+        const viewportStatusMessage = !townViewportEligible && townMapAvailable
+            ? 'Detailed map covers Choa Chu Kang only. Standard map is still on here.'
+            : '';
+        const compactViewportStatusMessage = viewportStatusMessage
+            ? 'Outside Detailed area'
+            : '';
+        const fallbackStatusMessage = fallbackReason === 'outside-surface'
+            ? 'Detailed map covers Choa Chu Kang only. Standard map is still on here.'
+            : 'Detailed map could not load. Standard map is still on.';
+        const statusMessage = fallbackReason
+            ? fallbackStatusMessage
+            : (viewportStatusMessage || townMapStatus.message);
+        const compactStatusMessage = fallbackReason
+            ? (fallbackReason === 'outside-surface' ? 'Outside Detailed area' : 'Detailed unavailable')
+            : (compactViewportStatusMessage || townMapStatus.compactMessage);
+        return (
+            <TownMapModeControl
+                mode={mode}
+                townAvailable={townMapAvailable && townViewportEligible && townZoomEligible}
+                statusMessage={statusMessage}
+                compactStatusMessage={compactStatusMessage}
+                townUnavailableMessage={townUnavailableMessage}
+                townUnavailableCompactMessage={townUnavailableCompactMessage}
+                onModeChange={onModeChange}
+                variant={controlVariant}
+            />
+        );
+    }, [basemapMode, townMapAvailable, townMapStatus]);
+    const mapModeControl = TOWN_MAP_PROOF_ENABLED ? renderTownMapModeControl : null;
+    const renderPrintTownMapModeControl = useCallback(({
+        mode = 'live',
+        townZoomEligible = false,
+        fallbackReason = '',
+        onModeChange,
+        controlVariant = 'overlay',
+    } = {}) => {
+        const wantsDetailed = printMapState.basemapMode === 'auto';
+        const townUnavailableMessage = wantsDetailed && printTownMapAvailable && !townZoomEligible
+            ? `Zoom in to level ${FIXED_TOWN_SURFACE_MIN_ZOOM}. Detailed map will turn on automatically.`
+            : '';
+        const unavailable = printTownMapManifestState.status === 'error'
+            || !printTownMapAssetBaseUrl
+            || printTownMapOutsidePointCount > 0
+            || fallbackReason;
+        const statusMessage = unavailable
+            ? (printTownMapOutsidePointCount > 0
+                ? 'Some places are outside this map area. Standard map is still on.'
+                : 'Detailed map is unavailable. Standard map is still on.')
+            : '';
+        const handleModeChange = (nextMode) => {
+            setPrintMapState((current) => ({
+                ...current,
+                basemapMode: nextMode === 'town' ? 'auto' : 'live',
+            }));
+            onModeChange?.(nextMode);
+        };
+        return (
+            <TownMapModeControl
+                mode={mode}
+                townAvailable={printTownMapAvailable && townZoomEligible}
+                statusMessage={statusMessage}
+                compactStatusMessage={statusMessage}
+                townUnavailableMessage={townUnavailableMessage}
+                townUnavailableCompactMessage={townUnavailableMessage ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.` : ''}
+                onModeChange={handleModeChange}
+                onUnavailableTownSelect={() => {
+                    if (!printTownMapAvailable) return;
+                    setPrintMapState((current) => ({ ...current, basemapMode: 'auto' }));
+                }}
+                variant={controlVariant}
+            />
+        );
+    }, [printMapState.basemapMode, printTownMapAssetBaseUrl, printTownMapAvailable, printTownMapManifestState.status, printTownMapOutsidePointCount]);
+    const printMapModeControl = TOWN_MAP_PROOF_ENABLED ? renderPrintTownMapModeControl : null;
 
     const clearMapSelection = useCallback(() => {
         if (pendingFocusFrameRef.current !== null) {
@@ -735,6 +1038,7 @@ export default function MyMapDetailPage() {
     }, []);
 
     function openPrintView() {
+        setPrintMapState(createOwnerPrintMapState(mapStyle));
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('view', 'print');
         setSearchParams(nextParams);
@@ -746,7 +1050,11 @@ export default function MyMapDetailPage() {
         setSearchParams(nextParams);
     }
 
-    if (loading) {
+    function resetPrintMap() {
+        setPrintMapState((current) => resetOwnerPrintMapState(current, mapStyle));
+    }
+
+    if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
                 <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 xl:px-10 2xl:px-14">
@@ -784,22 +1092,44 @@ export default function MyMapDetailPage() {
         return (
             <div className="min-h-screen bg-white">
                 <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
-                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-                        <button
-                            type="button"
-                            onClick={closePrintView}
-                            className="btn-ghost justify-center border border-slate-200 text-slate-700"
-                        >
-                            <ArrowLeft size={16} />
-                            {t('backToInteractiveView')}
-                        </button>
-                        <Suspense fallback={(
-                            <span className="btn-ghost justify-center border border-slate-200 text-slate-500">
-                                {t('loadingPage')}
-                            </span>
-                        )}>
-                            <MapImageExportButton directory={directory} activeAnchor={activeAnchor} shareUrl={sharedDirectoryUrl} />
-                        </Suspense>
+                    <div className="flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
+                        <div className="flex flex-wrap items-center justify-start gap-2" data-print-toolbar-actions="true">
+                            <button
+                                type="button"
+                                onClick={closePrintView}
+                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                            >
+                                <ArrowLeft size={16} />
+                                {t('backToInteractiveView')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={resetPrintMap}
+                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                            >
+                                <RotateCcw size={16} />
+                                Reset print map
+                            </button>
+                            <Suspense fallback={(
+                                <span className="btn-ghost justify-center border border-slate-200 text-slate-500">
+                                    {t('loadingPage')}
+                                </span>
+                            )}>
+                                <MapImageExportButton
+                                    directory={directory}
+                                    activeAnchor={activeAnchor}
+                                    shareUrl={sharedDirectoryUrl}
+                                    printMapState={printMapState}
+                                    fixedTownSurfaceManifest={printTownMapManifestState.manifest}
+                                    fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
+                                    fixedTownSurfaceAvailable={printTownMapAvailable}
+                                    fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                />
+                            </Suspense>
+                        </div>
+                        <p className="w-full text-left text-sm font-semibold text-slate-600 lg:ml-auto lg:w-auto lg:text-right">
+                            Your saved image will match this preview.
+                        </p>
                     </div>
                 </div>
 
@@ -812,6 +1142,13 @@ export default function MyMapDetailPage() {
                         shareUrl={sharedDirectoryUrl}
                         footerNote={directory.share?.isShared ? t('openSharedLinkForInteractiveMap') : ''}
                         className="w-full"
+                        printMapState={printMapState}
+                        onPrintMapStateChange={setPrintMapState}
+                        mapModeControl={printMapModeControl}
+                        fixedTownSurfaceManifest={printTownMapManifestState.manifest}
+                        fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
+                        fixedTownSurfaceAvailable={printTownMapAvailable}
+                        fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                     />
                 </div>
             </div>
@@ -889,6 +1226,23 @@ export default function MyMapDetailPage() {
                     )}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                     emptyState={<EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />}
+                    mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
+                    showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                    minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
+                    lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
+                    basemapMode={basemapMode}
+                    fixedTownSurfaceManifest={townMapManifestState.manifest}
+                    fixedTownAssetBaseUrl={townMapAssetBaseUrl}
+                    fixedTownSurfaceAvailable={townMapAvailable}
+                    fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                    fixedTownSurfaceGrayscale={false}
+                    fixedTownSurfaceLockMinZoom={false}
+                    fixedTownSurfaceFallbackBelowMinZoom={false}
+                    fixedTownSurfaceFallbackScope="local"
+                    onBasemapModeChange={handleBasemapModeChange}
+                    onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                    mapModeControl={mapModeControl}
+                    preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                 />
 
                 <CreateMapModal
@@ -1009,6 +1363,7 @@ export default function MyMapDetailPage() {
                                 selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
                                 selectionScrollRequest={selectionScrollRequest}
                                 showDesktopHoverLogo
+                                preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                                 desktopScrollTargetRef={desktopSelectionSnapRef}
                                 desktopGridClassName="lg:grid-cols-[minmax(280px,1fr)_minmax(380px,1.15fr)_minmax(280px,1fr)] xl:grid-cols-[minmax(320px,1fr)_minmax(560px,1.6fr)_minmax(320px,1fr)] 2xl:grid-cols-[minmax(360px,1fr)_minmax(680px,1.8fr)_minmax(360px,1fr)]"
                                 renderDesktopMap={() => (
@@ -1032,6 +1387,22 @@ export default function MyMapDetailPage() {
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName="h-[42vh] min-h-[400px] max-h-[620px]"
+                                        mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
+                                        showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                                        minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
+                                        lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
+                                        basemapMode={basemapMode}
+                                        fixedTownSurfaceManifest={townMapManifestState.manifest}
+                                        fixedTownAssetBaseUrl={townMapAssetBaseUrl}
+                                        fixedTownSurfaceAvailable={townMapAvailable}
+                                        fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                        fixedTownSurfaceGrayscale={false}
+                                        fixedTownSurfaceLockMinZoom={false}
+                                        fixedTownSurfaceFallbackBelowMinZoom={false}
+                                        fixedTownSurfaceFallbackScope="local"
+                                        onBasemapModeChange={handleBasemapModeChange}
+                                        onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                                        mapModeControl={mapModeControl}
                                     />
                                 )}
                                 renderMobileMap={() => (
@@ -1055,6 +1426,22 @@ export default function MyMapDetailPage() {
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName="h-[32svh] min-h-[240px] max-h-[360px]"
+                                        mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
+                                        showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                                        minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
+                                        lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
+                                        basemapMode={basemapMode}
+                                        fixedTownSurfaceManifest={townMapManifestState.manifest}
+                                        fixedTownAssetBaseUrl={townMapAssetBaseUrl}
+                                        fixedTownSurfaceAvailable={townMapAvailable}
+                                        fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                        fixedTownSurfaceGrayscale={false}
+                                        fixedTownSurfaceLockMinZoom={false}
+                                        fixedTownSurfaceFallbackBelowMinZoom={false}
+                                        fixedTownSurfaceFallbackScope="local"
+                                        onBasemapModeChange={handleBasemapModeChange}
+                                        onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                                        mapModeControl={mapModeControl}
                                     />
                                 )}
                                 mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"

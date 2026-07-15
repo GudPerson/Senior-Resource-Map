@@ -10,6 +10,7 @@ import { SavedAssetsProvider } from './contexts/SavedAssetsContext.jsx';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
 import { LoadingState } from './components/LoadingState.jsx';
+import MobileMyMapEntryScrollReset from './components/MobileMyMapEntryScrollReset.jsx';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -176,6 +177,7 @@ function AppShell() {
 
     return (
         <>
+            <MobileMyMapEntryScrollReset />
             {!hideNavbar ? <Navbar /> : null}
             <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
                 <Suspense fallback={<RouteLoadingFallback />}>
