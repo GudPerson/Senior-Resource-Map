@@ -1311,7 +1311,7 @@ function DirectoryResourceRow({
                             <div className="flex items-start gap-2">
                                 <div className="min-w-0 flex-1">
                                     {canOpenDetail ? (
-                                        <Link to={detailPath} reloadDocument className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
+                                        <Link to={detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                                             {row.name}
                                         </Link>
                                     ) : (
@@ -1525,7 +1525,7 @@ function DirectoryNestedPlaceSection({
             <div className="flex min-w-0 items-start gap-2">
                 <div className="min-w-0 flex-1">
                     {nestedPlaceDetailPath ? (
-                        <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${titleClassName}`}>
+                        <Link to={nestedPlaceDetailPath} className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${titleClassName}`}>
                             {nestedPlace.name}
                         </Link>
                     ) : (
@@ -1852,7 +1852,7 @@ function DirectoryPlaceGroupCard({
     }
 
     const interactivePlaceTitle = placeDetailPath ? (
-        <Link to={placeDetailPath} reloadDocument className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
+        <Link to={placeDetailPath} className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900 transition hover:text-brand-700`}>
             {group.name}
         </Link>
     ) : (
@@ -1931,7 +1931,6 @@ function DirectoryPlaceGroupCard({
         return (
             <Link
                 to={placeDetailPath}
-                reloadDocument
                 ref={sectionRef}
                 data-directory-place-card="true"
                 {...cardInteractionProps}
@@ -2010,7 +2009,7 @@ function MobileMapFocusTrayPlaceCard({
                 <div className="flex min-w-0 items-start gap-2">
                     <div className="min-w-0 flex-1">
                         {placeDetailPath ? (
-                            <Link to={placeDetailPath} reloadDocument className="block text-[0.9375rem] font-bold leading-tight text-slate-900 transition hover:text-brand-700">
+                            <Link to={placeDetailPath} className="block text-[0.9375rem] font-bold leading-tight text-slate-900 transition hover:text-brand-700">
                                 {group.name}
                             </Link>
                         ) : (
@@ -2149,7 +2148,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         <div className="mt-1.5 flex items-start gap-2">
                             <div className="min-w-0 flex-1">
                                 {detailPath && row.status !== 'unavailable' ? (
-                                    <Link to={detailPath} reloadDocument className={`block font-bold leading-snug text-slate-900 transition hover:text-brand-700 ${compact ? 'text-[0.9375rem]' : 'text-base'}`}>
+                                    <Link to={detailPath} className={`block font-bold leading-snug text-slate-900 transition hover:text-brand-700 ${compact ? 'text-[0.9375rem]' : 'text-base'}`}>
                                         {row.name}
                                     </Link>
                                 ) : (
@@ -2201,7 +2200,7 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                 {interactive && !compact ? (
                     <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold">
                         {detailPath && row.status !== 'unavailable' ? (
-                            <Link to={detailPath} reloadDocument className="text-brand-700 transition hover:text-brand-800">
+                            <Link to={detailPath} className="text-brand-700 transition hover:text-brand-800">
                                 {t('viewDetails')}
                             </Link>
                         ) : (
@@ -2532,6 +2531,7 @@ export default function SharedMapDirectoryList({
     desktopGridClassName = 'lg:grid-cols-[minmax(0,1fr)_minmax(340px,520px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(420px,560px)_minmax(0,1fr)]',
     desktopMapWrapperClassName = '',
     mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2',
+    preserveMobileMapFrameInFlow = false,
     allowPrintLinks = false,
     autoScrollToHighlight = true,
     showDesktopHoverLogo = false,
@@ -2929,9 +2929,10 @@ export default function SharedMapDirectoryList({
     if (resolvedLayout === 'mobile') {
         const mobileMapElement = renderMobileMap?.();
         const mobileFullMapElement = mobileFullMapOpen ? renderMobileMap?.() : null;
-        const mobileMapFrameClassName = mobileMapListFocused
+        const mobileMapFrameClassName = mobileMapListFocused && !preserveMobileMapFrameInFlow
             ? 'hidden'
             : 'disable-font-scaling [overflow-anchor:none]';
+        const mobileMapLayoutSignature = mobileMapElement?.props?.layoutSignature || 'mobile-map-normal';
         const mobileMapNotesWrapperClassName = `${mobileMapStickyClassName} [overflow-anchor:none]`;
         const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
 
@@ -2950,16 +2951,18 @@ export default function SharedMapDirectoryList({
                                     onViewSection: handleMobileMapViewSection,
                                     onClusterSelect: handleMobileMapClusterSelect,
                                     mapHeightClassName: mobileMapElement.props?.mapHeightClassName,
-                                    layoutSignature: `${mobileMapElement.props?.layoutSignature || 'mobile-map-normal'}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
+                                    layoutSignature: preserveMobileMapFrameInFlow
+                                        ? mobileMapLayoutSignature
+                                        : `${mobileMapLayoutSignature}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
                                 })}
                                 <button
                                     type="button"
                                     onClick={openMobileFullMap}
-                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:bottom-4"
+                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:bottom-4"
                                     aria-label={t('openFullMap')}
                                     title={t('openFullMap')}
                                 >
-                                    <Maximize2 size={19} strokeWidth={2.4} aria-hidden="true" />
+                                    <Maximize2 size={15} strokeWidth={2.4} aria-hidden="true" />
                                 </button>
                             </div>
                             {showMapLegend ? (
@@ -3054,11 +3057,11 @@ export default function SharedMapDirectoryList({
                                 <button
                                     type="button"
                                     onClick={closeMobileFullMap}
-                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
                                     aria-label={t('returnToMapList')}
                                     title={t('returnToMapList')}
                                 >
-                                    <Minimize2 size={19} strokeWidth={2.4} aria-hidden="true" />
+                                    <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" />
                                 </button>
                             </div>
                             <MobileMapFocusTray

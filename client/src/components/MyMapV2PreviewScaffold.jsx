@@ -1,10 +1,12 @@
 import DirectoryMap from './DirectoryMap.jsx';
+import ResizableDesktopMapSurface from './ResizableDesktopMapSurface.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 
 const V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[700px]';
 const V2_MOBILE_MAP_HEIGHT_CLASS = 'h-[34svh] min-h-[260px] max-h-[390px]';
 const V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-[minmax(230px,0.78fr)_minmax(430px,1.32fr)_minmax(240px,0.84fr)] xl:gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
-const V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
+const V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
+const V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT = [104, 44];
 
 export default function MyMapV2PreviewScaffold({
     directory,
@@ -34,6 +36,25 @@ export default function MyMapV2PreviewScaffold({
     useDesktopBodyLayout = useDesktopLayout,
     emptyLabel,
     emptyState = null,
+    basemapUrl,
+    mapMinZoom,
+    showZoomLevelCounter = false,
+    minimumZoomCenter = null,
+    lockMinimumZoomCamera = false,
+    basemapMode = 'live',
+    fixedTownSurfaceManifest = null,
+    fixedTownAssetBaseUrl = '',
+    fixedTownSurfaceAvailable,
+    fixedTownSurfaceMinZoom,
+    fixedTownSurfaceGrayscale = false,
+    fixedTownSurfaceLockMinZoom = true,
+    fixedTownSurfaceFallbackBelowMinZoom = true,
+    fixedTownSurfaceFallbackScope = 'global',
+    onBasemapModeChange,
+    onFixedTownSurfaceFallback,
+    onFixedTownSurfaceMetricsChange,
+    mapModeControl = null,
+    preserveMobileMapFrameInFlow = false,
 }) {
     const resourceCount = Number(directory?.summary?.resourceCount || 0);
 
@@ -62,7 +83,27 @@ export default function MyMapV2PreviewScaffold({
             emptyLabel={emptyLabel}
             mapHeightClassName={mapHeightClassName}
             layoutSignature="v2-map"
-            fitPaddingBottomRight={V2_FIT_PADDING_BOTTOM_RIGHT}
+            fitPaddingBottomRight={useDesktopLayout
+                ? V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT
+                : V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT}
+            basemapUrl={basemapUrl}
+            mapMinZoom={mapMinZoom}
+            showZoomLevelCounter={showZoomLevelCounter}
+            minimumZoomCenter={minimumZoomCenter}
+            lockMinimumZoomCamera={lockMinimumZoomCamera}
+            basemapMode={basemapMode}
+            fixedTownSurfaceManifest={fixedTownSurfaceManifest}
+            fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
+            fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+            fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+            fixedTownSurfaceGrayscale={fixedTownSurfaceGrayscale}
+            fixedTownSurfaceLockMinZoom={fixedTownSurfaceLockMinZoom}
+            fixedTownSurfaceFallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}
+            fixedTownSurfaceFallbackScope={fixedTownSurfaceFallbackScope}
+            onBasemapModeChange={onBasemapModeChange}
+            onFixedTownSurfaceFallback={onFixedTownSurfaceFallback}
+            onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
+            mapModeControl={mapModeControl}
         />
     );
 
@@ -106,9 +147,16 @@ export default function MyMapV2PreviewScaffold({
                         showDesktopHoverLogo
                         showMapLegend={false}
                         cardBadgeMode="logo"
+                        preserveMobileMapFrameInFlow={preserveMobileMapFrameInFlow}
                         desktopScrollTargetRef={desktopScrollTargetRef}
                         desktopGridClassName={V2_DESKTOP_GRID_CLASS}
-                        renderDesktopMap={() => renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}
+                        renderDesktopMap={() => (
+                            presentation.pins.length ? (
+                                <ResizableDesktopMapSurface
+                                    mapElement={renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}
+                                />
+                            ) : renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)
+                        )}
                         renderMobileMap={() => renderMap(V2_MOBILE_MAP_HEIGHT_CLASS)}
                         mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
                     />

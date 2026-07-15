@@ -6,6 +6,7 @@ import { toPng } from 'html-to-image';
 
 import MapDirectoryExportPanel from './MapDirectoryExportPanel.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { PRINT_MAP_CANVAS_WIDTH_PX, buildPrintMapCaptureKey } from '../lib/printMapState.js';
 
 const TRANSPARENT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -23,6 +24,11 @@ export default function MapImageExportButton({
     activeAnchor = null,
     shareUrl = '',
     className = '',
+    printMapState = null,
+    fixedTownSurfaceManifest = null,
+    fixedTownAssetBaseUrl = '',
+    fixedTownSurfaceAvailable = false,
+    fixedTownSurfaceMinZoom,
 }) {
     const { t } = useLocale();
     const exportRef = useRef(null);
@@ -32,9 +38,8 @@ export default function MapImageExportButton({
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState('');
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
-    const exportWidth = typeof window === 'undefined'
-        ? 1480
-        : Math.min(1480, Math.max(960, window.innerWidth - 64));
+    const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX;
+    const printMapCaptureKey = printMapState ? buildPrintMapCaptureKey(printMapState) : '';
 
     useEffect(() => {
         exportReadyRef.current = false;
@@ -49,6 +54,7 @@ export default function MapImageExportButton({
         directory?.id,
         directory?.summary?.resourceCount,
         directory?.updatedAt,
+        printMapCaptureKey,
         shareUrl,
     ]);
 
@@ -182,6 +188,11 @@ export default function MapImageExportButton({
                             exportWidth={exportWidth}
                             onMapReadyForCapture={handleMapReadyForCapture}
                             onMapCaptureError={handleMapCaptureError}
+                            printMapState={printMapState}
+                            fixedTownSurfaceManifest={fixedTownSurfaceManifest}
+                            fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
+                            fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+                            fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
                         />
                     </div>
                 </div>

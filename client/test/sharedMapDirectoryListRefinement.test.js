@@ -44,6 +44,23 @@ function sourceBetween(source, startMarker, endMarker) {
     return source.slice(start, end);
 }
 
+test('interactive map resource links keep browser Back inside the SPA', () => {
+    const interactiveResourceRowSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryResourceRow',
+        'function DirectoryNestedPlaceSection',
+    );
+    const mobileFocusTraySource = sourceBetween(
+        sharedMapDirectorySource,
+        'function MobileMapFocusTrayPlaceCard',
+        'function MobileMapFocusTray({',
+    );
+
+    assert.match(interactiveResourceRowSource, /<Link to=\{detailPath\} className=/);
+    assert.match(mobileFocusTraySource, /<Link to=\{placeDetailPath\} className=/);
+    assert.equal((sharedMapDirectorySource.match(/\breloadDocument\b/g) || []).length, 4);
+});
+
 test('list-only resource badges use the row logo before falling back to icon artwork', () => {
     assert.match(resourceRowIconSource, /logoUrl\s*=\s*null/);
     assert.match(resourceRowIconSource, /<img[\s\S]*src=\{logoUrl\}/);
@@ -119,7 +136,12 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /`\$\{mobileMapStickyClassName\} \[overflow-anchor:none\]`/);
     assert.match(sharedMapDirectorySource, /mobileMapStickyClassName = 'sticky top-3 z-20 bg-slate-50 pb-2'/);
     assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: `\$\{mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
+    assert.match(sharedMapDirectorySource, /preserveMobileMapFrameInFlow = false/);
+    assert.match(mobileSource, /mobileMapListFocused && !preserveMobileMapFrameInFlow/);
+    assert.match(mobileSource, /const mobileMapLayoutSignature = mobileMapElement\?\.props\?\.layoutSignature \|\| 'mobile-map-normal'/);
+    assert.match(mobileSource, /layoutSignature: preserveMobileMapFrameInFlow/);
+    assert.match(mobileSource, /\? mobileMapLayoutSignature/);
+    assert.match(mobileSource, /: `\$\{mobileMapLayoutSignature\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
     assert.match(mobileSource, /openMobileFullMap/);
     assert.match(mobileSource, /t\('openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
@@ -178,7 +200,7 @@ test('mobile map keeps the supplied partial-height map without resize state', ()
     );
 
     assert.match(mobileSource, /mapHeightClassName: mobileMapElement\.props\?\.mapHeightClassName/);
-    assert.match(mobileSource, /layoutSignature: `\$\{mobileMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
+    assert.match(mobileSource, /layoutSignature: preserveMobileMapFrameInFlow/);
     assert.match(mobileSource, /onViewSection: handleMobileMapViewSection/);
     assert.match(mobileSource, /onClusterSelect: handleMobileMapClusterSelect/);
     assert.doesNotMatch(mobileSource, /transition-\[height,min-height,max-height\]/);
@@ -327,7 +349,8 @@ test('mobile full-map overlay has visible return and notes controls', () => {
     assert.match(mobileSource, /onTouchMove=\{handleMobileFullMapTouchMove\}/);
     assert.match(mobileSource, /onTouchEnd=\{handleMobileFullMapTouchEnd\}/);
     assert.match(mobileSource, /aria-label=\{t\('returnToMapList'\)\}/);
-    assert.match(mobileSource, /<Minimize2 size=\{19\}/);
+    assert.match(mobileSource, /h-\[30px\] w-\[30px\]/);
+    assert.match(mobileSource, /<Minimize2 size=\{15\}/);
     assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
     assert.match(sharedMapDirectorySource, /compactFullMap \? 'min-w-\[min\(18rem,78vw\)\] max-w-\[19rem\]' : 'min-w-\[min\(18rem,78vw\)\]'/);

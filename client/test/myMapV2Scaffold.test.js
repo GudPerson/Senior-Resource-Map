@@ -62,6 +62,7 @@ test('my map detail routes v2 by default while print view keeps priority', () =>
 
 test('my map v2 scaffold reuses the existing presentation stack and delegates the toolbar', () => {
     assert.match(myMapV2ScaffoldSource, /import DirectoryMap from '\.\/DirectoryMap\.jsx';/);
+    assert.match(myMapV2ScaffoldSource, /import ResizableDesktopMapSurface from '\.\/ResizableDesktopMapSurface\.jsx';/);
     assert.match(myMapV2ScaffoldSource, /import SharedMapDirectoryList from '\.\/SharedMapDirectoryList\.jsx';/);
     assert.match(myMapV2ScaffoldSource, /toolbar = null/);
     assert.match(myMapV2ScaffoldSource, /\{toolbar\}/);
@@ -72,6 +73,11 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapV2ScaffoldSource, /layout=\{useDesktopBodyLayout \? 'desktop' : 'responsive'\}/);
     assert.match(myMapV2ScaffoldSource, /onHoverPlaceStart=\{onHoverPlaceStart\}/);
     assert.match(myMapV2ScaffoldSource, /onHoverPlaceEnd=\{onHoverPlaceEnd\}/);
+    assert.match(myMapV2ScaffoldSource, /basemapUrl=\{basemapUrl\}/);
+    assert.match(myMapV2ScaffoldSource, /mapMinZoom=\{mapMinZoom\}/);
+    assert.match(myMapV2ScaffoldSource, /showZoomLevelCounter=\{showZoomLevelCounter\}/);
+    assert.match(myMapV2ScaffoldSource, /minimumZoomCenter=\{minimumZoomCenter\}/);
+    assert.match(myMapV2ScaffoldSource, /lockMinimumZoomCamera=\{lockMinimumZoomCamera\}/);
     assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);
     assert.match(myMapDetailPageSource, /const useDesktopOwnerLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
@@ -108,6 +114,8 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.match(myMapDetailPageSource, /renderPdfExportButton=\{renderPdfExportButton\}\s+compactOverlay/);
     assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
     assert.match(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
+    assert.match(myMapV2ScaffoldSource, /preserveMobileMapFrameInFlow=\{preserveMobileMapFrameInFlow\}/);
+    assert.match(myMapDetailPageSource, /preserveMobileMapFrameInFlow=\{TOWN_MAP_PROOF_ENABLED\}/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[100px\] sm:top-\[112px\]/);
@@ -187,7 +195,8 @@ test('my map v2 enriches directory rows with configured category colors from the
     assert.match(myMapDetailPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
     assert.match(myMapDetailPageSource, /const enrichedDirectory = applySubCategoryMetaToDirectory\(item, subcategories\)/);
     assert.match(myMapDetailPageSource, /const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses\(enrichedDirectory\)/);
-    assert.match(myMapDetailPageSource, /setDirectory\(await backfillGroupFocusPlaceKeys\(addressBackfilledDirectory\)\)/);
+    assert.match(myMapDetailPageSource, /const nextDirectory = await backfillGroupFocusPlaceKeys\(addressBackfilledDirectory\)/);
+    assert.match(myMapDetailPageSource, /setDirectory\(nextDirectory\)/);
     assert.match(myMapDetailPageSource, /categoryColor: nextCategoryColor/);
     assert.match(myMapDetailPageSource, /categoryIconUrl: nextCategoryIconUrl/);
 });
@@ -214,14 +223,15 @@ test('my map v2 can backfill Group member focus keys from public Group details',
 test('my map v2 uses the restored normal map sizing without enabling full-map mode', () => {
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-\[48vh\] min-h-\[440px\] max-h-\[700px\]'/);
     assert.match(myMapV2ScaffoldSource, /V2_MOBILE_MAP_HEIGHT_CLASS = 'h-\[34svh\] min-h-\[260px\] max-h-\[390px\]'/);
-    assert.match(myMapV2ScaffoldSource, /V2_FIT_PADDING_BOTTOM_RIGHT = \[44, 24\]/);
-    assert.match(myMapV2ScaffoldSource, /fitPaddingBottomRight=\{V2_FIT_PADDING_BOTTOM_RIGHT\}/);
+    assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT = \[44, 24\]/);
+    assert.match(myMapV2ScaffoldSource, /V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT = \[104, 44\]/);
+    assert.match(myMapV2ScaffoldSource, /fitPaddingBottomRight=\{useDesktopLayout[\s\S]*V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT[\s\S]*V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT\}/);
     assert.match(myMapV2ScaffoldSource, /V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-\[minmax\(230px,0\.78fr\)_minmax\(430px,1\.32fr\)_minmax\(240px,0\.84fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /xl:gap-5 xl:grid-cols-\[minmax\(320px,0\.85fr\)_minmax\(620px,1\.45fr\)_minmax\(360px,0\.95fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);
     assert.match(myMapV2ScaffoldSource, /sm:px-6 sm:py-6 lg:px-8 xl:px-10/);
     assert.match(myMapV2ScaffoldSource, /desktopGridClassName=\{V2_DESKTOP_GRID_CLASS\}/);
-    assert.match(myMapV2ScaffoldSource, /renderDesktopMap=\{\(\) => renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)\}/);
+    assert.match(myMapV2ScaffoldSource, /renderDesktopMap=\{\(\) => \([\s\S]*presentation\.pins\.length \? \([\s\S]*<ResizableDesktopMapSurface[\s\S]*mapElement=\{renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)\}[\s\S]*\) : renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)[\s\S]*\)\}/);
     assert.match(myMapV2ScaffoldSource, /renderMobileMap=\{\(\) => renderMap\(V2_MOBILE_MAP_HEIGHT_CLASS\)\}/);
 });
 

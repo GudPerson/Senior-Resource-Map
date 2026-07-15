@@ -1,0 +1,27 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+        "https://app.carearound.sg",
+        "https://codex-cck-w01-town-map-proof.senior-resource-map.pages.dev",
+        "https://codex-map-style-preference.senior-resource-map.pages.dev"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": [
+          "Cache-Control",
+          "If-None-Match",
+          "Pragma",
+          "Range"
+        ]
+      },
+      "exposeHeaders": [
+        "Cache-Control",
+        "Content-Length",
+        "Content-Range",
+        "ETag"
+      ],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

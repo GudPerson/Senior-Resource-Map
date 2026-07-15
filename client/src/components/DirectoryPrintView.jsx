@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { GripHorizontal } from 'lucide-react';
 import DirectoryMap from './DirectoryMap.jsx';
 import DirectoryQrCode from './DirectoryQrCode.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
@@ -6,8 +7,74 @@ import BrandLockup from './layout/BrandLockup.jsx';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getIntlLocale } from '../lib/i18n.js';
+import {
+    PRINT_MAP_CANVAS_WIDTH_PX,
+    PRINT_MAP_DEFAULT_HEIGHT_PX,
+    PRINT_MAP_HEIGHT_STEP_PX,
+    PRINT_MAP_MAX_HEIGHT_PX,
+    PRINT_MAP_MIN_HEIGHT_PX,
+    buildPrintMapCaptureKey,
+    clampPrintMapHeight,
+} from '../lib/printMapState.js';
 
 const PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE = 0.0003;
+
+function PrintMapResizeHandle({ height, onChange, previewScale = 1 }) {
+    const dragRef = useRef(null);
+
+    const applyHeight = (value) => onChange?.(clampPrintMapHeight(value));
+    const finishDrag = (event) => {
+        const drag = dragRef.current;
+        if (!drag || (event?.pointerId !== undefined && event.pointerId !== drag.pointerId)) return;
+        if (event?.currentTarget?.hasPointerCapture?.(drag.pointerId)) {
+            event.currentTarget.releasePointerCapture(drag.pointerId);
+        }
+        dragRef.current = null;
+    };
+
+    return (
+        <div
+            role="separator"
+            aria-label="Resize print map height"
+            aria-orientation="horizontal"
+            aria-valuemin={PRINT_MAP_MIN_HEIGHT_PX}
+            aria-valuemax={PRINT_MAP_MAX_HEIGHT_PX}
+            aria-valuenow={height}
+            tabIndex={0}
+            title="Drag to resize the print map. Use arrow keys to adjust, or double-click to reset."
+            onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                dragRef.current = { pointerId: event.pointerId, startY: event.clientY, startHeight: height };
+            }}
+            onPointerMove={(event) => {
+                const drag = dragRef.current;
+                if (!drag || event.pointerId !== drag.pointerId) return;
+                event.preventDefault();
+                const scale = Math.max(0.2, Number(previewScale) || 1);
+                applyHeight(drag.startHeight + ((event.clientY - drag.startY) / scale));
+            }}
+            onPointerUp={finishDrag}
+            onPointerCancel={finishDrag}
+            onDoubleClick={() => applyHeight(PRINT_MAP_DEFAULT_HEIGHT_PX)}
+            onKeyDown={(event) => {
+                let nextHeight = null;
+                if (event.key === 'ArrowDown') nextHeight = height + PRINT_MAP_HEIGHT_STEP_PX;
+                if (event.key === 'ArrowUp') nextHeight = height - PRINT_MAP_HEIGHT_STEP_PX;
+                if (event.key === 'Home') nextHeight = PRINT_MAP_DEFAULT_HEIGHT_PX;
+                if (event.key === 'End') nextHeight = PRINT_MAP_MAX_HEIGHT_PX;
+                if (nextHeight === null) return;
+                event.preventDefault();
+                applyHeight(nextHeight);
+            }}
+            className="absolute bottom-0 left-1/2 z-[1100] flex h-8 w-28 -translate-x-1/2 translate-y-1/2 cursor-ns-resize touch-none items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-md hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-100"
+            data-print-map-resize-handle="true"
+        >
+            <GripHorizontal size={18} strokeWidth={2.4} aria-hidden="true" />
+        </div>
+    );
+}
 
 function formatGeneratedOn(value = new Date(), locale = 'en') {
     const date = value instanceof Date ? value : new Date(value);
@@ -250,8 +317,25 @@ function PrintDirectoryMap({
     onFocusHandled,
     onResetView,
     useV2Format = false,
+    printMapState = null,
+    onPrintMapStateChange = null,
+    mapModeControl = null,
+    fixedTownSurfaceManifest = null,
+    fixedTownAssetBaseUrl = '',
+    fixedTownSurfaceAvailable = false,
+    fixedTownSurfaceMinZoom,
+    previewScale = 1,
 }) {
     const { t } = useLocale();
+    const handleControlledMapStyleChange = useCallback((mapStyle) => {
+        onPrintMapStateChange?.({ mapStyle });
+    }, [onPrintMapStateChange]);
+    const handleControlledMapViewChange = useCallback((view) => {
+        onPrintMapStateChange?.({ view });
+    }, [onPrintMapStateChange]);
+    const handleControlledMapHeightChange = useCallback((height) => {
+        onPrintMapStateChange?.({ height });
+    }, [onPrintMapStateChange]);
     return (
         <div className="mx-auto w-full max-w-[680px] rounded-[30px] border border-slate-200 bg-white p-5">
             <PrintDirectoryBoardHeader
@@ -272,6 +356,7 @@ function PrintDirectoryMap({
                 </p>
             ) : null}
 
+            <div className={printMapState && interactive ? 'relative mb-4' : ''}>
             <DirectoryMap
                 activeAnchor={presentation.activeAnchor}
                 pins={presentation.pins}
@@ -294,18 +379,45 @@ function PrintDirectoryMap({
                 spreadCoincidentPins={!useV2Format}
                 placeNumberByKey={presentation.placeNumberByKey}
                 showPopup={false}
-                showZoomControl={false}
+                showZoomControl={Boolean(printMapState && interactive)}
+                showZoomLevelCounter={Boolean(printMapState && interactive)}
                 showAttribution={true}
                 showProviderBadgeLogo={interactive}
                 mapHeightClassName={interactive ? 'h-[360px]' : 'h-[300px]'}
+                mapHeightPx={printMapState ? clampPrintMapHeight(printMapState.height) : null}
                 className={presentation.activeAnchorNote ? 'mt-3' : (useV2Format ? 'mt-3' : (interactive ? 'mt-8' : 'mt-5'))}
-                layoutSignature={useV2Format ? 'print-v2-map' : 'print-map'}
+                layoutSignature={`${useV2Format ? 'print-v2-map' : 'print-map'}:${Number(printMapState?.resetVersion || 0)}`}
                 fitPaddingBottomRight={useV2Format ? PRINT_V2_FIT_PADDING_BOTTOM_RIGHT : undefined}
                 emptyLabel={t('noMappablePlacesInMap')}
                 onMapReadyForCapture={onMapReadyForCapture}
                 onMapCaptureError={onMapCaptureError}
                 onClusterChange={onClusterChange}
+                observeFrameResize={Boolean(printMapState)}
+                mapStyleOverride={printMapState?.mapStyle || null}
+                onMapStyleOverrideChange={printMapState && interactive ? handleControlledMapStyleChange : null}
+                mapStyleDescription={printMapState ? 'This choice applies only to this print preview.' : undefined}
+                mapViewState={printMapState?.view || null}
+                onMapViewStateChange={printMapState && interactive ? handleControlledMapViewChange : null}
+                captureReadyKey={printMapState ? buildPrintMapCaptureKey(printMapState) : ''}
+                basemapMode={printMapState?.basemapMode || 'live'}
+                fixedTownSurfaceManifest={fixedTownSurfaceManifest}
+                fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
+                fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+                fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                fixedTownSurfaceLockMinZoom={false}
+                fixedTownSurfaceFallbackBelowMinZoom={false}
+                fixedTownSurfaceFallbackScope="local"
+                mapModeControl={printMapState && interactive ? mapModeControl : null}
+                showMapStyleControl={interactive}
             />
+            {printMapState && interactive ? (
+                <PrintMapResizeHandle
+                    height={clampPrintMapHeight(printMapState.height)}
+                    previewScale={previewScale}
+                    onChange={handleControlledMapHeightChange}
+                />
+            ) : null}
+            </div>
 
             {!useV2Format ? (
                 <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[15px] font-bold text-slate-600">
@@ -331,7 +443,7 @@ function PrintDirectoryMap({
     );
 }
 
-const PREVIEW_CONTAINER_WIDTH = 1480;
+const PREVIEW_CONTAINER_WIDTH = PRINT_MAP_CANVAS_WIDTH_PX;
 const PRINT_V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
 
 export default function DirectoryPrintView({
@@ -346,6 +458,13 @@ export default function DirectoryPrintView({
     shareUrl = '',
     onMapReadyForCapture,
     onMapCaptureError,
+    printMapState = null,
+    onPrintMapStateChange = null,
+    mapModeControl = null,
+    fixedTownSurfaceManifest = null,
+    fixedTownAssetBaseUrl = '',
+    fixedTownSurfaceAvailable = false,
+    fixedTownSurfaceMinZoom,
 }) {
     const useV2OwnerPrint = mode === 'owner';
     const basePresentation = buildDirectoryPresentation(directory, {
@@ -403,6 +522,10 @@ export default function DirectoryPrintView({
     const resourceCount = directory?.summary?.resourceCount || 0;
     const mappedPlaceCount = presentation.mappedGroups.length;
     const printMapInteractive = variant === 'screen';
+    const patchPrintMapState = useCallback((patch) => {
+        if (!onPrintMapStateChange) return;
+        onPrintMapStateChange((current) => ({ ...current, ...patch }));
+    }, [onPrintMapStateChange]);
     const [focusedPrintPlaceKey, setFocusedPrintPlaceKey] = useState(null);
     const [hoveredPrintPlaceKey, setHoveredPrintPlaceKey] = useState(null);
     const [hoveredPrintClusterPlaceKeys, setHoveredPrintClusterPlaceKeys] = useState([]);
@@ -487,6 +610,7 @@ export default function DirectoryPrintView({
     const content = (
         <div 
             ref={sheetRef}
+            data-print-map-sheet={variant}
             className={`text-slate-900 ${paddingClass} flex-shrink-0`}
             style={{ 
                 width: `${sheetWidth}px`,
@@ -533,6 +657,14 @@ export default function DirectoryPrintView({
                         onFocusHandled={handlePrintFocusHandled}
                         onResetView={clearPrintMapSelection}
                         useV2Format={useV2OwnerPrint}
+                        printMapState={useV2OwnerPrint ? printMapState : null}
+                        onPrintMapStateChange={useV2OwnerPrint ? patchPrintMapState : null}
+                        mapModeControl={mapModeControl}
+                        fixedTownSurfaceManifest={fixedTownSurfaceManifest}
+                        fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
+                        fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+                        fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                        previewScale={variant === 'screen' ? scale : 1}
                     />
                 )}
                 cardBadgeMode={useV2OwnerPrint ? 'logo' : 'number'}
@@ -549,7 +681,7 @@ export default function DirectoryPrintView({
     }
 
     return (
-        <div className={`w-full overflow-x-hidden overflow-y-visible py-4 ${className}`}>
+        <div className={`w-full overflow-x-hidden overflow-y-visible py-4 ${className}`} data-print-map-variant={variant}>
             <div
                 className="relative mx-auto"
                 style={variant === 'screen' ? {
