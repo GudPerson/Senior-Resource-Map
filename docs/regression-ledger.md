@@ -1336,6 +1336,19 @@ Active next recovery family:
   checks, with the postal import wizard passing on retry and then passing a
   targeted rerun. No Worker/API, schema, auth, data, map asset, or secret
   changes were deployed.
+- Main merge evidence: `codex/pwa-hardening` was fast-forwarded into `main`
+  and pushed as `f11124a0f` on 2026-07-16. The automatic Cloudflare Pages
+  build briefly served `assets/index-ofyBC_ES.js`, which retained the PWA
+  worker path but omitted the required Detailed-map build markers. Production
+  was immediately redeployed from the local production build with the required
+  map environment variables to `https://b4a0b91f.senior-resource-map.pages.dev`;
+  `https://app.carearound.sg` settled back on `assets/index-BAhyRlx3.js` with
+  `VITE_TOWN_MAP_PROOF_ENABLED=true`, both W01 asset-base markers, and
+  `/pwa/carearound-sw` returning JavaScript with `Cache-Control: no-cache` and
+  `Service-Worker-Allowed: /`. API health returned OK through the
+  Cloudflare-resolved production IPs. Before the next `main` push, configure
+  the Cloudflare Pages production build environment with the required map
+  variables or deploy the prebuilt client explicitly with those variables.
 
 ## Recovery workflow
 

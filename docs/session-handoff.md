@@ -8,7 +8,7 @@ Last updated: 2026-07-15 (Asia/Singapore)
 - Production client bundle: `assets/index-BAhyRlx3.js`
 - Production My Map owner chunk: `assets/MyMapDetailPage-CFsb5dOE.js`
 - Production client CSS: `assets/index-gdJR9SuY.css`
-- Production Pages deployment: `https://5e4e0f2a.senior-resource-map.pages.dev`
+- Production Pages deployment: `https://b4a0b91f.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
   `2026-07-15T15:46:46.412Z`. No Worker/API deployment was performed.
 - Map asset domain: `https://maps.carearound.sg`
@@ -145,6 +145,18 @@ Last updated: 2026-07-15 (Asia/Singapore)
   hardened PWA metadata; production smoke passed all 5 checks, with the postal
   import wizard passing on retry and then passing a targeted rerun. No
   Worker/API, schema, auth, data, map asset, or secret changes were deployed.
+- PWA hardening was fast-forwarded into `main` and pushed as `f11124a0f` on
+  2026-07-16. The automatic Pages deployment briefly produced
+  `assets/index-ofyBC_ES.js` without the required
+  `VITE_TOWN_MAP_PROOF_ENABLED` and W01 asset-base build markers, so production
+  was immediately redeployed from a local production build with the required
+  map environment variables. The corrected deployment
+  `https://b4a0b91f.senior-resource-map.pages.dev` restored
+  `assets/index-BAhyRlx3.js`, `/pwa/carearound-sw` stayed `no-cache`, and API
+  health returned OK through Cloudflare-resolved production IPs. Before the
+  next `main` push, update the Cloudflare Pages production build environment
+  or keep using the explicit local production deploy command with all map
+  variables.
 - Post-recovery production smoke passed 5/5 against `https://app.carearound.sg`
   and `https://api.carearound.sg/api`.
 - Signed-in production Chrome UAT on owner map 150 confirmed Map appearance
