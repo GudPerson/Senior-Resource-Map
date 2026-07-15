@@ -1284,7 +1284,7 @@ Active next recovery family:
 
 - Current behavior: CareAround SG keeps its existing installable web-app
   foundation and adds a narrow production service worker registration. The
-  worker is served from `/assets/carearound-sw.js` with
+  worker is served from `/pwa/carearound-sw.js` with
   `Service-Worker-Allowed: /`, precaches only static PWA shell assets, uses
   cache-first behavior only for same-origin static assets, excludes `/api`
   traffic entirely, and returns a static offline fallback only for failed
@@ -1301,7 +1301,7 @@ Active next recovery family:
   visibility, saved resources, and production data remain unchanged.
 - Reproduction steps: build the client, open `https://app.carearound.sg` or a
   Pages preview over HTTPS, confirm `/site.webmanifest` links the app metadata
-  and `/assets/carearound-sw.js` registers in production, inspect DevTools
+  and `/pwa/carearound-sw.js` registers in production, inspect DevTools
   Application storage to confirm the worker scope is `/`, go offline, and
   navigate to a new app route to confirm `/offline` appears. While online, verify API
   requests such as `/api/auth/me` or `/api/health` remain network-owned and are
@@ -1323,7 +1323,7 @@ Active next recovery family:
   `VITE_TOWN_MAP_PROOF_ENABLED=true`,
   `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01`, and
   `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01/gray`;
-  built output included `assets/carearound-sw.js`, `offline.html`,
+  built output included `pwa/carearound-sw.js`, `offline.html`,
   `site.webmanifest`, and `_headers`; and `git diff --check` passed. No
   deploy or production smoke was performed in this pass.
 

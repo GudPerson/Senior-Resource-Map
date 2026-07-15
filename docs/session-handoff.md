@@ -23,7 +23,7 @@ Last updated: 2026-07-15 (Asia/Singapore)
   checkout was preserved in the local stash named
   `preserve pre-pwa session handoff` before this branch was created.
 - Current PWA scope is client-only: service worker registration from
-  `/assets/carearound-sw.js` with root scope allowed, static offline fallback,
+  `/pwa/carearound-sw.js` with root scope allowed, static offline fallback,
   manifest metadata, Cloudflare Pages headers, tests, and ledger/handoff
   documentation.
 - The service worker must not cache `/api` traffic, auth/session checks,
@@ -135,7 +135,7 @@ Last updated: 2026-07-15 (Asia/Singapore)
 - PWA hardening validation on `codex/pwa-hardening` passed focused PWA
   contract coverage 5/5, full client coverage 416/416, full server coverage
   405/405, the exact Detailed-enabled production build with required map
-  environment variables, built-output checks for `assets/carearound-sw.js`,
+  environment variables, built-output checks for `pwa/carearound-sw.js`,
   `offline.html`, `site.webmanifest`, and `_headers`, and `git diff --check`.
   No deploy or production smoke has been run for this PWA branch yet.
 - Post-recovery production smoke passed 5/5 against `https://app.carearound.sg`

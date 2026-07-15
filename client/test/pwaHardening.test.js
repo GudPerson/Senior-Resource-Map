@@ -8,7 +8,7 @@ import {
 } from '../src/lib/pwaRegistration.js';
 
 const manifest = JSON.parse(fs.readFileSync(new URL('../public/site.webmanifest', import.meta.url), 'utf8'));
-const serviceWorkerSource = fs.readFileSync(new URL('../public/assets/carearound-sw.js', import.meta.url), 'utf8');
+const serviceWorkerSource = fs.readFileSync(new URL('../public/pwa/carearound-sw.js', import.meta.url), 'utf8');
 const offlineSource = fs.readFileSync(new URL('../public/offline.html', import.meta.url), 'utf8');
 const headersSource = fs.readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
 const mainSource = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
@@ -78,7 +78,7 @@ test('service worker registration wires the CareAround worker without touching a
     const result = await registerCareAroundPwa(win, { PROD: true });
 
     assert.equal(result, registration);
-    assert.deepEqual(calls[0], ['register', '/assets/carearound-sw.js', { scope: '/' }]);
+    assert.deepEqual(calls[0], ['register', '/pwa/carearound-sw.js', { scope: '/' }]);
     assert.ok(calls.some(([kind, value]) => kind === 'registration-listener' && value === 'updatefound'));
     assert.ok(calls.some(([kind, value]) => kind === 'service-worker-listener' && value === 'controllerchange'));
     assert.ok(calls.some(([kind, value]) => kind === 'window-listener' && value === 'carearound:pwa-activate-update'));
@@ -97,8 +97,8 @@ test('service worker keeps API/auth traffic network-owned and uses offline fallb
 test('offline and delivery files are present and service worker updates are not cached by Cloudflare Pages', () => {
     assert.match(offlineSource, /You are offline/);
     assert.match(offlineSource, /CareAround SG needs a connection/);
-    assert.match(headersSource, /\/assets\/carearound-sw\.js[\s\S]*Cache-Control: no-cache/);
-    assert.match(headersSource, /\/assets\/carearound-sw\.js[\s\S]*Service-Worker-Allowed: \//);
+    assert.match(headersSource, /\/pwa\/carearound-sw\.js[\s\S]*Cache-Control: no-cache/);
+    assert.match(headersSource, /\/pwa\/carearound-sw\.js[\s\S]*Service-Worker-Allowed: \//);
     assert.match(headersSource, /\/site\.webmanifest[\s\S]*Cache-Control: no-cache/);
     assert.match(headersSource, /\/offline\.html[\s\S]*Cache-Control: no-cache/);
     assert.match(mainSource, /registerCareAroundPwa\(\)/);
