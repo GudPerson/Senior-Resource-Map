@@ -1,4 +1,4 @@
-const SERVICE_WORKER_PATH = '/pwa/carearound-sw.js';
+const SERVICE_WORKER_PATH = '/pwa/carearound-sw';
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 function getRuntimeEnv() {

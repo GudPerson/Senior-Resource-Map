@@ -6,7 +6,8 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(self), payment=()
 
-/pwa/carearound-sw.js
+/pwa/carearound-sw
+  Content-Type: application/javascript
   Cache-Control: no-cache
   Service-Worker-Allowed: /
 
