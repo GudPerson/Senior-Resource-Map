@@ -1,28 +1,30 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-16 (Asia/Singapore)
+Last updated: 2026-07-17 (Asia/Singapore)
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-7RjEQA7D.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-CwW43iXx.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-tGv0aC72.js`
+- Production client bundle: `assets/index-BC2k0Shg.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-BGDGXMZj.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-B2TBulla.js`
 - Production client CSS: `assets/index-06iwuSyN.css`
-- Production Pages deployment: `https://6b38360d.senior-resource-map.pages.dev`
+- Production Pages deployment: `https://dd45e3e3.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
-  `https://1cd2c5ba.senior-resource-map.pages.dev`
+  `https://14c8d1a0.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-16T16:31:00.292Z`.
+  `2026-07-16T22:25:34.037Z`.
 - Production Worker version:
-  `e50b14ed-b1dd-4838-b10b-2b32ec9574c1`.
+  `81ee694d-0999-49bf-a5e9-411aefbc1f4c`.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `main`, including the Care Calendar release documentation.
+- Current branch: `main`, including the Care Calendar query-budget recovery.
+- Query-budget recovery branch: `codex/care-calendar-query-budget`; implementation
+  commit `5f24231bd` is merged into and pushed on `main`.
 - Release branch: `codex/care-calendar-v1`, created from former
   `origin/main` `6a5cc6b36` and retained as the focused implementation line.
 - Care Calendar implementation commit: `46f5d3b33`, pushed to
@@ -90,8 +92,23 @@ Last updated: 2026-07-16 (Asia/Singapore)
   411/411, full client/source 417/417, exact production client build,
   `git diff --check`, desktop/mobile synthetic-data browser UAT, production
   authenticated read-only calendar probe, and production smoke 5/5.
-- Production custom domain serves `assets/index-7RjEQA7D.js` with
-  `assets/CareCalendarPage-CwW43iXx.js` and retains both required W01 map
+- Initial V1 production served `assets/index-7RjEQA7D.js` with
+  `assets/CareCalendarPage-CwW43iXx.js` and retained both required W01 map
+  asset-base markers.
+- 2026-07-17 query-budget recovery: the Calendar read path now loads only saved
+  Offerings and resolves them in one batched asset lookup instead of resolving
+  every saved resource individually. It continues to use the same saved-item
+  visibility and eligibility rules. Unexpected server details are no longer
+  shown to users, and an initial load failure no longer appears together with
+  the empty-calendar state. Full server coverage passed 412/412, full
+  client/source coverage passed 418/418, the production map-enabled build and
+  `git diff --check` passed, all five production smoke flows passed with the
+  existing partner-login retry used once, and signed-in 390x844 production UAT
+  loaded the Calendar with 17 saved activities without schedules and no error
+  or console warning. No schema, auth, ownership, eligibility, visibility,
+  Saved Resources, My Map, Shared Map, or notification behavior changed.
+- Current production custom domain serves `assets/index-BC2k0Shg.js` with
+  `assets/CareCalendarPage-BGDGXMZj.js` and retains both required W01 map
   asset-base markers.
 
 ## Locked map behavior
@@ -276,11 +293,12 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-Care Calendar V1 is deployed from `codex/care-calendar-v1`. Production serves
-`assets/index-7RjEQA7D.js`, `assets/CareCalendarPage-CwW43iXx.js`, and
+Care Calendar V1 is deployed with the query-budget recovery from
+`codex/care-calendar-query-budget`. Production serves
+`assets/index-BC2k0Shg.js`, `assets/CareCalendarPage-BGDGXMZj.js`, and
 `assets/index-06iwuSyN.css` from
-`https://6b38360d.senior-resource-map.pages.dev`. The Worker version is
-`e50b14ed-b1dd-4838-b10b-2b32ec9574c1`.
+`https://dd45e3e3.senior-resource-map.pages.dev`. The Worker version is
+`81ee694d-0999-49bf-a5e9-411aefbc1f4c`.
 
 The calendar is Upcoming-first. Saved activities with reviewed structured
 schedules appear passively; Plan this session is personal intent, not a
@@ -289,10 +307,11 @@ review states without silently moving or deleting plans. Persisted owner My Map
 notes can create private calendar items. Shared Maps, external notifications,
 calendar sync, AI parsing, and per-occurrence exceptions remain out of V1.
 
-The additive production schema bootstrap is complete. Full server coverage
-passed 411/411, full client/source coverage passed 417/417, the exact
-map-enabled client build passed, production authenticated calendar read
-returned 200, and production smoke passed 5/5.
+The additive production schema bootstrap is complete. The query-budget
+recovery batches saved Offering resolution without changing visibility rules.
+Full server coverage passed 412/412, full client/source coverage passed
+418/418, the exact map-enabled client build passed, production authenticated
+calendar read returned 200, and all five production smoke flows passed.
 
 Keep the locked map baseline intact. Every production build must include
 `VITE_API_URL`, `VITE_TOWN_MAP_PROOF_ENABLED=true`, and both Default and Gray

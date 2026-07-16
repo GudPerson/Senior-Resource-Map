@@ -1430,6 +1430,36 @@ Active next recovery family:
   `https://6b38360d.senior-resource-map.pages.dev`; the custom domain remained
   on `assets/index-7RjEQA7D.js`, `assets/index-06iwuSyN.css`, and
   `assets/CareCalendarPage-CwW43iXx.js` with both required W01 markers.
+- 2026-07-17 production query-budget recovery: mobile UAT reported Calendar
+  failing with Cloudflare's per-invocation subrequest limit and then showing a
+  contradictory empty state. The cause was `getCalendar` reusing the general
+  Saved Resources loader, which resolved every saved place and Offering with
+  one live-asset lookup per row. Commit `5f24231bd` on
+  `codex/care-calendar-query-budget` limits the Calendar read to saved
+  Offerings and resolves all of their live summaries in one batched relational
+  lookup while reusing the same visibility and eligibility logic. A regression
+  test covering 75 saved activities proves one favorites-list lookup and one
+  batched Offering lookup with zero per-Offering lookups. Unexpected 500 details are
+  sanitized, and the client no longer shows the empty state when the initial
+  Calendar load failed. No schema, auth, ownership, visibility, eligibility,
+  Saved Resources, My Map, Shared Map, or notification contract changed.
+  Focused Calendar/saved/error-state coverage passed 14/14; full server passed
+  412/412; full client/source passed 418/418; the production-configured build
+  retained both W01 markers; and `git diff --check` passed. Worker version
+  `81ee694d-0999-49bf-a5e9-411aefbc1f4c` deployed to
+  `api.carearound.sg`; authenticated Calendar read returned 200 with 17 saved
+  Offerings without schedules and no error. Pages preview
+  `https://14c8d1a0.senior-resource-map.pages.dev` was promoted as the exact
+  production build at `https://dd45e3e3.senior-resource-map.pages.dev`;
+  `app.carearound.sg` served `assets/index-BC2k0Shg.js`,
+  `assets/index-06iwuSyN.css`, and
+  `assets/CareCalendarPage-BGDGXMZj.js`. All five production smoke flows
+  passed, with the existing partner-login retry used once after an initial
+  route-load timeout. Signed-in 390x844 production browser UAT loaded the
+  Calendar, its 17 saved-without-schedule activities, and the empty agenda
+  without the reported error or any console error/warning. Rollback targets
+  are Worker `e50b14ed-b1dd-4838-b10b-2b32ec9574c1` and Pages
+  `https://6b38360d.senior-resource-map.pages.dev`.
 
 ## Recovery workflow
 
