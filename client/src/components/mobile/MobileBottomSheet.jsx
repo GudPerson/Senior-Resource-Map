@@ -10,14 +10,19 @@ export default function MobileBottomSheet({
     bodyClassName = '',
     headerActions = null,
     hideHeader = false,
+    layer = 1600,
 }) {
     return (
         <Drawer.Root open={open} onOpenChange={onOpenChange}>
             <Drawer.Portal>
-                <Drawer.Overlay className="fixed inset-0 z-[1600] bg-slate-950/35" />
+                <Drawer.Overlay
+                    className="fixed inset-0 bg-slate-950/35"
+                    style={{ zIndex: layer }}
+                />
                 <Drawer.Content
-                    className={`fixed bottom-0 left-0 right-0 z-[1610] flex max-h-[86svh] flex-col rounded-t-[28px] border-t px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 ${contentClassName}`}
+                    className={`fixed bottom-0 left-0 right-0 flex max-h-[86svh] flex-col rounded-t-[28px] border-t px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 ${contentClassName}`}
                     style={{
+                        zIndex: layer + 10,
                         backgroundColor: 'var(--color-drawer-bg)',
                         borderColor: 'var(--color-border)',
                         boxShadow: '0 -18px 42px rgba(15, 89, 91, 0.18)',

@@ -11,6 +11,7 @@ import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
 import { LoadingState } from './components/LoadingState.jsx';
 import MobileMyMapEntryScrollReset from './components/MobileMyMapEntryScrollReset.jsx';
+import HelpAssistant from './components/help/HelpAssistant.jsx';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -169,6 +170,7 @@ function AppShell() {
     const { isLoading } = useAuth();
     const hideNavbar = location.pathname.startsWith('/shared/maps/')
         || location.pathname.startsWith('/auth/transition');
+    const hideHelpAssistant = location.pathname.startsWith('/auth/transition');
     const shouldUseAuthShellLoader = isProtectedShellRoute(location.pathname);
 
     if (isLoading && shouldUseAuthShellLoader) {
@@ -179,6 +181,7 @@ function AppShell() {
         <>
             <MobileMyMapEntryScrollReset />
             {!hideNavbar ? <Navbar /> : null}
+            {!hideHelpAssistant ? <HelpAssistant /> : null}
             <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
                 <Suspense fallback={<RouteLoadingFallback />}>
                     <Routes>

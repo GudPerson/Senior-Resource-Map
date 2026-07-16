@@ -217,6 +217,13 @@ export const aiRateLimit = createRateLimiter({
     methods: ['POST'],
 });
 
+export const helpRateLimit = createRateLimiter({
+    name: 'help',
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+    methods: ['POST'],
+});
+
 export const translationRateLimit = createRateLimiter({
     name: 'translation',
     limit: 80,

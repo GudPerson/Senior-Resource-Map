@@ -1350,6 +1350,49 @@ Active next recovery family:
   the Cloudflare Pages production build environment with the required map
   variables or deploy the prebuilt client explicitly with those variables.
 
+### 2026-07-16 CareAround Guide help-assistant baseline
+
+- Current behavior: CareAround Guide is an in-app navigation and
+  troubleshooting assistant available across normal app routes. Its source of
+  truth is a versioned code-backed help catalog, not the older public user
+  guide. Selected help topics return deterministic guidance with no AI call.
+  Matched free-text questions may use Cloudflare Workers AI only to rewrite the
+  same verified answer. Unknown questions, AI failures, quota exhaustion, and
+  vague model output all fall back to deterministic guidance.
+- Known-good reference: `codex/carearound-guide` from `origin/main`
+  `6a5cc6b36`, with knowledge version `2026-07-16.1`. Route actions are limited
+  to approved navigation or refresh commands and are filtered against the
+  current authenticated role and live access assignments. The assistant does
+  not call resource, map, profile, governance, permission, or account mutation
+  APIs.
+- Reproduction steps: open Discover and select the Help launcher. As a guest,
+  ask how to save a resource and confirm the answer offers Sign in rather than
+  My Directory. Ask about a loading failure and confirm Refresh is offered.
+  With a resource-staff, organisation, audit, or admin account, ask about the
+  matching workspace and confirm only routes available to that account are
+  returned.
+- Acceptance criteria: no stale-guide-only workflow is presented as verified;
+  dynamic resource IDs and shared-map tokens are reduced to route categories
+  before AI use; obvious emails, phone numbers, links, and secret-like values
+  are removed from model input; AI never receives account or resource payloads;
+  AI output that drops the verified content is rejected; exact topics and
+  fallbacks remain available at zero inference cost; free-text rewrites use the
+  1B Workers AI model with a 50-call daily KV quota, repeat cache, and AI
+  Gateway prompt logging disabled; client navigation still requires a user
+  click.
+- Verification result: focused help and AI cost-control coverage passed 11/11.
+  Full server coverage passed 414/414 after the final quality-gate additions.
+  The production
+  client build passed with only the existing large-chunk advisory. Live Workers
+  AI checks covered save guidance, access boundaries, and loading recovery; a
+  vague loading rewrite was detected, rejected, and replaced by the complete
+  deterministic answer. Desktop and 390x844 mobile Playwright inspection
+  confirmed the launcher, side panel/bottom sheet, horizontal suggestions,
+  privacy reminder, and approved action buttons fit without overlapping the
+  assistant content. No schema, data, Discover ranking/filtering/visibility,
+  resource ownership, saved-resource, map, auth, governance, or production
+  content behavior is changed.
+
 ## Recovery workflow
 
 For each regression family:

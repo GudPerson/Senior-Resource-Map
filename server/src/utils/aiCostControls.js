@@ -1,6 +1,7 @@
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_AI_IMPORT_DAILY_LIMIT = 20;
 const DEFAULT_GROUNDED_AI_DAILY_LIMIT = 10;
+const DEFAULT_HELP_ASSISTANT_AI_DAILY_LIMIT = 50;
 const AI_KV_KEY_PREFIX = 'ai-cost-control';
 
 function normalizeRuntimeEnv(runtimeEnv = {}) {
@@ -196,5 +197,15 @@ export async function assertAiImportAllowed(runtimeEnv) {
         feature: 'ai-import',
         defaultDailyLimit: DEFAULT_AI_IMPORT_DAILY_LIMIT,
         envLimitKey: 'AI_IMPORT_DAILY_LIMIT',
+    });
+}
+
+export async function assertHelpAssistantAiAllowed(runtimeEnv) {
+    await assertAiCallAllowedAsync(runtimeEnv, {
+        feature: 'help-assistant-ai',
+        defaultDailyLimit: DEFAULT_HELP_ASSISTANT_AI_DAILY_LIMIT,
+        envLimitKey: 'HELP_ASSISTANT_AI_DAILY_LIMIT',
+        explicitEnableKey: 'HELP_ASSISTANT_AI_ENABLED',
+        explicitEnableMessage: 'Help assistant AI rewriting is disabled by cost controls.',
     });
 }

@@ -13,7 +13,15 @@ VITE_GOOGLE_CLIENT_ID = "828767964064-70irissq9d39beh2i7sc3strs1fvjmpk.apps.goog
 ALLOWED_ORIGINS = "http://localhost:5173,https://senior-resource-map.pages.dev,https://app.carearound.sg"
 AI_IMPORT_PROVIDER = "gemini"
 GROUNDED_AI_ENABLED = "false"
+HELP_ASSISTANT_AI_ENABLED = "true"
+HELP_ASSISTANT_AI_MODEL = "@cf/meta/llama-3.2-1b-instruct"
+HELP_ASSISTANT_AI_DAILY_LIMIT = "50"
+HELP_ASSISTANT_AI_GATEWAY_ID = "default"
 
 [[kv_namespaces]]
 binding = "MAP_CACHE"
 id = "2a6899a5a6a5440590166ab8e1d3a2d8"
+
+[ai]
+binding = "AI"
+remote = true

@@ -24,11 +24,13 @@ import resourceTranslationsRoutes from './routes/resourceTranslations.js';
 import phoneIdentitiesRoutes from './routes/phoneIdentities.js';
 import governanceRoutes from './routes/governance.js';
 import discoveryRoutes from './routes/discovery.js';
+import helpRoutes from './routes/help.js';
 import {
     aiRateLimit,
     authPollingRateLimit,
     authRateLimit,
     discoveryIndicatorRateLimit,
+    helpRateLimit,
     requestBodyGuard,
     securityHeaders,
     translationRateLimit,
@@ -96,6 +98,7 @@ app.use('/api/hard-assets/import/*', aiRateLimit);
 app.use('/api/soft-assets/import/*', aiRateLimit);
 app.use('/api/resource-translations/*', translationRateLimit);
 app.use('/api/discovery/location-indicators', discoveryIndicatorRateLimit);
+app.use('/api/help/*', helpRateLimit);
 
 app.route('/api/auth', authRoutes);
 app.route('/api/hard-assets', hardAssetsRoutes);
@@ -120,6 +123,7 @@ app.route('/api/resource-translations', resourceTranslationsRoutes);
 app.route('/api/phone-identities', phoneIdentitiesRoutes);
 app.route('/api/governance', governanceRoutes);
 app.route('/api/discovery', discoveryRoutes);
+app.route('/api/help', helpRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

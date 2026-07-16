@@ -291,6 +291,9 @@ async function requestBlob(path, options = {}) {
 }
 
 export const api = {
+    // In-app help
+    askHelpQuestion: (body) => request('POST', '/help/ask', body),
+
     // Auth
     login: (body) => request('POST', '/auth/login', body),
     register: (body) => request('POST', '/auth/register', body),
