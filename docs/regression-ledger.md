@@ -1395,6 +1395,20 @@ Active next recovery family:
   assistant content. No schema, data, Discover ranking/filtering/visibility,
   resource ownership, saved-resource, map, auth, governance, or production
   content behavior is changed.
+- Production release evidence: Worker version
+  `b968fcda-fd4a-4c23-a5dc-2c5d2ff6b1f0` serves
+  `https://api.carearound.sg` with `HELP_ASSISTANT_AI_ENABLED=false`.
+  Production Pages deployment
+  `https://22269deb.senior-resource-map.pages.dev` reached
+  `https://app.carearound.sg` as `assets/index-CqFahI5M.js` and
+  `assets/index-BELFeu6-.css`. API health returned OK at
+  `2026-07-16T14:04:54.389Z`; the production help endpoint returned the
+  verified guest save guidance with `source: "verified"` and knowledge version
+  `2026-07-16.1`; and live Playwright inspection confirmed the Help launcher,
+  CareAround Guide panel, Save a resource answer, privacy reminder, and Sign in
+  action on Discover. Production smoke passed all 5 checks covering public
+  load, partner login and dashboard resources, postal import, create-map, and
+  saved-resource detail.
 
 ## Recovery workflow
 
