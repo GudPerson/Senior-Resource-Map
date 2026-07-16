@@ -305,7 +305,17 @@ export async function hydrateSavedAssetRecord(db, user, favorite, resolutionCont
         return flattenSnapshot(resourceType || 'asset', resourceId || 0, snapshot, favorite);
     }
 
-    const resolved = await resolveSavedAssetSummary(db, user, resourceType, resourceId, resolutionContext);
+    let resolved = null;
+    try {
+        resolved = await resolveSavedAssetSummary(db, user, resourceType, resourceId, resolutionContext);
+    } catch (err) {
+        console.warn('Saved asset live hydration failed; using saved snapshot fallback.', {
+            resourceType,
+            resourceId,
+            error: err?.message || 'Unknown error',
+        });
+        return flattenSnapshot(resourceType, resourceId, snapshot, favorite);
+    }
     if (!resolved?.summary) {
         return flattenSnapshot(resourceType, resourceId, snapshot, favorite);
     }

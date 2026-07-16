@@ -41,12 +41,14 @@ function createFavorite(overrides = {}) {
 function createFakeDb({
     favorites = [],
     hardAsset = null,
+    hardAssetError = null,
     softAsset = null,
     raceConflict = false,
 } = {}) {
     const state = {
         favorites: favorites.map((favorite) => ({ ...favorite })),
         hardAsset,
+        hardAssetError,
         softAsset,
         nextId: favorites.reduce((maxId, favorite) => Math.max(maxId, favorite.id || 0), 0) + 1,
         raceConflict,
@@ -67,7 +69,10 @@ function createFakeDb({
                 },
             },
             hardAssets: {
-                findFirst: async () => state.hardAsset,
+                findFirst: async () => {
+                    if (state.hardAssetError) throw state.hardAssetError;
+                    return state.hardAsset;
+                },
             },
             softAssets: {
                 findFirst: async () => state.softAsset,
@@ -177,6 +182,45 @@ test('listSavedAssets falls back to snapshot when the live asset is unavailable'
     assert.equal(item.detailPath, '/resource/hard/29');
     assert.equal(item.hasCoordinates, true);
     assert.equal(Object.hasOwn(item, 'snapshot'), false);
+});
+
+test('listSavedAssets uses a safe context fallback when audience lookup fails', async () => {
+    const db = createFakeDb({
+        favorites: [createFavorite()],
+        hardAsset: createHardAsset(),
+    });
+    const user = { id: 7, role: 'standard', postalCode: '680153' };
+
+    const [item] = await listSavedAssets(db, user);
+
+    assert.equal(item.status, 'available');
+    assert.equal(item.assetKey, 'hard-29');
+    assert.equal(item.name, 'Fei Yue Active Ageing Centre');
+});
+
+test('listSavedAssets preserves saved rows when live hydration throws', async () => {
+    const db = createFakeDb({
+        favorites: [createFavorite({
+            snapshot: {
+                name: 'Snapshot fallback centre',
+                subCategory: 'Active Ageing Centre',
+                address: 'Saved address',
+                lat: 1.31,
+                lng: 103.82,
+                detailPath: '/resource/hard/29',
+            },
+        })],
+        hardAssetError: new Error('live lookup failed'),
+    });
+    const user = { id: 7, role: 'standard', postalCode: '680153' };
+
+    const [item] = await listSavedAssets(db, user, DEFAULT_CONTEXT);
+
+    assert.equal(item.status, 'unavailable');
+    assert.equal(item.assetKey, 'hard-29');
+    assert.equal(item.name, 'Snapshot fallback centre');
+    assert.equal(item.address, 'Saved address');
+    assert.equal(item.hasCoordinates, true);
 });
 
 test('toggleSavedAsset returns final saved state with item payload on save', async () => {
