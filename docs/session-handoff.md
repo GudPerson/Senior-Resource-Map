@@ -22,8 +22,7 @@ Last updated: 2026-07-16 (Asia/Singapore)
 
 ## Repo and worktree state
 
-- Current branch: `main` at Care Calendar release documentation commit
-  `37ae26c03`.
+- Current branch: `main`, including the Care Calendar release documentation.
 - Release branch: `codex/care-calendar-v1`, created from former
   `origin/main` `6a5cc6b36` and retained as the focused implementation line.
 - Care Calendar implementation commit: `46f5d3b33`, pushed to
