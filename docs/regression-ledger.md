@@ -1376,17 +1376,20 @@ Active next recovery family:
   before AI use; obvious emails, phone numbers, links, and secret-like values
   are removed from model input; AI never receives account or resource payloads;
   AI output that drops the verified content is rejected; exact topics and
-  fallbacks remain available at zero inference cost; free-text rewrites use the
-  1B Workers AI model with a 50-call daily KV quota, repeat cache, and AI
+  fallbacks remain available at zero inference cost; the optional rewrite path
+  stays off in production behind a 50-call daily KV quota, repeat cache, and AI
   Gateway prompt logging disabled; client navigation still requires a user
   click.
-- Verification result: focused help and AI cost-control coverage passed 11/11.
-  Full server coverage passed 414/414 after the final quality-gate additions.
+- Verification result: focused help and AI cost-control coverage passed 12/12.
+  Full server coverage passed 415/415 after the final no-AI-for-restricted-
+  guidance guard.
   The production
   client build passed with only the existing large-chunk advisory. Live Workers
-  AI checks covered save guidance, access boundaries, and loading recovery; a
-  vague loading rewrite was detected, rejected, and replaced by the complete
-  deterministic answer. Desktop and 390x844 mobile Playwright inspection
+  AI checks covered save guidance, access boundaries, and loading recovery.
+  The 1B model produced one vague loading rewrite and one account-requirement
+  inversion; the first is rejected by the quality gate, capability-limited
+  answers now bypass AI entirely, and production AI was disabled before the
+  client release. Desktop and 390x844 mobile Playwright inspection
   confirmed the launcher, side panel/bottom sheet, horizontal suggestions,
   privacy reminder, and approved action buttons fit without overlapping the
   assistant content. No schema, data, Discover ranking/filtering/visibility,

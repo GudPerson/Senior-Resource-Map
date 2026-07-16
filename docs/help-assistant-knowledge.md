@@ -45,18 +45,18 @@ CareAround Guide must not:
 3. For matched free-text questions only, Workers AI may rewrite the verified answer in clearer language.
 4. Unknown questions never go to Workers AI. They return a safe clarification response.
 
-The production pilot enables only the bounded rewrite layer:
+Workers AI remains wired for controlled benchmarking, but production model calls are disabled:
 
 ```text
-HELP_ASSISTANT_AI_ENABLED=true
+HELP_ASSISTANT_AI_ENABLED=false
 HELP_ASSISTANT_AI_MODEL=@cf/meta/llama-3.2-1b-instruct
 HELP_ASSISTANT_AI_DAILY_LIMIT=50
 HELP_ASSISTANT_AI_GATEWAY_ID=default
 ```
 
-Repeated AI rewrites use the existing `MAP_CACHE` controls. AI Gateway logging is disabled for help requests so raw questions and responses are not stored there. The application keeps no server-side conversation history.
+When explicitly enabled for a benchmark, repeated AI rewrites use the existing `MAP_CACHE` controls. AI Gateway logging is disabled for help requests so raw questions and responses are not stored there. The application keeps no server-side conversation history.
 
-Set `HELP_ASSISTANT_AI_ENABLED=false` to disable model calls immediately without removing the deterministic assistant.
+Do not enable production model calls until a representative benchmark proves that the selected model preserves negation, account requirements, permission boundaries, and troubleshooting steps.
 
 ## Updating Help Safely
 

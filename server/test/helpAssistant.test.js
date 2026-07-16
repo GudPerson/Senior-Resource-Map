@@ -100,6 +100,28 @@ test('verified help works without Workers AI and filters unavailable routes', as
     assert.equal(staffResult.actions[0].route, '/dashboard/resources');
 });
 
+test('capability-limited guidance never goes to Workers AI', async () => {
+    let callCount = 0;
+    const result = await answerHelpQuestion({
+        HELP_ASSISTANT_AI_ENABLED: 'true',
+        AI: {
+            async run() {
+                callCount += 1;
+                return { response: 'You can save without an account.' };
+            },
+        },
+    }, {
+        user: { role: 'guest' },
+        question: 'How do I save this resource?',
+        pathname: '/discover',
+        locale: 'en',
+    });
+
+    assert.equal(callCount, 0);
+    assert.equal(result.source, 'verified');
+    assert.match(result.message, /need to sign in/i);
+});
+
 test('vague Workers AI output falls back to the complete verified answer', async () => {
     const result = await answerHelpQuestion({
         HELP_ASSISTANT_AI_ENABLED: 'true',

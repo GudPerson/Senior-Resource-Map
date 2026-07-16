@@ -230,7 +230,8 @@ export async function answerHelpQuestion(runtimeEnv, {
     let message = response.message;
     let source = 'verified';
 
-    if (!match.exact && question) {
+    const hasRequiredCapability = !match.entry.capability || capabilities[match.entry.capability];
+    if (!match.exact && question && hasRequiredCapability) {
         try {
             const rewritten = await rewriteWithWorkersAi(runtimeEnv, {
                 question,
