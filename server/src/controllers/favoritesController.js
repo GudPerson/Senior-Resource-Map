@@ -41,12 +41,29 @@ function isUniqueConstraintViolation(err) {
     return err?.code === '23505' || message.includes('duplicate key') || message.includes('unique');
 }
 
+function createEmptyResolutionContext() {
+    return {
+        allowedPartnerAudienceIds: new Set(),
+        allowedAudienceZoneIds: new Set(),
+    };
+}
+
 export async function listSavedAssets(db, user, resolutionContext = null) {
     const favorites = await db.query.userFavorites.findMany({
         where: eq(userFavorites.userId, user.id),
         orderBy: [desc(userFavorites.createdAt)],
     });
-    const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    let finalResolutionContext = resolutionContext;
+    if (!finalResolutionContext) {
+        try {
+            finalResolutionContext = await createSavedAssetResolutionContext(db, user);
+        } catch (err) {
+            console.warn('Saved asset audience context failed; using safe fallback.', {
+                error: err?.message || 'Unknown error',
+            });
+            finalResolutionContext = createEmptyResolutionContext();
+        }
+    }
     return Promise.all(
         favorites.map((favorite) => hydrateSavedAssetRecord(db, user, favorite, finalResolutionContext))
     );
