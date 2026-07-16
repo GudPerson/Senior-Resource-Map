@@ -1403,6 +1403,27 @@ Active next recovery family:
   production boundary-schema bootstrap completed before Worker deployment.
   No production calendar rows or Offering schedules were seeded during the
   bootstrap or UAT.
+- Release follow-up: implementation commit `46f5d3b33` was pushed to
+  `origin/codex/care-calendar-v1`. Cloudflare Worker
+  `senior-resource-map-api` deployed to `api.carearound.sg` as version
+  `e50b14ed-b1dd-4838-b10b-2b32ec9574c1`; production API health returned OK
+  at `2026-07-16T16:31:00.292Z`; logged-out `/api/calendar` returned the
+  expected 401; and an authenticated read-only probe returned 200 with
+  `timezone=Asia/Singapore`, zero occurrences, zero personal items, and 17
+  saved activities without structured schedules for the smoke account.
+  Cloudflare Pages deployed the feature preview at
+  `https://1cd2c5ba.senior-resource-map.pages.dev` and explicitly published
+  the same validated build to the production branch at
+  `https://07fea6b2.senior-resource-map.pages.dev`. The custom domain served
+  `assets/index-7RjEQA7D.js`, `assets/index-06iwuSyN.css`, and
+  `assets/CareCalendarPage-CwW43iXx.js`; the main bundle retained the required
+  Default and Gray W01 asset-base markers. Production smoke passed 5/5. The
+  first smoke invocation had not exported the sourced credential variables
+  and stopped the four authenticated checks before login; the corrected
+  exported run passed all checks. No production schedule or personal calendar
+  item was created, no Shared Map payload changed, and no email, WhatsApp,
+  SMS, push, secret, map asset, ranking, filtering, or visibility behavior was
+  changed.
 
 ## Recovery workflow
 

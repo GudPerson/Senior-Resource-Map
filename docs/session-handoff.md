@@ -1,37 +1,39 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-15 (Asia/Singapore)
+Last updated: 2026-07-16 (Asia/Singapore)
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-BAhyRlx3.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-CFsb5dOE.js`
-- Production client CSS: `assets/index-gdJR9SuY.css`
-- Production Pages deployment: `https://b4a0b91f.senior-resource-map.pages.dev`
+- Production client bundle: `assets/index-7RjEQA7D.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-CwW43iXx.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-tGv0aC72.js`
+- Production client CSS: `assets/index-06iwuSyN.css`
+- Production Pages deployment: `https://07fea6b2.senior-resource-map.pages.dev`
+- Production Care Calendar preview:
+  `https://1cd2c5ba.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-15T15:46:46.412Z`. No Worker/API deployment was performed.
+  `2026-07-16T16:31:00.292Z`.
+- Production Worker version:
+  `e50b14ed-b1dd-4838-b10b-2b32ec9574c1`.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current in-progress branch for PWA hardening:
-  `codex/pwa-hardening`, created from current `origin/main` `347b05397`.
-- The pre-existing dirty `docs/session-handoff.md` rewrite from the original
-  checkout was preserved in the local stash named
-  `preserve pre-pwa session handoff` before this branch was created.
-- Current PWA scope is client-only: service worker registration from
-  `/pwa/carearound-sw` with root scope allowed, static offline fallback,
-  manifest metadata, Cloudflare Pages headers, tests, and ledger/handoff
-  documentation.
-- The service worker must not cache `/api` traffic, auth/session checks,
-  uploads, Worker responses, R2 map manifests/chunks, or production data.
-- This active worktree is now `/Users/sweetbuns/CareAroundSG` on
-  `codex/pwa-hardening`, not `main`. Before this branch was created, the
-  checkout was `main` at `a1544508b46e9933e5f9f3c8b71412885264095f` and was
-  30 commits behind `origin/main`.
+- Current release branch: `codex/care-calendar-v1`, created from
+  `origin/main` `6a5cc6b36`.
+- Care Calendar implementation commit: `46f5d3b33`, pushed to
+  `origin/codex/care-calendar-v1`.
+- The active worktree is `/Users/sweetbuns/CareAroundSG`. Care Calendar V1 is
+  deployed to the Worker and production Pages branch. The release branch is
+  retained as the focused implementation line and is fast-forwarded into
+  `main` during release closeout.
+- The explicit production boundary-schema bootstrap completed before the
+  Worker deployment. It added only nullable/defaulted structured-schedule
+  columns and the two personal calendar tables; it did not seed or rewrite
+  Offering schedules or personal calendar rows.
 - Existing untracked local artifacts remain local and should not be staged by
   default: `.agents/`, `.superpowers/`,
   `docs/competitor-analysis-2026-06-25.md`,
@@ -61,6 +63,36 @@ Last updated: 2026-07-15 (Asia/Singapore)
 - Generated `output/playwright/test-results/` and
   `output/playwright/shared-map-settings-layout/` are local UAT evidence and
   must not be staged.
+
+## Care Calendar V1 release
+
+- `/dashboard/calendar` is an authenticated Upcoming-first agenda in the
+  existing dashboard shell and is linked from the sidebar and Overview.
+- Saved soft activities appear passively only when they are still saved,
+  visible to the user, and have an enabled structured schedule.
+- V1 supports one-time and weekly recurrence in `Asia/Singapore`, with an
+  optional end time, repeat-until boundary, and whole-schedule active/cancelled
+  state. The existing public free-text Schedule field remains unchanged.
+- Plan this session records personal intent for one exact current occurrence.
+  It is explicitly not a booking and does not change source capacity or
+  availability.
+- Schedule revisions surface in-app review states for changed, cancelled, and
+  removed schedules. Acknowledgement is per user; CareAround never silently
+  moves or deletes a personal plan.
+- Persisted owner My Map notes expose Add to calendar. The API rechecks note
+  ownership before returning context or creating the personal item. Calendar
+  items and private note data are not added to Shared Map payloads.
+- No email, WhatsApp, SMS, push, external calendar sync, AI schedule parsing,
+  per-occurrence exceptions, or booking workflow is active in V1.
+- Rollout/design contract:
+  `docs/care-calendar-v1-rollout-plan.md`.
+- Validation: focused calendar/schema/auth/reset coverage 14/14, full server
+  411/411, full client/source 417/417, exact production client build,
+  `git diff --check`, desktop/mobile synthetic-data browser UAT, production
+  authenticated read-only calendar probe, and production smoke 5/5.
+- Production custom domain serves `assets/index-7RjEQA7D.js` with
+  `assets/CareCalendarPage-CwW43iXx.js` and retains both required W01 map
+  asset-base markers.
 
 ## Locked map behavior
 
@@ -217,17 +249,22 @@ Last updated: 2026-07-15 (Asia/Singapore)
 
 ## Rollback
 
-- Previous verified production baseline: commit `e031e266f`, Pages deployment
-  `https://c39e8088.senior-resource-map.pages.dev`.
-- Client rollback does not require an API, schema, data, or R2 mutation. The
-  separately versioned Gray objects can remain dormant.
+- Previous verified client baseline: Pages deployment
+  `https://b4a0b91f.senior-resource-map.pages.dev`.
+- Previous Worker version:
+  `c061691f-01a3-4c03-8d5c-a23d87eb7109`.
+- A rollback can redeploy the previous Worker and Pages versions. The additive
+  nullable/defaulted calendar schema may remain dormant; do not drop tables or
+  columns during an incident rollback. No R2 map mutation is required.
 
 ## Recommended next step
 
-Use the owner Print Map workspace across a few real multi-resource maps and
-confirm the independent print baseline is understandable. If that UAT stays
-positive, expand the same controlled-state boundary to Shared Map print next;
-keep Discover and the separate PDF ledger out of that follow-up.
+Use one clearly marked internal test Offering to run end-to-end production UAT:
+enable a reviewed schedule, save it with a standard test account, plan one
+occurrence, change the source time, acknowledge the warning, then disable the
+schedule. Also add one private My Map note to the calendar and confirm the
+Shared Map remains unchanged. Do not bulk-enable schedules or activate
+external notifications until that small-data UAT is accepted.
 
 ## Fresh chat starter
 
@@ -239,41 +276,32 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-The recovered map baseline is live on current main. Production serves
-assets/index-Ds9nT_2R.js and owner-map chunk
-assets/MyMapDetailPage-Bt2dyQYF.js from Pages deployment
-https://cb703fe6.senior-resource-map.pages.dev. My Maps and Discover use
-one compact upper-right icon-only Map settings button, an anchored desktop
-popover, and the shared mobile bottom sheet. Default/Gray remains persistent
-across Discover, My Maps, Shared Maps, and print maps. Owner Detailed remains
-CCK/W01-only. My Map reset/recenter remains intentionally hidden on maps with
-only one camera target. Mobile map controls use a 30 px upper-right rail with
-wider right-side camera padding. Resource-detail browser Back restores the
-owner map from a user-scoped in-memory snapshot while fresh data loads.
-Mobile owner My Maps also reset delayed browser scroll restoration so every
-entry starts at the map and first card instead of the previous list position.
-Desktop owner My Maps with mapped resources now have a centred bottom-edge
-resize handle that expands the existing map in place up to 78vh/840 px. It is
-session-only, keyboard accessible, absent on mobile, and preserves the Leaflet
-instance, selection, markers, and camera context.
-Owner print starts independently at fit all, Standard, and 360 px while carrying
-only the Default/Gray preference. Print allows zoom, pan, detail, colour, and a
-300-720 px height. Save as image and browser Print match the configured preview;
-Shared Map print and the owner PDF ledger are unchanged.
-The print toolbar now keeps Back, Reset, and Save as image left-aligned and no
-longer shows an in-app Print button. Map settings aligns exactly with the zoom
-rail on desktop and mobile.
-Production client builds must retain the enabled `VITE_TOWN_MAP_*` values;
-omitting them hides Map detail and is reserved only for an intentional rollback.
+Care Calendar V1 is deployed from `codex/care-calendar-v1`. Production serves
+`assets/index-7RjEQA7D.js`, `assets/CareCalendarPage-CwW43iXx.js`, and
+`assets/index-06iwuSyN.css` from
+`https://07fea6b2.senior-resource-map.pages.dev`. The Worker version is
+`e50b14ed-b1dd-4838-b10b-2b32ec9574c1`.
 
-The user's original worktree is still `/Users/sweetbuns/CareAroundSG` on current
-main with unrelated dirty local files. Do not revert, stage, or modify it
-accidentally. The completed recovery release is on
-origin/codex/map-baseline-recovery; its isolated worktree is
-/Users/sweetbuns/CareAroundSG-map-baseline-recovery. It merges current main
-`a1544508b` with validated map branch `eb84067a1`.
+The calendar is Upcoming-first. Saved activities with reviewed structured
+schedules appear passively; Plan this session is personal intent, not a
+booking. Source changes, cancellations, and schedule removal create in-app
+review states without silently moving or deleting plans. Persisted owner My Map
+notes can create private calendar items. Shared Maps, external notifications,
+calendar sync, AI parsing, and per-occurrence exceptions remain out of V1.
 
-Recommended next gate: UAT owner Print Map on a few real multi-resource maps.
-If it remains clear and stable, expand the controlled print workspace to Shared
-Map print only; leave Discover and the owner PDF ledger unchanged.
+The additive production schema bootstrap is complete. Full server coverage
+passed 411/411, full client/source coverage passed 417/417, the exact
+map-enabled client build passed, production authenticated calendar read
+returned 200, and production smoke passed 5/5.
+
+Keep the locked map baseline intact. Every production build must include
+`VITE_API_URL`, `VITE_TOWN_MAP_PROOF_ENABLED=true`, and both Default and Gray
+W01 asset-base URLs. The current production bundle contains both W01 markers.
+
+Unrelated untracked files remain local. Do not stage, delete, or rewrite them.
+
+Recommended next gate: use one clearly labelled internal test Offering and a
+standard test account to exercise create, plan, change, acknowledge, disable,
+and private-note-to-calendar behavior. Confirm Shared Maps remain unchanged.
+Do not bulk-enable schedules or activate external delivery.
 ```
