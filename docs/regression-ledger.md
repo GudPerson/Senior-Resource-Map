@@ -1424,6 +1424,12 @@ Active next recovery family:
   item was created, no Shared Map payload changed, and no email, WhatsApp,
   SMS, push, secret, map asset, ranking, filtering, or visibility behavior was
   changed.
+- Main reconciliation: release documentation commit `37ae26c03` was
+  fast-forwarded from `codex/care-calendar-v1` into `main` and pushed. The
+  exact validated client output was then republished after the main push at
+  `https://6b38360d.senior-resource-map.pages.dev`; the custom domain remained
+  on `assets/index-7RjEQA7D.js`, `assets/index-06iwuSyN.css`, and
+  `assets/CareCalendarPage-CwW43iXx.js` with both required W01 markers.
 
 ## Recovery workflow
 

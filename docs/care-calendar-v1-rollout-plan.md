@@ -177,7 +177,7 @@ the user saved it after the latest update.
 - Production Worker:
   `e50b14ed-b1dd-4838-b10b-2b32ec9574c1`.
 - Production Pages:
-  `https://07fea6b2.senior-resource-map.pages.dev`.
+  `https://6b38360d.senior-resource-map.pages.dev`.
 - Production bundle: `assets/index-7RjEQA7D.js`.
 - Calendar chunk: `assets/CareCalendarPage-CwW43iXx.js`.
 - Full server 411/411, full client/source 417/417, production build, schema
@@ -185,3 +185,5 @@ the user saved it after the latest update.
   smoke 5/5 passed.
 - No real activity schedule or personal calendar item was seeded as part of
   deployment. Controlled internal-data UAT is the next rollout gate.
+- Release documentation commit `37ae26c03` was fast-forwarded to and pushed on
+  `main`; the exact validated client output was republished after that push.

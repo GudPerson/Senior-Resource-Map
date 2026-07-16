@@ -9,7 +9,7 @@ Last updated: 2026-07-16 (Asia/Singapore)
 - Production Care Calendar chunk: `assets/CareCalendarPage-CwW43iXx.js`
 - Production My Map owner chunk: `assets/MyMapDetailPage-tGv0aC72.js`
 - Production client CSS: `assets/index-06iwuSyN.css`
-- Production Pages deployment: `https://07fea6b2.senior-resource-map.pages.dev`
+- Production Pages deployment: `https://6b38360d.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://1cd2c5ba.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
@@ -22,14 +22,15 @@ Last updated: 2026-07-16 (Asia/Singapore)
 
 ## Repo and worktree state
 
-- Current release branch: `codex/care-calendar-v1`, created from
-  `origin/main` `6a5cc6b36`.
+- Current branch: `main` at Care Calendar release documentation commit
+  `37ae26c03`.
+- Release branch: `codex/care-calendar-v1`, created from former
+  `origin/main` `6a5cc6b36` and retained as the focused implementation line.
 - Care Calendar implementation commit: `46f5d3b33`, pushed to
   `origin/codex/care-calendar-v1`.
 - The active worktree is `/Users/sweetbuns/CareAroundSG`. Care Calendar V1 is
-  deployed to the Worker and production Pages branch. The release branch is
-  retained as the focused implementation line and is fast-forwarded into
-  `main` during release closeout.
+  deployed to the Worker and production Pages branch, and the release branch
+  has been fast-forwarded into and pushed on `main`.
 - The explicit production boundary-schema bootstrap completed before the
   Worker deployment. It added only nullable/defaulted structured-schedule
   columns and the two personal calendar tables; it did not seed or rewrite
@@ -279,7 +280,7 @@ anything.
 Care Calendar V1 is deployed from `codex/care-calendar-v1`. Production serves
 `assets/index-7RjEQA7D.js`, `assets/CareCalendarPage-CwW43iXx.js`, and
 `assets/index-06iwuSyN.css` from
-`https://07fea6b2.senior-resource-map.pages.dev`. The Worker version is
+`https://6b38360d.senior-resource-map.pages.dev`. The Worker version is
 `e50b14ed-b1dd-4838-b10b-2b32ec9574c1`.
 
 The calendar is Upcoming-first. Saved activities with reviewed structured
