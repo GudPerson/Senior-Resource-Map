@@ -8,6 +8,8 @@ test('clean-slate default plan preserves platform scaffolding', () => {
     const summary = summarizeCleanSlatePlan(plan);
 
     assert.deepEqual(summary.reset, [
+        'userCalendarItems',
+        'userCalendarScheduleStates',
         'userFavorites',
         'softAssetAudienceZones',
         'softAssetParentAudienceZones',

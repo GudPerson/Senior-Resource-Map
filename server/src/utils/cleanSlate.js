@@ -15,6 +15,8 @@ import {
     subregionPostalCodes,
     subregions,
     tags,
+    userCalendarItems,
+    userCalendarScheduleStates,
     userFavorites,
     userSubregions,
     users,
@@ -30,6 +32,8 @@ export const CLEAN_SLATE_TABLES = [
     { key: 'audienceZonePostalCodes', label: 'Audience-zone postal codes', table: audienceZonePostalCodes },
     { key: 'subCategories', label: 'Subcategories', table: subCategories },
     { key: 'tags', label: 'Tags', table: tags },
+    { key: 'userCalendarItems', label: 'User calendar items', table: userCalendarItems },
+    { key: 'userCalendarScheduleStates', label: 'User calendar schedule states', table: userCalendarScheduleStates },
     { key: 'userFavorites', label: 'User favorites', table: userFavorites },
     { key: 'hardAssetTags', label: 'Hard-asset tags', table: hardAssetTags },
     { key: 'softAssetTags', label: 'Soft-asset tags', table: softAssetTags },
@@ -45,6 +49,8 @@ export const CLEAN_SLATE_TABLES = [
 const TABLE_BY_KEY = new Map(CLEAN_SLATE_TABLES.map((entry) => [entry.key, entry]));
 
 const DEFAULT_RESET_KEYS = [
+    'userCalendarItems',
+    'userCalendarScheduleStates',
     'userFavorites',
     'softAssetAudienceZones',
     'softAssetParentAudienceZones',

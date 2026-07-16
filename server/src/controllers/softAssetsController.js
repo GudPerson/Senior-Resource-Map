@@ -61,6 +61,12 @@ import {
     isPublicGroupMemberEntry,
 } from '../utils/softAssetGroups.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
+import {
+    buildCalendarScheduleInsert,
+    buildCalendarScheduleUpdate,
+    normalizeCalendarScheduleInput,
+    serializeCalendarSchedule,
+} from '../utils/calendarSchedule.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import {
     determineSoftSubregion,
@@ -569,6 +575,9 @@ function sanitizeSoftAssetPayload(body = {}) {
         ctaUrl: normalizeUrlText(body.ctaUrl, 2000),
         venueNote: cleanOptionalText(body.venueNote, 3000),
         availabilityUnit: cleanOptionalOneLineText(body.availabilityUnit, 80),
+        ...(Object.prototype.hasOwnProperty.call(body, 'calendarSchedule')
+            ? { calendarSchedule: normalizeCalendarScheduleInput(body.calendarSchedule) }
+            : {}),
     };
 }
 
@@ -607,7 +616,26 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
     const allLocations = getSoftAssetLocations(asset);
     const visibleLocations = allLocations
         .filter((location) => isAssetVisible(location, viewer, { ownerPartner: location.partner, allowedPartnerAudienceIds, allowedAudienceZoneIds }));
-    const { parent, hostHardAsset, tags, locations, audienceZones, groupMembers, updater, ...assetRest } = asset;
+    const {
+        parent,
+        hostHardAsset,
+        tags,
+        locations,
+        audienceZones,
+        groupMembers,
+        updater,
+        calendarEnabled,
+        calendarStartsAt,
+        calendarEndsAt,
+        calendarRecurrence,
+        calendarWeekdays,
+        calendarRepeatUntil,
+        calendarTimezone,
+        calendarStatus,
+        calendarRevision,
+        calendarUpdatedAt,
+        ...assetRest
+    } = asset;
     const resolvedAudienceZones = getAssetAudienceZones(asset);
     const groupPayload = isGroupSoftAsset(asset) ? buildPublicGroupPayload(asset) : null;
     const groupMetadata = isGroupSoftAsset(asset) ? buildGroupDiscoverMetadata(asset) : null;
@@ -615,6 +643,18 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
 
     return {
         ...assetRest,
+        calendarSchedule: serializeCalendarSchedule({
+            calendarEnabled,
+            calendarStartsAt,
+            calendarEndsAt,
+            calendarRecurrence,
+            calendarWeekdays,
+            calendarRepeatUntil,
+            calendarTimezone,
+            calendarStatus,
+            calendarRevision,
+            calendarUpdatedAt,
+        }),
         assetMode: asset.assetMode || SOFT_ASSET_MODES.STANDALONE,
         partnerName: asset.partner?.name || null,
         partnerRole: asset.partner?.role ? normalizeRole(asset.partner.role) : null,
@@ -1735,6 +1775,7 @@ export const createSoftAsset = async (c) => {
             availabilityEnabled: normalizeAvailabilityEnabled(availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(availabilityCount),
             availabilityUnit: normalizeAvailabilityUnit(availabilityUnit),
+            ...buildCalendarScheduleInsert(body.calendarSchedule || { enabled: false }),
             ...buildFreshnessInsert(body, user),
             isHidden: Boolean(isHidden),
             hideFrom: hideFrom ? new Date(hideFrom) : null,
@@ -2008,6 +2049,9 @@ export const updateSoftAsset = async (c) => {
             availabilityEnabled: body.availabilityEnabled !== undefined ? Boolean(body.availabilityEnabled) : existing.availabilityEnabled,
             availabilityCount: body.availabilityCount !== undefined ? normalizeAvailabilityCount(body.availabilityCount) : normalizeAvailabilityCount(existing.availabilityCount),
             availabilityUnit: body.availabilityUnit !== undefined ? normalizeAvailabilityUnit(body.availabilityUnit) : normalizeAvailabilityUnit(existing.availabilityUnit),
+            ...(body.calendarSchedule !== undefined
+                ? buildCalendarScheduleUpdate(existing, body.calendarSchedule)
+                : {}),
             ...buildFreshnessUpdate(body, existing, user),
             isHidden: body.isHidden !== undefined ? Boolean(body.isHidden) : existing.isHidden,
             hideFrom: body.hideFrom !== undefined ? (body.hideFrom ? new Date(body.hideFrom) : null) : existing.hideFrom,

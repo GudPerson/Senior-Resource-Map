@@ -351,6 +351,16 @@ export const softAssets = pgTable('soft_assets', {
   subCategory: varchar('sub_category', { length: 50 }).notNull().default('Programmes'),
   description: text('description'),
   schedule: text('schedule'), // e.g., "Mondays 10am-12pm"
+  calendarEnabled: boolean('calendar_enabled').notNull().default(false),
+  calendarStartsAt: timestamp('calendar_starts_at', { withTimezone: true }),
+  calendarEndsAt: timestamp('calendar_ends_at', { withTimezone: true }),
+  calendarRecurrence: varchar('calendar_recurrence', { length: 20 }).notNull().default('once'),
+  calendarWeekdays: jsonb('calendar_weekdays').notNull().default([]),
+  calendarRepeatUntil: timestamp('calendar_repeat_until', { withTimezone: true }),
+  calendarTimezone: varchar('calendar_timezone', { length: 80 }).notNull().default('Asia/Singapore'),
+  calendarStatus: varchar('calendar_status', { length: 20 }).notNull().default('active'),
+  calendarRevision: integer('calendar_revision').notNull().default(0),
+  calendarUpdatedAt: timestamp('calendar_updated_at', { withTimezone: true }),
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
   galleryUrls: jsonb('gallery_urls').default('[]'),
@@ -676,6 +686,42 @@ export const myMapAssetNotes = pgTable('my_map_asset_notes', {
 }, (table) => ({
   mapAssetIdx: index('my_map_asset_notes_map_asset_idx').on(table.mapAssetId),
   mapAssetSortIdx: index('my_map_asset_notes_map_asset_sort_idx').on(table.mapAssetId, table.sortOrder),
+}));
+
+export const userCalendarItems = pgTable('user_calendar_items', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  itemType: varchar('item_type', { length: 40 }).notNull(),
+  softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'set null' }),
+  mapAssetNoteId: integer('map_asset_note_id').references(() => myMapAssetNotes.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  allDay: boolean('all_day').notNull().default(false),
+  status: varchar('status', { length: 40 }).notNull().default('planned'),
+  sourceStartsAt: timestamp('source_starts_at', { withTimezone: true }),
+  sourceRevision: integer('source_revision'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  userStartsIdx: index('user_calendar_items_user_starts_idx').on(table.userId, table.startsAt),
+  sourceIdx: index('user_calendar_items_source_idx').on(table.softAssetId, table.sourceStartsAt),
+  noteIdx: index('user_calendar_items_note_idx').on(table.mapAssetNoteId),
+  plannedOccurrenceUnique: uniqueIndex('user_calendar_items_planned_occurrence_unique')
+    .on(table.userId, table.softAssetId, table.sourceStartsAt)
+    .where(sql`${table.itemType} = 'planned_session' AND ${table.softAssetId} IS NOT NULL AND ${table.sourceStartsAt} IS NOT NULL`),
+}));
+
+export const userCalendarScheduleStates = pgTable('user_calendar_schedule_states', {
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  lastSeenRevision: integer('last_seen_revision').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.softAssetId] }),
+  userIdx: index('user_calendar_schedule_states_user_idx').on(table.userId),
+  softAssetIdx: index('user_calendar_schedule_states_soft_asset_idx').on(table.softAssetId),
 }));
 
 export const myMapShareSnapshots = pgTable('my_map_share_snapshots', {

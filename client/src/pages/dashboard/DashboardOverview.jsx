@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Files, User, Shield, Map, ArrowRight, ScrollText } from 'lucide-react';
+import { BookOpen, CalendarDays, Files, User, Shield, Map, ArrowRight, ScrollText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { canAccessAdmin, canAccessAuditTrail, canAccessManagedResources, getRoleMeta } from '../../lib/roles.js';
@@ -30,6 +30,15 @@ export default function DashboardOverview() {
             description: t('overviewDirectoryDescription'),
             color: '#7c3aed',
             bg: 'rgba(124, 58, 237, 0.08)',
+        },
+        {
+            id: 'dash-calendar',
+            to: '/dashboard/calendar',
+            icon: CalendarDays,
+            title: t('careCalendar'),
+            description: t('careCalendarOverviewDescription'),
+            color: '#0f766e',
+            bg: 'rgba(15, 118, 110, 0.08)',
         },
         ...(canShowResources ? [{
             id: 'dash-resources',

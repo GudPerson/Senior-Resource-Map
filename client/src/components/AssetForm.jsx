@@ -32,6 +32,32 @@ function formatDateTimeLocal(value) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function formatSingaporeDateTimeLocal(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = Object.fromEntries(
+        new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Singapore',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23',
+        }).formatToParts(date)
+            .filter((part) => part.type !== 'literal')
+            .map((part) => [part.type, part.value]),
+    );
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function singaporeDateTimeLocalToIso(value) {
+    if (!value) return null;
+    const date = new Date(`${value}:00+08:00`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function formatDateInput(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -192,6 +218,18 @@ function buildInitialForm(type, initialData, currentUser) {
             sourceType: initialData.sourceType || '',
             verificationStatus: initialData.verificationStatus || 'unverified',
             verificationConfidence: initialData.verificationConfidence || '',
+            calendarSchedule: {
+                enabled: Boolean(initialData.calendarSchedule?.enabled),
+                startsAt: formatSingaporeDateTimeLocal(initialData.calendarSchedule?.startsAt),
+                endsAt: formatSingaporeDateTimeLocal(initialData.calendarSchedule?.endsAt),
+                recurrence: initialData.calendarSchedule?.recurrence || 'once',
+                weekdays: Array.isArray(initialData.calendarSchedule?.weekdays)
+                    ? initialData.calendarSchedule.weekdays
+                    : [],
+                repeatUntil: formatSingaporeDateTimeLocal(initialData.calendarSchedule?.repeatUntil),
+                timezone: 'Asia/Singapore',
+                status: initialData.calendarSchedule?.status || 'active',
+            },
         };
     }
 
@@ -265,6 +303,16 @@ function buildInitialForm(type, initialData, currentUser) {
         sourceType: '',
         verificationStatus: 'unverified',
         verificationConfidence: '',
+        calendarSchedule: {
+            enabled: false,
+            startsAt: '',
+            endsAt: '',
+            recurrence: 'once',
+            weekdays: [],
+            repeatUntil: '',
+            timezone: 'Asia/Singapore',
+            status: 'active',
+        },
     };
 }
 
@@ -514,6 +562,7 @@ export default function AssetForm({
 
             if (isHard) {
                 delete payload.bucket;
+                delete payload.calendarSchedule;
                 payload.socialLinks = normalizeSocialLinks(payload.socialLinks);
                 delete payload.ownershipMode;
                 delete payload.partnerId;
@@ -538,6 +587,18 @@ export default function AssetForm({
                 payload.availabilityCount = normalizeAvailabilityCount(form.availabilityCount);
                 payload.availabilityUnit = normalizeAvailabilityUnit(form.availabilityUnit);
                 payload.eligibilityRules = normalizeEligibilityRules(form.eligibilityRules);
+                payload.calendarSchedule = {
+                    enabled: Boolean(form.calendarSchedule?.enabled),
+                    startsAt: singaporeDateTimeLocalToIso(form.calendarSchedule?.startsAt),
+                    endsAt: singaporeDateTimeLocalToIso(form.calendarSchedule?.endsAt),
+                    recurrence: form.calendarSchedule?.recurrence || 'once',
+                    weekdays: Array.isArray(form.calendarSchedule?.weekdays)
+                        ? form.calendarSchedule.weekdays
+                        : [],
+                    repeatUntil: singaporeDateTimeLocalToIso(form.calendarSchedule?.repeatUntil),
+                    timezone: 'Asia/Singapore',
+                    status: form.calendarSchedule?.status || 'active',
+                };
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
                 payload.audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
                 payload.coverageRegionIds = Array.isArray(form.coverageRegionIds)
@@ -781,6 +842,24 @@ export default function AssetForm({
             const profileContactMessage = getOfferingProfileContactValidationError();
             if (profileContactMessage) return profileContactMessage;
         }
+        if (stepIndex === 1 && form.calendarSchedule?.enabled) {
+            const startsAt = singaporeDateTimeLocalToIso(form.calendarSchedule.startsAt);
+            const endsAt = singaporeDateTimeLocalToIso(form.calendarSchedule.endsAt);
+            const repeatUntil = singaporeDateTimeLocalToIso(form.calendarSchedule.repeatUntil);
+            if (!startsAt) return 'Add a valid Care Calendar start date and time.';
+            if (endsAt && new Date(endsAt) <= new Date(startsAt)) {
+                return 'Care Calendar end must be later than the start.';
+            }
+            if (repeatUntil && new Date(repeatUntil) < new Date(startsAt)) {
+                return 'Care Calendar repeat-until must not be before the first session.';
+            }
+            if (
+                form.calendarSchedule.recurrence === 'weekly'
+                && (!Array.isArray(form.calendarSchedule.weekdays) || form.calendarSchedule.weekdays.length === 0)
+            ) {
+                return 'Select at least one weekday for a weekly Care Calendar schedule.';
+            }
+        }
         if (stepIndex === 2) {
             const locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
             const coverageRegionIds = Array.isArray(form.coverageRegionIds)
@@ -815,7 +894,7 @@ export default function AssetForm({
     }
 
     function validateAllOfferingSteps() {
-        for (const stepIndex of [0, 2, 3]) {
+        for (const stepIndex of [0, 1, 2, 3]) {
             const message = getOfferingStepValidationError(stepIndex);
             if (message) {
                 setActiveOfferingStep(stepIndex);
@@ -1710,6 +1789,26 @@ export default function AssetForm({
     }
 
     function renderOfferingScheduleStep() {
+        const weekdayOptions = [
+            ['Sun', 0],
+            ['Mon', 1],
+            ['Tue', 2],
+            ['Wed', 3],
+            ['Thu', 4],
+            ['Fri', 5],
+            ['Sat', 6],
+        ];
+        const calendarSchedule = form.calendarSchedule || {};
+        const setCalendarScheduleField = (key, value) => {
+            setForm((current) => ({
+                ...current,
+                calendarSchedule: {
+                    ...current.calendarSchedule,
+                    [key]: value,
+                },
+            }));
+        };
+
         return (
             <div className="space-y-5">
                 <section className="rounded-3xl border border-slate-200 bg-white p-5">
@@ -1725,6 +1824,120 @@ export default function AssetForm({
                             />
                         </div>
                     </div>
+                </section>
+
+                <section className="rounded-3xl border border-teal-200 bg-teal-50/50 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="max-w-2xl">
+                            <div className="flex items-center gap-2">
+                                <Clock size={17} className="text-teal-700" />
+                                <h3 className="text-base font-bold text-slate-900">Reviewed Care Calendar schedule</h3>
+                            </div>
+                            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                                Add one structured Singapore-time schedule so users who save this activity can see upcoming sessions. This does not create a booking.
+                            </p>
+                        </div>
+                        <label className="relative inline-flex cursor-pointer items-center gap-3">
+                            <span className="text-sm font-bold text-slate-700">Show in Care Calendar</span>
+                            <input
+                                type="checkbox"
+                                checked={Boolean(calendarSchedule.enabled)}
+                                onChange={(event) => setCalendarScheduleField('enabled', event.target.checked)}
+                                className="peer sr-only"
+                            />
+                            <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-teal-600 peer-checked:after:translate-x-full after:absolute after:right-[22px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
+                        </label>
+                    </div>
+
+                    {calendarSchedule.enabled ? (
+                        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <label>
+                                <span className="mb-1 block text-sm font-semibold text-slate-700">First session starts</span>
+                                <input
+                                    type="datetime-local"
+                                    value={calendarSchedule.startsAt || ''}
+                                    onChange={(event) => setCalendarScheduleField('startsAt', event.target.value)}
+                                    className="input-field"
+                                    required
+                                />
+                            </label>
+                            <label>
+                                <span className="mb-1 block text-sm font-semibold text-slate-700">Session ends (optional)</span>
+                                <input
+                                    type="datetime-local"
+                                    value={calendarSchedule.endsAt || ''}
+                                    onChange={(event) => setCalendarScheduleField('endsAt', event.target.value)}
+                                    className="input-field"
+                                />
+                            </label>
+                            <label>
+                                <span className="mb-1 block text-sm font-semibold text-slate-700">Repeats</span>
+                                <select
+                                    value={calendarSchedule.recurrence || 'once'}
+                                    onChange={(event) => setCalendarScheduleField('recurrence', event.target.value)}
+                                    className="input-field"
+                                >
+                                    <option value="once">One time</option>
+                                    <option value="weekly">Weekly</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span className="mb-1 block text-sm font-semibold text-slate-700">Schedule status</span>
+                                <select
+                                    value={calendarSchedule.status || 'active'}
+                                    onChange={(event) => setCalendarScheduleField('status', event.target.value)}
+                                    className="input-field"
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </label>
+
+                            {calendarSchedule.recurrence === 'weekly' ? (
+                                <>
+                                    <fieldset className="md:col-span-2">
+                                        <legend className="mb-2 text-sm font-semibold text-slate-700">Weekdays</legend>
+                                        <div className="flex flex-wrap gap-2">
+                                            {weekdayOptions.map(([label, value]) => {
+                                                const checked = (calendarSchedule.weekdays || []).includes(value);
+                                                return (
+                                                    <label
+                                                        key={value}
+                                                        className={`inline-flex min-h-[40px] cursor-pointer items-center rounded-xl border px-3 py-2 text-sm font-bold ${checked ? 'border-teal-500 bg-teal-100 text-teal-900' : 'border-slate-200 bg-white text-slate-600'}`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={checked}
+                                                            onChange={() => setCalendarScheduleField(
+                                                                'weekdays',
+                                                                checked
+                                                                    ? (calendarSchedule.weekdays || []).filter((day) => day !== value)
+                                                                    : [...(calendarSchedule.weekdays || []), value].sort(),
+                                                            )}
+                                                            className="sr-only"
+                                                        />
+                                                        {label}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </fieldset>
+                                    <label>
+                                        <span className="mb-1 block text-sm font-semibold text-slate-700">Repeat until (optional)</span>
+                                        <input
+                                            type="datetime-local"
+                                            value={calendarSchedule.repeatUntil || ''}
+                                            onChange={(event) => setCalendarScheduleField('repeatUntil', event.target.value)}
+                                            className="input-field"
+                                        />
+                                    </label>
+                                </>
+                            ) : null}
+                            <div className="rounded-xl border border-teal-200 bg-white px-4 py-3 text-sm text-slate-600 md:col-span-2">
+                                Timezone: <strong className="text-slate-800">Asia/Singapore</strong>. Updating any structured schedule field will notify affected users inside CareAround.
+                            </div>
+                        </div>
+                    ) : null}
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">

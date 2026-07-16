@@ -24,6 +24,7 @@ import resourceTranslationsRoutes from './routes/resourceTranslations.js';
 import phoneIdentitiesRoutes from './routes/phoneIdentities.js';
 import governanceRoutes from './routes/governance.js';
 import discoveryRoutes from './routes/discovery.js';
+import calendarRoutes from './routes/calendar.js';
 import {
     aiRateLimit,
     authPollingRateLimit,
@@ -120,6 +121,7 @@ app.route('/api/resource-translations', resourceTranslationsRoutes);
 app.route('/api/phone-identities', phoneIdentitiesRoutes);
 app.route('/api/governance', governanceRoutes);
 app.route('/api/discovery', discoveryRoutes);
+app.route('/api/calendar', calendarRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

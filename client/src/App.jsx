@@ -14,6 +14,7 @@ import MobileMyMapEntryScrollReset from './components/MobileMyMapEntryScrollRese
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
+const CareCalendarPage = lazy(() => import('./pages/dashboard/CareCalendarPage.jsx'));
 const ResourcesPage = lazy(() => import('./pages/dashboard/ResourcesPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/dashboard/ProfilePage.jsx'));
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage.jsx'));
@@ -198,6 +199,7 @@ function AppShell() {
                         <Route path="/partner-login" element={<AuthPage isPartner={true} />} />
                         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>}>
                             <Route index element={<DashboardOverview />} />
+                            <Route path="calendar" element={<CareCalendarPage />} />
                             <Route path="resources" element={<ResourcesPage />} />
                             <Route path="profile" element={<ProfilePage />} />
                             <Route path="admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />

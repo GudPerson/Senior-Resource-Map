@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, BookOpen, Building2, Files, LayoutDashboard, LogOut, Map, Menu, ScrollText, Shield, User } from 'lucide-react';
+import { Activity, BookOpen, Building2, CalendarDays, Files, LayoutDashboard, LogOut, Map, Menu, ScrollText, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import {
@@ -46,6 +46,7 @@ export function getDashboardSectionLabel(pathname, t) {
     if (pathname.startsWith('/dashboard/organization')) return label(t, 'organisationWorkspaceTitle', 'Organisation');
     if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'My Maps');
     if (pathname.startsWith('/my-directory')) return label(t, 'myDirectory', 'My Directory');
+    if (pathname.startsWith('/dashboard/calendar')) return label(t, 'careCalendar', 'Care Calendar');
     if (pathname.startsWith('/dashboard/resources')) return label(t, 'overviewResourcesTitle', 'My Resources');
     return label(t, 'dashboard', 'Menu');
 }
@@ -97,6 +98,13 @@ export function DashboardSidebar({
                 icon={BookOpen}
                 label={t('myDirectory')}
                 id="dash-directory"
+                onNavigate={onNavigate}
+            />
+            <SidebarLink
+                to="/dashboard/calendar"
+                icon={CalendarDays}
+                label={t('careCalendar')}
+                id="dash-calendar"
                 onNavigate={onNavigate}
             />
             {canShowResources ? (

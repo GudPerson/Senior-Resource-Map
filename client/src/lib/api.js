@@ -11,6 +11,7 @@ function notifyAuthExpired() {
 const COOKIE_SCOPED_AUTH_PATH_PREFIXES = [
     '/admin',
     '/audience-zones',
+    '/calendar',
     '/favorites',
     '/governance',
     '/memberships',
@@ -520,6 +521,14 @@ export const api = {
     // Favorites (compatibility aliases)
     getFavorites: (options = {}) => request('GET', '/favorites', undefined, options),
     toggleFavorite: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
+
+    // Care Calendar
+    getCalendar: (params = {}) => request('GET', withQuery('/calendar', params)),
+    getCalendarMapNote: (noteId) => request('GET', `/calendar/map-notes/${noteId}`),
+    createCalendarItem: (body) => request('POST', '/calendar/items', body),
+    updateCalendarItem: (itemId, body) => request('PATCH', `/calendar/items/${itemId}`, body),
+    deleteCalendarItem: (itemId) => request('DELETE', `/calendar/items/${itemId}`),
+    acknowledgeCalendarSchedule: (softAssetId) => request('POST', '/calendar/schedule-states/acknowledge', { softAssetId }),
 
     // My Maps
     getMyMaps: () => request('GET', '/my-maps'),

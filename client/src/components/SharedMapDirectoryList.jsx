@@ -10,6 +10,7 @@ import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     ArrowLeft,
     Bold,
+    CalendarPlus,
     ChevronRight,
     Eye,
     Italic,
@@ -738,6 +739,18 @@ function ResourceNotesEditor({
                                 />
                                 {t('shareThisNote')}
                             </label>
+                            {note.id && note.text.trim() ? (
+                                <Link
+                                    to={`/dashboard/calendar?noteId=${note.id}`}
+                                    onClick={() => {
+                                        void flushDraftChanges();
+                                    }}
+                                    className="mt-1 inline-flex min-h-10 items-center gap-2 rounded-full px-1 text-sm font-bold text-teal-700 hover:text-teal-900"
+                                >
+                                    <CalendarPlus size={16} />
+                                    {t('careCalendarAdd')}
+                                </Link>
+                            ) : null}
                         </div>
                     );
                 })}

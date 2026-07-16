@@ -159,7 +159,7 @@ test('Offering wizard routes hidden profile URL and email validation back to Pro
     assert.match(profileContactValidationSource, /getInvalidSocialLinkMessage\(\)/);
     assert.match(profileContactValidationSource, /isValidOptionalHttpUrl/);
     assert.match(profileContactValidationSource, /isValidOptionalEmail/);
-    assert.match(allStepsValidationSource, /for \(const stepIndex of \[0, 2, 3\]\)/);
+    assert.match(allStepsValidationSource, /for \(const stepIndex of \[0, 1, 2, 3\]\)/);
     assert.match(allStepsValidationSource, /setActiveOfferingStep\(stepIndex\)/);
 });
 
@@ -172,8 +172,19 @@ test('Offering wizard routes hidden eligibility age validation back to Visibilit
     assert.match(offeringValidationSource, /getEligibilityAgeValidationError\(form\.eligibilityRules\)/);
     assert.match(eligibilityAgeValidationSource, /Eligibility age must use whole numbers greater than or equal to 0\./);
     assert.match(eligibilityAgeValidationSource, /Eligibility minimum age cannot be greater than maximum age\./);
-    assert.match(allStepsValidationSource, /for \(const stepIndex of \[0, 2, 3\]\)/);
+    assert.match(allStepsValidationSource, /for \(const stepIndex of \[0, 1, 2, 3\]\)/);
     assert.match(allStepsValidationSource, /setActiveOfferingStep\(stepIndex\)/);
+});
+
+test('Offering wizard validates the reviewed Care Calendar schedule before save', () => {
+    const offeringValidationSource = sourceBetween(assetFormSource, 'function getOfferingStepValidationError(stepIndex = activeOfferingStep)', 'function validateOfferingStep');
+    const scheduleStepSource = sourceBetween(assetFormSource, 'function renderOfferingScheduleStep()', 'function renderOfferingHostCoverageStep()');
+
+    assert.match(offeringValidationSource, /if \(stepIndex === 1 && form\.calendarSchedule\?\.enabled\)/);
+    assert.match(offeringValidationSource, /Care Calendar start date and time/);
+    assert.match(offeringValidationSource, /Select at least one weekday/);
+    assert.match(scheduleStepSource, /Reviewed Care Calendar schedule/);
+    assert.match(scheduleStepSource, /Asia\/Singapore/);
 });
 
 test('Dashboard soft asset rows remove duplicate Access shortcut after Offering wizard migration', () => {

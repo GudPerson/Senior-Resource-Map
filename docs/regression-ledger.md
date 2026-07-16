@@ -1350,6 +1350,60 @@ Active next recovery family:
   the Cloudflare Pages production build environment with the required map
   variables or deploy the prebuilt client explicitly with those variables.
 
+### 2026-07-16 Care Calendar V1 baseline
+
+- Current behavior: authenticated users have a new Upcoming-first Care
+  Calendar at `/dashboard/calendar`. Saved soft activities appear passively
+  when an authorised editor has enabled a reviewed structured schedule. Users
+  may mark one exact occurrence as Planned, but that state is explicitly a
+  personal intention and not a booking. Private owner My Map notes expose an
+  Add to calendar action only after the note has a persisted owner-scoped ID;
+  the resulting personal item contains the note reference, a user-selected
+  date/time, and a bounded title without exposing the note through Shared Map
+  payloads.
+- Known-good reference: `codex/care-calendar-v1` from `origin/main`
+  `6a5cc6b36`, using additive `soft_assets` structured-schedule columns plus
+  `user_calendar_items` and `user_calendar_schedule_states`. The calendar API
+  reuses the saved-resource visibility and eligibility resolver before
+  returning or planning a source occurrence, and rechecks My Map ownership
+  before reading or scheduling a note. V1 is fixed to
+  `Asia/Singapore`, supports one-time or weekly activity schedules, and does
+  not send email, WhatsApp, SMS, or push notifications.
+- Reproduction steps: as an authorised Offering editor, enable Show in Care
+  Calendar, enter a Singapore start/end, choose one-time or weekly recurrence,
+  and save. As a user, save that activity and open Care Calendar; confirm the
+  source occurrence is shown as Saved activity. Plan one occurrence and
+  confirm only that exact occurrence becomes Planned. Change, cancel, or
+  remove the source schedule and confirm the user sees a review warning without
+  the personal plan being silently moved or deleted. In an owner My Map, save
+  a private note, choose Add to calendar, add a date/time, and confirm the item
+  appears as Private map note. Open the Shared Map and confirm no calendar
+  item, private note, or calendar metadata is exposed.
+- Acceptance criteria: only currently saved and visible soft activities can
+  supply occurrences or accept a planned-session write; a source start must
+  exactly match a current generated occurrence; source schedule revisions are
+  acknowledged per user; changed, cancelled, and removed schedules remain
+  reviewable; My Map note lookup and creation are owner-scoped; personal items
+  can be deleted only by their owner; recurring expansion is capped at 180
+  days; Shared Map and saved-resource response shapes remain unchanged; no
+  external delivery channel is activated; existing auth, eligibility,
+  visibility, map, directory, and resource-editor behavior remains intact.
+- Verification result: focused calendar/auth/schema/reset coverage passed
+  14/14, including Singapore recurrence, revision, invalid schedule, logged-out
+  route, boundary schema, and clean-slate checks. Full server coverage passed
+  411/411 with `npm run test:server`; full client/source coverage passed
+  417/417 with
+  `node --test client/test/*.test.js client/src/lib/*.test.js`; and
+  `npm run build:client` plus `git diff --check` passed with only the existing
+  large-chunk advisory. Synthetic-data Playwright UAT at desktop and 390x844
+  mobile widths confirmed the saved/planned/private-note labels, review
+  warnings, schedule-removal notice, action hierarchy, sidebar/mobile
+  navigation, and responsive layout. The intended Neon database fingerprint
+  was checked without exposing credentials, and the explicit additive
+  production boundary-schema bootstrap completed before Worker deployment.
+  No production calendar rows or Offering schedules were seeded during the
+  bootstrap or UAT.
+
 ## Recovery workflow
 
 For each regression family:
