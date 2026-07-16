@@ -219,7 +219,8 @@ export default function CareCalendarPage() {
             });
             setCalendar(data);
         } catch (loadError) {
-            setError(loadError.message || t('careCalendarLoadFailed'));
+            console.error('Care Calendar load failed', loadError);
+            setError(t('careCalendarLoadFailed'));
         } finally {
             setLoading(false);
         }
@@ -435,7 +436,7 @@ export default function CareCalendarPage() {
 
             {loading && !calendar ? (
                 <LoadingState label={t('careCalendarLoading')} />
-            ) : (
+            ) : error && !calendar ? null : (
                 <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_300px]">
                     <section>
                         {groupedAgenda.length ? (

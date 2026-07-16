@@ -7,6 +7,7 @@ import {
     buildSavedAssetSnapshot,
     createSavedAssetResolutionContext,
     hydrateSavedAssetRecord,
+    hydrateSavedSoftAssetRecords,
     resolveSavedAssetSummary,
 } from '../utils/savedAssets.js';
 import { positiveIntValueSchema, validateRequestBody } from '../utils/inputValidation.js';
@@ -50,6 +51,17 @@ export async function listSavedAssets(db, user, resolutionContext = null) {
     return Promise.all(
         favorites.map((favorite) => hydrateSavedAssetRecord(db, user, favorite, finalResolutionContext))
     );
+}
+
+export async function listSavedSoftAssets(db, user, resolutionContext = null) {
+    const favorites = await db.query.userFavorites.findMany({
+        where: and(
+            eq(userFavorites.userId, user.id),
+            eq(userFavorites.resourceType, 'soft'),
+        ),
+        orderBy: [desc(userFavorites.createdAt)],
+    });
+    return hydrateSavedSoftAssetRecords(db, user, favorites, resolutionContext);
 }
 
 export async function toggleSavedAsset(db, user, resourceType, resourceId, resolutionContext = null) {

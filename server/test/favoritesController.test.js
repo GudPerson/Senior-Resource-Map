@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { listSavedAssets, toggleSavedAsset } from '../src/controllers/favoritesController.js';
+import {
+    listSavedAssets,
+    listSavedSoftAssets,
+    toggleSavedAsset,
+} from '../src/controllers/favoritesController.js';
 import { userFavorites } from '../src/db/schema.js';
 
 const DEFAULT_CONTEXT = {
@@ -38,26 +42,58 @@ function createFavorite(overrides = {}) {
     };
 }
 
+function createSoftAsset(id, overrides = {}) {
+    return {
+        id,
+        name: `Activity ${id}`,
+        subCategory: 'Programmes',
+        audienceMode: 'public',
+        isMemberOnly: false,
+        isHidden: false,
+        hideFrom: null,
+        hideUntil: null,
+        isDeleted: false,
+        assetMode: 'standalone',
+        partnerId: null,
+        subregionId: null,
+        hostHardAssetId: null,
+        partner: null,
+        parent: null,
+        audienceZones: [],
+        hostHardAsset: null,
+        locations: [],
+        ...overrides,
+    };
+}
+
 function createFakeDb({
     favorites = [],
     hardAsset = null,
     softAsset = null,
+    softAssets = softAsset ? [softAsset] : [],
     raceConflict = false,
 } = {}) {
     const state = {
         favorites: favorites.map((favorite) => ({ ...favorite })),
         hardAsset,
         softAsset,
+        softAssets,
         nextId: favorites.reduce((maxId, favorite) => Math.max(maxId, favorite.id || 0), 0) + 1,
         raceConflict,
         favoriteLookupCount: 0,
+        favoriteListCount: 0,
+        softAssetLookupCount: 0,
+        softAssetBatchLookupCount: 0,
     };
 
     return {
         state,
         query: {
             userFavorites: {
-                findMany: async () => [...state.favorites],
+                findMany: async () => {
+                    state.favoriteListCount += 1;
+                    return [...state.favorites];
+                },
                 findFirst: async () => {
                     state.favoriteLookupCount += 1;
                     if (state.raceConflict && state.favoriteLookupCount === 1) {
@@ -70,7 +106,14 @@ function createFakeDb({
                 findFirst: async () => state.hardAsset,
             },
             softAssets: {
-                findFirst: async () => state.softAsset,
+                findFirst: async () => {
+                    state.softAssetLookupCount += 1;
+                    return state.softAsset;
+                },
+                findMany: async () => {
+                    state.softAssetBatchLookupCount += 1;
+                    return [...state.softAssets];
+                },
             },
         },
         insert(table) {
@@ -177,6 +220,29 @@ test('listSavedAssets falls back to snapshot when the live asset is unavailable'
     assert.equal(item.detailPath, '/resource/hard/29');
     assert.equal(item.hasCoordinates, true);
     assert.equal(Object.hasOwn(item, 'snapshot'), false);
+});
+
+test('listSavedSoftAssets batches large saved activity lists into one asset lookup', async () => {
+    const favorites = Array.from({ length: 75 }, (_, index) => createFavorite({
+        id: index + 1,
+        resourceType: 'soft',
+        resourceId: index + 100,
+    }));
+    const db = createFakeDb({
+        favorites,
+        softAssets: favorites.map((favorite) => createSoftAsset(favorite.resourceId)),
+    });
+    const user = { id: 7, role: 'standard', postalCode: '680153' };
+
+    const items = await listSavedSoftAssets(db, user, DEFAULT_CONTEXT);
+
+    assert.equal(items.length, 75);
+    assert.equal(items[0].assetKey, 'soft-100');
+    assert.equal(items[74].assetKey, 'soft-174');
+    assert.equal(items.every((item) => item.status === 'available'), true);
+    assert.equal(db.state.favoriteListCount, 1);
+    assert.equal(db.state.softAssetBatchLookupCount, 1);
+    assert.equal(db.state.softAssetLookupCount, 0);
 });
 
 test('toggleSavedAsset returns final saved state with item payload on save', async () => {

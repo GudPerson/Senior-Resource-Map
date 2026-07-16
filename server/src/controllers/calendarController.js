@@ -11,7 +11,7 @@ import {
     userCalendarScheduleStates,
     userFavorites,
 } from '../db/schema.js';
-import { listSavedAssets } from './favoritesController.js';
+import { listSavedSoftAssets } from './favoritesController.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     CALENDAR_MAX_RANGE_DAYS,
@@ -61,6 +61,13 @@ function createHttpError(status, message) {
     const error = new Error(message);
     error.status = status;
     return error;
+}
+
+function sendCalendarError(c, error, fallback) {
+    const status = Number.isInteger(error?.status) ? error.status : 500;
+    return c.json({
+        error: status >= 500 ? fallback : (error?.message || fallback),
+    }, status);
 }
 
 function parseDate(value, label) {
@@ -198,10 +205,9 @@ export const getCalendar = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         const { from, to } = parseCalendarRange(c);
-        const savedItems = await listSavedAssets(db, user);
+        const savedItems = await listSavedSoftAssets(db, user);
         const savedSoftItems = savedItems.filter((item) => (
-            item.resourceType === 'soft'
-            && item.status === 'available'
+            item.status === 'available'
             && Number.isInteger(Number(item.resourceId))
         ));
         const savedById = new Map(
@@ -311,7 +317,7 @@ export const getCalendar = async (c) => {
         });
     } catch (error) {
         console.error(error);
-        return c.json({ error: error.message || 'Failed to fetch Care Calendar.' }, error.status || 500);
+        return sendCalendarError(c, error, 'Failed to fetch Care Calendar.');
     }
 };
 
@@ -333,7 +339,7 @@ export const getCalendarMapNote = async (c) => {
         });
     } catch (error) {
         console.error(error);
-        return c.json({ error: error.message || 'Failed to load My Map note.' }, error.status || 500);
+        return sendCalendarError(c, error, 'Failed to load My Map note.');
     }
 };
 
@@ -413,7 +419,7 @@ export const createCalendarItem = async (c) => {
         return c.json(serializePersonalItem(rows[0]), 201);
     } catch (error) {
         console.error(error);
-        return c.json({ error: error.message || 'Failed to add calendar item.' }, error.status || 500);
+        return sendCalendarError(c, error, 'Failed to add calendar item.');
     }
 };
 
@@ -455,7 +461,7 @@ export const updateCalendarItem = async (c) => {
         return c.json(serializePersonalItem(rows[0]));
     } catch (error) {
         console.error(error);
-        return c.json({ error: error.message || 'Failed to update calendar item.' }, error.status || 500);
+        return sendCalendarError(c, error, 'Failed to update calendar item.');
     }
 };
 
@@ -473,7 +479,7 @@ export const deleteCalendarItem = async (c) => {
         return c.json({ success: true, id: rows[0].id });
     } catch (error) {
         console.error(error);
-        return c.json({ error: error.message || 'Failed to remove calendar item.' }, error.status || 500);
+        return sendCalendarError(c, error, 'Failed to remove calendar item.');
     }
 };
 
@@ -516,6 +522,6 @@ export const acknowledgeCalendarSchedule = async (c) => {
         });
     } catch (error) {
         console.error(error);
-        return c.json({ error: error.message || 'Failed to acknowledge schedule change.' }, error.status || 500);
+        return sendCalendarError(c, error, 'Failed to acknowledge schedule change.');
     }
 };

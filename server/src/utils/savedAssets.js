@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { hardAssets, softAssets } from '../db/schema.js';
 import { resolveStandardAudienceZoneIds } from './audienceZones.js';
@@ -119,6 +119,34 @@ function canExposeSoftAsset(asset, visibleLocations) {
     }
 
     return allLocations.length === 0 || visibleLocations.length > 0;
+}
+
+function resolveSoftAssetSummaryFromAsset(asset, user, context) {
+    if (!asset) return null;
+
+    const allLocations = getSoftAssetLocations(asset);
+    const visibleLocations = allLocations.filter((location) => isAssetVisible(location, user, {
+        ownerPartner: location.partner,
+        allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
+        allowedAudienceZoneIds: context.allowedAudienceZoneIds,
+    }));
+
+    const assetVisible = isAssetVisible(asset, user, {
+        ownerPartner: asset.partner,
+        allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
+        allowedAudienceZoneIds: context.allowedAudienceZoneIds,
+        treatMemberOnlyAsVisible: true,
+    });
+
+    const canExpose = canExposeSoftAsset(asset, visibleLocations);
+    const primaryLocation = (assetVisible && canExpose)
+        ? (visibleLocations[0] || null)
+        : (allLocations[0] || null);
+
+    return {
+        summary: summarizeSoftAsset(asset, primaryLocation),
+        status: assetVisible && canExpose ? 'available' : 'unavailable',
+    };
 }
 
 const hardAssetSummaryQuery = {
@@ -265,35 +293,52 @@ export async function resolveSavedAssetSummary(db, user, resourceType, resourceI
             ...softAssetSummaryQuery,
             where: eq(softAssets.id, resourceId),
         });
-
-        if (!asset) return null;
-
-        const allLocations = getSoftAssetLocations(asset);
-        const visibleLocations = allLocations.filter((location) => isAssetVisible(location, user, {
-            ownerPartner: location.partner,
-            allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
-            allowedAudienceZoneIds: context.allowedAudienceZoneIds,
-        }));
-
-        const assetVisible = isAssetVisible(asset, user, {
-            ownerPartner: asset.partner,
-            allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
-            allowedAudienceZoneIds: context.allowedAudienceZoneIds,
-            treatMemberOnlyAsVisible: true,
-        });
-
-        const canExpose = canExposeSoftAsset(asset, visibleLocations);
-        const primaryLocation = (assetVisible && canExpose)
-            ? (visibleLocations[0] || null)
-            : (allLocations[0] || null);
-
-        return {
-            summary: summarizeSoftAsset(asset, primaryLocation),
-            status: assetVisible && canExpose ? 'available' : 'unavailable',
-        };
+        return resolveSoftAssetSummaryFromAsset(asset, user, context);
     }
 
     return null;
+}
+
+export async function hydrateSavedSoftAssetRecords(
+    db,
+    user,
+    favorites = [],
+    resolutionContext = null,
+) {
+    const records = favorites
+        .map((favorite) => ({
+            favorite,
+            resourceId: Number.parseInt(String(favorite?.resourceId ?? ''), 10),
+        }))
+        .filter(({ favorite, resourceId }) => (
+            favorite?.resourceType === 'soft' && Number.isInteger(resourceId)
+        ));
+    if (!records.length) return [];
+
+    const context = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    const assets = await db.query.softAssets.findMany({
+        ...softAssetSummaryQuery,
+        where: inArray(softAssets.id, [...new Set(records.map(({ resourceId }) => resourceId))]),
+    });
+    const assetsById = new Map(assets.map((asset) => [Number(asset.id), asset]));
+
+    return records.map(({ favorite, resourceId }) => {
+        const resolved = resolveSoftAssetSummaryFromAsset(
+            assetsById.get(resourceId),
+            user,
+            context,
+        );
+        if (!resolved?.summary) {
+            return flattenSnapshot('soft', resourceId, favorite.snapshot || null, favorite);
+        }
+        return flattenLiveSummary(
+            'soft',
+            resourceId,
+            favorite,
+            resolved.summary,
+            resolved.status,
+        );
+    });
 }
 
 export async function hydrateSavedAssetRecord(db, user, favorite, resolutionContext = null) {
