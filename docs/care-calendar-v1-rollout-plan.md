@@ -187,3 +187,32 @@ the user saved it after the latest update.
   deployment. Controlled internal-data UAT is the next rollout gate.
 - Release documentation commit `37ae26c03` was fast-forwarded to and pushed on
   `main`; the exact validated client output was republished after that push.
+
+## 2026-07-17 Multi-session schedule extension
+
+This extension replaces the V1 limitation of one schedule per Offering with a
+versioned schedule plan. It does not change Care Calendar's role as a private
+planning layer and does not add booking or external notifications.
+
+- One Offering may publish up to 250 individually identified schedule rows.
+- A row may be an individual session or a weekly recurring series, and has its
+  own start, optional end, active/cancelled status, optional note, weekdays,
+  and repeat-until boundary.
+- The reviewed rows are the single source for the public Schedule summary and
+  Care Calendar occurrences. Free-text legacy schedules remain visible as
+  migration guidance but are not a second editable source after conversion.
+- Collateral and Standalone Offerings workbook imports create reviewable rows.
+  An authorised reviewer may amend, add, or remove rows before publishing.
+- A reviewed non-empty import replaces the current published schedule plan.
+  A blank or unparseable import cannot clear the existing plan. Workbook clear
+  requires the explicit `clearSchedule=TRUE` instruction.
+- Each published mutation creates an immutable schedule-version snapshot.
+  Existing personal plans stay in place and use the V1 Needs review mechanism
+  when their source revision changes; they are never silently moved or
+  deleted.
+- Stable source-entry keys keep same-time sessions distinct and maintain the
+  exact row-to-occurrence relationship.
+- Active rows remain embedded on `soft_assets` to avoid reintroducing
+  Cloudflare per-invocation database-subrequest failures. Historical versions
+  are stored separately and do not add reads to normal Calendar or resource
+  listing paths.

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { hardAssets, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
+import { hardAssets, offeringScheduleVersions, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
@@ -67,6 +67,12 @@ import {
     normalizeCalendarScheduleInput,
     serializeCalendarSchedule,
 } from '../utils/calendarSchedule.js';
+import {
+    buildOfferingScheduleMutation,
+    buildOfferingScheduleVersionRows,
+    normalizeOfferingSchedulePlanInput,
+    serializeOfferingSchedulePlan,
+} from '../utils/offeringSchedule.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import {
     determineSoftSubregion,
@@ -578,6 +584,9 @@ function sanitizeSoftAssetPayload(body = {}) {
         ...(Object.prototype.hasOwnProperty.call(body, 'calendarSchedule')
             ? { calendarSchedule: normalizeCalendarScheduleInput(body.calendarSchedule) }
             : {}),
+        ...(Object.prototype.hasOwnProperty.call(body, 'schedulePlan')
+            ? { schedulePlan: normalizeOfferingSchedulePlanInput(body.schedulePlan) }
+            : {}),
     };
 }
 
@@ -604,6 +613,7 @@ function sanitizeSoftAssetPatch(body = {}) {
         'ctaUrl',
         'venueNote',
         'availabilityUnit',
+        'schedulePlan',
     ].forEach((field) => {
         if (Object.prototype.hasOwnProperty.call(body, field)) {
             patch[field] = full[field];
@@ -634,6 +644,9 @@ function formatSoftAsset(asset, boundaryContext, viewer, allowedPartnerAudienceI
         calendarStatus,
         calendarRevision,
         calendarUpdatedAt,
+        calendarEntries,
+        scheduleNotes,
+        calendarScheduleSource,
         ...assetRest
     } = asset;
     const resolvedAudienceZones = getAssetAudienceZones(asset);
@@ -1631,6 +1644,8 @@ export const getSoftAssetById = async (c) => {
 
         return c.json(await attachSoftAssetTranslations(db, {
             ...formatted,
+            schedulePlan: serializeOfferingSchedulePlan(asset),
+            calendarScheduleSource: asset.calendarScheduleSource || 'legacy',
             coverageRegionIds: asset.coverageRegionIds || [],
             matchingRegionIds: asset.matchingRegionIds || asset.coverageRegionIds || [],
             primaryRegionId: asset.subregionId || null,
@@ -1708,6 +1723,10 @@ export const createSoftAsset = async (c) => {
             availabilityUnit,
         } = body;
 
+        const scheduleMutation = body.schedulePlan !== undefined
+            ? buildOfferingScheduleMutation({}, body.schedulePlan, { source: 'manual' })
+            : null;
+
         if (!name) {
             return c.json({ error: 'Name is required' }, 400);
         }
@@ -1759,7 +1778,7 @@ export const createSoftAsset = async (c) => {
             bucket: normalizeSoftAssetBucket(bucket, null),
             subCategory: subCategory || 'Programmes',
             description: description || null,
-            schedule: schedule || null,
+            schedule: scheduleMutation?.patch?.schedule ?? schedule ?? null,
             logoUrl: logoUrl || null,
             bannerUrl: bannerUrl || null,
             galleryUrls: normalizeGalleryUrls(galleryUrls),
@@ -1775,7 +1794,9 @@ export const createSoftAsset = async (c) => {
             availabilityEnabled: normalizeAvailabilityEnabled(availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(availabilityCount),
             availabilityUnit: normalizeAvailabilityUnit(availabilityUnit),
-            ...buildCalendarScheduleInsert(body.calendarSchedule || { enabled: false }),
+            ...(scheduleMutation?.changed
+                ? scheduleMutation.patch
+                : buildCalendarScheduleInsert(body.calendarSchedule || { enabled: false })),
             ...buildFreshnessInsert(body, user),
             isHidden: Boolean(isHidden),
             hideFrom: hideFrom ? new Date(hideFrom) : null,
@@ -1783,6 +1804,12 @@ export const createSoftAsset = async (c) => {
         }).returning();
 
         try {
+            if (scheduleMutation?.changed) {
+                const versionRows = buildOfferingScheduleVersionRows(asset.id, scheduleMutation, user.id);
+                if (versionRows.length) {
+                    await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+                }
+            }
             for (const hardAsset of linkedHardAssets) {
                 await db.insert(softAssetLocations).values({
                     softAssetId: asset.id,
@@ -2024,6 +2051,10 @@ export const updateSoftAsset = async (c) => {
             await assertManageableAudienceZones(db, user, nextAudienceZoneIds, { hardAssetIds: nextLinkedIds });
         }
 
+        const scheduleMutation = body.schedulePlan !== undefined
+            ? buildOfferingScheduleMutation(existing, body.schedulePlan, { source: 'manual' })
+            : null;
+
         const updatePatch = {
             partnerId: owner?.id || null,
             subregionId: finalSubregionId,
@@ -2031,7 +2062,9 @@ export const updateSoftAsset = async (c) => {
             bucket: body.bucket !== undefined ? normalizeSoftAssetBucket(body.bucket, null) : (existing.bucket || null),
             subCategory: body.subCategory !== undefined ? (body.subCategory || 'Programmes') : existing.subCategory,
             description: body.description !== undefined ? (body.description || null) : existing.description,
-            schedule: body.schedule !== undefined ? (body.schedule || null) : existing.schedule,
+            schedule: scheduleMutation?.changed
+                ? scheduleMutation.patch.schedule
+                : (body.schedule !== undefined ? (body.schedule || null) : existing.schedule),
             logoUrl: body.logoUrl !== undefined ? (body.logoUrl || null) : existing.logoUrl,
             bannerUrl: body.bannerUrl !== undefined ? (body.bannerUrl || null) : existing.bannerUrl,
             galleryUrls: body.galleryUrls !== undefined ? normalizeGalleryUrls(body.galleryUrls) : existing.galleryUrls,
@@ -2049,7 +2082,9 @@ export const updateSoftAsset = async (c) => {
             availabilityEnabled: body.availabilityEnabled !== undefined ? Boolean(body.availabilityEnabled) : existing.availabilityEnabled,
             availabilityCount: body.availabilityCount !== undefined ? normalizeAvailabilityCount(body.availabilityCount) : normalizeAvailabilityCount(existing.availabilityCount),
             availabilityUnit: body.availabilityUnit !== undefined ? normalizeAvailabilityUnit(body.availabilityUnit) : normalizeAvailabilityUnit(existing.availabilityUnit),
-            ...(body.calendarSchedule !== undefined
+            ...(scheduleMutation?.changed
+                ? scheduleMutation.patch
+                : body.calendarSchedule !== undefined
                 ? buildCalendarScheduleUpdate(existing, body.calendarSchedule)
                 : {}),
             ...buildFreshnessUpdate(body, existing, user),
@@ -2058,7 +2093,21 @@ export const updateSoftAsset = async (c) => {
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
             updatedAt: new Date(),
         };
-        await db.update(softAssets).set(updatePatch).where(eq(softAssets.id, id));
+        const updateQuery = db.update(softAssets).set(updatePatch).where(eq(softAssets.id, id));
+        const versionRows = scheduleMutation?.changed
+            ? buildOfferingScheduleVersionRows(id, scheduleMutation, user.id)
+            : [];
+        if (versionRows.length && typeof db.batch === 'function') {
+            await db.batch([
+                updateQuery,
+                db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
+            ]);
+        } else {
+            await updateQuery;
+            if (versionRows.length) {
+                await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+            }
+        }
 
         if (body.locationIds !== undefined || body.locationId !== undefined) {
             await db.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, id));

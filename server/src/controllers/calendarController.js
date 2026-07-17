@@ -15,8 +15,8 @@ import { listSavedSoftAssets } from './favoritesController.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     CALENDAR_MAX_RANGE_DAYS,
-    expandCalendarSchedule,
 } from '../utils/calendarSchedule.js';
+import { expandOfferingSchedule } from '../utils/offeringSchedule.js';
 import {
     optionalOneLineTextSchema,
     parsePositiveInt,
@@ -33,6 +33,7 @@ const calendarItemBodySchema = z.discriminatedUnion('itemType', [
     z.object({
         itemType: z.literal('planned_session'),
         softAssetId: positiveIntValueSchema('Offering id'),
+        sourceScheduleEntryKey: optionalOneLineTextSchema(80),
         sourceStartsAt: z.string().datetime({ offset: true }),
     }),
     z.object({
@@ -190,6 +191,7 @@ function serializePersonalItem(
         endsAt: row.endsAt ? new Date(row.endsAt).toISOString() : null,
         allDay: Boolean(row.allDay),
         status: row.status,
+        sourceScheduleEntryKey: row.sourceScheduleEntryKey || null,
         sourceStartsAt: row.sourceStartsAt ? new Date(row.sourceStartsAt).toISOString() : null,
         sourceRevision: row.sourceRevision ?? null,
         needsReview: row.itemType === 'planned_session'
@@ -265,19 +267,19 @@ export const getCalendar = async (c) => {
             personalItems
                 .filter((item) => item.itemType === 'planned_session' && item.softAssetId && item.sourceStartsAt)
                 .map((item) => [
-                    `${item.softAssetId}:${new Date(item.sourceStartsAt).toISOString()}`,
+                    `${item.softAssetId}:${item.sourceScheduleEntryKey || 'legacy-primary'}:${new Date(item.sourceStartsAt).toISOString()}`,
                     item,
                 ]),
         );
 
         const occurrences = savedSoftAssets
             .filter((asset) => asset.calendarEnabled)
-            .flatMap((asset) => expandCalendarSchedule(asset, from, to))
+            .flatMap((asset) => expandOfferingSchedule(asset, from, to))
             .map((occurrence) => {
                 const saved = savedById.get(Number(occurrence.softAssetId));
                 const asset = savedSoftAssetById.get(Number(occurrence.softAssetId));
                 const plannedItem = plannedByOccurrence.get(
-                    `${occurrence.softAssetId}:${occurrence.startsAt}`,
+                    `${occurrence.softAssetId}:${occurrence.scheduleEntryKey || 'legacy-primary'}:${occurrence.startsAt}`,
                 );
 
                 return {
@@ -362,13 +364,19 @@ export const createCalendarItem = async (c) => {
                 throw createHttpError(409, 'This activity does not currently have an active schedule.');
             }
             const sourceStartsAt = parseDate(body.sourceStartsAt, 'Session start');
-            const matchingOccurrence = expandCalendarSchedule(
+            const matchingOccurrences = expandOfferingSchedule(
                 asset,
                 new Date(sourceStartsAt.getTime() - 1),
                 new Date(sourceStartsAt.getTime() + 1),
-            ).find((occurrence) => occurrence.startsAt === sourceStartsAt.toISOString());
+            ).filter((occurrence) => occurrence.startsAt === sourceStartsAt.toISOString());
+            const matchingOccurrence = body.sourceScheduleEntryKey
+                ? matchingOccurrences.find((occurrence) => occurrence.scheduleEntryKey === body.sourceScheduleEntryKey)
+                : (matchingOccurrences.length === 1 ? matchingOccurrences[0] : null);
             if (!matchingOccurrence) {
                 throw createHttpError(409, 'This session is no longer part of the current activity schedule.');
+            }
+            if (matchingOccurrence.status !== 'active') {
+                throw createHttpError(409, 'This session is cancelled and cannot be planned.');
             }
 
             const values = {
@@ -380,6 +388,7 @@ export const createCalendarItem = async (c) => {
                 endsAt: matchingOccurrence.endsAt ? new Date(matchingOccurrence.endsAt) : null,
                 allDay: false,
                 status: 'planned',
+                sourceScheduleEntryKey: matchingOccurrence.scheduleEntryKey,
                 sourceStartsAt,
                 sourceRevision: Math.max(Number(asset.calendarRevision) || 0, 0),
                 updatedAt: new Date(),
@@ -393,6 +402,7 @@ export const createCalendarItem = async (c) => {
                     eq(userCalendarItems.userId, user.id),
                     eq(userCalendarItems.itemType, 'planned_session'),
                     eq(userCalendarItems.softAssetId, asset.id),
+                    eq(userCalendarItems.sourceScheduleEntryKey, matchingOccurrence.scheduleEntryKey),
                     eq(userCalendarItems.sourceStartsAt, sourceStartsAt),
                 )).limit(1);
             }

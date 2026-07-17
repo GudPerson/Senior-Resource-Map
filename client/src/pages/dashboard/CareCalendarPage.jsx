@@ -50,7 +50,7 @@ function singaporeInputToIso(value) {
 function combineAgenda(calendar) {
     const occurrenceStarts = new Set(
         calendar.occurrences.map((item) => (
-            `${item.softAssetId}:${item.startsAt}`
+            `${item.softAssetId}:${item.scheduleEntryKey || 'legacy-primary'}:${item.startsAt}`
         )),
     );
     const sourceEvents = calendar.occurrences.map((item) => ({
@@ -61,7 +61,7 @@ function combineAgenda(calendar) {
     const personalEvents = calendar.personalItems
         .filter((item) => (
             item.itemType === 'map_note'
-            || !occurrenceStarts.has(`${item.softAssetId}:${item.sourceStartsAt}`)
+            || !occurrenceStarts.has(`${item.softAssetId}:${item.sourceScheduleEntryKey || 'legacy-primary'}:${item.sourceStartsAt}`)
         ))
         .map((item) => ({
             ...item,
@@ -151,6 +151,7 @@ export default function CareCalendarPage() {
             await api.createCalendarItem({
                 itemType: 'planned_session',
                 softAssetId: event.softAssetId,
+                sourceScheduleEntryKey: event.scheduleEntryKey,
                 sourceStartsAt: event.startsAt,
             });
             await loadCalendar({ preserveCalendar: true });

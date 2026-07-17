@@ -109,6 +109,25 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_status VARCHAR(20) NOT NULL DEFAULT 'active'`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_revision INTEGER NOT NULL DEFAULT 0`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_updated_at TIMESTAMPTZ`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_entries JSONB NOT NULL DEFAULT '[]'::jsonb`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS schedule_notes TEXT`);
+            await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_schedule_source VARCHAR(40) NOT NULL DEFAULT 'legacy'`);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS offering_schedule_versions (
+                    id SERIAL PRIMARY KEY,
+                    soft_asset_id INTEGER NOT NULL REFERENCES soft_assets(id) ON DELETE CASCADE,
+                    revision INTEGER NOT NULL,
+                    entries JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    schedule_notes TEXT,
+                    public_summary TEXT,
+                    source VARCHAR(40) NOT NULL DEFAULT 'manual',
+                    published_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    published_at TIMESTAMPTZ DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS offering_schedule_versions_asset_revision_unique ON offering_schedule_versions (soft_asset_id, revision)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS offering_schedule_versions_asset_published_idx ON offering_schedule_versions (soft_asset_id, published_at)`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_maps (
                     id SERIAL PRIMARY KEY,
@@ -177,6 +196,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     ends_at TIMESTAMPTZ,
                     all_day BOOLEAN NOT NULL DEFAULT FALSE,
                     status VARCHAR(40) NOT NULL DEFAULT 'planned',
+                    source_schedule_entry_key VARCHAR(80),
                     source_starts_at TIMESTAMPTZ,
                     source_revision INTEGER,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -776,7 +796,9 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_user_starts_idx ON user_calendar_items (user_id, starts_at)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_source_idx ON user_calendar_items (soft_asset_id, source_starts_at)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_note_idx ON user_calendar_items (map_asset_note_id)`);
-            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_calendar_items_planned_occurrence_unique ON user_calendar_items (user_id, soft_asset_id, source_starts_at) WHERE item_type = 'planned_session' AND soft_asset_id IS NOT NULL AND source_starts_at IS NOT NULL`);
+            await db.execute(sql`ALTER TABLE user_calendar_items ADD COLUMN IF NOT EXISTS source_schedule_entry_key VARCHAR(80)`);
+            await db.execute(sql`DROP INDEX IF EXISTS user_calendar_items_planned_occurrence_unique`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_calendar_items_planned_occurrence_unique ON user_calendar_items (user_id, soft_asset_id, COALESCE(source_schedule_entry_key, 'legacy-primary'), source_starts_at) WHERE item_type = 'planned_session' AND soft_asset_id IS NOT NULL AND source_starts_at IS NOT NULL`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_schedule_states_user_idx ON user_calendar_schedule_states (user_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_schedule_states_soft_asset_idx ON user_calendar_schedule_states (soft_asset_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_share_snapshots_map_unique ON my_map_share_snapshots (map_id)`);

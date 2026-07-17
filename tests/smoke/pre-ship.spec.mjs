@@ -328,3 +328,30 @@ test('saved resource detail still opens from the discover side of the product', 
     ]);
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 30_000 });
 });
+
+test('Offering editor exposes reviewed multi-session schedule rows without saving', async ({ page }) => {
+    await loginAsPartner(page);
+    await page.goto('/dashboard/resources', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'New Offering' }).click();
+
+    await expect(page.getByText('Create Offering', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByPlaceholder('Offering name').fill('Schedule UI smoke draft');
+    const requiredProfileSelects = page.locator('.resource-wizard-workspace select[required]');
+    for (let index = 0; index < await requiredProfileSelects.count(); index += 1) {
+        if (!await requiredProfileSelects.nth(index).evaluate((control) => control.checkValidity())) {
+            await requiredProfileSelects.nth(index).selectOption({ index: 0 });
+        }
+    }
+    await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Offering sessions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Public schedule preview' })).toBeVisible();
+
+    await page.getByText('Publish sessions', { exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Publish sessions' })).toBeChecked();
+    await expect(page.getByText('Session 1', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Add another schedule' }).click();
+    await expect(page.getByText('Session 2', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Cancel', exact: true }).last().click();
+    await expect(page.getByText('Create Offering', { exact: true })).not.toBeVisible();
+});

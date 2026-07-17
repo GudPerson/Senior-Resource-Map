@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { softAssets, softAssetLocations, softAssetTags, subCategories, tags } from '../db/schema.js';
+import { offeringScheduleVersions, softAssets, softAssetLocations, softAssetTags, subCategories, tags } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { normalizeRole } from '../utils/roles.js';
@@ -25,6 +25,11 @@ import {
     normalizeImportedSoftAssetTags,
 } from '../utils/softAssetImportFields.js';
 import { extractCollateralDraftRows } from '../utils/vertexCollateralImport.js';
+import {
+    buildOfferingScheduleMutation,
+    buildOfferingScheduleVersionRows,
+    normalizeOfferingSchedulePlanInput,
+} from '../utils/offeringSchedule.js';
 import {
     buildCollateralReviewRows,
     buildMissingOfferingRows,
@@ -106,6 +111,19 @@ function formatExistingSoftAsset(asset) {
         subCategory: asset.subCategory || '',
         description: asset.description || '',
         schedule: asset.schedule || '',
+        calendarEntries: Array.isArray(asset.calendarEntries) ? asset.calendarEntries : [],
+        scheduleNotes: asset.scheduleNotes || '',
+        calendarScheduleSource: asset.calendarScheduleSource || 'legacy',
+        calendarEnabled: Boolean(asset.calendarEnabled),
+        calendarStartsAt: asset.calendarStartsAt || null,
+        calendarEndsAt: asset.calendarEndsAt || null,
+        calendarRecurrence: asset.calendarRecurrence || 'once',
+        calendarWeekdays: Array.isArray(asset.calendarWeekdays) ? asset.calendarWeekdays : [],
+        calendarRepeatUntil: asset.calendarRepeatUntil || null,
+        calendarTimezone: asset.calendarTimezone || 'Asia/Singapore',
+        calendarStatus: asset.calendarStatus || 'active',
+        calendarRevision: Number(asset.calendarRevision) || 0,
+        calendarUpdatedAt: asset.calendarUpdatedAt || null,
         contactPhone: asset.contactPhone || '',
         whatsappContact: asset.whatsappContact || '',
         contactEmail: asset.contactEmail || '',
@@ -203,7 +221,9 @@ function buildRowPayload(row) {
         bucket,
         subCategory,
         description: normalizeOptionalText(row?.description),
-        schedule: normalizeOptionalText(row?.schedule),
+        schedulePlan: Array.isArray(row?.schedulePlan?.entries) && row.schedulePlan.entries.length > 0
+            ? normalizeOfferingSchedulePlanInput(row.schedulePlan)
+            : null,
         contactPhone: normalizeImportedSoftAssetPhone(row?.contactPhone),
         whatsappContact: normalizeImportedSoftAssetShortText(row?.whatsappContact),
         contactEmail: normalizeOptionalEmail(row?.contactEmail),
@@ -220,7 +240,6 @@ function mergeBlankDraftFieldsWithExisting(payload, existing) {
     const merged = { ...payload };
     [
         'description',
-        'schedule',
         'contactPhone',
         'whatsappContact',
         'contactEmail',
@@ -252,7 +271,7 @@ async function loadExistingSoftAssetExternalKeys(db) {
     return new Set(rows.map((row) => row.externalKey).filter(Boolean));
 }
 
-function buildStandaloneSoftAssetInsertValues(user, hostAsset, draftPayload, externalKey) {
+function buildStandaloneSoftAssetInsertValues(user, hostAsset, draftPayload, externalKey, scheduleMutation = null) {
     const ownerPartnerId = getDefaultOwnerForHost(user, hostAsset);
     const linkedHardAssets = [hostAsset];
     const finalSubregionId = determineSoftSubregion(user, { subregionId: hostAsset.subregionId }, linkedHardAssets);
@@ -267,7 +286,7 @@ function buildStandaloneSoftAssetInsertValues(user, hostAsset, draftPayload, ext
         bucket: draftPayload.bucket,
         subCategory: draftPayload.subCategory,
         description: draftPayload.description,
-        schedule: draftPayload.schedule,
+        schedule: scheduleMutation?.patch?.schedule || null,
         contactPhone: draftPayload.contactPhone,
         whatsappContact: draftPayload.whatsappContact,
         contactEmail: draftPayload.contactEmail,
@@ -283,6 +302,7 @@ function buildStandaloneSoftAssetInsertValues(user, hostAsset, draftPayload, ext
         isHidden: Boolean(draftPayload.isHidden),
         hideFrom: null,
         hideUntil: null,
+        ...(scheduleMutation?.changed ? scheduleMutation.patch : {}),
     };
 }
 
@@ -291,8 +311,14 @@ async function createStandaloneSoftAssetsFromDrafts(db, user, hostAsset, entries
 
     const existingKeys = await loadExistingSoftAssetExternalKeys(db);
     const externalKeys = allocateUniqueSoftAssetExternalKeys(entries, existingKeys);
-    const insertValues = entries.map((entry, index) => (
-        buildStandaloneSoftAssetInsertValues(user, hostAsset, entry.payload, externalKeys[index])
+    const preparedEntries = entries.map((entry) => ({
+        ...entry,
+        scheduleMutation: entry.payload.schedulePlan
+            ? buildOfferingScheduleMutation({}, entry.payload.schedulePlan, { source: 'collateral_import' })
+            : null,
+    }));
+    const insertValues = preparedEntries.map((entry, index) => (
+        buildStandaloneSoftAssetInsertValues(user, hostAsset, entry.payload, externalKeys[index], entry.scheduleMutation)
     ));
 
     const createdRows = await db.insert(softAssets)
@@ -309,17 +335,34 @@ async function createStandaloneSoftAssetsFromDrafts(db, user, hostAsset, entries
             const created = createdByKey.get(externalKey);
             if (!created) return null;
             return {
-                ...entries[index],
+                ...preparedEntries[index],
                 created,
             };
         })
         .filter(Boolean);
 
-    if (linkedRows.length) {
-        await db.insert(softAssetLocations).values(linkedRows.map((entry) => ({
-            softAssetId: entry.created.id,
-            hardAssetId: hostAsset.id,
-        })));
+    try {
+        if (linkedRows.length) {
+            await db.insert(softAssetLocations).values(linkedRows.map((entry) => ({
+                softAssetId: entry.created.id,
+                hardAssetId: hostAsset.id,
+            })));
+
+            const versionRows = linkedRows.flatMap((entry) => (
+                entry.scheduleMutation?.changed
+                    ? buildOfferingScheduleVersionRows(entry.created.id, entry.scheduleMutation, user.id)
+                    : []
+            ));
+            if (versionRows.length) {
+                await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+            }
+        }
+    } catch (error) {
+        const createdIds = createdRows.map((row) => row.id).filter(Boolean);
+        if (createdIds.length) {
+            await db.delete(softAssets).where(inArray(softAssets.id, createdIds));
+        }
+        throw error;
     }
 
     return linkedRows;
@@ -379,13 +422,15 @@ async function syncSoftAssetTagsForImport(db, assignments = []) {
     }
 }
 
-async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
+async function updateStandaloneSoftAssetFromDraft(db, existing, draftPayload, userId) {
+    const scheduleMutation = draftPayload.schedulePlan
+        ? buildOfferingScheduleMutation(existing, draftPayload.schedulePlan, { source: 'collateral_import' })
+        : null;
     const patch = {
         name: draftPayload.name,
         bucket: draftPayload.bucket,
         subCategory: draftPayload.subCategory,
         description: draftPayload.description,
-        schedule: draftPayload.schedule,
         contactPhone: draftPayload.contactPhone,
         whatsappContact: draftPayload.whatsappContact,
         contactEmail: draftPayload.contactEmail,
@@ -393,20 +438,56 @@ async function updateStandaloneSoftAssetFromDraft(db, assetId, draftPayload) {
         ctaUrl: draftPayload.ctaUrl,
         venueNote: draftPayload.venueNote,
         updatedAt: new Date(),
+        ...(scheduleMutation?.changed ? scheduleMutation.patch : {}),
     };
 
     if (draftPayload.visibilityAction === 'hide') {
         patch.isHidden = true;
     }
 
-    await db.update(softAssets).set(patch).where(eq(softAssets.id, assetId));
+    const updateQuery = db.update(softAssets).set(patch).where(eq(softAssets.id, existing.id));
+    const versionRows = scheduleMutation?.changed
+        ? buildOfferingScheduleVersionRows(existing.id, scheduleMutation, userId)
+        : [];
+    if (versionRows.length && typeof db.batch === 'function') {
+        await db.batch([
+            updateQuery,
+            db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
+        ]);
+    } else {
+        await updateQuery;
+        if (versionRows.length) {
+            await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+        }
+    }
 }
 
-async function hideStandaloneSoftAssetFromRefresh(db, assetId) {
-    await db.update(softAssets).set({
+async function hideStandaloneSoftAssetFromRefresh(db, existing, userId) {
+    const scheduleMutation = buildOfferingScheduleMutation(existing, {
+        enabled: false,
+        notes: existing.scheduleNotes || '',
+        entries: [],
+    }, { source: 'collateral_import' });
+    const patch = {
         isHidden: true,
         updatedAt: new Date(),
-    }).where(eq(softAssets.id, assetId));
+        ...(scheduleMutation.changed ? scheduleMutation.patch : {}),
+    };
+    const updateQuery = db.update(softAssets).set(patch).where(eq(softAssets.id, existing.id));
+    const versionRows = scheduleMutation.changed
+        ? buildOfferingScheduleVersionRows(existing.id, scheduleMutation, userId)
+        : [];
+    if (versionRows.length && typeof db.batch === 'function') {
+        await db.batch([
+            updateQuery,
+            db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
+        ]);
+    } else {
+        await updateQuery;
+        if (versionRows.length) {
+            await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+        }
+    }
 }
 
 async function rebuildSoftAssetCaches(subregionIds, env, user) {
@@ -521,7 +602,7 @@ export const commitSoftAssetCollateralImport = async (c) => {
                     }
 
                     const mergedPayload = mergeBlankDraftFieldsWithExisting(payload, target);
-                    await updateStandaloneSoftAssetFromDraft(db, target.id, mergedPayload);
+                    await updateStandaloneSoftAssetFromDraft(db, target, mergedPayload, user.id);
                     pendingTagAssignments.push({
                         softAssetId: target.id,
                         tags: mergedPayload.newTags,
@@ -594,7 +675,7 @@ export const commitSoftAssetCollateralImport = async (c) => {
                 }
 
                 if (action === 'hide' || action === 'mark_ended') {
-                    await hideStandaloneSoftAssetFromRefresh(db, target.id);
+                    await hideStandaloneSoftAssetFromRefresh(db, target, user.id);
                     changed = true;
                     results.push({
                         id: rowKey,

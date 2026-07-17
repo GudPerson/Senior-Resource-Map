@@ -6,6 +6,7 @@ import { getDb } from '../db/index.js';
 import {
     audienceZones,
     hardAssets,
+    offeringScheduleVersions,
     sensitiveAuditLogs,
     softAssetGroupMembers,
     softAssetLocations,
@@ -52,6 +53,13 @@ import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, ensureActorCanTargetSubregion, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
 import { positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
 import { normalizeSocialLinks } from '../utils/socialLinks.js';
+import {
+    buildOfferingScheduleMutation,
+    buildOfferingScheduleVersionRows,
+    normalizeOfferingSchedulePlanInput,
+    parseImportedScheduleSessions,
+    serializeOfferingSchedulePlan,
+} from '../utils/offeringSchedule.js';
 
 async function recordExportAudit(db, actor, resourceType, exportKind, metadata = {}) {
     try {
@@ -141,7 +149,10 @@ const RESOURCE_TYPES = {
             ['audienceZoneCodes', false, 'Comma-separated audience zone codes when audienceMode is audience_zones.'],
             ['isMemberOnly', false, 'TRUE or FALSE.'],
             ['description', false, 'Optional descriptive copy.'],
-            ['schedule', false, 'Optional schedule text.'],
+            ['schedule', false, 'Reviewed public schedule. For individual sessions, use one exact date and time range per line.'],
+            ['scheduleEntriesJson', false, 'Canonical session rows for safe round-trip export/import. Leave unchanged unless using structured JSON.'],
+            ['scheduleNotes', false, 'Optional notes that apply to the whole schedule.'],
+            ['clearSchedule', false, 'TRUE only to explicitly remove the published schedule. A blank schedule does not clear it.'],
             ['website', false, 'Optional absolute website URL.'],
             ['facebookUrl', false, 'Optional public Facebook URL.'],
             ['instagramUrl', false, 'Optional public Instagram URL.'],
@@ -1112,6 +1123,9 @@ async function exportRowsForStandaloneOfferings(db, actor, options = {}) {
             isMemberOnly: asset.isMemberOnly ? 'TRUE' : 'FALSE',
             description: asset.description || '',
             schedule: asset.schedule || '',
+            scheduleEntriesJson: JSON.stringify(serializeOfferingSchedulePlan(asset).entries),
+            scheduleNotes: asset.scheduleNotes || '',
+            clearSchedule: 'FALSE',
             website: asset.website || '',
             facebookUrl: serializeSocialLink(asset.socialLinks, 'facebook'),
             instagramUrl: serializeSocialLink(asset.socialLinks, 'instagram'),
@@ -1554,6 +1568,44 @@ async function importPlaces(db, actor, rows, references, env) {
     return report;
 }
 
+export function buildWorkbookSchedulePlan(row) {
+    const notes = normalizeText(row.scheduleNotes);
+    if (parseBoolean(row.clearSchedule, false)) {
+        return { enabled: false, notes, entries: [] };
+    }
+
+    const scheduleText = String(row.schedule || '').trim();
+    if (scheduleText) {
+        const parsed = parseImportedScheduleSessions([], scheduleText);
+        const containsRecurringSummary = scheduleText
+            .split(/\n+/)
+            .some((line) => /^\s*every\b/i.test(line));
+        if (parsed.entries.length > 0 && parsed.unparsed.length === 0 && !containsRecurringSummary) {
+            return normalizeOfferingSchedulePlanInput({ enabled: true, notes, entries: parsed.entries });
+        }
+    }
+
+    const scheduleEntriesJson = String(row.scheduleEntriesJson || '').trim();
+    if (scheduleEntriesJson) {
+        let parsedJson;
+        try {
+            parsedJson = JSON.parse(scheduleEntriesJson);
+        } catch {
+            throw new Error('scheduleEntriesJson must be valid JSON.');
+        }
+        const entries = Array.isArray(parsedJson) ? parsedJson : parsedJson?.entries;
+        if (Array.isArray(entries) && entries.length === 0) {
+            return null;
+        }
+        return normalizeOfferingSchedulePlanInput({ enabled: true, notes, entries });
+    }
+
+    if (scheduleText) {
+        throw new Error('Schedule text could not be converted safely. Use exact dated session lines or the exported scheduleEntriesJson value.');
+    }
+    return null;
+}
+
 async function importStandaloneOfferings(db, actor, rows, references, env) {
     const report = buildImportReport('standalone-offerings');
     const affectedSubregions = new Set();
@@ -1627,6 +1679,11 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 throw new Error('Existing offering is outside your allowed scope.');
             }
 
+            const schedulePlan = buildWorkbookSchedulePlan(row);
+            const scheduleMutation = schedulePlan
+                ? buildOfferingScheduleMutation(existing || {}, schedulePlan, { source: 'workbook' })
+                : null;
+
             const payload = {
                 externalKey: existing?.externalKey || await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
                     requestedKey: externalKey,
@@ -1642,7 +1699,9 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 bucket,
                 subCategory,
                 description: normalizeText(row.description) || null,
-                schedule: normalizeText(row.schedule) || null,
+                schedule: scheduleMutation?.changed
+                    ? scheduleMutation.patch.schedule
+                    : (existing?.schedule || null),
                 website: normalizeText(row.website) || null,
                 socialLinks: buildSocialLinksFromWorkbookRow(row),
                 logoUrl: normalizeText(row.logoUrl) || null,
@@ -1661,16 +1720,42 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 hideUntil: parseNullableDate(row.hideUntil),
                 isDeleted: false,
                 updatedAt: new Date(),
+                ...(scheduleMutation?.changed ? scheduleMutation.patch : {}),
             };
 
             let assetId;
             if (existing) {
-                await db.update(softAssets).set(payload).where(eq(softAssets.id, existing.id));
+                const updateQuery = db.update(softAssets).set(payload).where(eq(softAssets.id, existing.id));
+                const versionRows = scheduleMutation?.changed
+                    ? buildOfferingScheduleVersionRows(existing.id, scheduleMutation, actor.id)
+                    : [];
+                if (versionRows.length && typeof db.batch === 'function') {
+                    await db.batch([
+                        updateQuery,
+                        db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
+                    ]);
+                } else {
+                    await updateQuery;
+                    if (versionRows.length) {
+                        await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+                    }
+                }
                 assetId = existing.id;
                 report.updatedCount += 1;
             } else {
                 const [created] = await db.insert(softAssets).values(payload).returning({ id: softAssets.id });
                 assetId = created.id;
+                const versionRows = scheduleMutation?.changed
+                    ? buildOfferingScheduleVersionRows(assetId, scheduleMutation, actor.id)
+                    : [];
+                if (versionRows.length) {
+                    try {
+                        await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
+                    } catch (versionError) {
+                        await db.delete(softAssets).where(eq(softAssets.id, assetId));
+                        throw versionError;
+                    }
+                }
                 report.createdCount += 1;
             }
 

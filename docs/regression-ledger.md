@@ -1591,6 +1591,61 @@ Active next recovery family:
   auth, ownership, eligibility, visibility, ranking, My Map, Shared Map,
   Calendar schedule, or notification change was made.
 
+### 2026-07-17 Offering multi-session schedule source
+
+- Current behavior: an Offering has one reviewed schedule plan containing up to
+  250 individually identified rows. Each row is either an individual session
+  or a weekly recurring series and carries its own start, optional end,
+  active/cancelled status, optional note, and recurrence boundary. Authorised
+  editors can add, duplicate, remove, and amend rows in the existing Schedule
+  step. CareAround generates the public Schedule summary and Care Calendar
+  occurrences from those same rows, so editors no longer maintain competing
+  public text and Calendar-only dates.
+- Known-good reference: branch `codex/offering-session-schedules`, based on
+  `main` `83759dcc2`. Active schedule rows remain on `soft_assets` so Calendar
+  and resource reads stay within the Cloudflare Worker subrequest budget.
+  Immutable revisions are recorded separately in
+  `offering_schedule_versions`, while legacy single-schedule columns remain
+  populated from the first row for rollback and older-client compatibility.
+  Personal calendar rows now retain the stable source schedule-entry key, so
+  two same-time sessions remain distinct.
+- Reproduction steps: create or edit an Offering and open Schedule. Enable
+  Publish sessions, add an individual row and a weekly row, set each row's
+  status, and confirm the read-only public summary changes with the rows. Save,
+  reopen, and confirm the rows round-trip. Save the Offering as a user and open
+  Care Calendar; confirm each active generated occurrence is present and two
+  same-time rows can be planned independently. Cancel a row and confirm it
+  cannot be newly planned. Import collateral or a Standalone Offerings
+  workbook containing exact session dates; review and amend the generated rows
+  before saving. Repeat with a blank or unparseable schedule and confirm the
+  existing published schedule is not cleared. Use `clearSchedule=TRUE` in the
+  workbook to verify the explicit clear path.
+- Acceptance criteria: structured rows are the canonical schedule source;
+  public copy is generated rather than separately edited; legacy schedule text
+  remains visible as migration guidance until structured rows replace it;
+  recurring expansion remains bounded and fixed to `Asia/Singapore`; invalid
+  rows block save; cancelled rows cannot accept new plans; stable entry keys
+  distinguish same-time sessions; every published mutation records an
+  immutable revision; a reviewed import replaces the current published plan
+  while prior revisions remain auditable; blank or unparsed imports preserve
+  the existing plan; prior personal plans are never silently moved or deleted
+  and continue to use the existing Needs review warning. Saved Resources,
+  visibility, eligibility, My Maps, Shared Maps, booking, availability, and
+  external notification behavior remain unchanged.
+- Verification result before deploy: focused schedule, workbook, collateral,
+  Calendar, Offering-wizard, boundary-schema, and clean-slate coverage passed.
+  Full server coverage passed 433/433; full client/source coverage passed
+  426/426; the exact production-configured client build passed with only the
+  existing large-chunk advisory; and `git diff --check` passed. The configured
+  database fingerprint matched the intended target, the explicit additive
+  boundary-schema bootstrap completed, and direct schema verification found
+  the new schedule-plan columns, immutable version table and indexes, and
+  personal source-entry key. Existing production smoke passed 5/5 before
+  deployment. Authenticated local browser UAT passed the new Offering Schedule
+  flow by opening the editor, enabling publication, adding a second row, and
+  cancelling without saving. No production Offering, schedule, favorite, or
+  personal Calendar row was created or changed during validation.
+
 ## Recovery workflow
 
 For each regression family:

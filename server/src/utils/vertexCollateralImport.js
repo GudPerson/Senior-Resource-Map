@@ -1,4 +1,5 @@
 import { inferSoftAssetBucket, normalizeSoftAssetBucket } from './softAssetBuckets.js';
+import { parseImportedScheduleSessions } from './offeringSchedule.js';
 import {
     assertAiImportAllowed,
     fingerprintAiValue,
@@ -667,9 +668,12 @@ export function consolidateCollateralDraftRows(draftRows = []) {
         const availabilityStatus = group.availabilityStatus === 'full' ? 'full' : 'unknown';
         const isHidden = Boolean(group.isHidden) || availabilityStatus === 'full';
         const visibilityAction = normalizeVisibilityAction(group.visibilityAction, isHidden);
+        const parsedSchedule = parseImportedScheduleSessions(scheduleSessions, group.schedule);
         const row = {
             ...group,
             scheduleSessions,
+            scheduleEntries: parsedSchedule.entries,
+            unparsedScheduleLines: parsedSchedule.unparsed,
             sessionCount: scheduleSessions.length,
             schedule: scheduleSessions.length ? scheduleSessions.join('\n') : normalizeLongText(group.schedule),
             availabilityStatus,

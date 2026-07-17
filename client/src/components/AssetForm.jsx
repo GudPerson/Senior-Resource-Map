@@ -20,9 +20,17 @@ import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
+import OfferingScheduleEntriesEditor from './OfferingScheduleEntriesEditor.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
 import ResourceWizardShell from './ResourceWizardShell.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
+import {
+    buildSchedulePlanForm,
+    buildSchedulePlanPreviewText,
+    createEmptyScheduleEntry,
+    getSchedulePlanValidationError,
+    schedulePlanToApi,
+} from '../lib/offeringSchedule.js';
 
 function formatDateTimeLocal(value) {
     if (!value) return '';
@@ -30,32 +38,6 @@ function formatDateTimeLocal(value) {
     if (Number.isNaN(date.getTime())) return '';
     const pad = (num) => String(num).padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatSingaporeDateTimeLocal(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const parts = Object.fromEntries(
-        new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Singapore',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hourCycle: 'h23',
-        }).formatToParts(date)
-            .filter((part) => part.type !== 'literal')
-            .map((part) => [part.type, part.value]),
-    );
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
-}
-
-function singaporeDateTimeLocalToIso(value) {
-    if (!value) return null;
-    const date = new Date(`${value}:00+08:00`);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function formatDateInput(value) {
@@ -218,15 +200,16 @@ function buildInitialForm(type, initialData, currentUser) {
             sourceType: initialData.sourceType || '',
             verificationStatus: initialData.verificationStatus || 'unverified',
             verificationConfidence: initialData.verificationConfidence || '',
+            schedulePlan: buildSchedulePlanForm(initialData),
             calendarSchedule: {
                 enabled: Boolean(initialData.calendarSchedule?.enabled),
-                startsAt: formatSingaporeDateTimeLocal(initialData.calendarSchedule?.startsAt),
-                endsAt: formatSingaporeDateTimeLocal(initialData.calendarSchedule?.endsAt),
+                startsAt: initialData.calendarSchedule?.startsAt || '',
+                endsAt: initialData.calendarSchedule?.endsAt || '',
                 recurrence: initialData.calendarSchedule?.recurrence || 'once',
                 weekdays: Array.isArray(initialData.calendarSchedule?.weekdays)
                     ? initialData.calendarSchedule.weekdays
                     : [],
-                repeatUntil: formatSingaporeDateTimeLocal(initialData.calendarSchedule?.repeatUntil),
+                repeatUntil: initialData.calendarSchedule?.repeatUntil || '',
                 timezone: 'Asia/Singapore',
                 status: initialData.calendarSchedule?.status || 'active',
             },
@@ -303,6 +286,11 @@ function buildInitialForm(type, initialData, currentUser) {
         sourceType: '',
         verificationStatus: 'unverified',
         verificationConfidence: '',
+        schedulePlan: {
+            enabled: false,
+            notes: '',
+            entries: [],
+        },
         calendarSchedule: {
             enabled: false,
             startsAt: '',
@@ -563,6 +551,7 @@ export default function AssetForm({
             if (isHard) {
                 delete payload.bucket;
                 delete payload.calendarSchedule;
+                delete payload.schedulePlan;
                 payload.socialLinks = normalizeSocialLinks(payload.socialLinks);
                 delete payload.ownershipMode;
                 delete payload.partnerId;
@@ -587,18 +576,9 @@ export default function AssetForm({
                 payload.availabilityCount = normalizeAvailabilityCount(form.availabilityCount);
                 payload.availabilityUnit = normalizeAvailabilityUnit(form.availabilityUnit);
                 payload.eligibilityRules = normalizeEligibilityRules(form.eligibilityRules);
-                payload.calendarSchedule = {
-                    enabled: Boolean(form.calendarSchedule?.enabled),
-                    startsAt: singaporeDateTimeLocalToIso(form.calendarSchedule?.startsAt),
-                    endsAt: singaporeDateTimeLocalToIso(form.calendarSchedule?.endsAt),
-                    recurrence: form.calendarSchedule?.recurrence || 'once',
-                    weekdays: Array.isArray(form.calendarSchedule?.weekdays)
-                        ? form.calendarSchedule.weekdays
-                        : [],
-                    repeatUntil: singaporeDateTimeLocalToIso(form.calendarSchedule?.repeatUntil),
-                    timezone: 'Asia/Singapore',
-                    status: form.calendarSchedule?.status || 'active',
-                };
+                payload.schedulePlan = schedulePlanToApi(form.schedulePlan);
+                delete payload.calendarSchedule;
+                delete payload.schedule;
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
                 payload.audienceZoneIds = Array.isArray(form.audienceZoneIds) ? form.audienceZoneIds : [];
                 payload.coverageRegionIds = Array.isArray(form.coverageRegionIds)
@@ -842,23 +822,9 @@ export default function AssetForm({
             const profileContactMessage = getOfferingProfileContactValidationError();
             if (profileContactMessage) return profileContactMessage;
         }
-        if (stepIndex === 1 && form.calendarSchedule?.enabled) {
-            const startsAt = singaporeDateTimeLocalToIso(form.calendarSchedule.startsAt);
-            const endsAt = singaporeDateTimeLocalToIso(form.calendarSchedule.endsAt);
-            const repeatUntil = singaporeDateTimeLocalToIso(form.calendarSchedule.repeatUntil);
-            if (!startsAt) return 'Add a valid Care Calendar start date and time.';
-            if (endsAt && new Date(endsAt) <= new Date(startsAt)) {
-                return 'Care Calendar end must be later than the start.';
-            }
-            if (repeatUntil && new Date(repeatUntil) < new Date(startsAt)) {
-                return 'Care Calendar repeat-until must not be before the first session.';
-            }
-            if (
-                form.calendarSchedule.recurrence === 'weekly'
-                && (!Array.isArray(form.calendarSchedule.weekdays) || form.calendarSchedule.weekdays.length === 0)
-            ) {
-                return 'Select at least one weekday for a weekly Care Calendar schedule.';
-            }
+        if (stepIndex === 1) {
+            const scheduleMessage = getSchedulePlanValidationError(form.schedulePlan);
+            if (scheduleMessage) return scheduleMessage;
         }
         if (stepIndex === 2) {
             const locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
@@ -1789,21 +1755,13 @@ export default function AssetForm({
     }
 
     function renderOfferingScheduleStep() {
-        const weekdayOptions = [
-            ['Sun', 0],
-            ['Mon', 1],
-            ['Tue', 2],
-            ['Wed', 3],
-            ['Thu', 4],
-            ['Fri', 5],
-            ['Sat', 6],
-        ];
-        const calendarSchedule = form.calendarSchedule || {};
-        const setCalendarScheduleField = (key, value) => {
+        const schedulePlan = form.schedulePlan || { enabled: false, notes: '', entries: [] };
+        const schedulePreviewText = buildSchedulePlanPreviewText(schedulePlan) || schedulePlan.legacyText || '';
+        const setSchedulePlanField = (key, value) => {
             setForm((current) => ({
                 ...current,
-                calendarSchedule: {
-                    ...current.calendarSchedule,
+                schedulePlan: {
+                    ...current.schedulePlan,
                     [key]: value,
                 },
             }));
@@ -1811,133 +1769,81 @@ export default function AssetForm({
 
         return (
             <div className="space-y-5">
-                <section className="rounded-3xl border border-slate-200 bg-white p-5">
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                            <label className="mb-1 block text-sm font-semibold text-slate-700"><Clock size={13} className="inline mr-1" />Schedule</label>
-                            <textarea
-                                rows={4}
-                                value={form.schedule || ''}
-                                onChange={(e) => setField('schedule', e.target.value)}
-                                placeholder="e.g. Every Tuesday at 10 AM"
-                                className="input-field"
-                            />
-                        </div>
-                    </div>
-                </section>
-
                 <section className="rounded-3xl border border-teal-200 bg-teal-50/50 p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="max-w-2xl">
                             <div className="flex items-center gap-2">
                                 <Clock size={17} className="text-teal-700" />
-                                <h3 className="text-base font-bold text-slate-900">Reviewed Care Calendar schedule</h3>
+                                <h3 className="text-base font-bold text-slate-900">Offering sessions</h3>
                             </div>
                             <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                                Add one structured Singapore-time schedule so users who save this activity can see upcoming sessions. This does not create a booking.
+                                Add each individual session or recurring weekly series. These reviewed rows are the single schedule shown on the Offering and in Care Calendar.
                             </p>
                         </div>
                         <label className="relative inline-flex cursor-pointer items-center gap-3">
-                            <span className="text-sm font-bold text-slate-700">Show in Care Calendar</span>
+                            <span className="text-sm font-bold text-slate-700">Publish sessions</span>
                             <input
                                 type="checkbox"
-                                checked={Boolean(calendarSchedule.enabled)}
-                                onChange={(event) => setCalendarScheduleField('enabled', event.target.checked)}
+                                checked={Boolean(schedulePlan.enabled)}
+                                onChange={(event) => {
+                                    const enabled = event.target.checked;
+                                    setForm((current) => ({
+                                        ...current,
+                                        schedulePlan: {
+                                            ...current.schedulePlan,
+                                            enabled,
+                                            entries: enabled && (current.schedulePlan?.entries || []).length === 0
+                                                ? [createEmptyScheduleEntry()]
+                                                : (current.schedulePlan?.entries || []),
+                                        },
+                                    }));
+                                }}
                                 className="peer sr-only"
                             />
                             <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-teal-600 peer-checked:after:translate-x-full after:absolute after:right-[22px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
                         </label>
                     </div>
 
-                    {calendarSchedule.enabled ? (
-                        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <label>
-                                <span className="mb-1 block text-sm font-semibold text-slate-700">First session starts</span>
-                                <input
-                                    type="datetime-local"
-                                    value={calendarSchedule.startsAt || ''}
-                                    onChange={(event) => setCalendarScheduleField('startsAt', event.target.value)}
+                    {schedulePlan.enabled ? (
+                        <div className="mt-5 space-y-5">
+                            <OfferingScheduleEntriesEditor
+                                entries={schedulePlan.entries || []}
+                                onChange={(entries) => setSchedulePlanField('entries', entries)}
+                            />
+                            <label className="block">
+                                <span className="mb-1 block text-sm font-semibold text-slate-700">Schedule notes (optional)</span>
+                                <textarea
+                                    rows={3}
+                                    value={schedulePlan.notes || ''}
+                                    onChange={(event) => setSchedulePlanField('notes', event.target.value)}
                                     className="input-field"
-                                    required
+                                    placeholder="Add only information that applies to the whole schedule."
                                 />
                             </label>
-                            <label>
-                                <span className="mb-1 block text-sm font-semibold text-slate-700">Session ends (optional)</span>
-                                <input
-                                    type="datetime-local"
-                                    value={calendarSchedule.endsAt || ''}
-                                    onChange={(event) => setCalendarScheduleField('endsAt', event.target.value)}
-                                    className="input-field"
-                                />
-                            </label>
-                            <label>
-                                <span className="mb-1 block text-sm font-semibold text-slate-700">Repeats</span>
-                                <select
-                                    value={calendarSchedule.recurrence || 'once'}
-                                    onChange={(event) => setCalendarScheduleField('recurrence', event.target.value)}
-                                    className="input-field"
-                                >
-                                    <option value="once">One time</option>
-                                    <option value="weekly">Weekly</option>
-                                </select>
-                            </label>
-                            <label>
-                                <span className="mb-1 block text-sm font-semibold text-slate-700">Schedule status</span>
-                                <select
-                                    value={calendarSchedule.status || 'active'}
-                                    onChange={(event) => setCalendarScheduleField('status', event.target.value)}
-                                    className="input-field"
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="cancelled">Cancelled</option>
-                                </select>
-                            </label>
-
-                            {calendarSchedule.recurrence === 'weekly' ? (
-                                <>
-                                    <fieldset className="md:col-span-2">
-                                        <legend className="mb-2 text-sm font-semibold text-slate-700">Weekdays</legend>
-                                        <div className="flex flex-wrap gap-2">
-                                            {weekdayOptions.map(([label, value]) => {
-                                                const checked = (calendarSchedule.weekdays || []).includes(value);
-                                                return (
-                                                    <label
-                                                        key={value}
-                                                        className={`inline-flex min-h-[40px] cursor-pointer items-center rounded-xl border px-3 py-2 text-sm font-bold ${checked ? 'border-teal-500 bg-teal-100 text-teal-900' : 'border-slate-200 bg-white text-slate-600'}`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={checked}
-                                                            onChange={() => setCalendarScheduleField(
-                                                                'weekdays',
-                                                                checked
-                                                                    ? (calendarSchedule.weekdays || []).filter((day) => day !== value)
-                                                                    : [...(calendarSchedule.weekdays || []), value].sort(),
-                                                            )}
-                                                            className="sr-only"
-                                                        />
-                                                        {label}
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    </fieldset>
-                                    <label>
-                                        <span className="mb-1 block text-sm font-semibold text-slate-700">Repeat until (optional)</span>
-                                        <input
-                                            type="datetime-local"
-                                            value={calendarSchedule.repeatUntil || ''}
-                                            onChange={(event) => setCalendarScheduleField('repeatUntil', event.target.value)}
-                                            className="input-field"
-                                        />
-                                    </label>
-                                </>
-                            ) : null}
                             <div className="rounded-xl border border-teal-200 bg-white px-4 py-3 text-sm text-slate-600 md:col-span-2">
-                                Timezone: <strong className="text-slate-800">Asia/Singapore</strong>. Updating any structured schedule field will notify affected users inside CareAround.
+                                Timezone: <strong className="text-slate-800">Asia/Singapore</strong>. Saving a changed schedule alerts affected users inside CareAround for review. It does not send email or WhatsApp and does not create a booking.
                             </div>
                         </div>
+                    ) : schedulePlan.legacyText ? (
+                        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
+                            <p className="font-semibold">This Offering still has older public schedule text.</p>
+                            <p className="mt-1">It will remain unchanged until you publish reviewed session rows, which will replace it with one generated schedule.</p>
+                            <p className="mt-3 whitespace-pre-line rounded-xl border border-amber-100 bg-white px-3 py-2 text-slate-700">{schedulePlan.legacyText}</p>
+                        </div>
                     ) : null}
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <div className="flex items-center gap-2">
+                        <Clock size={17} className="text-slate-500" />
+                        <h3 className="text-base font-bold text-slate-900">Public schedule preview</h3>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">
+                        This summary is generated from the session rows so the Offering and Care Calendar cannot contradict one another.
+                    </p>
+                    <div className="mt-4 whitespace-pre-line rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
+                        {schedulePreviewText || 'No sessions are published yet.'}
+                    </div>
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -2240,6 +2146,7 @@ export default function AssetForm({
     function renderOfferingDetailPreview() {
         const tags = Array.isArray(form.newTags) ? form.newTags.slice(0, 8) : [];
         const ctaHref = normalizeExternalHref(form.ctaUrl);
+        const schedulePreviewText = buildSchedulePlanPreviewText(form.schedulePlan) || form.schedulePlan?.legacyText || '';
         const selectedCoverageLabels = selectedLinkedLocations.length > 0
             ? selectedLinkedLocations.map((location) => location.name).filter(Boolean)
             : selectedCoverageRegionOptions.map((option) => option.label);
@@ -2275,7 +2182,7 @@ export default function AssetForm({
                             </div>
                             <h1 className="text-3xl font-bold leading-tight text-slate-900">{form.name || 'Untitled Offering'}</h1>
                             <div className="mt-3 flex flex-wrap gap-2">
-                                {form.schedule ? (
+                                {schedulePreviewText ? (
                                     <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-bold text-brand-700">
                                         <Clock size={15} />
                                         Scheduled
@@ -2300,10 +2207,10 @@ export default function AssetForm({
                     </div>
 
                     <div className="mt-8 grid grid-cols-1 gap-6 border-t border-slate-200 pt-6 sm:grid-cols-2">
-                        {form.schedule ? renderPlacePreviewInfoRow({
+                        {schedulePreviewText ? renderPlacePreviewInfoRow({
                             icon: <Clock size={22} />,
                             label: 'Schedule',
-                            children: form.schedule,
+                            children: <span className="whitespace-pre-line">{schedulePreviewText}</span>,
                         }) : null}
                         {form.contactPhone ? renderPlacePreviewInfoRow({
                             icon: <Phone size={22} />,

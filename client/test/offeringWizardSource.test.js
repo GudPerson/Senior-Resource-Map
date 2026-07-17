@@ -176,14 +176,15 @@ test('Offering wizard routes hidden eligibility age validation back to Visibilit
     assert.match(allStepsValidationSource, /setActiveOfferingStep\(stepIndex\)/);
 });
 
-test('Offering wizard validates the reviewed Care Calendar schedule before save', () => {
+test('Offering wizard validates one canonical multi-session schedule before save', () => {
     const offeringValidationSource = sourceBetween(assetFormSource, 'function getOfferingStepValidationError(stepIndex = activeOfferingStep)', 'function validateOfferingStep');
     const scheduleStepSource = sourceBetween(assetFormSource, 'function renderOfferingScheduleStep()', 'function renderOfferingHostCoverageStep()');
 
-    assert.match(offeringValidationSource, /if \(stepIndex === 1 && form\.calendarSchedule\?\.enabled\)/);
-    assert.match(offeringValidationSource, /Care Calendar start date and time/);
-    assert.match(offeringValidationSource, /Select at least one weekday/);
-    assert.match(scheduleStepSource, /Reviewed Care Calendar schedule/);
+    assert.match(offeringValidationSource, /getSchedulePlanValidationError\(form\.schedulePlan\)/);
+    assert.match(scheduleStepSource, /OfferingScheduleEntriesEditor/);
+    assert.match(scheduleStepSource, /Public schedule preview/);
+    assert.match(scheduleStepSource, /cannot contradict one another/);
+    assert.doesNotMatch(scheduleStepSource, /setField\('schedule'/);
     assert.match(scheduleStepSource, /Asia\/Singapore/);
 });
 

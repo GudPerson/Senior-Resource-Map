@@ -361,6 +361,9 @@ export const softAssets = pgTable('soft_assets', {
   calendarStatus: varchar('calendar_status', { length: 20 }).notNull().default('active'),
   calendarRevision: integer('calendar_revision').notNull().default(0),
   calendarUpdatedAt: timestamp('calendar_updated_at', { withTimezone: true }),
+  calendarEntries: jsonb('calendar_entries').notNull().default([]),
+  scheduleNotes: text('schedule_notes'),
+  calendarScheduleSource: varchar('calendar_schedule_source', { length: 40 }).notNull().default('legacy'),
   logoUrl: text('logo_url'),
   bannerUrl: text('banner_url'),
   galleryUrls: jsonb('gallery_urls').default('[]'),
@@ -699,6 +702,7 @@ export const userCalendarItems = pgTable('user_calendar_items', {
   endsAt: timestamp('ends_at', { withTimezone: true }),
   allDay: boolean('all_day').notNull().default(false),
   status: varchar('status', { length: 40 }).notNull().default('planned'),
+  sourceScheduleEntryKey: varchar('source_schedule_entry_key', { length: 80 }),
   sourceStartsAt: timestamp('source_starts_at', { withTimezone: true }),
   sourceRevision: integer('source_revision'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -708,8 +712,26 @@ export const userCalendarItems = pgTable('user_calendar_items', {
   sourceIdx: index('user_calendar_items_source_idx').on(table.softAssetId, table.sourceStartsAt),
   noteIdx: index('user_calendar_items_note_idx').on(table.mapAssetNoteId),
   plannedOccurrenceUnique: uniqueIndex('user_calendar_items_planned_occurrence_unique')
-    .on(table.userId, table.softAssetId, table.sourceStartsAt)
+    .on(table.userId, table.softAssetId, sql`coalesce(${table.sourceScheduleEntryKey}, 'legacy-primary')`, table.sourceStartsAt)
     .where(sql`${table.itemType} = 'planned_session' AND ${table.softAssetId} IS NOT NULL AND ${table.sourceStartsAt} IS NOT NULL`),
+}));
+
+export const offeringScheduleVersions = pgTable('offering_schedule_versions', {
+  id: serial('id').primaryKey(),
+  softAssetId: integer('soft_asset_id').references(() => softAssets.id, { onDelete: 'cascade' }).notNull(),
+  revision: integer('revision').notNull(),
+  entries: jsonb('entries').notNull().default([]),
+  scheduleNotes: text('schedule_notes'),
+  publicSummary: text('public_summary'),
+  source: varchar('source', { length: 40 }).notNull().default('manual'),
+  publishedByUserId: integer('published_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  publishedAt: timestamp('published_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  assetRevisionUnique: uniqueIndex('offering_schedule_versions_asset_revision_unique')
+    .on(table.softAssetId, table.revision),
+  assetPublishedIdx: index('offering_schedule_versions_asset_published_idx')
+    .on(table.softAssetId, table.publishedAt),
 }));
 
 export const userCalendarScheduleStates = pgTable('user_calendar_schedule_states', {

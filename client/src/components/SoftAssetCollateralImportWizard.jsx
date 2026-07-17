@@ -17,7 +17,13 @@ import {
 } from 'lucide-react';
 
 import { api } from '../lib/api.js';
+import {
+    getSchedulePlanValidationError,
+    scheduleEntryFromApi,
+    scheduleEntryToApi,
+} from '../lib/offeringSchedule.js';
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
+import OfferingScheduleEntriesEditor from './OfferingScheduleEntriesEditor.jsx';
 
 function normalizeText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
@@ -39,6 +45,9 @@ function countScheduleSessions(value, fallbackSessions = []) {
 function buildDraftRowState(row, index) {
     const scheduleSessions = Array.isArray(row.scheduleSessions) ? row.scheduleSessions.filter(Boolean) : [];
     const schedule = row.schedule || scheduleSessions.join('\n');
+    const scheduleEntries = Array.isArray(row.scheduleEntries)
+        ? row.scheduleEntries.map(scheduleEntryFromApi)
+        : [];
     const isHidden = Boolean(row.isHidden);
 
     return {
@@ -54,7 +63,9 @@ function buildDraftRowState(row, index) {
         description: row.description || '',
         schedule,
         scheduleSessions,
-        sessionCount: Number(row.sessionCount) || countScheduleSessions(schedule, scheduleSessions),
+        scheduleEntries,
+        unparsedScheduleLines: Array.isArray(row.unparsedScheduleLines) ? row.unparsedScheduleLines : [],
+        sessionCount: scheduleEntries.length || Number(row.sessionCount) || countScheduleSessions(schedule, scheduleSessions),
         groupedFromCount: Number(row.groupedFromCount) || 1,
         availabilityStatus: row.availabilityStatus || 'unknown',
         isHidden,
@@ -281,8 +292,19 @@ export default function SoftAssetCollateralImportWizard({
     }
 
     async function handleCommit() {
-        setCommitLoading(true);
         setError('');
+        const invalidRow = draftRows.find((row) => {
+            if (row.action === 'skip' || row.scheduleEntries.length === 0) return false;
+            return Boolean(getSchedulePlanValidationError({ enabled: true, entries: row.scheduleEntries }));
+        });
+        if (invalidRow) {
+            const message = getSchedulePlanValidationError({ enabled: true, entries: invalidRow.scheduleEntries });
+            setError(`${invalidRow.name || 'Offering'}: ${message}`);
+            updateRow(invalidRow.id, { expanded: true });
+            return;
+        }
+
+        setCommitLoading(true);
         try {
             const result = await api.commitSoftAssetCollateralImport({
                 hostHardAssetId: hostAsset.id,
@@ -295,8 +317,12 @@ export default function SoftAssetCollateralImportWizard({
                     name: row.name,
                     subCategory: row.subCategory,
                     description: row.description,
-                    schedule: row.schedule,
                     scheduleSessions: row.scheduleSessions,
+                    schedulePlan: row.scheduleEntries.length > 0 ? {
+                        enabled: true,
+                        notes: '',
+                        entries: row.scheduleEntries.map(scheduleEntryToApi),
+                    } : undefined,
                     availabilityStatus: row.availabilityStatus,
                     isHidden: row.isHidden,
                     visibilityAction: row.isHidden ? 'hide' : 'preserve',
@@ -344,6 +370,10 @@ export default function SoftAssetCollateralImportWizard({
                             Back to upload
                         </button>
                     </div>
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    <strong>Schedule replacement rule:</strong> when you save an update with reviewed session rows, those rows replace the Offering’s upcoming published sessions. Past schedule history and users’ personal plans are preserved and marked for review when affected. An import with no valid session rows will not clear an existing schedule.
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -501,21 +531,49 @@ export default function SoftAssetCollateralImportWizard({
                                                     formatCreateLabel={(value) => `Create "${value}"`}
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                                    Exact sessions
-                                                </label>
-                                                <textarea
-                                                    rows={Math.min(Math.max(row.sessionCount || 1, 2), 6)}
-                                                    value={row.schedule}
-                                                    onChange={(event) => updateRow(row.id, {
-                                                        schedule: event.target.value,
-                                                        scheduleSessions: splitScheduleLines(event.target.value),
-                                                        sessionCount: countScheduleSessions(event.target.value),
+                                            <div className="lg:col-span-2">
+                                                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reviewed sessions</p>
+                                                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                                                            Confirm or amend every imported session before saving. For an existing Offering, these rows replace its upcoming published schedule after confirmation.
+                                                        </p>
+                                                    </div>
+                                                    <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                        {row.scheduleEntries.length} structured {row.scheduleEntries.length === 1 ? 'row' : 'rows'}
+                                                    </span>
+                                                </div>
+
+                                                {row.unparsedScheduleLines.length ? (
+                                                    <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                                        <div className="flex items-start gap-2">
+                                                            <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+                                                            <div>
+                                                                <p className="font-semibold">Some schedule text needs manual review and was not published automatically.</p>
+                                                                <ul className="mt-2 list-disc space-y-1 pl-5">
+                                                                    {row.unparsedScheduleLines.map((line) => <li key={line}>{line}</li>)}
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+
+                                                <OfferingScheduleEntriesEditor
+                                                    entries={row.scheduleEntries}
+                                                    onChange={(scheduleEntries) => updateRow(row.id, {
+                                                        scheduleEntries,
+                                                        sessionCount: scheduleEntries.length,
                                                     })}
-                                                    className="input-field"
-                                                    placeholder={'4 May 2026 (Monday), 9am-10am\n11 May 2026 (Monday), 9am-10am'}
+                                                    disabled={commitLoading}
+                                                    compact
                                                 />
+
+                                                {row.schedule ? (
+                                                    <details className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                                        <summary className="cursor-pointer text-sm font-semibold text-slate-700">View extracted source schedule text</summary>
+                                                        <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-600">{row.schedule}</p>
+                                                    </details>
+                                                ) : null}
                                             </div>
 
                                             <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">

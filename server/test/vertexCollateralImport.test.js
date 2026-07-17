@@ -54,6 +54,9 @@ test('consolidateCollateralDraftRows groups repeated programme rows into one exa
         '18 May 2026 (Monday), 9am-10am',
     ].join('\n'));
     assert.deepEqual(draftRows[0].newTags, ['exercise', 'fitness']);
+    assert.equal(draftRows[0].scheduleEntries.length, 3);
+    assert.deepEqual(draftRows[0].unparsedScheduleLines, []);
+    assert.equal(draftRows[0].scheduleEntries[0].startsAt, '2026-05-04T01:00:00.000Z');
     assert.ok(warnings.some((warning) => warning.includes('Grouped 3 "HPB Exercise" entries')));
 });
 
@@ -87,6 +90,18 @@ test('consolidateCollateralDraftRows keeps same-name sessions with different tim
         '26 May 2026 (Tuesday), 2pm-5pm',
     ]);
     assert.equal(draftRows[0].sessionCount, 4);
+    assert.equal(draftRows[0].scheduleEntries.length, 4);
+});
+
+test('consolidateCollateralDraftRows leaves unclear schedule text for human review', () => {
+    const { draftRows } = consolidateCollateralDraftRows([{
+        bucket: 'Programmes',
+        name: 'Flexible Drop-in',
+        schedule: 'Call the centre for the next available session',
+    }]);
+
+    assert.deepEqual(draftRows[0].scheduleEntries, []);
+    assert.deepEqual(draftRows[0].unparsedScheduleLines, ['Call the centre for the next available session']);
 });
 
 test('consolidateCollateralDraftRows preserves WhatsApp contact from grouped collateral rows', () => {
