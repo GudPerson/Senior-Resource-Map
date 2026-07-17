@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    assertOfferingScheduleMutationIntent,
     buildOfferingScheduleMutation,
     buildOfferingScheduleSummary,
     buildOfferingScheduleVersionRows,
@@ -41,6 +42,21 @@ test('Offering schedule accepts multiple individual and recurring rows', () => {
     assert.match(buildOfferingScheduleSummary(plan), /17 Jul 2026/);
     assert.match(buildOfferingScheduleSummary(plan), /Every Tuesday, Thursday/);
     assert.match(buildOfferingScheduleSummary(plan), /Registration required/);
+});
+
+test('weekly schedules must start on one of their selected Singapore weekdays', () => {
+    assert.throws(() => normalizeOfferingSchedulePlanInput({
+        enabled: true,
+        entries: [{
+            key: 'mismatch',
+            type: 'weekly',
+            startsAt: '2026-07-18T10:00:00+08:00',
+            endsAt: '2026-07-18T11:30:00+08:00',
+            weekdays: [1, 3],
+            repeatUntil: '2026-09-30T23:59:59+08:00',
+            status: 'active',
+        }],
+    }), /must start on one of its selected repeat weekdays/);
 });
 
 test('Offering schedule expands all active rows without changing legacy visibility fields', () => {
@@ -234,4 +250,70 @@ test('disabling a schedule clears the public summary even when history notes are
 
     assert.equal(mutation.patch.schedule, null);
     assert.equal(mutation.patch.calendarEnabled, false);
+    assert.throws(
+        () => assertOfferingScheduleMutationIntent(mutation, {
+            action: 'publish',
+            expectedRevision: 1,
+        }),
+        /confirmed Unpublish sessions action/,
+    );
+    assert.equal(assertOfferingScheduleMutationIntent(mutation, {
+        action: 'unpublish',
+        expectedRevision: 1,
+    }), 1);
+    assert.throws(
+        () => assertOfferingScheduleMutationIntent(mutation, {
+            action: 'unpublish',
+            expectedRevision: 0,
+        }),
+        /changed after you opened it/,
+    );
+});
+
+test('published schedule persists through reopen serialization and Care Calendar expansion', () => {
+    const existing = {
+        id: 168,
+        name: 'Line Dance',
+        schedule: null,
+        scheduleNotes: null,
+        calendarEntries: [],
+        calendarScheduleSource: 'manual',
+        calendarEnabled: false,
+        calendarRevision: 2,
+    };
+    const mutation = buildOfferingScheduleMutation(existing, {
+        enabled: true,
+        notes: '',
+        entries: [{
+            key: 'line-dance-weekly',
+            type: 'weekly',
+            startsAt: '2026-07-20T10:00:00+08:00',
+            endsAt: '2026-07-20T11:30:00+08:00',
+            weekdays: [1, 3],
+            repeatUntil: '2026-09-30T23:59:59.999+08:00',
+            status: 'active',
+        }],
+    }, { source: 'manual' });
+
+    assert.equal(assertOfferingScheduleMutationIntent(mutation, {
+        action: 'publish',
+        expectedRevision: 2,
+    }), 2);
+
+    const persisted = { ...existing, ...mutation.patch };
+    const reopened = serializeOfferingSchedulePlan(persisted);
+    const occurrences = expandOfferingSchedule(
+        persisted,
+        '2026-07-19T16:00:00.000Z',
+        '2026-07-23T16:00:00.000Z',
+    );
+
+    assert.equal(reopened.enabled, true);
+    assert.equal(reopened.entries.length, 1);
+    assert.equal(reopened.entries[0].startsAt, '2026-07-20T02:00:00.000Z');
+    assert.deepEqual(occurrences.map((row) => row.startsAt), [
+        '2026-07-20T02:00:00.000Z',
+        '2026-07-22T02:00:00.000Z',
+    ]);
+    assert.deepEqual(buildOfferingScheduleVersionRows(existing.id, mutation, 7).map((row) => row.revision), [2, 3]);
 });

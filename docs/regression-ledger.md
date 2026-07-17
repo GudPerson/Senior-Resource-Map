@@ -1663,6 +1663,50 @@ Active next recovery family:
   schedule, favorite, personal Calendar item, secret, or map asset was changed
   by release verification.
 
+### 2026-07-17 Offering schedule publish guard and persistence recovery
+
+- Current behavior: ordinary Offering saves cannot silently remove or overwrite
+  a reviewed schedule. Existing editors carry the loaded schedule revision into
+  each changed schedule save; the Worker rejects stale revisions and applies a
+  revision compare-and-swap at the database write. Removing published sessions
+  requires the shared `Unpublish sessions?` confirmation and an explicit
+  unpublish action. Deprecated one-row schedule writes cannot overwrite a
+  reviewed multi-session plan. Weekly rows must start on a selected repeat
+  weekday, the last repeat date is inclusive in Singapore time, and the editor
+  previews the next five generated Care Calendar sessions before save. The
+  Publish sessions toggle thumb is positioned within its own track at both on
+  and off states.
+- Known-good reference: branch `codex/offering-schedule-publish-guard`, based on
+  deployed multi-session baseline `fae90cdca`; the 2026-07-17 Line Dance report
+  showed revision 1 published successfully and revision 2 silently replaced it
+  with an empty plan three minutes later. The recovery preserves immutable
+  version history and corrects the weekly series start to its first selected
+  weekday before republishing.
+- Reproduction steps: open an Offering with published sessions in two editor
+  tabs. Change and save the first tab, then try to change the schedule from the
+  stale tab; the stale save must be rejected without overwriting the new plan.
+  Toggle Publish sessions off, cancel the warning, and confirm the sessions
+  remain enabled; repeat and explicitly unpublish to test the destructive path.
+  Create a Monday/Wednesday weekly row with a Saturday series start and confirm
+  save is blocked; correct the start to Monday and confirm the generated preview
+  begins Monday, includes Wednesday, and includes sessions on the selected last
+  repeat date. Save, reopen, and load Care Calendar for an account that saved the
+  Offering.
+- Acceptance criteria: no normal or stale Offering save can clear a published
+  plan without explicit confirmation and a matching revision; concurrent
+  schedule writes cannot silently use last-write-wins; canonical rows still
+  generate both public copy and Calendar occurrences; valid publish, explicit
+  unpublish, imports, immutable versions, personal Needs review state, saved
+  resources, visibility, eligibility, My Maps, Shared Maps, booking,
+  availability, and external notification behavior remain unchanged.
+- Verification result before deploy: focused schedule, persistence-contract,
+  controller-wiring, Offering-wizard, and confirmation coverage passed 26/26;
+  full server coverage passed 437/437; full client/source coverage passed
+  427/427; the exact production-configured client build passed with only the
+  existing large-chunk advisory; and `git diff --check` passed. The persistence
+  contract publishes a revision, reopens it through the production serializer,
+  and expands the expected Monday and Wednesday Care Calendar occurrences.
+
 ## Recovery workflow
 
 For each regression family:

@@ -24,9 +24,12 @@ import OfferingScheduleEntriesEditor from './OfferingScheduleEntriesEditor.jsx';
 import PrivateResourceContentEditor from './PrivateResourceContentEditor.jsx';
 import ResourceWizardShell from './ResourceWizardShell.jsx';
 import TranslationReviewPanel from './TranslationReviewPanel.jsx';
+import { useConfirmDialog } from './ConfirmDialog.jsx';
 import {
     buildSchedulePlanForm,
+    buildSchedulePlanOccurrencePreview,
     buildSchedulePlanPreviewText,
+    buildSchedulePlanUpdateMeta,
     createEmptyScheduleEntry,
     getSchedulePlanValidationError,
     schedulePlanToApi,
@@ -345,6 +348,7 @@ export default function AssetForm({
 }) {
     const isHard = type === 'hard';
     const currentRole = normalizeRole(currentUser?.role);
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [form, setForm] = useState(() => buildInitialForm(type, initialData, currentUser));
     const [saving, setSaving] = useState(false);
     const [enriching, setEnriching] = useState(false);
@@ -577,6 +581,9 @@ export default function AssetForm({
                 payload.availabilityUnit = normalizeAvailabilityUnit(form.availabilityUnit);
                 payload.eligibilityRules = normalizeEligibilityRules(form.eligibilityRules);
                 payload.schedulePlan = schedulePlanToApi(form.schedulePlan);
+                if (initialData?.id) {
+                    Object.assign(payload, buildSchedulePlanUpdateMeta(form.schedulePlan));
+                }
                 delete payload.calendarSchedule;
                 delete payload.schedule;
                 payload.locationIds = Array.isArray(form.locationIds) ? form.locationIds : [];
@@ -1757,12 +1764,38 @@ export default function AssetForm({
     function renderOfferingScheduleStep() {
         const schedulePlan = form.schedulePlan || { enabled: false, notes: '', entries: [] };
         const schedulePreviewText = buildSchedulePlanPreviewText(schedulePlan) || schedulePlan.legacyText || '';
+        const occurrencePreview = buildSchedulePlanOccurrencePreview(schedulePlan);
         const setSchedulePlanField = (key, value) => {
             setForm((current) => ({
                 ...current,
                 schedulePlan: {
                     ...current.schedulePlan,
                     [key]: value,
+                },
+            }));
+        };
+        const requestSchedulePublishChange = async (enabled) => {
+            if (!enabled && schedulePlan.initiallyPublished) {
+                const confirmed = await requestConfirmation({
+                    title: 'Unpublish sessions?',
+                    message: 'This removes upcoming sessions from the Offering and Care Calendar.',
+                    details: [
+                        'People who saved this Offering will see that the reviewed schedule was removed and will need to review their personal plan.',
+                        'The previous published version remains in schedule history.',
+                    ],
+                    confirmLabel: 'Unpublish sessions',
+                    tone: 'warning',
+                });
+                if (!confirmed) return;
+            }
+            setForm((current) => ({
+                ...current,
+                schedulePlan: {
+                    ...current.schedulePlan,
+                    enabled,
+                    entries: enabled && (current.schedulePlan?.entries || []).length === 0
+                        ? [createEmptyScheduleEntry()]
+                        : (current.schedulePlan?.entries || []),
                 },
             }));
         };
@@ -1780,27 +1813,18 @@ export default function AssetForm({
                                 Add each individual session or recurring weekly series. These reviewed rows are the single schedule shown on the Offering and in Care Calendar.
                             </p>
                         </div>
-                        <label className="relative inline-flex cursor-pointer items-center gap-3">
+                        <label className="inline-flex cursor-pointer items-center gap-3 self-start">
                             <span className="text-sm font-bold text-slate-700">Publish sessions</span>
                             <input
                                 type="checkbox"
                                 checked={Boolean(schedulePlan.enabled)}
-                                onChange={(event) => {
-                                    const enabled = event.target.checked;
-                                    setForm((current) => ({
-                                        ...current,
-                                        schedulePlan: {
-                                            ...current.schedulePlan,
-                                            enabled,
-                                            entries: enabled && (current.schedulePlan?.entries || []).length === 0
-                                                ? [createEmptyScheduleEntry()]
-                                                : (current.schedulePlan?.entries || []),
-                                        },
-                                    }));
-                                }}
+                                onChange={(event) => requestSchedulePublishChange(event.target.checked)}
+                                aria-label="Publish sessions"
                                 className="peer sr-only"
                             />
-                            <div className="h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-teal-600 peer-checked:after:translate-x-full after:absolute after:right-[22px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-['']" />
+                            <span className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500 peer-focus-visible:ring-offset-2 ${schedulePlan.enabled ? 'bg-teal-600' : 'bg-slate-300'}`}>
+                                <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full border border-slate-300 bg-white shadow-sm transition-transform ${schedulePlan.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </span>
                         </label>
                     </div>
 
@@ -1844,6 +1868,22 @@ export default function AssetForm({
                     <div className="mt-4 whitespace-pre-line rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
                         {schedulePreviewText || 'No sessions are published yet.'}
                     </div>
+                    {occurrencePreview.length > 0 ? (
+                        <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-3">
+                            <p className="text-sm font-bold text-slate-800">Next generated sessions</p>
+                            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                                Check these dates before saving. They are the sessions that will flow into Care Calendar.
+                            </p>
+                            <ol className="mt-3 space-y-1.5 text-sm text-slate-700">
+                                {occurrencePreview.map((occurrence, index) => (
+                                    <li key={`${occurrence}-${index}`} className="flex gap-2">
+                                        <span className="font-bold text-teal-700">{index + 1}.</span>
+                                        <span>{occurrence}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    ) : null}
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -2258,42 +2298,48 @@ export default function AssetForm({
 
     if (isHard) {
         return (
-            <ResourceWizardShell
-                steps={PLACE_STEPS}
-                activeStep={activePlaceStep}
-                setActiveStep={setActivePlaceStep}
-                validateStep={validatePlaceStep}
-                error={error}
-                renderStep={renderPlaceStep}
-                onCancel={() => onCancel(form)}
-                onSave={handlePlaceWizardSave}
-                saving={saving}
-                saveLabel="Save Place"
-                savingLabel="Saving..."
-                previewTitle="Place detail preview"
-                previewDescription="Unsaved edits shown as a public resource detail page."
-                renderPreview={renderPlaceDetailPreview}
-            />
+            <>
+                <ResourceWizardShell
+                    steps={PLACE_STEPS}
+                    activeStep={activePlaceStep}
+                    setActiveStep={setActivePlaceStep}
+                    validateStep={validatePlaceStep}
+                    error={error}
+                    renderStep={renderPlaceStep}
+                    onCancel={() => onCancel(form)}
+                    onSave={handlePlaceWizardSave}
+                    saving={saving}
+                    saveLabel="Save Place"
+                    savingLabel="Saving..."
+                    previewTitle="Place detail preview"
+                    previewDescription="Unsaved edits shown as a public resource detail page."
+                    renderPreview={renderPlaceDetailPreview}
+                />
+                {confirmDialog}
+            </>
         );
     }
 
     return (
-        <ResourceWizardShell
-            steps={OFFERING_STEPS}
-            activeStep={activeOfferingStep}
-            setActiveStep={setActiveOfferingStep}
-            validateStep={validateOfferingStep}
-            error={error}
-            renderStep={renderOfferingStep}
-            onCancel={() => onCancel(form)}
-            onSave={handleOfferingWizardSave}
-            saving={saving}
-            saveLabel="Save Offering"
-            savingLabel="Saving..."
-            previewTitle="Offering detail preview"
-            previewDescription="Unsaved edits shown as a public offering detail page."
-            renderPreview={renderOfferingDetailPreview}
-        />
+        <>
+            <ResourceWizardShell
+                steps={OFFERING_STEPS}
+                activeStep={activeOfferingStep}
+                setActiveStep={setActiveOfferingStep}
+                validateStep={validateOfferingStep}
+                error={error}
+                renderStep={renderOfferingStep}
+                onCancel={() => onCancel(form)}
+                onSave={handleOfferingWizardSave}
+                saving={saving}
+                saveLabel="Save Offering"
+                savingLabel="Saving..."
+                previewTitle="Offering detail preview"
+                previewDescription="Unsaved edits shown as a public offering detail page."
+                renderPreview={renderOfferingDetailPreview}
+            />
+            {confirmDialog}
+        </>
     );
 
 }

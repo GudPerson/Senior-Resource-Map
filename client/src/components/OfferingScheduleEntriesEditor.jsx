@@ -101,7 +101,7 @@ export default function OfferingScheduleEntriesEditor({
                         </label>
                         <label>
                             <span className="mb-1 block text-sm font-semibold text-slate-700">
-                                {entry.type === 'weekly' ? 'First session starts' : 'Session starts'}
+                                {entry.type === 'weekly' ? 'Series starts' : 'Session starts'}
                             </span>
                             <input
                                 type="datetime-local"
@@ -150,11 +150,14 @@ export default function OfferingScheduleEntriesEditor({
                                             );
                                         })}
                                     </div>
+                                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                                        The series start date must match one of these weekdays.
+                                    </p>
                                 </fieldset>
                                 <label>
-                                    <span className="mb-1 block text-sm font-semibold text-slate-700">Repeat until (optional)</span>
+                                    <span className="mb-1 block text-sm font-semibold text-slate-700">Last repeat date (optional)</span>
                                     <input
-                                        type="datetime-local"
+                                        type="date"
                                         value={entry.repeatUntil || ''}
                                         onChange={(event) => updateEntry(index, { repeatUntil: event.target.value })}
                                         disabled={disabled}

@@ -68,6 +68,7 @@ import {
     serializeCalendarSchedule,
 } from '../utils/calendarSchedule.js';
 import {
+    assertOfferingScheduleMutationIntent,
     buildOfferingScheduleMutation,
     buildOfferingScheduleVersionRows,
     normalizeOfferingSchedulePlanInput,
@@ -2054,6 +2055,23 @@ export const updateSoftAsset = async (c) => {
         const scheduleMutation = body.schedulePlan !== undefined
             ? buildOfferingScheduleMutation(existing, body.schedulePlan, { source: 'manual' })
             : null;
+        const expectedScheduleRevision = scheduleMutation?.changed
+            ? assertOfferingScheduleMutationIntent(scheduleMutation, {
+                action: body.schedulePlanAction,
+                expectedRevision: body.expectedScheduleRevision,
+            })
+            : null;
+
+        if (
+            body.schedulePlan === undefined
+            && body.calendarSchedule !== undefined
+            && existing.calendarScheduleSource
+            && existing.calendarScheduleSource !== 'legacy'
+        ) {
+            const error = new Error('This Offering uses reviewed session rows. Refresh it before changing the schedule.');
+            error.status = 409;
+            throw error;
+        }
 
         const updatePatch = {
             partnerId: owner?.id || null,
@@ -2093,20 +2111,35 @@ export const updateSoftAsset = async (c) => {
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
             updatedAt: new Date(),
         };
-        const updateQuery = db.update(softAssets).set(updatePatch).where(eq(softAssets.id, id));
+        const updateCondition = scheduleMutation?.changed
+            ? and(
+                eq(softAssets.id, id),
+                eq(softAssets.calendarRevision, expectedScheduleRevision),
+            )
+            : eq(softAssets.id, id);
+        const updateQuery = db.update(softAssets)
+            .set(updatePatch)
+            .where(updateCondition)
+            .returning({ id: softAssets.id });
         const versionRows = scheduleMutation?.changed
             ? buildOfferingScheduleVersionRows(id, scheduleMutation, user.id)
             : [];
+        let updatedRows = [];
         if (versionRows.length && typeof db.batch === 'function') {
-            await db.batch([
+            [updatedRows] = await db.batch([
                 updateQuery,
                 db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
             ]);
         } else {
-            await updateQuery;
+            updatedRows = await updateQuery;
             if (versionRows.length) {
                 await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
             }
+        }
+        if (scheduleMutation?.changed && (!Array.isArray(updatedRows) || updatedRows.length === 0)) {
+            const error = new Error('This schedule changed while you were saving. Refresh the Offering and review the latest sessions.');
+            error.status = 409;
+            throw error;
         }
 
         if (body.locationIds !== undefined || body.locationId !== undefined) {

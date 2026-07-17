@@ -7,8 +7,10 @@ import {
 
 export const OFFERING_SCHEDULE_MAX_ENTRIES = 250;
 export const OFFERING_SCHEDULE_SOURCES = ['legacy', 'manual', 'collateral_import', 'workbook'];
+export const OFFERING_SCHEDULE_ACTIONS = ['publish', 'unpublish', 'update'];
 
 const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const SINGAPORE_OFFSET_MS = 8 * 60 * 60 * 1000;
 const MONTH_INDEX = new Map([
     ['jan', 0], ['january', 0],
     ['feb', 1], ['february', 1],
@@ -67,7 +69,12 @@ function comparablePlan(plan) {
     };
 }
 
-export function normalizeOfferingSchedulePlanInput(value = {}) {
+function getSingaporeWeekday(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    return new Date(date.getTime() + SINGAPORE_OFFSET_MS).getUTCDay();
+}
+
+export function normalizeOfferingSchedulePlanInput(value = {}, options = {}) {
     const rawEntries = Array.isArray(value?.entries) ? value.entries : [];
     const enabled = value?.enabled === undefined ? rawEntries.length > 0 : Boolean(value.enabled);
     const notes = normalizeText(value?.notes || '', 3000);
@@ -112,6 +119,13 @@ export function normalizeOfferingSchedulePlanInput(value = {}) {
             status: normalized.status,
             note: normalizeText(entry?.note || '', 1000),
         };
+        if (
+            options.validateStartWeekday !== false
+            && result.type === 'weekly'
+            && !result.weekdays.includes(getSingaporeWeekday(normalized.startsAt))
+        ) {
+            throw scheduleError(`Schedule row ${index + 1} must start on one of its selected repeat weekdays.`);
+        }
         const signature = JSON.stringify({
             type: result.type,
             startsAt: result.startsAt,
@@ -156,7 +170,7 @@ function legacyPlanFromAsset(asset = {}) {
             timezone: asset.calendarTimezone || CALENDAR_TIMEZONE,
             status: asset.calendarStatus || 'active',
         }],
-    });
+    }, { validateStartWeekday: false });
 }
 
 export function serializeOfferingSchedulePlan(asset = {}) {
@@ -166,7 +180,7 @@ export function serializeOfferingSchedulePlan(asset = {}) {
             enabled: entries.length > 0,
             notes: asset.scheduleNotes || '',
             entries,
-        });
+        }, { validateStartWeekday: false });
     }
     return legacyPlanFromAsset(asset);
 }
@@ -203,7 +217,7 @@ function formatEntrySummary(entry) {
 }
 
 export function buildOfferingScheduleSummary(planValue = {}) {
-    const plan = normalizeOfferingSchedulePlanInput(planValue);
+    const plan = normalizeOfferingSchedulePlanInput(planValue, { validateStartWeekday: false });
     if (!plan.enabled) return null;
     const lines = plan.entries.map(formatEntrySummary);
     if (plan.notes) lines.push(plan.notes);
@@ -240,6 +254,7 @@ export function buildOfferingScheduleMutation(existing = {}, value = {}, options
             current,
             next,
             source: existing.calendarScheduleSource || source,
+            previousRevision: currentRevision,
             revision: currentRevision,
             patch: {},
             snapshots: currentRevision > 0 ? [{
@@ -270,6 +285,7 @@ export function buildOfferingScheduleMutation(existing = {}, value = {}, options
         current,
         next,
         source,
+        previousRevision: currentRevision,
         revision,
         publicSummary,
         snapshots,
@@ -281,6 +297,40 @@ export function buildOfferingScheduleMutation(existing = {}, value = {}, options
             ...legacyFieldsForPlan(next, revision, updatedAt),
         },
     };
+}
+
+function scheduleConflict(message) {
+    const error = new Error(message);
+    error.status = 409;
+    return error;
+}
+
+export function assertOfferingScheduleMutationIntent(mutation, options = {}) {
+    if (!mutation?.changed) return mutation?.previousRevision ?? mutation?.revision ?? 0;
+
+    const expectedRevision = Number(options.expectedRevision);
+    if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+        throw scheduleConflict('Refresh this Offering before changing its published sessions.');
+    }
+    if (expectedRevision !== mutation.previousRevision) {
+        throw scheduleConflict('This schedule changed after you opened it. Refresh the Offering and review the latest sessions before saving.');
+    }
+
+    const action = String(options.action || '').trim().toLowerCase();
+    if (!OFFERING_SCHEDULE_ACTIONS.includes(action)) {
+        throw scheduleConflict('Choose an explicit publish or unpublish action before changing this schedule.');
+    }
+    if (mutation.current.enabled && !mutation.next.enabled && action !== 'unpublish') {
+        throw scheduleConflict('Published sessions can only be removed with the confirmed Unpublish sessions action.');
+    }
+    if (mutation.next.enabled && action !== 'publish') {
+        throw scheduleConflict('Publishing session changes requires the Publish sessions action.');
+    }
+    if (!mutation.current.enabled && !mutation.next.enabled && action !== 'update') {
+        throw scheduleConflict('This unpublished schedule can only be updated without changing its publish state.');
+    }
+
+    return expectedRevision;
 }
 
 export function buildOfferingScheduleVersionRows(softAssetId, mutation, publishedByUserId = null) {

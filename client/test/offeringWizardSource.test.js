@@ -183,7 +183,13 @@ test('Offering wizard validates one canonical multi-session schedule before save
     assert.match(offeringValidationSource, /getSchedulePlanValidationError\(form\.schedulePlan\)/);
     assert.match(scheduleStepSource, /OfferingScheduleEntriesEditor/);
     assert.match(scheduleStepSource, /Public schedule preview/);
+    assert.match(scheduleStepSource, /Next generated sessions/);
+    assert.match(scheduleStepSource, /buildSchedulePlanOccurrencePreview/);
     assert.match(scheduleStepSource, /cannot contradict one another/);
+    assert.match(scheduleStepSource, /Unpublish sessions\?/);
+    assert.match(scheduleStepSource, /requestConfirmation/);
+    assert.match(scheduleStepSource, /left-0\.5 top-0\.5/);
+    assert.match(scheduleStepSource, /translate-x-5/);
     assert.doesNotMatch(scheduleStepSource, /setField\('schedule'/);
     assert.match(scheduleStepSource, /Asia\/Singapore/);
 });
