@@ -1461,6 +1461,56 @@ Active next recovery family:
   are Worker `e50b14ed-b1dd-4838-b10b-2b32ec9574c1` and Pages
   `https://6b38360d.senior-resource-map.pages.dev`.
 
+### 2026-07-17 Saved Resources bounded-hydration recovery
+
+- Current behavior: My Directory and every consumer of the global Saved
+  Resources state load the user's newest-first mixed Place and Offering list
+  with one favorites query plus at most one live Place batch and one live
+  Offering batch. The response is reconstructed in saved order, keeps the
+  existing response shape and visibility rules, and retains missing, hidden,
+  deleted, or inaccessible rows as unavailable saved snapshots. Audience
+  context failure uses empty fail-closed audience sets, and a failed Place or
+  Offering batch falls back only that resource family instead of failing the
+  whole list. Single-resource save/remove validation remains strict and
+  unchanged. Care Calendar's soft-only saved-Offering read delegates to the
+  same canonical batch hydrator without loading Places.
+- Known-good reference: the 2026-07-17 GudPerson `/my-directory` report and
+  production Worker tail showing `Too many subrequests by single Worker
+  invocation`; the configured database's 43-row mixed saved list; the earlier
+  snapshot guard in `7e05889fd`; and branch
+  `codex/saved-resources-permanent-fix` based on production `main`
+  `4d54f4760`.
+- Reproduction steps: sign in as an account with 43 mixed saved resources and
+  load `/my-directory`; confirm `/api/favorites` returns the full ordered list
+  rather than a 500. Repeat from Discover Saved-only, Create Map, My Maps,
+  resource detail, and Care Calendar because the global Saved Resources
+  provider loads on those routes. Simulate audience-context failure, then
+  Place-batch and Offering-batch failures independently, and confirm safe
+  snapshot rows remain available to the client. Attempt a normal save and
+  remove to confirm write validation is unchanged.
+- Acceptance criteria: list hydration uses one favorites lookup and at most one
+  lookup per non-empty resource family regardless of saved-list size; database
+  result ordering cannot change favorite order; the current flat response
+  fields and available/unavailable semantics remain intact; one family failure
+  cannot blank successful rows from the other; reads fail closed when audience
+  context is unavailable; toggle writes still reject unavailable resources;
+  Calendar remains soft-only; no schema, auth, ownership, eligibility,
+  Discover ranking/filtering, My Map ownership, Shared Map visibility, or
+  notification behavior changes. Production Worker deploys must run from a
+  clean `main` whose `HEAD` matches freshly fetched `origin/main`, preventing a
+  stale feature branch from replacing the canonical release.
+- Verification result before deploy: focused favorites and release-line tests
+  passed 14/14; an 80-item alternating mixed-resource test proved one favorites
+  lookup, one Place batch, one Offering batch, zero per-row lookups, and stable
+  order even when batch results were reversed. Independent batch failures,
+  audience-context failure, snapshot fallback, the 75-item Calendar soft-only
+  budget, and unchanged save/remove/race behavior passed. Full server coverage
+  passed 419/419; full client/source coverage passed 418/418; the
+  production-configured client build and `git diff --check` passed. A read-only
+  query through the real configured database hydrated its 43 saved rows in
+  order with all 43 available. The deploy guard's valid-state unit test passed
+  and a live feature-branch invocation was blocked as designed.
+
 ## Recovery workflow
 
 For each regression family:

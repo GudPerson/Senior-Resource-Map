@@ -185,6 +185,14 @@ Deploy the Worker API only after server/data validation passes:
 npm run deploy:server
 ```
 
+The Worker deploy command enforces the production release line before Wrangler runs. It fetches `origin/main` and requires:
+
+- the current branch to be `main`
+- local `HEAD` to match `origin/main`
+- no uncommitted tracked-file changes
+
+Do not deploy the production Worker from a feature branch. Merge and push the validated change to `main` first; any future branch previews must use a distinct Worker environment and route.
+
 Deploy the Cloudflare Pages client only after the client build and relevant smoke/behavior checks pass:
 
 ```bash

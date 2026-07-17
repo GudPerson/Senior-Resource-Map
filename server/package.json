@@ -6,7 +6,7 @@
     "dev": "npm run dev:node",
     "dev:node": "node --env-file=.env --watch src/index.js",
     "dev:worker": "npx wrangler dev --config wrangler.toml --local",
-    "deploy": "npx wrangler deploy --config wrangler.toml",
+    "deploy": "node ../scripts/validate-worker-release-line.mjs && npx wrangler deploy --config wrangler.toml",
     "bootstrap:boundary-schema": "node --env-file=.env scripts/bootstrap_boundary_schema.js",
     "backfill:soft-buckets": "node scripts/backfill_soft_asset_buckets.js",
     "backfill:external-keys": "node scripts/backfill_external_keys.js",

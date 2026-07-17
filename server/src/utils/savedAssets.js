@@ -149,6 +149,22 @@ function resolveSoftAssetSummaryFromAsset(asset, user, context) {
     };
 }
 
+function resolveHardAssetSummaryFromAsset(asset, user, context) {
+    if (!asset) return null;
+
+    const summary = summarizeHardAsset(asset);
+    const assetVisible = isAssetVisible(asset, user, {
+        ownerPartner: asset.partner,
+        allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
+        allowedAudienceZoneIds: context.allowedAudienceZoneIds,
+    });
+
+    return {
+        summary,
+        status: assetVisible ? 'available' : 'unavailable',
+    };
+}
+
 const hardAssetSummaryQuery = {
     columns: {
         id: true,
@@ -272,20 +288,7 @@ export async function resolveSavedAssetSummary(db, user, resourceType, resourceI
             ...hardAssetSummaryQuery,
             where: eq(hardAssets.id, resourceId),
         });
-
-        if (!asset) return null;
-
-        const summary = summarizeHardAsset(asset);
-        const isVisible = isAssetVisible(asset, user, {
-            ownerPartner: asset.partner,
-            allowedPartnerAudienceIds: context.allowedPartnerAudienceIds,
-            allowedAudienceZoneIds: context.allowedAudienceZoneIds,
-        });
-
-        return {
-            summary,
-            status: isVisible ? 'available' : 'unavailable',
-        };
+        return resolveHardAssetSummaryFromAsset(asset, user, context);
     }
 
     if (resourceType === 'soft') {
@@ -297,6 +300,93 @@ export async function resolveSavedAssetSummary(db, user, resourceType, resourceI
     }
 
     return null;
+}
+
+export async function hydrateSavedAssetRecords(
+    db,
+    user,
+    favorites = [],
+    resolutionContext = null,
+) {
+    const records = favorites.map((favorite) => ({
+        favorite,
+        resourceType: normalizeText(favorite?.resourceType),
+        resourceId: Number.parseInt(String(favorite?.resourceId ?? ''), 10),
+        snapshot: favorite?.snapshot || null,
+    }));
+    if (!records.length) return [];
+
+    const context = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    const hardIds = [...new Set(records
+        .filter(({ resourceType, resourceId }) => resourceType === 'hard' && Number.isInteger(resourceId))
+        .map(({ resourceId }) => resourceId))];
+    const softIds = [...new Set(records
+        .filter(({ resourceType, resourceId }) => resourceType === 'soft' && Number.isInteger(resourceId))
+        .map(({ resourceId }) => resourceId))];
+
+    let hardAssetsById = new Map();
+    if (hardIds.length) {
+        try {
+            const assets = await db.query.hardAssets.findMany({
+                ...hardAssetSummaryQuery,
+                where: inArray(hardAssets.id, hardIds),
+            });
+            hardAssetsById = new Map(assets.map((asset) => [Number(asset.id), asset]));
+        } catch (err) {
+            console.warn('Saved Place batch hydration failed; using saved snapshots.', {
+                error: err?.message || 'Unknown error',
+            });
+        }
+    }
+
+    let softAssetsById = new Map();
+    if (softIds.length) {
+        try {
+            const assets = await db.query.softAssets.findMany({
+                ...softAssetSummaryQuery,
+                where: inArray(softAssets.id, softIds),
+            });
+            softAssetsById = new Map(assets.map((asset) => [Number(asset.id), asset]));
+        } catch (err) {
+            console.warn('Saved Offering batch hydration failed; using saved snapshots.', {
+                error: err?.message || 'Unknown error',
+            });
+        }
+    }
+
+    return records.map(({ favorite, resourceType, resourceId, snapshot }) => {
+        if (!resourceType || !Number.isInteger(resourceId)) {
+            return flattenSnapshot(resourceType || 'asset', resourceId || 0, snapshot, favorite);
+        }
+
+        let resolved = null;
+        try {
+            resolved = resourceType === 'hard'
+                ? resolveHardAssetSummaryFromAsset(hardAssetsById.get(resourceId), user, context)
+                : resourceType === 'soft'
+                    ? resolveSoftAssetSummaryFromAsset(softAssetsById.get(resourceId), user, context)
+                    : null;
+        } catch (err) {
+            console.warn('Saved asset batch result could not be resolved; using saved snapshot.', {
+                resourceType,
+                resourceId,
+                error: err?.message || 'Unknown error',
+            });
+            return flattenSnapshot(resourceType, resourceId, snapshot, favorite);
+        }
+
+        if (!resolved?.summary) {
+            return flattenSnapshot(resourceType, resourceId, snapshot, favorite);
+        }
+
+        return flattenLiveSummary(
+            resourceType,
+            resourceId,
+            favorite,
+            resolved.summary,
+            resolved.status,
+        );
+    });
 }
 
 export async function hydrateSavedSoftAssetRecords(
@@ -313,32 +403,12 @@ export async function hydrateSavedSoftAssetRecords(
         .filter(({ favorite, resourceId }) => (
             favorite?.resourceType === 'soft' && Number.isInteger(resourceId)
         ));
-    if (!records.length) return [];
-
-    const context = resolutionContext || await createSavedAssetResolutionContext(db, user);
-    const assets = await db.query.softAssets.findMany({
-        ...softAssetSummaryQuery,
-        where: inArray(softAssets.id, [...new Set(records.map(({ resourceId }) => resourceId))]),
-    });
-    const assetsById = new Map(assets.map((asset) => [Number(asset.id), asset]));
-
-    return records.map(({ favorite, resourceId }) => {
-        const resolved = resolveSoftAssetSummaryFromAsset(
-            assetsById.get(resourceId),
-            user,
-            context,
-        );
-        if (!resolved?.summary) {
-            return flattenSnapshot('soft', resourceId, favorite.snapshot || null, favorite);
-        }
-        return flattenLiveSummary(
-            'soft',
-            resourceId,
-            favorite,
-            resolved.summary,
-            resolved.status,
-        );
-    });
+    return hydrateSavedAssetRecords(
+        db,
+        user,
+        records.map(({ favorite }) => favorite),
+        resolutionContext,
+    );
 }
 
 export async function hydrateSavedAssetRecord(db, user, favorite, resolutionContext = null) {
@@ -350,7 +420,17 @@ export async function hydrateSavedAssetRecord(db, user, favorite, resolutionCont
         return flattenSnapshot(resourceType || 'asset', resourceId || 0, snapshot, favorite);
     }
 
-    const resolved = await resolveSavedAssetSummary(db, user, resourceType, resourceId, resolutionContext);
+    let resolved = null;
+    try {
+        resolved = await resolveSavedAssetSummary(db, user, resourceType, resourceId, resolutionContext);
+    } catch (err) {
+        console.warn('Saved asset live hydration failed; using saved snapshot fallback.', {
+            resourceType,
+            resourceId,
+            error: err?.message || 'Unknown error',
+        });
+        return flattenSnapshot(resourceType, resourceId, snapshot, favorite);
+    }
     if (!resolved?.summary) {
         return flattenSnapshot(resourceType, resourceId, snapshot, favorite);
     }

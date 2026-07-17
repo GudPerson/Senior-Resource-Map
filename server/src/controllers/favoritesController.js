@@ -7,6 +7,7 @@ import {
     buildSavedAssetSnapshot,
     createSavedAssetResolutionContext,
     hydrateSavedAssetRecord,
+    hydrateSavedAssetRecords,
     hydrateSavedSoftAssetRecords,
     resolveSavedAssetSummary,
 } from '../utils/savedAssets.js';
@@ -42,15 +43,33 @@ function isUniqueConstraintViolation(err) {
     return err?.code === '23505' || message.includes('duplicate key') || message.includes('unique');
 }
 
+function createEmptyResolutionContext() {
+    return {
+        allowedPartnerAudienceIds: new Set(),
+        allowedAudienceZoneIds: new Set(),
+    };
+}
+
+async function resolveListResolutionContext(db, user, resolutionContext) {
+    if (resolutionContext) return resolutionContext;
+
+    try {
+        return await createSavedAssetResolutionContext(db, user);
+    } catch (err) {
+        console.warn('Saved asset audience context failed; using safe fallback.', {
+            error: err?.message || 'Unknown error',
+        });
+        return createEmptyResolutionContext();
+    }
+}
+
 export async function listSavedAssets(db, user, resolutionContext = null) {
     const favorites = await db.query.userFavorites.findMany({
         where: eq(userFavorites.userId, user.id),
         orderBy: [desc(userFavorites.createdAt)],
     });
-    const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
-    return Promise.all(
-        favorites.map((favorite) => hydrateSavedAssetRecord(db, user, favorite, finalResolutionContext))
-    );
+    const finalResolutionContext = await resolveListResolutionContext(db, user, resolutionContext);
+    return hydrateSavedAssetRecords(db, user, favorites, finalResolutionContext);
 }
 
 export async function listSavedSoftAssets(db, user, resolutionContext = null) {
@@ -61,7 +80,8 @@ export async function listSavedSoftAssets(db, user, resolutionContext = null) {
         ),
         orderBy: [desc(userFavorites.createdAt)],
     });
-    return hydrateSavedSoftAssetRecords(db, user, favorites, resolutionContext);
+    const finalResolutionContext = await resolveListResolutionContext(db, user, resolutionContext);
+    return hydrateSavedSoftAssetRecords(db, user, favorites, finalResolutionContext);
 }
 
 export async function toggleSavedAsset(db, user, resourceType, resourceId, resolutionContext = null) {
