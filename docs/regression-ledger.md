@@ -1645,6 +1645,23 @@ Active next recovery family:
   flow by opening the editor, enabling publication, adding a second row, and
   cancelling without saving. No production Offering, schedule, favorite, or
   personal Calendar row was created or changed during validation.
+- Release follow-up: implementation commit `7c411b0f1` was pushed on
+  `codex/offering-session-schedules`, fast-forwarded into `main`, and pushed
+  before deployment. The explicit additive production boundary-schema
+  bootstrap had completed before the guarded Worker release. Cloudflare Worker
+  `senior-resource-map-api` deployed version
+  `00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`; API health returned OK at
+  `2026-07-17T09:54:01.724Z`. The exact production map-enabled client deployed
+  to `https://8a4712f2.senior-resource-map.pages.dev`; the custom domain served
+  `assets/index-CR0N52gf.js`, `assets/index-CpUykGFC.css`,
+  `assets/CareCalendarPage-D6oNeApo.js`, and
+  `assets/ResourcesPage-EU_q_WVj.js`. The main bundle retained the PWA worker
+  path and both required W01 asset-base markers, and the service worker retained
+  its no-cache and root-scope headers. Post-deploy production smoke passed all
+  6 journeys, including the non-saving Offering multi-session editor check and
+  the existing saved-resource detail journey. No production Offering,
+  schedule, favorite, personal Calendar item, secret, or map asset was changed
+  by release verification.
 
 ## Recovery workflow
 

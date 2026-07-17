@@ -5,26 +5,30 @@ Last updated: 2026-07-17 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-C_u0jrHz.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-CGAL8-WR.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-Ct1uvwM9.js`
-- Production client CSS: `assets/index-e3qfr4cu.css`
+- Production client bundle: `assets/index-CR0N52gf.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-D6oNeApo.js`
+- Production Resources chunk: `assets/ResourcesPage-EU_q_WVj.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-Cjfll4GR.js`
+- Production client CSS: `assets/index-CpUykGFC.css`
 - Validated production Pages deployment:
-  `https://09a5d6d7.senior-resource-map.pages.dev`
+  `https://8a4712f2.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-17T03:07:23.532Z`.
+  `2026-07-17T09:54:01.724Z`.
 - Production Worker version:
-  `97509c9d-5769-4447-b816-8ddf65de2faf`.
+  `00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `main`, including the saved-resource bounded-hydration
-  recovery, Care Calendar query-budget recovery, and Care Calendar Day view.
+- Current branch: `main` at implementation commit `7c411b0f1`, including the
+  saved-resource bounded-hydration recovery, Care Calendar query-budget
+  recovery, Day view, and versioned Offering multi-session schedules.
+- Multi-session release branch: `codex/offering-session-schedules`; commit
+  `7c411b0f1` is pushed, merged into, and deployed from clean pushed `main`.
 - Day-view branch: `codex/care-calendar-day-view`; implementation commit
   `e820f3ec3` is merged into and pushed on `main`.
 - Saved-resource permanent-fix branch:
@@ -49,7 +53,8 @@ Last updated: 2026-07-17 (Asia/Singapore)
   `docs/map-stable-baseline-2026-07-12.md`,
   `docs/superpowers/plans/2026-06-26-resource-editor-wizard-conversion.md`,
   `output/calendar-day-view/`, `output/playwright/test-results/`, and
-  `output/playwright/wizard-uat-2026-06-26/`.
+  `output/playwright/wizard-uat-2026-06-26/`, and
+  `output/schedule-calendar-audit/`.
 - Production recovery used the isolated worktree
   `/Users/sweetbuns/CareAroundSG-map-baseline-recovery` on
   `codex/map-baseline-recovery`.
@@ -79,9 +84,11 @@ Last updated: 2026-07-17 (Asia/Singapore)
   existing dashboard shell and is linked from the sidebar and Overview.
 - Saved soft activities appear passively only when they are still saved,
   visible to the user, and have an enabled structured schedule.
-- V1 supports one-time and weekly recurrence in `Asia/Singapore`, with an
-  optional end time, repeat-until boundary, and whole-schedule active/cancelled
-  state. The existing public free-text Schedule field remains unchanged.
+- The current extension supports up to 250 reviewed session rows per Offering
+  in `Asia/Singapore`. Each row is an individual session or weekly series with
+  its own optional end, repeat boundary, active/cancelled status, and note.
+  The same canonical rows generate both public Schedule copy and Care Calendar
+  occurrences; legacy schedule text remains visible until reviewed migration.
 - Plan this session records personal intent for one exact current occurrence.
   It is explicitly not a booking and does not change source capacity or
   availability.
@@ -95,10 +102,10 @@ Last updated: 2026-07-17 (Asia/Singapore)
   per-occurrence exceptions, or booking workflow is active in V1.
 - Rollout/design contract:
   `docs/care-calendar-v1-rollout-plan.md`.
-- Validation: focused calendar/schema/auth/reset coverage 14/14, full server
-  411/411, full client/source 417/417, exact production client build,
-  `git diff --check`, desktop/mobile synthetic-data browser UAT, production
-  authenticated read-only calendar probe, and production smoke 5/5.
+- Current validation: full server 433/433, full client/source 426/426, exact
+  production map-enabled client build, `git diff --check`, explicit schema
+  verification, authenticated local Offering-editor UAT, production API and
+  asset checks, and post-deploy production smoke 6/6.
 - Initial V1 production served `assets/index-7RjEQA7D.js` with
   `assets/CareCalendarPage-CwW43iXx.js` and retained both required W01 map
   asset-base markers.
@@ -125,9 +132,23 @@ Last updated: 2026-07-17 (Asia/Singapore)
   comparison QA passed, and pre- and post-deploy production smoke each passed
   5/5. Signed-in GudPerson production UAT confirmed next-day and Today
   navigation plus the saved-without-schedule list without changing data.
-- Current production custom domain serves `assets/index-C_u0jrHz.js` with
-  `assets/CareCalendarPage-CGAL8-WR.js` and retains both required W01 map
-  asset-base markers.
+- 2026-07-17 multi-session release: Offering editors now add, duplicate,
+  remove, and amend individual or recurring rows in one Schedule editor.
+  Collateral and Standalone Offerings workbook imports create reviewable rows;
+  a reviewed non-empty import replaces the current published plan, while blank
+  or unparsed imports preserve it and workbook clearing requires
+  `clearSchedule=TRUE`. Every published change records an immutable version.
+  Personal plans remain in place and use the existing Needs review state.
+  Stable entry keys distinguish same-time sessions without adding reads to the
+  bounded Calendar path. The additive schedule columns, version table, and
+  source-entry key were bootstrapped before Worker deployment. Commit
+  `7c411b0f1`, Worker `00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`, Pages
+  `https://8a4712f2.senior-resource-map.pages.dev`, and production smoke 6/6
+  are the known-good release evidence.
+- Current production custom domain serves `assets/index-CR0N52gf.js` with
+  `assets/CareCalendarPage-D6oNeApo.js`,
+  `assets/ResourcesPage-EU_q_WVj.js`, and both required W01 map asset-base
+  markers.
 
 ## Saved Resources permanent recovery
 
@@ -313,21 +334,22 @@ Last updated: 2026-07-17 (Asia/Singapore)
 ## Rollback
 
 - Previous verified client baseline: Pages deployment
-  `https://b4a0b91f.senior-resource-map.pages.dev`.
+  `https://09a5d6d7.senior-resource-map.pages.dev`.
 - Previous Worker version:
-  `81ee694d-0999-49bf-a5e9-411aefbc1f4c`.
+  `97509c9d-5769-4447-b816-8ddf65de2faf`.
 - A rollback can redeploy the previous Worker and Pages versions. The additive
   nullable/defaulted calendar schema may remain dormant; do not drop tables or
   columns during an incident rollback. No R2 map mutation is required.
 
 ## Recommended next step
 
-Use one clearly marked internal test Offering to run end-to-end production UAT:
-enable a reviewed schedule, save it with a standard test account, plan one
-occurrence, change the source time, acknowledge the warning, then disable the
-schedule. Also add one private My Map note to the calendar and confirm the
-Shared Map remains unchanged. Do not bulk-enable schedules or activate
-external notifications until that small-data UAT is accepted.
+Use one clearly marked internal test Offering for controlled production data
+UAT: publish one individual row and one weekly row, import a reviewed
+replacement, verify the prior version and personal-plan Needs review state,
+then test the explicit disable path. Also add one private My Map note to the
+calendar and confirm Shared Map remains unchanged. Do not bulk-enable
+schedules or activate external notifications until that small-data UAT is
+accepted.
 
 ## Fresh chat starter
 
@@ -339,12 +361,12 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-Care Calendar V1 is deployed with the query-budget recovery from
-`codex/care-calendar-query-budget`. Production serves
-`assets/index-BC2k0Shg.js`, `assets/CareCalendarPage-BGDGXMZj.js`, and
-`assets/index-06iwuSyN.css` from
-`https://0e64c513.senior-resource-map.pages.dev`. The Worker version is
-`97509c9d-5769-4447-b816-8ddf65de2faf`.
+Care Calendar multi-session schedules are deployed from implementation commit
+`7c411b0f1` on pushed `main`. Production serves `assets/index-CR0N52gf.js`,
+`assets/CareCalendarPage-D6oNeApo.js`,
+`assets/ResourcesPage-EU_q_WVj.js`, and `assets/index-CpUykGFC.css` from
+`https://8a4712f2.senior-resource-map.pages.dev`. The Worker version is
+`00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`.
 
 Saved Resources permanent recovery commit `dcfce3ba3` is merged and pushed on
 `main`. Mixed saved Places/Offerings now use one bounded batch per resource
@@ -353,18 +375,21 @@ all 43 saved cards, Worker tail is clean, and production smoke passed 5/5. The
 canonical Worker deploy is release-line guarded and must run from clean pushed
 `main`.
 
-The calendar is Upcoming-first. Saved activities with reviewed structured
-schedules appear passively; Plan this session is personal intent, not a
-booking. Source changes, cancellations, and schedule removal create in-app
-review states without silently moving or deleting plans. Persisted owner My Map
-notes can create private calendar items. Shared Maps, external notifications,
-calendar sync, AI parsing, and per-occurrence exceptions remain out of V1.
+The calendar uses one canonical schedule plan per Offering with up to 250
+individual or weekly rows. Those rows generate public schedule copy and Care
+Calendar occurrences. Reviewed non-empty imports replace the current plan;
+blank or unparsed imports preserve it; immutable versions and personal plans
+remain reviewable. Plan this session is personal intent, not a booking.
+Persisted owner My Map notes can create private calendar items. Shared Maps,
+external notifications, calendar sync, and per-occurrence exceptions remain
+out of scope.
 
 The additive production schema bootstrap is complete. The query-budget
 recovery batches saved Offering resolution without changing visibility rules.
-Full server coverage passed 419/419, full client/source coverage passed
-418/418, the exact map-enabled client build passed, production authenticated
-calendar read returned 200, and all five production smoke flows passed.
+Full server coverage passed 433/433, full client/source coverage passed
+426/426, the exact map-enabled client build passed, the additive schema is
+verified, production API health and asset checks passed, and all six production
+smoke flows passed without creating a production Offering or Calendar item.
 
 Keep the locked map baseline intact. Every production build must include
 `VITE_API_URL`, `VITE_TOWN_MAP_PROOF_ENABLED=true`, and both Default and Gray
@@ -373,7 +398,8 @@ W01 asset-base URLs. The current production bundle contains both W01 markers.
 Unrelated untracked files remain local. Do not stage, delete, or rewrite them.
 
 Recommended next gate: use one clearly labelled internal test Offering and a
-standard test account to exercise create, plan, change, acknowledge, disable,
-and private-note-to-calendar behavior. Confirm Shared Maps remain unchanged.
-Do not bulk-enable schedules or activate external delivery.
+standard test account to exercise individual and weekly rows, reviewed import
+replacement, personal-plan review, disable, and private-note-to-calendar
+behavior. Confirm Shared Maps remain unchanged. Do not bulk-enable schedules
+or activate external delivery.
 ```
