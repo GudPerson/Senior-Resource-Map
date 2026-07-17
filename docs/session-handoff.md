@@ -5,28 +5,32 @@ Last updated: 2026-07-17 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-CR0N52gf.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-D6oNeApo.js`
-- Production Resources chunk: `assets/ResourcesPage-EU_q_WVj.js`
+- Production client bundle: `assets/index-B_m_21ZM.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-B9h-FsjV.js`
+- Production Resources chunk: `assets/ResourcesPage-Dl9Gvzsp.js`
 - Production My Map owner chunk: `assets/MyMapDetailPage-Cjfll4GR.js`
-- Production client CSS: `assets/index-CpUykGFC.css`
+- Production client CSS: `assets/index-3wrZ6OaU.css`
 - Validated production Pages deployment:
-  `https://8a4712f2.senior-resource-map.pages.dev`
+  `https://c48142e0.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-17T09:54:01.724Z`.
+  `2026-07-17T12:03:05.207Z`.
 - Production Worker version:
-  `00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`.
+  `29f0d835-155b-4f70-a042-d1f960807f2e`.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `main` at implementation commit `7c411b0f1`, including the
-  saved-resource bounded-hydration recovery, Care Calendar query-budget
-  recovery, Day view, and versioned Offering multi-session schedules.
+- Current branch: `main`, including schedule publish-guard implementation
+  commit `484c14d2d`, the saved-resource bounded-hydration recovery, Care
+  Calendar query-budget recovery, Day view, and versioned Offering
+  multi-session schedules.
+- Publish-guard branch: `codex/offering-schedule-publish-guard`; implementation
+  commit `484c14d2d` is pushed, merged into, and deployed from clean pushed
+  `main`.
 - Multi-session release branch: `codex/offering-session-schedules`; commit
   `7c411b0f1` is pushed, merged into, and deployed from clean pushed `main`.
 - Day-view branch: `codex/care-calendar-day-view`; implementation commit
@@ -102,7 +106,7 @@ Last updated: 2026-07-17 (Asia/Singapore)
   per-occurrence exceptions, or booking workflow is active in V1.
 - Rollout/design contract:
   `docs/care-calendar-v1-rollout-plan.md`.
-- Current validation: full server 433/433, full client/source 426/426, exact
+- Current validation: full server 437/437, full client/source 427/427, exact
   production map-enabled client build, `git diff --check`, explicit schema
   verification, authenticated local Offering-editor UAT, production API and
   asset checks, and post-deploy production smoke 6/6.
@@ -145,9 +149,24 @@ Last updated: 2026-07-17 (Asia/Singapore)
   `7c411b0f1`, Worker `00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`, Pages
   `https://8a4712f2.senior-resource-map.pages.dev`, and production smoke 6/6
   are the known-good release evidence.
-- Current production custom domain serves `assets/index-CR0N52gf.js` with
-  `assets/CareCalendarPage-D6oNeApo.js`,
-  `assets/ResourcesPage-EU_q_WVj.js`, and both required W01 map asset-base
+- 2026-07-17 publish-guard and Line Dance recovery: ordinary Offering saves now
+  carry an explicit schedule action and expected revision; stale or deprecated
+  one-row writes cannot silently remove or overwrite reviewed multi-session
+  schedules. Unpublishing requires a warning, weekly starts must match a
+  selected repeat weekday, the last repeat date is inclusive in Singapore
+  time, and the editor previews the next five generated sessions. The Publish
+  sessions thumb is centred within its track. Line Dance asset 168 was restored
+  through the guarded API as revision 3 for Monday/Wednesday 10:00-11:30, from
+  Monday 20 July through Wednesday 30 September 2026. Signed-in GudPerson
+  production UAT reopened the saved activity in Care Calendar on 20 July with
+  Needs review; cancelling the unpublish warning left it published. Focused
+  coverage passed 26/26, full server passed 437/437, full client/source passed
+  427/427, the production-configured client build passed, and post-deploy smoke
+  passed 6/6. No personal calendar intent, favorite, or unrelated production
+  resource was changed by verification.
+- Current production custom domain serves `assets/index-B_m_21ZM.js` with
+  `assets/CareCalendarPage-B9h-FsjV.js`,
+  `assets/ResourcesPage-Dl9Gvzsp.js`, and both required W01 map asset-base
   markers.
 
 ## Saved Resources permanent recovery
@@ -343,13 +362,13 @@ Last updated: 2026-07-17 (Asia/Singapore)
 
 ## Recommended next step
 
-Use one clearly marked internal test Offering for controlled production data
-UAT: publish one individual row and one weekly row, import a reviewed
-replacement, verify the prior version and personal-plan Needs review state,
-then test the explicit disable path. Also add one private My Map note to the
-calendar and confirm Shared Map remains unchanged. Do not bulk-enable
-schedules or activate external notifications until that small-data UAT is
-accepted.
+Use one clearly marked internal test Offering for the remaining controlled
+production-data UAT: publish one individual row and one weekly row, import a
+reviewed replacement, verify the prior version and personal-plan Needs review
+state, then complete the explicit unpublish path. Do not reuse Line Dance for
+that destructive check. Also add one private My Map note to the calendar and
+confirm Shared Map remains unchanged. Do not bulk-enable schedules or activate
+external notifications until that small-data UAT is accepted.
 
 ## Fresh chat starter
 
@@ -361,12 +380,13 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-Care Calendar multi-session schedules are deployed from implementation commit
-`7c411b0f1` on pushed `main`. Production serves `assets/index-CR0N52gf.js`,
-`assets/CareCalendarPage-D6oNeApo.js`,
-`assets/ResourcesPage-EU_q_WVj.js`, and `assets/index-CpUykGFC.css` from
-`https://8a4712f2.senior-resource-map.pages.dev`. The Worker version is
-`00b9a7df-88fe-41dc-bb5f-f4c49bd5e12a`.
+Care Calendar schedule publish safeguards are deployed from implementation
+commit `484c14d2d` on pushed `main`. Production serves
+`assets/index-B_m_21ZM.js`, `assets/CareCalendarPage-B9h-FsjV.js`,
+`assets/ResourcesPage-Dl9Gvzsp.js`, and `assets/index-3wrZ6OaU.css` from the
+validated implementation deployment
+`https://c48142e0.senior-resource-map.pages.dev`. The Worker version is
+`29f0d835-155b-4f70-a042-d1f960807f2e`.
 
 Saved Resources permanent recovery commit `dcfce3ba3` is merged and pushed on
 `main`. Mixed saved Places/Offerings now use one bounded batch per resource
@@ -384,10 +404,20 @@ Persisted owner My Map notes can create private calendar items. Shared Maps,
 external notifications, calendar sync, and per-occurrence exceptions remain
 out of scope.
 
+Normal editor saves now include an explicit publish/update/unpublish action and
+the loaded schedule revision. The Worker uses a compare-and-swap guard, rejects
+stale writes, and blocks deprecated one-row updates from overwriting reviewed
+multi-session plans. Unpublish requires confirmation. Weekly starts must match
+one selected weekday, the repeat boundary is inclusive Singapore time, and the
+editor previews the next five generated sessions. Line Dance asset 168 is
+restored as revision 3 for Monday/Wednesday 10:00-11:30 from 20 July through
+30 September 2026; GudPerson Care Calendar production UAT confirmed the saved
+20 July occurrence and Needs review state.
+
 The additive production schema bootstrap is complete. The query-budget
 recovery batches saved Offering resolution without changing visibility rules.
-Full server coverage passed 433/433, full client/source coverage passed
-426/426, the exact map-enabled client build passed, the additive schema is
+Full server coverage passed 437/437, full client/source coverage passed
+427/427, the exact map-enabled client build passed, the additive schema is
 verified, production API health and asset checks passed, and all six production
 smoke flows passed without creating a production Offering or Calendar item.
 
@@ -399,7 +429,8 @@ Unrelated untracked files remain local. Do not stage, delete, or rewrite them.
 
 Recommended next gate: use one clearly labelled internal test Offering and a
 standard test account to exercise individual and weekly rows, reviewed import
-replacement, personal-plan review, disable, and private-note-to-calendar
-behavior. Confirm Shared Maps remain unchanged. Do not bulk-enable schedules
-or activate external delivery.
+replacement, personal-plan review, the completed explicit unpublish path, and
+private-note-to-calendar behavior. Do not use Line Dance for the destructive
+test. Confirm Shared Maps remain unchanged. Do not bulk-enable schedules or
+activate external delivery.
 ```

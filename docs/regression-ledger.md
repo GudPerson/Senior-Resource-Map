@@ -1706,6 +1706,26 @@ Active next recovery family:
   existing large-chunk advisory; and `git diff --check` passed. The persistence
   contract publishes a revision, reopens it through the production serializer,
   and expands the expected Monday and Wednesday Care Calendar occurrences.
+- Release follow-up: implementation commit `484c14d2d` is pushed on `main` and
+  `codex/offering-schedule-publish-guard`. Production Worker
+  `29f0d835-155b-4f70-a042-d1f960807f2e` and validated Pages deployment
+  `https://c48142e0.senior-resource-map.pages.dev` are live. The custom domain
+  serves `assets/index-B_m_21ZM.js`,
+  `assets/ResourcesPage-Dl9Gvzsp.js`,
+  `assets/CareCalendarPage-B9h-FsjV.js`, and both required W01 markers. Line
+  Dance `soft_assets.id=168` was restored through the guarded API as revision
+  3: Monday/Wednesday, 10:00-11:30 Singapore time, from Monday 20 July through
+  the inclusive Wednesday 30 September 2026 boundary. Signed-in GudPerson
+  production UAT reopened Care Calendar on Monday 20 July and showed the saved
+  Line Dance occurrence at 10:00-11:30 with Needs review. The live editor
+  showed the next five generated sessions, the corrected last-repeat field,
+  and a centred Publish sessions thumb; its rendered 80%-zoom geometry was
+  35.2 x 19.2 px with a 16 px thumb and approximately 1.6 px vertical/right
+  insets, matching the intended 44 x 24 px track, 20 px thumb, and 2 px insets.
+  Cancelling the Unpublish sessions warning left publication enabled and the
+  preview intact. Post-deploy production smoke passed 6/6. No personal plan,
+  favorite, external notification, Shared Map, My Map, booking, availability,
+  or unrelated Offering was changed during release verification.
 
 ## Recovery workflow
 
