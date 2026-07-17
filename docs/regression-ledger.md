@@ -1510,6 +1510,24 @@ Active next recovery family:
   query through the real configured database hydrated its 43 saved rows in
   order with all 43 available. The deploy guard's valid-state unit test passed
   and a live feature-branch invocation was blocked as designed.
+- Release follow-up: implementation commit `dcfce3ba3` was pushed on
+  `codex/saved-resources-permanent-fix`, fast-forwarded into `main`, and pushed
+  before deployment. The guarded production deploy verified clean `main`
+  matched `origin/main`, then published Cloudflare Worker version
+  `97509c9d-5769-4447-b816-8ddf65de2faf`. Production API health returned OK at
+  `2026-07-17T00:50:53.690Z`; unauthenticated `/api/favorites` retained its 401
+  contract. Signed-in GudPerson production UAT reloaded `/my-directory`,
+  rendered all 43 saved-resource cards, and showed no load error. The live
+  Worker tail recorded `/auth/me` and `/favorites` as successful with no
+  subrequest/database exception. Production smoke passed 5/5 across public
+  load, partner dashboard access, postal import, Create Map, and saved-resource
+  detail. The automatic `main` Pages publish at
+  `https://0e64c513.senior-resource-map.pages.dev` produced the exact existing
+  client assets `assets/index-BC2k0Shg.js` and
+  `assets/index-06iwuSyN.css`, with the Detailed-map flag and both W01 map-base
+  markers intact; no client code changed. No schema change, data mutation,
+  auth, ownership, eligibility, visibility, ranking, My Map, Shared Map,
+  Calendar schedule, or notification change was made.
 
 ## Recovery workflow
 

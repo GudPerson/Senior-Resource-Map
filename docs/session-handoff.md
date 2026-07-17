@@ -9,20 +9,25 @@ Last updated: 2026-07-17 (Asia/Singapore)
 - Production Care Calendar chunk: `assets/CareCalendarPage-BGDGXMZj.js`
 - Production My Map owner chunk: `assets/MyMapDetailPage-B2TBulla.js`
 - Production client CSS: `assets/index-06iwuSyN.css`
-- Production Pages deployment: `https://dd45e3e3.senior-resource-map.pages.dev`
+- Validated production Pages deployment:
+  `https://0e64c513.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://14c8d1a0.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-16T22:25:34.037Z`.
+  `2026-07-17T00:50:53.690Z`.
 - Production Worker version:
-  `81ee694d-0999-49bf-a5e9-411aefbc1f4c`.
+  `97509c9d-5769-4447-b816-8ddf65de2faf`.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `main`, including the Care Calendar query-budget recovery.
+- Current branch: `main`, including the saved-resource bounded-hydration
+  recovery and Care Calendar query-budget recovery.
+- Saved-resource permanent-fix branch:
+  `codex/saved-resources-permanent-fix`; implementation commit `dcfce3ba3` is
+  merged into and pushed on `main`.
 - Query-budget recovery branch: `codex/care-calendar-query-budget`; implementation
   commit `5f24231bd` is merged into and pushed on `main`.
 - Release branch: `codex/care-calendar-v1`, created from former
@@ -110,6 +115,34 @@ Last updated: 2026-07-17 (Asia/Singapore)
 - Current production custom domain serves `assets/index-BC2k0Shg.js` with
   `assets/CareCalendarPage-BGDGXMZj.js` and retains both required W01 map
   asset-base markers.
+
+## Saved Resources permanent recovery
+
+- GudPerson's 43-item mixed saved list crossed the Cloudflare Worker external
+  subrequest budget because `/favorites` performed one live relational lookup
+  for every saved Place and Offering. The request made 51 database subrequests
+  and failed at the platform's 50-request limit.
+- The earlier snapshot guard was deployed from a side branch but never merged
+  into `main`; the later Calendar Worker release therefore replaced it. The
+  permanent implementation is now on `main`, not only in the deployed Worker.
+- Mixed Saved Resources now use one favorites lookup, at most one Place batch,
+  and at most one Offering batch. Results retain newest-first order, the same
+  flat response fields, and existing visibility rules. Missing/inaccessible
+  resources remain unavailable snapshots; audience-context and family-batch
+  failures fail closed without blanking the whole list.
+- Care Calendar remains soft-only while delegating to the canonical batch
+  hydrator. Save/remove validation remains strict and unchanged.
+- The canonical Worker deploy command now fetches `origin/main` and blocks
+  production deployment unless the checkout is clean `main` at the exact
+  pushed release commit.
+- Validation passed focused coverage 14/14, full server 419/419, full
+  client/source 418/418, the production-configured client build,
+  `git diff --check`, a read-only 43-row configured-database probe, signed-in
+  GudPerson production UAT with all 43 cards, clean Worker-tail evidence, API
+  health, and production smoke 5/5. The automatic `main` Pages publish
+  `https://0e64c513.senior-resource-map.pages.dev` retained the exact existing
+  client JS/CSS and all required Detailed-map/W01 markers; no client code
+  changed.
 
 ## Locked map behavior
 
@@ -269,7 +302,7 @@ Last updated: 2026-07-17 (Asia/Singapore)
 - Previous verified client baseline: Pages deployment
   `https://b4a0b91f.senior-resource-map.pages.dev`.
 - Previous Worker version:
-  `c061691f-01a3-4c03-8d5c-a23d87eb7109`.
+  `81ee694d-0999-49bf-a5e9-411aefbc1f4c`.
 - A rollback can redeploy the previous Worker and Pages versions. The additive
   nullable/defaulted calendar schema may remain dormant; do not drop tables or
   columns during an incident rollback. No R2 map mutation is required.
@@ -297,8 +330,15 @@ Care Calendar V1 is deployed with the query-budget recovery from
 `codex/care-calendar-query-budget`. Production serves
 `assets/index-BC2k0Shg.js`, `assets/CareCalendarPage-BGDGXMZj.js`, and
 `assets/index-06iwuSyN.css` from
-`https://dd45e3e3.senior-resource-map.pages.dev`. The Worker version is
-`81ee694d-0999-49bf-a5e9-411aefbc1f4c`.
+`https://0e64c513.senior-resource-map.pages.dev`. The Worker version is
+`97509c9d-5769-4447-b816-8ddf65de2faf`.
+
+Saved Resources permanent recovery commit `dcfce3ba3` is merged and pushed on
+`main`. Mixed saved Places/Offerings now use one bounded batch per resource
+family with fail-closed snapshot fallbacks. GudPerson production UAT renders
+all 43 saved cards, Worker tail is clean, and production smoke passed 5/5. The
+canonical Worker deploy is release-line guarded and must run from clean pushed
+`main`.
 
 The calendar is Upcoming-first. Saved activities with reviewed structured
 schedules appear passively; Plan this session is personal intent, not a
@@ -309,7 +349,7 @@ calendar sync, AI parsing, and per-occurrence exceptions remain out of V1.
 
 The additive production schema bootstrap is complete. The query-budget
 recovery batches saved Offering resolution without changing visibility rules.
-Full server coverage passed 412/412, full client/source coverage passed
+Full server coverage passed 419/419, full client/source coverage passed
 418/418, the exact map-enabled client build passed, production authenticated
 calendar read returned 200, and all five production smoke flows passed.
 
