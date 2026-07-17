@@ -1461,6 +1461,53 @@ Active next recovery family:
   are Worker `e50b14ed-b1dd-4838-b10b-2b32ec9574c1` and Pages
   `https://6b38360d.senior-resource-map.pages.dev`.
 
+### 2026-07-17 Care Calendar Day view
+
+- Current behavior: Care Calendar opens in a focused Day view for the selected
+  Singapore date. Previous day, next day, Today, previous week, next week, and
+  exact-date controls update the same date cursor. Timed items appear on an
+  hourly rail that expands for early and late events, while all-day items have
+  a separate row. Saved activities, personal Planned state, private map notes,
+  and changed, cancelled, or removed schedule warnings retain their existing
+  labels and actions. The right rail shows a compact seven-day navigator and
+  saved activities that do not yet have a reviewed schedule. Week and Month
+  remain visible but disabled for later ledger-backed releases.
+- Known-good reference: branch `codex/care-calendar-day-view`, based on
+  production `main` `4cf13938e`, and the user-selected Option 1 Day-view
+  composition. The implementation is client-only and reuses the existing
+  calendar API, event-action contract, dashboard shell, translations, and
+  visibility behavior. It requests exactly one bounded Singapore day at a
+  time and ignores stale responses when a user navigates quickly.
+- Reproduction steps: sign in and open `/dashboard/calendar`; confirm Day is
+  selected and Week and Month explain that they are coming later. Move between
+  adjacent days, return with Today, move the compact navigator by seven days,
+  and choose an exact date. Confirm events appear under their Singapore start
+  hour, an empty date shows the normal guidance, and a 23:00 event without an
+  end time does not overflow the timeline. Plan a saved session, remove a
+  personal plan or private note, and acknowledge a source-schedule warning to
+  confirm the existing actions remain available.
+- Acceptance criteria: each calendar read is bounded to the selected
+  `Asia/Singapore` day; date navigation remains correct across month and year
+  boundaries; a slower previous response cannot replace the currently
+  selected date; early, late, and all-day events remain visible; Planned stays
+  a personal intention rather than a booking; private map notes remain
+  owner-only and absent from Shared Maps; review warnings and action controls
+  remain intact; Week and Month do not behave as live views; desktop and 390 px
+  mobile layouts have no horizontal overflow. No Worker, schema, auth,
+  ownership, visibility, eligibility, saved-resource, My Map, Shared Map,
+  notification, or map-asset behavior changes.
+- Verification result before deploy: focused Day-view, Calendar error-state,
+  and translation coverage passed 8/8; full client/source coverage passed
+  422/422; full server coverage passed 419/419; the production-configured
+  client build and `git diff --check` passed with only the existing large-chunk
+  advisory. Browser QA at 1440x1024 and 390x844 confirmed the selected Day-view
+  composition, working date controls, the empty-date state, no horizontal
+  overflow, and zero application console errors or warnings. The final
+  side-by-side comparison is recorded in `design-qa.md`. The unchanged live
+  release also passed all five production smoke journeys immediately before
+  deployment. Production deployment and custom-domain verification are pending
+  this release gate.
+
 ### 2026-07-17 Saved Resources bounded-hydration recovery
 
 - Current behavior: My Directory and every consumer of the global Saved

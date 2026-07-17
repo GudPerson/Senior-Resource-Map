@@ -1,22 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-    AlertTriangle,
-    CalendarCheck,
-    CalendarDays,
     Check,
-    Clock3,
+    ChevronDown,
+    FolderOpen,
     MapPin,
     Plus,
     RefreshCw,
-    Trash2,
 } from 'lucide-react';
 
 import { LoadingState } from '../../components/LoadingState.jsx';
+import CalendarEventCard from '../../components/calendar/CalendarEventCard.jsx';
+import {
+    CalendarEmptyState,
+    DayPlanner,
+    MiniDateNavigator,
+} from '../../components/calendar/DayCalendarView.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
-
-const SINGAPORE_TIMEZONE = 'Asia/Singapore';
+import {
+    getSingaporeDayKey,
+    getSingaporeDayRange,
+    SINGAPORE_TIMEZONE,
+} from '../../lib/careCalendarDay.js';
 
 function dateInputValue(date = new Date()) {
     const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -39,33 +45,6 @@ function dateInputValue(date = new Date()) {
 function singaporeInputToIso(value) {
     if (!value) return null;
     return new Date(`${value}:00+08:00`).toISOString();
-}
-
-function formatDay(value, locale) {
-    return new Intl.DateTimeFormat(locale, {
-        timeZone: SINGAPORE_TIMEZONE,
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).format(new Date(value));
-}
-
-function formatTime(value, locale) {
-    return new Intl.DateTimeFormat(locale, {
-        timeZone: SINGAPORE_TIMEZONE,
-        hour: 'numeric',
-        minute: '2-digit',
-    }).format(new Date(value));
-}
-
-function dayKey(value) {
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone: SINGAPORE_TIMEZONE,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).format(new Date(value));
 }
 
 function combineAgenda(calendar) {
@@ -92,142 +71,48 @@ function combineAgenda(calendar) {
         .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt));
 }
 
-function AgendaCard({
-    event,
-    locale,
-    onAcknowledge,
-    onPlan,
-    onRemove,
-    pendingKey,
-    t,
-}) {
-    const isSource = event.kind === 'saved_activity';
-    const isMapNote = event.kind === 'map_note';
-    const isPending = pendingKey === event.id
-        || pendingKey === event.plannedItemId
-        || pendingKey === `ack-${event.softAssetId}`;
-
-    return (
-        <article className={`rounded-2xl border bg-white p-4 shadow-sm ${event.scheduleChanged || event.needsReview ? 'border-amber-300' : 'border-slate-200'}`}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${isMapNote ? 'bg-violet-50 text-violet-700' : event.isPlanned || event.kind === 'planned_session' ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {isMapNote ? <MapPin size={13} /> : event.isPlanned || event.kind === 'planned_session' ? <CalendarCheck size={13} /> : <CalendarDays size={13} />}
-                            {isMapNote
-                                ? t('careCalendarMapNote')
-                                : event.isPlanned || event.kind === 'planned_session'
-                                    ? t('careCalendarPlanned')
-                                    : t('careCalendarSavedActivity')}
-                        </span>
-                        {event.status === 'cancelled' ? (
-                            <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                                {t('careCalendarCancelled')}
-                            </span>
-                        ) : null}
-                    </div>
-                    <h3 className="mt-2 text-lg font-bold text-slate-900">{event.title}</h3>
-                    <p className="mt-1 flex items-center gap-2 text-sm font-medium text-slate-600">
-                        <Clock3 size={15} />
-                        {formatTime(event.startsAt, locale)}
-                        {event.endsAt ? ` – ${formatTime(event.endsAt, locale)}` : ''}
-                    </p>
-                    {event.address ? (
-                        <p className="mt-1 flex items-start gap-2 text-sm text-slate-500">
-                            <MapPin size={15} className="mt-0.5 flex-shrink-0" />
-                            {event.address}
-                        </p>
-                    ) : null}
-                    {event.scheduleChanged || event.needsReview ? (
-                        <div className="mt-3 flex max-w-2xl items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-                            <span>
-                                {event.needsReview
-                                    ? t('careCalendarPlanNeedsReview')
-                                    : t('careCalendarScheduleChanged')}
-                            </span>
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className="flex flex-wrap gap-2 sm:max-w-[270px] sm:justify-end">
-                    {isSource && event.detailPath ? (
-                        <Link to={event.detailPath} className="btn-secondary min-h-[42px] justify-center">
-                            {t('careCalendarViewActivity')}
-                        </Link>
-                    ) : null}
-                    {isSource && !event.isPlanned && event.status === 'active' ? (
-                        <button
-                            type="button"
-                            onClick={() => onPlan(event)}
-                            disabled={isPending}
-                            className="btn-primary min-h-[42px] justify-center disabled:opacity-60"
-                        >
-                            <Plus size={16} /> {t('careCalendarPlanSession')}
-                        </button>
-                    ) : null}
-                    {(event.isPlanned || event.kind === 'planned_session' || isMapNote) ? (
-                        <button
-                            type="button"
-                            onClick={() => onRemove(event.plannedItemId || event.id)}
-                            disabled={isPending}
-                            className="btn-secondary min-h-[42px] justify-center text-red-700 disabled:opacity-60"
-                        >
-                            <Trash2 size={16} /> {t('remove')}
-                        </button>
-                    ) : null}
-                    {(isSource && event.scheduleChanged) || event.needsReview ? (
-                        <button
-                            type="button"
-                            onClick={() => onAcknowledge(event.softAssetId)}
-                            disabled={isPending}
-                            className="btn-ghost min-h-[42px] justify-center disabled:opacity-60"
-                        >
-                            <Check size={16} /> {t('careCalendarMarkReviewed')}
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-        </article>
-    );
-}
-
 export default function CareCalendarPage() {
     const { locale, t } = useLocale();
     const [searchParams, setSearchParams] = useSearchParams();
     const noteId = searchParams.get('noteId');
+    const [selectedDayKey, setSelectedDayKey] = useState(() => getSingaporeDayKey());
     const [calendar, setCalendar] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [pendingKey, setPendingKey] = useState('');
     const [noteContext, setNoteContext] = useState(null);
+    const loadRequestRef = useRef(0);
     const [noteForm, setNoteForm] = useState({
         title: '',
         startsAt: dateInputValue(new Date(Date.now() + 60 * 60 * 1000)),
         endsAt: '',
     });
 
-    const loadCalendar = useCallback(async () => {
+    const loadCalendar = useCallback(async ({ preserveCalendar = false } = {}) => {
+        const requestId = loadRequestRef.current + 1;
+        loadRequestRef.current = requestId;
         setLoading(true);
         setError('');
+        if (!preserveCalendar) setCalendar(null);
         try {
-            const from = new Date();
-            const to = new Date(from.getTime() + 60 * 24 * 60 * 60 * 1000);
+            const { from, to } = getSingaporeDayRange(selectedDayKey);
             const data = await api.getCalendar({
-                from: from.toISOString(),
-                to: to.toISOString(),
+                from,
+                to,
             });
+            if (loadRequestRef.current !== requestId) return;
             setCalendar(data);
         } catch (loadError) {
+            if (loadRequestRef.current !== requestId) return;
             console.error('Care Calendar load failed', loadError);
             setError(t('careCalendarLoadFailed'));
         } finally {
-            setLoading(false);
+            if (loadRequestRef.current === requestId) setLoading(false);
         }
-    }, [t]);
+    }, [selectedDayKey, t]);
 
     useEffect(() => {
-        loadCalendar();
+        void loadCalendar();
     }, [loadCalendar]);
 
     useEffect(() => {
@@ -254,15 +139,9 @@ export default function CareCalendarPage() {
         };
     }, [noteId, t]);
 
-    const groupedAgenda = useMemo(() => {
+    const agendaEvents = useMemo(() => {
         if (!calendar) return [];
-        const groups = new Map();
-        combineAgenda(calendar).forEach((event) => {
-            const key = dayKey(event.startsAt);
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(event);
-        });
-        return [...groups.entries()];
+        return combineAgenda(calendar);
     }, [calendar]);
 
     async function handlePlan(event) {
@@ -274,7 +153,7 @@ export default function CareCalendarPage() {
                 softAssetId: event.softAssetId,
                 sourceStartsAt: event.startsAt,
             });
-            await loadCalendar();
+            await loadCalendar({ preserveCalendar: true });
         } catch (saveError) {
             setError(saveError.message || t('careCalendarSaveFailed'));
         } finally {
@@ -288,7 +167,7 @@ export default function CareCalendarPage() {
         setError('');
         try {
             await api.deleteCalendarItem(itemId);
-            await loadCalendar();
+            await loadCalendar({ preserveCalendar: true });
         } catch (removeError) {
             setError(removeError.message || t('careCalendarRemoveFailed'));
         } finally {
@@ -301,7 +180,7 @@ export default function CareCalendarPage() {
         setError('');
         try {
             await api.acknowledgeCalendarSchedule(softAssetId);
-            await loadCalendar();
+            await loadCalendar({ preserveCalendar: true });
         } catch (acknowledgeError) {
             setError(acknowledgeError.message || t('careCalendarReviewFailed'));
         } finally {
@@ -326,7 +205,12 @@ export default function CareCalendarPage() {
             nextParams.delete('noteId');
             setSearchParams(nextParams, { replace: true });
             setNoteContext(null);
-            await loadCalendar();
+            const createdDayKey = getSingaporeDayKey(singaporeInputToIso(noteForm.startsAt));
+            if (createdDayKey === selectedDayKey) {
+                await loadCalendar({ preserveCalendar: true });
+            } else {
+                setSelectedDayKey(createdDayKey);
+            }
         } catch (saveError) {
             setError(saveError.message || t('careCalendarSaveFailed'));
         } finally {
@@ -335,28 +219,24 @@ export default function CareCalendarPage() {
     }
 
     return (
-        <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
-            <header className="rounded-3xl bg-gradient-to-br from-teal-700 to-teal-900 px-5 py-6 text-white shadow-sm sm:px-7">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto max-w-[1240px] p-4 sm:p-6 lg:p-8">
+            <header className="rounded-3xl bg-gradient-to-br from-teal-700 to-teal-900 px-5 py-3.5 text-white shadow-sm sm:px-7">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.14em] text-teal-100">
-                            <CalendarDays size={18} />
-                            {t('careCalendar')}
-                        </div>
-                        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">
+                        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
                             {t('careCalendarUpcomingTitle')}
                         </h1>
-                        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-teal-50 sm:text-base">
+                        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-teal-50 sm:text-base">
                             {t('careCalendarIntro')}
                         </p>
                     </div>
                     <button
                         type="button"
-                        onClick={loadCalendar}
+                        onClick={() => loadCalendar({ preserveCalendar: true })}
                         disabled={loading}
                         className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 font-bold text-white hover:bg-white/20 disabled:opacity-60"
                     >
-                        <RefreshCw size={17} /> {t('careCalendarRefresh')}
+                        <RefreshCw size={17} className={loading ? 'animate-spin' : ''} /> {t('careCalendarRefresh')}
                     </button>
                 </div>
             </header>
@@ -437,55 +317,44 @@ export default function CareCalendarPage() {
             {loading && !calendar ? (
                 <LoadingState label={t('careCalendarLoading')} />
             ) : error && !calendar ? null : (
-                <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_300px]">
-                    <section>
-                        {groupedAgenda.length ? (
-                            <div className="space-y-7">
-                                {groupedAgenda.map(([key, events]) => (
-                                    <div key={key}>
-                                        <h2 className="mb-3 text-lg font-extrabold text-slate-900">
-                                            {formatDay(events[0].startsAt, locale)}
-                                        </h2>
-                                        <div className="space-y-3">
-                                            {events.map((event) => (
-                                                <AgendaCard
-                                                    key={`${event.kind}-${event.id}`}
-                                                    event={event}
-                                                    locale={locale}
-                                                    onAcknowledge={handleAcknowledge}
-                                                    onPlan={handlePlan}
-                                                    onRemove={handleRemove}
-                                                    pendingKey={pendingKey}
-                                                    t={t}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-                                <CalendarDays className="mx-auto text-slate-400" size={38} />
-                                <h2 className="mt-4 text-xl font-bold text-slate-900">{t('careCalendarEmptyTitle')}</h2>
-                                <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-600">
-                                    {t('careCalendarEmptyBody')}
-                                </p>
-                                <Link to="/discover" className="btn-primary mt-5 inline-flex justify-center">
-                                    {t('overviewDiscoverTitle')}
-                                </Link>
-                            </div>
+                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+                    <DayPlanner
+                        emptyState={(
+                            <>
+                                <CalendarEmptyState t={t} />
+                                <div className="mt-4 text-center">
+                                    <Link to="/discover" className="btn-primary inline-flex justify-center">
+                                        {t('overviewDiscoverTitle')}
+                                    </Link>
+                                </div>
+                            </>
                         )}
-                    </section>
+                        events={agendaEvents}
+                        locale={locale}
+                        onSelectDay={setSelectedDayKey}
+                        renderEvent={(event) => (
+                            <CalendarEventCard
+                                key={`${event.kind}-${event.id}`}
+                                event={event}
+                                locale={locale}
+                                onAcknowledge={handleAcknowledge}
+                                onPlan={handlePlan}
+                                onRemove={handleRemove}
+                                pendingKey={pendingKey}
+                                t={t}
+                            />
+                        )}
+                        selectedDayKey={selectedDayKey}
+                        t={t}
+                    />
 
                     <aside className="space-y-4">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <h2 className="font-bold text-slate-900">{t('careCalendarHowItWorks')}</h2>
-                            <ul className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">
-                                <li>{t('careCalendarSavedHelp')}</li>
-                                <li>{t('careCalendarPlannedHelp')}</li>
-                                <li>{t('careCalendarPrivateHelp')}</li>
-                            </ul>
-                        </div>
+                        <MiniDateNavigator
+                            locale={locale}
+                            onSelectDay={setSelectedDayKey}
+                            selectedDayKey={selectedDayKey}
+                            t={t}
+                        />
                         {calendar?.savedWithoutSchedule?.length ? (
                             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                 <h2 className="font-bold text-slate-900">{t('careCalendarSavedNoSchedule')}</h2>
@@ -522,8 +391,24 @@ export default function CareCalendarPage() {
                                         </div>
                                     ))}
                                 </div>
+                                <Link to="/my-directory" className="btn-secondary mt-4 w-full justify-center">
+                                    <FolderOpen size={16} /> {t('careCalendarViewDirectory')}
+                                </Link>
                             </div>
                         ) : null}
+                        <details className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <summary className="cursor-pointer list-none font-bold text-slate-900 marker:hidden">
+                                <span className="flex items-center justify-between gap-3">
+                                    {t('careCalendarHowItWorks')}
+                                    <ChevronDown className="text-slate-400 transition-transform group-open:rotate-180" size={18} aria-hidden="true" />
+                                </span>
+                            </summary>
+                            <ul className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">
+                                <li>{t('careCalendarSavedHelp')}</li>
+                                <li>{t('careCalendarPlannedHelp')}</li>
+                                <li>{t('careCalendarPrivateHelp')}</li>
+                            </ul>
+                        </details>
                     </aside>
                 </div>
             )}

@@ -60,6 +60,12 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'softAssetBucketProgrammes',
         'softAssetBucketServices',
         'softAssetBucketPromotions',
+        'careCalendarToday',
+        'careCalendarDayView',
+        'careCalendarWeekView',
+        'careCalendarMonthView',
+        'careCalendarPreviousDay',
+        'careCalendarNextDay',
     ];
 
     for (const { code } of LOCALES.filter((locale) => locale.code !== 'en')) {
