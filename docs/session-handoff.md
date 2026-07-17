@@ -5,16 +5,16 @@ Last updated: 2026-07-17 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-BC2k0Shg.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-BGDGXMZj.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-B2TBulla.js`
-- Production client CSS: `assets/index-06iwuSyN.css`
+- Production client bundle: `assets/index-C_u0jrHz.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-CGAL8-WR.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-Ct1uvwM9.js`
+- Production client CSS: `assets/index-e3qfr4cu.css`
 - Validated production Pages deployment:
-  `https://0e64c513.senior-resource-map.pages.dev`
+  `https://09a5d6d7.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
-  `https://14c8d1a0.senior-resource-map.pages.dev`
+  `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-17T00:50:53.690Z`.
+  `2026-07-17T03:07:23.532Z`.
 - Production Worker version:
   `97509c9d-5769-4447-b816-8ddf65de2faf`.
 - Map asset domain: `https://maps.carearound.sg`
@@ -24,7 +24,9 @@ Last updated: 2026-07-17 (Asia/Singapore)
 ## Repo and worktree state
 
 - Current branch: `main`, including the saved-resource bounded-hydration
-  recovery and Care Calendar query-budget recovery.
+  recovery, Care Calendar query-budget recovery, and Care Calendar Day view.
+- Day-view branch: `codex/care-calendar-day-view`; implementation commit
+  `e820f3ec3` is merged into and pushed on `main`.
 - Saved-resource permanent-fix branch:
   `codex/saved-resources-permanent-fix`; implementation commit `dcfce3ba3` is
   merged into and pushed on `main`.
@@ -46,7 +48,7 @@ Last updated: 2026-07-17 (Asia/Singapore)
   `docs/competitor-analysis-2026-06-25.md`,
   `docs/map-stable-baseline-2026-07-12.md`,
   `docs/superpowers/plans/2026-06-26-resource-editor-wizard-conversion.md`,
-  `output/playwright/test-results/`, and
+  `output/calendar-day-view/`, `output/playwright/test-results/`, and
   `output/playwright/wizard-uat-2026-06-26/`.
 - Production recovery used the isolated worktree
   `/Users/sweetbuns/CareAroundSG-map-baseline-recovery` on
@@ -112,8 +114,19 @@ Last updated: 2026-07-17 (Asia/Singapore)
   loaded the Calendar with 17 saved activities without schedules and no error
   or console warning. No schema, auth, ownership, eligibility, visibility,
   Saved Resources, My Map, Shared Map, or notification behavior changed.
-- Current production custom domain serves `assets/index-BC2k0Shg.js` with
-  `assets/CareCalendarPage-BGDGXMZj.js` and retains both required W01 map
+- 2026-07-17 Day-view release: Care Calendar now opens on one selected
+  Singapore day with previous, next, Today, seven-day navigation, an hourly
+  rail, an all-day row, and the existing Saved activity, Planned, private map
+  note, and source-review actions. Each read is bounded to one Singapore day
+  and stale navigation responses are ignored. Week and Month remain visible
+  but disabled for separate ledger-backed phases. Focused coverage passed 8/8,
+  full client/source passed 422/422, full server passed 419/419, the exact
+  production map-enabled build and `git diff --check` passed, desktop/mobile
+  comparison QA passed, and pre- and post-deploy production smoke each passed
+  5/5. Signed-in GudPerson production UAT confirmed next-day and Today
+  navigation plus the saved-without-schedule list without changing data.
+- Current production custom domain serves `assets/index-C_u0jrHz.js` with
+  `assets/CareCalendarPage-CGAL8-WR.js` and retains both required W01 map
   asset-base markers.
 
 ## Saved Resources permanent recovery

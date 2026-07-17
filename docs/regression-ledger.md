@@ -1472,12 +1472,13 @@ Active next recovery family:
   labels and actions. The right rail shows a compact seven-day navigator and
   saved activities that do not yet have a reviewed schedule. Week and Month
   remain visible but disabled for later ledger-backed releases.
-- Known-good reference: branch `codex/care-calendar-day-view`, based on
-  production `main` `4cf13938e`, and the user-selected Option 1 Day-view
-  composition. The implementation is client-only and reuses the existing
-  calendar API, event-action contract, dashboard shell, translations, and
-  visibility behavior. It requests exactly one bounded Singapore day at a
-  time and ignores stale responses when a user navigates quickly.
+- Known-good reference: implementation commit `e820f3ec3` on branch
+  `codex/care-calendar-day-view`, based on production `main` `4cf13938e`, and
+  the user-selected Option 1 Day-view composition. The implementation is
+  client-only and reuses the existing calendar API, event-action contract,
+  dashboard shell, translations, and visibility behavior. It requests exactly
+  one bounded Singapore day at a time and ignores stale responses when a user
+  navigates quickly.
 - Reproduction steps: sign in and open `/dashboard/calendar`; confirm Day is
   selected and Week and Month explain that they are coming later. Move between
   adjacent days, return with Today, move the compact navigator by seven days,
@@ -1505,8 +1506,22 @@ Active next recovery family:
   overflow, and zero application console errors or warnings. The final
   side-by-side comparison is recorded in `design-qa.md`. The unchanged live
   release also passed all five production smoke journeys immediately before
-  deployment. Production deployment and custom-domain verification are pending
-  this release gate.
+  deployment.
+- Release follow-up: `e820f3ec3` was fast-forwarded into `main` and pushed.
+  The exact validated client was published first at preview
+  `https://5f024c97.senior-resource-map.pages.dev` and then to production at
+  `https://09a5d6d7.senior-resource-map.pages.dev`. The custom domain served
+  `assets/index-C_u0jrHz.js`, `assets/index-e3qfr4cu.css`, and
+  `assets/CareCalendarPage-CGAL8-WR.js`, with the Detailed-map activation and
+  both W01 asset-base markers intact. Production API health returned OK at
+  `2026-07-17T03:07:23.532Z`, and all five post-deploy production smoke
+  journeys passed. Signed-in read-only GudPerson browser UAT loaded the Day
+  view and saved-without-schedule list, moved from July 17 to July 18, and
+  returned with Today without an error state or data mutation. No Worker,
+  schema, auth, data, saved-resource, My Map, Shared Map, notification, map
+  asset, or secret change was deployed. The Worker remains version
+  `97509c9d-5769-4447-b816-8ddf65de2faf`; the previous Pages rollback target is
+  `https://0e64c513.senior-resource-map.pages.dev`.
 
 ### 2026-07-17 Saved Resources bounded-hydration recovery
 
