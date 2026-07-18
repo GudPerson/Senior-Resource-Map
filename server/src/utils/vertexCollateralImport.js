@@ -11,7 +11,7 @@ import {
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
-const COLLATERAL_EXTRACTION_CONTRACT_VERSION = 4;
+const COLLATERAL_EXTRACTION_CONTRACT_VERSION = 5;
 const MAX_TOTAL_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_FILES = 6;
 const AI_IMPORT_NOT_CONFIGURED_MESSAGE = 'AI import is not set up for this environment yet. Ask the system administrator to enable the AI collateral import service before trying again.';
@@ -340,11 +340,20 @@ function buildCollateralResponseSchema() {
                         sourceExcerpt: { type: 'string' },
                         confidence: { type: 'number' },
                     },
-                    required: ['name'],
+                    required: [
+                        'bucket',
+                        'name',
+                        'schedule',
+                        'scheduleContext',
+                        'scheduleSessions',
+                        'scheduleEntries',
+                        'sourceExcerpt',
+                        'confidence',
+                    ],
                 },
             },
         },
-        required: ['draftRows'],
+        required: ['warnings', 'calendarContext', 'draftRows'],
     };
 }
 
@@ -363,6 +372,73 @@ function buildGenerateContentBody({ prompt, fileParts }) {
             temperature: 0.1,
             responseMimeType: 'application/json',
             responseSchema: buildCollateralResponseSchema(),
+        },
+    };
+}
+
+function buildScheduleRescuePrompt({ hostAsset, draftRows }) {
+    const offeringNames = draftRows
+        .map((row) => normalizeText(row?.name))
+        .filter(Boolean)
+        .map((name) => `- ${name}`)
+        .join('\n');
+
+    return [
+        'Transcribe only the printed schedule evidence from this CareAround SG collateral.',
+        `The collateral belongs to this host place: ${hostAsset.name}${hostAsset.address ? `, ${hostAsset.address}` : ''}.`,
+        'This is a focused transcription pass, not a programme-classification or schedule-inference pass.',
+        'Copy the visible calendar month and year into calendarContext, for example "July 2026".',
+        'For each listed offering, return its exact printed time line and every date bullet or weekday rule in scheduleSessions.',
+        'Keep separate printed lines separate. Preserve shorthand such as "6/7", dot times such as "1.30PM", and weekday wording such as "Mon to Wed & Fri".',
+        'Use the offering name exactly as listed below so the transcription can be matched safely.',
+        'If no schedule is visibly printed for an offering, return an empty scheduleSessions array for that offering.',
+        'Do not invent, calculate, normalize, or convert dates and times. Do not include closure notices, registration instructions, addresses, or contact details as schedules.',
+        'Return only JSON matching the schema. No markdown.',
+        'Offering names:',
+        offeringNames,
+    ].join('\n');
+}
+
+function buildScheduleRescueResponseSchema() {
+    return {
+        type: 'object',
+        properties: {
+            calendarContext: { type: 'string' },
+            scheduleRows: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        name: { type: 'string' },
+                        scheduleContext: { type: 'string' },
+                        scheduleSessions: {
+                            type: 'array',
+                            items: { type: 'string' },
+                        },
+                    },
+                    required: ['name', 'scheduleContext', 'scheduleSessions'],
+                },
+            },
+        },
+        required: ['calendarContext', 'scheduleRows'],
+    };
+}
+
+function buildScheduleRescueBody({ prompt, fileParts }) {
+    return {
+        contents: [
+            {
+                role: 'user',
+                parts: [
+                    { text: prompt },
+                    ...fileParts,
+                ],
+            },
+        ],
+        generationConfig: {
+            temperature: 0,
+            responseMimeType: 'application/json',
+            responseSchema: buildScheduleRescueResponseSchema(),
         },
     };
 }
@@ -815,6 +891,65 @@ function normalizeCollateralExtractionResult(result, softSubCategoryNames, known
     };
 }
 
+function rowHasScheduleEvidence(row = {}) {
+    return Boolean(
+        (Array.isArray(row.scheduleEntries) && row.scheduleEntries.length > 0)
+        || (Array.isArray(row.scheduleSessions) && row.scheduleSessions.length > 0)
+        || (Array.isArray(row.unparsedScheduleLines) && row.unparsedScheduleLines.length > 0)
+        || normalizeText(row.schedule),
+    );
+}
+
+function needsScheduleTranscriptionRescue(result = {}) {
+    const programmeRows = (Array.isArray(result.draftRows) ? result.draftRows : [])
+        .filter((row) => normalizeText(row?.bucket).toLowerCase() === 'programmes');
+    return programmeRows.length >= 3 && programmeRows.every((row) => !rowHasScheduleEvidence(row));
+}
+
+function mergeScheduleTranscription(result, transcription = {}) {
+    const inheritedScheduleContext = normalizeText(
+        transcription?.calendarContext
+        || transcription?.scheduleContext
+        || transcription?.calendarMonthYear,
+    );
+    const scheduleRowsByName = new Map();
+
+    (Array.isArray(transcription?.scheduleRows) ? transcription.scheduleRows : []).forEach((row) => {
+        const name = normalizeText(row?.name);
+        const groupingName = normalizeGroupingName(name);
+        if (!groupingName) return;
+        const scheduleSessions = normalizeScheduleSessions(
+            row?.scheduleSessions || row?.sessions || row?.sessionDates,
+            row?.schedule || '',
+        );
+        scheduleRowsByName.set(groupingName, {
+            scheduleContext: normalizeText(row?.scheduleContext || inheritedScheduleContext),
+            scheduleSessions,
+        });
+    });
+
+    const mergedRows = (Array.isArray(result?.draftRows) ? result.draftRows : []).map((row) => {
+        if (rowHasScheduleEvidence(row)) return row;
+        const transcriptionRow = scheduleRowsByName.get(normalizeGroupingName(row?.name));
+        if (!transcriptionRow?.scheduleSessions.length) return row;
+        return {
+            ...row,
+            scheduleContext: normalizeText(row.scheduleContext || transcriptionRow.scheduleContext),
+            scheduleSessions: transcriptionRow.scheduleSessions,
+            schedule: transcriptionRow.scheduleSessions.join('\n'),
+        };
+    });
+    const consolidation = consolidateCollateralDraftRows(mergedRows);
+
+    return {
+        draftRows: consolidation.draftRows,
+        warnings: [...new Set([
+            ...(Array.isArray(result?.warnings) ? result.warnings : []),
+            ...consolidation.warnings,
+        ])],
+    };
+}
+
 function extractTextFromAiResponse(responseJson, providerLabel = 'AI import') {
     const parts = responseJson?.candidates?.[0]?.content?.parts;
     if (!Array.isArray(parts) || parts.length === 0) {
@@ -888,6 +1023,40 @@ async function callAiGenerateContent(config, body) {
     return callVertexGenerateContent(config, body);
 }
 
+async function rescueMissingScheduleText({
+    env,
+    config,
+    hostAsset,
+    fileParts,
+    extraction,
+}) {
+    await assertAiImportAllowed(env);
+    const responseJson = await callAiGenerateContent(
+        config,
+        buildScheduleRescueBody({
+            prompt: buildScheduleRescuePrompt({ hostAsset, draftRows: extraction.draftRows }),
+            fileParts,
+        }),
+    );
+    const rawText = extractTextFromAiResponse(
+        responseJson,
+        config.provider === 'gemini' ? 'Gemini AI schedule transcription' : 'Vertex AI schedule transcription',
+    );
+
+    let transcription;
+    try {
+        transcription = JSON.parse(rawText);
+    } catch (err) {
+        console.error('AI collateral schedule transcription JSON parse error:', {
+            provider: config.provider,
+            message: err.message,
+        });
+        throw clientError('AI schedule transcription returned malformed JSON.', 502);
+    }
+
+    return mergeScheduleTranscription(extraction, transcription);
+}
+
 export async function extractCollateralDraftRows({
     env,
     hostAsset,
@@ -942,13 +1111,42 @@ export async function extractCollateralDraftRows({
         throw clientError(`${config.provider === 'gemini' ? 'Gemini AI' : 'Vertex AI'} returned malformed JSON. ${err.message}`, 502);
     }
 
-    const normalizedResult = normalizeCollateralExtractionResult(parsed, softSubCategoryNames, knownTagNames);
+    let normalizedResult = normalizeCollateralExtractionResult(parsed, softSubCategoryNames, knownTagNames);
+    if (needsScheduleTranscriptionRescue(normalizedResult)) {
+        try {
+            normalizedResult = await rescueMissingScheduleText({
+                env,
+                config,
+                hostAsset,
+                fileParts,
+                extraction: normalizedResult,
+            });
+        } catch (err) {
+            console.error('AI collateral schedule transcription rescue error:', {
+                provider: config.provider,
+                status: err?.status || 500,
+                message: err?.message || 'Unknown schedule transcription error',
+            });
+            normalizedResult = {
+                ...normalizedResult,
+                warnings: [...new Set([
+                    ...normalizedResult.warnings,
+                    'Programme names were extracted, but schedule transcription could not be completed. Retry the preview or review the schedules manually.',
+                ])],
+            };
+        }
+    }
+
     const draftRows = normalizedResult.draftRows;
     if (draftRows.length === 0) {
         throw clientError('No clear offerings could be extracted from that collateral. Try a cleaner scan or use manual creation.', 422);
     }
 
     const warnings = normalizedResult.warnings;
+
+    if (needsScheduleTranscriptionRescue(normalizedResult)) {
+        return { draftRows, warnings };
+    }
 
     return setCachedAiResult(env, 'collateral-import', cachePayload, { draftRows, warnings });
 }
