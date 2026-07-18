@@ -31,6 +31,17 @@ Last updated: 2026-07-18 (Asia/Singapore)
   ad hoc read-only collateral-preview probe was attempted, but the helper
   stopped at automated login before reaching the import route; no Save reviewed
   rows action or production resource mutation was performed.
+- Current collateral calendar text-to-schedule branch:
+  `codex/collateral-calendar-schedule-parser`. This follow-up addresses the
+  production finding that `TWV-July-Eng.jpeg` still produced `Schedules ready 0`
+  because the parser could not convert flyer shorthand dates such as `6/7`
+  without an explicit year on the same line. The release candidate adds
+  schedule context extraction (`calendarContext` / `scheduleContext`), bumps the
+  AI cache contract to `3`, parses dot-separated times and date bullets with a
+  visible month/year context, and leaves shorthand dates without a year context
+  in manual review. Focused parser/collateral coverage passed 31/31, full
+  server passed 446/446, and `git diff --check` passed. No client, schema,
+  secret, auth, or production data change is included yet.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`

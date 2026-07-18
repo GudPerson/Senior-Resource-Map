@@ -210,6 +210,41 @@ test('Collateral exact-session text becomes structured Singapore sessions and re
     assert.deepEqual(parsed.unparsed, ['Call the centre for timing']);
 });
 
+test('collateral calendar bullet dates inherit a visible month-year context', () => {
+    const parsed = parseImportedScheduleSessions([
+        '9.30AM - 10.30AM',
+        '• 6/7 • 13/7',
+        '• 20/7 • 27/7',
+    ], '', { contextText: 'JULY 2026' });
+
+    assert.equal(parsed.entries.length, 4);
+    assert.equal(parsed.entries[0].startsAt, '2026-07-06T01:30:00.000Z');
+    assert.equal(parsed.entries[0].endsAt, '2026-07-06T02:30:00.000Z');
+    assert.equal(parsed.entries[3].startsAt, '2026-07-27T01:30:00.000Z');
+    assert.deepEqual(parsed.unparsed, []);
+});
+
+test('collateral calendar same-line date bullets produce multiple sessions', () => {
+    const parsed = parseImportedScheduleSessions([
+        '2PM - 3.30PM • 6/7 • 13/7 • 20/7 • 27/7',
+    ], '', { contextText: 'July 2026' });
+
+    assert.equal(parsed.entries.length, 4);
+    assert.equal(parsed.entries[0].startsAt, '2026-07-06T06:00:00.000Z');
+    assert.equal(parsed.entries[0].endsAt, '2026-07-06T07:30:00.000Z');
+});
+
+test('collateral shorthand dates stay unparsed without a year context', () => {
+    const parsed = parseImportedScheduleSessions([
+        '9.30AM - 10.30AM',
+        '• 6/7 • 13/7',
+    ]);
+
+    assert.deepEqual(parsed.entries, []);
+    assert.ok(parsed.unparsed.includes('9.30AM - 10.30AM'));
+    assert.ok(parsed.unparsed.includes('• 6/7 • 13/7'));
+});
+
 test('An empty import cannot silently clear an existing schedule', () => {
     const parsed = parseImportedScheduleSessions([], 'Timing to be confirmed');
     assert.deepEqual(parsed.entries, []);

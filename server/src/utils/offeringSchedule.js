@@ -369,7 +369,7 @@ export function expandOfferingSchedule(asset, from, to) {
 }
 
 function parseClock(value, fallbackMeridiem = '') {
-    const match = String(value || '').trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+    const match = String(value || '').trim().toLowerCase().match(/^(\d{1,2})(?:(?::|\.)(\d{2}))?\s*(am|pm)?$/);
     if (!match) return null;
     let hour = Number(match[1]);
     const minute = Number(match[2] || 0);
@@ -402,7 +402,23 @@ function buildSingaporeIso(year, monthIndex, day, clock) {
     return date.toISOString();
 }
 
-function parseDateParts(line) {
+function extractScheduleDateContext(...values) {
+    const text = values.map((value) => String(value || '')).join('\n');
+    const monthYear = text.match(/\b([A-Za-z]{3,9})\s+(\d{4})\b/i);
+    if (monthYear) {
+        const month = MONTH_INDEX.get(monthYear[1].toLowerCase());
+        if (month !== undefined) return { month, year: Number(monthYear[2]) };
+    }
+    const yearMonth = text.match(/\b(\d{4})\s+([A-Za-z]{3,9})\b/i);
+    if (yearMonth) {
+        const month = MONTH_INDEX.get(yearMonth[2].toLowerCase());
+        if (month !== undefined) return { month, year: Number(yearMonth[1]) };
+    }
+    const yearOnly = text.match(/\b(20\d{2}|19\d{2})\b/);
+    return yearOnly ? { month: null, year: Number(yearOnly[1]) } : { month: null, year: null };
+}
+
+function parseDateParts(line, context = {}) {
     const dayFirst = line.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\b/i);
     if (dayFirst) {
         const month = MONTH_INDEX.get(dayFirst[2].toLowerCase());
@@ -417,27 +433,30 @@ function parseDateParts(line) {
     if (numeric) {
         return { day: Number(numeric[1]), month: Number(numeric[2]) - 1, year: Number(numeric[3]) };
     }
+    const shortNumeric = line.match(/\b(\d{1,2})[\/-](\d{1,2})\b/);
+    if (shortNumeric && Number.isInteger(context.year)) {
+        return { day: Number(shortNumeric[1]), month: Number(shortNumeric[2]) - 1, year: context.year };
+    }
     return null;
 }
 
-function parseImportedSessionLine(value, index) {
-    const line = String(value || '').replace(/\s+/g, ' ').trim();
-    const date = parseDateParts(line);
-    if (!line || !date) return null;
-    const range = line.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:-|–|—|\bto\b)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
-    const single = range ? null : line.match(/(?:,|\bat\b)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i);
-    if (!range && !single) return null;
+function parseTimeRange(line) {
+    return String(line || '').match(/(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm)?)\s*(?:-|–|—|\bto\b)\s*(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm)?)/i);
+}
+
+function buildSessionEntry(date, range, line, index, suffix = 0) {
     const endMeridiem = range?.[2]?.toLowerCase().match(/(am|pm)/)?.[1] || '';
-    const startMeridiem = (range?.[1] || single?.[1] || '').toLowerCase().match(/(am|pm)/)?.[1] || endMeridiem;
-    const startClock = parseClock(range?.[1] || single?.[1], startMeridiem);
-    const endClock = range ? parseClock(range[2], endMeridiem || startMeridiem) : null;
-    if (!startClock || (range && !endClock)) return null;
+    const startMeridiem = (range?.[1] || '').toLowerCase().match(/(am|pm)/)?.[1] || endMeridiem;
+    const startClock = parseClock(range?.[1], startMeridiem);
+    const hasEnd = Boolean(range?.[2]);
+    const endClock = hasEnd ? parseClock(range[2], endMeridiem || startMeridiem) : null;
+    if (!startClock || (hasEnd && !endClock)) return null;
     const startsAt = buildSingaporeIso(date.year, date.month, date.day, startClock);
     const endsAt = endClock ? buildSingaporeIso(date.year, date.month, date.day, endClock) : null;
     if (!startsAt || (endsAt && new Date(endsAt) <= new Date(startsAt))) return null;
 
     return {
-        key: `import-${index + 1}-${startsAt.replace(/\D/g, '').slice(0, 12)}`,
+        key: `import-${index + 1}-${suffix + 1}-${startsAt.replace(/\D/g, '').slice(0, 12)}`,
         type: 'once',
         startsAt,
         endsAt,
@@ -449,12 +468,119 @@ function parseImportedSessionLine(value, index) {
     };
 }
 
-export function parseImportedScheduleSessions(values = [], fallbackText = '') {
+function parseImportedSessionLine(value, index, context = {}) {
+    const line = String(value || '').replace(/\s+/g, ' ').trim();
+    const date = parseDateParts(line, context);
+    if (!line || !date) return [];
+    const range = parseTimeRange(line);
+    const single = range ? null : line.match(/(?:,|\bat\b)\s*(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm))\b/i);
+    if (!range && !single) return [];
+    if (single) {
+        const singleRange = [single[0], single[1], null];
+        const entry = buildSessionEntry(date, singleRange, line, index);
+        return entry ? [entry] : [];
+    }
+    const entry = buildSessionEntry(date, range, line, index);
+    return entry ? [entry] : [];
+}
+
+function extractShortDateParts(line, context = {}) {
+    if (!Number.isInteger(context.year)) return [];
+    return [...String(line || '').matchAll(/\b(\d{1,2})[\/-](\d{1,2})(?![\/-]\d{2,4})\b/g)]
+        .map((match) => ({ day: Number(match[1]), month: Number(match[2]) - 1, year: context.year }));
+}
+
+function hasScheduleSignal(line) {
+    return parseTimeRange(line)
+        || /\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b/.test(line)
+        || /\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b/i.test(line)
+        || /\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}\b/i.test(line);
+}
+
+function hasUnclearScheduleSignal(line) {
+    return /\b(call|contact|confirm|confirmed|timing|time|tbc|tba|appointment|enquire|inquire)\b/i.test(line);
+}
+
+function parseImportedScheduleTextBlock(lines = [], context = {}) {
+    const entries = [];
+    const unparsed = [];
+    let activeRange = null;
+    let activeRangeLineIndex = -1;
+    let activeRangeUsed = false;
+
+    lines.forEach((rawLine, index) => {
+        const line = String(rawLine || '').replace(/\s+/g, ' ').trim();
+        if (!line) return;
+
+        const lineRange = parseTimeRange(line);
+        if (lineRange) {
+            if (activeRange && !activeRangeUsed) {
+                unparsed.push(lines[activeRangeLineIndex]);
+            }
+            activeRange = lineRange;
+            activeRangeLineIndex = index;
+            activeRangeUsed = false;
+        }
+
+        const sameLineDateParts = lineRange ? extractShortDateParts(line, context) : [];
+        if (sameLineDateParts.length > 0) {
+            const builtEntries = sameLineDateParts
+                .map((date, offset) => buildSessionEntry(date, lineRange, line, index, offset))
+                .filter(Boolean);
+            if (builtEntries.length > 0) {
+                entries.push(...builtEntries);
+                activeRangeUsed = true;
+                return;
+            }
+        }
+
+        const directEntries = parseImportedSessionLine(line, index, context);
+        if (directEntries.length > 0) {
+            entries.push(...directEntries);
+            if (lineRange) activeRangeUsed = true;
+            return;
+        }
+
+        const dateParts = extractShortDateParts(line, context);
+        if (dateParts.length > 0 && activeRange) {
+            const builtEntries = dateParts
+                .map((date, offset) => buildSessionEntry(date, activeRange, line, index, offset))
+                .filter(Boolean);
+            if (builtEntries.length > 0) {
+                entries.push(...builtEntries);
+                activeRangeUsed = true;
+                return;
+            }
+        }
+
+        if ((hasScheduleSignal(line) || hasUnclearScheduleSignal(line)) && !lineRange) {
+            unparsed.push(line);
+        }
+    });
+
+    if (activeRange && !activeRangeUsed) {
+        unparsed.push(lines[activeRangeLineIndex]);
+    }
+
+    if (entries.length === 0 && unparsed.length === 0) {
+        unparsed.push(...lines.map((line) => String(line || '').trim()).filter(Boolean));
+    }
+
+    return { entries, unparsed };
+}
+
+export function parseImportedScheduleSessions(values = [], fallbackText = '', options = {}) {
     const rawValues = Array.isArray(values) && values.length
         ? values
         : String(fallbackText || '').split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const structured = [];
+    const textValues = [];
     const unparsed = [];
+    const context = extractScheduleDateContext(
+        options.contextText,
+        fallbackText,
+        rawValues.filter((value) => typeof value === 'string').join('\n'),
+    );
 
     rawValues.forEach((value, index) => {
         if (value && typeof value === 'object') {
@@ -469,10 +595,12 @@ export function parseImportedScheduleSessions(values = [], fallbackText = '') {
             }
             return;
         }
-        const parsed = parseImportedSessionLine(value, index);
-        if (parsed) structured.push(parsed);
-        else if (String(value || '').trim()) unparsed.push(String(value).trim());
+        if (String(value || '').trim()) textValues.push(String(value).trim());
     });
+
+    const parsedText = parseImportedScheduleTextBlock(textValues, context);
+    structured.push(...parsedText.entries);
+    unparsed.push(...parsedText.unparsed);
 
     const unique = [];
     const seen = new Set();

@@ -137,6 +137,32 @@ test('consolidateCollateralDraftRows rejects empty cached schedule placeholders'
     assert.ok(draftRows[0].unparsedScheduleLines.includes('Every Tuesday, timing to be confirmed'));
 });
 
+test('consolidateCollateralDraftRows converts TWV calendar text into reviewed rows when context is present', () => {
+    const { draftRows } = consolidateCollateralDraftRows([{
+        bucket: 'Programmes',
+        name: 'Zumba Gold',
+        scheduleContext: 'JULY 2026',
+        schedule: [
+            '9.30AM - 10.30AM',
+            '• 6/7 • 13/7',
+            '• 20/7 • 27/7',
+        ].join('\n'),
+        scheduleSessions: [
+            '9.30AM - 10.30AM',
+            '• 6/7 • 13/7',
+            '• 20/7 • 27/7',
+        ],
+        scheduleEntries: [],
+    }]);
+
+    assert.equal(draftRows[0].sessionCount, 4);
+    assert.equal(draftRows[0].scheduleEntries.length, 4);
+    assert.equal(draftRows[0].scheduleEntries[0].startsAt, '2026-07-06T01:30:00.000Z');
+    assert.equal(draftRows[0].scheduleEntries[0].endsAt, '2026-07-06T02:30:00.000Z');
+    assert.equal(draftRows[0].scheduleEntries[3].startsAt, '2026-07-27T01:30:00.000Z');
+    assert.deepEqual(draftRows[0].unparsedScheduleLines, []);
+});
+
 test('consolidateCollateralDraftRows still parses a text-only sibling beside structured sessions', () => {
     const { draftRows } = consolidateCollateralDraftRows([
         {
@@ -299,18 +325,17 @@ test('extractCollateralDraftRows calls Gemini fallback and consolidates returned
                                     {
                                         text: JSON.stringify({
                                             warnings: ['Programmes in red are full.'],
+                                            calendarContext: 'July 2026',
                                             draftRows: [
                                                 {
                                                     bucket: 'Programmes',
-                                                    name: 'Square Dance',
-                                                    schedule: '12 May 2026 (Tuesday), 10am-11am',
+                                                    name: 'Zumba Gold',
+                                                    schedule: '9.30AM - 10.30AM\n• 6/7 • 13/7',
+                                                    scheduleSessions: [
+                                                        '9.30AM - 10.30AM',
+                                                        '• 6/7 • 13/7',
+                                                    ],
                                                     confidence: 0.9,
-                                                },
-                                                {
-                                                    bucket: 'Programmes',
-                                                    name: 'Square Dance',
-                                                    schedule: '19 May 2026 (Tuesday), 10am-11am',
-                                                    confidence: 0.8,
                                                 },
                                             ],
                                         }),
@@ -349,17 +374,19 @@ test('extractCollateralDraftRows calls Gemini fallback and consolidates returned
 
         assert.match(capturedUrl, /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-test-model:generateContent\?key=/);
         assert.equal(capturedBody.generationConfig.responseMimeType, 'application/json');
+        assert.ok(capturedBody.generationConfig.responseSchema.properties.calendarContext);
         assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows);
+        assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.properties.scheduleContext);
         assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.properties.scheduleEntries);
         assert.equal(capturedBody.contents[0].parts[1].inlineData.mimeType, 'image/jpeg');
         assert.equal(extraction.draftRows.length, 1);
-        assert.equal(extraction.draftRows[0].name, 'Square Dance');
+        assert.equal(extraction.draftRows[0].name, 'Zumba Gold');
         assert.equal(extraction.draftRows[0].sessionCount, 2);
         assert.equal(extraction.draftRows[0].schedule, [
-            '12 May 2026 (Tuesday), 10am-11am',
-            '19 May 2026 (Tuesday), 10am-11am',
+            '9.30AM - 10.30AM',
+            '• 6/7 • 13/7',
         ].join('\n'));
-        assert.ok(extraction.warnings.some((warning) => warning.includes('Grouped 2 "Square Dance" entries')));
+        assert.equal(extraction.draftRows[0].scheduleEntries[0].startsAt, '2026-07-06T01:30:00.000Z');
     } finally {
         globalThis.fetch = originalFetch;
     }

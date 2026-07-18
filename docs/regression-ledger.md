@@ -367,6 +367,38 @@ These surfaces are approved on the stabilization branch and should not be reopen
   ad hoc verifier stopped at automated login rather than the import route; no
   Save reviewed rows action or resource mutation was performed.
 
+### 2026-07-18 Collateral calendar text-to-schedule recovery
+
+- Current behavior in the release candidate: collateral extraction uses a
+  two-stage schedule path. The AI still performs the visual/text pass and
+  preserves visible calendar context such as `July 2026`, row time text, and
+  date bullets. The server then deterministically converts safe text patterns
+  like `9.30AM - 10.30AM` plus `6/7, 13/7, 20/7, 27/7` into individual
+  Singapore-time schedule rows before the review UI opens. The AI cache
+  contract is versioned to `3` so production does not reuse the previous
+  no-schedule extraction result.
+- Known-good reference: user production screenshot on 2026-07-18 showing the
+  deployed import review still reporting `Schedules ready 0` and `Need schedule
+  review 26` for `TWV-July-Eng.jpeg`, despite the flyer clearly containing July
+  2026 programme time ranges and date bullets.
+- Reproduction steps: sign in, open `/dashboard/resources`, choose Import
+  Material for the relevant host, upload `/Users/sweetbuns/Downloads/TWV-July-Eng.jpeg`,
+  and preview without saving. Inspect Zumba Gold and similar programme rows
+  whose extracted schedule text uses a time line followed by shorthand date
+  bullets.
+- Acceptance criteria: exact row text with visible month/year context produces
+  individual reviewed schedule rows; dot-separated times such as `9.30AM` parse
+  safely; same-line date bullets produce multiple rows; shorthand dates without
+  a year context remain manual-review text; invalid dates stay unparsed; an
+  import with no valid rows still cannot clear an existing schedule. Auth,
+  access, visibility, saved resources, Care Calendar planning, matching,
+  schema, secrets, and production data remain unchanged.
+- Verification result before deploy: focused parser and collateral coverage
+  passed 31/31. Full server coverage passed 446/446, including workbook
+  schedule round-trip, collateral import, AI cache, saved-resource, and Worker
+  release-line guards. `git diff --check` passed. No client code, schema,
+  secret, auth, or production data change is included.
+
 ### 2026-05-20 AI enrichment logo selection recovery
 
 - Current behavior: website logo metadata now treats separators like `_` as valid logo filename boundaries, so organization logo files such as `LOGO_NLCS...` and `NLCS-Logo...` win over generic service carousel or award images.
