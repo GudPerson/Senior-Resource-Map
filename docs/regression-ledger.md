@@ -404,6 +404,44 @@ These surfaces are approved on the stabilization branch and should not be reopen
   was included; production custom domain remained on `assets/index-BUCrPSUa.js`
   and `assets/index-CvQOOpB_.css`.
 
+### 2026-07-18 Collateral weekday-range schedule parsing
+
+- Current behavior: collateral extraction also recognizes visible monthly
+  programme schedules written as weekday ranges with one or more time windows.
+  For example, when the row inherits a visible context such as `JULY 2026`,
+  `Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM` becomes two bounded weekly
+  reviewed rows for Monday, Tuesday, Wednesday, and Friday, and
+  `Thurs: 1.30PM - 5PM` becomes a bounded Thursday weekly row. The repeat
+  boundary is the visible calendar month. The same weekday text without a
+  month/year context remains manual-review text.
+- Known-good reference: user production screenshot on 2026-07-18 showing the
+  remaining manual-review row from `TWV-July-Eng.jpeg` with source wording
+  `Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM` and
+  `Thurs: 1.30PM - 5PM`.
+- Reproduction steps: sign in, open `/dashboard/resources`, choose Import
+  Material for the relevant host, upload `/Users/sweetbuns/Downloads/TWV-July-Eng.jpeg`,
+  and preview without saving. Inspect the Board Games row. Confirm the row
+  proposes three reviewed weekly rows when the July 2026 heading is present,
+  and confirm the same wording without a month/year context stays in manual
+  review.
+- Acceptance criteria: weekday aliases and weekday ranges parse only when the
+  source also provides a visible month/year context; multiple printed time
+  windows become separate reviewed rows; repeat boundaries are bounded to the
+  visible month; no weekday, month, year, or repeat boundary is invented; an
+  import with no valid rows still cannot clear an existing schedule. Auth,
+  access, visibility, saved resources, Care Calendar planning, matching,
+  schema, secrets, client bundles, and production data remain unchanged.
+- Verification and deployment result: focused Offering schedule and collateral
+  import coverage passed 34/34. Full server coverage passed 449/449, including
+  workbook schedule round-trip, collateral import, AI cache, saved-resource,
+  and Worker release-line guards. `git diff --check` passed. Implementation
+  commit `c4f7529fe` was pushed to `main`, and the Worker deployed as version
+  `e213d082-66e5-493f-abf9-a442ba5d8e15`. Production API health returned OK at
+  `2026-07-18T14:41:10.646Z`. The first production smoke attempt passed public
+  load but stopped because smoke credentials were not exported; rerunning with
+  local `smoke.env` passed production smoke 6/6. No client code, Pages bundle,
+  schema, secret, auth, or production data change was included.
+
 ### 2026-05-20 AI enrichment logo selection recovery
 
 - Current behavior: website logo metadata now treats separators like `_` as valid logo filename boundaries, so organization logo files such as `LOGO_NLCS...` and `NLCS-Logo...` win over generic service carousel or award images.
