@@ -11,7 +11,7 @@ import {
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
-const COLLATERAL_EXTRACTION_CONTRACT_VERSION = 3;
+const COLLATERAL_EXTRACTION_CONTRACT_VERSION = 4;
 const MAX_TOTAL_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_FILES = 6;
 const AI_IMPORT_NOT_CONFIGURED_MESSAGE = 'AI import is not set up for this environment yet. Ask the system administrator to enable the AI collateral import service before trying again.';
