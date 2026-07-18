@@ -21,15 +21,20 @@ const dayViewSource = readFileSync(
     new URL('../src/components/calendar/DayCalendarView.jsx', import.meta.url),
     'utf8',
 );
+const periodViewsSource = readFileSync(
+    new URL('../src/components/calendar/CalendarPeriodViews.jsx', import.meta.url),
+    'utf8',
+);
 
-test('Care Calendar requests one exact Singapore day and navigates across date boundaries', () => {
+test('Care Calendar can still request one exact Singapore day and navigates across date boundaries', () => {
     assert.deepEqual(getSingaporeDayRange('2026-07-17'), {
         from: '2026-07-16T16:00:00.000Z',
         to: '2026-07-17T16:00:00.000Z',
     });
     assert.equal(shiftSingaporeDayKey('2026-07-31', 1), '2026-08-01');
     assert.equal(shiftSingaporeDayKey('2026-01-01', -1), '2025-12-31');
-    assert.match(pageSource, /getSingaporeDayRange\(selectedDayKey\)/);
+    assert.match(pageSource, /getCalendarRange\(activeView, selectedDayKey\)/);
+    assert.match(pageSource, /scope: planningSection \? 'plans' : 'all'/);
 });
 
 test('the compact date navigator shows the selected Singapore week', () => {
@@ -58,14 +63,20 @@ test('the day timeline expands so early and late events are not hidden', () => {
     ]).at(-1), 23);
 });
 
-test('Day view keeps the current calendar actions and labels Week and Month as later phases', () => {
+test('Care Calendar keeps the current actions and enables day week month views', () => {
     assert.match(dayViewSource, /careCalendarDayView/);
     assert.match(dayViewSource, /careCalendarWeekView/);
     assert.match(dayViewSource, /careCalendarMonthView/);
-    assert.match(dayViewSource, /disabled\s*\n\s*title=\{t\('careCalendarViewComingSoon'\)\}/);
+    assert.doesNotMatch(dayViewSource, /careCalendarViewComingSoon/);
+    assert.match(periodViewsSource, /export function WeekCalendarView/);
+    assert.match(periodViewsSource, /export function MonthCalendarView/);
     assert.match(eventCardSource, /onPlan\(event\)/);
     assert.match(eventCardSource, /onRemove\(event\.plannedItemId \|\| event\.id\)/);
-    assert.match(eventCardSource, /onAcknowledge\(event\.softAssetId\)/);
+    assert.match(pageSource, /api\.acknowledgeCalendarSchedule\(softAssetId\)/);
+    assert.match(pageSource, /CalendarUpdatesView/);
+    assert.match(eventCardSource, /careCalendarAddToPlans/);
+    assert.match(eventCardSource, /careCalendarRemoveFromPlans/);
+    assert.match(eventCardSource, /careCalendarRemoveMapNote/);
     assert.match(eventCardSource, /careCalendarSavedActivity/);
     assert.match(eventCardSource, /careCalendarPlanned/);
     assert.match(eventCardSource, /careCalendarMapNote/);

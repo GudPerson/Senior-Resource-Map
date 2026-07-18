@@ -58,6 +58,8 @@ const acknowledgeScheduleBodySchema = z.object({
     softAssetId: positiveIntValueSchema('Offering id'),
 });
 
+const CALENDAR_SCOPES = new Set(['all', 'plans']);
+
 function createHttpError(status, message) {
     const error = new Error(message);
     error.status = status;
@@ -94,6 +96,14 @@ function parseCalendarRange(c) {
         throw createHttpError(400, `Calendar ranges cannot exceed ${CALENDAR_MAX_RANGE_DAYS} days.`);
     }
     return { from, to };
+}
+
+export function normalizeCalendarScope(value) {
+    const scope = String(value || 'all').trim().toLowerCase();
+    if (!CALENDAR_SCOPES.has(scope)) {
+        throw createHttpError(400, 'Calendar scope must be either all or plans.');
+    }
+    return scope;
 }
 
 function isUniqueConstraintViolation(error) {
@@ -170,7 +180,7 @@ function defaultNoteTitle(context) {
     return `${context?.mapName || 'My Map'} note`;
 }
 
-function serializePersonalItem(
+export function serializePersonalItem(
     row,
     sourceRevisionById = new Map(),
     lastSeenRevisionById = new Map(),
@@ -181,6 +191,9 @@ function serializePersonalItem(
     const lastSeenRevision = row.softAssetId
         ? lastSeenRevisionById.get(Number(row.softAssetId)) ?? 0
         : 0;
+    const sourceChanged = row.itemType === 'planned_session'
+        && currentSourceRevision !== null
+        && Number(row.sourceRevision || 0) < currentSourceRevision;
     return {
         id: row.id,
         itemType: row.itemType,
@@ -194,10 +207,9 @@ function serializePersonalItem(
         sourceScheduleEntryKey: row.sourceScheduleEntryKey || null,
         sourceStartsAt: row.sourceStartsAt ? new Date(row.sourceStartsAt).toISOString() : null,
         sourceRevision: row.sourceRevision ?? null,
-        needsReview: row.itemType === 'planned_session'
-            && currentSourceRevision !== null
-            && Number(row.sourceRevision || 0) < currentSourceRevision
-            && lastSeenRevision < currentSourceRevision,
+        currentSourceRevision,
+        sourceChanged,
+        needsReview: sourceChanged && lastSeenRevision < currentSourceRevision,
     };
 }
 
@@ -207,6 +219,7 @@ export const getCalendar = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         const { from, to } = parseCalendarRange(c);
+        const scope = normalizeCalendarScope(c.req.query('scope'));
         const savedItems = await listSavedSoftAssets(db, user);
         const savedSoftItems = savedItems.filter((item) => (
             item.status === 'available'
@@ -272,7 +285,16 @@ export const getCalendar = async (c) => {
                 ]),
         );
 
-        const occurrences = savedSoftAssets
+        const plannedSoftAssetIds = new Set(
+            personalItems
+                .filter((item) => item.itemType === 'planned_session' && item.softAssetId)
+                .map((item) => Number(item.softAssetId)),
+        );
+        const occurrenceAssets = scope === 'plans'
+            ? savedSoftAssets.filter((asset) => plannedSoftAssetIds.has(Number(asset.id)))
+            : savedSoftAssets;
+
+        const occurrences = occurrenceAssets
             .filter((asset) => asset.calendarEnabled)
             .flatMap((asset) => expandOfferingSchedule(asset, from, to))
             .map((occurrence) => {
@@ -288,22 +310,36 @@ export const getCalendar = async (c) => {
                     detailPath: saved?.detailPath || `/resource/soft/${occurrence.softAssetId}`,
                     plannedItemId: plannedItem?.id || null,
                     isPlanned: Boolean(plannedItem),
+                    plannedSourceRevision: plannedItem?.sourceRevision ?? null,
+                    sourceChanged: Boolean(plannedItem)
+                        && Number(plannedItem?.sourceRevision || 0)
+                            < Math.max(Number(asset?.calendarRevision) || 0, 0),
                     scheduleChanged: Boolean(hasChangedSinceReview(asset, saved)),
                 };
             });
 
         return c.json({
             timezone: 'Asia/Singapore',
+            scope,
             range: {
                 from: from.toISOString(),
                 to: to.toISOString(),
             },
             occurrences,
-            personalItems: personalItems.map((item) => serializePersonalItem(
-                item,
-                sourceRevisionById,
-                lastSeenRevisionById,
-            )),
+            personalItems: personalItems.map((item) => ({
+                ...serializePersonalItem(
+                    item,
+                    sourceRevisionById,
+                    lastSeenRevisionById,
+                ),
+                address: item.softAssetId
+                    ? savedById.get(Number(item.softAssetId))?.address || null
+                    : null,
+                detailPath: item.softAssetId
+                    ? savedById.get(Number(item.softAssetId))?.detailPath
+                        || `/resource/soft/${item.softAssetId}`
+                    : null,
+            })),
             savedWithoutSchedule: savedSoftItems
                 .filter((item) => !savedSoftAssetById.get(Number(item.resourceId))?.calendarEnabled)
                 .map((item) => {

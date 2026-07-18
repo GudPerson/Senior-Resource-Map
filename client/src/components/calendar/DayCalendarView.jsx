@@ -12,24 +12,21 @@ import {
     shiftSingaporeDayKey,
 } from '../../lib/careCalendarDay.js';
 
-function CalendarViewTabs({ t }) {
+export function CalendarViewTabs({ activeView = 'day', onChange, t }) {
+    const views = [
+        ['day', t('careCalendarDayView')],
+        ['week', t('careCalendarWeekView')],
+        ['month', t('careCalendarMonthView')],
+    ];
     return (
         <div className="inline-flex min-h-[44px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label={t('careCalendarViewLabel')}>
-            <button
-                type="button"
-                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm"
-                aria-pressed="true"
-            >
-                {t('careCalendarDayView')}
-            </button>
-            {[t('careCalendarWeekView'), t('careCalendarMonthView')].map((label) => (
+            {views.map(([view, label]) => (
                 <button
-                    key={label}
+                    key={view}
                     type="button"
-                    disabled
-                    title={t('careCalendarViewComingSoon')}
-                    aria-label={`${label}. ${t('careCalendarViewComingSoon')}`}
-                    className="rounded-lg px-4 py-2 text-sm font-bold text-slate-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    onClick={() => onChange?.(view)}
+                    aria-pressed={activeView === view}
+                    className={`rounded-lg px-3 py-2 text-sm font-bold transition-colors sm:px-4 ${activeView === view ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-slate-900'}`}
                 >
                     {label}
                 </button>
@@ -39,10 +36,12 @@ function CalendarViewTabs({ t }) {
 }
 
 export function DayPlanner({
+    activeView = 'day',
     emptyState,
     events,
     locale,
     onSelectDay,
+    onViewChange,
     renderEvent,
     selectedDayKey,
     t,
@@ -92,7 +91,7 @@ export function DayPlanner({
                 <h2 className="text-center text-lg font-extrabold text-slate-900" aria-live="polite">
                     {formatCalendarDay(selectedDayKey, locale)}
                 </h2>
-                <CalendarViewTabs t={t} />
+                <CalendarViewTabs activeView={activeView} onChange={onViewChange} t={t} />
             </div>
 
             {allDayEvents.length ? (

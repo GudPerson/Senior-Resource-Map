@@ -40,6 +40,12 @@ export function shiftSingaporeDayKey(dayKey, amount) {
     return formatUtcDayKey(shifted);
 }
 
+export function shiftSingaporeMonthKey(dayKey, amount) {
+    const { year, month } = parseDayKey(dayKey);
+    const shifted = new Date(Date.UTC(year, month - 1 + Number(amount || 0), 1));
+    return formatUtcDayKey(shifted);
+}
+
 export function getSingaporeDayRange(dayKey) {
     const from = getSingaporeDayDate(dayKey, 0);
     const to = getSingaporeDayDate(shiftSingaporeDayKey(dayKey, 1), 0);

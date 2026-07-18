@@ -3,10 +3,9 @@ import {
     AlertTriangle,
     CalendarCheck,
     CalendarDays,
-    Check,
     Clock3,
     MapPin,
-    Plus,
+    Star,
     Trash2,
 } from 'lucide-react';
 
@@ -15,16 +14,16 @@ import { formatCalendarTime } from '../../lib/careCalendarDay.js';
 export default function CalendarEventCard({
     event,
     locale,
-    onAcknowledge,
     onPlan,
     onRemove,
+    onReviewUpdate,
     pendingKey,
     t,
 }) {
     const isSource = event.kind === 'saved_activity';
     const isMapNote = event.kind === 'map_note';
     const isPlanned = event.isPlanned || event.kind === 'planned_session';
-    const needsAttention = event.scheduleChanged || event.needsReview;
+    const needsAttention = event.needsReview || event.status === 'cancelled';
     const isPending = pendingKey === event.id
         || pendingKey === event.plannedItemId
         || pendingKey === `ack-${event.softAssetId}`;
@@ -80,9 +79,9 @@ export default function CalendarEventCard({
                         <div className="mt-3 flex max-w-2xl items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
                             <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
                             <span>
-                                {event.needsReview
-                                    ? t('careCalendarPlanNeedsReview')
-                                    : t('careCalendarScheduleChanged')}
+                                {event.status === 'cancelled'
+                                    ? t('careCalendarCancelledPlanHelp')
+                                    : t('careCalendarPlanNeedsReview')}
                             </span>
                         </div>
                     ) : null}
@@ -101,27 +100,37 @@ export default function CalendarEventCard({
                             disabled={isPending}
                             className="btn-primary min-h-[42px] justify-center disabled:opacity-60"
                         >
-                            <Plus size={16} /> {t('careCalendarPlanSession')}
+                            <Star size={16} /> {t('careCalendarAddToPlans')}
                         </button>
                     ) : null}
-                    {(event.isPlanned || event.kind === 'planned_session' || isMapNote) ? (
+                    {(event.isPlanned || event.kind === 'planned_session') ? (
                         <button
                             type="button"
                             onClick={() => onRemove(event.plannedItemId || event.id)}
                             disabled={isPending}
-                            className="btn-secondary min-h-[42px] justify-center text-red-700 disabled:opacity-60"
+                            className="btn-secondary min-h-[42px] justify-center text-amber-700 disabled:opacity-60"
                         >
-                            <Trash2 size={16} /> {t('remove')}
+                            <Star size={16} fill="currentColor" /> {t('careCalendarRemoveFromPlans')}
                         </button>
                     ) : null}
-                    {(isSource && event.scheduleChanged) || event.needsReview ? (
+                    {isMapNote ? (
                         <button
                             type="button"
-                            onClick={() => onAcknowledge(event.softAssetId)}
+                            onClick={() => onRemove(event.id)}
+                            disabled={isPending}
+                            className="btn-secondary min-h-[42px] justify-center text-red-700 disabled:opacity-60"
+                        >
+                            <Trash2 size={16} /> {t('careCalendarRemoveMapNote')}
+                        </button>
+                    ) : null}
+                    {event.needsReview ? (
+                        <button
+                            type="button"
+                            onClick={onReviewUpdate}
                             disabled={isPending}
                             className="btn-ghost min-h-[42px] justify-center disabled:opacity-60"
                         >
-                            <Check size={16} /> {t('careCalendarMarkReviewed')}
+                            <AlertTriangle size={16} /> {t('careCalendarReviewUpdate')}
                         </button>
                     ) : null}
                 </div>

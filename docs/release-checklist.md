@@ -21,6 +21,7 @@ The regression ledger currently treats these areas as locked or stabilized:
 - Private Maps print/export
 - Shared maps
 - Dashboard resources/admin
+- Care Calendar
 - Workbook import/export
 - Asset create/edit forms
 - AI enrichment
@@ -43,6 +44,7 @@ Recent release families in the ledger include:
 - Shared confirmation dialog consistency
 - Admin inline feedback consistency
 - Discover location badge responsiveness
+- Care Calendar planning views and schedule update review
 
 Before release work, review the relevant row in `docs/regression-ledger.md` for reproduction steps, known-good references, acceptance criteria, and any deploy gates.
 

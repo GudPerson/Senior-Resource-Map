@@ -1727,6 +1727,57 @@ Active next recovery family:
   favorite, external notification, Shared Map, My Map, booking, availability,
   or unrelated Offering was changed during release verification.
 
+### 2026-07-18 Care Calendar planning views and Updates structure
+
+- Current behavior: Care Calendar separates three user jobs. My Plans is the
+  default section and shows only starred upcoming sessions plus private My Map
+  calendar notes, with expired or acknowledged old plans kept in a collapsed
+  30-day recent history instead of being deleted. Calendar shows saved activity
+  schedules and private items in live Day, Week, and Month views. Updates
+  groups changed, cancelled, or removed starred sessions by Offering until the
+  user acknowledges the source revision. Adding a session to My Plans remains a
+  private star/bookmark-style intention, not a booking, registration, capacity
+  hold, or organiser notification.
+- Known-good reference: branch `codex/care-calendar-planning-views`, based on
+  pushed production `main` `3c190ce3f`, and rollout contract
+  `docs/care-calendar-planning-views-rollout-plan.md`. The implementation
+  reuses the existing personal calendar tables, saved-resource visibility
+  rules, My Map note ownership checks, Offering schedule revisions, shared
+  confirmation dialog, dashboard shell, and translation foundation. It adds an
+  optional authenticated Calendar read `scope=plans` so broad My Plans and
+  Updates ranges expand occurrences only for Offerings referenced by personal
+  planned items.
+- Reproduction steps: sign in and open `/dashboard/calendar`; confirm My Plans,
+  Calendar, and Updates tabs are available. In Calendar, switch Day, Week, and
+  Month, move the selected Singapore date, and open a dense Month date into
+  Day. Star an active saved session, then confirm it appears once in My Plans
+  and the source event changes to the planned state. Remove the plan and
+  confirm the source schedule remains available. Add a private My Map note to a
+  date and confirm Shared Maps do not receive the private note. Change or
+  cancel a starred Offering schedule in a controlled test resource, then open
+  Updates and confirm the old plan remains labelled until acknowledgement.
+  Acknowledge the update and confirm no replacement is automatically starred.
+- Acceptance criteria: saved-but-unstarred activities are visible calendar
+  options, not personal conflicts; My Plans contains only starred sessions and
+  private notes; source occurrences and matching personal plans do not render
+  as duplicate My Plans rows; review acknowledgement clears the notice only and
+  never moves, deletes, or restars the user's plan; replacement options require
+  an explicit user star; conflict guidance compares only current personal
+  plans and private notes; cancelled sessions cannot be newly planned; the
+  planning read stays within the 180-day Calendar cap and uses bounded
+  `scope=plans`; desktop and 390 px mobile layouts do not overflow. No schema,
+  auth, Saved Resources payload, Discover ranking/filtering, Offering schedule
+  publication, My Map ownership, Shared Map visibility, booking, availability,
+  external notification, map asset, or secret behavior changes.
+- Verification result before deploy: focused calendar day/planning/error and
+  translation coverage passed 12/12; focused server calendar scope,
+  multi-session source, and auth coverage passed 4/4; full server coverage
+  passed 439/439; full client/source coverage passed 431/431; the exact
+  production-configured client build passed with `VITE_API_URL`, Detailed-map
+  activation, and both W01 asset bases; and `git diff --check` passed. The
+  build produced candidate `assets/CareCalendarPage-OooRjuuN.js` and retained
+  the existing large-chunk advisory only.
+
 ## Recovery workflow
 
 For each regression family:
