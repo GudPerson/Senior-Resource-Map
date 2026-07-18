@@ -5,40 +5,53 @@ Last updated: 2026-07-18 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-BIVnrRr4.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-OooRjuuN.js`
-- Production Resources chunk: `assets/ResourcesPage-2YERLYnQ.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-DqXdd1jh.js`
-- Production client CSS: `assets/index-BdQkhKX7.css`
+- Production client bundle: `assets/index-BUCrPSUa.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-hy0hYqHm.js`
+- Production Resources chunk: `assets/ResourcesPage-C9FvpeZx.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-CFatHxvQ.js`
+- Production client CSS: `assets/index-CvQOOpB_.css`
 - Validated production Pages deployment:
-  `https://b7688e7b.senior-resource-map.pages.dev`
+  `https://5f69cb4b.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T08:11:20.401Z`.
+  `2026-07-18T13:26:23.912Z`.
 - Production Worker version:
-  `42507ea8-951f-418a-899b-645e2d163406`.
+  `49bcdd9f-489c-4f7c-826c-f076efa60f5e`.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
   production UAT on 2026-07-18 returned 26 review rows from
   `TWV-July-Eng.jpeg` with no Worker error. The post-release request returned
   HTTP 200 in 3.2 seconds, post-deploy smoke passed 6/6, and no production
   resource changes were saved.
+- Collateral schedule first-cut release commit `0ff5964c7` is deployed on the
+  Worker and Pages. The import review UI drops invalid cached schedule
+  placeholders, labels validated schedule rows as ready, gives ordinary desktop
+  widths the full review workspace, and keeps the W01 map proof asset roots in
+  the production bundle. Post-deploy production smoke passed 6/6. An additional
+  ad hoc read-only collateral-preview probe was attempted, but the helper
+  stopped at automated login before reaching the import route; no Save reviewed
+  rows action or production resource mutation was performed.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current worktree branch:
-  `codex/collateral-import-schedule-first-cut`, based on current pushed
-  production `main`. The uncommitted release candidate adds validated
-  structured first-cut schedules to collateral extraction, versions and
-  revalidates cached extraction output, removes empty schedule placeholders,
-  and expands the batch review workspace below the 1536 px breakpoint. Focused
-  coverage passed 52/52, full server passed 442/442, full client/source passed
-  434/434, the exact production map-enabled client build passed, and
-  `git diff --check` passed. It has not been pushed or deployed.
-- Production `main` includes Gemini collateral model recovery commit
+- Current worktree branch: `main`, matching pushed `origin/main` at
+  `0ff5964c7` for tracked files. The collateral schedule first-cut release is
+  merged, pushed, and deployed. Existing unrelated local artifacts remain
+  untracked.
+- Collateral schedule first-cut branch:
+  `codex/collateral-import-schedule-first-cut`; implementation commit
+  `0ff5964c7` adds validated structured first-cut schedules to collateral
+  extraction, versions and revalidates cached extraction output, removes empty
+  schedule placeholders, and expands the batch review workspace below the 1536
+  px breakpoint. Focused coverage passed 52/52, full server passed 442/442,
+  full client/source passed 434/434, the exact production map-enabled client
+  build passed, `git diff --check` passed, and production smoke passed 6/6
+  after Worker and Pages deployment.
+- Production `main` includes collateral schedule first-cut commit `0ff5964c7`,
+  Gemini collateral model recovery commit
   `61e90a493`, Care Calendar planning views commit `c7679051f`, schedule
   publish-guard implementation commit `484c14d2d`, the saved-resource
   bounded-hydration recovery, Care Calendar query-budget recovery, Day view,

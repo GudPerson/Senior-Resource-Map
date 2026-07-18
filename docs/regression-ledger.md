@@ -347,7 +347,7 @@ These surfaces are approved on the stabilization branch and should not be reopen
   px desktop size. Auth, access, visibility, matching, saved resources,
   Offering revision guards, Care Calendar planning, My Maps, Shared Maps,
   notifications, schema, secrets, and production data remain unchanged.
-- Verification result before deploy: focused collateral, Offering schedule,
+- Verification and deployment result: focused collateral, Offering schedule,
   matching, review-source, contact-parity, and Offering-wizard coverage passed
   52/52. Full server coverage passed 442/442; full client/source coverage
   passed 434/434; the exact production-configured map-enabled client build
@@ -355,9 +355,17 @@ These surfaces are approved on the stabilization branch and should not be reopen
   `assets/index-CvQOOpB_.css`; and `git diff --check` passed. The first focused
   run caught a recurrence boundary being parsed as a separate one-time session;
   the corrected implementation now suppresses text fallback whenever validated
-  structured rows are present. Production was inspected read-only and no Save
-  reviewed rows action or resource mutation was performed. This candidate has
-  not been pushed or deployed yet.
+  structured rows are present. Implementation commit `0ff5964c7` was pushed to
+  `main`, the Worker deployed as version
+  `49bcdd9f-489c-4f7c-826c-f076efa60f5e`, and Cloudflare Pages deployed
+  `https://5f69cb4b.senior-resource-map.pages.dev`. Production custom domain
+  `https://app.carearound.sg` served `assets/index-BUCrPSUa.js`,
+  `assets/ResourcesPage-C9FvpeZx.js`, and `assets/index-CvQOOpB_.css` with
+  both W01 map asset-base markers preserved. Production API health returned OK
+  at `2026-07-18T13:26:23.912Z`, and production smoke passed 6/6. Production
+  collateral preview was attempted read-only for additional evidence, but the
+  ad hoc verifier stopped at automated login rather than the import route; no
+  Save reviewed rows action or resource mutation was performed.
 
 ### 2026-05-20 AI enrichment logo selection recovery
 
