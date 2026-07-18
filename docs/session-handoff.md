@@ -29,7 +29,16 @@ Last updated: 2026-07-18 (Asia/Singapore)
 
 ## Repo and worktree state
 
-- Current branch: `main`, including Gemini collateral model recovery commit
+- Current worktree branch:
+  `codex/collateral-import-schedule-first-cut`, based on current pushed
+  production `main`. The uncommitted release candidate adds validated
+  structured first-cut schedules to collateral extraction, versions and
+  revalidates cached extraction output, removes empty schedule placeholders,
+  and expands the batch review workspace below the 1536 px breakpoint. Focused
+  coverage passed 52/52, full server passed 442/442, full client/source passed
+  434/434, the exact production map-enabled client build passed, and
+  `git diff --check` passed. It has not been pushed or deployed.
+- Production `main` includes Gemini collateral model recovery commit
   `61e90a493`, Care Calendar planning views commit `c7679051f`, schedule
   publish-guard implementation commit `484c14d2d`, the saved-resource
   bounded-hydration recovery, Care Calendar query-budget recovery, Day view,

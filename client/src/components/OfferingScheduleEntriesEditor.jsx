@@ -55,7 +55,7 @@ export default function OfferingScheduleEntriesEditor({
                                 type="button"
                                 onClick={() => duplicateEntry(index)}
                                 disabled={disabled}
-                                className="btn-ghost min-h-[38px] px-3 text-xs"
+                                className="btn-ghost min-h-[44px] px-3 text-xs"
                             >
                                 <Copy size={14} /> Duplicate
                             </button>
@@ -63,7 +63,7 @@ export default function OfferingScheduleEntriesEditor({
                                 type="button"
                                 onClick={() => removeEntry(index)}
                                 disabled={disabled}
-                                className="btn-ghost min-h-[38px] px-3 text-xs text-red-700"
+                                className="btn-ghost min-h-[44px] px-3 text-xs text-red-700"
                             >
                                 <Trash2 size={14} /> Remove
                             </button>

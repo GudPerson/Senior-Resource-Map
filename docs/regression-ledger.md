@@ -308,6 +308,57 @@ These surfaces are approved on the stabilization branch and should not be reopen
 - Acceptance criteria: preview returns HTTP 200 without creating or updating records; the review screen renders extracted rows; the Worker does not call the unavailable `gemini-2.5-flash-lite` model; auth, visibility, translation, grounded-search, and commit behavior are unchanged.
 - Verification result: the prior production request on Worker `adef30fb-b8db-41b3-8cae-7c486163fd0e` returned HTTP 404 because Google no longer made `gemini-2.5-flash-lite` available to the new key. After the production model variable was changed, Worker `c418c468-290c-40e6-9a59-905a9acda535` returned HTTP 200 in 8.1 seconds with no Worker logs or exceptions, and the client rendered 26 review rows. Focused AI import tests passed 13/13, the full server suite passed 439/439, and `git diff --check` passed before release. Implementation commit `61e90a493` was pushed to the recovery branch and fast-forwarded into pushed `main`; the guarded Worker deploy produced `42507ea8-951f-418a-899b-645e2d163406` with the expected Gemini model binding. Production API health returned OK at `2026-07-18T08:11:20.401Z`, post-deploy smoke passed 6/6, and the post-deploy collateral-preview request returned HTTP 200 in 3.2 seconds with no Worker logs or exceptions. Save reviewed rows was not selected, so no production resource data changed.
 
+### 2026-07-18 Collateral schedule first-cut and review workspace
+
+- Current behavior in the release candidate: collateral extraction requests
+  explicit individual or weekly Singapore-time schedule rows in addition to
+  the source schedule text. Every proposed row passes through the canonical
+  Offering schedule validator before it reaches the review UI. Invalid or
+  empty cached placeholders are removed, the extraction cache key carries a
+  versioned contract, and free-text parsing is used only when the AI returns no
+  valid structured rows. The review list labels only validated rows as ready;
+  Programme rows without reliable dates show a manual-review recovery state.
+  At ordinary desktop widths below 1536 px, the host and batch summary move
+  above the review list so the Offering and schedule controls receive the full
+  workspace width. The two-column summary rail remains available on very wide
+  screens, and Duplicate, Remove, Collapse, and Expand controls keep at least
+  44 px touch height.
+- Known-good reference: branch
+  `codex/collateral-import-schedule-first-cut`, based on pushed production
+  `main` after the Gemini model recovery and Care Calendar planning release.
+  The reference material is `TWV-July-Eng.jpeg` for REACH-SLEC Active Ageing
+  Centre @ Teck Whye Vista; the existing production preview returned 26 rows
+  but showed an empty schedule placeholder inside a 448 px review card at a
+  1470 px viewport.
+- Reproduction steps: sign in, open `/dashboard/resources`, search for the
+  REACH-SLEC Teck Whye Vista Place, select Import Material, upload the reference
+  image, and preview without saving. Confirm exact calendar cells produce
+  populated individual rows, explicit recurring series produce weekly rows,
+  and unclear source wording stays visible for manual review without creating
+  a placeholder. Review the same output at 390, 768, 1024, 1470, and 1536 px.
+- Acceptance criteria: extracted dates and times are first-cut proposals and
+  never bypass staff review; no date, year, time, weekday, or recurrence
+  boundary is invented; invalid rows cannot be published; a blank or
+  unparseable import still cannot clear an existing schedule; structured rows
+  remain the canonical input when present so a recurrence end date cannot be
+  misread as a separate session; Services and Promotions without schedules are
+  not incorrectly flagged as missing Programme schedules; no horizontal
+  overflow or cramped two-column schedule inputs appear at the reported 1470
+  px desktop size. Auth, access, visibility, matching, saved resources,
+  Offering revision guards, Care Calendar planning, My Maps, Shared Maps,
+  notifications, schema, secrets, and production data remain unchanged.
+- Verification result before deploy: focused collateral, Offering schedule,
+  matching, review-source, contact-parity, and Offering-wizard coverage passed
+  52/52. Full server coverage passed 442/442; full client/source coverage
+  passed 434/434; the exact production-configured map-enabled client build
+  passed and produced candidate `assets/ResourcesPage-C9FvpeZx.js` and
+  `assets/index-CvQOOpB_.css`; and `git diff --check` passed. The first focused
+  run caught a recurrence boundary being parsed as a separate one-time session;
+  the corrected implementation now suppresses text fallback whenever validated
+  structured rows are present. Production was inspected read-only and no Save
+  reviewed rows action or resource mutation was performed. This candidate has
+  not been pushed or deployed yet.
+
 ### 2026-05-20 AI enrichment logo selection recovery
 
 - Current behavior: website logo metadata now treats separators like `_` as valid logo filename boundaries, so organization logo files such as `LOGO_NLCS...` and `NLCS-Logo...` win over generic service carousel or award images.

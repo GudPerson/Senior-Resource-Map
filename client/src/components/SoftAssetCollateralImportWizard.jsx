@@ -29,24 +29,13 @@ function normalizeText(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-function splitScheduleLines(value) {
-    return String(value || '')
-        .split(/\n+/)
-        .map(normalizeText)
-        .filter(Boolean);
-}
-
-function countScheduleSessions(value, fallbackSessions = []) {
-    const lines = splitScheduleLines(value);
-    if (lines.length) return lines.length;
-    return Array.isArray(fallbackSessions) ? fallbackSessions.filter(Boolean).length : 0;
-}
-
 function buildDraftRowState(row, index) {
     const scheduleSessions = Array.isArray(row.scheduleSessions) ? row.scheduleSessions.filter(Boolean) : [];
     const schedule = row.schedule || scheduleSessions.join('\n');
     const scheduleEntries = Array.isArray(row.scheduleEntries)
-        ? row.scheduleEntries.map(scheduleEntryFromApi)
+        ? row.scheduleEntries
+            .map(scheduleEntryFromApi)
+            .filter((entry) => Boolean(entry.startsAt))
         : [];
     const isHidden = Boolean(row.isHidden);
 
@@ -65,7 +54,7 @@ function buildDraftRowState(row, index) {
         scheduleSessions,
         scheduleEntries,
         unparsedScheduleLines: Array.isArray(row.unparsedScheduleLines) ? row.unparsedScheduleLines : [],
-        sessionCount: scheduleEntries.length || Number(row.sessionCount) || countScheduleSessions(schedule, scheduleSessions),
+        sessionCount: scheduleEntries.length,
         groupedFromCount: Number(row.groupedFromCount) || 1,
         availabilityStatus: row.availabilityStatus || 'unknown',
         isHidden,
@@ -218,6 +207,12 @@ export default function SoftAssetCollateralImportWizard({
 
     const actionCounts = useMemo(() => getActionCounts(draftRows), [draftRows]);
     const missingActionCounts = useMemo(() => getMissingActionCounts(missingOfferings), [missingOfferings]);
+    const scheduleReviewCounts = useMemo(() => draftRows.reduce((counts, row) => {
+        if (row.action === 'skip') return counts;
+        if (row.scheduleEntries.length > 0) counts.ready += 1;
+        else if (row.bucket === 'Programmes') counts.needsReview += 1;
+        return counts;
+    }, { ready: 0, needsReview: 0 }), [draftRows]);
 
     function resetPreview() {
         setPreviewData(null);
@@ -376,8 +371,8 @@ export default function SoftAssetCollateralImportWizard({
                     <strong>Schedule replacement rule:</strong> when you save an update with reviewed session rows, those rows replace the Offering’s upcoming published sessions. Past schedule history and users’ personal plans are preserved and marked for review when affected. An import with no valid session rows will not clear an existing schedule.
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                    <div className="space-y-4">
+                <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="min-w-0 space-y-4">
                         {error ? (
                             <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                                 {error}
@@ -413,7 +408,12 @@ export default function SoftAssetCollateralImportWizard({
                                         {row.sessionCount ? (
                                             <div className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                                                 <Clock size={13} />
-                                                {row.sessionCount} {row.sessionCount === 1 ? 'session' : 'sessions'}
+                                                {row.sessionCount} {row.sessionCount === 1 ? 'schedule ready' : 'schedules ready'}
+                                            </div>
+                                        ) : row.action !== 'skip' && row.bucket === 'Programmes' ? (
+                                            <div className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                                                <AlertTriangle size={13} />
+                                                Schedule review needed
                                             </div>
                                         ) : null}
                                         {row.groupedFromCount > 1 ? (
@@ -435,7 +435,7 @@ export default function SoftAssetCollateralImportWizard({
                                         <button
                                             type="button"
                                             onClick={() => updateRow(row.id, { expanded: !row.expanded })}
-                                            className="ml-auto inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                                            className="ml-auto inline-flex min-h-[44px] items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                                         >
                                             {row.expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                             {row.expanded ? 'Collapse' : 'Expand'}
@@ -553,6 +553,20 @@ export default function SoftAssetCollateralImportWizard({
                                                                 <ul className="mt-2 list-disc space-y-1 pl-5">
                                                                     {row.unparsedScheduleLines.map((line) => <li key={line}>{line}</li>)}
                                                                 </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+
+                                                {row.scheduleEntries.length === 0 && row.bucket === 'Programmes' ? (
+                                                    <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                                        <div className="flex items-start gap-2 text-amber-900">
+                                                            <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+                                                            <div>
+                                                                <p className="text-sm font-semibold">No reliable date and time were detected.</p>
+                                                                <p className="mt-1 text-sm leading-6 text-amber-800">
+                                                                    Compare the source wording below, then add a schedule only when the date and time are clear.
+                                                                </p>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -767,7 +781,7 @@ export default function SoftAssetCollateralImportWizard({
                         ) : null}
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="order-first grid gap-4 md:grid-cols-2 2xl:sticky 2xl:top-4 2xl:order-none 2xl:grid-cols-1 2xl:self-start">
                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Selected host place</p>
                             <p className="mt-2 text-base font-black text-slate-900">{previewData?.resolvedHost?.name || hostAsset.name}</p>
@@ -791,6 +805,15 @@ export default function SoftAssetCollateralImportWizard({
                                 <div className="flex items-center justify-between">
                                     <span>Skip</span>
                                     <span className="font-black text-slate-900">{actionCounts.skip || 0}</span>
+                                </div>
+                                <div className="border-t border-slate-200 pt-3" />
+                                <div className="flex items-center justify-between">
+                                    <span>Schedules ready</span>
+                                    <span className="font-black text-emerald-700">{scheduleReviewCounts.ready}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span>Need schedule review</span>
+                                    <span className="font-black text-amber-700">{scheduleReviewCounts.needsReview}</span>
                                 </div>
                                 {importMode === 'refresh' ? (
                                     <>

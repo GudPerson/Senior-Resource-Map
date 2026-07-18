@@ -457,10 +457,14 @@ export function parseImportedScheduleSessions(values = [], fallbackText = '') {
     const unparsed = [];
 
     rawValues.forEach((value, index) => {
-        if (value && typeof value === 'object' && value.startsAt) {
-            try {
-                structured.push(normalizeOfferingSchedulePlanInput({ enabled: true, entries: [value] }).entries[0]);
-            } catch {
+        if (value && typeof value === 'object') {
+            if (value.startsAt) {
+                try {
+                    structured.push(normalizeOfferingSchedulePlanInput({ enabled: true, entries: [value] }).entries[0]);
+                } catch {
+                    unparsed.push(JSON.stringify(value));
+                }
+            } else {
                 unparsed.push(JSON.stringify(value));
             }
             return;

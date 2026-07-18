@@ -93,6 +93,76 @@ test('consolidateCollateralDraftRows keeps same-name sessions with different tim
     assert.equal(draftRows[0].scheduleEntries.length, 4);
 });
 
+test('consolidateCollateralDraftRows preserves validated AI first-cut individual and weekly schedules', () => {
+    const { draftRows } = consolidateCollateralDraftRows([{
+        bucket: 'Programmes',
+        name: 'Zumba Gold',
+        schedule: '6 July 2026, 9am-10am\nEvery Thursday, 2pm-3pm until 24 September 2026',
+        scheduleEntries: [
+            {
+                type: 'once',
+                startsAt: '2026-07-06T09:00:00+08:00',
+                endsAt: '2026-07-06T10:00:00+08:00',
+                weekdays: [],
+                status: 'active',
+            },
+            {
+                type: 'weekly',
+                startsAt: '2026-07-09T14:00:00+08:00',
+                endsAt: '2026-07-09T15:00:00+08:00',
+                weekdays: [4],
+                repeatUntil: '2026-09-24T23:59:59+08:00',
+                status: 'active',
+            },
+        ],
+    }]);
+
+    assert.equal(draftRows[0].sessionCount, 2);
+    assert.equal(draftRows[0].scheduleEntries[0].startsAt, '2026-07-06T01:00:00.000Z');
+    assert.equal(draftRows[0].scheduleEntries[1].type, 'weekly');
+    assert.deepEqual(draftRows[0].scheduleEntries[1].weekdays, [4]);
+    assert.equal(draftRows[0].unparsedScheduleLines.length, 0);
+});
+
+test('consolidateCollateralDraftRows rejects empty cached schedule placeholders', () => {
+    const { draftRows } = consolidateCollateralDraftRows([{
+        bucket: 'Programmes',
+        name: 'Flexible Exercise',
+        schedule: 'Every Tuesday, timing to be confirmed',
+        scheduleEntries: [{ type: 'once', startsAt: '' }],
+    }]);
+
+    assert.equal(draftRows[0].sessionCount, 0);
+    assert.deepEqual(draftRows[0].scheduleEntries, []);
+    assert.ok(draftRows[0].unparsedScheduleLines.includes('Every Tuesday, timing to be confirmed'));
+});
+
+test('consolidateCollateralDraftRows still parses a text-only sibling beside structured sessions', () => {
+    const { draftRows } = consolidateCollateralDraftRows([
+        {
+            bucket: 'Programmes',
+            name: 'Chair Yoga',
+            schedule: 'Every Monday, 9am-10am until 28 September 2026',
+            scheduleEntries: [{
+                type: 'weekly',
+                startsAt: '2026-07-06T09:00:00+08:00',
+                endsAt: '2026-07-06T10:00:00+08:00',
+                weekdays: [1],
+                repeatUntil: '2026-09-28T23:59:59+08:00',
+            }],
+        },
+        {
+            bucket: 'Programmes',
+            name: 'Chair Yoga',
+            schedule: '2 October 2026, 9am-10am',
+        },
+    ]);
+
+    assert.equal(draftRows[0].sessionCount, 2);
+    assert.equal(draftRows[0].scheduleEntries[0].type, 'weekly');
+    assert.equal(draftRows[0].scheduleEntries[1].startsAt, '2026-10-02T01:00:00.000Z');
+});
+
 test('consolidateCollateralDraftRows leaves unclear schedule text for human review', () => {
     const { draftRows } = consolidateCollateralDraftRows([{
         bucket: 'Programmes',
@@ -280,6 +350,7 @@ test('extractCollateralDraftRows calls Gemini fallback and consolidates returned
         assert.match(capturedUrl, /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-test-model:generateContent\?key=/);
         assert.equal(capturedBody.generationConfig.responseMimeType, 'application/json');
         assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows);
+        assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.properties.scheduleEntries);
         assert.equal(capturedBody.contents[0].parts[1].inlineData.mimeType, 'image/jpeg');
         assert.equal(extraction.draftRows.length, 1);
         assert.equal(extraction.draftRows[0].name, 'Square Dance');

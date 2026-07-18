@@ -11,6 +11,7 @@ import {
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite';
+const COLLATERAL_EXTRACTION_CONTRACT_VERSION = 2;
 const MAX_TOTAL_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_FILES = 6;
 const AI_IMPORT_NOT_CONFIGURED_MESSAGE = 'AI import is not set up for this environment yet. Ask the system administrator to enable the AI collateral import service before trying again.';
@@ -256,6 +257,9 @@ function buildCollateralPrompt({ hostAsset, softSubCategoryNames, tagNames }) {
         'For programme calendars, do not create one row per date or calendar cell. Create one row per distinct programme name and list every exact session for that programme.',
         'Use the calendar month/year headings to make session dates clear when they are visible. Prefer session text like "4 May 2026 (Monday), 9am-10am".',
         'Put the exact session list in scheduleSessions. Also put the same sessions in schedule as newline-separated text.',
+        'Also return every publishable first-cut session in scheduleEntries. Use type "once" for an exact date and type "weekly" only when the source explicitly describes a recurring weekly series.',
+        'Each scheduleEntries item must include startsAt as an absolute Singapore datetime such as "2026-05-04T09:00:00+08:00". Include endsAt only when an end time is printed. Weekly items must also include weekday numbers (Sunday 0 through Saturday 6) and repeatUntil when the source gives a final date.',
+        'Never invent a date, year, time, recurrence boundary, or placeholder schedule entry. If the source does not provide enough information for a valid start date and time, leave scheduleEntries empty and keep the source wording in schedule or scheduleSessions for manual review.',
         'Every draft row must fit exactly one CareAround bucket: Programmes, Services, or Promotions.',
         'Programmes are scheduled activities, classes, workshops, talks, events, clubs, or recurring sessions.',
         'Services are ongoing support, consultations, screenings, assessments, care services, transport, therapy, or operational offerings.',
@@ -266,7 +270,7 @@ function buildCollateralPrompt({ hostAsset, softSubCategoryNames, tagNames }) {
         'Return only JSON matching the schema. No markdown.',
         categoryHint,
         tagHint,
-        'For each detected offering candidate, extract these fields when present: bucket, name, subCategorySuggestion, description, schedule, scheduleSessions, newTags, contactPhone, whatsappContact, contactEmail, ctaLabel, ctaUrl, venueNote, availabilityStatus, isHidden, visibilityAction, sourceExcerpt, confidence.',
+        'For each detected offering candidate, extract these fields when present: bucket, name, subCategorySuggestion, description, schedule, scheduleSessions, scheduleEntries, newTags, contactPhone, whatsappContact, contactEmail, ctaLabel, ctaUrl, venueNote, availabilityStatus, isHidden, visibilityAction, sourceExcerpt, confidence.',
         'availabilityStatus should be one of "available", "full", or "unknown". visibilityAction should be "hide" only when the reviewer should save the draft as hidden; otherwise use "preserve".',
         'Confidence should be a number from 0 to 1.',
         'sourceExcerpt should quote or tightly paraphrase the exact collateral text that supports the row.',
@@ -296,6 +300,25 @@ function buildCollateralResponseSchema() {
                         scheduleSessions: {
                             type: 'array',
                             items: { type: 'string' },
+                        },
+                        scheduleEntries: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    type: { type: 'string' },
+                                    startsAt: { type: 'string' },
+                                    endsAt: { type: 'string' },
+                                    weekdays: {
+                                        type: 'array',
+                                        items: { type: 'integer' },
+                                    },
+                                    repeatUntil: { type: 'string' },
+                                    status: { type: 'string' },
+                                    note: { type: 'string' },
+                                },
+                                required: ['type', 'startsAt'],
+                            },
                         },
                         newTags: {
                             type: 'array',
@@ -570,6 +593,10 @@ function normalizeDraftRow(rawRow, softSubCategoryNames, knownTagNames) {
         softSubCategoryNames,
     );
 
+    const parsedStructuredSchedule = parseImportedScheduleSessions(
+        rawRow?.scheduleEntries || rawRow?.structuredScheduleEntries || [],
+    );
+
     return {
         bucket,
         name: normalizedName,
@@ -580,6 +607,8 @@ function normalizeDraftRow(rawRow, softSubCategoryNames, knownTagNames) {
             rawRow?.scheduleSessions || rawRow?.sessions || rawRow?.sessionDates,
             rawRow?.schedule || '',
         ),
+        scheduleEntries: parsedStructuredSchedule.entries,
+        unparsedScheduleLines: parsedStructuredSchedule.unparsed,
         newTags: normalizeTags(rawRow?.newTags, knownTagNames),
         contactPhone: normalizeText(rawRow?.contactPhone || ''),
         whatsappContact: normalizeText(rawRow?.whatsappContact || rawRow?.whatsAppContact || rawRow?.whatsapp || ''),
@@ -593,6 +622,29 @@ function normalizeDraftRow(rawRow, softSubCategoryNames, knownTagNames) {
         sourceExcerpt: normalizeLongText(rawRow?.sourceExcerpt || ''),
         confidence: normalizeConfidence(rawRow?.confidence),
     };
+}
+
+function scheduleEntrySignature(entry = {}) {
+    return JSON.stringify({
+        type: entry.type || 'once',
+        startsAt: entry.startsAt || '',
+        endsAt: entry.endsAt || '',
+        weekdays: Array.isArray(entry.weekdays) ? entry.weekdays : [],
+        repeatUntil: entry.repeatUntil || '',
+        status: entry.status || 'active',
+    });
+}
+
+function appendUniqueScheduleEntries(existing = [], additions = []) {
+    const next = [...existing];
+    const seen = new Set(next.map(scheduleEntrySignature));
+    additions.forEach((entry) => {
+        const signature = scheduleEntrySignature(entry);
+        if (seen.has(signature)) return;
+        seen.add(signature);
+        next.push(entry);
+    });
+    return next;
 }
 
 export function consolidateCollateralDraftRows(draftRows = []) {
@@ -611,6 +663,14 @@ export function consolidateCollateralDraftRows(draftRows = []) {
         const groupName = normalizeGroupingName(draftRow.name) || normalizeText(draftRow.name).toLowerCase();
         const groupKey = `${bucket.toLowerCase()}::${groupName}`;
         const scheduleSessions = normalizeScheduleSessions(draftRow.scheduleSessions, draftRow.schedule);
+        const parsedStructuredSchedule = parseImportedScheduleSessions(draftRow.scheduleEntries || []);
+        const parsedTextSchedule = parsedStructuredSchedule.entries.length > 0
+            ? { entries: [], unparsed: [] }
+            : parseImportedScheduleSessions(scheduleSessions, draftRow.schedule);
+        const validatedScheduleEntries = appendUniqueScheduleEntries(
+            parsedStructuredSchedule.entries,
+            parsedTextSchedule.entries,
+        );
         const availabilityStatus = normalizeAvailabilityStatus(draftRow.availabilityStatus, draftRow);
         const isFull = availabilityStatus === 'full';
         const isHidden = Boolean(draftRow.isHidden) || isFull;
@@ -621,6 +681,8 @@ export function consolidateCollateralDraftRows(draftRows = []) {
                 ...draftRow,
                 bucket,
                 scheduleSessions: [],
+                scheduleEntries: [],
+                unparsedScheduleLines: [],
                 schedule: '',
                 newTags: [],
                 sourceExcerpt: '',
@@ -648,6 +710,15 @@ export function consolidateCollateralDraftRows(draftRows = []) {
         group.venueNote = appendUniqueText(group.venueNote, draftRow.venueNote);
         group.sourceExcerpt = appendUniqueText(group.sourceExcerpt, draftRow.sourceExcerpt);
         group.newTags = mergeTags(group.newTags, draftRow.newTags);
+        group.scheduleEntries = appendUniqueScheduleEntries(group.scheduleEntries, validatedScheduleEntries);
+        group.unparsedScheduleLines = appendUniqueText(
+            group.unparsedScheduleLines.join('\n'),
+            [
+                ...(draftRow.unparsedScheduleLines || []),
+                ...parsedStructuredSchedule.unparsed,
+                ...parsedTextSchedule.unparsed,
+            ].join('\n'),
+        ).split('\n').filter(Boolean);
         group.availabilityStatus = isFull ? 'full' : group.availabilityStatus;
         group.isHidden = group.isHidden || isHidden;
         group.visibilityAction = normalizeVisibilityAction(group.visibilityAction, group.isHidden || visibilityAction === 'hide');
@@ -668,13 +739,13 @@ export function consolidateCollateralDraftRows(draftRows = []) {
         const availabilityStatus = group.availabilityStatus === 'full' ? 'full' : 'unknown';
         const isHidden = Boolean(group.isHidden) || availabilityStatus === 'full';
         const visibilityAction = normalizeVisibilityAction(group.visibilityAction, isHidden);
-        const parsedSchedule = parseImportedScheduleSessions(scheduleSessions, group.schedule);
+        const scheduleEntries = group.scheduleEntries;
         const row = {
             ...group,
             scheduleSessions,
-            scheduleEntries: parsedSchedule.entries,
-            unparsedScheduleLines: parsedSchedule.unparsed,
-            sessionCount: scheduleSessions.length,
+            scheduleEntries,
+            unparsedScheduleLines: [...new Set(group.unparsedScheduleLines)],
+            sessionCount: scheduleEntries.length,
             schedule: scheduleSessions.length ? scheduleSessions.join('\n') : normalizeLongText(group.schedule),
             availabilityStatus,
             isHidden,
@@ -696,6 +767,21 @@ export function consolidateCollateralDraftRows(draftRows = []) {
     });
 
     return { draftRows: consolidatedRows, warnings };
+}
+
+function normalizeCollateralExtractionResult(result, softSubCategoryNames, knownTagNames) {
+    const normalizedDraftRows = (Array.isArray(result?.draftRows) ? result.draftRows : [])
+        .map((row) => normalizeDraftRow(row, softSubCategoryNames, knownTagNames))
+        .filter(Boolean);
+    const parsedWarnings = Array.isArray(result?.warnings)
+        ? result.warnings.map((warning) => normalizeText(warning)).filter(Boolean)
+        : [];
+    const consolidation = consolidateCollateralDraftRows(normalizedDraftRows);
+
+    return {
+        draftRows: consolidation.draftRows,
+        warnings: [...new Set([...parsedWarnings, ...consolidation.warnings])],
+    };
 }
 
 function extractTextFromAiResponse(responseJson, providerLabel = 'AI import') {
@@ -784,6 +870,7 @@ export async function extractCollateralDraftRows({
     const fileParts = await buildFileParts(files);
     const prompt = buildCollateralPrompt({ hostAsset, softSubCategoryNames, tagNames: knownTagNames });
     const cachePayload = {
+        extractionContractVersion: COLLATERAL_EXTRACTION_CONTRACT_VERSION,
         provider: config.provider,
         model: config.model,
         prompt,
@@ -794,7 +881,14 @@ export async function extractCollateralDraftRows({
         })),
     };
     const cached = await getCachedAiResult(env, 'collateral-import', cachePayload);
-    if (cached) return cached;
+    if (cached) {
+        const normalizedCached = normalizeCollateralExtractionResult(
+            cached,
+            softSubCategoryNames,
+            knownTagNames,
+        );
+        if (normalizedCached.draftRows.length > 0) return normalizedCached;
+    }
 
     await assertAiImportAllowed(env);
     const responseJson = await callAiGenerateContent(
@@ -817,21 +911,13 @@ export async function extractCollateralDraftRows({
         throw clientError(`${config.provider === 'gemini' ? 'Gemini AI' : 'Vertex AI'} returned malformed JSON. ${err.message}`, 502);
     }
 
-    const normalizedDraftRows = (Array.isArray(parsed?.draftRows) ? parsed.draftRows : [])
-        .map((row) => normalizeDraftRow(row, softSubCategoryNames, knownTagNames))
-        .filter(Boolean);
-
-    const parsedWarnings = Array.isArray(parsed?.warnings)
-        ? parsed.warnings.map((warning) => normalizeText(warning)).filter(Boolean)
-        : [];
-
-    const consolidation = consolidateCollateralDraftRows(normalizedDraftRows);
-    const draftRows = consolidation.draftRows;
+    const normalizedResult = normalizeCollateralExtractionResult(parsed, softSubCategoryNames, knownTagNames);
+    const draftRows = normalizedResult.draftRows;
     if (draftRows.length === 0) {
         throw clientError('No clear offerings could be extracted from that collateral. Try a cleaner scan or use manual creation.', 422);
     }
 
-    const warnings = [...parsedWarnings, ...consolidation.warnings];
+    const warnings = normalizedResult.warnings;
 
     return setCachedAiResult(env, 'collateral-import', cachePayload, { draftRows, warnings });
 }
