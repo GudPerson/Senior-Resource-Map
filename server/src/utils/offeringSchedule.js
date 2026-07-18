@@ -25,6 +25,17 @@ const MONTH_INDEX = new Map([
     ['nov', 10], ['november', 10],
     ['dec', 11], ['december', 11],
 ]);
+const WEEKDAY_INDEX = new Map([
+    ['sun', 0], ['sunday', 0],
+    ['mon', 1], ['monday', 1],
+    ['tue', 2], ['tues', 2], ['tuesday', 2],
+    ['wed', 3], ['wednesday', 3],
+    ['thu', 4], ['thur', 4], ['thurs', 4], ['thursday', 4],
+    ['fri', 5], ['friday', 5],
+    ['sat', 6], ['saturday', 6],
+]);
+const WEEKDAY_PATTERN = '(?:sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)';
+const WEEKDAY_REGEX = new RegExp(`\\b${WEEKDAY_PATTERN}\\b`, 'ig');
 
 function scheduleError(message) {
     const error = new Error(message);
@@ -402,6 +413,18 @@ function buildSingaporeIso(year, monthIndex, day, clock) {
     return date.toISOString();
 }
 
+function getDaysInMonth(year, monthIndex) {
+    return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+}
+
+function buildSingaporeEndOfMonthIso(year, monthIndex) {
+    const day = getDaysInMonth(year, monthIndex);
+    const pad = (number) => String(number).padStart(2, '0');
+    const value = `${year}-${pad(monthIndex + 1)}-${pad(day)}T23:59:59.999+08:00`;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
 function extractScheduleDateContext(...values) {
     const text = values.map((value) => String(value || '')).join('\n');
     const monthYear = text.match(/\b([A-Za-z]{3,9})\s+(\d{4})\b/i);
@@ -444,6 +467,10 @@ function parseTimeRange(line) {
     return String(line || '').match(/(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm)?)\s*(?:-|–|—|\bto\b)\s*(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm)?)/i);
 }
 
+function extractTimeRanges(line) {
+    return [...String(line || '').matchAll(/(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm)?)\s*(?:-|–|—|\bto\b)\s*(\d{1,2}(?:(?::|\.)\d{2})?\s*(?:am|pm)?)/ig)];
+}
+
 function buildSessionEntry(date, range, line, index, suffix = 0) {
     const endMeridiem = range?.[2]?.toLowerCase().match(/(am|pm)/)?.[1] || '';
     const startMeridiem = (range?.[1] || '').toLowerCase().match(/(am|pm)/)?.[1] || endMeridiem;
@@ -466,6 +493,108 @@ function buildSessionEntry(date, range, line, index, suffix = 0) {
         status: /\bcancelled?\b/i.test(line) ? 'cancelled' : 'active',
         note: '',
     };
+}
+
+function normalizeWeekdayName(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return WEEKDAY_INDEX.has(key) ? WEEKDAY_INDEX.get(key) : null;
+}
+
+function buildWeekdayRange(startDay, endDay) {
+    const days = [];
+    if (!Number.isInteger(startDay) || !Number.isInteger(endDay)) return days;
+    let cursor = startDay;
+    for (let guard = 0; guard < 7; guard += 1) {
+        days.push(cursor);
+        if (cursor === endDay) break;
+        cursor = (cursor + 1) % 7;
+    }
+    return days;
+}
+
+function parseWeekdayExpression(value) {
+    const expression = String(value || '').trim();
+    if (!expression) return [];
+    const leftover = expression
+        .replace(WEEKDAY_REGEX, '')
+        .replace(/\b(every|to|through|thru|and)\b/ig, '')
+        .replace(/[&,+/\\\-–—\s]/g, '');
+    if (leftover) return [];
+
+    const matches = [...expression.matchAll(WEEKDAY_REGEX)].map((match) => ({
+        text: match[0],
+        day: normalizeWeekdayName(match[0]),
+        index: match.index,
+        end: match.index + match[0].length,
+    })).filter((match) => Number.isInteger(match.day));
+    if (matches.length === 0) return [];
+
+    const days = [];
+    for (let index = 0; index < matches.length; index += 1) {
+        const current = matches[index];
+        const next = matches[index + 1];
+        const between = next ? expression.slice(current.end, next.index) : '';
+        if (next && /\b(to|through|thru)\b|[-–—]/i.test(between)) {
+            days.push(...buildWeekdayRange(current.day, next.day));
+            index += 1;
+        } else {
+            days.push(current.day);
+        }
+    }
+    return [...new Set(days)].sort((left, right) => left - right);
+}
+
+function findFirstMonthlyWeekdayDate(context = {}, weekdays = []) {
+    if (!Number.isInteger(context.year) || !Number.isInteger(context.month)) return null;
+    const allowed = new Set(weekdays);
+    for (let day = 1; day <= getDaysInMonth(context.year, context.month); day += 1) {
+        const startsAt = buildSingaporeIso(context.year, context.month, day, { hour: 0, minute: 0 });
+        if (!startsAt) continue;
+        if (allowed.has(getSingaporeWeekday(startsAt))) {
+            return { year: context.year, month: context.month, day };
+        }
+    }
+    return null;
+}
+
+function buildWeeklySessionEntry(context, weekdays, range, line, index, suffix = 0) {
+    const firstDate = findFirstMonthlyWeekdayDate(context, weekdays);
+    if (!firstDate) return null;
+    const endMeridiem = range?.[2]?.toLowerCase().match(/(am|pm)/)?.[1] || '';
+    const startMeridiem = (range?.[1] || '').toLowerCase().match(/(am|pm)/)?.[1] || endMeridiem;
+    const startClock = parseClock(range?.[1], startMeridiem);
+    const endClock = parseClock(range?.[2], endMeridiem || startMeridiem);
+    if (!startClock || !endClock) return null;
+    const startsAt = buildSingaporeIso(firstDate.year, firstDate.month, firstDate.day, startClock);
+    const endsAt = buildSingaporeIso(firstDate.year, firstDate.month, firstDate.day, endClock);
+    const repeatUntil = buildSingaporeEndOfMonthIso(context.year, context.month);
+    if (!startsAt || !endsAt || !repeatUntil || new Date(endsAt) <= new Date(startsAt)) return null;
+
+    return {
+        key: `import-weekly-${index + 1}-${suffix + 1}-${startsAt.replace(/\D/g, '').slice(0, 12)}`,
+        type: 'weekly',
+        startsAt,
+        endsAt,
+        weekdays,
+        repeatUntil,
+        timezone: CALENDAR_TIMEZONE,
+        status: /\bcancelled?\b/i.test(line) ? 'cancelled' : 'active',
+        note: '',
+    };
+}
+
+function parseWeekdayTimeLine(value, index, context = {}) {
+    const line = String(value || '').replace(/^[•·\-]\s*/, '').replace(/\s+/g, ' ').trim();
+    if (!Number.isInteger(context.year) || !Number.isInteger(context.month)) return [];
+    const match = line.match(new RegExp(`^(?:every\\s+)?(.+?)\\s*:\\s*(.+)$`, 'i'));
+    if (!match) return [];
+    const weekdays = parseWeekdayExpression(match[1]);
+    if (weekdays.length === 0) return [];
+    const ranges = extractTimeRanges(match[2]);
+    if (ranges.length === 0) return [];
+    return ranges
+        .map((range, offset) => buildWeeklySessionEntry(context, weekdays, range, line, index, offset))
+        .filter(Boolean);
 }
 
 function parseImportedSessionLine(value, index, context = {}) {
@@ -513,6 +642,18 @@ function parseImportedScheduleTextBlock(lines = [], context = {}) {
         if (!line) return;
 
         const lineRange = parseTimeRange(line);
+        const weeklyEntries = parseWeekdayTimeLine(line, index, context);
+        if (weeklyEntries.length > 0) {
+            if (activeRange && !activeRangeUsed) {
+                unparsed.push(lines[activeRangeLineIndex]);
+            }
+            activeRange = null;
+            activeRangeLineIndex = -1;
+            activeRangeUsed = false;
+            entries.push(...weeklyEntries);
+            return;
+        }
+
         if (lineRange) {
             if (activeRange && !activeRangeUsed) {
                 unparsed.push(lines[activeRangeLineIndex]);
@@ -605,7 +746,14 @@ export function parseImportedScheduleSessions(values = [], fallbackText = '', op
     const unique = [];
     const seen = new Set();
     for (const entry of structured) {
-        const signature = `${entry.startsAt}:${entry.endsAt || ''}:${entry.status}`;
+        const signature = JSON.stringify({
+            type: entry.type || 'once',
+            startsAt: entry.startsAt,
+            endsAt: entry.endsAt || '',
+            weekdays: entry.weekdays || [],
+            repeatUntil: entry.repeatUntil || '',
+            status: entry.status,
+        });
         if (seen.has(signature)) continue;
         seen.add(signature);
         unique.push(entry);

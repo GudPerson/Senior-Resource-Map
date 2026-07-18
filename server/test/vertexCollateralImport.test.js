@@ -163,6 +163,32 @@ test('consolidateCollateralDraftRows converts TWV calendar text into reviewed ro
     assert.deepEqual(draftRows[0].unparsedScheduleLines, []);
 });
 
+test('consolidateCollateralDraftRows converts weekday range text into bounded weekly rows', () => {
+    const { draftRows } = consolidateCollateralDraftRows([{
+        bucket: 'Programmes',
+        name: 'Board Games',
+        scheduleContext: 'July 2026',
+        schedule: [
+            'Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM',
+            'Thurs: 1.30PM - 5PM',
+        ].join('\n'),
+        scheduleSessions: [
+            'Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM',
+            'Thurs: 1.30PM - 5PM',
+        ],
+        scheduleEntries: [],
+    }]);
+
+    assert.equal(draftRows[0].sessionCount, 3);
+    assert.equal(draftRows[0].scheduleEntries.length, 3);
+    assert.equal(draftRows[0].scheduleEntries[0].type, 'weekly');
+    assert.deepEqual(draftRows[0].scheduleEntries[0].weekdays, [1, 2, 3, 5]);
+    assert.equal(draftRows[0].scheduleEntries[0].startsAt, '2026-07-01T01:00:00.000Z');
+    assert.equal(draftRows[0].scheduleEntries[0].repeatUntil, '2026-07-31T15:59:59.999Z');
+    assert.deepEqual(draftRows[0].scheduleEntries[2].weekdays, [4]);
+    assert.deepEqual(draftRows[0].unparsedScheduleLines, []);
+});
+
 test('consolidateCollateralDraftRows still parses a text-only sibling beside structured sessions', () => {
     const { draftRows } = consolidateCollateralDraftRows([
         {

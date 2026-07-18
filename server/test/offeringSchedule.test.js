@@ -234,6 +234,37 @@ test('collateral calendar same-line date bullets produce multiple sessions', () 
     assert.equal(parsed.entries[0].endsAt, '2026-07-06T07:30:00.000Z');
 });
 
+test('collateral weekday ranges become bounded weekly rows when month context is visible', () => {
+    const parsed = parseImportedScheduleSessions([
+        'Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM',
+        'Thurs: 1.30PM - 5PM',
+    ], '', { contextText: 'JULY 2026' });
+
+    assert.equal(parsed.entries.length, 3);
+    assert.equal(parsed.entries[0].type, 'weekly');
+    assert.equal(parsed.entries[0].startsAt, '2026-07-01T01:00:00.000Z');
+    assert.equal(parsed.entries[0].endsAt, '2026-07-01T04:00:00.000Z');
+    assert.deepEqual(parsed.entries[0].weekdays, [1, 2, 3, 5]);
+    assert.equal(parsed.entries[0].repeatUntil, '2026-07-31T15:59:59.999Z');
+    assert.equal(parsed.entries[1].startsAt, '2026-07-01T05:30:00.000Z');
+    assert.equal(parsed.entries[1].endsAt, '2026-07-01T09:00:00.000Z');
+    assert.deepEqual(parsed.entries[1].weekdays, [1, 2, 3, 5]);
+    assert.equal(parsed.entries[2].startsAt, '2026-07-02T05:30:00.000Z');
+    assert.deepEqual(parsed.entries[2].weekdays, [4]);
+    assert.deepEqual(parsed.unparsed, []);
+});
+
+test('collateral weekday ranges stay unparsed without month-year context', () => {
+    const parsed = parseImportedScheduleSessions([
+        'Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM',
+        'Thurs: 1.30PM - 5PM',
+    ]);
+
+    assert.deepEqual(parsed.entries, []);
+    assert.ok(parsed.unparsed.includes('Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM'));
+    assert.ok(parsed.unparsed.includes('Thurs: 1.30PM - 5PM'));
+});
+
 test('collateral shorthand dates stay unparsed without a year context', () => {
     const parsed = parseImportedScheduleSessions([
         '9.30AM - 10.30AM',
