@@ -15,29 +15,32 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T08:07:19.497Z`.
+  `2026-07-18T08:11:20.401Z`.
 - Production Worker version:
-  `c418c468-290c-40e6-9a59-905a9acda535`.
+  `42507ea8-951f-418a-899b-645e2d163406`.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
   production UAT on 2026-07-18 returned 26 review rows from
-  `TWV-July-Eng.jpeg` in 8.1 seconds with no Worker error and without saving
-  any production resource changes.
+  `TWV-July-Eng.jpeg` with no Worker error. The post-release request returned
+  HTTP 200 in 3.2 seconds, post-deploy smoke passed 6/6, and no production
+  resource changes were saved.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `codex/gemini-3-1-flash-lite-recovery`, created from current
-  `main` at `40ac74c92`. Main includes Care Calendar planning views commit
-  `c7679051f`, schedule publish-guard implementation commit `484c14d2d`, the
-  saved-resource bounded-hydration recovery, Care Calendar query-budget
-  recovery, Day view, and versioned Offering multi-session schedules.
+- Current branch: `main`, including Gemini collateral model recovery commit
+  `61e90a493`, Care Calendar planning views commit `c7679051f`, schedule
+  publish-guard implementation commit `484c14d2d`, the saved-resource
+  bounded-hydration recovery, Care Calendar query-budget recovery, Day view,
+  and versioned Offering multi-session schedules.
 - Gemini model recovery branch: `codex/gemini-3-1-flash-lite-recovery`; it
   aligns the server default and Worker configuration with the supported
   production model after `gemini-2.5-flash-lite` returned HTTP 404 for the new
   Gemini key. Focused AI import tests pass 13/13, the full server suite passes
-  439/439, and `git diff --check` passes.
+  439/439, and `git diff --check` passes. Commit `61e90a493` is pushed on the
+  branch, merged into pushed `main`, and deployed to Worker
+  `42507ea8-951f-418a-899b-645e2d163406`.
 - Planning-views branch: `codex/care-calendar-planning-views`; implementation
   commit `c7679051f` is pushed, merged into, and deployed from clean pushed
   `main`.
@@ -414,7 +417,12 @@ Updates. Production serves `assets/index-BIVnrRr4.js`,
 `assets/CareCalendarPage-OooRjuuN.js`, `assets/ResourcesPage-2YERLYnQ.js`, and
 `assets/index-BdQkhKX7.css` from the validated implementation deployment
 `https://b7688e7b.senior-resource-map.pages.dev`. The Worker version is
-`bc786c9d-6842-4996-8e12-940d074b58ab`.
+`42507ea8-951f-418a-899b-645e2d163406`.
+
+Gemini collateral import is recovered on `gemini-3.1-flash-lite` from commit
+`61e90a493`. Signed-in production preview returned 26 review rows from
+`TWV-July-Eng.jpeg`; the post-release request returned HTTP 200 with a clean
+Worker tail, production smoke passed 6/6, and no review rows were saved.
 
 Saved Resources permanent recovery commit `dcfce3ba3` is merged and pushed on
 `main`. Mixed saved Places/Offerings now use one bounded batch per resource
