@@ -15,19 +15,29 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T01:33:45.772Z`.
+  `2026-07-18T08:07:19.497Z`.
 - Production Worker version:
-  `bc786c9d-6842-4996-8e12-940d074b58ab`.
+  `c418c468-290c-40e6-9a59-905a9acda535`.
+- Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
+  production UAT on 2026-07-18 returned 26 review rows from
+  `TWV-July-Eng.jpeg` in 8.1 seconds with no Worker error and without saving
+  any production resource changes.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `main`, including Care Calendar planning views commit
+- Current branch: `codex/gemini-3-1-flash-lite-recovery`, created from current
+  `main` at `40ac74c92`. Main includes Care Calendar planning views commit
   `c7679051f`, schedule publish-guard implementation commit `484c14d2d`, the
   saved-resource bounded-hydration recovery, Care Calendar query-budget
   recovery, Day view, and versioned Offering multi-session schedules.
+- Gemini model recovery branch: `codex/gemini-3-1-flash-lite-recovery`; it
+  aligns the server default and Worker configuration with the supported
+  production model after `gemini-2.5-flash-lite` returned HTTP 404 for the new
+  Gemini key. Focused AI import tests pass 13/13, the full server suite passes
+  439/439, and `git diff --check` passes.
 - Planning-views branch: `codex/care-calendar-planning-views`; implementation
   commit `c7679051f` is pushed, merged into, and deployed from clean pushed
   `main`.
