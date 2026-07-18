@@ -435,12 +435,15 @@ These surfaces are approved on the stabilization branch and should not be reopen
   import coverage passed 34/34. Full server coverage passed 449/449, including
   workbook schedule round-trip, collateral import, AI cache, saved-resource,
   and Worker release-line guards. `git diff --check` passed. Implementation
-  commit `c4f7529fe` was pushed to `main`, and the Worker deployed as version
-  `e213d082-66e5-493f-abf9-a442ba5d8e15`. Production API health returned OK at
-  `2026-07-18T14:41:10.646Z`. The first production smoke attempt passed public
-  load but stopped because smoke credentials were not exported; rerunning with
-  local `smoke.env` passed production smoke 6/6. No client code, Pages bundle,
-  schema, secret, auth, or production data change was included.
+  commit `c4f7529fe` was pushed to `main`. Follow-up commit `f7b0dcaa0` bumped
+  the collateral extraction cache contract to `4` so old cached review output
+  cannot preserve the prior manual-review result. The Worker deployed as
+  version `9467218c-4e17-4cca-a630-50bd4e916ab5`. Production API health
+  returned OK at `2026-07-18T14:46:22.468Z`. The first production smoke attempt
+  passed public load but stopped because smoke credentials were not exported;
+  rerunning with local `smoke.env` passed production smoke 6/6, and the final
+  post-cache-bump production smoke also passed 6/6. No client code, Pages
+  bundle, schema, secret, auth, or production data change was included.
 
 ### 2026-05-20 AI enrichment logo selection recovery
 

@@ -15,9 +15,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T14:41:10.646Z`.
+  `2026-07-18T14:46:22.468Z`.
 - Production Worker version:
-  `e213d082-66e5-493f-abf9-a442ba5d8e15`.
+  `9467218c-4e17-4cca-a630-50bd4e916ab5`.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
   production UAT on 2026-07-18 returned 26 review rows from
   `TWV-July-Eng.jpeg` with no Worker error. The post-release request returned
@@ -43,18 +43,19 @@ Last updated: 2026-07-18 (Asia/Singapore)
   passed 446/446, `git diff --check` passed, API health returned OK, and
   production smoke passed 6/6 after deployment. No client, Pages bundle, schema,
   secret, auth, or production data change was included.
-- Collateral weekday-range schedule parser commit `c4f7529fe` is merged,
-  pushed, and deployed on the Worker. This follow-up handles the remaining
-  Board Games-style `TWV-July-Eng.jpeg` row:
+- Collateral weekday-range schedule parser commit `c4f7529fe` plus cache
+  contract bump commit `f7b0dcaa0` are merged, pushed, and deployed on the
+  Worker. This follow-up handles the remaining Board Games-style
+  `TWV-July-Eng.jpeg` row:
   `Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM` and
   `Thurs: 1.30PM - 5PM`. With visible context such as `JULY 2026`, the parser
   now creates bounded weekly reviewed rows for the printed weekday ranges and
   split time windows. The same weekday wording without month/year context stays
-  in manual review. Focused parser/collateral coverage passed 34/34, full
-  server passed 449/449, `git diff --check` passed, API health returned OK, and
-  production smoke passed 6/6 after rerunning with local `smoke.env`. No
-  client, Pages bundle, schema, secret, auth, or production data change was
-  included.
+  in manual review. The cache contract is version `4` so stale v3 collateral
+  previews are not reused. Focused parser/collateral coverage passed 34/34,
+  full server passed 449/449, `git diff --check` passed, API health returned
+  OK, and production smoke passed 6/6 after the final Worker deploy. No client,
+  Pages bundle, schema, secret, auth, or production data change was included.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
@@ -63,8 +64,8 @@ Last updated: 2026-07-18 (Asia/Singapore)
 
 - Current worktree branch: `main`, matching pushed `origin/main`. The
   collateral weekday-range schedule parser implementation is commit
-  `c4f7529fe`; it is merged, pushed, and deployed. Existing unrelated local
-  artifacts remain untracked.
+  `c4f7529fe`, with cache contract bump `f7b0dcaa0`; both are merged, pushed,
+  and deployed. Existing unrelated local artifacts remain untracked.
 - Collateral schedule first-cut branch:
   `codex/collateral-import-schedule-first-cut`; implementation commit
   `0ff5964c7` adds validated structured first-cut schedules to collateral
@@ -74,8 +75,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
   full client/source passed 434/434, the exact production map-enabled client
   build passed, `git diff --check` passed, and production smoke passed 6/6
   after Worker and Pages deployment.
-- Production `main` includes collateral weekday-range parser commit
-  `c4f7529fe`, collateral calendar text-to-schedule recovery commit
+- Production `main` includes collateral cache contract bump commit
+  `f7b0dcaa0`, collateral weekday-range parser commit `c4f7529fe`, collateral
+  calendar text-to-schedule recovery commit
   `d1a1718f0`, collateral schedule first-cut commit `0ff5964c7`, Gemini
   collateral model recovery commit
   `61e90a493`, Care Calendar planning views commit `c7679051f`, schedule
