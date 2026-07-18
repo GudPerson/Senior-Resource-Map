@@ -1,33 +1,36 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-17 (Asia/Singapore)
+Last updated: 2026-07-18 (Asia/Singapore)
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-B_m_21ZM.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-B9h-FsjV.js`
-- Production Resources chunk: `assets/ResourcesPage-Dl9Gvzsp.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-Cjfll4GR.js`
-- Production client CSS: `assets/index-3wrZ6OaU.css`
+- Production client bundle: `assets/index-BIVnrRr4.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-OooRjuuN.js`
+- Production Resources chunk: `assets/ResourcesPage-2YERLYnQ.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-DqXdd1jh.js`
+- Production client CSS: `assets/index-BdQkhKX7.css`
 - Validated production Pages deployment:
-  `https://c48142e0.senior-resource-map.pages.dev`
+  `https://b7688e7b.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-17T12:03:05.207Z`.
+  `2026-07-18T01:33:45.772Z`.
 - Production Worker version:
-  `29f0d835-155b-4f70-a042-d1f960807f2e`.
+  `bc786c9d-6842-4996-8e12-940d074b58ab`.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
 
 ## Repo and worktree state
 
-- Current branch: `main`, including schedule publish-guard implementation
-  commit `484c14d2d`, the saved-resource bounded-hydration recovery, Care
-  Calendar query-budget recovery, Day view, and versioned Offering
-  multi-session schedules.
+- Current branch: `main`, including Care Calendar planning views commit
+  `c7679051f`, schedule publish-guard implementation commit `484c14d2d`, the
+  saved-resource bounded-hydration recovery, Care Calendar query-budget
+  recovery, Day view, and versioned Offering multi-session schedules.
+- Planning-views branch: `codex/care-calendar-planning-views`; implementation
+  commit `c7679051f` is pushed, merged into, and deployed from clean pushed
+  `main`.
 - Publish-guard branch: `codex/offering-schedule-publish-guard`; implementation
   commit `484c14d2d` is pushed, merged into, and deployed from clean pushed
   `main`.
@@ -56,7 +59,8 @@ Last updated: 2026-07-17 (Asia/Singapore)
   `docs/competitor-analysis-2026-06-25.md`,
   `docs/map-stable-baseline-2026-07-12.md`,
   `docs/superpowers/plans/2026-06-26-resource-editor-wizard-conversion.md`,
-  `output/calendar-day-view/`, `output/playwright/test-results/`, and
+  `output/calendar-day-view/`, `output/care-calendar-planning-views/`,
+  `output/playwright/test-results/`, and
   `output/playwright/wizard-uat-2026-06-26/`, and
   `output/schedule-calendar-audit/`.
 - Production recovery used the isolated worktree
@@ -164,9 +168,23 @@ Last updated: 2026-07-17 (Asia/Singapore)
   427/427, the production-configured client build passed, and post-deploy smoke
   passed 6/6. No personal calendar intent, favorite, or unrelated production
   resource was changed by verification.
-- Current production custom domain serves `assets/index-B_m_21ZM.js` with
-  `assets/CareCalendarPage-B9h-FsjV.js`,
-  `assets/ResourcesPage-Dl9Gvzsp.js`, and both required W01 map asset-base
+- 2026-07-18 planning views release: Care Calendar now separates My Plans,
+  Calendar, and Updates. My Plans is the star/bookmark-style personal planning
+  list and shows only planned sessions plus private My Map calendar notes.
+  Calendar provides live Day, Week, and Month views for saved published
+  schedules and private items. Updates groups changed, cancelled, or removed
+  planned sessions until the user acknowledges the source revision; acknowledgement
+  never moves, removes, or re-stars a replacement session automatically. The
+  server adds bounded authenticated `scope=plans` reads so broad My Plans and
+  Updates windows expand only Offerings referenced by personal plans. Focused
+  client coverage passed 12/12, focused server calendar coverage passed 4/4,
+  full server passed 439/439, full client/source passed 431/431, the exact
+  production map-enabled client build passed, production smoke passed 6/6,
+  signed-in production desktop/mobile visual QA passed, and the production
+  API health/custom-domain asset checks passed.
+- Current production custom domain serves `assets/index-BIVnrRr4.js` with
+  `assets/CareCalendarPage-OooRjuuN.js`,
+  `assets/ResourcesPage-2YERLYnQ.js`, and both required W01 map asset-base
   markers.
 
 ## Saved Resources permanent recovery
@@ -380,13 +398,13 @@ docs/regression-ledger.md, docs/session-handoff.md, and
 docs/release-checklist.md, then run git status --short --branch before changing
 anything.
 
-Care Calendar schedule publish safeguards are deployed from implementation
-commit `484c14d2d` on pushed `main`. Production serves
-`assets/index-B_m_21ZM.js`, `assets/CareCalendarPage-B9h-FsjV.js`,
-`assets/ResourcesPage-Dl9Gvzsp.js`, and `assets/index-3wrZ6OaU.css` from the
-validated implementation deployment
-`https://c48142e0.senior-resource-map.pages.dev`. The Worker version is
-`29f0d835-155b-4f70-a042-d1f960807f2e`.
+Care Calendar planning views are deployed from implementation commit
+`c7679051f` on pushed `main`, including My Plans, Calendar Day/Week/Month, and
+Updates. Production serves `assets/index-BIVnrRr4.js`,
+`assets/CareCalendarPage-OooRjuuN.js`, `assets/ResourcesPage-2YERLYnQ.js`, and
+`assets/index-BdQkhKX7.css` from the validated implementation deployment
+`https://b7688e7b.senior-resource-map.pages.dev`. The Worker version is
+`bc786c9d-6842-4996-8e12-940d074b58ab`.
 
 Saved Resources permanent recovery commit `dcfce3ba3` is merged and pushed on
 `main`. Mixed saved Places/Offerings now use one bounded batch per resource
@@ -399,10 +417,13 @@ The calendar uses one canonical schedule plan per Offering with up to 250
 individual or weekly rows. Those rows generate public schedule copy and Care
 Calendar occurrences. Reviewed non-empty imports replace the current plan;
 blank or unparsed imports preserve it; immutable versions and personal plans
-remain reviewable. Plan this session is personal intent, not a booking.
-Persisted owner My Map notes can create private calendar items. Shared Maps,
-external notifications, calendar sync, and per-occurrence exceptions remain
-out of scope.
+remain reviewable. My Plans is the bookmark/star-style planning list, not a
+booking flow. Calendar shows Day, Week, and Month options for saved schedules
+and private notes. Updates is an acknowledgement surface for changed,
+cancelled, or removed planned sessions and never automatically moves, deletes,
+or re-stars replacement sessions. Persisted owner My Map notes can create
+private calendar items. Shared Maps, external notifications, calendar sync, and
+per-occurrence exceptions remain out of scope.
 
 Normal editor saves now include an explicit publish/update/unpublish action and
 the loaded schedule revision. The Worker uses a compare-and-swap guard, rejects
@@ -416,10 +437,12 @@ restored as revision 3 for Monday/Wednesday 10:00-11:30 from 20 July through
 
 The additive production schema bootstrap is complete. The query-budget
 recovery batches saved Offering resolution without changing visibility rules.
-Full server coverage passed 437/437, full client/source coverage passed
-427/427, the exact map-enabled client build passed, the additive schema is
-verified, production API health and asset checks passed, and all six production
-smoke flows passed without creating a production Offering or Calendar item.
+Full server coverage passed 439/439, full client/source coverage passed
+431/431, focused planning views coverage passed, the exact map-enabled client
+build passed, the additive schema is verified, production API health and asset
+checks passed, signed-in production desktop/mobile Calendar QA passed, and all
+six production smoke flows passed without creating a production Offering or
+Calendar item.
 
 Keep the locked map baseline intact. Every production build must include
 `VITE_API_URL`, `VITE_TOWN_MAP_PROOF_ENABLED=true`, and both Default and Gray

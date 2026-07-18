@@ -1777,6 +1777,21 @@ Active next recovery family:
   activation, and both W01 asset bases; and `git diff --check` passed. The
   build produced candidate `assets/CareCalendarPage-OooRjuuN.js` and retained
   the existing large-chunk advisory only.
+- Release follow-up: implementation commit `c7679051f` is pushed on `main` and
+  `codex/care-calendar-planning-views`. Production Worker
+  `bc786c9d-6842-4996-8e12-940d074b58ab` and validated Pages deployment
+  `https://b7688e7b.senior-resource-map.pages.dev` are live. The custom domain
+  serves `assets/index-BIVnrRr4.js`,
+  `assets/CareCalendarPage-OooRjuuN.js`,
+  `assets/ResourcesPage-2YERLYnQ.js`, `assets/index-BdQkhKX7.css`, and both
+  required W01 map asset-base markers. Signed-in production QA confirmed the
+  new My Plans, Calendar, and Updates sections, live Day/Week/Month switching,
+  production mobile layout at 390 x 844 without horizontal overflow, and the
+  Updates up-to-date empty state. Production smoke passed 6/6. No schema,
+  saved-resource payload, Offering schedule publication, personal-plan
+  migration, My Map ownership, Shared Map visibility, booking, availability,
+  external notification, map asset, secret, or unrelated production data was
+  changed during release verification.
 
 ## Recovery workflow
 
