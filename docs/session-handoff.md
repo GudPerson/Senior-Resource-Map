@@ -15,9 +15,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T13:26:23.912Z`.
+  `2026-07-18T14:09:48.271Z`.
 - Production Worker version:
-  `49bcdd9f-489c-4f7c-826c-f076efa60f5e`.
+  `4c21ed1e-77e7-4992-9f57-9447b09937d5`.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
   production UAT on 2026-07-18 returned 26 review rows from
   `TWV-July-Eng.jpeg` with no Worker error. The post-release request returned
@@ -31,17 +31,18 @@ Last updated: 2026-07-18 (Asia/Singapore)
   ad hoc read-only collateral-preview probe was attempted, but the helper
   stopped at automated login before reaching the import route; no Save reviewed
   rows action or production resource mutation was performed.
-- Current collateral calendar text-to-schedule branch:
-  `codex/collateral-calendar-schedule-parser`. This follow-up addresses the
-  production finding that `TWV-July-Eng.jpeg` still produced `Schedules ready 0`
-  because the parser could not convert flyer shorthand dates such as `6/7`
-  without an explicit year on the same line. The release candidate adds
-  schedule context extraction (`calendarContext` / `scheduleContext`), bumps the
-  AI cache contract to `3`, parses dot-separated times and date bullets with a
-  visible month/year context, and leaves shorthand dates without a year context
-  in manual review. Focused parser/collateral coverage passed 31/31, full
-  server passed 446/446, and `git diff --check` passed. No client, schema,
-  secret, auth, or production data change is included yet.
+- Collateral calendar text-to-schedule recovery commit `d1a1718f0` is merged,
+  pushed, and deployed on the Worker. This follow-up addresses the production
+  finding that `TWV-July-Eng.jpeg` still produced `Schedules ready 0` because
+  the parser could not convert flyer shorthand dates such as `6/7` without an
+  explicit year on the same line. The deployed fix adds schedule context
+  extraction (`calendarContext` / `scheduleContext`), bumps the AI cache
+  contract to `3`, parses dot-separated times and date bullets with a visible
+  month/year context, and leaves shorthand dates without a year context in
+  manual review. Focused parser/collateral coverage passed 31/31, full server
+  passed 446/446, `git diff --check` passed, API health returned OK, and
+  production smoke passed 6/6 after deployment. No client, Pages bundle, schema,
+  secret, auth, or production data change was included.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
@@ -49,9 +50,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
 ## Repo and worktree state
 
 - Current worktree branch: `main`, matching pushed `origin/main` at
-  `0ff5964c7` for tracked files. The collateral schedule first-cut release is
-  merged, pushed, and deployed. Existing unrelated local artifacts remain
-  untracked.
+  `d1a1718f0` for tracked implementation files. The collateral calendar
+  text-to-schedule recovery is merged, pushed, and deployed. Existing unrelated
+  local artifacts remain untracked.
 - Collateral schedule first-cut branch:
   `codex/collateral-import-schedule-first-cut`; implementation commit
   `0ff5964c7` adds validated structured first-cut schedules to collateral
@@ -61,8 +62,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
   full client/source passed 434/434, the exact production map-enabled client
   build passed, `git diff --check` passed, and production smoke passed 6/6
   after Worker and Pages deployment.
-- Production `main` includes collateral schedule first-cut commit `0ff5964c7`,
-  Gemini collateral model recovery commit
+- Production `main` includes collateral calendar text-to-schedule recovery
+  commit `d1a1718f0`, collateral schedule first-cut commit `0ff5964c7`, Gemini
+  collateral model recovery commit
   `61e90a493`, Care Calendar planning views commit `c7679051f`, schedule
   publish-guard implementation commit `484c14d2d`, the saved-resource
   bounded-hydration recovery, Care Calendar query-budget recovery, Day view,

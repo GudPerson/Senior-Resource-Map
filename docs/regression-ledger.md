@@ -369,7 +369,7 @@ These surfaces are approved on the stabilization branch and should not be reopen
 
 ### 2026-07-18 Collateral calendar text-to-schedule recovery
 
-- Current behavior in the release candidate: collateral extraction uses a
+- Current behavior: collateral extraction uses a
   two-stage schedule path. The AI still performs the visual/text pass and
   preserves visible calendar context such as `July 2026`, row time text, and
   date bullets. The server then deterministically converts safe text patterns
@@ -393,11 +393,16 @@ These surfaces are approved on the stabilization branch and should not be reopen
   import with no valid rows still cannot clear an existing schedule. Auth,
   access, visibility, saved resources, Care Calendar planning, matching,
   schema, secrets, and production data remain unchanged.
-- Verification result before deploy: focused parser and collateral coverage
+- Verification and deployment result: focused parser and collateral coverage
   passed 31/31. Full server coverage passed 446/446, including workbook
   schedule round-trip, collateral import, AI cache, saved-resource, and Worker
-  release-line guards. `git diff --check` passed. No client code, schema,
-  secret, auth, or production data change is included.
+  release-line guards. `git diff --check` passed. Implementation commit
+  `d1a1718f0` was pushed to `main`, and the Worker deployed as version
+  `4c21ed1e-77e7-4992-9f57-9447b09937d5`. Production API health returned OK at
+  `2026-07-18T14:09:48.271Z`, and production smoke passed 6/6 after deploy.
+  No client code, Pages bundle, schema, secret, auth, or production data change
+  was included; production custom domain remained on `assets/index-BUCrPSUa.js`
+  and `assets/index-CvQOOpB_.css`.
 
 ### 2026-05-20 AI enrichment logo selection recovery
 
