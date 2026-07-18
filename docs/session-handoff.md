@@ -61,9 +61,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
 
 ## Repo and worktree state
 
-- Current worktree branch: `main`, matching pushed `origin/main` at
-  `c4f7529fe` for tracked implementation files. The collateral weekday-range
-  schedule parser is merged, pushed, and deployed. Existing unrelated local
+- Current worktree branch: `main`, matching pushed `origin/main`. The
+  collateral weekday-range schedule parser implementation is commit
+  `c4f7529fe`; it is merged, pushed, and deployed. Existing unrelated local
   artifacts remain untracked.
 - Collateral schedule first-cut branch:
   `codex/collateral-import-schedule-first-cut`; implementation commit
