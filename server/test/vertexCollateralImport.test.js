@@ -404,6 +404,9 @@ test('extractCollateralDraftRows calls Gemini fallback and consolidates returned
         assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows);
         assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.properties.scheduleContext);
         assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.properties.scheduleEntries);
+        assert.ok(capturedBody.generationConfig.responseSchema.required.includes('calendarContext'));
+        assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.required.includes('scheduleSessions'));
+        assert.ok(capturedBody.generationConfig.responseSchema.properties.draftRows.items.required.includes('scheduleEntries'));
         assert.equal(capturedBody.contents[0].parts[1].inlineData.mimeType, 'image/jpeg');
         assert.equal(extraction.draftRows.length, 1);
         assert.equal(extraction.draftRows[0].name, 'Zumba Gold');
@@ -413,6 +416,155 @@ test('extractCollateralDraftRows calls Gemini fallback and consolidates returned
             '• 6/7 • 13/7',
         ].join('\n'));
         assert.equal(extraction.draftRows[0].scheduleEntries[0].startsAt, '2026-07-06T01:30:00.000Z');
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('extractCollateralDraftRows rescues a suspicious name-only calendar with focused schedule transcription', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
+    const capturedBodies = [];
+
+    globalThis.fetch = async (_url, options) => {
+        const body = JSON.parse(options.body);
+        capturedBodies.push(body);
+        const isScheduleRescue = Boolean(body.generationConfig.responseSchema.properties.scheduleRows);
+        const result = isScheduleRescue
+            ? {
+                calendarContext: 'July 2026',
+                scheduleRows: [
+                    {
+                        name: 'Zumba Gold',
+                        scheduleContext: 'July 2026',
+                        scheduleSessions: ['9.30AM - 10.30AM', '6/7 • 13/7'],
+                    },
+                    {
+                        name: 'Nail Art',
+                        scheduleContext: 'July 2026',
+                        scheduleSessions: ['2PM - 3.30PM', '17/7'],
+                    },
+                    {
+                        name: 'Board Games',
+                        scheduleContext: 'July 2026',
+                        scheduleSessions: [
+                            'Mon to Wed & Fri: 9AM - 12PM, 1.30PM - 5PM',
+                            'Thurs: 1.30PM - 5PM',
+                        ],
+                    },
+                ],
+            }
+            : {
+                warnings: [],
+                calendarContext: '',
+                draftRows: [
+                    { bucket: 'Programmes', name: 'Zumba Gold' },
+                    { bucket: 'Programmes', name: 'Nail Art' },
+                    { bucket: 'Programmes', name: 'Board Games' },
+                ],
+            };
+        return {
+            ok: true,
+            status: 200,
+            async json() {
+                return {
+                    candidates: [{ content: { parts: [{ text: JSON.stringify(result) }] } }],
+                };
+            },
+        };
+    };
+
+    try {
+        const extraction = await extractCollateralDraftRows({
+            env: {
+                GEMINI_API_KEY: 'gemini-test-key',
+                GEMINI_API_MODEL: 'gemini-test-model',
+            },
+            hostAsset: {
+                name: 'REACH-SLEC Active Ageing Centre @ Teck Whye Vista',
+                address: '153 Jalan Teck Whye',
+            },
+            files: [
+                {
+                    type: 'image/jpeg',
+                    size: 12,
+                    async arrayBuffer() {
+                        return new TextEncoder().encode('calendar image').buffer;
+                    },
+                },
+            ],
+        });
+
+        assert.equal(capturedBodies.length, 2);
+        assert.ok(capturedBodies[1].generationConfig.responseSchema.properties.scheduleRows);
+        assert.match(capturedBodies[1].contents[0].parts[0].text, /focused transcription pass/i);
+        assert.equal(extraction.draftRows[0].sessionCount, 2);
+        assert.equal(extraction.draftRows[1].sessionCount, 1);
+        assert.equal(extraction.draftRows[2].sessionCount, 3);
+        assert.deepEqual(extraction.draftRows[2].scheduleEntries[0].weekdays, [1, 2, 3, 5]);
+        assert.deepEqual(extraction.draftRows[2].unparsedScheduleLines, []);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('extractCollateralDraftRows does not cache a suspicious calendar when schedule transcription stays empty', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.__carearoundAiCostCounters = new Map();
+    globalThis.__carearoundAiCostCache = new Map();
+    let fetchCount = 0;
+
+    globalThis.fetch = async (_url, options) => {
+        fetchCount += 1;
+        const body = JSON.parse(options.body);
+        const isScheduleRescue = Boolean(body.generationConfig.responseSchema.properties.scheduleRows);
+        const result = isScheduleRescue
+            ? { calendarContext: 'July 2026', scheduleRows: [] }
+            : {
+                warnings: [],
+                calendarContext: '',
+                draftRows: [
+                    { bucket: 'Programmes', name: 'Programme A' },
+                    { bucket: 'Programmes', name: 'Programme B' },
+                    { bucket: 'Programmes', name: 'Programme C' },
+                ],
+            };
+        return {
+            ok: true,
+            status: 200,
+            async json() {
+                return {
+                    candidates: [{ content: { parts: [{ text: JSON.stringify(result) }] } }],
+                };
+            },
+        };
+    };
+
+    const request = {
+        env: {
+            GEMINI_API_KEY: 'gemini-test-key',
+            GEMINI_API_MODEL: 'gemini-test-model',
+        },
+        hostAsset: { name: 'Calendar host' },
+        files: [
+            {
+                type: 'image/png',
+                size: 14,
+                async arrayBuffer() {
+                    return new TextEncoder().encode('empty calendar').buffer;
+                },
+            },
+        ],
+    };
+
+    try {
+        const first = await extractCollateralDraftRows(request);
+        const second = await extractCollateralDraftRows(request);
+
+        assert.equal(fetchCount, 4);
+        assert.equal(first.draftRows[0].sessionCount, 0);
+        assert.equal(second.draftRows[0].sessionCount, 0);
     } finally {
         globalThis.fetch = originalFetch;
     }

@@ -15,14 +15,13 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T14:46:22.468Z`.
+  `2026-07-18T15:08:03.543Z`.
 - Production Worker version:
-  `9467218c-4e17-4cca-a630-50bd4e916ab5`.
+  `a522111b-b161-419c-8e50-6eb0a4105976`.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
-  production UAT on 2026-07-18 returned 26 review rows from
-  `TWV-July-Eng.jpeg` with no Worker error. The post-release request returned
-  HTTP 200 in 3.2 seconds, post-deploy smoke passed 6/6, and no production
-  resource changes were saved.
+  production UAT on 2026-07-18 returned 26 schedules-ready review rows and 0
+  schedule-review rows from `TWV-July-Eng.jpeg`. Post-deploy smoke passed 6/6,
+  and no production resource changes were saved.
 - Collateral schedule first-cut release commit `0ff5964c7` is deployed on the
   Worker and Pages. The import review UI drops invalid cached schedule
   placeholders, labels validated schedule rows as ready, gives ordinary desktop
@@ -56,6 +55,21 @@ Last updated: 2026-07-18 (Asia/Singapore)
   full server passed 449/449, `git diff --check` passed, API health returned
   OK, and production smoke passed 6/6 after the final Worker deploy. No client,
   Pages bundle, schema, secret, auth, or production data change was included.
+- Collateral incomplete-schedule recovery commit `b014c4187` is merged,
+  pushed, and deployed on the Worker. Production UAT after the previous cache
+  bump showed the fresh Gemini response had regressed to 26 name-only rows at
+  50% confidence because schedule fields were optional and that incomplete
+  batch was accepted and cached. Contract `5` now requires schedule text fields
+  in the primary extraction and adds a bounded, quota-counted schedule-only
+  transcription when a 3+ Programme calendar has no schedule evidence. Empty
+  rescue results are not cached. Focused schedule/collateral coverage passed
+  36/36, full server passed 451/451, the exact production map-enabled client
+  build and `git diff --check` passed, API health returned OK, and production
+  smoke passed 6/6. Signed-in read-only production UAT with the retained
+  `TWV-July-Eng.jpeg` upload returned `Schedules ready 26` and `Need schedule
+  review 0`; Zumba Gold had four correct July rows and Board Games had three
+  weekly rows. Save reviewed rows was not selected. No client deploy, schema,
+  secret, auth, or production data change was included.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
@@ -65,9 +79,10 @@ Last updated: 2026-07-18 (Asia/Singapore)
 ## Repo and worktree state
 
 - Current worktree branch: `main`, matching pushed `origin/main`. The
-  collateral weekday-range schedule parser implementation is commit
-  `c4f7529fe`, with cache contract bump `f7b0dcaa0`; both are merged, pushed,
-  and deployed. Existing unrelated local artifacts remain untracked.
+  collateral incomplete-schedule recovery is commit `b014c4187`; it is merged,
+  pushed, and deployed. The weekday-range parser implementation remains commit
+  `c4f7529fe`, with its earlier cache contract bump `f7b0dcaa0`. Existing
+  unrelated local artifacts remain untracked.
 - Pending islandwide Detailed-map worktree:
   `/Users/sweetbuns/CareAroundSG-islandwide-detailed-map` on
   `codex/islandwide-detailed-map`, based on
@@ -83,8 +98,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
   full client/source passed 434/434, the exact production map-enabled client
   build passed, `git diff --check` passed, and production smoke passed 6/6
   after Worker and Pages deployment.
-- Production `main` includes collateral cache contract bump commit
-  `f7b0dcaa0`, collateral weekday-range parser commit `c4f7529fe`, collateral
+- Production `main` includes collateral incomplete-schedule recovery commit
+  `b014c4187`, collateral cache contract bump commit `f7b0dcaa0`, collateral
+  weekday-range parser commit `c4f7529fe`, collateral
   calendar text-to-schedule recovery commit
   `d1a1718f0`, collateral schedule first-cut commit `0ff5964c7`, Gemini
   collateral model recovery commit
@@ -494,12 +510,13 @@ Updates. Production serves `assets/index-BIVnrRr4.js`,
 `assets/CareCalendarPage-OooRjuuN.js`, `assets/ResourcesPage-2YERLYnQ.js`, and
 `assets/index-BdQkhKX7.css` from the validated implementation deployment
 `https://b7688e7b.senior-resource-map.pages.dev`. The Worker version is
-`42507ea8-951f-418a-899b-645e2d163406`.
+`a522111b-b161-419c-8e50-6eb0a4105976`.
 
 Gemini collateral import is recovered on `gemini-3.1-flash-lite` from commit
-`61e90a493`. Signed-in production preview returned 26 review rows from
-`TWV-July-Eng.jpeg`; the post-release request returned HTTP 200 with a clean
-Worker tail, production smoke passed 6/6, and no review rows were saved.
+`61e90a493`, with incomplete schedule recovery in `b014c4187`. Signed-in
+production preview returned 26 schedules-ready rows and 0 schedule-review rows
+from `TWV-July-Eng.jpeg`; production smoke passed 6/6, and no review rows were
+saved.
 
 Saved Resources permanent recovery commit `dcfce3ba3` is merged and pushed on
 `main`. Mixed saved Places/Offerings now use one bounded batch per resource

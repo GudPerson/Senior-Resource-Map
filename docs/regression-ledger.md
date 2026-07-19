@@ -445,6 +445,58 @@ These surfaces are approved on the stabilization branch and should not be reopen
   post-cache-bump production smoke also passed 6/6. No client code, Pages
   bundle, schema, secret, auth, or production data change was included.
 
+### 2026-07-18 Collateral incomplete-schedule extraction recovery
+
+- Current behavior: the primary Gemini collateral schema requires the visible
+  calendar context, source schedule text, session lines, and schedule-entry
+  fields instead of allowing a name-only row to count as a complete
+  extraction. If a multi-programme calendar still returns at least three
+  Programme rows with no schedule evidence at all, the Worker performs one
+  quota-counted, schedule-only transcription pass over the same collateral.
+  That pass preserves exact printed month/year, time, date-bullet, and weekday
+  wording; the existing deterministic parser remains responsible for creating
+  validated Singapore-time review rows. An empty or failed rescue is not
+  cached, so one weak model response cannot pin a no-schedule preview for the
+  cache lifetime. Save reviewed rows and all publish/replacement safeguards are
+  unchanged.
+- Known-good reference: user production screenshot on 2026-07-18 after the
+  cache-contract `4` rollout showing a fresh `TWV-July-Eng.jpeg` preview with
+  26 extracted names at 50% confidence but `Schedules ready 0` and `Need
+  schedule review 26`. The regression occurred because the model omitted
+  optional schedule fields and the server accepted and cached the name-only
+  batch.
+- Reproduction steps: sign in, open `/dashboard/resources`, choose Import
+  Material for REACH-SLEC Active Ageing Centre @ Teck Whye Vista, return to the
+  upload step with `/Users/sweetbuns/Downloads/TWV-July-Eng.jpeg`, and select
+  Preview extracted offerings without saving. Confirm the batch summary shows
+  all 26 rows ready, Zumba Gold shows four dated rows, and Board Games shows
+  three bounded weekly rows for its two weekday lines and split time windows.
+- Acceptance criteria: a name-only multi-programme calendar triggers the
+  focused schedule transcription; exact source wording is matched only to the
+  same normalized Offering name; deterministic validation still rejects
+  missing context, invalid dates, and invented schedule data; a rescue failure
+  returns reviewable rows with a warning and is not cached; repeated successful
+  previews use the normal cache; no reviewed row is saved automatically. Auth,
+  access, visibility, matching, Offerings, schedule revision guards, Care
+  Calendar, saved resources, My Maps, Shared Maps, schema, secrets, client
+  bundles, and unrelated production data remain unchanged.
+- Verification and deployment result: focused Offering schedule and collateral
+  import coverage passed 36/36, including name-only rescue, weekday-range
+  parsing, incomplete-result no-cache behavior, and normal successful caching.
+  Full server coverage passed 451/451. The exact production-configured,
+  Detailed-map-enabled client build passed with the existing large-chunk
+  advisory, and `git diff --check` passed. Implementation commit `b014c4187`
+  was pushed to `main`; cache contract `5` invalidates the incomplete contract
+  `4` result. The Worker deployed as version
+  `a522111b-b161-419c-8e50-6eb0a4105976`. Production API health returned OK at
+  `2026-07-18T15:08:03.543Z`, and production smoke passed 6/6. Signed-in,
+  read-only production UAT against the retained TWV upload returned 26
+  schedules-ready rows and 0 schedule-review rows; Zumba Gold contained four
+  correct July sessions and Board Games contained three weekly rows. Save
+  reviewed rows was not selected, so no Offering, schedule, or personal
+  calendar data changed. No client deploy, schema, secret, or auth change was
+  included.
+
 ### 2026-05-20 AI enrichment logo selection recovery
 
 - Current behavior: website logo metadata now treats separators like `_` as valid logo filename boundaries, so organization logo files such as `LOGO_NLCS...` and `NLCS-Logo...` win over generic service carousel or award images.
