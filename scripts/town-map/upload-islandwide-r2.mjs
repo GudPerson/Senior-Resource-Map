@@ -31,12 +31,20 @@ const CONCURRENCY = Number(argumentValue("concurrency", process.env.TOWN_MAP_R2_
 const SOURCE_ROOT = argumentValue("source-root", process.env.TOWN_MAP_SOURCE_ROOT || DEFAULT_ISLANDWIDE_SOURCE_ROOT);
 const MANIFEST_ROOT = argumentValue("manifest-root", process.env.TOWN_MAP_MANIFEST_ROOT || DEFAULT_ISLANDWIDE_MANIFEST_ROOT);
 const WRANGLER_BIN = argumentValue("wrangler-bin", process.env.WRANGLER_BIN || "npx");
+const CHUNK_START_INDEX = Number(argumentValue("chunk-start-index", process.env.TOWN_MAP_R2_CHUNK_START_INDEX || "1"));
+const PUT_RETRIES = Number(argumentValue("put-retries", process.env.TOWN_MAP_R2_PUT_RETRIES || "3"));
 
 invariant(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(BUCKET), `Unsafe R2 bucket name: ${BUCKET}`);
 invariant(Number.isSafeInteger(CONCURRENCY) && CONCURRENCY >= 1 && CONCURRENCY <= 12, "Concurrency must be between 1 and 12");
 invariant(typeof WRANGLER_BIN === "string" && WRANGLER_BIN.trim(), "Wrangler command is required");
+invariant(Number.isSafeInteger(CHUNK_START_INDEX) && CHUNK_START_INDEX >= 1, "Chunk start index must be a positive integer");
+invariant(Number.isSafeInteger(PUT_RETRIES) && PUT_RETRIES >= 0 && PUT_RETRIES <= 8, "PUT retries must be between 0 and 8");
 
-function runWranglerPut(object) {
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function runWranglerPutOnce(object) {
   const objectPath = `${BUCKET}/${object.key}`;
   const wranglerArgs = [
     "r2",
@@ -86,6 +94,22 @@ function runWranglerPut(object) {
   });
 }
 
+async function runWranglerPut(object) {
+  let lastError;
+  for (let attempt = 0; attempt <= PUT_RETRIES; attempt += 1) {
+    try {
+      return await runWranglerPutOnce(object);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= PUT_RETRIES) break;
+      const delayMs = Math.min(8000, 1000 * 2 ** attempt);
+      console.warn(`Retrying ${object.key} after failed R2 PUT attempt ${attempt + 1}/${PUT_RETRIES + 1}`);
+      await wait(delayMs);
+    }
+  }
+  throw lastError;
+}
+
 async function uploadObjects(label, objects, logEvery) {
   let uploaded = 0;
   await mapWithConcurrency(objects, CONCURRENCY, async (object) => {
@@ -118,6 +142,8 @@ async function main() {
     indexSha256: plan.indexSha256,
     surfaceManifests: plan.manifestObjects.length,
     concurrency: CONCURRENCY,
+    chunkStartIndex: CHUNK_START_INDEX,
+    putRetries: PUT_RETRIES,
     publishOrder: "all chunks, then surface manifests, then islandwide index",
   };
   console.log(JSON.stringify(summary, null, 2));
@@ -127,7 +153,12 @@ async function main() {
     return;
   }
 
-  const uploadedChunks = await uploadObjects("immutable chunks", plan.chunkObjects, 100);
+  invariant(CHUNK_START_INDEX <= plan.chunkObjects.length, `Chunk start index exceeds chunk count: ${CHUNK_START_INDEX}`);
+  const chunkObjectsToUpload = plan.chunkObjects.slice(CHUNK_START_INDEX - 1);
+  if (CHUNK_START_INDEX > 1) {
+    console.log(`Resuming immutable chunks at ${CHUNK_START_INDEX}/${plan.chunkObjects.length}`);
+  }
+  const uploadedChunks = await uploadObjects("immutable chunks", chunkObjectsToUpload, 100);
   const uploadedManifests = await uploadObjects("surface manifests", plan.manifestObjects, 8);
   await runWranglerPut(plan.indexObject);
   console.log(
