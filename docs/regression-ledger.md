@@ -1437,6 +1437,29 @@ Active next recovery family:
   app origin. No commit, push, Pages/Worker/R2 deployment, schema, auth,
   permission, map-camera, map-data, Detailed-surface, PDF-ledger, Shared Map, or
   production-data change was performed.
+- Owner Print Map badge readability and Balanced-width refinement (local,
+  2026-07-19): owner-print number badges now use print-only fixed pixel tokens
+  so the global `A-` control cannot shrink them below their normal readable
+  size. Compact `Names only` badges remain 20px with 11px numerals, while the
+  other label modes remain 28px with 13px numerals. Badge colour, map-facing
+  placement, label composition, and visible/Save-as-image parity remain
+  unchanged. `Balanced` keeps its existing `Wide` default at a 680px map with
+  340px label rails, and now exposes the same opt-in `Extra wide` choice as Map
+  focus: a 760px map with narrower 300px label rails. Reproduction: open an
+  owned map with `?view=print`; reduce the site text size to its minimum; switch
+  between `Names only` and `Full details` and confirm the badges remain readable;
+  then select `Balanced` and compare `Wide` with `Extra wide`. Focused print/list
+  coverage passed 42/42, full client/source coverage passed 442/442, the exact
+  islandwide Detailed-enabled production build passed with only the existing
+  large-chunk advisory, and `git diff --check` passed. Signed-in local Chrome
+  UAT on owner map 87 measured a 9.6px root font with 15/15 compact badges at
+  20px/11px and 15/15 regular badges at 28px/13px on both preview and export
+  surfaces. Balanced `Wide` remained 680px and `Extra wide` measured 760px on
+  both surfaces. No application-origin console error was recorded; one
+  unrelated Chrome-extension module error remained outside the app origin. No
+  commit, push, Pages/Worker/R2 deployment, schema, auth, permission,
+  map-camera, map-data, Detailed-surface, PDF-ledger, Shared Map, or
+  production-data change was performed.
 - Owner Detailed viewport-coverage correction: production tablet UAT showed a
   15-resource owner map staying on Standard at zoom 15 while the current
   viewport was inside the CCK/W01 Detailed surface. The root cause was the

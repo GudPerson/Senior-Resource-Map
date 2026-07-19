@@ -266,8 +266,8 @@ function PrintResourceNumberBadge({ value, color = null, compact = false }) {
             data-print-number-badge="true"
             className={`inline-flex flex-shrink-0 items-center justify-center rounded-full border-2 px-0 font-black leading-none text-white ${
                 compact
-                    ? 'h-5 w-5 min-w-5 text-[0.5625rem]'
-                    : 'h-7 w-7 min-w-7 text-[0.6875rem]'
+                    ? 'h-[20px] w-[20px] min-w-[20px] text-[11px]'
+                    : 'h-[28px] w-[28px] min-w-[28px] text-[13px]'
             }`}
             style={{
                 backgroundColor: badgeColor,

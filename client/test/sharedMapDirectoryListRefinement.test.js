@@ -376,8 +376,8 @@ test('print V2 cards can opt into compact category-coloured resource badges', ()
     assert.match(printBadgeSource, /const badgeColor = normalizeBadgeFillColor\(color\)/);
     assert.match(printBadgeSource, /compact = false/);
     assert.match(printBadgeSource, /data-print-number-badge="true"/);
-    assert.match(printBadgeSource, /h-5 w-5 min-w-5 text-\[0\.5625rem\]/);
-    assert.match(printBadgeSource, /h-7 w-7 min-w-7 text-\[0\.6875rem\]/);
+    assert.match(printBadgeSource, /h-\[20px\] w-\[20px\] min-w-\[20px\] text-\[11px\]/);
+    assert.match(printBadgeSource, /h-\[28px\] w-\[28px\] min-w-\[28px\] text-\[13px\]/);
     assert.match(printBadgeSource, /backgroundColor: badgeColor/);
     assert.match(printBadgeSource, /borderColor: 'rgba\(255,255,255,0\.96\)'/);
     assert.match(sharedMapDirectorySource, /showPrintNumberBadges = false/);

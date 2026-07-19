@@ -89,13 +89,23 @@ test('capture key changes for every visual print map setting', () => {
     assert.equal(keys.size, 9);
 });
 
-test('print layout presets keep Balanced stable and constrain Map focus widths', () => {
+test('print layout presets keep Balanced stable while allowing an explicit wider map', () => {
     assert.deepEqual(getOwnerPrintLayoutConfig({ layoutPreset: PRINT_MAP_LAYOUT_BALANCED }), {
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
         mapSide: 'center',
         mapWidth: PRINT_MAP_WIDTH_WIDE,
         mapMaxWidthPx: 680,
         gridClassName: 'grid-cols-[340px_minmax(0,1fr)_340px]',
+    });
+    assert.deepEqual(getOwnerPrintLayoutConfig({
+        layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
+        mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
+    }), {
+        layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
+        mapSide: 'center',
+        mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
+        mapMaxWidthPx: 760,
+        gridClassName: 'grid-cols-[300px_minmax(0,1fr)_300px]',
     });
     assert.equal(getOwnerPrintLayoutConfig({
         layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
@@ -120,6 +130,7 @@ test('print layout controls use progressive disclosure and layman label-detail c
     assert.match(printLayoutControlsSource, /t\('printLabelNamesAddresses'\)/);
     assert.match(printLayoutControlsSource, /t\('printLabelFullDetails'\)/);
     assert.match(printLayoutControlsSource, /layoutPreset === PRINT_MAP_LAYOUT_FOCUS/);
+    assert.match(printLayoutControlsSource, /data-print-map-width-controls="true"/);
 });
 
 test('print label detail choices retain the numbered map key while controlling address and resource rows', () => {

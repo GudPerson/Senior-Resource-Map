@@ -44,12 +44,15 @@ export function getOwnerPrintLayoutConfig(state = {}) {
     const layoutPreset = normalizePrintMapLayoutPreset(state.layoutPreset);
     const mapWidth = normalizePrintMapWidth(state.mapWidth);
     if (layoutPreset === PRINT_MAP_LAYOUT_BALANCED) {
+        const extraWide = mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE;
         return {
             layoutPreset,
             mapSide: 'center',
             mapWidth,
-            mapMaxWidthPx: 680,
-            gridClassName: 'grid-cols-[340px_minmax(0,1fr)_340px]',
+            mapMaxWidthPx: extraWide ? 760 : 680,
+            gridClassName: extraWide
+                ? 'grid-cols-[300px_minmax(0,1fr)_300px]'
+                : 'grid-cols-[340px_minmax(0,1fr)_340px]',
         };
     }
 

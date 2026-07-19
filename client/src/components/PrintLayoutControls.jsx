@@ -99,8 +99,8 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                 </div>
             </fieldset>
 
-            {layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? (
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className={`mt-4 grid gap-4 ${layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? 'lg:grid-cols-2' : ''}`}>
+                {layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? (
                     <fieldset>
                         <legend className="text-sm font-bold text-slate-800">{t('printMapPosition')}</legend>
                         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -116,24 +116,24 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                             />
                         </div>
                     </fieldset>
+                ) : null}
 
-                    <fieldset>
-                        <legend className="text-sm font-bold text-slate-800">{t('printMapWidth')}</legend>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                            <ChoiceButton
-                                selected={mapWidth === PRINT_MAP_WIDTH_WIDE}
-                                label={t('printMapWidthWide')}
-                                onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_WIDE })}
-                            />
-                            <ChoiceButton
-                                selected={mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE}
-                                label={t('printMapWidthExtraWide')}
-                                onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE })}
-                            />
-                        </div>
-                    </fieldset>
-                </div>
-            ) : null}
+                <fieldset data-print-map-width-controls="true">
+                    <legend className="text-sm font-bold text-slate-800">{t('printMapWidth')}</legend>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <ChoiceButton
+                            selected={mapWidth === PRINT_MAP_WIDTH_WIDE}
+                            label={t('printMapWidthWide')}
+                            onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_WIDE })}
+                        />
+                        <ChoiceButton
+                            selected={mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE}
+                            label={t('printMapWidthExtraWide')}
+                            onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE })}
+                        />
+                    </div>
+                </fieldset>
+            </div>
 
             <fieldset className="mt-4">
                 <legend className="text-sm font-bold text-slate-800">{t('printLabelDetail')}</legend>
