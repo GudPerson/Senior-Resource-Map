@@ -1387,6 +1387,29 @@ Active next recovery family:
   Worker/API, R2, map camera, map data, Detailed surface, Shared Map, PDF
   ledger, schema, auth, permission, ranking, filtering, visibility,
   saved-resource, or production-data behavior is changed.
+  Release follow-up (2026-07-19): implementation commit `3a69101d6` and the
+  narrow capture-readiness correction `f5940d9e1` were pushed through the
+  isolated `codex/print-map-layout-composer` branch and fast-forwarded to
+  `main`. The final production-configured client build passed with all four
+  islandwide Detailed-map values and only the existing large-chunk advisory;
+  full client coverage passed 442/442 and the earlier server run remained
+  451/451 because the correction is client-only. The validated build was
+  explicitly published at
+  `https://4a06d8b0.senior-resource-map.pages.dev`, and the custom domain
+  served the same `assets/index-CSi-sBxv.js` bundle. Fresh signed-in production
+  UAT on owner map 87 confirmed Balanced remains the exact default; Map focus,
+  right placement, Extra wide, and Names + addresses stay identical between
+  the visible and hidden export surfaces; Save as image produced a readable
+  5920 x 4296 PNG; mobile-width preview had zero horizontal overflow; and Reset
+  restored Balanced, centred map, Wide, and Full details. API health returned
+  OK at `2026-07-19T12:55:10.866Z`; the public smoke passed; and the browser
+  recorded no application-origin console error. The authenticated smoke runner
+  was not rerun after the capture correction because its local credential
+  variables were unavailable; the same six-test production smoke had passed
+  immediately before the client-only correction, and the affected owner route
+  was rechecked through the signed-in production session. No Worker/API, R2,
+  schema, auth, permission, ranking, filtering, visibility, saved-resource,
+  PDF-ledger, Shared Map, or production-data deployment was performed.
 - Owner Detailed viewport-coverage correction: production tablet UAT showed a
   15-resource owner map staying on Standard at zoom 15 while the current
   viewport was inside the CCK/W01 Detailed surface. The root cause was the
