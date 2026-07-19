@@ -12,6 +12,7 @@ export default function MapDirectoryExportPanel({
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable = false,
+    fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
 }) {
     return (
@@ -30,6 +31,7 @@ export default function MapDirectoryExportPanel({
             fixedTownSurfaceManifest={fixedTownSurfaceManifest}
             fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+            fixedTownSurfacePending={fixedTownSurfacePending}
             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
         />
     );

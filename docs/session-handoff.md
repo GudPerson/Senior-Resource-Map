@@ -59,6 +59,8 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
+  - Pending islandwide Default: `/v1/islandwide`
+  - Pending islandwide Gray: `/v1/islandwide/gray`
 
 ## Repo and worktree state
 
@@ -66,6 +68,12 @@ Last updated: 2026-07-18 (Asia/Singapore)
   collateral weekday-range schedule parser implementation is commit
   `c4f7529fe`, with cache contract bump `f7b0dcaa0`; both are merged, pushed,
   and deployed. Existing unrelated local artifacts remain untracked.
+- Pending islandwide Detailed-map worktree:
+  `/Users/sweetbuns/CareAroundSG-islandwide-detailed-map` on
+  `codex/islandwide-detailed-map`, based on
+  `2430c13e00909e13d13fa1426776fe61e196e8f8`. It expands the owner Detailed
+  fixed-surface path from W01-only to a 32-surface islandwide index for both
+  Default and Gray without bundling the generated chunks into the client.
 - Collateral schedule first-cut branch:
   `codex/collateral-import-schedule-first-cut`; implementation commit
   `0ff5964c7` adds validated structured first-cut schedules to collateral
@@ -312,8 +320,11 @@ Last updated: 2026-07-18 (Asia/Singapore)
 - Default uses OneMap `Default_HD`; Gray uses native OneMap `Grey_HD`.
 - My Map owner `Standard | Detailed` remains a separate control. Detailed stays
   owner-only and activates automatically at zoom 15.
-- Detailed Default uses the accepted colour CCK/W01 fixed surface. Detailed
-  Gray uses the accepted native OneMap Grey CCK/W01 fixed surface.
+- Detailed Default uses the accepted colour fixed-surface asset set. Detailed
+  Gray uses the accepted native OneMap Grey fixed-surface asset set. The
+  pending islandwide branch resolves these through 32-surface islandwide
+  indexes and lazy per-surface manifests instead of the older W01-only
+  manifest.
 - Owner Print Map is an independent print workspace. It starts from fit all,
   Standard, and 360 px while carrying only the current Default/Gray preference.
   Owners can pan, zoom, choose Standard/Detailed and Default/Gray, and resize
@@ -325,13 +336,19 @@ Last updated: 2026-07-18 (Asia/Singapore)
   in-app Print button is removed; browser/system printing remains available.
   Map settings is centre-aligned with the zoom rail at desktop and mobile
   widths despite the different responsive control sizes.
-- Both W01 manifests preload. Switching colour while Detailed is active loads
-  only visible fixed chunks and does not fall through to live OneMap tiles.
+- Both fixed-surface sources preload. In the pending islandwide branch, only
+  the root indexes preload; the active area's per-surface manifest and visible
+  chunks load lazily. Switching colour or focused area while Detailed is active
+  loads only visible fixed chunks and does not fall through to live OneMap
+  tiles.
 - Every production client rebuild must include all four values:
   `VITE_API_URL=https://api.carearound.sg/api`,
-  `VITE_TOWN_MAP_PROOF_ENABLED=true`, the Default W01 asset base, and the Gray
-  W01 asset base. Omitting the town-map variables intentionally compiles the
-  owner Map detail control out of the bundle and is now rollback-only behavior.
+  `VITE_TOWN_MAP_PROOF_ENABLED=true`, the Default fixed-surface asset base, and
+  the Gray fixed-surface asset base. The pending islandwide build should use
+  `https://maps.carearound.sg/v1/islandwide` and
+  `https://maps.carearound.sg/v1/islandwide/gray`. Omitting the town-map
+  variables intentionally compiles the owner Map detail control out of the
+  bundle and is now rollback-only behavior.
 - Pins, clustering, card focus, camera, reset, selection, full map, attribution,
   outside-coverage fallback, ranking, filtering, visibility, and resource data
   remain unchanged.
@@ -430,6 +447,16 @@ Last updated: 2026-07-18 (Asia/Singapore)
   1440x1000 and 390x844, confirmed the left-aligned Back/Reset/Save group and
   absent Print button, preserved preview/export state, downloaded the image,
   and found no horizontal overflow or page errors. Post-deploy smoke passed 5/5.
+- Pending islandwide Detailed-map validation on
+  `codex/islandwide-detailed-map` passed desktop and mobile fixture browser
+  smoke using local islandwide assets: CCK/Yew Tee and Bedok focus transitions
+  each rendered one visible fixed chunk, made zero OneMap tile requests after
+  Detailed focus, and had zero failed requests, console entries, or page errors.
+  Evidence is under `output/town-map-proof/islandwide-uat/`. Focused map
+  coverage passed 48/48, broader locked map/list coverage passed 114/114, R2
+  contract coverage passed 6/6, server coverage passed 449/449, and the
+  production-configured islandwide client build passed with only the existing
+  large-chunk advisory. Deploy is pending.
 
 ## Rollback
 

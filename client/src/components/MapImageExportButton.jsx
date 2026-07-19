@@ -28,6 +28,7 @@ export default function MapImageExportButton({
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable = false,
+    fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
 }) {
     const { t } = useLocale();
@@ -192,6 +193,7 @@ export default function MapImageExportButton({
                             fixedTownSurfaceManifest={fixedTownSurfaceManifest}
                             fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
                             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+                            fixedTownSurfacePending={fixedTownSurfacePending}
                             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
                         />
                     </div>

@@ -4,18 +4,26 @@ import { readFileSync } from 'node:fs';
 
 import {
     FIXED_TOWN_SURFACE_SCHEMA,
+    FIXED_TOWN_SURFACE_INDEX_SCHEMA,
+    FIXED_TOWN_SURFACE_INDEX_SCHEMA_VERSION,
     FIXED_TOWN_SURFACE_SCHEMA_VERSION,
     doWsenBoundsIntersect,
     fetchFixedTownSurfaceManifest,
+    fetchFixedTownSurfaceSource,
     isFixedTownSurfaceZoomEligible,
     isPointWithinWsenBounds,
     normalizeFixedTownStandardZoom,
     normalizeFixedTownAssetBaseUrl,
+    parseFixedTownSurfaceIndex,
     parseFixedTownSurfaceManifest,
     resolveFixedTownChunkUrl,
     resolveFixedTownBasemapMode,
     resolveFixedTownManifestUrl,
+    resolveFixedTownSurfaceAssetBaseUrl,
+    resolveFixedTownSurfaceManifestPath,
+    selectFixedTownSurfaceForViewport,
     selectVisibleFixedTownChunks,
+    validateFixedTownSurfaceIndex,
     validateFixedTownSurfaceManifest,
 } from '../src/lib/fixedTownSurface.js';
 
@@ -28,6 +36,10 @@ const GENERATED_GRAY_MANIFEST = JSON.parse(readFileSync(new URL(
     '../../output/town-map-proof/assets/v1/w01/gray/manifest.json',
     import.meta.url,
 ), 'utf8'));
+const GENERATED_ISLANDWIDE_ROOT = new URL(
+    '../../output/town-map-proof/assets/v1/islandwide/',
+    import.meta.url,
+);
 
 function buildManifest() {
     return structuredClone(GENERATED_MANIFEST);
@@ -57,6 +69,53 @@ test('fixed town surface manifest accepts the completed native Gray W01 edition'
     const changedSource = structuredClone(GENERATED_GRAY_MANIFEST);
     changedSource.integrity.sourceAlignmentSha256 = '0'.repeat(64);
     assert.equal(validateFixedTownSurfaceManifest(changedSource), false);
+});
+
+test('fixed town surface manifest accepts generic non-W01 islandwide plates without weakening W01 identity checks', () => {
+    const genericManifest = buildManifest();
+    genericManifest.map.id = 'NW01';
+    genericManifest.map.name = 'Woodlands';
+    genericManifest.map.version = 'nw01-s50-q95-g3-81bd26441edaff1d';
+    genericManifest.map.style = 'default';
+
+    assert.equal(validateFixedTownSurfaceManifest(genericManifest), true);
+    assert.equal(parseFixedTownSurfaceManifest(genericManifest), genericManifest);
+
+    const mismatchedVersion = structuredClone(genericManifest);
+    mismatchedVersion.map.version = 'w01-s50-q95-g3-81bd26441edaff1d';
+    assert.equal(validateFixedTownSurfaceManifest(mismatchedVersion), false);
+
+    const sparseSourceTileCount = structuredClone(genericManifest);
+    sparseSourceTileCount.source.tileGrid.sourceTiles -= 1;
+    assert.equal(validateFixedTownSurfaceManifest(sparseSourceTileCount), true);
+    sparseSourceTileCount.source.tileGrid.sourceTiles = sparseSourceTileCount.source.tileGrid.columns
+        * sparseSourceTileCount.source.tileGrid.rows
+        + 1;
+    assert.equal(validateFixedTownSurfaceManifest(sparseSourceTileCount), false);
+});
+
+test('generated islandwide indexes and per-surface manifests pass the fixed-surface contract', () => {
+    const defaultIndex = JSON.parse(readFileSync(new URL('manifest.json', GENERATED_ISLANDWIDE_ROOT), 'utf8'));
+    const grayIndex = JSON.parse(readFileSync(new URL('gray/manifest.json', GENERATED_ISLANDWIDE_ROOT), 'utf8'));
+
+    assert.equal(validateFixedTownSurfaceIndex(defaultIndex), true);
+    assert.equal(validateFixedTownSurfaceIndex(grayIndex), true);
+    assert.equal(defaultIndex.surfaces.length, 32);
+    assert.equal(grayIndex.surfaces.length, 32);
+    assert.equal(defaultIndex.transport.chunkCount, 9127);
+    assert.equal(grayIndex.transport.chunkCount, 2741);
+
+    for (const surface of defaultIndex.surfaces) {
+        const manifest = JSON.parse(readFileSync(new URL(surface.manifestPath, GENERATED_ISLANDWIDE_ROOT), 'utf8'));
+        assert.equal(validateFixedTownSurfaceManifest(manifest), true, `default ${surface.id}`);
+        assert.equal(manifest.chunks.length, surface.chunkCount, `default ${surface.id} chunk count`);
+    }
+
+    for (const surface of grayIndex.surfaces) {
+        const manifest = JSON.parse(readFileSync(new URL(`gray/${surface.manifestPath}`, GENERATED_ISLANDWIDE_ROOT), 'utf8'));
+        assert.equal(validateFixedTownSurfaceManifest(manifest), true, `gray ${surface.id}`);
+        assert.equal(manifest.chunks.length, surface.chunkCount, `gray ${surface.id} chunk count`);
+    }
 });
 
 function assertManifestMutationRejected(label, mutate) {
@@ -212,6 +271,127 @@ test('fixed town surface manifest rejects transport and chunk metadata drift', (
     mutations.forEach(([label, mutate]) => assertManifestMutationRejected(label, mutate));
 });
 
+test('fixed town surface index selects a viewport plate and resolves per-surface asset roots', () => {
+    const manifest = buildManifest();
+    const surface = {
+        id: 'W01',
+        name: manifest.map.name,
+        style: 'default',
+        version: manifest.map.version,
+        planningAreas: manifest.planningAreas,
+        profile: manifest.source.profile,
+        retainedScale: manifest.source.retainedScale,
+        retainedPixelDimensions: manifest.retainedPixelDimensions.chunkGrid,
+        bounds: manifest.bounds,
+        manifestPath: 'surfaces/W01/manifest.json',
+        assetBasePath: 'surfaces/W01',
+        chunkCount: manifest.transport.chunkCount,
+        totalBytes: manifest.transport.totalBytes,
+        chunkSetSha256: manifest.integrity.chunkSetSha256,
+    };
+    const nearbySurface = {
+        ...surface,
+        id: 'W02',
+        name: 'Bukit Panjang',
+        version: 'w02-s50-q95-g3-81bd26441edaff1d',
+        bounds: {
+            nominal: [103.79, 1.33, 103.83, 1.39],
+            surface: [103.79, 1.33, 103.83, 1.39],
+        },
+        manifestPath: 'surfaces/W02/manifest.json',
+        assetBasePath: 'surfaces/W02',
+    };
+    const broadOverlapSurface = {
+        ...surface,
+        id: 'N02',
+        name: 'Mandai - Central Catchment',
+        version: 'n02-s40-q95-g3-81bd26441edaff1d',
+        bounds: {
+            nominal: [103.72, 1.33, 103.88, 1.45],
+            surface: [103.72, 1.33, 103.88, 1.45],
+        },
+        manifestPath: 'surfaces/N02/manifest.json',
+        assetBasePath: 'surfaces/N02',
+    };
+    const index = {
+        schema: FIXED_TOWN_SURFACE_INDEX_SCHEMA,
+        schemaVersion: FIXED_TOWN_SURFACE_INDEX_SCHEMA_VERSION,
+        collection: {
+            id: 'sg-islandwide-fixed-town-surfaces',
+            name: 'Singapore Islandwide Detailed Map',
+            style: 'default',
+            version: 'sg-islandwide-default-81bd26441edaff1d',
+        },
+        bounds: { surface: [103.68, 1.32, 103.84, 1.41] },
+        source: {
+            provider: 'OneMap',
+            crs: 'EPSG:3857',
+            zoom: 19,
+            tileSize: 256,
+            readabilityPercent: 175,
+        },
+        attribution: manifest.attribution,
+        transport: {
+            surfaceCount: 2,
+            chunkCount: surface.chunkCount + nearbySurface.chunkCount,
+            totalBytes: surface.totalBytes + nearbySurface.totalBytes,
+        },
+        integrity: {
+            algorithm: 'sha256',
+            surfaceSetSha256: 'a'.repeat(64),
+        },
+        surfaces: [surface, nearbySurface],
+    };
+
+    assert.equal(validateFixedTownSurfaceIndex(index), true);
+    assert.equal(parseFixedTownSurfaceIndex(index), index);
+    assert.equal(resolveFixedTownSurfaceManifestPath(surface), 'surfaces/W01/manifest.json');
+    assert.equal(
+        resolveFixedTownSurfaceAssetBaseUrl('https://maps.example.test/v1/islandwide', surface),
+        'https://maps.example.test/v1/islandwide/surfaces/W01',
+    );
+    assert.equal(
+        selectFixedTownSurfaceForViewport(index, [103.70, 1.34, 103.74, 1.38], []).id,
+        'W01',
+    );
+    assert.equal(
+        selectFixedTownSurfaceForViewport(index, [103.80, 1.34, 103.82, 1.38], [
+            { id: 'older-cck-pin', lat: 1.35, lng: 103.70 },
+            { id: 'another-cck-pin', lat: 1.36, lng: 103.71 },
+        ]).id,
+        'W02',
+    );
+    assert.equal(
+        selectFixedTownSurfaceForViewport(index, [103.90, 1.20, 103.91, 1.21], [
+            { id: 'older-cck-pin', lat: 1.35, lng: 103.70 },
+        ]),
+        null,
+    );
+
+    const overlapIndex = {
+        ...index,
+        bounds: { surface: [103.68, 1.32, 103.89, 1.46] },
+        transport: {
+            surfaceCount: 3,
+            chunkCount: surface.chunkCount + nearbySurface.chunkCount + broadOverlapSurface.chunkCount,
+            totalBytes: surface.totalBytes + nearbySurface.totalBytes + broadOverlapSurface.totalBytes,
+        },
+        surfaces: [broadOverlapSurface, surface, nearbySurface],
+    };
+    assert.equal(validateFixedTownSurfaceIndex(overlapIndex), true);
+    assert.equal(
+        selectFixedTownSurfaceForViewport(overlapIndex, [103.743, 1.383, 103.745, 1.385], [
+            { id: 'cck-pin', lat: 1.384, lng: 103.744 },
+            { id: 'woodlands-pin-on-broad-overlap', lat: 1.438, lng: 103.796 },
+        ]).id,
+        'W01',
+    );
+
+    const unsafeIndex = structuredClone(index);
+    unsafeIndex.surfaces[0].manifestPath = '../W01/manifest.json';
+    assert.equal(validateFixedTownSurfaceIndex(unsafeIndex), false);
+});
+
 test('asset base and fixed-surface URLs stay version-rooted and reject unsafe schemes', () => {
     assert.equal(
         normalizeFixedTownAssetBaseUrl('  http://127.0.0.1:4178/v1/w01///  '),
@@ -242,6 +422,47 @@ test('asset base and fixed-surface URLs stay version-rooted and reject unsafe sc
     assert.equal(resolveFixedTownChunkUrl('https://maps.example.test/v1/w01', '../secret'), '');
     assert.equal(resolveFixedTownChunkUrl('https://maps.example.test/v1/w01', 'data:image/jpeg;base64,abc'), '');
     assert.equal(resolveFixedTownManifestUrl(''), '');
+});
+
+test('fixed town source loading accepts either a single manifest or an islandwide index', async () => {
+    const manifestSource = await fetchFixedTownSurfaceSource('https://maps.example.test/v1/w01', {
+        fetchImpl: async () => ({
+            ok: true,
+            status: 200,
+            json: async () => buildManifest(),
+        }),
+        retryDelaysMs: [0],
+    });
+    assert.equal(manifestSource.type, 'manifest');
+    assert.equal(manifestSource.manifest.map.id, 'W01');
+
+    const indexSource = await fetchFixedTownSurfaceSource('https://maps.example.test/v1/islandwide', {
+        fetchImpl: async () => ({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                schema: FIXED_TOWN_SURFACE_INDEX_SCHEMA,
+                schemaVersion: FIXED_TOWN_SURFACE_INDEX_SCHEMA_VERSION,
+                collection: {
+                    id: 'sg-islandwide-fixed-town-surfaces',
+                    style: 'default',
+                    version: 'sg-islandwide-default-81bd26441edaff1d',
+                },
+                surfaces: [{
+                    id: 'W01',
+                    name: GENERATED_MANIFEST.map.name,
+                    style: 'default',
+                    version: GENERATED_MANIFEST.map.version,
+                    bounds: GENERATED_MANIFEST.bounds,
+                    manifestPath: 'surfaces/W01/manifest.json',
+                    assetBasePath: 'surfaces/W01',
+                }],
+            }),
+        }),
+        retryDelaysMs: [0],
+    });
+    assert.equal(indexSource.type, 'index');
+    assert.equal(indexSource.index.surfaces[0].id, 'W01');
 });
 
 test('fixed town manifest loading retries transient failures and then returns the accepted manifest', async () => {

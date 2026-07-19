@@ -1938,6 +1938,60 @@ Active next recovery family:
   external notification, map asset, secret, or unrelated production data was
   changed during release verification.
 
+### 2026-07-18 Islandwide Detailed fixed-surface coverage
+
+- Current behavior: the owner My Map `Standard | Detailed` feature can use a
+  version-rooted islandwide fixed-surface index instead of the original W01-only
+  manifest. Default and Gray each expose 32 accepted fixed cartographic
+  surfaces under the same runtime contract: Leaflet remains the interaction
+  model, Detailed activates at zoom 15, only the selected area's visible chunks
+  are loaded, off-screen chunks are pruned, and pins, clusters, card focus,
+  reset, print/export controls, attribution, map colour preference, and mobile
+  map/list behavior continue to use the existing DirectoryMap path.
+- Known-good reference: branch `codex/islandwide-detailed-map` in worktree
+  `/Users/sweetbuns/CareAroundSG-islandwide-detailed-map`, based on
+  `2430c13e00909e13d13fa1426776fe61e196e8f8`. Generated local assets are kept
+  outside the client bundle at `output/town-map-proof/assets/v1/islandwide/`.
+  The Default index has 32 surfaces, 9,127 chunks, 1,158,852,117 chunk bytes,
+  version `sg-islandwide-default-6905b50f6118a0d1`, and surface-set SHA-256
+  `6905b50f6118a0d1e3626b8ba3cbda81e424e5255e8ddb2186647529b9deba6d`.
+  The Gray index has 32 surfaces, 2,741 chunks, 1,034,027,208 chunk bytes,
+  version `sg-islandwide-gray-e359a21a265ae825`, and surface-set SHA-256
+  `e359a21a265ae825e22c20ed3d29ea0ad6d098d74c50ffe4fd351127012feb66`.
+- Reproduction steps: start the local islandwide asset server at
+  `http://127.0.0.1:4174/v1/islandwide` and the client with
+  `VITE_TOWN_MAP_PROOF_ENABLED=true`,
+  `VITE_TOWN_MAP_ASSET_BASE_URL=http://127.0.0.1:4174/v1/islandwide`, and
+  `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=http://127.0.0.1:4174/v1/islandwide/gray`.
+  Open an owner My Map containing resources in different island areas, set Gray,
+  focus a CCK/Yew Tee resource, then focus an eastern resource such as Bedok.
+  Repeat at desktop and mobile widths.
+- Acceptance criteria: Standard remains the low-zoom live OneMap default;
+  Detailed chooses the correct islandwide surface for the current viewport or
+  focused resource; switching between areas does not leave a blank Detailed map;
+  no live OneMap tile requests are made after Detailed focus; only visible
+  fixed chunks are in the DOM; OneMap and Singapore Land Authority attribution
+  remain visible; card-to-pin alignment, selected card state, mobile map entry,
+  map settings, zoom counter, print-map state, and resize controls remain
+  stable; R2 upload plans publish chunks before per-surface manifests and the
+  islandwide index.
+- Verification result before deploy: desktop and mobile Playwright fixture
+  smoke passed with CCK/Yew Tee and Bedok focus transitions, one visible fixed
+  chunk after each Detailed focus, zero OneMap tile requests after both Detailed
+  focus actions, zero failed requests, zero console entries, and zero page
+  errors. Screenshots and report are under
+  `output/town-map-proof/islandwide-uat/`. Focused map coverage passed 48/48;
+  broader locked map/list coverage passed 114/114; R2 contract coverage passed
+  6/6. R2 dry-runs validated the Default plan at prefix `v1/islandwide` with
+  index SHA-256 `d9964919a620e21d7c1ac2b4ca21100fbfb72fdc67d2ddc6259c121fa4aec025`
+  and the Gray plan at prefix `v1/islandwide/gray` with index SHA-256
+  `ab8449946054b2806573915b3a2121ffc86dc87292f23eb64a5e14e6533a9648`.
+  `npm run test:server` passed 449/449, and the production-configured client
+  build passed with `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide`
+  and `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide/gray`.
+  Deploy is pending explicit approval; no production data, Worker/API, schema,
+  auth, Discover, Shared Map, or visibility behavior was changed by this proof.
+
 ## Recovery workflow
 
 For each regression family:

@@ -12,6 +12,9 @@ import {
   DEFAULT_W01_GRAY_MANIFEST_PATH,
   validateW01GrayManifestBuffer,
 } from "./r2-w01-gray-lib.mjs";
+import {
+  loadIslandwideR2DeploymentPlan,
+} from "./r2-islandwide-lib.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +42,27 @@ test("committed Gray W01 manifest passes its isolated R2 deployment contract", a
     validated.manifestSha256,
     "58bb3880ee09b9b6bac938545048694b8d6a38728ddaf874db5e606971603640",
   );
+});
+
+test("generated islandwide manifests build R2 deployment plans without bundling chunks", async () => {
+  const defaultPlan = await loadIslandwideR2DeploymentPlan({ style: "default" });
+  const grayPlan = await loadIslandwideR2DeploymentPlan({ style: "gray" });
+
+  assert.equal(defaultPlan.prefix, "v1/islandwide");
+  assert.equal(defaultPlan.surfaceCount, 32);
+  assert.equal(defaultPlan.chunkCount, 9127);
+  assert.equal(defaultPlan.totalBytes, 1158852117);
+  assert.equal(defaultPlan.manifestObjects.length, 32);
+  assert.ok(defaultPlan.chunkObjects.every((object) => object.filePath.includes("/Documents/SG MAP/")));
+  assert.ok(defaultPlan.chunkObjects.every((object) => object.key.startsWith("v1/islandwide/surfaces/")));
+
+  assert.equal(grayPlan.prefix, "v1/islandwide/gray");
+  assert.equal(grayPlan.surfaceCount, 32);
+  assert.equal(grayPlan.chunkCount, 2741);
+  assert.equal(grayPlan.totalBytes, 1034027208);
+  assert.equal(grayPlan.manifestObjects.length, 32);
+  assert.ok(grayPlan.chunkObjects.every((object) => object.filePath.includes("/Documents/SG MAP/")));
+  assert.ok(grayPlan.chunkObjects.every((object) => object.key.startsWith("v1/islandwide/gray/surfaces/")));
 });
 
 test("R2 deployment contract rejects a manifest chunk URL outside the allowlist", async () => {

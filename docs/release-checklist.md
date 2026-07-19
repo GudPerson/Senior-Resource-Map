@@ -73,19 +73,23 @@ VITE_API_URL=https://api.carearound.sg/api npm run build:client
 
 The deploy script validates this before publishing.
 
-While the owner Detailed W01 surface is active in production, every client
-build must also keep its build-time activation and both versioned asset bases:
+While the owner Detailed fixed-surface map is active in production, every
+client build must also keep its build-time activation and both versioned asset
+bases. The islandwide release line should use the versioned islandwide roots:
 
 ```bash
 VITE_API_URL=https://api.carearound.sg/api \
 VITE_TOWN_MAP_PROOF_ENABLED=true \
-VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01 \
-VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/w01/gray \
+VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide \
+VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide/gray \
 npm run build:client
 ```
 
 Omitting the `VITE_TOWN_MAP_*` values intentionally compiles Map detail out of
 the owner client and is a rollback action, not the normal production build.
+If a rollback to the previous W01-only release is required, use the ledgered
+W01 roots `/v1/w01` and `/v1/w01/gray` deliberately and record that rollback in
+`docs/regression-ledger.md`.
 
 ## 2. Browser Smoke Gate
 

@@ -323,7 +323,9 @@ function PrintDirectoryMap({
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable = false,
+    fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    onFixedTownSurfaceViewportChange,
     previewScale = 1,
 }) {
     const { t } = useLocale();
@@ -403,10 +405,12 @@ function PrintDirectoryMap({
                 fixedTownSurfaceManifest={fixedTownSurfaceManifest}
                 fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
                 fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+                fixedTownSurfacePending={fixedTownSurfacePending}
                 fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
                 fixedTownSurfaceLockMinZoom={false}
                 fixedTownSurfaceFallbackBelowMinZoom={false}
                 fixedTownSurfaceFallbackScope="local"
+                onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}
             />
@@ -464,7 +468,9 @@ export default function DirectoryPrintView({
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable = false,
+    fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    onFixedTownSurfaceViewportChange,
 }) {
     const useV2OwnerPrint = mode === 'owner';
     const basePresentation = buildDirectoryPresentation(directory, {
@@ -663,7 +669,9 @@ export default function DirectoryPrintView({
                         fixedTownSurfaceManifest={fixedTownSurfaceManifest}
                         fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
                         fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+                        fixedTownSurfacePending={fixedTownSurfacePending}
                         fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                        onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
                         previewScale={variant === 'screen' ? scale : 1}
                     />
                 )}

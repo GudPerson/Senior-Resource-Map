@@ -45,6 +45,7 @@ export default function MyMapV2PreviewScaffold({
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable,
+    fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
     fixedTownSurfaceGrayscale = false,
     fixedTownSurfaceLockMinZoom = true,
@@ -53,6 +54,7 @@ export default function MyMapV2PreviewScaffold({
     onBasemapModeChange,
     onFixedTownSurfaceFallback,
     onFixedTownSurfaceMetricsChange,
+    onFixedTownSurfaceViewportChange,
     mapModeControl = null,
     preserveMobileMapFrameInFlow = false,
 }) {
@@ -95,6 +97,7 @@ export default function MyMapV2PreviewScaffold({
             fixedTownSurfaceManifest={fixedTownSurfaceManifest}
             fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
+            fixedTownSurfacePending={fixedTownSurfacePending}
             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
             fixedTownSurfaceGrayscale={fixedTownSurfaceGrayscale}
             fixedTownSurfaceLockMinZoom={fixedTownSurfaceLockMinZoom}
@@ -103,6 +106,7 @@ export default function MyMapV2PreviewScaffold({
             onBasemapModeChange={onBasemapModeChange}
             onFixedTownSurfaceFallback={onFixedTownSurfaceFallback}
             onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
+            onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
             mapModeControl={mapModeControl}
         />
     );

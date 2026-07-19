@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, RotateCcw, X } from 'lucide-react';
@@ -34,8 +35,12 @@ import {
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import {
     fetchFixedTownSurfaceManifest,
+    fetchFixedTownSurfaceSource,
     isPointWithinWsenBounds,
     normalizeFixedTownAssetBaseUrl,
+    resolveFixedTownSurfaceAssetBaseUrl,
+    resolveFixedTownSurfaceManifestPath,
+    selectFixedTownSurfaceForViewport,
 } from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -484,6 +489,41 @@ async function backfillGroupFocusPlaceKeys(directory) {
     return mergeGroupFocusDetailsIntoDirectory(directory, groupDetailsByResourceId);
 }
 
+function createTownMapManifestState(status = 'idle') {
+    return {
+        status,
+        sourceType: 'none',
+        index: null,
+        manifest: null,
+        activeSurfaceId: '',
+        activeAssetBaseUrl: '',
+        activeManifestStatus: status,
+        manifestsById: {},
+    };
+}
+
+function isTownMapPointCoveredByState(point, state) {
+    if (!point || !state) return false;
+    if (state.index?.surfaces?.length) {
+        return state.index.surfaces.some((surface) => (
+            isPointWithinWsenBounds(point, surface.bounds?.surface || surface.bounds?.nominal)
+        ));
+    }
+    return isPointWithinWsenBounds(point, state.manifest?.bounds?.nominal);
+}
+
+function buildTownMapSelectionKey({ style, surfaceId, viewportBounds, points }) {
+    const viewportKey = Array.isArray(viewportBounds)
+        ? viewportBounds.map((value) => Number(value).toFixed(6)).join(',')
+        : '';
+    const pointsKey = Array.isArray(points)
+        ? points
+            .map((point) => `${point.id || ''}:${Number(point.lat).toFixed(6)},${Number(point.lng).toFixed(6)}`)
+            .join('|')
+        : '';
+    return `${style || ''}:${surfaceId || ''}:${viewportKey}:${pointsKey}`;
+}
+
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -517,17 +557,22 @@ export default function MyMapDetailPage() {
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
     const [printMapState, setPrintMapState] = useState(() => createOwnerPrintMapState(mapStyle));
     const [townMapManifestStates, setTownMapManifestStates] = useState({
-        [CAREAROUND_MAP_STYLE_DEFAULT]: { status: 'idle', manifest: null },
-        [CAREAROUND_MAP_STYLE_GRAY]: { status: 'idle', manifest: null },
+        [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
+        [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
     });
+    const [townMapViewportBounds, setTownMapViewportBounds] = useState(null);
+    const [townMapFocusSurfaceId, setTownMapFocusSurfaceId] = useState('');
     const [townMapFallbackReason, setTownMapFallbackReason] = useState('');
-    const townMapAssetBaseUrl = mapStyle === CAREAROUND_MAP_STYLE_GRAY
+    const townMapRootAssetBaseUrl = mapStyle === CAREAROUND_MAP_STYLE_GRAY
         ? TOWN_MAP_GRAY_ASSET_BASE_URL
         : TOWN_MAP_ASSET_BASE_URL;
     const townMapManifestState = townMapManifestStates[mapStyle]
-        || { status: 'idle', manifest: null };
+        || createTownMapManifestState();
+    const townMapAssetBaseUrl = townMapManifestState.activeAssetBaseUrl || townMapRootAssetBaseUrl;
     const pendingFocusFrameRef = useRef(null);
+    const townMapFocusSurfaceClearTimerRef = useRef(null);
     const desktopSelectionSnapRef = useRef(null);
+    const townMapSelectionKeyRef = useRef({});
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const useDesktopDirectoryBodyLayout = useMediaQuery('(min-width: 1024px)');
     const suspendMapInteraction = shareOpen || editOpen || addOpen;
@@ -586,6 +631,7 @@ export default function MyMapDetailPage() {
 
     useEffect(() => {
         setBasemapMode(TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live');
+        setTownMapFocusSurfaceId('');
         setTownMapFallbackReason('');
     }, [mapId]);
 
@@ -611,24 +657,38 @@ export default function MyMapDetailPage() {
         setTownMapManifestStates(Object.fromEntries(
             Object.entries(assetBaseUrls).map(([style, assetBaseUrl]) => [
                 style,
-                { status: assetBaseUrl ? 'loading' : 'error', manifest: null },
+                createTownMapManifestState(assetBaseUrl ? 'loading' : 'error'),
             ]),
         ));
 
         Object.entries(assetBaseUrls).forEach(([style, assetBaseUrl]) => {
             if (!assetBaseUrl) return;
-            fetchFixedTownSurfaceManifest(assetBaseUrl, { signal: controller.signal })
-                .then((manifest) => {
+            fetchFixedTownSurfaceSource(assetBaseUrl, { signal: controller.signal })
+                .then((source) => {
                     setTownMapManifestStates((current) => ({
                         ...current,
-                        [style]: { status: 'ready', manifest },
+                        [style]: source.type === 'index'
+                            ? {
+                                ...createTownMapManifestState('ready'),
+                                sourceType: 'index',
+                                index: source.index,
+                                activeManifestStatus: 'idle',
+                            }
+                            : {
+                                ...createTownMapManifestState('ready'),
+                                sourceType: 'manifest',
+                                manifest: source.manifest,
+                                activeSurfaceId: source.manifest.map?.id || '',
+                                activeAssetBaseUrl: assetBaseUrl,
+                                activeManifestStatus: 'ready',
+                            },
                     }));
                 })
                 .catch((error) => {
                     if (error?.name === 'AbortError') return;
                     setTownMapManifestStates((current) => ({
                         ...current,
-                        [style]: { status: 'error', manifest: null },
+                        [style]: createTownMapManifestState('error'),
                     }));
                 });
         });
@@ -676,28 +736,316 @@ export default function MyMapDetailPage() {
             : [];
         return [...pinPoints, ...anchorPoint];
     }, [activeAnchor, townMapCoveragePresentation.pins]);
+    const townMapViewportSurface = useMemo(() => {
+        if (
+            !TOWN_MAP_PROOF_ENABLED
+            || townMapManifestState.status !== 'ready'
+            || townMapManifestState.sourceType !== 'index'
+            || !townMapManifestState.index
+        ) {
+            return null;
+        }
+        return selectFixedTownSurfaceForViewport(
+            townMapManifestState.index,
+            townMapViewportBounds,
+            townMapCoveragePoints,
+        );
+    }, [
+        townMapCoveragePoints,
+        townMapManifestState.index,
+        townMapManifestState.sourceType,
+        townMapManifestState.status,
+        townMapViewportBounds,
+    ]);
+    const townMapViewportSurfaceId = townMapViewportSurface?.id || '';
+
+    useEffect(() => {
+        if (!TOWN_MAP_PROOF_ENABLED) return undefined;
+
+        const assetBaseUrls = {
+            [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_ASSET_BASE_URL,
+            [CAREAROUND_MAP_STYLE_GRAY]: TOWN_MAP_GRAY_ASSET_BASE_URL,
+        };
+
+        Object.entries(townMapManifestStates).forEach(([style, state]) => {
+            if (state?.status !== 'ready' || state.sourceType !== 'index' || !state.index) return;
+
+            const selectedSurface = townMapFocusSurfaceId
+                ? state.index.surfaces.find((surface) => surface?.id === townMapFocusSurfaceId) || null
+                : selectFixedTownSurfaceForViewport(
+                    state.index,
+                    townMapViewportBounds,
+                    townMapCoveragePoints,
+                );
+            const activeSurfaceId = selectedSurface?.id || '';
+            const selectionKey = buildTownMapSelectionKey({
+                style,
+                surfaceId: activeSurfaceId,
+                viewportBounds: townMapViewportBounds,
+                points: townMapCoveragePoints,
+            });
+            if (!activeSurfaceId) {
+                if (state.activeSurfaceId || state.manifest || state.activeManifestStatus !== 'idle') {
+                    setTownMapManifestStates((current) => ({
+                        ...current,
+                        [style]: {
+                            ...current[style],
+                            manifest: null,
+                            activeSurfaceId: '',
+                            activeAssetBaseUrl: '',
+                            activeManifestStatus: 'idle',
+                        },
+                    }));
+                }
+                townMapSelectionKeyRef.current[style] = selectionKey;
+                return;
+            }
+            if (
+                townMapSelectionKeyRef.current[style] === selectionKey
+                && state.activeSurfaceId === activeSurfaceId
+                && state.manifest
+            ) {
+                return;
+            }
+            if (
+                townMapSelectionKeyRef.current[style] === selectionKey
+                && state.activeSurfaceId === activeSurfaceId
+                && ['loading', 'error'].includes(state.activeManifestStatus)
+            ) {
+                return;
+            }
+            townMapSelectionKeyRef.current[style] = selectionKey;
+
+            const cachedManifest = state.manifestsById?.[activeSurfaceId] || null;
+            const activeAssetBaseUrl = resolveFixedTownSurfaceAssetBaseUrl(
+                assetBaseUrls[style],
+                selectedSurface,
+            );
+            const manifestPath = resolveFixedTownSurfaceManifestPath(selectedSurface);
+            if (!activeAssetBaseUrl || !manifestPath) {
+                setTownMapManifestStates((current) => ({
+                    ...current,
+                    [style]: {
+                        ...current[style],
+                        manifest: null,
+                        activeSurfaceId,
+                        activeAssetBaseUrl: '',
+                        activeManifestStatus: 'error',
+                    },
+                }));
+                return;
+            }
+
+            if (cachedManifest) {
+                setTownMapManifestStates((current) => ({
+                    ...current,
+                    [style]: {
+                        ...current[style],
+                        manifest: cachedManifest,
+                        activeSurfaceId,
+                        activeAssetBaseUrl,
+                        activeManifestStatus: 'ready',
+                    },
+                }));
+                return;
+            }
+
+            setTownMapManifestStates((current) => ({
+                ...current,
+                [style]: {
+                    ...current[style],
+                    manifest: null,
+                    activeSurfaceId,
+                    activeAssetBaseUrl,
+                    activeManifestStatus: 'loading',
+                },
+            }));
+            fetchFixedTownSurfaceManifest(assetBaseUrls[style], {
+                manifestPath,
+            })
+                .then((manifest) => {
+                    setTownMapManifestStates((current) => {
+                        const currentStyleState = current[style] || createTownMapManifestState('ready');
+                        if (currentStyleState.activeSurfaceId !== activeSurfaceId) return current;
+                        return {
+                            ...current,
+                            [style]: {
+                                ...currentStyleState,
+                                manifest,
+                                activeSurfaceId,
+                                activeAssetBaseUrl,
+                                activeManifestStatus: 'ready',
+                                manifestsById: {
+                                    ...(currentStyleState.manifestsById || {}),
+                                    [activeSurfaceId]: manifest,
+                                },
+                            },
+                        };
+                    });
+                })
+                .catch((error) => {
+                    if (error?.name === 'AbortError') return;
+                    setTownMapManifestStates((current) => {
+                        const currentStyleState = current[style] || createTownMapManifestState('ready');
+                        if (currentStyleState.activeSurfaceId !== activeSurfaceId) return current;
+                        return {
+                            ...current,
+                            [style]: {
+                                ...currentStyleState,
+                                manifest: null,
+                                activeManifestStatus: 'error',
+                            },
+                        };
+                    });
+                });
+        });
+
+        return undefined;
+    }, [townMapCoveragePoints, townMapFocusSurfaceId, townMapManifestStates, townMapViewportBounds]);
+
+    const townMapSurfaceResolving = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && townMapManifestState.status === 'ready'
+        && townMapManifestState.sourceType === 'index'
+        && townMapViewportSurfaceId
+        && townMapViewportSurfaceId !== townMapManifestState.activeSurfaceId
+    );
+    const townMapFocusSurfaceMismatch = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && townMapManifestState.status === 'ready'
+        && townMapManifestState.sourceType === 'index'
+        && townMapFocusSurfaceId
+        && townMapFocusSurfaceId !== townMapManifestState.activeSurfaceId
+    );
+    const townMapFocusSurfacePending = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && townMapManifestState.status === 'ready'
+        && townMapManifestState.sourceType === 'index'
+        && townMapFocusSurfaceId
+    );
     const townMapAvailable = Boolean(
         TOWN_MAP_PROOF_ENABLED
         && townMapAssetBaseUrl
         && townMapManifestState.status === 'ready'
         && townMapManifestState.manifest
+        && townMapManifestState.activeManifestStatus === 'ready'
+        && !townMapSurfaceResolving
+        && !townMapFocusSurfaceMismatch
         && townMapCoveragePoints.length
     );
-    const printTownMapAssetBaseUrl = printMapState.mapStyle === CAREAROUND_MAP_STYLE_GRAY
+    const townMapSurfacePending = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && (
+            townMapManifestState.status === 'loading'
+            || (
+                townMapManifestState.status === 'ready'
+                && townMapManifestState.sourceType === 'index'
+                && (
+                    townMapManifestState.activeManifestStatus === 'loading'
+                    || townMapSurfaceResolving
+                    || townMapFocusSurfacePending
+                )
+            )
+        )
+    );
+
+    useEffect(() => {
+        if (!townMapFocusSurfaceId) return;
+        if (
+            !TOWN_MAP_PROOF_ENABLED
+            || townMapManifestState.sourceType !== 'index'
+            || basemapMode === 'live'
+        ) {
+            setTownMapFocusSurfaceId('');
+            return;
+        }
+        if (
+            townMapManifestState.activeSurfaceId === townMapFocusSurfaceId
+            && townMapManifestState.activeManifestStatus === 'ready'
+        ) {
+            const clearTimer = window.setTimeout(() => {
+                townMapFocusSurfaceClearTimerRef.current = null;
+                setTownMapFocusSurfaceId('');
+            }, 1200);
+            townMapFocusSurfaceClearTimerRef.current = clearTimer;
+            return () => {
+                window.clearTimeout(clearTimer);
+                if (townMapFocusSurfaceClearTimerRef.current === clearTimer) {
+                    townMapFocusSurfaceClearTimerRef.current = null;
+                }
+            };
+        }
+        return undefined;
+    }, [
+        basemapMode,
+        townMapFocusSurfaceId,
+        townMapManifestState.activeManifestStatus,
+        townMapManifestState.activeSurfaceId,
+        townMapManifestState.sourceType,
+    ]);
+    const printTownMapRootAssetBaseUrl = printMapState.mapStyle === CAREAROUND_MAP_STYLE_GRAY
         ? TOWN_MAP_GRAY_ASSET_BASE_URL
         : TOWN_MAP_ASSET_BASE_URL;
     const printTownMapManifestState = townMapManifestStates[printMapState.mapStyle]
-        || { status: 'idle', manifest: null };
+        || createTownMapManifestState();
+    const printTownMapAssetBaseUrl = printTownMapManifestState.activeAssetBaseUrl
+        || printTownMapRootAssetBaseUrl;
+    const printTownMapViewportSurface = useMemo(() => {
+        if (
+            !TOWN_MAP_PROOF_ENABLED
+            || printTownMapManifestState.status !== 'ready'
+            || printTownMapManifestState.sourceType !== 'index'
+            || !printTownMapManifestState.index
+        ) {
+            return null;
+        }
+        return selectFixedTownSurfaceForViewport(
+            printTownMapManifestState.index,
+            townMapViewportBounds,
+            townMapCoveragePoints,
+        );
+    }, [
+        printTownMapManifestState.index,
+        printTownMapManifestState.sourceType,
+        printTownMapManifestState.status,
+        townMapCoveragePoints,
+        townMapViewportBounds,
+    ]);
+    const printTownMapViewportSurfaceId = printTownMapViewportSurface?.id || '';
+    const printTownMapSurfaceResolving = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && printTownMapManifestState.status === 'ready'
+        && printTownMapManifestState.sourceType === 'index'
+        && printTownMapViewportSurfaceId
+        && printTownMapViewportSurfaceId !== printTownMapManifestState.activeSurfaceId
+    );
+    const printTownMapSurfacePending = Boolean(
+        TOWN_MAP_PROOF_ENABLED
+        && (
+            printTownMapManifestState.status === 'loading'
+            || (
+                printTownMapManifestState.status === 'ready'
+                && printTownMapManifestState.sourceType === 'index'
+                && (
+                    printTownMapManifestState.activeManifestStatus === 'loading'
+                    || printTownMapSurfaceResolving
+                )
+            )
+        )
+    );
     const printTownMapOutsidePointCount = useMemo(() => {
-        const nominalBounds = printTownMapManifestState.manifest?.bounds?.nominal;
-        if (!nominalBounds) return 0;
-        return townMapCoveragePoints.filter((point) => !isPointWithinWsenBounds(point, nominalBounds)).length;
-    }, [printTownMapManifestState.manifest, townMapCoveragePoints]);
+        if (!printTownMapManifestState.index && !printTownMapManifestState.manifest) return 0;
+        return townMapCoveragePoints.filter((point) => (
+            !isTownMapPointCoveredByState(point, printTownMapManifestState)
+        )).length;
+    }, [printTownMapManifestState, townMapCoveragePoints]);
     const printTownMapAvailable = Boolean(
         TOWN_MAP_PROOF_ENABLED
         && printTownMapAssetBaseUrl
         && printTownMapManifestState.status === 'ready'
         && printTownMapManifestState.manifest
+        && printTownMapManifestState.activeManifestStatus === 'ready'
+        && !printTownMapSurfaceResolving
         && townMapCoveragePoints.length
         && printTownMapOutsidePointCount === 0
     );
@@ -717,13 +1065,20 @@ export default function MyMapDetailPage() {
     }, []);
 
     const townMapStatus = useMemo(() => {
-        if (townMapManifestState.status === 'loading') {
+        if (
+            townMapManifestState.status === 'loading'
+            || townMapManifestState.activeManifestStatus === 'loading'
+        ) {
             return {
                 message: 'Preparing the detailed map…',
                 compactMessage: 'Loading detailed…',
             };
         }
-        if (townMapManifestState.status === 'error' || !townMapAssetBaseUrl) {
+        if (
+            townMapManifestState.status === 'error'
+            || townMapManifestState.activeManifestStatus === 'error'
+            || !townMapAssetBaseUrl
+        ) {
             return {
                 message: 'Detailed map is unavailable. Standard map is still on.',
                 compactMessage: 'Detailed unavailable',
@@ -736,7 +1091,7 @@ export default function MyMapDetailPage() {
             };
         }
         return { message: '', compactMessage: '' };
-    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.status]);
+    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.activeManifestStatus, townMapManifestState.status]);
 
     const renderTownMapModeControl = useCallback(({
         mode = 'live',
@@ -756,13 +1111,13 @@ export default function MyMapDetailPage() {
             ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.`
             : '';
         const viewportStatusMessage = !townViewportEligible && townMapAvailable
-            ? 'Detailed map covers Choa Chu Kang only. Standard map is still on here.'
+            ? 'Detailed map is not ready for this area. Standard map is still on here.'
             : '';
         const compactViewportStatusMessage = viewportStatusMessage
             ? 'Outside Detailed area'
             : '';
         const fallbackStatusMessage = fallbackReason === 'outside-surface'
-            ? 'Detailed map covers Choa Chu Kang only. Standard map is still on here.'
+            ? 'Detailed map is not ready for this area. Standard map is still on here.'
             : 'Detailed map could not load. Standard map is still on.';
         const statusMessage = fallbackReason
             ? fallbackStatusMessage
@@ -803,7 +1158,11 @@ export default function MyMapDetailPage() {
             ? (printTownMapOutsidePointCount > 0
                 ? 'Some places are outside this map area. Standard map is still on.'
                 : 'Detailed map is unavailable. Standard map is still on.')
-            : '';
+            : (printTownMapSurfacePending ? 'Preparing the detailed map…' : '');
+        const compactStatusMessage = unavailable
+            ? statusMessage
+            : (printTownMapSurfacePending ? 'Loading detailed…' : '');
+        const canRequestDetailed = printTownMapAvailable || printTownMapSurfacePending;
         const handleModeChange = (nextMode) => {
             setPrintMapState((current) => ({
                 ...current,
@@ -816,24 +1175,39 @@ export default function MyMapDetailPage() {
                 mode={mode}
                 townAvailable={printTownMapAvailable && townZoomEligible}
                 statusMessage={statusMessage}
-                compactStatusMessage={statusMessage}
+                compactStatusMessage={compactStatusMessage}
                 townUnavailableMessage={townUnavailableMessage}
                 townUnavailableCompactMessage={townUnavailableMessage ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.` : ''}
                 onModeChange={handleModeChange}
                 onUnavailableTownSelect={() => {
-                    if (!printTownMapAvailable) return;
+                    if (!canRequestDetailed) return;
                     setPrintMapState((current) => ({ ...current, basemapMode: 'auto' }));
                 }}
                 variant={controlVariant}
             />
         );
-    }, [printMapState.basemapMode, printTownMapAssetBaseUrl, printTownMapAvailable, printTownMapManifestState.status, printTownMapOutsidePointCount]);
+    }, [
+        printMapState.basemapMode,
+        printTownMapAssetBaseUrl,
+        printTownMapAvailable,
+        printTownMapManifestState.status,
+        printTownMapOutsidePointCount,
+        printTownMapSurfacePending,
+    ]);
     const printMapModeControl = TOWN_MAP_PROOF_ENABLED ? renderPrintTownMapModeControl : null;
 
-    const clearMapSelection = useCallback(() => {
+    const clearMapSelection = useCallback((options = {}) => {
+        const preserveTownMapFocusSurface = Boolean(options?.preserveTownMapFocusSurface);
         if (pendingFocusFrameRef.current !== null) {
             window.cancelAnimationFrame(pendingFocusFrameRef.current);
             pendingFocusFrameRef.current = null;
+        }
+        if (townMapFocusSurfaceClearTimerRef.current !== null) {
+            window.clearTimeout(townMapFocusSurfaceClearTimerRef.current);
+            townMapFocusSurfaceClearTimerRef.current = null;
+        }
+        if (!preserveTownMapFocusSurface) {
+            setTownMapFocusSurfaceId('');
         }
         setFocusedPlaceKey(null);
         setFocusedPlaceKeys([]);
@@ -972,7 +1346,40 @@ export default function MyMapDetailPage() {
             ? (ownerPresentation.groupKeyByPlaceKey?.[mapFocusPlaceKeys[0]] || mapFocusPlaceKeys[0])
             : resolvedPlaceKey;
         if (!singleFocusPlaceKey && !mapFocusPlaceKeys.length) return;
-        clearMapSelection();
+        clearMapSelection({ preserveTownMapFocusSurface: true });
+        let nextTownMapFocusSurfaceId = '';
+        if (
+            TOWN_MAP_PROOF_ENABLED
+            && mapFocusPlaceKeys.length <= 1
+            && townMapManifestState.status === 'ready'
+            && townMapManifestState.sourceType === 'index'
+            && townMapManifestState.index
+            && basemapMode !== 'live'
+        ) {
+            const focusKeys = [
+                singleFocusPlaceKey,
+                resolvedPlaceKey,
+                placeKey,
+                ...mapFocusPlaceKeys.map((key) => ownerPresentation.groupKeyByPlaceKey?.[key] || key),
+            ].filter(Boolean).map((key) => String(key));
+            const focusKeySet = new Set(focusKeys);
+            const focusPin = (ownerPresentation.pins || []).find((pin) => {
+                if (!pin) return false;
+                if (focusKeySet.has(String(pin.placeKey))) return true;
+                return (pin.memberPlaceKeys || []).some((key) => focusKeySet.has(String(key)));
+            });
+            const focusSurface = focusPin
+                ? selectFixedTownSurfaceForViewport(
+                    townMapManifestState.index,
+                    null,
+                    [{ id: focusPin.placeKey, lat: focusPin.lat, lng: focusPin.lng }],
+                )
+                : null;
+            nextTownMapFocusSurfaceId = focusSurface?.id || '';
+        }
+        flushSync(() => {
+            setTownMapFocusSurfaceId(nextTownMapFocusSurfaceId);
+        });
         pendingFocusFrameRef.current = window.requestAnimationFrame(() => {
             pendingFocusFrameRef.current = null;
             setSelectionScrollRequest((value) => value + 1);
@@ -1123,6 +1530,7 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceManifest={printTownMapManifestState.manifest}
                                     fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
                                     fixedTownSurfaceAvailable={printTownMapAvailable}
+                                    fixedTownSurfacePending={printTownMapSurfacePending}
                                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                                 />
                             </Suspense>
@@ -1148,7 +1556,9 @@ export default function MyMapDetailPage() {
                         fixedTownSurfaceManifest={printTownMapManifestState.manifest}
                         fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
                         fixedTownSurfaceAvailable={printTownMapAvailable}
+                        fixedTownSurfacePending={printTownMapSurfacePending}
                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                        onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                     />
                 </div>
             </div>
@@ -1234,6 +1644,7 @@ export default function MyMapDetailPage() {
                     fixedTownSurfaceManifest={townMapManifestState.manifest}
                     fixedTownAssetBaseUrl={townMapAssetBaseUrl}
                     fixedTownSurfaceAvailable={townMapAvailable}
+                    fixedTownSurfacePending={townMapSurfacePending}
                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                     fixedTownSurfaceGrayscale={false}
                     fixedTownSurfaceLockMinZoom={false}
@@ -1241,6 +1652,7 @@ export default function MyMapDetailPage() {
                     fixedTownSurfaceFallbackScope="local"
                     onBasemapModeChange={handleBasemapModeChange}
                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                    onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                     mapModeControl={mapModeControl}
                     preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                 />
@@ -1395,6 +1807,7 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceManifest={townMapManifestState.manifest}
                                         fixedTownAssetBaseUrl={townMapAssetBaseUrl}
                                         fixedTownSurfaceAvailable={townMapAvailable}
+                                        fixedTownSurfacePending={townMapSurfacePending}
                                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                                         fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
@@ -1402,6 +1815,7 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceFallbackScope="local"
                                         onBasemapModeChange={handleBasemapModeChange}
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                                        onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                     />
                                 )}
@@ -1434,6 +1848,7 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceManifest={townMapManifestState.manifest}
                                         fixedTownAssetBaseUrl={townMapAssetBaseUrl}
                                         fixedTownSurfaceAvailable={townMapAvailable}
+                                        fixedTownSurfacePending={townMapSurfacePending}
                                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                                         fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
@@ -1441,6 +1856,7 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceFallbackScope="local"
                                         onBasemapModeChange={handleBasemapModeChange}
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                                        onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                     />
                                 )}

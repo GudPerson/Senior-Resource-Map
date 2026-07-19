@@ -1,0 +1,403 @@
+{
+  "schema": "carearound.fixed-town-surface",
+  "schemaVersion": 1,
+  "map": {
+    "id": "C05",
+    "version": "c05-gray-s50-q95-g1-e878663e6f353079",
+    "name": "Orchard - Newton - River Valley",
+    "style": "gray"
+  },
+  "planningAreas": [
+    "ORCHARD",
+    "NEWTON",
+    "RIVER VALLEY"
+  ],
+  "bounds": {
+    "nominal": [
+      103.81645636084221,
+      1.2896467517405954,
+      103.85487717124096,
+      1.3186891072741431
+    ],
+    "surface": [
+      103.81645560264587,
+      1.2896447056110947,
+      103.85487824678421,
+      1.3186908671761082
+    ]
+  },
+  "retainedPixelDimensions": {
+    "nominal": [
+      7162,
+      5415
+    ],
+    "chunkGrid": [
+      7162,
+      5416
+    ]
+  },
+  "source": {
+    "provider": "OneMap",
+    "style": "Grey",
+    "crs": "EPSG:3857",
+    "zoom": 19,
+    "tileSize": 256,
+    "retainedScale": 0.5,
+    "jpegQuality": 95,
+    "jpegChromaSubsampling": "4:4:4",
+    "generatorVersion": 1,
+    "profile": "urban-50",
+    "profileLabel": "50% z19 residential",
+    "onemapNativeLabels": true,
+    "hdbOverlay": false,
+    "nativePixelDimensions": [
+      14324,
+      10831
+    ],
+    "worldPixelBounds": {
+      "nominal": [
+        105814444.28267609,
+        66617177.65631283,
+        105828768.59900841,
+        66628008.236954354
+      ],
+      "surface": [
+        105814444,
+        66617177,
+        105828769,
+        66628009
+      ]
+    },
+    "tileGrid": {
+      "columns": 57,
+      "rows": 43,
+      "sourceTiles": 2451,
+      "chunkColumns": 4,
+      "chunkRows": 3,
+      "chunkCount": 12
+    },
+    "readability": {
+      "edition": "readability-175",
+      "scaleFactor": 1.75,
+      "rasterResampled": false,
+      "embeddedImageStreamsPreserved": true,
+      "textPreserved": true,
+      "contentPreserved": true
+    },
+    "readabilityPercent": 175
+  },
+  "attribution": {
+    "text": "OneMap © contributors | Singapore Land Authority",
+    "html": "<a href=\"https://www.onemap.gov.sg/\" target=\"_blank\" rel=\"noopener noreferrer\">OneMap</a> © contributors | Singapore Land Authority",
+    "logoUrl": "https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png",
+    "required": true
+  },
+  "presentation": {
+    "backgroundColor": "#f8f8f7"
+  },
+  "transport": {
+    "chunkCount": 12,
+    "totalBytes": 10779648
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "chunkCount": 12,
+    "chunkBytes": 10779648,
+    "chunkSetSha256": "e878663e6f353079bb6665b52e63f44e7740ff9b156801188e031a54e655b23e",
+    "chunkSetCanonicalization": "UTF-8 lines \"<sha256>  <filename>\\n\", sorted by filename",
+    "sourceManifestSha256": "621d324eb592d8dad44d226b5d9672dba93f7a19c0e469289d3c0109b3d7304b",
+    "islandwidePlanSha256": "59c44eb4bcbcf86165427cb9d56ae6325d0bb141de8c66fc9efc3cb1ef7204c6",
+    "collectionValidationSha256": "b67566aa234d8fe22cea40f1a1e03f0018b11d6858f86823ead1415811c80b0a",
+    "sourceAlignmentSha256": "a43a0e16458dc15e160968631a3d0c45d3e23f6d27142a2eda6ef52c4ff3718f"
+  },
+  "chunks": [
+    {
+      "id": "z19-413337-260223-413351-260237",
+      "url": "chunks/z19-413337-260223-413351-260237.jpg",
+      "row": 0,
+      "column": 0,
+      "bounds": [
+        103.81645560264587,
+        1.308632545484836,
+        103.8262939453125,
+        1.3186908671761082
+      ],
+      "worldPixelBounds": [
+        105814444,
+        66617177,
+        105818112,
+        66620928
+      ],
+      "pixelSize": [
+        1834,
+        1876
+      ],
+      "byteSize": 851963,
+      "sha256": "cb8b584994ad1250df1354d36b7cd38ec5d3f8289495ab846f2862d01ed58734"
+    },
+    {
+      "id": "z19-413352-260223-413366-260237",
+      "url": "chunks/z19-413352-260223-413366-260237.jpg",
+      "row": 0,
+      "column": 1,
+      "bounds": [
+        103.8262939453125,
+        1.308632545484836,
+        103.83659362792969,
+        1.3186908671761082
+      ],
+      "worldPixelBounds": [
+        105818112,
+        66617177,
+        105821952,
+        66620928
+      ],
+      "pixelSize": [
+        1920,
+        1876
+      ],
+      "byteSize": 855892,
+      "sha256": "202b170123a03668f05492ba226239467c3d69035e3acf2110b2b00589dd1de5"
+    },
+    {
+      "id": "z19-413367-260223-413381-260237",
+      "url": "chunks/z19-413367-260223-413381-260237.jpg",
+      "row": 0,
+      "column": 2,
+      "bounds": [
+        103.83659362792969,
+        1.308632545484836,
+        103.84689331054688,
+        1.3186908671761082
+      ],
+      "worldPixelBounds": [
+        105821952,
+        66617177,
+        105825792,
+        66620928
+      ],
+      "pixelSize": [
+        1920,
+        1876
+      ],
+      "byteSize": 1038208,
+      "sha256": "b68a55c38acd68c94270553fd4163b2fab687c0cb3afa0efcd99df0923253e31"
+    },
+    {
+      "id": "z19-413382-260223-413393-260237",
+      "url": "chunks/z19-413382-260223-413393-260237.jpg",
+      "row": 0,
+      "column": 3,
+      "bounds": [
+        103.84689331054688,
+        1.308632545484836,
+        103.85487824678421,
+        1.3186908671761082
+      ],
+      "worldPixelBounds": [
+        105825792,
+        66617177,
+        105828769,
+        66620928
+      ],
+      "pixelSize": [
+        1488,
+        1876
+      ],
+      "byteSize": 944922,
+      "sha256": "646095fccb56b45f9786846051fb7356eb9417a0859d11683929f73509ee11ae"
+    },
+    {
+      "id": "z19-413337-260238-413351-260252",
+      "url": "chunks/z19-413337-260238-413351-260252.jpg",
+      "row": 1,
+      "column": 0,
+      "bounds": [
+        103.81645560264587,
+        1.2983355281519606,
+        103.8262939453125,
+        1.308632545484836
+      ],
+      "worldPixelBounds": [
+        105814444,
+        66620928,
+        105818112,
+        66624768
+      ],
+      "pixelSize": [
+        1834,
+        1920
+      ],
+      "byteSize": 881457,
+      "sha256": "1e90974258773055a580bc155b0752fd645c9be86f0e3fad6432deed1cf60e50"
+    },
+    {
+      "id": "z19-413352-260238-413366-260252",
+      "url": "chunks/z19-413352-260238-413366-260252.jpg",
+      "row": 1,
+      "column": 1,
+      "bounds": [
+        103.8262939453125,
+        1.2983355281519606,
+        103.83659362792969,
+        1.308632545484836
+      ],
+      "worldPixelBounds": [
+        105818112,
+        66620928,
+        105821952,
+        66624768
+      ],
+      "pixelSize": [
+        1920,
+        1920
+      ],
+      "byteSize": 1005499,
+      "sha256": "b64a7387adcb448c9391e80eacd1dbe1a9733bbd44000077b3146fb84c0a963f"
+    },
+    {
+      "id": "z19-413367-260238-413381-260252",
+      "url": "chunks/z19-413367-260238-413381-260252.jpg",
+      "row": 1,
+      "column": 2,
+      "bounds": [
+        103.83659362792969,
+        1.2983355281519606,
+        103.84689331054688,
+        1.308632545484836
+      ],
+      "worldPixelBounds": [
+        105821952,
+        66620928,
+        105825792,
+        66624768
+      ],
+      "pixelSize": [
+        1920,
+        1920
+      ],
+      "byteSize": 951183,
+      "sha256": "1c41327003642ef6a5d70534aead04d4fe3fde06b887d2d28f1fd7279c7c06d4"
+    },
+    {
+      "id": "z19-413382-260238-413393-260252",
+      "url": "chunks/z19-413382-260238-413393-260252.jpg",
+      "row": 1,
+      "column": 3,
+      "bounds": [
+        103.84689331054688,
+        1.2983355281519606,
+        103.85487824678421,
+        1.308632545484836
+      ],
+      "worldPixelBounds": [
+        105825792,
+        66620928,
+        105828769,
+        66624768
+      ],
+      "pixelSize": [
+        1488,
+        1920
+      ],
+      "byteSize": 1207654,
+      "sha256": "ee9ae7a6c6eec48cb1d7775d9f4c8d6a084679613ed6ed21471ac43640e11e4e"
+    },
+    {
+      "id": "z19-413337-260253-413351-260265",
+      "url": "chunks/z19-413337-260253-413351-260265.jpg",
+      "row": 2,
+      "column": 0,
+      "bounds": [
+        103.81645560264587,
+        1.2896447056110947,
+        103.8262939453125,
+        1.2983355281519606
+      ],
+      "worldPixelBounds": [
+        105814444,
+        66624768,
+        105818112,
+        66628009
+      ],
+      "pixelSize": [
+        1834,
+        1620
+      ],
+      "byteSize": 681272,
+      "sha256": "009a3f4580de24cb27123fc9ba35363f63130f52af3688f9d6f057f8529339ca"
+    },
+    {
+      "id": "z19-413352-260253-413366-260265",
+      "url": "chunks/z19-413352-260253-413366-260265.jpg",
+      "row": 2,
+      "column": 1,
+      "bounds": [
+        103.8262939453125,
+        1.2896447056110947,
+        103.83659362792969,
+        1.2983355281519606
+      ],
+      "worldPixelBounds": [
+        105818112,
+        66624768,
+        105821952,
+        66628009
+      ],
+      "pixelSize": [
+        1920,
+        1620
+      ],
+      "byteSize": 710982,
+      "sha256": "92aa2388b06dc0c41bfafa83d1ce68d108b16c1d85770d8b594634996ea56cda"
+    },
+    {
+      "id": "z19-413367-260253-413381-260265",
+      "url": "chunks/z19-413367-260253-413381-260265.jpg",
+      "row": 2,
+      "column": 2,
+      "bounds": [
+        103.83659362792969,
+        1.2896447056110947,
+        103.84689331054688,
+        1.2983355281519606
+      ],
+      "worldPixelBounds": [
+        105821952,
+        66624768,
+        105825792,
+        66628009
+      ],
+      "pixelSize": [
+        1920,
+        1620
+      ],
+      "byteSize": 871108,
+      "sha256": "cf52965bb9508e9025328cdf2ddb2ecab7c4c5ba68bbbffae17e2a4cff6ec016"
+    },
+    {
+      "id": "z19-413382-260253-413393-260265",
+      "url": "chunks/z19-413382-260253-413393-260265.jpg",
+      "row": 2,
+      "column": 3,
+      "bounds": [
+        103.84689331054688,
+        1.2896447056110947,
+        103.85487824678421,
+        1.2983355281519606
+      ],
+      "worldPixelBounds": [
+        105825792,
+        66624768,
+        105828769,
+        66628009
+      ],
+      "pixelSize": [
+        1488,
+        1620
+      ],
+      "byteSize": 779508,
+      "sha256": "11915a0035e893b0ad3489ddb2b9d03f26c803c066fb0981f11d8fdef2dfd9ad"
+    }
+  ]
+}

@@ -1,0 +1,1222 @@
+{
+  "schema": "carearound.fixed-town-surface-index",
+  "schemaVersion": 1,
+  "collection": {
+    "id": "sg-islandwide-fixed-town-surfaces",
+    "name": "Singapore Islandwide Detailed Map",
+    "style": "gray",
+    "version": "sg-islandwide-gray-e359a21a265ae825"
+  },
+  "bounds": {
+    "surface": [
+      103.54716718196869,
+      1.1517648968843914,
+      104.0992221236229,
+      1.4812431517606106
+    ]
+  },
+  "source": {
+    "provider": "OneMap",
+    "crs": "EPSG:3857",
+    "zoom": 19,
+    "tileSize": 256,
+    "readabilityPercent": 175,
+    "runtimeZoomPyramid": false,
+    "assetTransport": "fixed image chunks by town surface"
+  },
+  "attribution": {
+    "text": "OneMap © contributors | Singapore Land Authority",
+    "html": "<a href=\"https://www.onemap.gov.sg/\" target=\"_blank\" rel=\"noopener noreferrer\">OneMap</a> © contributors | Singapore Land Authority",
+    "logoUrl": "https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png",
+    "required": true
+  },
+  "transport": {
+    "surfaceCount": 32,
+    "chunkCount": 2741,
+    "totalBytes": 1034027208
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "islandwidePlanSha256": "59c44eb4bcbcf86165427cb9d56ae6325d0bb141de8c66fc9efc3cb1ef7204c6",
+    "surfaceSetSha256": "e359a21a265ae825e22c20ed3d29ea0ad6d098d74c50ffe4fd351127012feb66",
+    "collectionValidationSha256": "b67566aa234d8fe22cea40f1a1e03f0018b11d6858f86823ead1415811c80b0a",
+    "sourceAlignmentSha256": "a43a0e16458dc15e160968631a3d0c45d3e23f6d27142a2eda6ef52c4ff3718f"
+  },
+  "surfaces": [
+    {
+      "id": "NW01",
+      "name": "Woodlands",
+      "style": "gray",
+      "version": "nw01-gray-s50-q95-g1-05331a5a9634c8d5",
+      "planningAreas": [
+        "WOODLANDS"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        10998,
+        8315
+      ],
+      "bounds": {
+        "nominal": [
+          103.75855120333478,
+          1.4194807099305125,
+          103.81754470485726,
+          1.464071429962864
+        ],
+        "surface": [
+          103.75854939222336,
+          1.419478264136651,
+          103.81754726171494,
+          1.464071958757668
+        ]
+      },
+      "manifestPath": "surfaces/NW01/manifest.json",
+      "assetBasePath": "surfaces/NW01",
+      "manifestSha256": "9aa02720f8636d38944719a394e35c9fc31e2fc23f6cc916c051097a652ff5ff",
+      "manifestBytes": 19934,
+      "chunkCount": 30,
+      "totalBytes": 13306049,
+      "chunkSetSha256": "05331a5a9634c8d51c5b8e4de253113dbd27865128a61813c5fed8c0a1a3edfe"
+    },
+    {
+      "id": "NW02",
+      "name": "Sembawang - Simpang",
+      "style": "gray",
+      "version": "nw02-gray-s50-q95-g1-c0e53276bcb7457d",
+      "planningAreas": [
+        "SEMBAWANG",
+        "SIMPANG"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        16582,
+        12536
+      ],
+      "bounds": {
+        "nominal": [
+          103.78774863842,
+          1.4140111557357482,
+          103.87669487866305,
+          1.481241722713952
+        ],
+        "surface": [
+          103.78774791955948,
+          1.4140109118006963,
+          103.87669533491135,
+          1.4812431517606106
+        ]
+      },
+      "manifestPath": "surfaces/NW02/manifest.json",
+      "assetBasePath": "surfaces/NW02",
+      "manifestSha256": "8ba6dacaeebdc34fcdcbb375cb404232fe8daae84245c92f49c820a9664ef7e7",
+      "manifestBytes": 38708,
+      "chunkCount": 63,
+      "totalBytes": 22773307,
+      "chunkSetSha256": "c0e53276bcb7457dbf646c0614c39cf2d82089b7b2ccd21aaae3bc37cbdfd468"
+    },
+    {
+      "id": "N01",
+      "name": "Yishun",
+      "style": "gray",
+      "version": "n01-gray-s50-q95-g1-025832a994feadc8",
+      "planningAreas": [
+        "YISHUN"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        14298,
+        10810
+      ],
+      "bounds": {
+        "nominal": [
+          103.7982490608195,
+          1.3902762015490628,
+          103.87494939515636,
+          1.4482513436474556
+        ],
+        "surface": [
+          103.79824876785278,
+          1.3902751069868222,
+          103.87495189905167,
+          1.4482520361435027
+        ]
+      },
+      "manifestPath": "surfaces/N01/manifest.json",
+      "assetBasePath": "surfaces/N01",
+      "manifestSha256": "f197da0799b01897192edbaad86ac6ca9e375f44ba4150bbe3c7dd6127d057a0",
+      "manifestBytes": 30176,
+      "chunkCount": 48,
+      "totalBytes": 20738971,
+      "chunkSetSha256": "025832a994feadc8fedab64597670f4cb576e1185c5823f317c725a6914c35f9"
+    },
+    {
+      "id": "N02",
+      "name": "Mandai - Central Catchment",
+      "style": "gray",
+      "version": "n02-gray-s40-q95-g1-a1c71a0f5f9e8051",
+      "planningAreas": [
+        "MANDAI",
+        "CENTRAL WATER CATCHMENT"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        23546,
+        17803
+      ],
+      "bounds": {
+        "nominal": [
+          103.72522998870193,
+          1.330362761676929,
+          103.88311243712337,
+          1.4497021453146428
+        ],
+        "surface": [
+          103.72522830963135,
+          1.330360721843512,
+          103.88311386108398,
+          1.449702647224063
+        ]
+      },
+      "manifestPath": "surfaces/N02/manifest.json",
+      "assetBasePath": "surfaces/N02",
+      "manifestSha256": "bd188d6229e91b3578c196c302e09d721d13ddd9daef086aa680630290227640",
+      "manifestBytes": 111892,
+      "chunkCount": 192,
+      "totalBytes": 81141792,
+      "chunkSetSha256": "a1c71a0f5f9e805174cc5c3da631c493f8f0cb10694748d5ff430de3331107bd"
+    },
+    {
+      "id": "NW03",
+      "name": "Sungei Kadut - Lim Chu Kang",
+      "style": "gray",
+      "version": "nw03-gray-s40-q95-g1-1100792e7b922ddb",
+      "planningAreas": [
+        "SUNGEI KADUT",
+        "LIM CHU KANG"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        13554,
+        10248
+      ],
+      "bounds": {
+        "nominal": [
+          103.68829195056702,
+          1.3857348143418307,
+          103.77917303926569,
+          1.4544286749596815
+        ],
+        "surface": [
+          103.68829160928726,
+          1.385732778103329,
+          103.77917557954788,
+          1.4544298632002528
+        ]
+      },
+      "manifestPath": "surfaces/NW03/manifest.json",
+      "assetBasePath": "surfaces/NW03",
+      "manifestSha256": "90b19a223b1f8157a257efcef9cf4e4dadb9f7aa9f4fa60b0e113adc3ef7ccf9",
+      "manifestBytes": 38715,
+      "chunkCount": 63,
+      "totalBytes": 12847126,
+      "chunkSetSha256": "1100792e7b922ddbffc9eea47d5b9ec7f5ebc72fba735e9f4001b82cef504d58"
+    },
+    {
+      "id": "W01",
+      "name": "Choa Chu Kang Town Family",
+      "style": "gray",
+      "version": "w01-grey-s50-q95-g1-5456cd4fb905dcca",
+      "planningAreas": [
+        "CHOA CHU KANG",
+        "TENGAH",
+        "BUKIT BATOK"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        19813,
+        14982
+      ],
+      "bounds": {
+        "nominal": [
+          103.68517275109161,
+          1.3288013160069154,
+          103.79145700603425,
+          1.4091396382237347
+        ],
+        "surface": [
+          103.68517220020294,
+          1.32880009648789,
+          103.79145741462708,
+          1.409141498385829
+        ]
+      },
+      "manifestPath": "surfaces/W01/manifest.json",
+      "assetBasePath": "surfaces/W01",
+      "manifestSha256": "7b05f41f5a22d6c9aa2e87b0cf4c7fb22022c181acbd654a2df1f064108c5560",
+      "manifestBytes": 52872,
+      "chunkCount": 88,
+      "totalBytes": 48817738,
+      "chunkSetSha256": "5456cd4fb905dccaea7ba7f30610a34750163bff225bfc09634eb370600cb281"
+    },
+    {
+      "id": "W02",
+      "name": "Bukit Panjang",
+      "style": "gray",
+      "version": "w02-gray-s50-q95-g1-ffe8c26c6a9d628d",
+      "planningAreas": [
+        "BUKIT PANJANG"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        13280,
+        10042
+      ],
+      "bounds": {
+        "nominal": [
+          103.73777432822794,
+          1.3394090566392098,
+          103.80901125390989,
+          1.3932558060172655
+        ],
+        "surface": [
+          103.737773001194,
+          1.3394080390405694,
+          103.80901247262955,
+          1.3932568435112431
+        ]
+      },
+      "manifestPath": "surfaces/W02/manifest.json",
+      "assetBasePath": "surfaces/W02",
+      "manifestSha256": "5e39d854a8b94331c76f78186783e0452c4636d199b0ac227461630f5d91c852",
+      "manifestBytes": 26763,
+      "chunkCount": 42,
+      "totalBytes": 30685427,
+      "chunkSetSha256": "ffe8c26c6a9d628d678fb2f9f212819e01fd51e32fe77fad6c2908c3777c976b"
+    },
+    {
+      "id": "W03",
+      "name": "Jurong West - Boon Lay",
+      "style": "gray",
+      "version": "w03-gray-s50-q95-g1-678f3d16b101fbb6",
+      "planningAreas": [
+        "JURONG WEST",
+        "BOON LAY"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        17707,
+        13389
+      ],
+      "bounds": {
+        "nominal": [
+          103.65405219769451,
+          1.295810884338892,
+          103.74904081060595,
+          1.3676121393776695
+        ],
+        "surface": [
+          103.65405052900314,
+          1.295809534668416,
+          103.74904096126556,
+          1.3676143231977183
+        ]
+      },
+      "manifestPath": "surfaces/W03/manifest.json",
+      "assetBasePath": "surfaces/W03",
+      "manifestSha256": "9c0ff5e05701c3c164ee6e6aa1965e8ecef756bc010797a9528fd6aefe0ec74c",
+      "manifestBytes": 42709,
+      "chunkCount": 70,
+      "totalBytes": 49026990,
+      "chunkSetSha256": "678f3d16b101fbb6a9314e8852237143912677270e5f4f26bb116f2fc950b04f"
+    },
+    {
+      "id": "W04",
+      "name": "Jurong East - Clementi",
+      "style": "gray",
+      "version": "w04-gray-s50-q95-g1-ea098d8c3bea89a1",
+      "planningAreas": [
+        "JURONG EAST",
+        "CLEMENTI"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        16809,
+        12708
+      ],
+      "bounds": {
+        "nominal": [
+          103.69762659354188,
+          1.2885515554723184,
+          103.78779189172297,
+          1.3567071500104173
+        ],
+        "surface": [
+          103.69762569665909,
+          1.2885506413018395,
+          103.78779351711273,
+          1.3567088618298737
+        ]
+      },
+      "manifestPath": "surfaces/W04/manifest.json",
+      "assetBasePath": "surfaces/W04",
+      "manifestSha256": "abaf0395b5011d153697183e2f4bae600f6af28e0ebd44fc2db733cc1c14d514",
+      "manifestBytes": 38739,
+      "chunkCount": 63,
+      "totalBytes": 35354866,
+      "chunkSetSha256": "ea098d8c3bea89a10c1e095216d30a3db9ead639d1d625fbc2e76ae42f97f0e1"
+    },
+    {
+      "id": "W05",
+      "name": "Pioneer - Tuas",
+      "style": "gray",
+      "version": "w05-gray-s40-q95-g1-f5d7aa115bb9218d",
+      "planningAreas": [
+        "PIONEER",
+        "TUAS"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        31005,
+        23442
+      ],
+      "bounds": {
+        "nominal": [
+          103.5471696855389,
+          1.2030966550611841,
+          103.75506586635902,
+          1.3602470745624062
+        ],
+        "surface": [
+          103.54716718196869,
+          1.2030942177387625,
+          103.75506788492203,
+          1.3602483826064136
+        ]
+      },
+      "manifestPath": "surfaces/W05/manifest.json",
+      "assetBasePath": "surfaces/W05",
+      "manifestSha256": "70e8c5a91c3330c15ae172b34f8c6b764290f19c93e3d72f6b412bc72a5c3248",
+      "manifestBytes": 193500,
+      "chunkCount": 336,
+      "totalBytes": 51145621,
+      "chunkSetSha256": "f5d7aa115bb9218df016c25cdb33d2a6807555a53cf08df017ace4a1f3e777bb"
+    },
+    {
+      "id": "W06",
+      "name": "Western Water Catchment",
+      "style": "gray",
+      "version": "w06-gray-s40-q95-g1-5e717e43397f3b06",
+      "planningAreas": [
+        "WESTERN WATER CATCHMENT"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        23238,
+        17570
+      ],
+      "bounds": {
+        "nominal": [
+          103.61449449669857,
+          1.3226339855451346,
+          103.77031659081848,
+          1.44041642264575
+        ],
+        "surface": [
+          103.61449331045151,
+          1.3226326670607365,
+          103.7703189253807,
+          1.440417111470228
+        ]
+      },
+      "manifestPath": "surfaces/W06/manifest.json",
+      "assetBasePath": "surfaces/W06",
+      "manifestSha256": "3b7cc1d0c8a9518dbe6d34430c4dbd2ca9cbab0996762ca8f060d5ad50867d9e",
+      "manifestBytes": 111843,
+      "chunkCount": 192,
+      "totalBytes": 81771446,
+      "chunkSetSha256": "5e717e43397f3b06e5b12d5db8ba95b5b222013a45fcc8b102cf9dd4fe8c2917"
+    },
+    {
+      "id": "W07",
+      "name": "Western Islands",
+      "style": "gray",
+      "version": "w07-gray-s40-q95-g1-00918eb5bd97c666",
+      "planningAreas": [
+        "WESTERN ISLANDS"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        30092,
+        22753
+      ],
+      "bounds": {
+        "nominal": [
+          103.62674959332566,
+          1.1517652921089483,
+          103.82853042928662,
+          1.3042962033132572
+        ],
+        "surface": [
+          103.62674832344055,
+          1.1517648968843914,
+          103.82853090763092,
+          1.3042965409757201
+        ]
+      },
+      "manifestPath": "surfaces/W07/manifest.json",
+      "assetBasePath": "surfaces/W07",
+      "manifestSha256": "46765a99378a0d821cf8f198bfb4482b502419c16abecb6a0e2abd19b99077b0",
+      "manifestBytes": 173103,
+      "chunkCount": 300,
+      "totalBytes": 26482311,
+      "chunkSetSha256": "00918eb5bd97c666cd132d3f1665002164ffc2b51254481badac64d359f2724c"
+    },
+    {
+      "id": "C01",
+      "name": "Bukit Timah - Tanglin",
+      "style": "gray",
+      "version": "c01-gray-s50-q95-g1-9f6b8e3c8b66cbd1",
+      "planningAreas": [
+        "BUKIT TIMAH",
+        "TANGLIN"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        15630,
+        11818
+      ],
+      "bounds": {
+        "nominal": [
+          103.75734166525842,
+          1.2890496164592389,
+          103.84118153952829,
+          1.3524238967267854
+        ],
+        "surface": [
+          103.75733971595764,
+          1.2890494059717346,
+          103.84118288755417,
+          1.3524265710598038
+        ]
+      },
+      "manifestPath": "surfaces/C01/manifest.json",
+      "assetBasePath": "surfaces/C01",
+      "manifestSha256": "99dfb03bc4157e8fd63f2ece9b7c30d4e0bf5ad1af4f1a4cd3dd6cc56a4ecd61",
+      "manifestBytes": 38666,
+      "chunkCount": 63,
+      "totalBytes": 41083005,
+      "chunkSetSha256": "9f6b8e3c8b66cbd125b1ece8622475b7d0c6fa6459acf8843408a3b2e0b245bb"
+    },
+    {
+      "id": "C02",
+      "name": "Queenstown - Bukit Merah",
+      "style": "gray",
+      "version": "c02-gray-s50-q95-g1-4c22a1a3a3472bb5",
+      "planningAreas": [
+        "QUEENSTOWN",
+        "BUKIT MERAH"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        20884,
+        15791
+      ],
+      "bounds": {
+        "nominal": [
+          103.74513320284393,
+          1.244428798052266,
+          103.85716212383306,
+          1.3291122234964197
+        ],
+        "surface": [
+          103.74513298273087,
+          1.2444283566421042,
+          103.8571634888649,
+          1.3291138305303416
+        ]
+      },
+      "manifestPath": "surfaces/C02/manifest.json",
+      "assetBasePath": "surfaces/C02",
+      "manifestSha256": "3db23995922a762c322b1ecba2e12592a002a573ddf66fa97a7e282cef9e0572",
+      "manifestBytes": 59030,
+      "chunkCount": 99,
+      "totalBytes": 55113018,
+      "chunkSetSha256": "4c22a1a3a3472bb544f97d6cf4157734b6b0e13cc0c944a8ad4e109ea8a56551"
+    },
+    {
+      "id": "C03",
+      "name": "Novena - Toa Payoh",
+      "style": "gray",
+      "version": "c03-gray-s50-q95-g1-9637af4f4cf6fc84",
+      "planningAreas": [
+        "NOVENA",
+        "TOA PAYOH"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        15486,
+        11708
+      ],
+      "bounds": {
+        "nominal": [
+          103.80958067169291,
+          1.2964240564350051,
+          103.89264777635407,
+          1.359214023379453
+        ],
+        "surface": [
+          103.80957841873169,
+          1.2964236033799013,
+          103.89264911413193,
+          1.3592160229156682
+        ]
+      },
+      "manifestPath": "surfaces/C03/manifest.json",
+      "assetBasePath": "surfaces/C03",
+      "manifestSha256": "57df6ea44ed912ffe2493454c90ee2166df3929c528c15d38d0df7ead91300cd",
+      "manifestBytes": 38719,
+      "chunkCount": 63,
+      "totalBytes": 49662297,
+      "chunkSetSha256": "9637af4f4cf6fc848eff4b3cc323f0007cd8fbbf0b686c631da71af376af1742"
+    },
+    {
+      "id": "C04",
+      "name": "Bishan - Ang Mo Kio",
+      "style": "gray",
+      "version": "c04-gray-s50-q95-g1-6af0a547a4e75e82",
+      "planningAreas": [
+        "BISHAN",
+        "ANG MO KIO"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        15123,
+        11435
+      ],
+      "bounds": {
+        "nominal": [
+          103.79826847507394,
+          1.3392085608350357,
+          103.87939431952213,
+          1.4005300803186658
+        ],
+        "surface": [
+          103.79826754331589,
+          1.3392069283209993,
+          103.87939631938934,
+          1.4005315139814152
+        ]
+      },
+      "manifestPath": "surfaces/C04/manifest.json",
+      "assetBasePath": "surfaces/C04",
+      "manifestSha256": "82ae4989a178a7c8864e484094d81369c7a5fcccde72dac6375ca598acb0e371",
+      "manifestBytes": 30232,
+      "chunkCount": 48,
+      "totalBytes": 40937133,
+      "chunkSetSha256": "6af0a547a4e75e82cd1c284bf8240b9a6e1b3015cd2ae3c482f32cbf44bc5368"
+    },
+    {
+      "id": "C05",
+      "name": "Orchard - Newton - River Valley",
+      "style": "gray",
+      "version": "c05-gray-s50-q95-g1-e878663e6f353079",
+      "planningAreas": [
+        "ORCHARD",
+        "NEWTON",
+        "RIVER VALLEY"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        7162,
+        5416
+      ],
+      "bounds": {
+        "nominal": [
+          103.81645636084221,
+          1.2896467517405954,
+          103.85487717124096,
+          1.3186891072741431
+        ],
+        "surface": [
+          103.81645560264587,
+          1.2896447056110947,
+          103.85487824678421,
+          1.3186908671761082
+        ]
+      },
+      "manifestPath": "surfaces/C05/manifest.json",
+      "assetBasePath": "surfaces/C05",
+      "manifestSha256": "2a44eae3645f495278e772b7c2f21c9fe108c8c6e3c9e374b6a5f0727e794f37",
+      "manifestBytes": 9792,
+      "chunkCount": 12,
+      "totalBytes": 10779648,
+      "chunkSetSha256": "e878663e6f353079bb6665b52e63f44e7740ff9b156801188e031a54e655b23e"
+    },
+    {
+      "id": "C06",
+      "name": "Civic District - Outram",
+      "style": "gray",
+      "version": "c06-gray-s50-q95-g1-c8676df5a6b560f5",
+      "planningAreas": [
+        "MUSEUM",
+        "ROCHOR",
+        "SINGAPORE RIVER",
+        "OUTRAM"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        10706,
+        8095
+      ],
+      "bounds": {
+        "nominal": [
+          103.81759226689366,
+          1.272181310616196,
+          103.87502315543861,
+          1.315593592417395
+        ],
+        "surface": [
+          103.81759017705917,
+          1.272179843715322,
+          103.87502431869507,
+          1.3155937343150321
+        ]
+      },
+      "manifestPath": "surfaces/C06/manifest.json",
+      "assetBasePath": "surfaces/C06",
+      "manifestSha256": "52225d431c0b3f8fec9001f03b932e78dca55781d1dd0f01e760791ad9033208",
+      "manifestBytes": 20016,
+      "chunkCount": 30,
+      "totalBytes": 22472926,
+      "chunkSetSha256": "c8676df5a6b560f5d8391ae232b0325c435419c6e9ff5897a7ada791c9ad1644"
+    },
+    {
+      "id": "C07",
+      "name": "Downtown - Marina",
+      "style": "gray",
+      "version": "c07-gray-s50-q95-g1-2c6c33061e4e8fb1",
+      "planningAreas": [
+        "DOWNTOWN CORE",
+        "MARINA EAST",
+        "MARINA SOUTH",
+        "STRAITS VIEW"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        10761,
+        8136
+      ],
+      "bounds": {
+        "nominal": [
+          103.83237099837169,
+          1.2627161689434858,
+          103.89009104579935,
+          1.3063471876429273
+        ],
+        "surface": [
+          103.83236914873123,
+          1.2627139624120476,
+          103.89009296894073,
+          1.3063478984016055
+        ]
+      },
+      "manifestPath": "surfaces/C07/manifest.json",
+      "assetBasePath": "surfaces/C07",
+      "manifestSha256": "38b28dfc5f9c9a72ef1a50b50cd449237222ffcf38976e159a92b06ab0f435d0",
+      "manifestBytes": 20023,
+      "chunkCount": 30,
+      "totalBytes": 15260155,
+      "chunkSetSha256": "2c6c33061e4e8fb108bb3e8855bb01fea59dea0a37c26f1fc1bc5a95ba72f734"
+    },
+    {
+      "id": "C08",
+      "name": "Kallang - Geylang",
+      "style": "gray",
+      "version": "c08-gray-s50-q95-g1-5a5334967ddea222",
+      "planningAreas": [
+        "KALLANG",
+        "GEYLANG"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        12792,
+        9672
+      ],
+      "bounds": {
+        "nominal": [
+          103.84120534233017,
+          1.2900503928035636,
+          103.90982529577508,
+          1.3419200857436362
+        ],
+        "surface": [
+          103.84120434522629,
+          1.2900496165475326,
+          103.9098259806633,
+          1.3419205809050694
+        ]
+      },
+      "manifestPath": "surfaces/C08/manifest.json",
+      "assetBasePath": "surfaces/C08",
+      "manifestSha256": "9a5d08d84c90194de05eb4d049335c200f7c448292567f2d85d739a08af22ee8",
+      "manifestBytes": 26766,
+      "chunkCount": 42,
+      "totalBytes": 34167429,
+      "chunkSetSha256": "5a5334967ddea222baf3947e9d04188c98001bc018d514b5f1fed2652dba2cb0"
+    },
+    {
+      "id": "NE01",
+      "name": "Serangoon",
+      "style": "gray",
+      "version": "ne01-gray-s50-q95-g1-5bac326c387f0812",
+      "planningAreas": [
+        "SERANGOON"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        13632,
+        10308
+      ],
+      "bounds": {
+        "nominal": [
+          103.8343951560957,
+          1.3383471929379396,
+          103.90752432538545,
+          1.3936242641158767
+        ],
+        "surface": [
+          103.83439421653748,
+          1.338346174254814,
+          103.90752464532852,
+          1.3936268788959731
+        ]
+      },
+      "manifestPath": "surfaces/NE01/manifest.json",
+      "assetBasePath": "surfaces/NE01",
+      "manifestSha256": "2c729db9668a4329fc9cf8f398d4c721273cd29da8fa575a69dc95df3ee66f03",
+      "manifestBytes": 30121,
+      "chunkCount": 48,
+      "totalBytes": 37012124,
+      "chunkSetSha256": "5bac326c387f0812c21746b96a15be7f6d33b9813f5fd6d8303c70c2fb40e0cf"
+    },
+    {
+      "id": "NE02",
+      "name": "Hougang",
+      "style": "gray",
+      "version": "ne02-gray-s50-q95-g1-1db1836d8b13e4ed",
+      "planningAreas": [
+        "HOUGANG"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        14957,
+        11309
+      ],
+      "bounds": {
+        "nominal": [
+          103.85146069858774,
+          1.3308034435325005,
+          103.93169425477873,
+          1.3914507195313635
+        ],
+        "surface": [
+          103.85145843029022,
+          1.3308031669967388,
+          103.93169671297073,
+          1.391452249824058
+        ]
+      },
+      "manifestPath": "surfaces/NE02/manifest.json",
+      "assetBasePath": "surfaces/NE02",
+      "manifestSha256": "56e778946264eef801ab6ee5fe612a073ea6459fb1e822e5a2211d836bea9435",
+      "manifestBytes": 30191,
+      "chunkCount": 48,
+      "totalBytes": 36914419,
+      "chunkSetSha256": "1db1836d8b13e4ed563ac507dcb8c9a669183310ffaa37d04da859ec69ec7c52"
+    },
+    {
+      "id": "NE03",
+      "name": "Sengkang",
+      "style": "gray",
+      "version": "ne03-gray-s50-q95-g1-5167a187434dd9fa",
+      "planningAreas": [
+        "SENGKANG"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        13352,
+        10095
+      ],
+      "bounds": {
+        "nominal": [
+          103.84913267496063,
+          1.3615620959778403,
+          103.92075403775664,
+          1.4156989280172771
+        ],
+        "surface": [
+          103.8491302728653,
+          1.3615596128495608,
+          103.92075598239899,
+          1.4157001882987748
+        ]
+      },
+      "manifestPath": "surfaces/NE03/manifest.json",
+      "assetBasePath": "surfaces/NE03",
+      "manifestSha256": "d2537f640c03decb6c513baccc7e383e54b7939a0b5fa811a594721609fab1e6",
+      "manifestBytes": 26761,
+      "chunkCount": 42,
+      "totalBytes": 28315881,
+      "chunkSetSha256": "5167a187434dd9faa3bd118774c303c75cea2ae9aa14bc99dc7e4c505eb45c1d"
+    },
+    {
+      "id": "NE04",
+      "name": "Punggol",
+      "style": "gray",
+      "version": "ne04-gray-s50-q95-g1-f852f0454a817a59",
+      "planningAreas": [
+        "PUNGGOL"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        9653,
+        7300
+      ],
+      "bounds": {
+        "nominal": [
+          103.88310012962307,
+          1.3841472664181884,
+          103.93488115189336,
+          1.4232870210351178
+        ],
+        "surface": [
+          103.8830977678299,
+          1.3841453742183851,
+          103.93488317728043,
+          1.4232885103794024
+        ]
+      },
+      "manifestPath": "surfaces/NE04/manifest.json",
+      "assetBasePath": "surfaces/NE04",
+      "manifestSha256": "efb9b7f87cb5d0647782ec3537edbc985ebe45fb2b22b0c78aa8a8059d7c7a82",
+      "manifestBytes": 16538,
+      "chunkCount": 24,
+      "totalBytes": 11962851,
+      "chunkSetSha256": "f852f0454a817a592fdf19d2067c913a0c606da26cd2a19eb708bf935b96f364"
+    },
+    {
+      "id": "NE05",
+      "name": "Seletar",
+      "style": "gray",
+      "version": "ne05-gray-s40-q95-g1-c222e4f0521ec2ce",
+      "planningAreas": [
+        "SELETAR"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        7065,
+        5342
+      ],
+      "bounds": {
+        "nominal": [
+          103.8526127951236,
+          1.3983218405510847,
+          103.89998770616899,
+          1.4341309527225874
+        ],
+        "surface": [
+          103.85261178016663,
+          1.3983193515523267,
+          103.89999032020569,
+          1.434131991566959
+        ]
+      },
+      "manifestPath": "surfaces/NE05/manifest.json",
+      "assetBasePath": "surfaces/NE05",
+      "manifestSha256": "4f021ace0d58d8718115a328ebb2da07064540888d1508e9e22382a4305cfeb9",
+      "manifestBytes": 14263,
+      "chunkCount": 20,
+      "totalBytes": 3227489,
+      "chunkSetSha256": "c222e4f0521ec2cef76c8d31a32029c3b654e95d9ec94b9e1ada57df81d48bb4"
+    },
+    {
+      "id": "E01",
+      "name": "Bedok",
+      "style": "gray",
+      "version": "e01-gray-s50-q95-g1-5be3ae4869044c7a",
+      "planningAreas": [
+        "BEDOK"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        13833,
+        10460
+      ],
+      "bounds": {
+        "nominal": [
+          103.8928032861499,
+          1.2971589999928381,
+          103.96700690578649,
+          1.353249167266096
+        ],
+        "surface": [
+          103.89280200004578,
+          1.297158340419756,
+          103.9670079946518,
+          1.3532497797038314
+        ]
+      },
+      "manifestPath": "surfaces/E01/manifest.json",
+      "assetBasePath": "surfaces/E01",
+      "manifestSha256": "ddc398601aba6fc98e6525f3fc232a22b5bac18f4323bd1c10fbca2985fc74ec",
+      "manifestBytes": 30150,
+      "chunkCount": 48,
+      "totalBytes": 31603570,
+      "chunkSetSha256": "5be3ae4869044c7a26b60cdce02e9a4175cd259f04604bf20af74884baf25706"
+    },
+    {
+      "id": "E02",
+      "name": "Tampines",
+      "style": "gray",
+      "version": "e02-gray-s50-q95-g1-3c63e9c08a0020e6",
+      "planningAreas": [
+        "TAMPINES"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        16731,
+        12650
+      ],
+      "bounds": {
+        "nominal": [
+          103.91001790975605,
+          1.311026722825832,
+          103.99976504417742,
+          1.3788656138349142
+        ],
+        "surface": [
+          103.91001641750336,
+          1.3110244507645177,
+          103.99976581335068,
+          1.3788656398074088
+        ]
+      },
+      "manifestPath": "surfaces/E02/manifest.json",
+      "assetBasePath": "surfaces/E02",
+      "manifestSha256": "c7064ecaa8ec49a418ae954a6e61493f45857ee0d717355c6e4ea5814a1e5ef2",
+      "manifestBytes": 38701,
+      "chunkCount": 63,
+      "totalBytes": 36764959,
+      "chunkSetSha256": "3c63e9c08a0020e681c1bda807b33b6f355c75698d5957ea4e2a2220414824c4"
+    },
+    {
+      "id": "E03",
+      "name": "Pasir Ris - Paya Lebar",
+      "style": "gray",
+      "version": "e03-gray-s50-q95-g1-5bdff4ae2aa9ab52",
+      "planningAreas": [
+        "PASIR RIS",
+        "PAYA LEBAR"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        17736,
+        13411
+      ],
+      "bounds": {
+        "nominal": [
+          103.88917259617091,
+          1.3339830309689653,
+          103.98431287950086,
+          1.405897801161249
+        ],
+        "surface": [
+          103.88917028903961,
+          1.3339807253090898,
+          103.98431360721588,
+          1.4058996861208106
+        ]
+      },
+      "manifestPath": "surfaces/E03/manifest.json",
+      "assetBasePath": "surfaces/E03",
+      "manifestSha256": "5d168b1f357b2c9eeffef8cd510fce68f1800327e32966ea5a2ea7374e9918df",
+      "manifestBytes": 48289,
+      "chunkCount": 80,
+      "totalBytes": 38733199,
+      "chunkSetSha256": "5bdff4ae2aa9ab52452e1e0a89965b26ec65076e40893eee75cb4f51829cd561"
+    },
+    {
+      "id": "E04",
+      "name": "Marine Parade",
+      "style": "gray",
+      "version": "e04-gray-s50-q95-g1-02045626767c7ec2",
+      "planningAreas": [
+        "MARINE PARADE"
+      ],
+      "profile": "urban-50",
+      "retainedScale": 0.5,
+      "retainedPixelDimensions": [
+        9042,
+        6836
+      ],
+      "bounds": {
+        "nominal": [
+          103.87321649839788,
+          1.280751917897262,
+          103.92171323058926,
+          1.3174107534618378
+        ],
+        "surface": [
+          103.87321382761002,
+          1.2807500564423728,
+          103.9217135310173,
+          1.3174117919936077
+        ]
+      },
+      "manifestPath": "surfaces/E04/manifest.json",
+      "assetBasePath": "surfaces/E04",
+      "manifestSha256": "4e8a24d05aae29d5ebc4c056fcea3b5bef04f4fe23a6e7a4ea75bfc22c915e64",
+      "manifestBytes": 14287,
+      "chunkCount": 20,
+      "totalBytes": 11782194,
+      "chunkSetSha256": "02045626767c7ec21a2814f9b5d70246827bec3503b23aa90e8aa8019f09dd1e"
+    },
+    {
+      "id": "E05",
+      "name": "Changi - Changi Bay",
+      "style": "gray",
+      "version": "e05-gray-s40-q95-g1-7ce8b72d5b6aa4d4",
+      "planningAreas": [
+        "CHANGI",
+        "CHANGI BAY"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        22334,
+        16887
+      ],
+      "bounds": {
+        "nominal": [
+          103.94945777105926,
+          1.2857223574021959,
+          104.09922022446392,
+          1.3989262904693882
+        ],
+        "surface": [
+          103.94945561885834,
+          1.2857216247952108,
+          104.0992221236229,
+          1.3989280316044956
+        ]
+      },
+      "manifestPath": "surfaces/E05/manifest.json",
+      "assetBasePath": "surfaces/E05",
+      "manifestSha256": "b2d5658747bb5e9b4e3ae498143daf9d8da07189c51a778ee5217b528a8ca94b",
+      "manifestBytes": 104735,
+      "chunkCount": 180,
+      "totalBytes": 18768028,
+      "chunkSetSha256": "7ce8b72d5b6aa4d431f302d42266f9a4d0a11cc2ab7fa36d52b6bbd4c2d9190d"
+    },
+    {
+      "id": "E06",
+      "name": "North-Eastern Islands",
+      "style": "gray",
+      "version": "e06-gray-s40-q95-g1-ca4ed179d6df5aa0",
+      "planningAreas": [
+        "NORTH-EASTERN ISLANDS"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        26593,
+        20107
+      ],
+      "bounds": {
+        "nominal": [
+          103.9182677465476,
+          1.321707446736277,
+          104.096588556526,
+          1.4564957217501329
+        ],
+        "surface": [
+          103.91826689243317,
+          1.3217048698275,
+          104.09659087657928,
+          1.4564971791583057
+        ]
+      },
+      "manifestPath": "surfaces/E06/manifest.json",
+      "assetBasePath": "surfaces/E06",
+      "manifestSha256": "f1ebbcec15611123598fdc98d4f65bc56cf82671e2535a693bf7facaf5a8d090",
+      "manifestBytes": 145846,
+      "chunkCount": 252,
+      "totalBytes": 32485193,
+      "chunkSetSha256": "ca4ed179d6df5aa0dcad7cfad785730042b6c3ac7895be8b9e432126ef396bc9"
+    },
+    {
+      "id": "S01",
+      "name": "Southern Islands",
+      "style": "gray",
+      "version": "s01-gray-s40-q95-g1-fbd81a31ad750716",
+      "planningAreas": [
+        "SOUTHERN ISLANDS"
+      ],
+      "profile": "sparse-40",
+      "retainedScale": 0.4,
+      "retainedPixelDimensions": [
+        10390,
+        7856
+      ],
+      "bounds": {
+        "nominal": [
+          103.79989745589342,
+          1.209931938993816,
+          103.86956386978045,
+          1.2625942816159457
+        ],
+        "surface": [
+          103.79989564418793,
+          1.2099296527398706,
+          103.86956602334976,
+          1.2625959738718047
+        ]
+      },
+      "manifestPath": "surfaces/S01/manifest.json",
+      "assetBasePath": "surfaces/S01",
+      "manifestSha256": "056901b3e5613de9390bf0f0ba00fdb513ec619b08a44c873775f0fa1ba1c4a3",
+      "manifestBytes": 26683,
+      "chunkCount": 42,
+      "totalBytes": 2890046,
+      "chunkSetSha256": "fbd81a31ad7507164be0996e61dae6e7a4ef467164385360295eedf5ace483bc"
+    }
+  ]
+}

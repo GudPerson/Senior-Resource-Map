@@ -69,6 +69,8 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(printViewSource, /mapViewState=\{printMapState\?\.view \|\| null\}/);
     assert.match(printViewSource, /basemapMode=\{printMapState\?\.basemapMode \|\| 'live'\}/);
     assert.match(printViewSource, /fixedTownSurfaceManifest=\{fixedTownSurfaceManifest\}/);
+    assert.match(printViewSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
+    assert.match(printViewSource, /onFixedTownSurfaceViewportChange=\{onFixedTownSurfaceViewportChange\}/);
     assert.match(printViewSource, /mapHeightPx=\{printMapState \? clampPrintMapHeight\(printMapState\.height\) : null\}/);
 });
 
@@ -77,12 +79,18 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX/);
     assert.match(exportButtonSource, /printMapState=\{printMapState\}/);
     assert.match(exportButtonSource, /printMapCaptureKey/);
+    assert.match(exportButtonSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
     assert.match(exportPanelSource, /printMapState=\{printMapState\}/);
+    assert.match(exportPanelSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
     assert.match(printViewSource, /captureReadyKey=\{printMapState \? buildPrintMapCaptureKey\(printMapState\) : ''\}/);
     assert.match(ownerPageSource, /data-print-toolbar-actions="true"/);
     assert.match(ownerPageSource, /Your saved image will match this preview/);
     assert.doesNotMatch(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);
     assert.match(directoryMapSource, /right-\[13px\] top-3 z-\[1002\] lg:right-3/);
+    assert.match(ownerPageSource, /printTownMapSurfaceResolving/);
+    assert.match(ownerPageSource, /printTownMapSurfacePending/);
+    assert.match(ownerPageSource, /fixedTownSurfacePending=\{printTownMapSurfacePending\}/);
+    assert.match(ownerPageSource, /onFixedTownSurfaceViewportChange=\{setTownMapViewportBounds\}/);
 });
 
 test('DirectoryMap controlled print hooks stay optional for Shared Maps and existing callers', () => {
