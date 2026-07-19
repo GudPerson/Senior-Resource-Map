@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { flushSync } from 'react-dom';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, Link2, Menu, Pencil, Plus, Printer, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, LayoutTemplate, Link2, Menu, Pencil, Plus, Printer, RotateCcw, X } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -13,6 +13,7 @@ import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
+import PrintLayoutControls from '../components/PrintLayoutControls.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
@@ -556,6 +557,7 @@ export default function MyMapDetailPage() {
     const [addError, setAddError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
     const [printMapState, setPrintMapState] = useState(() => createOwnerPrintMapState(mapStyle));
+    const [printLayoutOpen, setPrintLayoutOpen] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
         [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
@@ -640,6 +642,7 @@ export default function MyMapDetailPage() {
         previousPrintViewRef.current = isPrintView;
         if (isPrintView && !wasPrintView) {
             setPrintMapState(createOwnerPrintMapState(mapStyle));
+            setPrintLayoutOpen(false);
         }
     }, [isPrintView, mapStyle]);
 
@@ -1446,12 +1449,14 @@ export default function MyMapDetailPage() {
 
     function openPrintView() {
         setPrintMapState(createOwnerPrintMapState(mapStyle));
+        setPrintLayoutOpen(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('view', 'print');
         setSearchParams(nextParams);
     }
 
     function closePrintView() {
+        setPrintLayoutOpen(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('view');
         setSearchParams(nextParams);
@@ -1511,6 +1516,17 @@ export default function MyMapDetailPage() {
                             </button>
                             <button
                                 type="button"
+                                onClick={() => setPrintLayoutOpen((current) => !current)}
+                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                                aria-expanded={printLayoutOpen}
+                                aria-controls="owner-print-layout-controls"
+                                data-print-layout-trigger="true"
+                            >
+                                <LayoutTemplate size={16} aria-hidden="true" />
+                                {t('printLayout')}
+                            </button>
+                            <button
+                                type="button"
                                 onClick={resetPrintMap}
                                 className="btn-ghost justify-center border border-slate-200 text-slate-700"
                             >
@@ -1538,6 +1554,15 @@ export default function MyMapDetailPage() {
                         <p className="w-full text-left text-sm font-semibold text-slate-600 lg:ml-auto lg:w-auto lg:text-right">
                             Your saved image will match this preview.
                         </p>
+                        {printLayoutOpen ? (
+                            <div id="owner-print-layout-controls" className="w-full">
+                                <PrintLayoutControls
+                                    value={printMapState}
+                                    onChange={setPrintMapState}
+                                    onClose={() => setPrintLayoutOpen(false)}
+                                />
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 

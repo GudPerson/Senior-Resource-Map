@@ -1358,6 +1358,35 @@ Active next recovery family:
   no horizontal overflow, and zero page errors. The known non-fatal image
   placeholder CSP notice remains unchanged. No Worker/API or R2 deploy was
   performed.
+- Owner Print Map hybrid-layout lock: the existing centred, two-label-rail
+  print sheet remains the exact `Balanced` default. An optional `Map focus`
+  layout widens the same Leaflet map and consolidates all resource labels into
+  one rail opposite the map; owners can choose map left/right and Wide/Extra
+  wide within the fixed 1480 px capture canvas. Label detail is independently
+  selectable as Names only, Names + logos, Names + addresses, or Full details,
+  while every choice preserves the matching map number and category colour.
+  Layout controls stay outside the printable sheet and use progressive
+  disclosure, so map position and width appear only for Map focus. The visible
+  preview and hidden Save-as-image surface consume the same normalized layout,
+  side, width, label-detail, camera, detail, colour, and height state; Reset
+  print map restores Balanced, fit-all, Standard, 360 px, Full details while
+  preserving the user's global map-colour preference. Shared Map print keeps
+  its existing defaults and does not receive these owner-only controls.
+  Reproduction: open an owned map with `?view=print`; confirm Balanced matches
+  the locked two-rail baseline; open Print layout; select Map focus, each side
+  and width, and each label-detail choice; compare the preview with Save as
+  image; then Reset print map and confirm the baseline returns. Pre-release
+  verification passed focused print/i18n/list coverage 44/44, full client
+  coverage 441/441, full server coverage 451/451, authenticated local smoke
+  6/6, the exact islandwide Detailed-enabled production build with only the
+  existing large-chunk advisory, and `git diff --check`. Signed-in local
+  desktop UAT confirmed progressive disclosure, Balanced baseline parity,
+  Map focus on both sides, Wide/Extra wide, Names only and Names + addresses,
+  and exact visible/export state parity. Production image download, mobile
+  width, custom-domain smoke, and API health remain release gates. No
+  Worker/API, R2, map camera, map data, Detailed surface, Shared Map, PDF
+  ledger, schema, auth, permission, ranking, filtering, visibility,
+  saved-resource, or production-data behavior is changed.
 - Owner Detailed viewport-coverage correction: production tablet UAT showed a
   15-resource owner map staying on Standard at zoom 15 while the current
   viewport was inside the CCK/W01 Detailed surface. The root cause was the

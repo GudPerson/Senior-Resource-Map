@@ -11,10 +11,15 @@ import {
     PRINT_MAP_CANVAS_WIDTH_PX,
     PRINT_MAP_DEFAULT_HEIGHT_PX,
     PRINT_MAP_HEIGHT_STEP_PX,
+    PRINT_MAP_LABEL_DETAIL_FULL,
+    PRINT_MAP_LABEL_DETAIL_LOGOS,
+    PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_MIN_HEIGHT_PX,
     buildPrintMapCaptureKey,
     clampPrintMapHeight,
+    getOwnerPrintLayoutConfig,
+    normalizePrintMapLabelDetail,
 } from '../lib/printMapState.js';
 
 const PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE = 0.0003;
@@ -224,6 +229,25 @@ function withOwnerPrintBadgePins(presentation) {
     };
 }
 
+function withOwnerPrintLayout(presentation, printLayoutConfig) {
+    if (printLayoutConfig.layoutPreset !== PRINT_MAP_LAYOUT_FOCUS) return presentation;
+
+    const labelRailGroups = presentation.displayGroups?.length
+        ? presentation.displayGroups
+        : [
+            ...(presentation.leftGroups || []),
+            ...(presentation.mapColumnGroups || []),
+            ...(presentation.rightGroups || []),
+        ];
+
+    return {
+        ...presentation,
+        leftGroups: printLayoutConfig.mapSide === 'right' ? labelRailGroups : [],
+        mapColumnGroups: [],
+        rightGroups: printLayoutConfig.mapSide === 'left' ? labelRailGroups : [],
+    };
+}
+
 function PrintDirectoryBoardHeader({
     directory,
     generatedAt,
@@ -327,6 +351,7 @@ function PrintDirectoryMap({
     fixedTownSurfaceMinZoom,
     onFixedTownSurfaceViewportChange,
     previewScale = 1,
+    mapMaxWidthPx = 680,
 }) {
     const { t } = useLocale();
     const handleControlledMapStyleChange = useCallback((mapStyle) => {
@@ -339,7 +364,10 @@ function PrintDirectoryMap({
         onPrintMapStateChange?.({ height });
     }, [onPrintMapStateChange]);
     return (
-        <div className="mx-auto w-full max-w-[680px] rounded-[30px] border border-slate-200 bg-white p-5">
+        <div
+            className="mx-auto w-full rounded-[30px] border border-slate-200 bg-white p-5"
+            style={{ maxWidth: `${mapMaxWidthPx}px` }}
+        >
             <PrintDirectoryBoardHeader
                 directory={directory}
                 generatedAt={generatedAt}
@@ -477,7 +505,14 @@ export default function DirectoryPrintView({
         activeAnchor,
         presentationMode: useV2OwnerPrint ? 'v2-cards' : 'default',
     });
-    const presentation = useV2OwnerPrint ? withOwnerPrintBadgePins(basePresentation) : basePresentation;
+    const printLayoutConfig = getOwnerPrintLayoutConfig(printMapState);
+    const labelDetail = normalizePrintMapLabelDetail(printMapState?.labelDetail);
+    const ownerPrintPresentation = useV2OwnerPrint ? withOwnerPrintBadgePins(basePresentation) : basePresentation;
+    const presentation = useV2OwnerPrint
+        ? withOwnerPrintLayout(ownerPrintPresentation, printLayoutConfig)
+        : ownerPrintPresentation;
+    const showPrintLogos = labelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
+        || labelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const resolvedShareUrl = shareUrl || buildDirectoryShareUrl(directory?.share?.sharePath);
     const canShowQr = Boolean(resolvedShareUrl) && (mode === 'shared' || directory?.share?.isShared);
     
@@ -617,6 +652,10 @@ export default function DirectoryPrintView({
         <div 
             ref={sheetRef}
             data-print-map-sheet={variant}
+            data-print-layout-preset={printLayoutConfig.layoutPreset}
+            data-print-map-side={printLayoutConfig.mapSide}
+            data-print-map-width={printLayoutConfig.mapWidth}
+            data-print-label-detail={labelDetail}
             className={`text-slate-900 ${paddingClass} flex-shrink-0`}
             style={{ 
                 width: `${sheetWidth}px`,
@@ -635,9 +674,8 @@ export default function DirectoryPrintView({
                 canSaveResources={false}
                 allowPrintLinks={variant === 'screen'}
                 highlightPlaceKeys={activePrintPlaceKeys}
-                // Keep the preview balanced on desktop by slightly reducing the side rails
-                // and letting the center map card sit in a bounded, centered column.
-                desktopGridClassName="grid-cols-[340px_minmax(0,1fr)_340px]"
+                // Keep Balanced exact, while Map focus swaps to a constrained single label rail.
+                desktopGridClassName={printLayoutConfig.gridClassName}
                 desktopMapWrapperClassName="mx-auto w-full"
                 renderDesktopMap={() => (
                     <PrintDirectoryMap
@@ -673,10 +711,12 @@ export default function DirectoryPrintView({
                         fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
                         onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
                         previewScale={variant === 'screen' ? scale : 1}
+                        mapMaxWidthPx={printLayoutConfig.mapMaxWidthPx}
                     />
                 )}
-                cardBadgeMode={useV2OwnerPrint ? 'logo' : 'number'}
-                showPrintNumberBadges={useV2OwnerPrint}
+                cardBadgeMode={useV2OwnerPrint && showPrintLogos ? 'logo' : 'number'}
+                showPrintNumberBadges={useV2OwnerPrint && showPrintLogos}
+                printLabelDetail={labelDetail}
                 showMapLegend={!useV2OwnerPrint}
             />
 

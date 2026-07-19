@@ -66,6 +66,16 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'careCalendarMonthView',
         'careCalendarPreviousDay',
         'careCalendarNextDay',
+        'printLayout',
+        'printLayoutBalanced',
+        'printLayoutMapFocus',
+        'printMapPosition',
+        'printMapWidth',
+        'printLabelDetail',
+        'printLabelNamesOnly',
+        'printLabelNamesLogos',
+        'printLabelNamesAddresses',
+        'printLabelFullDetails',
     ];
 
     for (const { code } of LOCALES.filter((locale) => locale.code !== 'en')) {

@@ -8,6 +8,11 @@ import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabil
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
+    PRINT_MAP_LABEL_DETAIL_FULL,
+    PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
+    normalizePrintMapLabelDetail,
+} from '../lib/printMapState.js';
+import {
     ArrowLeft,
     Bold,
     CalendarPlus,
@@ -1596,10 +1601,15 @@ function DirectoryPlaceGroupCard({
     logoRevealed = false,
     cardBadgeMode = 'number',
     showPrintNumberBadge = false,
+    printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
+    const normalizedPrintLabelDetail = normalizePrintMapLabelDetail(printLabelDetail);
+    const showPrintAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
+        || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const showPrintResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
@@ -1678,20 +1688,27 @@ function DirectoryPlaceGroupCard({
                                     return (
                                         <div key={nestedPlace.placeKey} className="space-y-1.5">
                                             {nestedPlaceTitle}
-                                            <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
-                                                {getVisibleGroupRows(nestedPlace).map((row) => (
-                                                    <DirectoryResourceRow
-                                                        key={row.rowKey}
-                                                        row={row}
-                                                        place={nestedPlace}
-                                                        mode={mode}
-                                                        interactive={false}
-                                                        canSaveResources={canSaveResources}
-                                                        allowPrintLinks={allowPrintLinks}
-                                                        compactPrint={compactPrint}
-                                                    />
-                                                ))}
-                                            </div>
+                                            {showPrintAddress && nestedPlace.shortLocationLine ? (
+                                                <p className={`${compactPrint ? 'text-[0.625rem]' : 'text-[0.6875rem]'} text-slate-500`}>
+                                                    {nestedPlace.shortLocationLine}
+                                                </p>
+                                            ) : null}
+                                            {showPrintResourceRows ? (
+                                                <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
+                                                    {getVisibleGroupRows(nestedPlace).map((row) => (
+                                                        <DirectoryResourceRow
+                                                            key={row.rowKey}
+                                                            row={row}
+                                                            place={nestedPlace}
+                                                            mode={mode}
+                                                            interactive={false}
+                                                            canSaveResources={canSaveResources}
+                                                            allowPrintLinks={allowPrintLinks}
+                                                            compactPrint={compactPrint}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            ) : null}
                                         </div>
                                     );
                                 })}
@@ -1742,7 +1759,7 @@ function DirectoryPlaceGroupCard({
                     )}
                     <div className="min-w-0 flex-1">
                         {printPlaceTitle}
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        {showPrintAddress ? <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                             {group.shortLocationLine ? (
                                 <p className={`${compactPrint ? 'text-[0.625rem]' : 'text-[0.6875rem]'} text-slate-500`}>{group.shortLocationLine}</p>
                             ) : null}
@@ -1751,9 +1768,9 @@ function DirectoryPlaceGroupCard({
                                     {group.distanceLabel}
                                 </span>
                             ) : null}
-                        </div>
+                        </div> : null}
 
-                        {visibleRows.length ? (
+                        {showPrintResourceRows && visibleRows.length ? (
                             <div className={`mt-1 ${compactPrint ? 'space-y-0.5' : 'space-y-1'}`}>
                                 {visibleRows.map((row) => (
                                     <DirectoryResourceRow
@@ -2392,6 +2409,7 @@ function DirectoryGroupColumn({
     cardBadgeMode = 'number',
     showCategoryPills = false,
     showPrintNumberBadges = false,
+    printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     afterContent = null,
 }) {
     if (!groups.length && !afterContent) {
@@ -2444,6 +2462,7 @@ function DirectoryGroupColumn({
                             logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
                             cardBadgeMode={cardBadgeMode}
                             showPrintNumberBadge={showPrintNumberBadges}
+                            printLabelDetail={printLabelDetail}
                             sectionRef={(node) => {
                                 if (node) {
                                     sectionRefs.current[group.placeKey] = node;
@@ -2551,6 +2570,7 @@ export default function SharedMapDirectoryList({
     showMapLegend = true,
     cardBadgeMode = 'number',
     showPrintNumberBadges = false,
+    printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
@@ -3127,6 +3147,7 @@ export default function SharedMapDirectoryList({
                         cardBadgeMode={cardBadgeMode}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
+                        printLabelDetail={printLabelDetail}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={leftUnmappedRows}
@@ -3179,6 +3200,7 @@ export default function SharedMapDirectoryList({
                                     cardBadgeMode={cardBadgeMode}
                                     showCategoryPills={showCategoryPills}
                                     showPrintNumberBadges={showPrintNumberBadges}
+                                    printLabelDetail={printLabelDetail}
                                     afterContent={null}
                                 />
                             </div>
@@ -3222,6 +3244,7 @@ export default function SharedMapDirectoryList({
                         cardBadgeMode={cardBadgeMode}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
+                        printLabelDetail={printLabelDetail}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={rightUnmappedRows}

@@ -143,8 +143,8 @@ test('owner print can use V2 print cards without hiding the app toolbar or chang
     assert.match(directoryPrintViewSource, /pinBadgeMode=\{useV2Format \? 'none' : 'count'\}/);
     assert.match(directoryPrintViewSource, /clusterMarkerMode=\{useV2Format \? 'none' : 'bubble'\}/);
     assert.match(directoryPrintViewSource, /spreadCoincidentPins=\{!useV2Format\}/);
-    assert.match(directoryPrintViewSource, /cardBadgeMode=\{useV2OwnerPrint \? 'logo' : 'number'\}/);
-    assert.match(directoryPrintViewSource, /showPrintNumberBadges=\{useV2OwnerPrint\}/);
+    assert.match(directoryPrintViewSource, /cardBadgeMode=\{useV2OwnerPrint && showPrintLogos \? 'logo' : 'number'\}/);
+    assert.match(directoryPrintViewSource, /showPrintNumberBadges=\{useV2OwnerPrint && showPrintLogos\}/);
     assert.match(directoryPrintViewSource, /showMapLegend=\{!useV2OwnerPrint\}/);
     assert.doesNotMatch(directoryPrintViewSource, /pinSpreadMode/);
     assert.doesNotMatch(appSource, /ownerPrintView/);
