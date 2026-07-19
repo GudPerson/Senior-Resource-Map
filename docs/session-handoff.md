@@ -79,7 +79,11 @@ Last updated: 2026-07-19 (Asia/Singapore)
   validated `client/dist` was explicitly published to the `main` Pages branch.
   Keep future client releases on the release-checklist production build command
   or repeat the explicit branch publish after any `main` push that could
-  trigger a Pages rebuild.
+  trigger a Pages rebuild. On 2026-07-19 the Cloudflare Pages production build
+  variables were also updated as Pages project secrets for `VITE_API_URL`,
+  `VITE_TOWN_MAP_PROOF_ENABLED`, `VITE_TOWN_MAP_ASSET_BASE_URL`, and
+  `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL` so Git-triggered production builds use
+  the islandwide asset roots instead of the older W01 roots.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`

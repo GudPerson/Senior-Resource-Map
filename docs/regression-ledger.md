@@ -2054,7 +2054,11 @@ Active next recovery family:
   `assets/index-Vh7cG0dR.js`, `assets/MyMapDetailPage-BaiXyyne.js`, and
   `assets/index-CvQOOpB_.css`; the custom domain bundle contains both
   islandwide roots and no W01 root marker. The validated Pages production
-  branch deployment is `https://a5028644.senior-resource-map.pages.dev`. API
+  branch deployment is `https://a5028644.senior-resource-map.pages.dev`. A
+  post-release docs push briefly proved the prior Pages Git-build environment
+  was still stale, so the same islandwide `client/dist` was republished to the
+  `main` Pages branch and the Cloudflare Pages production build variables were
+  updated as project secrets for the four required `VITE_*` values. API
   health returned OK at `2026-07-19T02:12:15.343Z`, and production smoke passed
   6/6 on 2026-07-19. A non-mutating production browser probe with mocked owner
   map data but real deployed JS/CSS and real R2 assets loaded islandwide fixed
