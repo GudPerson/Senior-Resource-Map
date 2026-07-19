@@ -30,14 +30,15 @@ const PREFIX = argumentValue("prefix", process.env.TOWN_MAP_R2_PREFIX || DEFAULT
 const CONCURRENCY = Number(argumentValue("concurrency", process.env.TOWN_MAP_R2_CONCURRENCY || "4"));
 const SOURCE_ROOT = argumentValue("source-root", process.env.TOWN_MAP_SOURCE_ROOT || DEFAULT_ISLANDWIDE_SOURCE_ROOT);
 const MANIFEST_ROOT = argumentValue("manifest-root", process.env.TOWN_MAP_MANIFEST_ROOT || DEFAULT_ISLANDWIDE_MANIFEST_ROOT);
+const WRANGLER_BIN = argumentValue("wrangler-bin", process.env.WRANGLER_BIN || "npx");
 
 invariant(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(BUCKET), `Unsafe R2 bucket name: ${BUCKET}`);
 invariant(Number.isSafeInteger(CONCURRENCY) && CONCURRENCY >= 1 && CONCURRENCY <= 12, "Concurrency must be between 1 and 12");
+invariant(typeof WRANGLER_BIN === "string" && WRANGLER_BIN.trim(), "Wrangler command is required");
 
 function runWranglerPut(object) {
   const objectPath = `${BUCKET}/${object.key}`;
-  const args = [
-    "wrangler",
+  const wranglerArgs = [
     "r2",
     "object",
     "put",
@@ -51,9 +52,13 @@ function runWranglerPut(object) {
     object.cacheControl,
     "--force",
   ];
+  const command = WRANGLER_BIN;
+  const args = path.basename(WRANGLER_BIN) === "npx"
+    ? ["wrangler", ...wranglerArgs]
+    : wranglerArgs;
 
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", args, {
+    const child = spawn(command, args, {
       cwd: REPO_ROOT,
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
