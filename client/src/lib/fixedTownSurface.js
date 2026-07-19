@@ -187,6 +187,10 @@ function areBoundsContained(innerBounds, outerBounds) {
         && inner.north <= outer.north;
 }
 
+export function areWsenBoundsContained(innerBounds, outerBounds) {
+    return areBoundsContained(innerBounds, outerBounds);
+}
+
 function isValidPixelBounds(bounds) {
     if (
         !Array.isArray(bounds)
@@ -1411,6 +1415,7 @@ export function selectFixedTownSurfaceForViewport(surfacesOrIndex, viewportBound
         const intersectionArea = normalizedViewport
             ? getWsenIntersectionArea(surfaceBounds, normalizedViewport)
             : 0;
+        const viewportContained = normalizedViewport && areBoundsContained(normalizedViewport, surfaceBounds) ? 1 : 0;
         if (normalizedViewport && intersectionArea <= 0 && !centerHit) {
             continue;
         }
@@ -1421,20 +1426,31 @@ export function selectFixedTownSurfaceForViewport(surfacesOrIndex, viewportBound
         const score = {
             pointHits,
             centerHit,
+            viewportContained,
             intersectionArea,
             area: getWsenIntersectionArea(surfaceBounds, surfaceBounds),
         };
         const isBetterWithViewport = normalizedViewport && (
             !bestScore
-            || score.centerHit > bestScore.centerHit
-            || (score.centerHit === bestScore.centerHit && score.intersectionArea > bestScore.intersectionArea)
+            || score.viewportContained > bestScore.viewportContained
             || (
-                score.centerHit === bestScore.centerHit
+                score.viewportContained === bestScore.viewportContained
+                && score.centerHit > bestScore.centerHit
+            )
+            || (
+                score.viewportContained === bestScore.viewportContained
+                && score.centerHit === bestScore.centerHit
+                && score.intersectionArea > bestScore.intersectionArea
+            )
+            || (
+                score.viewportContained === bestScore.viewportContained
+                && score.centerHit === bestScore.centerHit
                 && score.intersectionArea === bestScore.intersectionArea
                 && score.area < bestScore.area
             )
             || (
-                score.centerHit === bestScore.centerHit
+                score.viewportContained === bestScore.viewportContained
+                && score.centerHit === bestScore.centerHit
                 && score.intersectionArea === bestScore.intersectionArea
                 && score.area === bestScore.area
                 && score.pointHits > bestScore.pointHits

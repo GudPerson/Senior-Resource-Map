@@ -42,6 +42,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /function DirectoryMapFixedTownViewportSync/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
     assert.match(directoryMapSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
+    assert.match(directoryMapSource, /areWsenBoundsContained\(viewportBounds, surfaceBounds\)/);
     assert.match(directoryMapSource, /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles/);
     assert.match(directoryMapSource, /map\.setView\(map\.getCenter\(\), normalizedZoom, \{ animate: false \}\)/);
     assert.match(directoryMapSource, /map\.on\('zoom', handleZoom\)/);
@@ -64,12 +65,14 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /fixedTownSurfacePending = false/);
     assert.match(directoryMapSource, /townMapZoomUnknown = fixedTownSurfaceZoom === null \|\| fixedTownSurfaceZoom === undefined/);
     assert.match(directoryMapSource, /hasFocusedMapTarget = Boolean\(focusedPlaceKey\) \|\| focusedPlaceKeys\.length > 0/);
+    assert.match(directoryMapSource, /fixedTownSurfacePending\s*&&\s*fixedTownSurfaceViewportEligible !== false/);
     assert.match(directoryMapSource, /shouldSuppressTownPendingLiveTiles/);
     assert.match(directoryMapSource, /townMapZoomEligible \|\| townMapZoomUnknown \|\| hasFocusedMapTarget/);
     assert.match(directoryMapSource, /shouldSuppressTownFocusLiveTiles/);
     assert.match(directoryMapSource, /shouldSuppressTownPendingLiveTiles\s*\|\|\s*shouldSuppressTownFocusLiveTiles/);
     assert.match(directoryMapSource, /fixedTownSurfaceConfigured/);
-    assert.match(directoryMapSource, /resolvedFixedTownSurfaceAvailable \|\| fixedTownSurfacePending \|\| hasFocusedMapTarget/);
+    assert.doesNotMatch(directoryMapSource, /resolvedFixedTownSurfaceAvailable \|\| fixedTownSurfacePending \|\| hasFocusedMapTarget/);
+    assert.match(directoryMapSource, /resolvedFixedTownSurfaceAvailable\s*\|\|\s*\(fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false\)/);
     assert.match(directoryMapSource, /reason === 'outside-surface' && onFixedTownSurfaceViewportChange/);
     assert.match(directoryMapSource, /shouldUseDirectTownDeepFocus/);
     assert.match(directoryMapSource, /shouldUseDirectTownDeepFocus = townBasemapRequested\s*&& resolvedFixedTownSurfaceAvailable/);
@@ -116,6 +119,9 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
     assert.match(fixedTownSurfaceSource, /map\.removeLayer\(entry\.overlay\)/);
     assert.match(fixedTownSurfaceSource, /map\.removeLayer\(entry\.overlay\);\s*entry\.overlay\.off\(\)/);
+    assert.match(fixedTownSurfaceSource, /const removeBackdrop = \(\) =>/);
+    assert.match(fixedTownSurfaceSource, /removeBackdrop\(\);\s*removeAttribution\(\);\s*onFallbackRef/);
+    assert.match(fixedTownSurfaceSource, /areWsenBoundsContained\(viewportBounds, manifest\.bounds\?\.surface \|\| manifest\.bounds\?\.nominal\)/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_RETENTION_PAD = 0\.5/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_MAX_DECODED_BYTES = 256 \* 1024 \* 1024/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS = \[350, 1200, 4000\]/);

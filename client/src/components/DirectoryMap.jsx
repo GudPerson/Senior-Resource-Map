@@ -38,6 +38,7 @@ import {
     shouldRefitDirectoryCameraAfterResize,
 } from '../lib/directoryMapCamera.js';
 import {
+    areWsenBoundsContained,
     isFixedTownSurfaceZoomEligible,
     normalizeFixedTownStandardZoom,
     resolveFixedTownBasemapMode,
@@ -1936,8 +1937,12 @@ function DirectoryMapFixedTownViewportSync({
             const bounds = map.getBounds();
             const viewportBounds = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
             onViewportBoundsChange?.(viewportBounds);
+            const surfaceBounds = manifest?.bounds?.surface || manifest?.bounds?.nominal;
             const eligible = manifest?.chunks?.length
-                ? selectVisibleFixedTownChunks(manifest.chunks, viewportBounds).length > 0
+                ? Boolean(
+                    areWsenBoundsContained(viewportBounds, surfaceBounds)
+                    && selectVisibleFixedTownChunks(manifest.chunks, viewportBounds).length > 0,
+                )
                 : null;
             if (eligible === lastEligible) return;
             lastEligible = eligible;
@@ -2232,7 +2237,8 @@ export default function DirectoryMap({
     const hasFocusedMapTarget = Boolean(focusedPlaceKey) || focusedPlaceKeys.length > 0;
     const shouldTrustFixedTownFocusSurface = townBasemapRequested
         && fixedTownSurfaceConfigured
-        && (fixedTownSurfacePending || hasFocusedMapTarget);
+        && fixedTownSurfacePending
+        && fixedTownSurfaceViewportEligible !== false;
     const fixedTownSurfaceInViewport = fixedTownSurfaceViewportEligible !== false;
     const resolvedFixedTownSurfaceAvailable = configuredFixedTownSurfaceAvailable
         && (fixedTownSurfaceInViewport || shouldTrustFixedTownFocusSurface)
@@ -2336,12 +2342,19 @@ export default function DirectoryMap({
         && (townMapZoomEligible || townMapZoomUnknown || hasFocusedMapTarget);
     const shouldSuppressTownFocusLiveTiles = townBasemapRequested
         && hasFocusedMapTarget
-        && fixedTownSurfaceConfigured;
+        && fixedTownSurfaceConfigured
+        && (
+            resolvedFixedTownSurfaceAvailable
+            || (fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
+        );
     const shouldSuppressTownLiveTiles = shouldSuppressTownPendingLiveTiles
         || shouldSuppressTownFocusLiveTiles;
     const shouldGateTownRequestedLiveTiles = townBasemapRequested
         && fixedTownSurfaceConfigured
-        && (resolvedFixedTownSurfaceAvailable || fixedTownSurfacePending || hasFocusedMapTarget);
+        && (
+            resolvedFixedTownSurfaceAvailable
+            || (fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
+        );
     const shouldCapTownRequestedLiveTiles = townBasemapRequested
         && fixedTownSurfaceConfigured;
     const shouldRenderFixedTownSurface = effectiveBasemapMode === 'town'

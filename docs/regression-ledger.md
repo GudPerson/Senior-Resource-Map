@@ -2068,6 +2068,23 @@ Active next recovery family:
   `output/town-map-proof/islandwide-uat/production-mock-islandwide-owner.png`.
   No production data, Worker/API, schema, auth, Discover, Shared Map, or
   visibility behavior was changed by this proof.
+- 2026-07-19 blank/partial surface recovery: production owner My Maps showed
+  either an all-gray Detailed surface with pins or a partially detailed,
+  partially gray frame when a selected/focused fixed surface did not safely
+  cover the visible map viewport. The fixed-surface layer now removes its
+  backdrop and attribution whenever it falls back, viewport eligibility now
+  requires the active fixed surface to contain the visible frame as well as at
+  least one intersecting chunk, and the surface selector prefers a surface that
+  fully covers the viewport before falling back to narrower overlaps. The
+  focused recovery checks passed with `node --test
+  client/test/fixedTownSurface.test.js
+  client/test/fixedTownSurfaceIntegration.test.js` 27/27; full client tests
+  passed 438/438; `npm run test:server` passed 451/451; and the
+  production-configured client build passed with the islandwide Default and
+  Gray asset roots and no W01 root marker. The blast radius is limited to owner
+  My Map fixed-surface rendering and DirectoryMap's Detailed fallback gate; no
+  production data, Worker/API, schema, auth, Discover, Shared Map, resource
+  visibility, ranking, filtering, or saved-resource behavior is changed.
 
 ## Recovery workflow
 

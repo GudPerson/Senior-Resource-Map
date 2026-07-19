@@ -7,6 +7,7 @@ import {
     FIXED_TOWN_SURFACE_INDEX_SCHEMA,
     FIXED_TOWN_SURFACE_INDEX_SCHEMA_VERSION,
     FIXED_TOWN_SURFACE_SCHEMA_VERSION,
+    areWsenBoundsContained,
     doWsenBoundsIntersect,
     fetchFixedTownSurfaceManifest,
     fetchFixedTownSurfaceSource,
@@ -385,6 +386,20 @@ test('fixed town surface index selects a viewport plate and resolves per-surface
             { id: 'woodlands-pin-on-broad-overlap', lat: 1.438, lng: 103.796 },
         ]).id,
         'W01',
+    );
+    assert.equal(
+        selectFixedTownSurfaceForViewport(overlapIndex, [103.743, 1.383, 103.85, 1.385], [
+            { id: 'cck-pin', lat: 1.384, lng: 103.744 },
+        ]).id,
+        'N02',
+    );
+    assert.equal(
+        areWsenBoundsContained([103.743, 1.383, 103.745, 1.385], surface.bounds.surface),
+        true,
+    );
+    assert.equal(
+        areWsenBoundsContained([103.743, 1.383, 103.88, 1.385], surface.bounds.surface),
+        false,
     );
 
     const unsafeIndex = structuredClone(index);

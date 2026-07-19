@@ -3,6 +3,7 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 import {
+    areWsenBoundsContained,
     isFixedTownSurfaceZoomEligible,
     resolveFixedTownChunkUrl,
     selectVisibleFixedTownChunks,
@@ -168,10 +169,23 @@ export default function FixedTownSurfaceLayer({
             emitMetrics();
         };
 
+        const removeBackdrop = () => {
+            if (!backdrop) return;
+            map.removeLayer(backdrop);
+            backdrop = null;
+        };
+
+        const removeAttribution = () => {
+            if (!attribution || !map.attributionControl) return;
+            map.attributionControl.removeAttribution(attribution);
+        };
+
         const fallback = (reason, details = {}) => {
             if (failed || disposed) return;
             failed = true;
             removeAllOverlays();
+            removeBackdrop();
+            removeAttribution();
             onFallbackRef.current?.({ reason, ...details });
         };
 
@@ -192,9 +206,16 @@ export default function FixedTownSurfaceLayer({
             }
 
             const viewportBounds = getViewportBounds(map);
+            if (
+                surfaceBounds
+                && !areWsenBoundsContained(viewportBounds, manifest.bounds?.surface || manifest.bounds?.nominal)
+            ) {
+                if (pruneOffscreen) fallback('outside-surface', { zoom });
+                return;
+            }
             const visibleChunks = selectVisibleFixedTownChunks(manifest.chunks, viewportBounds);
             if (!visibleChunks.length) {
-                if (pruneOffscreen) fallback('outside-surface');
+                if (pruneOffscreen) fallback('outside-surface', { zoom });
                 return;
             }
             const visibleDecodedBytes = getDecodedBytes(visibleChunks);
@@ -376,10 +397,8 @@ export default function FixedTownSurfaceLayer({
             map.off('zoomend', handleMapZoomEnd);
             map.off('resize', handleMapResize);
             [...overlays.keys()].forEach(removeOverlay);
-            if (backdrop) map.removeLayer(backdrop);
-            if (attribution && map.attributionControl) {
-                map.attributionControl.removeAttribution(attribution);
-            }
+            removeBackdrop();
+            removeAttribution();
             if (lockMinZoom && Number.isFinite(previousMinZoom)) map.setMinZoom(previousMinZoom);
         };
     }, [assetBaseUrl, fallbackBelowMinZoom, grayscale, lockMinZoom, manifest, map, minZoom]);
