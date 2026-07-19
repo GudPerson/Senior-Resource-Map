@@ -1460,6 +1460,25 @@ Active next recovery family:
   commit, push, Pages/Worker/R2 deployment, schema, auth, permission,
   map-camera, map-data, Detailed-surface, PDF-ledger, Shared Map, or
   production-data change was performed.
+  Release follow-up (2026-07-19): implementation commit `63f945d55` was pushed
+  through `codex/print-badge-readability-balanced-width`, fast-forwarded to
+  `main`, and published to Cloudflare Pages. The final validated production
+  deployment is `https://ab92a278.senior-resource-map.pages.dev`; the custom
+  domain served `assets/index-BBiB-zl5.js`,
+  `assets/MyMapDetailPage-BbcbKnn5.js`, and `assets/index-BvqD4c2b.css` with
+  both islandwide asset roots and no W01-only marker. The Git-triggered build
+  briefly replaced the first validated upload with an older W01-root bundle;
+  republishing the same validated `client/dist` explicitly to `--branch main`
+  restored the correct custom-domain release. Signed-in production UAT on
+  owner map 87 reproduced 15/15 20px/11px compact badges, 15/15 28px/13px
+  regular badges, and the 760px Balanced `Extra wide` map with exact
+  preview/export parity at the 9.6px root font. API health returned OK at
+  `2026-07-19T15:50:29.699Z`, public Discover returned HTTP 200, and no
+  application-origin console error was recorded. Authenticated smoke
+  credentials were unavailable in the release shell, so the credentialed smoke
+  suite was not claimed. No Worker, R2, schema, auth, permission, map-data,
+  Detailed-surface, PDF-ledger, Shared Map, or production-data deployment was
+  performed.
 - Owner Detailed viewport-coverage correction: production tablet UAT showed a
   15-resource owner map staying on Standard at zoom 15 while the current
   viewport was inside the CCK/W01 Detailed surface. The root cause was the

@@ -5,19 +5,31 @@ Last updated: 2026-07-19 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-Vh7cG0dR.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-BIdQcGqi.js`
-- Production Resources chunk: `assets/ResourcesPage-icIbUkDn.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-BaiXyyne.js`
-- Production client CSS: `assets/index-CvQOOpB_.css`
+- Production client bundle: `assets/index-BBiB-zl5.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-3DuGrpc2.js`
+- Production Resources chunk: `assets/ResourcesPage-k0wmttj4.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-BbcbKnn5.js`
+- Production client CSS: `assets/index-BvqD4c2b.css`
 - Validated production Pages deployment:
-  `https://a5028644.senior-resource-map.pages.dev`
+  `https://ab92a278.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-19T02:12:15.343Z`.
+  `2026-07-19T15:50:29.699Z`.
 - Production Worker version:
   `a522111b-b161-419c-8e50-6eb0a4105976`.
+- Owner Print Map badge-readability release commit `63f945d55` is merged,
+  pushed, and deployed on Pages. At the smallest global text setting, signed-in
+  production UAT on owner map 87 measured all 15 compact number badges at
+  20px/11px and all 15 regular badges at 28px/13px on both visible and export
+  surfaces. Balanced `Wide` remains the 680px default and the opt-in `Extra
+  wide` map measures 760px on both surfaces. Focused Print Map coverage passed
+  42/42, full client/source coverage passed 442/442, full server coverage
+  passed 451/451, the exact islandwide production build passed, and the custom
+  domain served the validated bundle above with no application-origin console
+  error. The authenticated smoke credentials were unavailable in the release
+  shell; API health, public Discover, bundle markers, and signed-in owner UAT
+  were used as the post-deploy gate instead.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
   production UAT on 2026-07-18 returned 26 schedules-ready review rows and 0
   schedule-review rows from `TWV-July-Eng.jpeg`. Post-deploy smoke passed 6/6,
@@ -78,12 +90,13 @@ Last updated: 2026-07-19 (Asia/Singapore)
   preview, but the custom domain remained on an older map bundle until the same
   validated `client/dist` was explicitly published to the `main` Pages branch.
   Keep future client releases on the release-checklist production build command
-  or repeat the explicit branch publish after any `main` push that could
-  trigger a Pages rebuild. On 2026-07-19 the Cloudflare Pages production build
-  variables were also updated as Pages project secrets for `VITE_API_URL`,
-  `VITE_TOWN_MAP_PROOF_ENABLED`, `VITE_TOWN_MAP_ASSET_BASE_URL`, and
-  `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL` so Git-triggered production builds use
-  the islandwide asset roots instead of the older W01 roots.
+  and repeat the explicit `--branch main` publish after any `main` push that
+  could trigger a Pages build. The 2026-07-19 Print Map release confirmed that
+  the Git-triggered build still emitted the older W01 roots and briefly replaced
+  the validated upload. The final explicit `main` publish restored the
+  islandwide bundle. Treat the dashboard environment configuration as needing
+  re-verification; do not rely on the Git-triggered build until it produces the
+  islandwide markers itself.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
@@ -93,7 +106,10 @@ Last updated: 2026-07-19 (Asia/Singapore)
 ## Repo and worktree state
 
 - Current worktree branch: `main`, matching pushed `origin/main` at
-  `5c22bc0d2`. The islandwide Detailed-map release is merged from
+  `63f945d55`. The Print Map badge-readability refinement was developed in
+  `/Users/sweetbuns/CareAroundSG-print-map-layout-composer` on
+  `codex/print-badge-readability-balanced-width`, then fast-forwarded to
+  `main`. The islandwide Detailed-map release is merged from
   `/Users/sweetbuns/CareAroundSG-islandwide-detailed-map` on
   `codex/islandwide-detailed-map`; the owner Detailed fixed-surface path now
   resolves a 32-surface islandwide index for both Default and Gray without
