@@ -1,21 +1,21 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-18 (Asia/Singapore)
+Last updated: 2026-07-19 (Asia/Singapore)
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-BUCrPSUa.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-hy0hYqHm.js`
-- Production Resources chunk: `assets/ResourcesPage-C9FvpeZx.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-CFatHxvQ.js`
+- Production client bundle: `assets/index-Vh7cG0dR.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-BIdQcGqi.js`
+- Production Resources chunk: `assets/ResourcesPage-icIbUkDn.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-BaiXyyne.js`
 - Production client CSS: `assets/index-CvQOOpB_.css`
 - Validated production Pages deployment:
-  `https://5f69cb4b.senior-resource-map.pages.dev`
+  `https://a5028644.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-18T15:08:03.543Z`.
+  `2026-07-19T02:12:15.343Z`.
 - Production Worker version:
   `a522111b-b161-419c-8e50-6eb0a4105976`.
 - Production AI collateral import uses `gemini-3.1-flash-lite`. Signed-in
@@ -70,25 +70,31 @@ Last updated: 2026-07-18 (Asia/Singapore)
   review 0`; Zumba Gold had four correct July rows and Board Games had three
   weekly rows. Save reviewed rows was not selected. No client deploy, schema,
   secret, auth, or production data change was included.
+- Islandwide Detailed-map release commit `5c22bc0d2` is merged, pushed, and
+  deployed on the production Pages branch. The custom domain bundle contains
+  the islandwide Default root `https://maps.carearound.sg/v1/islandwide`, the
+  islandwide Gray root `https://maps.carearound.sg/v1/islandwide/gray`, and no
+  W01 asset-root marker. The first direct Pages deploy produced a correct
+  preview, but the custom domain remained on an older map bundle until the same
+  validated `client/dist` was explicitly published to the `main` Pages branch.
+  Keep future client releases on the release-checklist production build command
+  or repeat the explicit branch publish after any `main` push that could
+  trigger a Pages rebuild.
 - Map asset domain: `https://maps.carearound.sg`
   - Default W01: `/v1/w01`
   - Gray W01: `/v1/w01/gray`
-  - Pending islandwide Default: `/v1/islandwide`
-  - Pending islandwide Gray: `/v1/islandwide/gray`
+  - Production islandwide Default: `/v1/islandwide`
+  - Production islandwide Gray: `/v1/islandwide/gray`
 
 ## Repo and worktree state
 
-- Current worktree branch: `main`, matching pushed `origin/main`. The
-  collateral incomplete-schedule recovery is commit `b014c4187`; it is merged,
-  pushed, and deployed. The weekday-range parser implementation remains commit
-  `c4f7529fe`, with its earlier cache contract bump `f7b0dcaa0`. Existing
-  unrelated local artifacts remain untracked.
-- Pending islandwide Detailed-map worktree:
+- Current worktree branch: `main`, matching pushed `origin/main` at
+  `5c22bc0d2`. The islandwide Detailed-map release is merged from
   `/Users/sweetbuns/CareAroundSG-islandwide-detailed-map` on
-  `codex/islandwide-detailed-map`, based on
-  `2430c13e00909e13d13fa1426776fe61e196e8f8`. It expands the owner Detailed
-  fixed-surface path from W01-only to a 32-surface islandwide index for both
-  Default and Gray without bundling the generated chunks into the client.
+  `codex/islandwide-detailed-map`; the owner Detailed fixed-surface path now
+  resolves a 32-surface islandwide index for both Default and Gray without
+  bundling generated chunks into the client. Existing unrelated local artifacts
+  remain untracked.
 - Collateral schedule first-cut branch:
   `codex/collateral-import-schedule-first-cut`; implementation commit
   `0ff5964c7` adds validated structured first-cut schedules to collateral
@@ -98,8 +104,9 @@ Last updated: 2026-07-18 (Asia/Singapore)
   full client/source passed 434/434, the exact production map-enabled client
   build passed, `git diff --check` passed, and production smoke passed 6/6
   after Worker and Pages deployment.
-- Production `main` includes collateral incomplete-schedule recovery commit
-  `b014c4187`, collateral cache contract bump commit `f7b0dcaa0`, collateral
+- Production `main` includes islandwide Detailed-map release commit
+  `5c22bc0d2`, collateral incomplete-schedule recovery commit `b014c4187`,
+  collateral cache contract bump commit `f7b0dcaa0`, collateral
   weekday-range parser commit `c4f7529fe`, collateral
   calendar text-to-schedule recovery commit
   `d1a1718f0`, collateral schedule first-cut commit `0ff5964c7`, Gemini

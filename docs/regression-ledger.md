@@ -2041,8 +2041,29 @@ Active next recovery family:
   `npm run test:server` passed 449/449, and the production-configured client
   build passed with `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide`
   and `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide/gray`.
-  Deploy is pending explicit approval; no production data, Worker/API, schema,
-  auth, Discover, Shared Map, or visibility behavior was changed by this proof.
+  Production release result: implementation branch `codex/islandwide-detailed-map`
+  was merged into `main` and pushed as `5c22bc0d2`. Default R2 upload published
+  32 surfaces and 9,127 chunks under `https://maps.carearound.sg/v1/islandwide`
+  with index SHA-256
+  `d9964919a620e21d7c1ac2b4ca21100fbfb72fdc67d2ddc6259c121fa4aec025`; Gray R2
+  upload published 32 surfaces and 2,741 chunks under
+  `https://maps.carearound.sg/v1/islandwide/gray` with index SHA-256
+  `ab8449946054b2806573915b3a2121ffc86dc87292f23eb64a5e14e6533a9648`. Both
+  public R2 verifiers passed sampled checks with `https://app.carearound.sg`
+  CORS. The production-configured client build produced
+  `assets/index-Vh7cG0dR.js`, `assets/MyMapDetailPage-BaiXyyne.js`, and
+  `assets/index-CvQOOpB_.css`; the custom domain bundle contains both
+  islandwide roots and no W01 root marker. The validated Pages production
+  branch deployment is `https://a5028644.senior-resource-map.pages.dev`. API
+  health returned OK at `2026-07-19T02:12:15.343Z`, and production smoke passed
+  6/6 on 2026-07-19. A non-mutating production browser probe with mocked owner
+  map data but real deployed JS/CSS and real R2 assets loaded islandwide fixed
+  chunks, kept four pins rendered, and made zero live OneMap tile requests
+  after Detailed was active; the only OneMap network item was the known logo SVG
+  block. Probe screenshot:
+  `output/town-map-proof/islandwide-uat/production-mock-islandwide-owner.png`.
+  No production data, Worker/API, schema, auth, Discover, Shared Map, or
+  visibility behavior was changed by this proof.
 
 ## Recovery workflow
 
