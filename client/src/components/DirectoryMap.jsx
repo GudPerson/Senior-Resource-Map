@@ -2384,6 +2384,18 @@ export default function DirectoryMap({
         const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
         return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${markerKeys}`;
     }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
+    const capturePinSignature = useMemo(() => displayPins.map((pin) => {
+        const point = getDirectoryPinMapPoint(pin);
+        return [
+            pin.pinKey || pin.placeKey || '',
+            pin.placeKey || '',
+            point?.lat ?? '',
+            point?.lng ?? '',
+            pin.number || '',
+            placeNumberByKey?.[pin.placeKey] || '',
+            pin.printNumberLabel || '',
+        ].join(':');
+    }).join(';'), [displayPins, placeNumberByKey]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const showRecenterControl = interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
     const hasMapSettingsControl = Boolean(resolvedMapModeControl || showMapStyleControl);
@@ -2406,6 +2418,20 @@ export default function DirectoryMap({
     const handleCaptureMapSettled = useCallback(() => {
         mapSettledRef.current = true;
         tryNotifyReady();
+    }, [tryNotifyReady]);
+    const handleCaptureTilesLoaded = useCallback(() => {
+        tileLoadedRef.current = true;
+        const map = mapInstanceRef.current;
+        if (!map || isLeafletMapCameraMoving(map)) {
+            tryNotifyReady();
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            if (hasReportedReadyRef.current || isLeafletMapCameraMoving(map)) return;
+            mapSettledRef.current = true;
+            tryNotifyReady();
+        });
     }, [tryNotifyReady]);
 
     useEffect(() => {
@@ -2432,7 +2458,7 @@ export default function DirectoryMap({
                 readyTimeoutRef.current = null;
             }
         };
-    }, [anchorPoint, captureReadyKey, clusterMarkerMode, effectiveBasemapMode, mapViewState?.center?.[0], mapViewState?.center?.[1], mapViewState?.zoom, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, pins, placeNumberByKey, resolvedMapHeightPx, resolvedMapStyle, spreadCoincidentPins]);
+    }, [anchorPoint?.lat, anchorPoint?.lng, capturePinSignature, captureReadyKey, clusterMarkerMode, effectiveBasemapMode, mapViewState?.center?.[0], mapViewState?.center?.[1], mapViewState?.zoom, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, resolvedBasemapUrl, resolvedMapHeightPx, resolvedMapStyle, spreadCoincidentPins]);
 
     const handleFixedTownSurfaceMetricsChange = useCallback((metrics) => {
         onFixedTownSurfaceMetricsChange?.(metrics);
@@ -2440,10 +2466,9 @@ export default function DirectoryMap({
         const visibleChunkCount = Number(metrics?.visibleChunkCount || 0);
         const loadedChunkCount = Number(metrics?.loadedChunkCount || 0);
         if (visibleChunkCount > 0 && loadedChunkCount >= visibleChunkCount) {
-            tileLoadedRef.current = true;
-            tryNotifyReady();
+            handleCaptureTilesLoaded();
         }
-    }, [onFixedTownSurfaceMetricsChange, onMapReadyForCapture, tryNotifyReady]);
+    }, [handleCaptureTilesLoaded, onFixedTownSurfaceMetricsChange, onMapReadyForCapture]);
 
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
@@ -2789,10 +2814,7 @@ export default function DirectoryMap({
                             : undefined}
                         maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
                         eventHandlers={onMapReadyForCapture ? {
-                            load: () => {
-                                tileLoadedRef.current = true;
-                                tryNotifyReady();
-                            },
+                            load: handleCaptureTilesLoaded,
                             tileerror: () => {
                                 if (hasReportedReadyRef.current) return;
                                 if (captureErrorRef.current) return;

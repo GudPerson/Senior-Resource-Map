@@ -175,3 +175,13 @@ test('DirectoryMap controlled print hooks stay optional for Shared Maps and exis
     assert.match(printViewSource, /printMapState = null/);
     assert.match(printViewSource, /printMapState=\{useV2OwnerPrint \? printMapState : null\}/);
 });
+
+test('image capture readiness survives harmless map rerenders and cached tile loads', () => {
+    assert.match(directoryMapSource, /const capturePinSignature = useMemo/);
+    assert.match(directoryMapSource, /load: handleCaptureTilesLoaded/);
+    assert.match(directoryMapSource, /mapSettledRef\.current = true;\s+tryNotifyReady\(\);/);
+    assert.doesNotMatch(
+        directoryMapSource,
+        /\[anchorPoint, captureReadyKey[^\]]*\bpins\b[^\]]*\bplaceNumberByKey\b/,
+    );
+});
