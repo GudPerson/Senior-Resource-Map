@@ -127,7 +127,12 @@ test('print label detail choices retain the numbered map key while controlling a
     assert.match(sharedMapDirectorySource, /showPrintResourceRows/);
     assert.match(sharedMapDirectorySource, /PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES/);
     assert.match(sharedMapDirectorySource, /PRINT_MAP_LABEL_DETAIL_FULL/);
-    assert.match(printViewSource, /showPrintNumberBadges=\{useV2OwnerPrint && showPrintLogos\}/);
+    assert.match(printViewSource, /cardBadgeMode=\{useV2OwnerPrint \? \(showPrintLogos \? 'logo' : 'none'\) : 'number'\}/);
+    assert.match(printViewSource, /showPrintNumberBadges=\{useV2OwnerPrint\}/);
+    assert.match(sharedMapDirectorySource, /PRINT_MAP_LABEL_DETAIL_NAMES/);
+    assert.match(sharedMapDirectorySource, /useCompactNamesOnlyCard \? 'rounded-xl px-2 py-1\.5'/);
+    assert.match(sharedMapDirectorySource, /printNumberBadgePosition="end"/);
+    assert.match(sharedMapDirectorySource, /printNumberBadgePosition="start"/);
 });
 
 test('owner print preview exposes controlled zoom, detail, colour, camera, and height controls', () => {

@@ -714,8 +714,8 @@ export default function DirectoryPrintView({
                         mapMaxWidthPx={printLayoutConfig.mapMaxWidthPx}
                     />
                 )}
-                cardBadgeMode={useV2OwnerPrint && showPrintLogos ? 'logo' : 'number'}
-                showPrintNumberBadges={useV2OwnerPrint && showPrintLogos}
+                cardBadgeMode={useV2OwnerPrint ? (showPrintLogos ? 'logo' : 'none') : 'number'}
+                showPrintNumberBadges={useV2OwnerPrint}
                 printLabelDetail={labelDetail}
                 showMapLegend={!useV2OwnerPrint}
             />

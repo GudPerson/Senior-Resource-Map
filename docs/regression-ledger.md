@@ -1410,6 +1410,33 @@ Active next recovery family:
   was rechecked through the signed-in production session. No Worker/API, R2,
   schema, auth, permission, ranking, filtering, visibility, saved-resource,
   PDF-ledger, Shared Map, or production-data deployment was performed.
+- Owner Print Map compact badge refinement (local, 2026-07-19): `Names only`
+  no longer reuses the large number-as-logo tile or waits for Leaflet cluster
+  colour data. It renders one compact circular number badge from the resource
+  group's category colour and removes the resource-logo slot, keeping dense
+  owner maps as short as practical. Owner-print number badges now always face
+  the map: the left label rail places them at each card's end, while the right
+  label rail places them at each card's start. This rule covers both `Balanced`
+  rails and either `Map focus` side; label modes with logos retain their logos,
+  and label modes without logos do not reserve an empty tile. The visible
+  preview and hidden Save-as-image surface share the same badge colour,
+  position, and compact-label markup. Shared Map print retains its existing
+  default card path because the behavior remains gated to owner print.
+  Reproduction: open an owned map with `?view=print`; choose `Names only`; in
+  `Map focus`, switch between Map on left and Map on right and confirm every
+  number sits on the card edge nearest the map with no logo tile; switch to
+  `Balanced` and confirm both rails face the centre map. Focused print/V2/list
+  coverage passed 57/57, full client/source coverage passed 442/442, the exact
+  islandwide Detailed-enabled production build passed with only the existing
+  large-chunk advisory, and `git diff --check` passed. Signed-in local Chrome
+  UAT on owner map 87 measured 15/15 compact badges, zero resource logos in
+  `Names only`, four category colours, correct start/end placement for both
+  Map focus sides, the expected 8 end-side and 7 start-side badges in Balanced,
+  and exact screen/export parity. No application-origin console error was
+  recorded; two unrelated Chrome-extension module errors remained outside the
+  app origin. No commit, push, Pages/Worker/R2 deployment, schema, auth,
+  permission, map-camera, map-data, Detailed-surface, PDF-ledger, Shared Map, or
+  production-data change was performed.
 - Owner Detailed viewport-coverage correction: production tablet UAT showed a
   15-resource owner map staying on Standard at zoom 15 while the current
   viewport was inside the CCK/W01 Detailed surface. The root cause was the

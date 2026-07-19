@@ -9,6 +9,7 @@ import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     PRINT_MAP_LABEL_DETAIL_FULL,
+    PRINT_MAP_LABEL_DETAIL_NAMES,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
     normalizePrintMapLabelDetail,
 } from '../lib/printMapState.js';
@@ -255,14 +256,19 @@ function normalizeBadgeFillColor(value) {
     return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '#0f766e';
 }
 
-function PrintResourceNumberBadge({ value, color = null }) {
+function PrintResourceNumberBadge({ value, color = null, compact = false }) {
     const label = String(value || '').replace(/^#/, '').trim();
     if (!label) return null;
     const badgeColor = normalizeBadgeFillColor(color);
 
     return (
         <span
-            className="ml-1 inline-flex h-7 w-7 min-w-7 flex-shrink-0 items-center justify-center rounded-full border-2 px-0 text-[0.6875rem] font-black leading-none text-white"
+            data-print-number-badge="true"
+            className={`inline-flex flex-shrink-0 items-center justify-center rounded-full border-2 px-0 font-black leading-none text-white ${
+                compact
+                    ? 'h-5 w-5 min-w-5 text-[0.5625rem]'
+                    : 'h-7 w-7 min-w-7 text-[0.6875rem]'
+            }`}
             style={{
                 backgroundColor: badgeColor,
                 borderColor: 'rgba(255,255,255,0.96)',
@@ -1601,6 +1607,7 @@ function DirectoryPlaceGroupCard({
     logoRevealed = false,
     cardBadgeMode = 'number',
     showPrintNumberBadge = false,
+    printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     const { t } = useLocale();
@@ -1610,6 +1617,16 @@ function DirectoryPlaceGroupCard({
     const showPrintAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showPrintResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const useCompactNamesOnlyCard = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES;
+    const showPrimaryCardBadge = cardBadgeMode !== 'none';
+    const printNumberBadge = showPrintNumberBadge ? (
+        <PrintResourceNumberBadge
+            value={group.number}
+            color={group.categoryColor || clusterColorData?.core || null}
+            compact={useCompactNamesOnlyCard}
+        />
+    ) : null;
+    const printNumberBadgeAtStart = printNumberBadgePosition === 'start';
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
@@ -1645,12 +1662,17 @@ function DirectoryPlaceGroupCard({
             return (
                 <section
                     ref={sectionRef}
-                    className={`break-inside-avoid rounded-[18px] border border-slate-200/90 bg-white/90 px-3 py-2.5 transition ${
+                    data-print-label-detail={normalizedPrintLabelDetail}
+                    data-print-number-badge-position={showPrintNumberBadge ? printNumberBadgePosition : undefined}
+                    className={`break-inside-avoid border border-slate-200/90 bg-white/90 transition ${
+                        useCompactNamesOnlyCard ? 'rounded-xl px-2 py-1.5' : 'rounded-[18px] px-3 py-2.5'
+                    } ${
                         highlighted ? printHighlightClassName : ''
                     }`}
                 >
-                    <div className="flex items-start gap-2.5">
-                        {cardBadgeMode === 'logo' ? (
+                    <div className={`flex ${useCompactNamesOnlyCard ? 'items-center gap-1.5' : 'items-start gap-2.5'}`}>
+                        {printNumberBadgeAtStart ? printNumberBadge : null}
+                        {showPrimaryCardBadge && cardBadgeMode === 'logo' ? (
                             <DirectoryPlaceBadge
                                 group={group}
                                 clusterColorData={clusterColorData}
@@ -1658,7 +1680,7 @@ function DirectoryPlaceGroupCard({
                                 badgeMode={cardBadgeMode}
                                 badgeRow={getNestedPlaceBadgeRow(group.nestedPlaces[0])}
                             />
-                        ) : (
+                        ) : showPrimaryCardBadge ? (
                             <div
                                 className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
                                 style={{
@@ -1670,7 +1692,7 @@ function DirectoryPlaceGroupCard({
                             >
                                 {group.number}
                             </div>
-                        )}
+                        ) : null}
                         <div className="min-w-0 flex-1">
                             <div className="space-y-3">
                                 {group.nestedPlaces.map((nestedPlace) => {
@@ -1714,7 +1736,7 @@ function DirectoryPlaceGroupCard({
                                 })}
                             </div>
                         </div>
-                        {showPrintNumberBadge ? <PrintResourceNumberBadge value={group.number} color={group.categoryColor || clusterColorData?.core || null} compact={compactPrint} /> : null}
+                        {!printNumberBadgeAtStart ? printNumberBadge : null}
                     </div>
                 </section>
             );
@@ -1731,12 +1753,17 @@ function DirectoryPlaceGroupCard({
         return (
             <section
                 ref={sectionRef}
-                className={`break-inside-avoid rounded-[18px] border border-slate-200/90 bg-white/90 px-3 py-2.5 transition ${
+                data-print-label-detail={normalizedPrintLabelDetail}
+                data-print-number-badge-position={showPrintNumberBadge ? printNumberBadgePosition : undefined}
+                className={`break-inside-avoid border border-slate-200/90 bg-white/90 transition ${
+                    useCompactNamesOnlyCard ? 'rounded-xl px-2 py-1.5' : 'rounded-[18px] px-3 py-2.5'
+                } ${
                     highlighted ? printHighlightClassName : ''
                 }`}
             >
-                <div className="flex items-start gap-2.5">
-                    {cardBadgeMode === 'logo' ? (
+                <div className={`flex ${useCompactNamesOnlyCard ? 'items-center gap-1.5' : 'items-start gap-2.5'}`}>
+                    {printNumberBadgeAtStart ? printNumberBadge : null}
+                    {showPrimaryCardBadge && cardBadgeMode === 'logo' ? (
                         <DirectoryPlaceBadge
                             group={group}
                             clusterColorData={clusterColorData}
@@ -1744,7 +1771,7 @@ function DirectoryPlaceGroupCard({
                             badgeMode={cardBadgeMode}
                             badgeRow={getGroupBadgeRow(group)}
                         />
-                    ) : (
+                    ) : showPrimaryCardBadge ? (
                         <div
                             className={`flex flex-shrink-0 items-center justify-center rounded-lg font-black text-white ${compactPrint ? 'h-7 w-7' : 'h-8 w-8'}`}
                             style={{
@@ -1756,7 +1783,7 @@ function DirectoryPlaceGroupCard({
                         >
                             {group.number}
                         </div>
-                    )}
+                    ) : null}
                     <div className="min-w-0 flex-1">
                         {printPlaceTitle}
                         {showPrintAddress ? <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -1787,7 +1814,7 @@ function DirectoryPlaceGroupCard({
                             </div>
                         ) : null}
                     </div>
-                    {showPrintNumberBadge ? <PrintResourceNumberBadge value={group.number} color={group.categoryColor || clusterColorData?.core || null} compact={compactPrint} /> : null}
+                    {!printNumberBadgeAtStart ? printNumberBadge : null}
                 </div>
             </section>
         );
@@ -2409,6 +2436,7 @@ function DirectoryGroupColumn({
     cardBadgeMode = 'number',
     showCategoryPills = false,
     showPrintNumberBadges = false,
+    printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     afterContent = null,
 }) {
@@ -2462,6 +2490,7 @@ function DirectoryGroupColumn({
                             logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
                             cardBadgeMode={cardBadgeMode}
                             showPrintNumberBadge={showPrintNumberBadges}
+                            printNumberBadgePosition={printNumberBadgePosition}
                             printLabelDetail={printLabelDetail}
                             sectionRef={(node) => {
                                 if (node) {
@@ -3147,6 +3176,7 @@ export default function SharedMapDirectoryList({
                         cardBadgeMode={cardBadgeMode}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
+                        printNumberBadgePosition="end"
                         printLabelDetail={printLabelDetail}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
                             <DirectoryUnmappedSection
@@ -3200,6 +3230,7 @@ export default function SharedMapDirectoryList({
                                     cardBadgeMode={cardBadgeMode}
                                     showCategoryPills={showCategoryPills}
                                     showPrintNumberBadges={showPrintNumberBadges}
+                                    printNumberBadgePosition="end"
                                     printLabelDetail={printLabelDetail}
                                     afterContent={null}
                                 />
@@ -3244,6 +3275,7 @@ export default function SharedMapDirectoryList({
                         cardBadgeMode={cardBadgeMode}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
+                        printNumberBadgePosition="start"
                         printLabelDetail={printLabelDetail}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
                             <DirectoryUnmappedSection
