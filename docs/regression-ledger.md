@@ -2256,6 +2256,29 @@ Active next recovery family:
   behavior. Focused Print Map/map-list coverage passed 54/54; the
   production-configured islandwide client build passed; and the intended source
   diff passed `git diff --check` before deployment.
+- 2026-07-21 production client-shell blank recovery: the custom domain and
+  latest Pages deployment returned valid HTML, CSS, and
+  `assets/index-oS2P0vLJ.js` with HTTP 200 while an existing Chrome session
+  retained an empty React root. API health remained OK, the same bundle rendered
+  from local preview, and a fresh Chromium production smoke rendered the latest
+  Pages deployment; the immediately previous `assets/index-D0bkSGQg.js`
+  deployment also rendered in the affected Chrome profile. This isolated the
+  incident to a browser-scoped entry-module delivery/cache failure rather than
+  an API, auth, data, or React-source outage. The recovery build forces a fresh
+  hashed entry and loads a separate no-cache `/app-shell-recovery.js` watchdog.
+  If the root is still empty after six seconds, users see a plain-language
+  recovery panel whose explicit action retries only the same-origin hashed entry
+  with a cache-busting query. Reproduce by blocking the first hashed entry
+  request while allowing the watchdog, or by loading a browser profile with a
+  failed cached entry. Acceptance requires normal loads to remain unchanged,
+  blank roots to become actionable instead of staying white, retries to remain
+  same-origin and client-only, and no auth, API, service-worker, map, visibility,
+  ranking, saved-resource, or production-data behavior to change. Focused shell,
+  PWA, and locked Print Map coverage passed 17/17; full server coverage passed
+  451/451; the exact islandwide production build passed and emitted candidate
+  `assets/index-4119_yDJ.js`; and local public-route smoke passed. Full client
+  coverage passed 443/444, with only the unchanged date-sensitive Care Calendar
+  planning-conflict assertion failing outside this shell-only blast radius.
 
 ## Recovery workflow
 
