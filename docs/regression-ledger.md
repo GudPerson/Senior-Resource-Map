@@ -2265,7 +2265,10 @@ Active next recovery family:
   deployment also rendered in the affected Chrome profile. This isolated the
   incident to a browser-scoped entry-module delivery/cache failure rather than
   an API, auth, data, or React-source outage. The recovery build forces a fresh
-  hashed entry and loads a separate no-cache `/app-shell-recovery.js` watchdog.
+  hashed entry and loads a separate versioned
+  `/app-shell-recovery-20260721-1.js` watchdog. The versioned path prevents the
+  custom domain's four-hour static cache rule from pinning future watchdog
+  revisions even though the Pages `_headers` contract also requests no-cache.
   If the root is still empty after six seconds, users see a plain-language
   recovery panel whose explicit action retries only the same-origin hashed entry
   with a cache-busting query. Reproduce by blocking the first hashed entry

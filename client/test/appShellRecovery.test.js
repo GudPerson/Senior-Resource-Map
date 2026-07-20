@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const recoverySource = fs.readFileSync(
-    new URL('../public/app-shell-recovery.js', import.meta.url),
+    new URL('../public/app-shell-recovery-20260721-1.js', import.meta.url),
     'utf8',
 );
 

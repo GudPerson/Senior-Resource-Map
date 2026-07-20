@@ -13,7 +13,7 @@ const offlineSource = fs.readFileSync(new URL('../public/offline.html', import.m
 const headersSource = fs.readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
 const mainSource = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const shellRecoverySource = fs.readFileSync(new URL('../public/app-shell-recovery.js', import.meta.url), 'utf8');
+const shellRecoverySource = fs.readFileSync(new URL('../public/app-shell-recovery-20260721-1.js', import.meta.url), 'utf8');
 
 test('PWA manifest keeps CareAround installable metadata scoped to the app', () => {
     assert.equal(manifest.name, 'CareAround SG');
@@ -108,8 +108,8 @@ test('offline and delivery files are present and service worker updates are not 
 });
 
 test('the independent app-shell recovery keeps a cached entry failure from leaving a blank page', () => {
-    assert.match(indexSource, /<script defer src="\/app-shell-recovery\.js"><\/script>/);
-    assert.match(headersSource, /\/app-shell-recovery\.js[\s\S]*Content-Type: application\/javascript[\s\S]*Cache-Control: no-cache/);
+    assert.match(indexSource, /<script defer src="\/app-shell-recovery-20260721-1\.js"><\/script>/);
+    assert.match(headersSource, /\/app-shell-recovery-20260721-1\.js[\s\S]*Content-Type: application\/javascript[\s\S]*Cache-Control: no-cache/);
     assert.match(mainSource, /carearoundClientShell = '2026-07-21\.1'/);
     assert.match(shellRecoverySource, /RECOVERY_DELAY_MS = 6000/);
     assert.match(shellRecoverySource, /entryUrl\.origin !== window\.location\.origin/);

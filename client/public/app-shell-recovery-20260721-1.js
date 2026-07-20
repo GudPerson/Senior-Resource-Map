@@ -1,3 +1,4 @@
+// Version the independent watchdog path whenever its recovery contract changes.
 (function installCareAroundShellRecovery() {
     const RECOVERY_DELAY_MS = 6000;
     const RETRY_TIMEOUT_MS = 10000;

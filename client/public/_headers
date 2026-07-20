@@ -11,7 +11,7 @@
   Cache-Control: no-cache
   Service-Worker-Allowed: /
 
-/app-shell-recovery.js
+/app-shell-recovery-20260721-1.js
   Content-Type: application/javascript
   Cache-Control: no-cache
 
