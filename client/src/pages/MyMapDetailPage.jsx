@@ -720,6 +720,14 @@ export default function MyMapDetailPage() {
     const sharedDirectoryUrl = useMemo(() => (
         buildDirectoryShareUrl(directory?.share?.sharePath)
     ), [directory?.share?.sharePath]);
+    const ownerInteractiveDirectoryUrl = useMemo(() => {
+        if (!mapId || typeof window === 'undefined') return '';
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('view');
+        const queryString = nextParams.toString();
+        return `${window.location.origin}/my-directory/maps/${encodeURIComponent(mapId)}${queryString ? `?${queryString}` : ''}`;
+    }, [mapId, searchParams]);
+    const printQrDirectoryUrl = sharedDirectoryUrl || ownerInteractiveDirectoryUrl;
     const renderPdfExportButton = useCallback((className = '') => (
         <MyMapPdfExportButton
             directory={directory}
@@ -1541,7 +1549,7 @@ export default function MyMapDetailPage() {
                                 <MapImageExportButton
                                     directory={directory}
                                     activeAnchor={activeAnchor}
-                                    shareUrl={sharedDirectoryUrl}
+                                    shareUrl={printQrDirectoryUrl}
                                     printMapState={printMapState}
                                     fixedTownSurfaceManifest={printTownMapManifestState.manifest}
                                     fixedTownAssetBaseUrl={printTownMapAssetBaseUrl}
@@ -1572,7 +1580,7 @@ export default function MyMapDetailPage() {
                         mode="owner"
                         generatedAt={new Date()}
                         activeAnchor={activeAnchor}
-                        shareUrl={sharedDirectoryUrl}
+                        shareUrl={printQrDirectoryUrl}
                         footerNote={directory.share?.isShared ? t('openSharedLinkForInteractiveMap') : ''}
                         className="w-full"
                         printMapState={printMapState}

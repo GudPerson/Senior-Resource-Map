@@ -163,6 +163,10 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
 test('visible preview and hidden image export consume the same frozen print map state and width', () => {
     assert.match(ownerPageSource, /printMapState=\{printMapState\}/g);
     assert.match(ownerPageSource, /<PrintLayoutControls/);
+    assert.match(ownerPageSource, /ownerInteractiveDirectoryUrl/);
+    assert.match(ownerPageSource, /nextParams\.delete\('view'\)/);
+    assert.match(ownerPageSource, /const printQrDirectoryUrl = sharedDirectoryUrl \|\| ownerInteractiveDirectoryUrl/);
+    assert.match(printViewSource, /mode === 'shared' \|\| mode === 'owner' \|\| directory\?\.share\?\.isShared/);
     assert.match(exportButtonSource, /const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX/);
     assert.match(exportButtonSource, /printMapState=\{printMapState\}/);
     assert.match(exportButtonSource, /printMapCaptureKey/);

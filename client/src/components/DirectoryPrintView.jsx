@@ -514,7 +514,7 @@ export default function DirectoryPrintView({
     const showPrintLogos = labelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || labelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const resolvedShareUrl = shareUrl || buildDirectoryShareUrl(directory?.share?.sharePath);
-    const canShowQr = Boolean(resolvedShareUrl) && (mode === 'shared' || directory?.share?.isShared);
+    const canShowQr = Boolean(resolvedShareUrl) && (mode === 'shared' || mode === 'owner' || directory?.share?.isShared);
     
     // Scaling logic for screen preview
     const sheetRef = useRef(null);

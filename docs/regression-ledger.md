@@ -2246,6 +2246,16 @@ Active next recovery family:
   `translate3d(409px, 333px, 0px)` sat beside Westgate marker 18 at
   `translate3d(403px, 319px, 0px)`, consistent with the corrected OneMap
   position rather than the former eastern pin location.
+- 2026-07-21 Print Map QR recovery: owner Print Map now renders a QR code
+  whenever a usable interactive map URL exists. Public shared URLs remain the
+  first choice; if a private owner map has no shared link yet, the QR falls back
+  to the owner's interactive `/my-directory/maps/:id` URL with `view=print`
+  removed. This restores the locked Print Map acceptance condition that the QR
+  is present without changing map layout, badge coordinates, Detailed map
+  activation, saved-image composition, sharing permissions, or public Shared Map
+  behavior. Focused Print Map/map-list coverage passed 54/54; the
+  production-configured islandwide client build passed; and the intended source
+  diff passed `git diff --check` before deployment.
 
 ## Recovery workflow
 
