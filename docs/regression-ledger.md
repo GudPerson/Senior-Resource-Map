@@ -2282,6 +2282,20 @@ Active next recovery family:
   `assets/index-4119_yDJ.js`; and local public-route smoke passed. Full client
   coverage passed 443/444, with only the unchanged date-sensitive Care Calendar
   planning-conflict assertion failing outside this shell-only blast radius.
+- Release follow-up: implementation commit `223e1da9e` and versioned-watchdog
+  follow-up `22476dafa` are pushed on `main`. The exact validated client build
+  was checked first at `https://0ab33d1a.senior-resource-map.pages.dev` and then
+  explicitly published to the production Pages branch at
+  `https://0897fdc2.senior-resource-map.pages.dev`. The custom domain serves
+  `assets/index-4119_yDJ.js`, shell marker `2026-07-21.1`, the versioned
+  watchdog, both islandwide map roots, and no W01 asset root. The original
+  affected production Chrome tab rendered signed-in Discover after reload with
+  no application-origin console warning or error; extension-origin errors were
+  ignored. API health remained OK. Preview smoke passed 6/6. Production smoke
+  passed all six flows with one initial partner-dashboard timeout recovered by
+  the configured retry, and the partner-dashboard target then passed 1/1 on a
+  clean rerun. No Worker/API, schema, auth, service-worker, map asset,
+  visibility, saved-resource, or production-data change was deployed.
 
 ## Recovery workflow
 
