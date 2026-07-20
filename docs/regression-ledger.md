@@ -2206,6 +2206,32 @@ Active next recovery family:
   My Map fixed-surface rendering and DirectoryMap's Detailed fallback gate; no
   production data, Worker/API, schema, auth, Discover, Shared Map, resource
   visibility, ranking, filtering, or saved-resource behavior is changed.
+- 2026-07-21 Print Map badge numeral visibility: owner Print Map marker badges
+  keep the approved 25.5 px category-coloured circles, fixed geographic
+  coordinates, collision offsets, card linking, and print/export composition,
+  while increasing only the numeral sizes to 11.5 px for one digit, 10 px for
+  two digits, and 8.5 px for longer labels. Reproduce on an owner
+  `?view=print` map with at least 19 mapped resources and compare one- and
+  two-digit pins at normal and reduced global text size. Acceptance requires
+  the numerals to fill the existing badge more clearly without enlarging the
+  marker footprint, moving pins, changing category colours, or affecting
+  interactive My Map, Shared Map, Discover, fixed-surface selection, camera,
+  clustering, or resource data. Focused Print Map/map-list coverage passed
+  59/59; server coverage passed 451/451; the production-configured islandwide
+  client build passed; and the intended source diff passed `git diff --check`
+  before deployment. The full client suite passed 441/442; its only failure was
+  the date-sensitive Care Calendar planning-conflict assertion, which also
+  failed unchanged on the untouched `main` baseline and is outside this map-only
+  blast radius.
+- 2026-07-21 JEM coordinate correction: production Place `place-jem` (hard
+  asset `33590`, postal code `608549`) was updated through the guarded Places
+  workbook importer to the official OneMap position `1.33329334473462`,
+  `103.743278742341` and address `50 Jurong Gateway Road, Singapore 608549`.
+  The import report confirmed exactly 1 total, 0 created, 1 updated, 0 skipped,
+  0 warnings, and 0 errors. The public hard-asset API then returned rounded
+  persisted coordinates `1.3332933`, `103.7432787`, the same stable external
+  key, and the corrected address. No other Place or resource record was
+  modified by the workbook.
 
 ## Recovery workflow
 

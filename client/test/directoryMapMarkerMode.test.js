@@ -118,6 +118,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /class="directory-print-badge-marker__lobe"[\s\S]*pointer-events:auto/);
     assert.match(directoryMapSource, /background:\$\{item\.color\}/);
     assert.match(directoryMapSource, /border:2px solid rgba\(255,255,255,0\.96\)/);
+    assert.match(directoryMapSource, /item\.label\.length > 2 \? 8\.5 : \(item\.label\.length > 1 \? 10 : 11\.5\)/);
     assert.match(directoryMapSource, /offsetX: pin\.printOffsetX \|\| 0/);
     assert.match(directoryMapSource, /offsetY: pin\.printOffsetY \|\| 0/);
     assert.match(directoryMapSource, /spreadCoincidentPins = true/);

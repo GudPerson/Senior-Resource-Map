@@ -412,7 +412,7 @@ function createPrintResourceBadgeMarker(number, {
     const focusGlow = isSelected ? ', 0 0 0 5px rgba(249,115,22,0.24)' : '';
     const lobeHtml = badgeItems.map((item, index) => {
         const lobe = lobeLayout.lobes[index] || { left: 0, top: 0 };
-        const fontSize = item.label.length > 2 ? 7 : (item.label.length > 1 ? 8.5 : 10);
+        const fontSize = item.label.length > 2 ? 8.5 : (item.label.length > 1 ? 10 : 11.5);
         return `
             <span
                 class="directory-print-badge-marker__lobe"
