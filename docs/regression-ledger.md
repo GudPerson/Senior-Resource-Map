@@ -2232,6 +2232,20 @@ Active next recovery family:
   persisted coordinates `1.3332933`, `103.7432787`, the same stable external
   key, and the corrected address. No other Place or resource record was
   modified by the workbook.
+- 2026-07-21 Print Map numeral/JEM production follow-up: commit `ee40be51c`
+  was fast-forwarded to `main`, pushed, and explicitly published from the
+  production-configured islandwide `client/dist` to Cloudflare Pages at
+  `https://cae4f497.senior-resource-map.pages.dev`. The custom domain served
+  `assets/index-D0bkSGQg.js`, `assets/MyMapDetailPage-CO1bYjNy.js`, and shared
+  map chunk `assets/useDirectoryDistanceAnchor-M5NkyD9o.js`; bundle inspection
+  confirmed the Default and Gray `https://maps.carearound.sg/v1/islandwide`
+  roots, no `/v1/w01` root, and the deployed 8.5/10/11.5 px numeral sizing.
+  Production API health returned OK. Signed-in browser smoke on owner Print Map
+  `258` rendered all 19 numbered cards and pins with no console warnings or
+  errors; JEM card 17 showed `50 Jurong Gateway Road`, and its Leaflet marker at
+  `translate3d(409px, 333px, 0px)` sat beside Westgate marker 18 at
+  `translate3d(403px, 319px, 0px)`, consistent with the corrected OneMap
+  position rather than the former eastern pin location.
 
 ## Recovery workflow
 
