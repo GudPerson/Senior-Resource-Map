@@ -84,9 +84,10 @@ Rules:
   API, schema, auth, permission, data, ranking, filtering, visibility, saved
   resource, or production database change was made. The v1 islandwide roots
   remain intact for immediate asset rollback, and W01-only roots remain an
-  emergency fallback. Source changes are still uncommitted and unpushed in the
-  isolated branch; a later Git-triggered production build can overwrite this
-  Pages release until the validated source is reviewed and merged.
+  emergency fallback. Source implementation commit `1334957bc` is merged into
+  `main`. Before that push, the Cloudflare Pages Git build command was changed
+  from the stale W01-only roots to both validated v2 roots, preventing later
+  Git-triggered production builds from silently overwriting this release.
 
 ## Known-good reference seeds
 

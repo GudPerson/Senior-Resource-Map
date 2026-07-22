@@ -45,10 +45,34 @@ Last updated: 2026-07-23 (Asia/Singapore)
   OneMap tile requests after the Detailed and Gray switches. The API health
   endpoint remained OK. Keep the untouched v1 islandwide roots as rollback.
 - No Worker, API, schema, auth, permission, data, ranking, filtering,
-  visibility, saved-resource, or database mutation was included. No git stage,
-  commit, or push has occurred. The validated source remains uncommitted in the
-  isolated worktree, so a future Git-triggered `main` build can overwrite the
-  deployed v2 bundle until this branch is reviewed and merged.
+  visibility, saved-resource, or database mutation was included. Source
+  implementation commit `1334957bc` is merged into `main`. Before the push,
+  the Cloudflare Pages Git build command was updated from the stale W01-only
+  roots to both validated v2 roots, so later `main` builds retain this release.
+
+## Pending Full Map Print Master batch (not in production)
+
+- Isolated worktree:
+  `/Users/sweetbuns/CareAroundSG-print-full-map-configuration`
+- Branch: `codex/print-full-map-configuration`, still based on
+  `2a213b92a9d4a86926de83ad5bc23caab87d9416`.
+- This batch is locally implemented but remains uncommitted, unpushed, and
+  undeployed. It currently has 19 modified tracked files and seven untracked
+  implementation/test/tooling files. None of it was included in the
+  native-scale v2 release.
+- The local work covers the optional Full map page, map and resource pages as
+  separate images, high-resolution capture, a two-page A3 raster PDF, optional
+  resource-pin hiding, automatic Detailed activation, and a print-only
+  100%-retained W01 Print Master PDF proof.
+- The production gap is asset and integration completion, not just a UI switch:
+  the 100%-retained proof exists only for W01 Default locally. Islandwide
+  Default and Gray Print Master collections, immutable R2 roots, full hash and
+  memory verification, integration with the now-released native-scale v2
+  identities, and a fresh rebase/regression pass are still required.
+- Safest continuation: keep this batch isolated, rebase it onto the native-scale
+  v2 `main`, resolve only the overlapping fixed-surface validation/configuration
+  files, then validate and publish Print Master assets separately before any
+  client release. Do not merge its current dirty worktree directly.
 
 ## Current release state
 
