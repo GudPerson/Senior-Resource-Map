@@ -15,6 +15,79 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 native-scale islandwide Detailed-map v2 production release
+
+- Current behavior: the existing fixed-surface Detailed-map architecture now
+  consumes the native-scale islandwide Default and Gray collections from
+  versioned asset roots without changing Leaflet, pins, clustering, card-to-pin
+  focus, notes, sharing, print composition, mobile behavior, or Standard-map
+  defaults. W01 validation accepts both the deployed v1 identity and the exact
+  native-scale v2 identity; all other surfaces continue through the existing
+  collection validation path. The client still falls back to Standard when an
+  index, manifest, chunk, coverage check, or Detailed load fails.
+- Known-good reference: production roots
+  `https://maps.carearound.sg/v2/native-scale-20260722/default` and
+  `https://maps.carearound.sg/v2/native-scale-20260722/gray`, Pages deployment
+  `https://dbbfff9f.senior-resource-map.pages.dev`, custom-domain entry bundle
+  `assets/index-B13hWXr9.js` with SHA-256
+  `8c8a523c4489a1effab6ff3740a164a6cf920ca62f72c45bc13aa739e1953c75`,
+  and isolated source branch `codex/native-scale-map-assets-v2` based on
+  `2a213b92a9d4a86926de83ad5bc23caab87d9416`.
+- Reproduction steps: build with
+  `VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default`
+  and
+  `VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray`;
+  open owner My Map and Print Map; switch Default/Gray; zoom through 14/15;
+  pan across W01, W07, and E02; switch resource focus from cards; exercise
+  reset, resize, notes, mobile, and print; inspect the request log and visible
+  image overlays.
+- Acceptance criteria: both collection indexes contain 32 surfaces and 2,741
+  chunks; source bytes and SHA-256 values match the accepted native-scale
+  edition; old and new W01 manifests pass exact identity checks while tampered
+  W01 identities fail; only viewport-intersecting chunks remain mounted;
+  Default/Gray switching preserves map state; zoom 15 activates Detailed;
+  pins remain geographically aligned; no gaps or seams are visible; Detailed
+  makes no live OneMap basemap-tile requests; Standard fallback, attribution,
+  print, mobile, and existing map interactions remain stable.
+- Verification result: R2 publication and full remote verification completed
+  for every manifest and chunk in both styles. Default matched 32 surfaces, 2,741
+  chunks, 1,475,991,567 bytes, collection version
+  `sg-native-z18-default-dd278b0ec70837c2`, and index SHA-256
+  `8ffcac00d0a3c5d37aad686d8ce750708171239744c16e070cad0926b74694f9`.
+  Gray matched 32 surfaces, 2,741 chunks, 1,318,586,532 bytes, collection
+  version `sg-native-z18-gray-93d7fb92af2690f6`, and index SHA-256
+  `1b4dd3d62784afeb8661558ae7853c36d397094115a61b0d5c8a5240d150de3e`.
+  Strict W01 checks accepted the deployed and native-scale Default/Gray
+  identities and rejected altered source-manifest and chunk-set hashes.
+  Fixed-surface/integration tests passed 27/27, R2 tests passed 6/6, and the
+  broader map/print suite passed 201/201. The exact v2 production-mode client
+  build passed with its existing large-chunk warning, and `git diff --check`
+  passed. Local desktop, mobile, and print Playwright inspection found no
+  console errors, blank gaps, or seams; viewport panning retained eight DOM
+  chunks while replacing two off-screen chunks; the desktop print smoke used
+  eight visible chunks (about 7.7 MiB encoded) and mobile zoom 15 used six
+  (about 5.3 MiB encoded). Detailed requests used only the selected fixed
+  collection; the OneMap logo remained as attribution, not a live basemap tile.
+  The full client/source suite passed 443/444; the sole failure is the existing
+  Care Calendar planning-overlap assertion, which also fails in unchanged
+  `main` and is outside this map-only release. The exact built `index.html` and
+  entry-bundle SHA matched the custom domain after explicit Pages publication.
+  Authenticated production smoke on owner map 87 confirmed Standard at zoom 14,
+  automatic Detailed at zoom 15, active Default/Gray controls, v2 W01 chunks,
+  and zero new live OneMap tile requests after the Detailed and Gray switches.
+  API health remained OK. Browser logging showed no CareAround application or
+  map-asset error; one page-attributed message-channel closure came from an
+  installed browser extension.
+- Release boundary: the 2,741 immutable chunks and 32 manifests per style are
+  published, with each short-cache collection index published last. The client
+  bundle was explicitly deployed to the Pages production branch. No Worker,
+  API, schema, auth, permission, data, ranking, filtering, visibility, saved
+  resource, or production database change was made. The v1 islandwide roots
+  remain intact for immediate asset rollback, and W01-only roots remain an
+  emergency fallback. Source changes are still uncommitted and unpushed in the
+  isolated branch; a later Git-triggered production build can overwrite this
+  Pages release until the validated source is reviewed and merged.
+
 ## Known-good reference seeds
 
 Use these as starting points where applicable:

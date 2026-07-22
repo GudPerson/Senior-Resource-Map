@@ -45,16 +45,46 @@ function normalizeIslandwideStyle(style) {
 }
 
 function getManifestRootForStyle(manifestRoot, style) {
+  const rootName = path.basename(manifestRoot).toLowerCase();
+  if (["default", "gray"].includes(rootName)) {
+    return path.join(path.dirname(manifestRoot), style);
+  }
   return style === "gray" ? path.join(manifestRoot, "gray") : manifestRoot;
 }
 
-function getSourceChunkRootForSurface({ sourceRoot, style, manifest }) {
+function getPrefixForStyle(prefix, style) {
+  if (style !== "gray") return prefix;
+  const normalizedPrefix = normalizeR2Prefix(prefix);
+  const prefixName = path.posix.basename(normalizedPrefix).toLowerCase();
+  if (prefixName === "gray") return normalizedPrefix;
+  if (prefixName === "default") {
+    return path.posix.join(path.posix.dirname(normalizedPrefix), "gray");
+  }
+  return `${normalizedPrefix}/gray`;
+}
+
+async function getSourceChunkRootForSurface({
+  sourceRoot,
+  style,
+  manifest,
+  surface,
+  styleManifestRoot,
+}) {
   const retainedScale = Number(manifest.source?.retainedScale);
   const jpegQuality = Number(manifest.source?.jpegQuality || 95);
   const mapId = manifest.map?.id;
   invariant(mapId, "Surface manifest is missing a map ID");
   invariant(Number.isFinite(retainedScale), `${mapId} retained scale is missing`);
   invariant(Number.isFinite(jpegQuality), `${mapId} JPEG quality is missing`);
+
+  const packagedChunkRoot = path.join(styleManifestRoot, surface.assetBasePath, "chunks");
+  try {
+    const packagedChunkRootStats = await stat(packagedChunkRoot);
+    if (packagedChunkRootStats.isDirectory()) return packagedChunkRoot;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
   const collectionChunkRoot = style === "gray"
     ? path.join(sourceRoot, "output/static-town-maps-grey/assets/chunks")
     : path.join(sourceRoot, "output/static-town-maps/production-pilots/chunks");
@@ -97,11 +127,7 @@ export async function loadIslandwideR2DeploymentPlan({
   prefix = DEFAULT_ISLANDWIDE_R2_PREFIX,
 } = {}) {
   const normalizedStyle = normalizeIslandwideStyle(style);
-  const normalizedPrefix = normalizeR2Prefix(
-    normalizedStyle === "gray" && prefix === DEFAULT_ISLANDWIDE_R2_PREFIX
-      ? `${prefix}/gray`
-      : prefix,
-  );
+  const normalizedPrefix = normalizeR2Prefix(getPrefixForStyle(prefix, normalizedStyle));
   const resolvedManifestRoot = path.resolve(manifestRoot);
   const resolvedStyleManifestRoot = getManifestRootForStyle(resolvedManifestRoot, normalizedStyle);
   const resolvedSourceRoot = path.resolve(sourceRoot);
@@ -130,10 +156,12 @@ export async function loadIslandwideR2DeploymentPlan({
     invariant(manifest.integrity.chunkSetSha256 === surface.chunkSetSha256, `${surface.id} chunk-set hash drifted from index`);
     invariant(manifest.transport.totalBytes === surface.totalBytes, `${surface.id} byte total drifted from index`);
 
-    const chunkRoot = getSourceChunkRootForSurface({
+    const chunkRoot = await getSourceChunkRootForSurface({
       sourceRoot: resolvedSourceRoot,
       style: normalizedStyle,
       manifest,
+      surface,
+      styleManifestRoot: resolvedStyleManifestRoot,
     });
     const sourceFileNames = (await readdir(chunkRoot))
       .filter((fileName) => fileName.endsWith(".jpg"))

@@ -1,21 +1,69 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-19 (Asia/Singapore)
+Last updated: 2026-07-23 (Asia/Singapore)
+
+## Native-scale islandwide Detailed-map v2 release (2026-07-23)
+
+- Isolated worktree:
+  `/Users/sweetbuns/CareAroundSG-native-scale-map-v2`
+- Branch: `codex/native-scale-map-assets-v2`
+- Exact base: `2a213b92a9d4a86926de83ad5bc23caab87d9416`
+  (`origin/main` when the worktree was created).
+- Scope: asset-version upgrade for the existing islandwide fixed-surface
+  Detailed map. It adds strict native-scale W01 identities, native collection
+  source-layout support, v2 environment gates, and operational documentation;
+  it does not redesign the map or change Leaflet, Standard-map defaults, pins,
+  clusters, camera/focus, notes, sharing, print composition, or mobile behavior.
+- Published production roots:
+  - Default:
+    `https://maps.carearound.sg/v2/native-scale-20260722/default`
+  - Gray:
+    `https://maps.carearound.sg/v2/native-scale-20260722/gray`
+- Source validation and full remote R2 verification completed across all 32
+  surfaces and 2,741 chunks per style. Default matched 1,475,991,567 bytes and collection version
+  `sg-native-z18-default-dd278b0ec70837c2`; Gray matched 1,318,586,532 bytes
+  and `sg-native-z18-gray-93d7fb92af2690f6`. Exact native-scale and deployed
+  W01 identities pass; tampered W01 identities fail.
+- Verification completed: fixed-surface/integration 27/27, R2 6/6,
+  broader map/print 201/201, exact v2 production-mode client build, and
+  `git diff --check`. Desktop, mobile, and print browser inspection covered
+  Default/Gray switching, zoom-15 Detailed activation, pin alignment,
+  viewport chunk replacement/unloading, seams/gaps, console errors, failed
+  map requests, and absence of live OneMap basemap-tile traffic in Detailed.
+  Full client/source coverage passed 443/444; its only failure is the existing
+  Care Calendar planning-overlap assertion, which also fails in unchanged
+  `main` and is unrelated to this map release.
+- R2 publication completed in the guarded order: immutable chunks, then the 32
+  manifests, then the short-cache collection index. Cloudflare Pages deployment
+  `https://dbbfff9f.senior-resource-map.pages.dev` published the exact validated
+  client to the production branch. `https://app.carearound.sg` serves
+  `assets/index-B13hWXr9.js`; its SHA-256
+  `8c8a523c4489a1effab6ff3740a164a6cf920ca62f72c45bc13aa739e1953c75`
+  matches local `client/dist` and contains both v2 roots with no v1 marker.
+  Authenticated production smoke on owner map 87 confirmed Standard at zoom 14,
+  automatic Detailed at zoom 15, Default/Gray v2 W01 chunks, and no new live
+  OneMap tile requests after the Detailed and Gray switches. The API health
+  endpoint remained OK. Keep the untouched v1 islandwide roots as rollback.
+- No Worker, API, schema, auth, permission, data, ranking, filtering,
+  visibility, saved-resource, or database mutation was included. No git stage,
+  commit, or push has occurred. The validated source remains uncommitted in the
+  isolated worktree, so a future Git-triggered `main` build can overwrite the
+  deployed v2 bundle until this branch is reviewed and merged.
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-BBiB-zl5.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-3DuGrpc2.js`
-- Production Resources chunk: `assets/ResourcesPage-k0wmttj4.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-BbcbKnn5.js`
+- Production client bundle: `assets/index-B13hWXr9.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-8LcKOOXQ.js`
+- Production Resources chunk: `assets/ResourcesPage-mIbTHv8g.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-DHZhI4Sl.js`
 - Production client CSS: `assets/index-BvqD4c2b.css`
 - Validated production Pages deployment:
-  `https://ab92a278.senior-resource-map.pages.dev`
+  `https://dbbfff9f.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-19T15:50:29.699Z`.
+  `2026-07-22T17:43:56.304Z`.
 - Production Worker version:
   `a522111b-b161-419c-8e50-6eb0a4105976`.
 - Owner Print Map badge-readability release commit `63f945d55` is merged,

@@ -113,6 +113,52 @@ const ACCEPTED_W01_GRAY = Object.freeze({
     }),
 });
 
+const ACCEPTED_W01_NATIVE_SCALE_DEFAULT = Object.freeze({
+    ...ACCEPTED_W01_DEFAULT,
+    generatorVersion: 1,
+    version: 'w01-native-z18-s50-q95-g1-52ccb9f5bd425e29',
+    profileLabel: '50% z19 native-scale residential',
+    chunkCount: 88,
+    chunkBytes: 62502465,
+    chunkSetSha256: '52ccb9f5bd425e2955355c1db5f576305325efa320235c185916612499b584a4',
+    tileGrid: Object.freeze({
+        columns: 156,
+        rows: 118,
+        sourceTiles: 18408,
+        chunkColumns: 11,
+        chunkRows: 8,
+        chunkCount: 88,
+    }),
+    integrity: Object.freeze({
+        sourceManifestSha256: '2434718daaa94c72bd819fe66842f15ee49bfe78eec251c9d229dae6269e4f96',
+        islandwidePlanSha256: '59c44eb4bcbcf86165427cb9d56ae6325d0bb141de8c66fc9efc3cb1ef7204c6',
+    }),
+});
+
+const ACCEPTED_W01_NATIVE_SCALE_GRAY = Object.freeze({
+    ...ACCEPTED_W01_NATIVE_SCALE_DEFAULT,
+    mapStyle: 'gray',
+    sourceStyle: 'Grey',
+    version: 'w01-native-z18-s50-q95-g1-71349606693413ac',
+    chunkBytes: 55468997,
+    chunkSetSha256: '71349606693413acc2d724b5d7662eca126b71bed3fb253bbfe909964abfd548',
+    integrity: Object.freeze({
+        sourceManifestSha256: 'a060970f2067b58528de2473241895e5dcafad3f7c107e92e5386beb48d53eed',
+        islandwidePlanSha256: '59c44eb4bcbcf86165427cb9d56ae6325d0bb141de8c66fc9efc3cb1ef7204c6',
+    }),
+});
+
+const ACCEPTED_W01_MANIFESTS = Object.freeze({
+    default: Object.freeze([
+        ACCEPTED_W01_DEFAULT,
+        ACCEPTED_W01_NATIVE_SCALE_DEFAULT,
+    ]),
+    gray: Object.freeze([
+        ACCEPTED_W01_GRAY,
+        ACCEPTED_W01_NATIVE_SCALE_GRAY,
+    ]),
+});
+
 function isRecord(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -1012,10 +1058,12 @@ function validateFixedTownSurfaceManifestGeneric(manifest) {
 export function validateFixedTownSurfaceManifest(manifest) {
     if (!isRecord(manifest)) return false;
     if (manifest?.map?.id === ACCEPTED_W01_DEFAULT.id) {
-        const accepted = manifest?.map?.style === 'gray'
-            ? ACCEPTED_W01_GRAY
-            : ACCEPTED_W01_DEFAULT;
-        return validateFixedTownSurfaceManifestAgainst(manifest, accepted);
+        const acceptedManifests = manifest?.map?.style === 'gray'
+            ? ACCEPTED_W01_MANIFESTS.gray
+            : ACCEPTED_W01_MANIFESTS.default;
+        return acceptedManifests.some(
+            (accepted) => validateFixedTownSurfaceManifestAgainst(manifest, accepted),
+        );
     }
     return validateFixedTownSurfaceManifestGeneric(manifest);
 }

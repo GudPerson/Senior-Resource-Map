@@ -123,3 +123,58 @@ npm run build:client
 The immediate rollback is a Pages rebuild with every `VITE_TOWN_MAP_*` variable
 omitted, restoring the already verified dormant production behavior without an
 API, schema, data, or R2 mutation.
+
+## Native-scale islandwide asset upgrade
+
+The validated 2026-07-22 collection remains outside the repository at:
+
+```text
+/Users/sweetbuns/Documents/SG MAP/output/native-scale-readability-edition/default
+/Users/sweetbuns/Documents/SG MAP/output/native-scale-readability-edition/gray
+```
+
+Its published immutable R2 roots are:
+
+```text
+https://maps.carearound.sg/v2/native-scale-20260722/default
+https://maps.carearound.sg/v2/native-scale-20260722/gray
+```
+
+The R2 planner detects the collection's packaged `surfaces/<id>/chunks`
+directories. It continues to support the legacy v1 source layout for rollback.
+Validate the full local allowlist and object plan without uploading:
+
+```sh
+node scripts/town-map/upload-islandwide-r2.mjs \
+  --style=default \
+  --manifest-root="/Users/sweetbuns/Documents/SG MAP/output/native-scale-readability-edition/default" \
+  --prefix=v2/native-scale-20260722/default
+
+node scripts/town-map/upload-islandwide-r2.mjs \
+  --style=gray \
+  --manifest-root="/Users/sweetbuns/Documents/SG MAP/output/native-scale-readability-edition/gray" \
+  --prefix=v2/native-scale-20260722/gray
+```
+
+For local UAT, serve both style roots from the read-only collection:
+
+```sh
+TOWN_MAP_MANIFEST_ROOT="/Users/sweetbuns/Documents/SG MAP/output/native-scale-readability-edition/default" \
+TOWN_MAP_R2_PREFIX=v2/native-scale-20260722/default \
+npm run dev:islandwide-town-map-assets
+```
+
+Then build or run the client with the corresponding local bases:
+
+```sh
+VITE_TOWN_MAP_PROOF_ENABLED=true \
+VITE_TOWN_MAP_ASSET_BASE_URL=http://127.0.0.1:4174/v2/native-scale-20260722/default \
+VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=http://127.0.0.1:4174/v2/native-scale-20260722/gray \
+npm run dev:client
+```
+
+Do not upload `source-cache`, QA viewers, or print-master files. The 2026-07-23
+release published all immutable chunks first, then the 32 surface manifests,
+and the short-cache collection index last for both styles. Full remote
+verification matched all 2,741 chunks and source bytes per style. Keep
+`/v1/islandwide` and `/v1/islandwide/gray` intact for immediate rollback.

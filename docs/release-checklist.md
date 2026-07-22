@@ -2,7 +2,7 @@
 
 This checklist is the pre-ship gate for launch-safe changes. Use it together with `docs/regression-ledger.md`; the ledger is the source of truth for locked surfaces and behavior-specific acceptance criteria.
 
-Last refreshed: 2026-06-08 (Asia/Singapore)
+Last refreshed: 2026-07-23 (Asia/Singapore)
 
 ## When To Use This Checklist
 
@@ -80,16 +80,18 @@ bases. The islandwide release line should use the versioned islandwide roots:
 ```bash
 VITE_API_URL=https://api.carearound.sg/api \
 VITE_TOWN_MAP_PROOF_ENABLED=true \
-VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide \
-VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v1/islandwide/gray \
+VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default \
+VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray \
 npm run build:client
 ```
 
 Omitting the `VITE_TOWN_MAP_*` values intentionally compiles Map detail out of
 the owner client and is a rollback action, not the normal production build.
-If a rollback to the previous W01-only release is required, use the ledgered
-W01 roots `/v1/w01` and `/v1/w01/gray` deliberately and record that rollback in
-`docs/regression-ledger.md`.
+For immediate asset rollback, rebuild with the retained islandwide v1 roots
+`/v1/islandwide` and `/v1/islandwide/gray` and set
+`VITE_ALLOW_TOWN_MAP_ROLLBACK=true`. The older W01-only roots `/v1/w01` and
+`/v1/w01/gray` remain the narrower emergency fallback. Record either rollback
+in `docs/regression-ledger.md`.
 
 ## 2. Browser Smoke Gate
 

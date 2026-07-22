@@ -1,9 +1,15 @@
 const rawApiUrl = String(process.env.VITE_API_URL || '').trim();
 const preferredApiUrl = 'https://api.carearound.sg/api';
-const preferredTownMapUrl = 'https://maps.carearound.sg/v1/islandwide';
-const preferredTownMapGrayUrl = 'https://maps.carearound.sg/v1/islandwide/gray';
-const rollbackTownMapUrl = 'https://maps.carearound.sg/v1/w01';
-const rollbackTownMapGrayUrl = 'https://maps.carearound.sg/v1/w01/gray';
+const preferredTownMapUrl = 'https://maps.carearound.sg/v2/native-scale-20260722/default';
+const preferredTownMapGrayUrl = 'https://maps.carearound.sg/v2/native-scale-20260722/gray';
+const rollbackTownMapUrls = Object.freeze([
+    'https://maps.carearound.sg/v1/islandwide',
+    'https://maps.carearound.sg/v1/w01',
+]);
+const rollbackTownMapGrayUrls = Object.freeze([
+    'https://maps.carearound.sg/v1/islandwide/gray',
+    'https://maps.carearound.sg/v1/w01/gray',
+]);
 const allowTownMapRollback = String(process.env.VITE_ALLOW_TOWN_MAP_ROLLBACK || '').trim() === 'true';
 
 function fail(message) {
@@ -68,12 +74,16 @@ if (String(process.env.VITE_TOWN_MAP_PROOF_ENABLED || '').trim() !== 'true') {
 
 const townMapUrl = normalizeUrl(process.env.VITE_TOWN_MAP_ASSET_BASE_URL, 'VITE_TOWN_MAP_ASSET_BASE_URL');
 const townMapGrayUrl = normalizeUrl(process.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL, 'VITE_TOWN_MAP_GRAY_ASSET_BASE_URL');
-const allowedTownMapUrls = allowTownMapRollback ? [preferredTownMapUrl, rollbackTownMapUrl] : [preferredTownMapUrl];
-const allowedTownMapGrayUrls = allowTownMapRollback ? [preferredTownMapGrayUrl, rollbackTownMapGrayUrl] : [preferredTownMapGrayUrl];
+const allowedTownMapUrls = allowTownMapRollback
+    ? [preferredTownMapUrl, ...rollbackTownMapUrls]
+    : [preferredTownMapUrl];
+const allowedTownMapGrayUrls = allowTownMapRollback
+    ? [preferredTownMapGrayUrl, ...rollbackTownMapGrayUrls]
+    : [preferredTownMapGrayUrl];
 
 if (!allowedTownMapUrls.includes(townMapUrl) || !allowedTownMapGrayUrls.includes(townMapGrayUrl)) {
     fail(
         `Production Pages deploys must use the islandwide Detailed map assets (${preferredTownMapUrl} and ${preferredTownMapGrayUrl}). ` +
-        'Set VITE_ALLOW_TOWN_MAP_ROLLBACK=true only for a deliberate W01 rollback.'
+        'Set VITE_ALLOW_TOWN_MAP_ROLLBACK=true only for a deliberate rollback to a retained v1 root.'
     );
 }
