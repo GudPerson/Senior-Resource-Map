@@ -15,6 +15,45 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 owner Print View mobile map-control dock
+
+- Current behavior: owner Print View at phone and tablet widths presents one
+  unscaled control dock above the print preview. The dock uses 48px touch
+  targets for Map settings, zoom out, and zoom in, with an independent 48px
+  zoom-level readout using a 16px bold number. It controls the existing Leaflet
+  map and opens the existing Map appearance sheet, so Standard/Detailed,
+  Default/Gray, camera, and export state remain shared with the preview. The
+  smaller duplicate controls inside the scaled preview are hidden only while
+  this owner-screen dock is active.
+- Known-good reference: implementation commit
+  `c07f7ce2e` on branch `codex/print-mobile-control-dock`, based on production
+  `db5569db18f694c967efc8f749bdfe1d704f70e7`, in isolated worktree
+  `/Users/sweetbuns/CareAroundSG-print-mobile-control-dock`.
+- Reproduction steps: sign in as a map owner; open an owner map with
+  `?view=print` at a phone or tablet width; confirm the dock is not scaled with
+  the print sheet; use both zoom buttons and observe the zoom number; open Map
+  settings and switch Standard/Detailed and Default/Gray. Repeat at desktop
+  width, in Shared Map print, and in saved PNG/PDF output.
+- Acceptance criteria: mobile controls meet the 48px touch-target size with an
+  8px gap and visible focus state; the zoom number remains at least 16px and
+  updates with Leaflet; boundary zoom buttons disable correctly; no scaled
+  duplicate zoom/settings controls remain in owner mobile screen preview; the
+  existing settings sheet and map state are reused; desktop, Shared Maps,
+  Discover, interactive My Map, and saved exports remain unchanged; no API,
+  data, auth, schema, permission, ranking, filtering, or visibility changes.
+- Verification result before deploy: focused map-settings, Print View, and My
+  Map contracts passed 34/34; full client/source coverage passed 452/453 with
+  the sole Care Calendar planning-overlap assertion reproduced on unchanged
+  `main`; server coverage passed 451/451; the exact four-root production client
+  build passed with the existing chunk-size warning; and `git diff --check`
+  passed. A fresh unauthenticated browser reached Login as expected, so
+  authenticated interaction remains the final production UAT check.
+- Blast radius and rollback: one optional `DirectoryMap` portal target, an
+  isolated mobile dock, a touch-size variant for the existing settings trigger,
+  owner Print View screen-preview placement, and a scoped mobile CSS rule only.
+  Revert `c07f7ce2e` to restore the scaled controls without changing any map
+  data, export contents, or established map behavior.
+
 ## 2026-07-23 owner Print View simplification production release
 
 - Current behavior: owner Print View presents one compact layout choice with
