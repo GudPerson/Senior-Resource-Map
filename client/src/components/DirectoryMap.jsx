@@ -1927,8 +1927,8 @@ function DirectoryMapFixedTownResizeContainmentSync({
             if (areWsenBoundsContained(viewportBounds, surfaceBounds)) return;
 
             // A genuine pan outside the selected surface must still use the normal
-            // Standard-map fallback. Only contain a resized viewport whose camera
-            // centre remains within the active Detailed surface.
+            // regular-map fallback. Only contain a resized or settled zoom viewport
+            // whose camera centre remains within the active Detailed surface.
             if (!leafletSurfaceBounds.contains(map.getCenter())) return;
 
             const requiredZoom = Number(map.getBoundsZoom(leafletSurfaceBounds, true));
@@ -1964,11 +1964,11 @@ function DirectoryMapFixedTownResizeContainmentSync({
             frame = window.requestAnimationFrame(keepExpandedViewportInsideSurface);
         };
 
-        map.on('resize', scheduleContainment);
+        map.on('resize moveend zoomend', scheduleContainment);
         scheduleContainment();
         return () => {
             if (frame !== null) window.cancelAnimationFrame(frame);
-            map.off('resize', scheduleContainment);
+            map.off('resize moveend zoomend', scheduleContainment);
         };
     }, [enabled, manifest, map, minZoom]);
 

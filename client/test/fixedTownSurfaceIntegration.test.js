@@ -104,6 +104,8 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /<DirectoryMapFixedTownResizeContainmentSync/);
     assert.match(directoryMapSource, /map\.getBoundsZoom\(leafletSurfaceBounds, true\)/);
     assert.match(directoryMapSource, /map\.unproject\(nextCenter, nextZoom\)/);
+    assert.match(directoryMapSource, /map\.on\('resize moveend zoomend', scheduleContainment\)/);
+    assert.match(directoryMapSource, /map\.off\('resize moveend zoomend', scheduleContainment\)/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);
 });
 
@@ -224,6 +226,8 @@ test('owner mode control keeps layman labels and accessible guidance inside map 
     assert.match(townMapControlSource, /compactStatusMessage/);
     assert.match(ownerPageSource, /Zoom in to level.*Detailed map will turn on automatically/);
     assert.match(ownerPageSource, /Zoom in to.*for Detailed/);
+    assert.match(ownerPageSource, /regular map is still shown/);
+    assert.doesNotMatch(ownerPageSource, /Standard map is still on/);
     assert.doesNotMatch(townMapControlSource, /easy[- ]read/i);
     assert.doesNotMatch(ownerPageSource, /easy[- ]read/i);
     assert.match(townMapControlSource, /aria-disabled=\{!townAvailable\}/);

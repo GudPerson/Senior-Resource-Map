@@ -1096,13 +1096,13 @@ export default function MyMapDetailPage() {
             || !townMapAssetBaseUrl
         ) {
             return {
-                message: 'Detailed map is unavailable. Standard map is still on.',
+                message: 'Detailed map is unavailable. The regular map is still shown.',
                 compactMessage: 'Detailed unavailable',
             };
         }
         if (townMapFallbackReason) {
             return {
-                message: 'Detailed map could not load. Standard map is still on.',
+                message: 'Detailed map could not load. The regular map is still shown.',
                 compactMessage: 'Detailed unavailable',
             };
         }
@@ -1127,14 +1127,14 @@ export default function MyMapDetailPage() {
             ? `Zoom in to ${FIXED_TOWN_SURFACE_MIN_ZOOM} for Detailed.`
             : '';
         const viewportStatusMessage = !townViewportEligible && townMapAvailable
-            ? 'Detailed map is not ready for this area. Standard map is still on here.'
+            ? 'Detailed map is not ready for this area. The regular map is still shown here.'
             : '';
         const compactViewportStatusMessage = viewportStatusMessage
             ? 'Outside Detailed area'
             : '';
         const fallbackStatusMessage = fallbackReason === 'outside-surface'
-            ? 'Detailed map is not ready for this area. Standard map is still on here.'
-            : 'Detailed map could not load. Standard map is still on.';
+            ? 'Detailed map is not ready for this area. The regular map is still shown here.'
+            : 'Detailed map could not load. The regular map is still shown.';
         const statusMessage = fallbackReason
             ? fallbackStatusMessage
             : (viewportStatusMessage || townMapStatus.message);
@@ -1172,8 +1172,8 @@ export default function MyMapDetailPage() {
             || fallbackReason;
         const statusMessage = unavailable
             ? (printTownMapOutsidePointCount > 0
-                ? 'Some places are outside this map area. Standard map is still on.'
-                : 'Detailed map is unavailable. Standard map is still on.')
+                ? 'Some places are outside the detailed map area. The regular map is still shown.'
+                : 'Detailed map is unavailable. The regular map is still shown.')
             : (printTownMapSurfacePending ? 'Preparing the detailed map…' : '');
         const compactStatusMessage = unavailable
             ? statusMessage

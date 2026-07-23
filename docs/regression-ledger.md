@@ -15,6 +15,37 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 owner Print View zoom-15 Detailed recovery
+
+- Current behavior: owner Print View keeps the Detailed fixed-surface map
+  eligible at the displayed zoom step 15 after map-height changes, zooming, or
+  panning settle, as long as the camera centre remains inside the selected
+  fixed surface. If the enlarged print frame needs a tiny adjustment, the
+  print-only containment helper nudges the camera/underlying fractional zoom
+  without changing the layman-facing step. Genuine outside-surface pans still
+  fall back safely to the regular map.
+- Known-good reference: source branch `codex/print-detailed-zoom15-recovery`,
+  based on production `origin/main` at `7a50145d1`.
+- Reproduction steps: sign in as a map owner; open an owner map with
+  `?view=print`; expand the map height or choose a large/full map layout; zoom
+  to displayed step 15; open Map appearance; confirm Detailed is available and
+  either active automatically or selectable. Pan the camera centre outside the
+  active detailed surface and confirm the regular-map fallback remains quiet.
+- Acceptance criteria: Detailed activates automatically at displayed step 15
+  when the map centre is inside the detailed surface; the fallback message no
+  longer refers to `Standard map`; zoom 14 remains regular-map only; zoom 16
+  remains Detailed; pins, QR, print exports, mobile controls, map colour,
+  resource labels, Shared Maps, Discover, API, data, auth, permissions,
+  ranking, filtering, and visibility remain unchanged.
+- Verification result: focused fixed-surface, map-settings, and Print View
+  coverage passed 49/49; server coverage passed 451/451; the exact
+  production-configured client build passed with all four Detailed asset roots
+  and only the existing large-chunk advisory; and `git diff --check` passed.
+- Blast radius and rollback: one owner Print View/DirectoryMap fixed-surface
+  containment listener and user-facing fallback copy. Reverting this row's
+  source changes restores the prior resize-only containment and old message
+  copy without changing map assets, data, or export formats.
+
 ## 2026-07-23 owner Print View PDF label refinement
 
 - Current behavior: owner Print View shows the PDF export action as `Save PDF`
