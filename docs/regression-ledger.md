@@ -15,6 +15,30 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 owner Print View PDF label refinement
+
+- Current behavior: owner Print View shows the PDF export action as `Save PDF`
+  in every supported locale. The exported file remains the existing A3 PDF
+  composition; PNG labels, layout settings, map detail, colour, camera, pins,
+  QR, attribution, and resource pages remain unchanged.
+- Known-good reference: source commit `03caab768` on branch
+  `codex/print-save-pdf-label`, based on production `origin/main` at
+  `b294ea145668f97ad3279a6a0a153f74bdac3dde`.
+- Reproduction steps: sign in as a map owner; open an owner map with
+  `?view=print`; inspect the export toolbar on desktop and mobile; confirm the
+  PDF export action reads `Save PDF`; save the PDF and confirm the existing PDF
+  output path still works.
+- Acceptance criteria: only the PDF action label changes; the PDF export still
+  uses the established A3 output; no Print View layout, detailed-map, resource
+  list, My Map, Shared Map, Discover, API, data, auth, permission, or saved
+  resource behavior changes.
+- Verification result: focused Print View and My Map action-label source
+  coverage passed 20/20, including all-locale `Save PDF` coverage. The exact
+  four-root production client build passed, and `git diff --check` passed.
+- Blast radius and rollback: locale copy and source-contract coverage only.
+  Revert `03caab768` to restore the previous `Save A3 PDF` label without
+  changing export behavior or stored data.
+
 ## 2026-07-23 owner Print View mobile map-control density refinement
 
 - Current behavior: the unscaled owner Print View control dock at phone and
@@ -161,7 +185,8 @@ Rules:
   width appears only for Balanced and Side. The user-facing image-quality,
   page-format, resource-placement, and Print Master controls are removed. The
   two supported downloads are labelled `Save PNG` or `Save 2 PNGs`, depending
-  on layout, and `Save A3 PDF`. Existing map colour, Standard/Detailed,
+  on layout, and `Save PDF`. The PDF continues to use the existing A3 output
+  format. Existing map colour, Standard/Detailed,
   camera, zoom, height, pins, label detail, QR, and attribution behavior remain
   available.
 - Known-good reference: commit
