@@ -39,8 +39,18 @@ Rules:
   contracts passed 25/25; server coverage passed 451/451; the exact
   production-configured client build passed with both native-scale styles and
   both print-master roots, with only the existing large-chunk advisory; and
-  `git diff --check` passed. Authenticated device UAT remains pending. No
-  deployment has occurred.
+  `git diff --check` passed. Release commit `79faeee09` was pushed to the
+  isolated branch and `main`, then explicitly published to Cloudflare Pages
+  production at `https://0d0ac80e.senior-resource-map.pages.dev`. The custom
+  domain serves entry bundle `assets/index-CNANQ2eY.js` with SHA-256
+  `2b3fe604d1831b0e41168bb5158745a8e017b6ab7620f0fb8a44fc7e126866eb`
+  and map bundle `assets/MyMapDetailPage-OwbcAZGz.js` with SHA-256
+  `a4ad3421d7f41ab801fd415b02d59dc01a0d924e6bfaf1200afc8f1594c3ca8b`,
+  exactly matching the validated local build. The deployed lazy map chunk
+  contains the external Print map control markers and compact dock footprint.
+  Production root, Discover, and owner Print View returned HTTP 200, and API
+  health returned OK at `2026-07-23T08:23:31.942Z`. Authenticated device UAT
+  remains pending.
 - Blast radius and rollback: one print-only mobile dock, one isolated
   `compactTouch` settings-trigger variant, one caller, and focused regression
   contracts. Reverting these density classes restores the prior 48px dock
@@ -78,8 +88,15 @@ Rules:
   containment while retaining displayed step 15; server coverage passed
   451/451; the exact production-configured client build passed with both
   native-scale styles and both print-master roots, with only the existing
-  large-chunk advisory; and `git diff --check` passed. Authenticated device UAT
-  and deployment remain pending.
+  large-chunk advisory; and `git diff --check` passed. Release commit
+  `79faeee09` was pushed to the isolated branch and `main`, then explicitly
+  published to Cloudflare Pages production at
+  `https://0d0ac80e.senior-resource-map.pages.dev`. The custom-domain entry and
+  map bundle hashes exactly matched the validated local build; both
+  native-scale styles and both print-master roots were present; production
+  root, Discover, and owner Print View returned HTTP 200; and API health
+  returned OK at `2026-07-23T08:23:31.942Z`. Authenticated maximum-height
+  device UAT remains pending.
 - Blast radius and rollback: one optional `DirectoryMap` resize-containment
   prop enabled only by owner Print View, one internal Leaflet camera sync, and
   focused regression contracts. Removing that prop and sync restores the prior
