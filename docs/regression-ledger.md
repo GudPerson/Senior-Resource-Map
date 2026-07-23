@@ -15,6 +15,31 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 owner My Map action-label refinement
+
+- Current behavior: the owner My Map action bar and mobile controls label the
+  print workspace as `Print View`. The existing notes-ledger PDF action is
+  labelled `Download Map Notes`, while its export content, loading state, error
+  handling, and filename behavior remain unchanged.
+- Known-good reference: source commit `bccf6d910` on isolated branch
+  `codex/my-map-action-labels`, based on production `origin/main` at
+  `88bac7328260c1a9acfbd6cc24b4d029ce7cab31`.
+- Reproduction steps: sign in as a map owner; open an owner My Map on desktop
+  and confirm the header actions; repeat on mobile and open the map controls;
+  select `Download Map Notes` and inspect the generated notes-ledger PDF.
+- Acceptance criteria: desktop and mobile use `Print View`; the notes PDF action
+  uses `Download Map Notes` in every supported locale; the export remains an
+  unfiltered notes ledger; Print View, Shared Maps, maps, notes, API, data,
+  permissions, and all other owner interactions remain unchanged.
+- Verification result: focused My Map PDF and ledger tests passed 15/15; full
+  client/source coverage passed 451/452 with the sole existing Care Calendar
+  planning-overlap failure documented on the unchanged production baseline;
+  server coverage passed 451/451; the exact four-root production client build
+  passed; and `git diff --check` passed.
+- Blast radius and rollback: copy and locale dictionaries only, plus source
+  contract coverage. Revert this refinement commit to restore the previous
+  labels without changing any stored data or export behavior.
+
 ## 2026-07-23 Full Map Print Master v2 production release
 
 - Current behavior: owner Print View retains its stable default composition and
