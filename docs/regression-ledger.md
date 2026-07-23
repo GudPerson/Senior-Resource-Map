@@ -41,13 +41,24 @@ Rules:
   existing settings sheet and map state are reused; desktop, Shared Maps,
   Discover, interactive My Map, and saved exports remain unchanged; no API,
   data, auth, schema, permission, ranking, filtering, or visibility changes.
-- Verification result before deploy: focused map-settings, Print View, and My
+- Verification result: focused map-settings, Print View, and My
   Map contracts passed 34/34; full client/source coverage passed 452/453 with
   the sole Care Calendar planning-overlap assertion reproduced on unchanged
   `main`; server coverage passed 451/451; the exact four-root production client
   build passed with the existing chunk-size warning; and `git diff --check`
   passed. A fresh unauthenticated browser reached Login as expected, so
-  authenticated interaction remains the final production UAT check.
+  authenticated interaction remains the final production UAT check. Release
+  commit `6ae886c87` was fast-forwarded to `main` and explicitly published to
+  Cloudflare Pages at
+  `https://5b2e4226.senior-resource-map.pages.dev`. The custom domain served
+  `assets/index-B9AUus9g.js` with SHA-256
+  `c7c3e115621831bafbdd7734635c65f65ace453630ca15717a24ec064d27419d`
+  and `assets/useDirectoryDistanceAnchor-BGOm97VB.js` with SHA-256
+  `46696b926c5e27605670aa0f288031d94a03e03827fc69a1f0d7e6adfc2072b0`,
+  exactly matching the local production build. The deployed map chunk contains
+  the `Print map controls` and `data-print-mobile-map-controls` markers.
+  Production root, `/discover`, and owner Print View routes returned HTTP 200,
+  and API health returned OK at `2026-07-23T07:40:02.195Z`.
 - Blast radius and rollback: one optional `DirectoryMap` portal target, an
   isolated mobile dock, a touch-size variant for the existing settings trigger,
   owner Print View screen-preview placement, and a scoped mobile CSS rule only.
