@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     composePrintMasterBasemap,
+    fetchPrintMasterChunkResponse,
     getPrintMasterViewportWorldBounds,
     projectLonLatToWorldPixel,
     resolveFixedTownSurfaceId,
@@ -105,4 +106,35 @@ test('print master composition loads and releases visible chunks sequentially', 
     assert.equal(canvas.height, 1600);
     assert.deepEqual(drawCalls, ['left', 'right']);
     assert.deepEqual(events, ['load:left', 'close:left', 'load:right', 'close:right']);
+});
+
+test('print master retries transient chunk fetch failures without hiding hard 4xx errors', async () => {
+    const waits = [];
+    const requestCacheModes = [];
+    const transientStatuses = [new TypeError('Failed to fetch'), { ok: false, status: 503 }, { ok: true, status: 200 }];
+    const recovered = await fetchPrintMasterChunkResponse(
+        'https://maps.example/print/default/chunk.jpg',
+        async (_url, options) => {
+            requestCacheModes.push(options.cache);
+            const next = transientStatuses.shift();
+            if (next instanceof Error) throw next;
+            return next;
+        },
+        { waitImpl: async (delayMs) => waits.push(delayMs) },
+    );
+    assert.equal(recovered.status, 200);
+    assert.deepEqual(waits, [500, 1000]);
+    assert.deepEqual(requestCacheModes, ['force-cache', 'reload', 'reload']);
+
+    let hardFailureAttempts = 0;
+    const notFound = await fetchPrintMasterChunkResponse(
+        'https://maps.example/print/default/missing.jpg',
+        async () => {
+            hardFailureAttempts += 1;
+            return { ok: false, status: 404 };
+        },
+        { waitImpl: async () => assert.fail('404 responses must not be retried') },
+    );
+    assert.equal(notFound.status, 404);
+    assert.equal(hardFailureAttempts, 1);
 });

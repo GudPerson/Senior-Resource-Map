@@ -4,6 +4,8 @@ const PRINT_MASTER_SCHEMAS = new Set([
 ]);
 
 const WEB_MERCATOR_TILE_SIZE = 256;
+const PRINT_MASTER_CHUNK_FETCH_ATTEMPTS = 5;
+const PRINT_MASTER_CHUNK_RETRY_DELAYS_MS = [500, 1000, 2000, 4000];
 
 function isFiniteNumber(value) {
     return Number.isFinite(Number(value));
@@ -143,8 +145,44 @@ export function selectPrintMasterChunks(chunks = [], viewportWorldBounds = []) {
         ));
 }
 
+function shouldRetryChunkResponse(response) {
+    return response?.status === 408 || response?.status === 429 || response?.status >= 500;
+}
+
+export async function fetchPrintMasterChunkResponse(
+    url,
+    fetchImpl = fetch,
+    {
+        attempts = PRINT_MASTER_CHUNK_FETCH_ATTEMPTS,
+        waitImpl = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs)),
+    } = {},
+) {
+    const maxAttempts = Math.max(1, Math.round(Number(attempts) || 1));
+    let lastError = null;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        try {
+            const response = await fetchImpl(url, {
+                cache: attempt === 0 ? 'force-cache' : 'reload',
+                mode: 'cors',
+            });
+            if (response.ok || !shouldRetryChunkResponse(response) || attempt === maxAttempts - 1) {
+                return response;
+            }
+            lastError = new Error(`Print master map section failed to load (${response.status}).`);
+        } catch (error) {
+            lastError = error;
+            if (attempt === maxAttempts - 1) throw error;
+        }
+        const retryDelay = PRINT_MASTER_CHUNK_RETRY_DELAYS_MS[
+            Math.min(attempt, PRINT_MASTER_CHUNK_RETRY_DELAYS_MS.length - 1)
+        ];
+        await waitImpl(retryDelay);
+    }
+    throw lastError || new Error('Print master map section failed to load.');
+}
+
 async function defaultLoadChunkImage(url, fetchImpl) {
-    const response = await fetchImpl(url, { cache: 'force-cache', mode: 'cors' });
+    const response = await fetchPrintMasterChunkResponse(url, fetchImpl);
     if (!response.ok) throw new Error(`Print master map section failed to load (${response.status}).`);
     const blob = await response.blob();
     if (typeof createImageBitmap === 'function') {
