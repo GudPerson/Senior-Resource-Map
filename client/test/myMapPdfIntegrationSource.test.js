@@ -24,9 +24,15 @@ test('My Map detail page lazy-loads print-only image export code', () => {
     assert.doesNotMatch(pageSource, /^\s*import\s+MapImageExportButton\s+from\s+['"]\.\.\/components\/MapImageExportButton\.jsx['"]/m);
 });
 
-test('My Map PDF labels are available in all locale dictionaries', () => {
-    for (const key of ['downloadPdf', 'preparingPdf', 'failedDownloadPdf']) {
+test('My Map notes PDF labels are available in all locale dictionaries', () => {
+    for (const key of ['downloadMapNotes', 'preparingPdf', 'failedDownloadPdf']) {
         const occurrences = [...i18nSource.matchAll(new RegExp(`${key}:`, 'g'))].length;
         assert.equal(occurrences, 4, `${key} should exist once per locale`);
     }
+});
+
+test('My Map owner actions use the concise Print View label on desktop and mobile', () => {
+    const occurrences = [...pageSource.matchAll(/t\('print'\)/g)].length;
+    assert.equal(occurrences, 2);
+    assert.doesNotMatch(pageSource, /t\('printFriendlyView'\)/);
 });

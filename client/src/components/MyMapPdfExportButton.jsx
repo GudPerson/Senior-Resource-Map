@@ -56,7 +56,7 @@ export default function MyMapPdfExportButton({
                 className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
             >
                 <FileDown size={16} />
-                {exporting ? t('preparingPdf') : t('downloadPdf')}
+                {exporting ? t('preparingPdf') : t('downloadMapNotes')}
             </button>
             {error ? (
                 <p className="text-sm font-medium text-red-600">{error}</p>

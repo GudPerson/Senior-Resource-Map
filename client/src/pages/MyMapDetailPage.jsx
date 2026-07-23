@@ -276,7 +276,7 @@ function MyMapMobileControls({
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Printer size={16} />
-                                    {t('printFriendlyView')}
+                                    {t('print')}
                                 </button>
                                 {renderPdfExportButton?.('h-12 w-full justify-center px-4 text-sm')}
                                 <button type="button" onClick={() => runDrawerAction(onOpenShare)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
