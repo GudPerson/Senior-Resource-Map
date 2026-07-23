@@ -1186,3 +1186,9 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+@media (max-width: 1023px) {
+  [data-external-mobile-map-controls="true"] .leaflet-control-zoom,
+  [data-external-mobile-map-controls="true"] [data-map-settings-control="true"] {
+    display: none !important;
+  }
+}

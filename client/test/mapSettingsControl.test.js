@@ -26,6 +26,14 @@ const globalStylesSource = await readFile(
     new URL('../src/index.css', import.meta.url),
     'utf8',
 );
+const mobilePrintControlsSource = await readFile(
+    new URL('../src/components/DirectoryMapMobileControlDock.jsx', import.meta.url),
+    'utf8',
+);
+const printViewSource = await readFile(
+    new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
+    'utf8',
+);
 
 test('one shared Map settings trigger opens responsive map appearance controls', () => {
     assert.match(mapSettingsSource, /data-map-settings-control="true"/);
@@ -86,4 +94,21 @@ test('Directory Map and Discover share settings placement while preserving map i
     assert.match(discoveryMapSource, /<MapContainer/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);
     assert.match(discoveryMapSource, /key=\{`carearound-discover:\$\{mapStyle\}`\}/);
+});
+
+test('mobile owner Print View uses an unscaled accessible map-control dock', () => {
+    assert.match(printViewSource, /data-print-mobile-map-control-target="true"/);
+    assert.match(printViewSource, /mobileControlPortalTarget=\{useV2OwnerPrint && variant === 'screen'/);
+    assert.match(directoryMapSource, /data-external-mobile-map-controls=\{mobileControlPortalTarget \? 'true' : undefined\}/);
+    assert.match(directoryMapSource, /<DirectoryMapMobileControlDock/);
+    assert.match(mobilePrintControlsSource, /createPortal/);
+    assert.match(mobilePrintControlsSource, /data-print-mobile-map-controls="true"/);
+    assert.match(mobilePrintControlsSource, /aria-label="Print map controls"/);
+    assert.match(mobilePrintControlsSource, /aria-label="Zoom out"/);
+    assert.match(mobilePrintControlsSource, /aria-label="Zoom in"/);
+    assert.match(mobilePrintControlsSource, /h-12 w-12/);
+    assert.match(mobilePrintControlsSource, /text-base font-black tabular-nums/);
+    assert.match(mapSettingsSource, /triggerSize = 'compact'/);
+    assert.match(mapSettingsSource, /triggerSize === 'touch'/);
+    assert.match(globalStylesSource, /\[data-external-mobile-map-controls="true"\] \.leaflet-control-zoom/);
 });

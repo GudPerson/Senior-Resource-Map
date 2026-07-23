@@ -386,6 +386,7 @@ function PrintDirectoryMap({
     previewScale = 1,
     mapMaxWidthPx = 680,
     showResourcePins = true,
+    mobileControlPortalTarget = null,
 }) {
     const { t } = useLocale();
     const handleControlledMapStyleChange = useCallback((mapStyle) => {
@@ -479,6 +480,7 @@ function PrintDirectoryMap({
                     : null}
                 fixedTownSurfaceFallbackScope="local"
                 onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
+                mobileControlPortalTarget={mobileControlPortalTarget}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}
             />
@@ -565,6 +567,10 @@ export default function DirectoryPrintView({
     const sheetRef = useRef(null);
     const [scale, setScale] = useState(1);
     const [previewFrameHeight, setPreviewFrameHeight] = useState(null);
+    const [mobileControlPortalTarget, setMobileControlPortalTarget] = useState(null);
+    const mobileControlPortalRef = useCallback((node) => {
+        setMobileControlPortalTarget(node);
+    }, []);
     
     useEffect(() => {
         if (variant !== 'screen') return undefined;
@@ -754,6 +760,9 @@ export default function DirectoryPrintView({
                         previewScale={variant === 'screen' ? scale : 1}
                         mapMaxWidthPx={printLayoutConfig.mapMaxWidthPx}
                         showResourcePins={showResourcePins}
+                        mobileControlPortalTarget={useV2OwnerPrint && variant === 'screen'
+                            ? mobileControlPortalTarget
+                            : null}
                     />
                 )}
                 cardBadgeMode={useV2OwnerPrint ? (showPrintLogos ? 'logo' : 'none') : 'number'}
@@ -780,6 +789,13 @@ export default function DirectoryPrintView({
 
     return (
         <div className={`w-full overflow-x-hidden overflow-y-visible py-4 ${className}`} data-print-map-variant={variant}>
+            {useV2OwnerPrint ? (
+                <div
+                    ref={mobileControlPortalRef}
+                    className="mb-3 flex min-h-16 w-full items-center justify-end px-4 lg:hidden"
+                    data-print-mobile-map-control-target="true"
+                />
+            ) : null}
             <div
                 className="relative mx-auto"
                 style={variant === 'screen' ? {

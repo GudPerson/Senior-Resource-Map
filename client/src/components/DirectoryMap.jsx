@@ -9,6 +9,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import OneMapBadge from './OneMapBadge.jsx';
 import MapSettingsControl from './MapSettingsControl.jsx';
 import DirectoryMapZoomLevelControl from './DirectoryMapZoomLevelControl.jsx';
+import DirectoryMapMobileControlDock from './DirectoryMapMobileControlDock.jsx';
 import FixedTownSurfaceLayer, { FIXED_TOWN_SURFACE_MIN_ZOOM } from './FixedTownSurfaceLayer.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../contexts/MapStyleContext.jsx';
@@ -2232,6 +2233,7 @@ export default function DirectoryMap({
     mapViewState = null,
     onMapViewStateChange = null,
     captureReadyKey = '',
+    mobileControlPortalTarget = null,
 }) {
     const { mapStyle } = useMapStyle();
     const hasReportedReadyRef = useRef(false);
@@ -2800,6 +2802,7 @@ export default function DirectoryMap({
             data-map-controlled-zoom={Number.isFinite(Number(mapViewState?.zoom)) ? Number(mapViewState.zoom) : undefined}
             data-map-basemap-mode={effectiveBasemapMode}
             data-print-export-map-frame={onMapReadyForCapture ? 'true' : undefined}
+            data-external-mobile-map-controls={mobileControlPortalTarget ? 'true' : undefined}
         >
             <MapContainer
                 center={DEFAULT_CENTER}
@@ -2852,6 +2855,20 @@ export default function DirectoryMap({
                     minZoom={resolvedMapMinZoom}
                     minimumZoomCenter={minimumZoomCenter}
                     lockAtMinimumZoom={lockMinimumZoomCamera}
+                />
+                <DirectoryMapMobileControlDock
+                    target={mobileControlPortalTarget}
+                    showZoomControls={showZoomControl}
+                    settingsControl={hasMapSettingsControl ? (
+                        <MapSettingsControl
+                            mapModeControl={resolvedMapModeControl}
+                            mapStyleDescription={mapStyleDescription}
+                            mapStyleValue={mapStyleOverride}
+                            onMapStyleChange={onMapStyleOverrideChange}
+                            showMapStyleControl={showMapStyleControl}
+                            triggerSize="touch"
+                        />
+                    ) : null}
                 />
                 {shouldRenderFixedTownSurface ? (
                     <FixedTownSurfaceLayer
