@@ -46,6 +46,7 @@ const exportPanelSource = readFileSync(new URL('../src/components/MapDirectoryEx
 const ownerPageSource = readFileSync(new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url), 'utf8');
 const directoryMapSource = readFileSync(new URL('../src/components/DirectoryMap.jsx', import.meta.url), 'utf8');
 const sharedMapDirectorySource = readFileSync(new URL('../src/components/SharedMapDirectoryList.jsx', import.meta.url), 'utf8');
+const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const rootPackage = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
 test('owner print map starts from a safe baseline while carrying only the global colour preference', () => {
@@ -343,6 +344,14 @@ test('DirectoryMap controlled print hooks stay optional for Shared Maps and exis
     assert.match(directoryMapSource, /if \(!showPins\) return null/);
     assert.match(printViewSource, /printMapState = null/);
     assert.match(printViewSource, /printMapState=\{useV2OwnerPrint \? printMapState : null\}/);
+});
+
+test('owner print PDF action uses concise PDF wording in every locale', () => {
+    assert.match(i18nSource, /savePrintPdf: 'Save PDF'/);
+    assert.match(i18nSource, /savePrintPdf: '保存 PDF'/);
+    assert.match(i18nSource, /savePrintPdf: 'Simpan PDF'/);
+    assert.match(i18nSource, /savePrintPdf: 'PDF ஐ சேமி'/);
+    assert.doesNotMatch(i18nSource, /savePrintPdf: '[^']*A3[^']*'/);
 });
 
 test('image capture readiness survives harmless map rerenders and cached tile loads', () => {
