@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-07-23 Full Map Print Master v2 release candidate
+## 2026-07-23 Full Map Print Master v2 production release
 
 - Current behavior: owner Print View retains its stable default composition and
   can opt into a Full map page with resources on a separate page. Users can
@@ -28,8 +28,9 @@ Rules:
   existing exports remain available.
 - Known-good reference: source commits `2aab61303` and `2e64276e4` on isolated
   branch `codex/print-master-v2-integration`, based on production baseline
-  `6814dad8785f0981fce01e748cb88a37150ee91d`; validated Pages release candidate
-  `https://131eb433.senior-resource-map.pages.dev`; Default Print Master root
+  `6814dad8785f0981fce01e748cb88a37150ee91d`; release commit `e4d52dd03` on
+  `main`; validated Pages production deployment
+  `https://9bf1306f.senior-resource-map.pages.dev`; Default Print Master root
   `https://maps.carearound.sg/v2/print-master-100-20260723/default` version
   `print-master-100-8523e7775f2589f3`; and Gray root
   `https://maps.carearound.sg/v2/print-master-100-20260723/gray` version
@@ -62,11 +63,17 @@ Rules:
   2,400 x 1,600 canvases with no visible gaps or seams; Gray took about 24.6
   seconds. Authenticated production UAT confirmed automatic Detailed, Gray,
   Full map + next-page resources, High resolution, pin hide/show, QR, and a
-  complete 7,660,133-byte two-page A3 landscape PDF. The release-candidate
+  complete 7,660,133-byte two-page A3 landscape PDF. The production
   custom-domain entry and lazy chunks match local `client/dist` byte for byte.
   A later dynamic-import failure was isolated to a long-running high-memory
   Chrome process because it affected an extension module too and direct module
   navigation returned valid JavaScript; no broad client workaround was added.
+  After explicit Pages publication, public Discover returned 200, API health
+  returned OK, all four collection manifests returned 200 with 32 surfaces,
+  and the public Playwright smoke passed. Its five authenticated cases stopped
+  before application assertions because the release shell had no smoke
+  credentials; earlier signed-in production UAT supplies the authenticated
+  evidence without introducing a production mutation.
 - Blast radius and rollback: this is owner Print View and optional export
   tooling plus two external asset roots. It does not alter Leaflet, Standard
   defaults, My Map interactions, Discover, Shared Maps, Worker/API, schema,

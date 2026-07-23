@@ -50,7 +50,7 @@ Last updated: 2026-07-23 (Asia/Singapore)
   the Cloudflare Pages Git build command was updated from the stale W01-only
   roots to both validated v2 roots, so later `main` builds retain this release.
 
-## Full Map Print Master v2 release candidate (2026-07-23)
+## Full Map Print Master v2 production release (2026-07-23)
 
 - Isolated worktree:
   `/Users/sweetbuns/CareAroundSG-print-master-v2`
@@ -100,8 +100,8 @@ Last updated: 2026-07-23 (Asia/Singapore)
   `git diff --check`. Full client/source coverage passed 449/450; its sole Care
   Calendar planning-overlap failure reproduces on the released baseline and is
   outside this map/export release.
-- Validated release-candidate Pages deployment:
-  `https://131eb433.senior-resource-map.pages.dev`. The custom domain serves
+- Validated production Pages deployment:
+  `https://9bf1306f.senior-resource-map.pages.dev`. The custom domain serves
   `assets/index-Bj6IIhs7.js`, `assets/MyMapDetailPage-D3kaxG9r.js`, and
   `assets/MapImageExportButton-DC5me1s8.js`; their content and SHA-256 values
   match the validated local `client/dist`.
@@ -117,21 +117,34 @@ Last updated: 2026-07-23 (Asia/Singapore)
   Detailed roots remain
   `/v2/native-scale-20260722/default` and `/v2/native-scale-20260722/gray`, and
   all immutable Print Master objects may remain in R2 without affecting users.
+- Release commit `e4d52dd03` is on both
+  `codex/print-master-v2-integration` and `main`. The exact validated
+  `client/dist` was explicitly published to the Pages production branch after
+  promotion. Post-deploy checks confirmed the custom-domain entry, My Map
+  route, export chunk, and CSS are byte-for-byte local matches; public Discover
+  and the API health endpoint returned 200/OK; all four interactive/Print
+  Master collection manifests returned 200, 32 surfaces, JSON, and the Print
+  Master manifest allowed the production app origin. The public production
+  Playwright smoke passed. Its five authenticated cases were not runnable in
+  the release shell because smoke credentials were absent; earlier signed-in
+  production UAT and the non-mutating compositor/export evidence above remain
+  the authenticated release evidence.
 
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-B13hWXr9.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-8LcKOOXQ.js`
-- Production Resources chunk: `assets/ResourcesPage-mIbTHv8g.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-DHZhI4Sl.js`
-- Production client CSS: `assets/index-BvqD4c2b.css`
+- Production client bundle: `assets/index-Bj6IIhs7.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-DVenqBnM.js`
+- Production Resources chunk: `assets/ResourcesPage-DlWrhP0T.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-D3kaxG9r.js`
+- Production map-export chunk: `assets/MapImageExportButton-DC5me1s8.js`
+- Production client CSS: `assets/index-CKaRyKXy.css`
 - Validated production Pages deployment:
-  `https://dbbfff9f.senior-resource-map.pages.dev`
+  `https://9bf1306f.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-22T17:43:56.304Z`.
+  `2026-07-23T03:20:48.716Z`.
 - Production Worker version:
   `a522111b-b161-419c-8e50-6eb0a4105976`.
 - Owner Print Map badge-readability release commit `63f945d55` is merged,
