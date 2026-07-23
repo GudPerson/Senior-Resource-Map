@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-07-23 owner Print View simplification local release candidate
+## 2026-07-23 owner Print View simplification production release
 
 - Current behavior: owner Print View presents one compact layout choice with
   `Balanced`, `Side map`, and `Full map`. Balanced and Side retain their
@@ -27,10 +27,11 @@ Rules:
   on layout, and `Save A3 PDF`. Existing map colour, Standard/Detailed,
   camera, zoom, height, pins, label detail, QR, and attribution behavior remain
   available.
-- Known-good reference: local branch `codex/print-view-simplification` in
-  isolated worktree `/Users/sweetbuns/CareAroundSG-print-view-simplification`,
-  based on production `origin/main` at
-  `3471fcbd1bad71a3e0e4407e03944f50e31eb3de`.
+- Known-good reference: commit
+  `95daffb7cb29493c8ac698f5da64070595d6915b`, developed on branch
+  `codex/print-view-simplification` in isolated worktree
+  `/Users/sweetbuns/CareAroundSG-print-view-simplification`, fast-forwarded to
+  `main`, pushed, and explicitly published to Cloudflare Pages.
 - Reproduction steps: sign in as a map owner; open an owner map with
   `?view=print`; open Print layout on desktop and a phone-width viewport; switch
   among Balanced, Side map, and Full map; confirm map position and width appear
@@ -51,8 +52,18 @@ Rules:
   production client build passed after a clean dependency install. Mobile
   source contracts cover two-column toolbar wrapping, 44px targets, touch
   manipulation, compact three-mode controls, and overflow containment. The
-  local UAT route and its proxied API health endpoint both returned HTTP 200;
-  signed-in interaction checks and production deployment remain pending.
+  local UAT route and its proxied API health endpoint both returned HTTP 200.
+  The validated Pages deployment is
+  `https://86a6f8e0.senior-resource-map.pages.dev`; the custom domain served
+  `assets/index-BnfI7_CR.js` with SHA-256
+  `a35a26b13513b90ddbd79a54cfdcc6ebac66c2280c2fe5da20538ffaa371e23b`,
+  exactly matching the local production build. Production bundle inspection
+  confirmed the four versioned native-scale and retained Print Master asset
+  roots, the new PNG/A3/layout labels, and no Print Master action. `/discover`
+  and the owner Print View route returned HTTP 200, and API health returned OK
+  at `2026-07-23T07:02:59.164Z`. Authenticated production interaction UAT was
+  not automated because smoke credentials were unavailable in the release
+  shell; the user-facing owner flow remains the final production UAT check.
 - Blast radius and rollback: owner Print View state normalization, controls,
   export-action UI, toolbar responsiveness, locale copy, and regression
   contracts only. Print Master source modules and immutable asset roots remain
