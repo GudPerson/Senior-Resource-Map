@@ -2,6 +2,33 @@
 
 Last updated: 2026-07-23 (Asia/Singapore)
 
+## Map stable baseline lock (2026-07-23)
+
+- Stable map commit: `97118d4919cda77f1be581b0489eaf327e2ef098`
+  (`Fix print detailed map at zoom 15`).
+- Local stable tag: `map-stable-2026-07-23`.
+- Lockdown branch: `codex/map-work-lockdown-20260723`.
+- Stable manifest:
+  `docs/stable-baselines/map-work-2026-07-23.md`.
+- Production Pages deployment:
+  `https://8299e8cf.senior-resource-map.pages.dev`.
+- Custom domain `https://app.carearound.sg` served the validated bundle set:
+  `assets/index-BbMHCdJ9.js`,
+  `assets/MyMapDetailPage-D1SJlYMS.js`,
+  `assets/MapImageExportButton-CHH0QFSF.js`, and
+  `assets/index-CRSe8Nl6.css`.
+- Locked behavior: owner My Map and owner Print View keep the existing Leaflet
+  interaction model; Detailed activates at displayed zoom step 15 when covered,
+  including after Print View map resizing; fallback copy says the regular map
+  is still shown; Print View downloads are `Save PNG` / `Save PDF`; `Save A3
+  PDF`, the old `Standard map is still on` wording, and a visible Print Master
+  action are release blockers.
+- Future map work must begin by reading
+  `docs/stable-baselines/map-work-2026-07-23.md`,
+  `docs/regression-ledger.md`, this handoff, and
+  `docs/release-checklist.md`, then running the focused map/print tests and the
+  exact four-root production client build before deploy.
+
 ## Native-scale islandwide Detailed-map v2 release (2026-07-23)
 
 - Isolated worktree:
@@ -133,20 +160,27 @@ Last updated: 2026-07-23 (Asia/Singapore)
 ## Current release state
 
 - Production app: `https://app.carearound.sg`
-- Production client bundle: `assets/index-Bj6IIhs7.js`
+- Stable map baseline: `map-stable-2026-07-23` at
+  `97118d4919cda77f1be581b0489eaf327e2ef098`.
+- Production client bundle: `assets/index-BbMHCdJ9.js`
 - Production Care Calendar chunk: `assets/CareCalendarPage-DVenqBnM.js`
 - Production Resources chunk: `assets/ResourcesPage-DlWrhP0T.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-D3kaxG9r.js`
-- Production map-export chunk: `assets/MapImageExportButton-DC5me1s8.js`
-- Production client CSS: `assets/index-CKaRyKXy.css`
+- Production My Map owner chunk: `assets/MyMapDetailPage-D1SJlYMS.js`
+- Production map-export chunk: `assets/MapImageExportButton-CHH0QFSF.js`
+- Production client CSS: `assets/index-CRSe8Nl6.css`
 - Validated production Pages deployment:
-  `https://9bf1306f.senior-resource-map.pages.dev`
+  `https://8299e8cf.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-23T03:20:48.716Z`.
+  `2026-07-23T10:20:23.608Z`.
 - Production Worker version:
   `a522111b-b161-419c-8e50-6eb0a4105976`.
+- Current map release markers to preserve: v2 native-scale Default and Gray
+  roots, retained Print Master roots, `resize moveend zoomend` containment,
+  `The regular map is still shown.`, and `Save PDF`. The deployed map bundle
+  must not contain the old `Standard map is still on` fallback or `Save A3 PDF`
+  label.
 - Owner Print Map badge-readability release commit `63f945d55` is merged,
   pushed, and deployed on Pages. At the smallest global text setting, signed-in
   production UAT on owner map 87 measured all 15 compact number badges at

@@ -15,6 +15,53 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 map work stable baseline lock
+
+- Current behavior: the July 2026 owner map work is locked at commit
+  `97118d4919cda77f1be581b0489eaf327e2ef098`, tagged locally as
+  `map-stable-2026-07-23`. Owner My Map and owner Print View retain the
+  existing Leaflet interaction model while supporting versioned native-scale
+  Detailed map surfaces, Default/Gray appearance, automatic Detailed at
+  displayed zoom step 15, resize-safe Print View containment, readable numbered
+  resource badges, and the simplified `Save PNG` / `Save PDF` print downloads.
+- Known-good reference: production Pages deployment
+  `https://8299e8cf.senior-resource-map.pages.dev` and custom domain
+  `https://app.carearound.sg` serving `assets/index-BbMHCdJ9.js`,
+  `assets/MyMapDetailPage-D1SJlYMS.js`,
+  `assets/MapImageExportButton-CHH0QFSF.js`, and
+  `assets/index-CRSe8Nl6.css`, all byte-matched to the validated local build.
+  Stable manifest: `docs/stable-baselines/map-work-2026-07-23.md`.
+- Reproduction steps: sign in as a map owner; open owner maps 25, 87, 150, and
+  258 where practical; open `?view=print`; zoom to steps 14, 15, and 16; expand
+  the print map height; open Map appearance; switch Default/Gray; confirm
+  Detailed is automatic or selectable at step 15 when the current viewport is
+  covered, but not at step 14; save PNG and PDF output; inspect QR,
+  attribution, resource badges, and card/list focus.
+- Acceptance criteria: Detailed activates at displayed step 15 when covered;
+  map expansion does not force a fallback at step 15; fallback copy says the
+  regular map is still shown, never `Standard map is still on`; `Save PDF`
+  appears and `Save A3 PDF` does not; no Print Master user action appears;
+  live OneMap basemap-tile requests stop while Detailed is active; pins remain
+  aligned; clustering, camera, card focus, reset, mobile controls, QR, notes,
+  Shared Maps, Discover, API, auth, permissions, data, ranking, filtering, and
+  visibility remain unchanged.
+- Verification result: focused fixed-surface, map-settings, and Print View
+  coverage passed 49/49; server coverage passed 451/451; exact
+  production-configured `npm run build:client` passed with all four Detailed
+  asset roots; `git diff --check` passed; deployed bundles contained the v2
+  native-scale roots, retained Print Master roots, `resize moveend zoomend`,
+  `The regular map is still shown.`, and `Save PDF`, while old `Standard map is
+  still on` and `Save A3 PDF` markers were absent. API health returned OK at
+  `2026-07-23T10:20:23.608Z`.
+- Future-work gate: before any future map or print deploy, run
+  `node --test client/test/fixedTownSurface.test.js client/test/fixedTownSurfaceIntegration.test.js client/test/mapSettingsControl.test.js client/test/printMapWorkspace.test.js`,
+  run the exact four-root production client build, and verify the custom-domain
+  bundle hash and markers after Pages deployment. A Git-triggered Pages build
+  alone is not sufficient evidence.
+- Rollback: return to tag `map-stable-2026-07-23` / commit `97118d491` for the
+  current stable map baseline. Any rollback or asset-root downgrade must be
+  recorded here before deployment.
+
 ## 2026-07-23 owner Print View zoom-15 Detailed recovery
 
 - Current behavior: owner Print View keeps the Detailed fixed-surface map

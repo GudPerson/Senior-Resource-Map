@@ -39,6 +39,8 @@ The regression ledger currently treats these areas as locked or stabilized:
 
 Recent release families in the ledger include:
 
+- Owner My Map / Print View Detailed map stability
+- Owner Print View PNG/PDF export simplification
 - Organisation governance / Admin Region Scope stabilization
 - Resource delete audit idempotency
 - Shared confirmation dialog consistency
@@ -88,14 +90,47 @@ npm run build:client
 ```
 
 Omitting the interactive `VITE_TOWN_MAP_*` values intentionally compiles Map
-detail out of the owner client. Omitting either print-master root hides the
-print-only Print Master PDF action. Both are rollback actions, not the normal
-production build, and `npm run deploy:client` rejects either omission.
+detail out of the owner client. The two print-master roots remain retained
+build-contract roots; the current stable UX does not expose a Print Master
+button. Omitting any of the four map roots is a rollback or dormant-contract
+change, not the normal production build, and `npm run deploy:client` rejects
+omission.
 For immediate asset rollback, rebuild with the retained islandwide v1 roots
 `/v1/islandwide` and `/v1/islandwide/gray` and set
 `VITE_ALLOW_TOWN_MAP_ROLLBACK=true`. The older W01-only roots `/v1/w01` and
 `/v1/w01/gray` remain the narrower emergency fallback. Record either rollback
 in `docs/regression-ledger.md`.
+
+### Owner map lockdown gate
+
+Before any deploy that touches `DirectoryMap`, fixed-town surfaces, owner My
+Map, map settings, owner Print View, map export, or map-related build
+configuration:
+
+```bash
+node --test client/test/fixedTownSurface.test.js \
+  client/test/fixedTownSurfaceIntegration.test.js \
+  client/test/mapSettingsControl.test.js \
+  client/test/printMapWorkspace.test.js
+```
+
+Then run the exact four-root production client build above.
+
+After any Pages deploy, verify the custom-domain bundle, not only the Pages
+preview. The deployed bundle must preserve:
+
+- v2 native-scale Default and Gray roots;
+- retained print-master roots;
+- `resize moveend zoomend` containment;
+- `The regular map is still shown.`;
+- `Save PDF`;
+- no `Standard map is still on`;
+- no `Save A3 PDF`;
+- no visible Print Master action.
+
+If any of those markers drift, stop and fix before continuing with unrelated
+work. The local stable reference is tag `map-stable-2026-07-23` at
+`97118d4919cda77f1be581b0489eaf327e2ef098`.
 
 ## 2. Browser Smoke Gate
 
