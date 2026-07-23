@@ -28,6 +28,7 @@ export const PRINT_MAP_EXPORT_MAX_PIXELS = 100_000_000;
 
 export const PRINT_MAP_LAYOUT_BALANCED = 'balanced';
 export const PRINT_MAP_LAYOUT_FOCUS = 'map-focus';
+export const PRINT_MAP_LAYOUT_FULL = 'full-map';
 export const PRINT_MAP_SIDE_LEFT = 'left';
 export const PRINT_MAP_SIDE_RIGHT = 'right';
 export const PRINT_MAP_WIDTH_WIDE = 'wide';
@@ -50,8 +51,11 @@ export function normalizePrintMapResourcePlacement(value) {
 }
 
 export function shouldExportPrintMapAsSeparatePages(state = {}) {
-    return normalizePrintMapPageLayout(state.pageLayout) === PRINT_MAP_PAGE_LAYOUT_FULL
-        && normalizePrintMapResourcePlacement(state.resourcePlacement) === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE;
+    return normalizePrintMapLayoutPreset(state.layoutPreset) === PRINT_MAP_LAYOUT_FULL
+        || (
+            normalizePrintMapPageLayout(state.pageLayout) === PRINT_MAP_PAGE_LAYOUT_FULL
+            && normalizePrintMapResourcePlacement(state.resourcePlacement) === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+        );
 }
 
 export function normalizePrintMapQuality(value) {
@@ -73,7 +77,13 @@ export function getPrintMapPreviewScale(containerWidth) {
 }
 
 export function normalizePrintMapLayoutPreset(value) {
-    return value === PRINT_MAP_LAYOUT_FOCUS ? PRINT_MAP_LAYOUT_FOCUS : PRINT_MAP_LAYOUT_BALANCED;
+    return [
+        PRINT_MAP_LAYOUT_BALANCED,
+        PRINT_MAP_LAYOUT_FOCUS,
+        PRINT_MAP_LAYOUT_FULL,
+    ].includes(value)
+        ? value
+        : PRINT_MAP_LAYOUT_BALANCED;
 }
 
 export function normalizePrintMapSide(value) {
@@ -101,11 +111,14 @@ export function getOwnerPrintLayoutConfig(state = {}) {
     const layoutPreset = normalizePrintMapLayoutPreset(state.layoutPreset);
     const mapWidth = normalizePrintMapWidth(state.mapWidth);
     if (
-        pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
-        && resourcePlacement === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+        layoutPreset === PRINT_MAP_LAYOUT_FULL
+        || (
+            pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
+            && resourcePlacement === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+        )
     ) {
         return {
-            layoutPreset,
+            layoutPreset: PRINT_MAP_LAYOUT_FULL,
             mapSide: 'center',
             mapWidth,
             mapMaxWidthPx: 1400,
@@ -145,7 +158,10 @@ export function getOwnerPrintLayoutConfig(state = {}) {
 }
 
 export function getPrintMapHeightBounds(state = {}) {
-    if (normalizePrintMapPageLayout(state.pageLayout) === PRINT_MAP_PAGE_LAYOUT_FULL) {
+    if (
+        normalizePrintMapLayoutPreset(state.layoutPreset) === PRINT_MAP_LAYOUT_FULL
+        || normalizePrintMapPageLayout(state.pageLayout) === PRINT_MAP_PAGE_LAYOUT_FULL
+    ) {
         return {
             defaultHeight: PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX,
             minHeight: PRINT_MAP_FULL_PAGE_MIN_HEIGHT_PX,

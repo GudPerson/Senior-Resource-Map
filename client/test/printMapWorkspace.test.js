@@ -14,6 +14,7 @@ import {
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
     PRINT_MAP_LAYOUT_BALANCED,
     PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_LAYOUT_FULL,
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_MIN_HEIGHT_PX,
     PRINT_MAP_PAGE_LAYOUT_FULL,
@@ -137,7 +138,10 @@ test('capture key changes for every visual print map setting', () => {
     assert.equal(keys.size, 13);
 });
 
-test('only Full map with Next page exports the map and resources as separate image pages', () => {
+test('Full layout exports the map and resources as separate image pages', () => {
+    assert.equal(shouldExportPrintMapAsSeparatePages({
+        layoutPreset: PRINT_MAP_LAYOUT_FULL,
+    }), true);
     assert.equal(shouldExportPrintMapAsSeparatePages({
         pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
@@ -152,7 +156,7 @@ test('only Full map with Next page exports the map and resources as separate ima
     }), true);
 });
 
-test('print layout presets keep Balanced stable while allowing an explicit wider map', () => {
+test('print layout presets keep Balanced and Side stable while Full owns the separate-page composition', () => {
     assert.deepEqual(getOwnerPrintLayoutConfig({ layoutPreset: PRINT_MAP_LAYOUT_BALANCED }), {
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
         mapSide: 'center',
@@ -181,10 +185,9 @@ test('print layout presets keep Balanced stable while allowing an explicit wider
         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
     }).mapMaxWidthPx, 1020);
     assert.deepEqual(getOwnerPrintLayoutConfig({
-        pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
-        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+        layoutPreset: PRINT_MAP_LAYOUT_FULL,
     }), {
-        layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
+        layoutPreset: PRINT_MAP_LAYOUT_FULL,
         mapSide: 'center',
         mapWidth: PRINT_MAP_WIDTH_WIDE,
         mapMaxWidthPx: 1400,
@@ -220,11 +223,9 @@ test('high-resolution image export increases output while capping very long page
     assert.ok(capped.outputScale < high.outputScale);
 });
 
-test('print layout controls use progressive disclosure and layman label-detail choices', () => {
+test('print layout controls use a compact mobile-safe three-mode layout with progressive disclosure', () => {
     assert.match(printLayoutControlsSource, /t\('printLayout'\)/);
     assert.match(printLayoutControlsSource, /t\('printPageFullMap'\)/);
-    assert.match(printLayoutControlsSource, /t\('printResourcesNextPage'\)/);
-    assert.match(printLayoutControlsSource, /t\('printImageQualityHigh'\)/);
     assert.match(printLayoutControlsSource, /t\('printResourcePinsHide'\)/);
     assert.match(printLayoutControlsSource, /t\('printLayoutBalanced'\)/);
     assert.match(printLayoutControlsSource, /t\('printLayoutMapFocus'\)/);
@@ -235,8 +236,17 @@ test('print layout controls use progressive disclosure and layman label-detail c
     assert.match(printLayoutControlsSource, /t\('printLabelNamesAddresses'\)/);
     assert.match(printLayoutControlsSource, /t\('printLabelFullDetails'\)/);
     assert.match(printLayoutControlsSource, /layoutPreset === PRINT_MAP_LAYOUT_FOCUS/);
-    assert.match(printLayoutControlsSource, /resourcesOnNextPage/);
+    assert.match(printLayoutControlsSource, /layoutPreset === PRINT_MAP_LAYOUT_FULL/);
     assert.match(printLayoutControlsSource, /data-print-map-width-controls="true"/);
+    assert.match(printLayoutControlsSource, /grid-cols-3 gap-2/);
+    assert.match(printLayoutControlsSource, /min-h-11/);
+    assert.match(printLayoutControlsSource, /touch-manipulation/);
+    assert.match(printLayoutControlsSource, /overflow-hidden/);
+    assert.match(ownerPageSource, /grid w-full grid-cols-2 gap-2 sm:flex/);
+    assert.match(ownerPageSource, /className="min-h-11 w-full px-3 text-xs sm:w-auto sm:text-sm"/);
+    assert.doesNotMatch(printLayoutControlsSource, /data-print-page-layout-controls/);
+    assert.doesNotMatch(printLayoutControlsSource, /data-print-resource-placement-controls/);
+    assert.doesNotMatch(printLayoutControlsSource, /data-print-image-quality-controls/);
 });
 
 test('print label detail choices retain the numbered map key while controlling address and resource rows', () => {
@@ -293,14 +303,13 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /exportAsSeparatePages \? 'saveAsImages' : 'saveAsImage'/);
     assert.match(exportButtonSource, /captureExportPages\(\{ forceHighQuality: true \}\)/);
     assert.match(exportButtonSource, /downloadPrintMapPdf\(\{ pages, directoryName: directory\?\.name \}\)/);
-    assert.match(exportButtonSource, /data-print-pdf-export="a3-high-resolution"/);
+    assert.match(exportButtonSource, /data-print-pdf-export="a3"/);
     assert.match(exportButtonSource, /t\('savePrintPdf'\)/);
-    assert.match(exportButtonSource, /data-print-pdf-export="print-master-100"/);
-    assert.match(exportButtonSource, /t\('savePrintMasterPdf'\)/);
-    assert.match(exportButtonSource, /fetchPrintMasterManifest/);
-    assert.match(exportButtonSource, /resolveFixedTownSurfaceId\(fixedTownSurfaceManifest\)/);
-    assert.match(exportButtonSource, /upgradeCapturedPageWithPrintMaster/);
-    assert.match(exportButtonSource, /fileNameSuffix: 'print-master'/);
+    assert.doesNotMatch(exportButtonSource, /data-print-pdf-export="print-master-100"/);
+    assert.doesNotMatch(exportButtonSource, /t\('savePrintMasterPdf'\)/);
+    assert.doesNotMatch(exportButtonSource, /fetchPrintMasterManifest/);
+    assert.doesNotMatch(exportButtonSource, /upgradeCapturedPageWithPrintMaster/);
+    assert.doesNotMatch(exportButtonSource, /printMasterPdfHelp/);
     assert.match(exportButtonSource, /canvasWidth: Math\.round\(width \* exportConfig\.canvasScale\)/);
     assert.match(exportButtonSource, /printMapState=\{printMapState\}/);
     assert.match(exportButtonSource, /printMapCaptureKey/);

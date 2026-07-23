@@ -6,12 +6,6 @@ import { toPng } from 'html-to-image';
 
 import MapDirectoryExportPanel from './MapDirectoryExportPanel.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
-import { upgradeCapturedPageWithPrintMaster } from '../lib/printMasterExport.js';
-import {
-    fetchPrintMasterManifest,
-    normalizePrintMasterAssetBaseUrl,
-    resolveFixedTownSurfaceId,
-} from '../lib/printMasterSurface.js';
 import { downloadPrintMapPdf } from '../lib/printMapPdf.js';
 import {
     PRINT_MAP_CANVAS_WIDTH_PX,
@@ -23,10 +17,6 @@ import {
 } from '../lib/printMapState.js';
 
 const TRANSPARENT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-const PRINT_MASTER_ASSET_BASE_URLS = {
-    default: normalizePrintMasterAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL || ''),
-    gray: normalizePrintMasterAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL || ''),
-};
 
 function buildFileName(directoryName, pageName = 'summary') {
     const slug = String(directoryName || 'carearound-directory')
@@ -69,16 +59,12 @@ export default function MapImageExportButton({
     const mapViewportSnapshotRef = useRef(null);
     const readyWaitersRef = useRef([]);
     const [exportingFormat, setExportingFormat] = useState('');
-    const [exportProgress, setExportProgress] = useState('');
     const [error, setError] = useState('');
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
     const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX;
     const printMapCaptureKey = printMapState ? buildPrintMapCaptureKey(printMapState) : '';
     const printMapQuality = normalizePrintMapQuality(printMapState?.mapQuality);
     const exportAsSeparatePages = shouldExportPrintMapAsSeparatePages(printMapState);
-    const printMasterConfigured = Boolean(
-        PRINT_MASTER_ASSET_BASE_URLS[printMapState?.mapStyle === 'gray' ? 'gray' : 'default'],
-    );
     const exporting = Boolean(exportingFormat);
 
     useEffect(() => {
@@ -189,7 +175,7 @@ export default function MapImageExportButton({
         return exportPages;
     }
 
-    async function captureExportPages({ forceHighQuality = false, printMaster = null } = {}) {
+    async function captureExportPages({ forceHighQuality = false } = {}) {
         const captureState = forceHighQuality
             ? { ...printMapState, mapQuality: PRINT_MAP_QUALITY_HIGH }
             : printMapState;
@@ -207,7 +193,7 @@ export default function MapImageExportButton({
                 canvasWidth: Math.round(width * exportConfig.canvasScale),
                 canvasHeight: Math.round(height * exportConfig.canvasScale),
             });
-            const capture = {
+            capturedPages.push({
                 dataUrl,
                 width,
                 height,
@@ -215,51 +201,14 @@ export default function MapImageExportButton({
                 outputScale: exportConfig.outputScale,
                 outputWidth: Math.round(width * exportConfig.outputScale),
                 outputHeight: Math.round(height * exportConfig.outputScale),
-            };
-            const mapFrameNode = printMaster
-                ? node.querySelector('[data-print-export-map-frame="true"]')
-                : null;
-            capturedPages.push(mapFrameNode ? await upgradeCapturedPageWithPrintMaster({
-                capture,
-                pageNode: node,
-                mapFrameNode,
-                viewportBounds: mapViewportSnapshotRef.current?.bounds,
-                manifest: printMaster.manifest,
-                assetBaseUrl: printMaster.assetBaseUrl,
-                onProgress: ({ completed, total }) => {
-                    setExportProgress(t('printMasterProgress', { completed, total }));
-                },
-            }) : capture);
+            });
         }
         return capturedPages;
-    }
-
-    async function preparePrintMaster() {
-        if (printMapState?.basemapMode !== 'auto') {
-            throw new Error(t('printMasterDetailedRequired'));
-        }
-        const surfaceId = resolveFixedTownSurfaceId(fixedTownSurfaceManifest);
-        if (!fixedTownSurfaceAvailable || !surfaceId) {
-            throw new Error(t('printMasterAreaUnavailable'));
-        }
-        if (!mapViewportSnapshotRef.current?.bounds) {
-            throw new Error(t('printMasterViewUnavailable'));
-        }
-        const mapStyle = printMapState?.mapStyle === 'gray' ? 'gray' : 'default';
-        const assetBaseUrl = PRINT_MASTER_ASSET_BASE_URLS[mapStyle];
-        setExportProgress(t('printMasterLoadingManifest'));
-        const manifest = await fetchPrintMasterManifest({
-            assetBaseUrl,
-            surfaceId,
-            mapStyle,
-        });
-        return { assetBaseUrl, manifest };
     }
 
     async function handleImageExport() {
         if (!exportRef.current || exporting) return;
         setExportingFormat('image');
-        setExportProgress('');
         setError('');
 
         try {
@@ -273,14 +222,12 @@ export default function MapImageExportButton({
             setError(err?.message || 'Image export failed. Try again.');
         } finally {
             setExportingFormat('');
-            setExportProgress('');
         }
     }
 
     async function handlePdfExport() {
         if (!exportRef.current || exporting) return;
         setExportingFormat('pdf');
-        setExportProgress('');
         setError('');
 
         try {
@@ -292,32 +239,6 @@ export default function MapImageExportButton({
             setError(err?.message || 'PDF export failed. Try again.');
         } finally {
             setExportingFormat('');
-            setExportProgress('');
-        }
-    }
-
-    async function handlePrintMasterPdfExport() {
-        if (!exportRef.current || exporting) return;
-        setExportingFormat('print-master');
-        setExportProgress(t('printMasterPreparing'));
-        setError('');
-
-        try {
-            await waitForExportSurface({ forceHighQuality: true });
-            const printMaster = await preparePrintMaster();
-            const pages = await captureExportPages({ forceHighQuality: true, printMaster });
-            setExportProgress(t('printMasterBuildingPdf'));
-            await downloadPrintMapPdf({
-                pages,
-                directoryName: directory?.name,
-                fileNameSuffix: 'print-master',
-            });
-        } catch (err) {
-            console.error(err);
-            setError(err?.message || t('printMasterFailed'));
-        } finally {
-            setExportingFormat('');
-            setExportProgress('');
         }
     }
 
@@ -337,34 +258,14 @@ export default function MapImageExportButton({
                 type="button"
                 onClick={handlePdfExport}
                 disabled={exporting}
-                data-print-pdf-export="a3-high-resolution"
+                data-print-pdf-export="a3"
                 className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
             >
                 <FileDown size={16} />
                 {exportingFormat === 'pdf' ? t('preparingPdf') : t('savePrintPdf')}
             </button>
-            {printMasterConfigured ? (
-                <button
-                    type="button"
-                    onClick={handlePrintMasterPdfExport}
-                    disabled={exporting}
-                    data-print-pdf-export="print-master-100"
-                    className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
-                >
-                    <FileDown size={16} />
-                    {exportingFormat === 'print-master' ? t('preparingPrintMasterPdf') : t('savePrintMasterPdf')}
-                </button>
-            ) : null}
-            {exportProgress ? (
-                <p className="text-sm font-semibold text-slate-600" aria-live="polite">{exportProgress}</p>
-            ) : null}
             {error ? (
                 <p className="text-sm font-medium text-red-600">{error}</p>
-            ) : null}
-            {printMasterConfigured ? (
-                <p className="basis-full text-xs font-medium leading-5 text-slate-500">
-                    {t('printMasterPdfHelp')}
-                </p>
             ) : null}
 
             {exportRoot ? createPortal(

@@ -15,6 +15,50 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 owner Print View simplification local release candidate
+
+- Current behavior: owner Print View presents one compact layout choice with
+  `Balanced`, `Side map`, and `Full map`. Balanced and Side retain their
+  established compositions; Full gives the map its own page and places
+  resources on the next page. Map position appears only for Side, while map
+  width appears only for Balanced and Side. The user-facing image-quality,
+  page-format, resource-placement, and Print Master controls are removed. The
+  two supported downloads are labelled `Save PNG` or `Save 2 PNGs`, depending
+  on layout, and `Save A3 PDF`. Existing map colour, Standard/Detailed,
+  camera, zoom, height, pins, label detail, QR, and attribution behavior remain
+  available.
+- Known-good reference: local branch `codex/print-view-simplification` in
+  isolated worktree `/Users/sweetbuns/CareAroundSG-print-view-simplification`,
+  based on production `origin/main` at
+  `3471fcbd1bad71a3e0e4407e03944f50e31eb3de`.
+- Reproduction steps: sign in as a map owner; open an owner map with
+  `?view=print`; open Print layout on desktop and a phone-width viewport; switch
+  among Balanced, Side map, and Full map; confirm map position and width appear
+  only where relevant; toggle pins and label detail; save PNG output and the A3
+  PDF; inspect the files, Detailed/colour controls, QR, attribution, and mobile
+  toolbar wrapping.
+- Acceptance criteria: the settings panel has no horizontal overflow and keeps
+  44px touch targets; phone toolbar actions form a usable two-column grid;
+  Balanced and Side keep resources beside the map; Full produces separate map
+  and resource pages; PNG wording names the actual file type; A3 PDF retains
+  the established higher internal capture path; the failing Print Master action
+  and redundant quality/page-format controls are absent; no API, data, auth,
+  permission, Shared Map, Discover, or interactive My Map behavior changes.
+- Verification result: focused Print View, locale, PDF, and retained Print
+  Master library coverage passed 28/28. Full client/source coverage passed 461/462;
+  the sole Care Calendar planning-overlap assertion is the documented unrelated
+  baseline failure. The server baseline passed 451/451. The exact four-root
+  production client build passed after a clean dependency install. Mobile
+  source contracts cover two-column toolbar wrapping, 44px targets, touch
+  manipulation, compact three-mode controls, and overflow containment. The
+  local UAT route and its proxied API health endpoint both returned HTTP 200;
+  signed-in interaction checks and production deployment remain pending.
+- Blast radius and rollback: owner Print View state normalization, controls,
+  export-action UI, toolbar responsiveness, locale copy, and regression
+  contracts only. Print Master source modules and immutable asset roots remain
+  untouched for possible future restoration. Revert this candidate to restore
+  the previous controls and Print Master action.
+
 ## 2026-07-23 owner My Map action-label refinement
 
 - Current behavior: the owner My Map action bar and mobile controls label the

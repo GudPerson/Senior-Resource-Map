@@ -1518,11 +1518,14 @@ export default function MyMapDetailPage() {
             <div className="min-h-screen bg-white">
                 <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
                     <div className="flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
-                        <div className="flex flex-wrap items-center justify-start gap-2" data-print-toolbar-actions="true">
+                        <div
+                            className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-start"
+                            data-print-toolbar-actions="true"
+                        >
                             <button
                                 type="button"
                                 onClick={closePrintView}
-                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                                className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-700 sm:w-auto sm:text-sm"
                             >
                                 <ArrowLeft size={16} />
                                 {t('backToInteractiveView')}
@@ -1530,7 +1533,7 @@ export default function MyMapDetailPage() {
                             <button
                                 type="button"
                                 onClick={() => setPrintLayoutOpen((current) => !current)}
-                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                                className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-700 sm:w-auto sm:text-sm"
                                 aria-expanded={printLayoutOpen}
                                 aria-controls="owner-print-layout-controls"
                                 data-print-layout-trigger="true"
@@ -1541,13 +1544,13 @@ export default function MyMapDetailPage() {
                             <button
                                 type="button"
                                 onClick={resetPrintMap}
-                                className="btn-ghost justify-center border border-slate-200 text-slate-700"
+                                className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-700 sm:w-auto sm:text-sm"
                             >
                                 <RotateCcw size={16} />
                                 Reset print map
                             </button>
                             <Suspense fallback={(
-                                <span className="btn-ghost justify-center border border-slate-200 text-slate-500">
+                                <span className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-500 sm:w-auto sm:text-sm">
                                     {t('loadingPage')}
                                 </span>
                             )}>
@@ -1561,6 +1564,7 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceAvailable={printTownMapAvailable}
                                     fixedTownSurfacePending={printTownMapSurfacePending}
                                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                    className="min-h-11 w-full px-3 text-xs sm:w-auto sm:text-sm"
                                 />
                             </Suspense>
                         </div>
