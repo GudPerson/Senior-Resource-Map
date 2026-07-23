@@ -21,7 +21,14 @@ test('directory map keeps bubble clusters as the default marker mode', () => {
 });
 
 test('directory map can disable clustering so close pins behave as individual markers', () => {
-    assert.match(directoryMapSource, /const shouldCluster = clusterMarkerMode !== 'none' && displayPins\.length > 1/);
+    assert.match(directoryMapSource, /const shouldCluster = showPins && clusterMarkerMode !== 'none' && displayPins\.length > 1/);
+});
+
+test('directory map can hide pin artwork without losing its camera points or basemap', () => {
+    assert.match(directoryMapSource, /showPins = true/);
+    assert.match(directoryMapSource, /if \(!showPins\) return null/);
+    assert.match(directoryMapSource, /pins=\{displayPins\}/);
+    assert.match(directoryMapSource, /\{renderedMarkers\}/);
 });
 
 test('directory map fits visible spread pin positions with enough top padding for pin artwork', () => {

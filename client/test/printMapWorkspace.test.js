@@ -5,6 +5,9 @@ import { readFileSync } from 'node:fs';
 import {
     PRINT_MAP_CANVAS_WIDTH_PX,
     PRINT_MAP_DEFAULT_HEIGHT_PX,
+    PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX,
+    PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX,
+    PRINT_MAP_FULL_PAGE_MIN_HEIGHT_PX,
     PRINT_MAP_LABEL_DETAIL_FULL,
     PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LABEL_DETAIL_NAMES,
@@ -13,6 +16,14 @@ import {
     PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_MIN_HEIGHT_PX,
+    PRINT_MAP_PAGE_LAYOUT_FULL,
+    PRINT_MAP_PAGE_LAYOUT_STANDARD,
+    PRINT_MAP_QUALITY_HIGH,
+    PRINT_MAP_QUALITY_STANDARD,
+    PRINT_MAP_RESOURCE_LAYER_HIDE,
+    PRINT_MAP_RESOURCE_LAYER_SHOW,
+    PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+    PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
     PRINT_MAP_SIDE_LEFT,
     PRINT_MAP_SIDE_RIGHT,
     PRINT_MAP_WIDTH_EXTRA_WIDE,
@@ -20,8 +31,11 @@ import {
     buildPrintMapCaptureKey,
     clampPrintMapHeight,
     createOwnerPrintMapState,
+    getPrintMapExportConfig,
     getOwnerPrintLayoutConfig,
+    getPrintMapPreviewScale,
     resetOwnerPrintMapState,
+    shouldExportPrintMapAsSeparatePages,
 } from '../src/lib/printMapState.js';
 
 const printViewSource = readFileSync(new URL('../src/components/DirectoryPrintView.jsx', import.meta.url), 'utf8');
@@ -31,6 +45,7 @@ const exportPanelSource = readFileSync(new URL('../src/components/MapDirectoryEx
 const ownerPageSource = readFileSync(new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url), 'utf8');
 const directoryMapSource = readFileSync(new URL('../src/components/DirectoryMap.jsx', import.meta.url), 'utf8');
 const sharedMapDirectorySource = readFileSync(new URL('../src/components/SharedMapDirectoryList.jsx', import.meta.url), 'utf8');
+const rootPackage = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
 test('owner print map starts from a safe baseline while carrying only the global colour preference', () => {
     assert.deepEqual(createOwnerPrintMapState('gray'), {
@@ -38,6 +53,10 @@ test('owner print map starts from a safe baseline while carrying only the global
         basemapMode: 'live',
         view: null,
         height: PRINT_MAP_DEFAULT_HEIGHT_PX,
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+        mapQuality: PRINT_MAP_QUALITY_STANDARD,
+        resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
         mapSide: PRINT_MAP_SIDE_LEFT,
         mapWidth: PRINT_MAP_WIDTH_WIDE,
@@ -46,7 +65,24 @@ test('owner print map starts from a safe baseline while carrying only the global
     });
     assert.equal(clampPrintMapHeight(100), PRINT_MAP_MIN_HEIGHT_PX);
     assert.equal(clampPrintMapHeight(900), PRINT_MAP_MAX_HEIGHT_PX);
+    assert.equal(
+        clampPrintMapHeight(100, { pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL }),
+        PRINT_MAP_FULL_PAGE_MIN_HEIGHT_PX,
+    );
+    assert.equal(
+        clampPrintMapHeight(2000, { pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL }),
+        PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX,
+    );
     assert.equal(PRINT_MAP_CANVAS_WIDTH_PX, 1480);
+});
+
+test('owner print map can request Detailed automatically without changing the safe helper default', () => {
+    assert.equal(createOwnerPrintMapState('default').basemapMode, 'live');
+    assert.equal(createOwnerPrintMapState('default', { basemapMode: 'auto' }).basemapMode, 'auto');
+    assert.equal(createOwnerPrintMapState('default', { basemapMode: 'town' }).basemapMode, 'live');
+    assert.match(ownerPageSource, /OWNER_PRINT_BASEMAP_OPTIONS = TOWN_MAP_PROOF_ENABLED/);
+    assert.match(ownerPageSource, /createOwnerPrintMapState\(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS\)/);
+    assert.match(ownerPageSource, /resetOwnerPrintMapState\(current, mapStyle\)/);
 });
 
 test('owner print reset clears camera and detail changes without losing the device colour preference', () => {
@@ -55,6 +91,10 @@ test('owner print reset clears camera and detail changes without losing the devi
         basemapMode: 'auto',
         view: { center: [1.38, 103.75], zoom: 16 },
         height: 640,
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+        mapQuality: PRINT_MAP_QUALITY_HIGH,
+        resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE,
         layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
         mapSide: PRINT_MAP_SIDE_RIGHT,
         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
@@ -66,6 +106,10 @@ test('owner print reset clears camera and detail changes without losing the devi
     assert.equal(reset.basemapMode, 'live');
     assert.equal(reset.view, null);
     assert.equal(reset.height, PRINT_MAP_DEFAULT_HEIGHT_PX);
+    assert.equal(reset.pageLayout, PRINT_MAP_PAGE_LAYOUT_STANDARD);
+    assert.equal(reset.resourcePlacement, PRINT_MAP_RESOURCE_PLACEMENT_BESIDE);
+    assert.equal(reset.mapQuality, PRINT_MAP_QUALITY_STANDARD);
+    assert.equal(reset.resourceLayer, PRINT_MAP_RESOURCE_LAYER_SHOW);
     assert.equal(reset.layoutPreset, PRINT_MAP_LAYOUT_BALANCED);
     assert.equal(reset.mapSide, PRINT_MAP_SIDE_LEFT);
     assert.equal(reset.mapWidth, PRINT_MAP_WIDTH_WIDE);
@@ -81,12 +125,31 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, basemapMode: 'auto' }),
         buildPrintMapCaptureKey({ ...baseline, height: 480 }),
         buildPrintMapCaptureKey({ ...baseline, view: { center: [1.38, 103.75], zoom: 16 } }),
+        buildPrintMapCaptureKey({ ...baseline, pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL }),
+        buildPrintMapCaptureKey({ ...baseline, resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE }),
+        buildPrintMapCaptureKey({ ...baseline, mapQuality: PRINT_MAP_QUALITY_HIGH }),
+        buildPrintMapCaptureKey({ ...baseline, resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE }),
         buildPrintMapCaptureKey({ ...baseline, layoutPreset: PRINT_MAP_LAYOUT_FOCUS }),
         buildPrintMapCaptureKey({ ...baseline, mapSide: PRINT_MAP_SIDE_RIGHT }),
         buildPrintMapCaptureKey({ ...baseline, mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE }),
         buildPrintMapCaptureKey({ ...baseline, labelDetail: PRINT_MAP_LABEL_DETAIL_NAMES }),
     ]);
-    assert.equal(keys.size, 9);
+    assert.equal(keys.size, 13);
+});
+
+test('only Full map with Next page exports the map and resources as separate image pages', () => {
+    assert.equal(shouldExportPrintMapAsSeparatePages({
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+    }), false);
+    assert.equal(shouldExportPrintMapAsSeparatePages({
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+    }), false);
+    assert.equal(shouldExportPrintMapAsSeparatePages({
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+    }), true);
 });
 
 test('print layout presets keep Balanced stable while allowing an explicit wider map', () => {
@@ -117,10 +180,52 @@ test('print layout presets keep Balanced stable while allowing an explicit wider
         mapSide: PRINT_MAP_SIDE_RIGHT,
         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
     }).mapMaxWidthPx, 1020);
+    assert.deepEqual(getOwnerPrintLayoutConfig({
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+    }), {
+        layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
+        mapSide: 'center',
+        mapWidth: PRINT_MAP_WIDTH_WIDE,
+        mapMaxWidthPx: 1400,
+        gridClassName: 'grid-cols-[0px_minmax(0,1fr)_0px]',
+        resourcesBelow: true,
+    });
+});
+
+test('screen preview fills wide viewports without changing the fixed export canvas', () => {
+    assert.equal(getPrintMapPreviewScale(1512), 1);
+    assert.ok(getPrintMapPreviewScale(1840) > 1);
+    assert.equal(getPrintMapPreviewScale(100), 0.2);
+    assert.equal(PRINT_MAP_CANVAS_WIDTH_PX, 1480);
+});
+
+test('high-resolution image export increases output while capping very long pages safely', () => {
+    const standard = getPrintMapExportConfig({ mapQuality: PRINT_MAP_QUALITY_STANDARD }, {
+        width: 1480,
+        height: 1000,
+    });
+    const high = getPrintMapExportConfig({ mapQuality: PRINT_MAP_QUALITY_HIGH }, {
+        width: 1480,
+        height: 1000,
+    });
+    const capped = getPrintMapExportConfig({ mapQuality: PRINT_MAP_QUALITY_HIGH }, {
+        width: 1480,
+        height: 10000,
+    });
+    assert.equal(standard.outputScale, 4);
+    assert.equal(high.outputScale, 5);
+    assert.equal(high.isCapped, false);
+    assert.equal(capped.isCapped, true);
+    assert.ok(capped.outputScale < high.outputScale);
 });
 
 test('print layout controls use progressive disclosure and layman label-detail choices', () => {
     assert.match(printLayoutControlsSource, /t\('printLayout'\)/);
+    assert.match(printLayoutControlsSource, /t\('printPageFullMap'\)/);
+    assert.match(printLayoutControlsSource, /t\('printResourcesNextPage'\)/);
+    assert.match(printLayoutControlsSource, /t\('printImageQualityHigh'\)/);
+    assert.match(printLayoutControlsSource, /t\('printResourcePinsHide'\)/);
     assert.match(printLayoutControlsSource, /t\('printLayoutBalanced'\)/);
     assert.match(printLayoutControlsSource, /t\('printLayoutMapFocus'\)/);
     assert.match(printLayoutControlsSource, /t\('printMapPosition'\)/);
@@ -130,6 +235,7 @@ test('print layout controls use progressive disclosure and layman label-detail c
     assert.match(printLayoutControlsSource, /t\('printLabelNamesAddresses'\)/);
     assert.match(printLayoutControlsSource, /t\('printLabelFullDetails'\)/);
     assert.match(printLayoutControlsSource, /layoutPreset === PRINT_MAP_LAYOUT_FOCUS/);
+    assert.match(printLayoutControlsSource, /resourcesOnNextPage/);
     assert.match(printLayoutControlsSource, /data-print-map-width-controls="true"/);
 });
 
@@ -156,8 +262,19 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(printViewSource, /basemapMode=\{printMapState\?\.basemapMode \|\| 'live'\}/);
     assert.match(printViewSource, /fixedTownSurfaceManifest=\{fixedTownSurfaceManifest\}/);
     assert.match(printViewSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
+    assert.match(printViewSource, /fixedTownSurfaceSnapToMinZoom=\{Boolean\(printMapState && interactive\)\}/);
+    assert.match(printViewSource, /PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES = 384 \* 1024 \* 1024/);
+    assert.match(printViewSource, /fixedTownSurfaceMaxDecodedBytes=\{printMapState\?\.pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL/);
     assert.match(printViewSource, /onFixedTownSurfaceViewportChange=\{onFixedTownSurfaceViewportChange\}/);
-    assert.match(printViewSource, /mapHeightPx=\{printMapState \? clampPrintMapHeight\(printMapState\.height\) : null\}/);
+    assert.match(printViewSource, /mapHeightPx=\{printMapState \? clampPrintMapHeight\(printMapState\.height, printMapState\) : null\}/);
+    assert.match(printViewSource, /pins=\{presentation\.pins\}/);
+    assert.match(printViewSource, /showPins=\{showResourcePins\}/);
+    assert.match(printViewSource, /printResourcesBelow=\{printResourcesBelow\}/);
+    assert.match(sharedMapDirectorySource, /data-print-full-map-page="true"/);
+    assert.match(sharedMapDirectorySource, /data-print-resource-page="true"/);
+    assert.match(sharedMapDirectorySource, /data-print-export-page="map"/);
+    assert.match(sharedMapDirectorySource, /data-print-export-page="resources"/);
+    assert.match(printViewSource, /data-print-resource-page-header="true"/);
 });
 
 test('visible preview and hidden image export consume the same frozen print map state and width', () => {
@@ -168,11 +285,29 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(ownerPageSource, /const printQrDirectoryUrl = sharedDirectoryUrl \|\| ownerInteractiveDirectoryUrl/);
     assert.match(printViewSource, /mode === 'shared' \|\| mode === 'owner' \|\| directory\?\.share\?\.isShared/);
     assert.match(exportButtonSource, /const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX/);
+    assert.match(exportButtonSource, /getPrintMapExportConfig\(captureState/);
+    assert.match(exportButtonSource, /shouldExportPrintMapAsSeparatePages\(printMapState\)/);
+    assert.match(exportButtonSource, /querySelector\('\[data-print-export-page="map"\]'\)/);
+    assert.match(exportButtonSource, /querySelector\('\[data-print-export-page="resources"\]'\)/);
+    assert.match(exportButtonSource, /buildFileName\(directory\?\.name, name\)/);
+    assert.match(exportButtonSource, /exportAsSeparatePages \? 'saveAsImages' : 'saveAsImage'/);
+    assert.match(exportButtonSource, /captureExportPages\(\{ forceHighQuality: true \}\)/);
+    assert.match(exportButtonSource, /downloadPrintMapPdf\(\{ pages, directoryName: directory\?\.name \}\)/);
+    assert.match(exportButtonSource, /data-print-pdf-export="a3-high-resolution"/);
+    assert.match(exportButtonSource, /t\('savePrintPdf'\)/);
+    assert.match(exportButtonSource, /data-print-pdf-export="print-master-100"/);
+    assert.match(exportButtonSource, /t\('savePrintMasterPdf'\)/);
+    assert.match(exportButtonSource, /fetchPrintMasterManifest/);
+    assert.match(exportButtonSource, /resolveFixedTownSurfaceId\(fixedTownSurfaceManifest\)/);
+    assert.match(exportButtonSource, /upgradeCapturedPageWithPrintMaster/);
+    assert.match(exportButtonSource, /fileNameSuffix: 'print-master'/);
+    assert.match(exportButtonSource, /canvasWidth: Math\.round\(width \* exportConfig\.canvasScale\)/);
     assert.match(exportButtonSource, /printMapState=\{printMapState\}/);
     assert.match(exportButtonSource, /printMapCaptureKey/);
     assert.match(exportButtonSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
     assert.match(exportPanelSource, /printMapState=\{printMapState\}/);
     assert.match(exportPanelSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
+    assert.match(exportPanelSource, /onMapViewportSnapshot=\{onMapViewportSnapshot\}/);
     assert.match(printViewSource, /captureReadyKey=\{printMapState \? buildPrintMapCaptureKey\(printMapState\) : ''\}/);
     assert.match(printViewSource, /getOwnerPrintLayoutConfig\(printMapState\)/);
     assert.match(printViewSource, /printLabelDetail=\{labelDetail\}/);
@@ -181,6 +316,8 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(ownerPageSource, /Your saved image will match this preview/);
     assert.doesNotMatch(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);
     assert.match(directoryMapSource, /right-\[13px\] top-3 z-\[1002\] lg:right-3/);
+    assert.match(directoryMapSource, /data-print-export-map-frame=\{onMapReadyForCapture \? 'true' : undefined\}/);
+    assert.match(directoryMapSource, /onMapViewportSnapshot\(\{/);
     assert.match(ownerPageSource, /printTownMapSurfaceResolving/);
     assert.match(ownerPageSource, /printTownMapSurfacePending/);
     assert.match(ownerPageSource, /fixedTownSurfacePending=\{printTownMapSurfacePending\}/);
@@ -192,6 +329,8 @@ test('DirectoryMap controlled print hooks stay optional for Shared Maps and exis
     assert.match(directoryMapSource, /mapHeightPx = null/);
     assert.match(directoryMapSource, /mapViewState = null/);
     assert.match(directoryMapSource, /captureReadyKey = ''/);
+    assert.match(directoryMapSource, /showPins = true/);
+    assert.match(directoryMapSource, /if \(!showPins\) return null/);
     assert.match(printViewSource, /printMapState = null/);
     assert.match(printViewSource, /printMapState=\{useV2OwnerPrint \? printMapState : null\}/);
 });
@@ -204,4 +343,13 @@ test('image capture readiness survives harmless map rerenders and cached tile lo
         directoryMapSource,
         /\[anchorPoint, captureReadyKey[^\]]*\bpins\b[^\]]*\bplaceNumberByKey\b/,
     );
+});
+
+test('local print-master client keeps the existing Detailed map runtime enabled', () => {
+    const command = rootPackage.scripts['dev:print-master-client'];
+    assert.match(command, /VITE_TOWN_MAP_PROOF_ENABLED=true/);
+    assert.match(command, /VITE_TOWN_MAP_ASSET_BASE_URL=http:\/\/127\.0\.0\.1:4174\/v2\/native-scale-20260722\/default/);
+    assert.match(command, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=http:\/\/127\.0\.0\.1:4174\/v2\/native-scale-20260722\/gray/);
+    assert.match(command, /VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL=http:\/\/127\.0\.0\.1:4175\/default/);
+    assert.match(command, /VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL=http:\/\/127\.0\.0\.1:4175\/gray/);
 });

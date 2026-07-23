@@ -173,8 +173,67 @@ VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=http://127.0.0.1:4174/v2/native-scale-20260722
 npm run dev:client
 ```
 
-Do not upload `source-cache`, QA viewers, or print-master files. The 2026-07-23
-release published all immutable chunks first, then the 32 surface manifests,
+Do not upload `source-cache`, QA viewers, or print-master files into these
+interactive roots. The 2026-07-23 release published all immutable chunks first,
+then the 32 surface manifests,
 and the short-cache collection index last for both styles. Full remote
 verification matched all 2,741 chunks and source bytes per style. Keep
 `/v1/islandwide` and `/v1/islandwide/gray` intact for immediate rollback.
+
+## Islandwide Print Master collections
+
+Print Master is a print-only, 100%-retained companion to the interactive 50%
+native-scale collection. It is never included in the client bundle or used as
+the interactive Leaflet surface. The client fetches the selected surface only
+after an owner explicitly chooses `Save print master PDF`, then composes only
+the chunks intersecting the current print viewport.
+
+External source and packaged roots:
+
+```text
+Default source: /Users/sweetbuns/CareAroundSG-print-assets/default
+Gray source: /Users/sweetbuns/Documents/SG MAP/output/static-town-maps-grey/print-master-100
+Web package: /Users/sweetbuns/CareAroundSG-print-assets/web/v2/print-master-100-20260723
+```
+
+The Default generator reads the accepted OneMap source atlas without writing
+to it. If an accepted atlas tile is missing, fetching it requires the explicit
+developer-agreement gate and writes only to the external supplemental cache:
+
+```sh
+ONEMAP_DEVELOPER_AGREEMENT_ACCEPTED=yes \
+python3 scripts/town-map/build-default-print-master.py --plate-id ALL --fetch-missing
+```
+
+Prepare and validate public-only packages before upload:
+
+```sh
+node scripts/town-map/prepare-print-master-web-assets.mjs --style=default
+node scripts/town-map/prepare-print-master-web-assets.mjs --style=gray
+node scripts/town-map/upload-print-master-r2.mjs --style=default
+node scripts/town-map/upload-print-master-r2.mjs --style=gray
+```
+
+Publish each style in the guarded order of immutable chunks, sanitized surface
+manifests, and collection index last:
+
+```sh
+node scripts/town-map/upload-print-master-r2.mjs --style=default --apply
+node scripts/town-map/upload-print-master-r2.mjs --style=gray --apply
+node scripts/town-map/verify-print-master-r2.mjs --style=default
+node scripts/town-map/verify-print-master-r2.mjs --style=gray
+```
+
+Production roots:
+
+```text
+https://maps.carearound.sg/v2/print-master-100-20260723/default
+https://maps.carearound.sg/v2/print-master-100-20260723/gray
+```
+
+Never publish local `path`, cache, source-section, PDF, or viewer fields. The
+packager rejects missing or hash-drifted chunks and emits only JPEG chunks,
+sanitized manifests, and one small collection index. Immediate client rollback
+is a rebuild without both print-master environment variables; this hides the
+Print Master PDF action while retaining interactive Detailed maps and all
+versioned R2 objects.

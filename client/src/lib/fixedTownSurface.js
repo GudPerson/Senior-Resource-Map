@@ -1548,6 +1548,42 @@ export function normalizeFixedTownStandardZoom(zoom, minZoom) {
         : normalizedZoom;
 }
 
+export function resolveFixedTownMinimumZoomSnap({
+    enabled = false,
+    zoom,
+    minZoom,
+    viewportEligible = null,
+} = {}) {
+    const normalizedZoom = Number(zoom);
+    const normalizedMinZoom = Math.round(Number(minZoom));
+    if (
+        !enabled
+        || viewportEligible !== false
+        || !Number.isFinite(normalizedZoom)
+        || !Number.isFinite(normalizedMinZoom)
+        || normalizedZoom >= normalizedMinZoom
+        || !isFixedTownSurfaceZoomEligible(normalizedZoom, normalizedMinZoom)
+    ) {
+        return null;
+    }
+
+    return normalizedMinZoom;
+}
+
+export function shouldCapFixedTownRequestedLiveTiles({
+    townRequested = false,
+    surfaceConfigured = false,
+    viewportEligible = null,
+    surfaceFaulted = false,
+} = {}) {
+    return Boolean(
+        townRequested
+        && surfaceConfigured
+        && viewportEligible !== false
+        && !surfaceFaulted
+    );
+}
+
 export function resolveFixedTownBasemapMode({
     preference = 'live',
     townAvailable = false,

@@ -40,6 +40,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
     assert.match(directoryMapSource, /function DirectoryMapZoomSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownViewportSync/);
+    assert.match(directoryMapSource, /function DirectoryMapFixedTownMinZoomSnapSync/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
     assert.match(directoryMapSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
     assert.match(directoryMapSource, /areWsenBoundsContained\(viewportBounds, surfaceBounds\)/);
@@ -82,7 +83,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /if \(isDeepZoom && deferDeepFocusUntilDirect && !directDeepFocus\)/);
     assert.match(directoryMapSource, /if \(isDeepZoom && directDeepFocus/);
     assert.match(directoryMapSource, /:\$\{resolvedBasemapUrl\}/);
-    assert.match(directoryMapSource, /shouldCapTownRequestedLiveTiles = townBasemapRequested\s*&& fixedTownSurfaceConfigured/);
+    assert.match(directoryMapSource, /shouldCapTownRequestedLiveTiles = shouldCapFixedTownRequestedLiveTiles/);
+    assert.match(directoryMapSource, /viewportEligible: fixedTownSurfaceViewportEligible/);
+    assert.match(directoryMapSource, /surfaceFaulted: Boolean\(fixedTownSurfaceFaultReason\)/);
     assert.match(directoryMapSource, /maxZoom=\{shouldCapTownRequestedLiveTiles/);
     assert.match(directoryMapSource, /fixedTownSurfaceFaultReason === 'viewport-memory-limit'/);
     assert.match(directoryMapSource, /currentTileZoom > fixedTownSurfaceFaultTileZoomRef\.current/);
@@ -96,6 +99,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /url=\{resolvedBasemapUrl\}/);
     assert.match(directoryMapSource, /<DirectoryMapZoomLevelControl/);
     assert.match(directoryMapSource, /<DirectoryMapFixedTownViewportSync/);
+    assert.match(directoryMapSource, /<DirectoryMapFixedTownMinZoomSnapSync/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);
 });
 
@@ -124,6 +128,8 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /areWsenBoundsContained\(viewportBounds, manifest\.bounds\?\.surface \|\| manifest\.bounds\?\.nominal\)/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_RETENTION_PAD = 0\.5/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_MAX_DECODED_BYTES = 256 \* 1024 \* 1024/);
+    assert.match(fixedTownSurfaceSource, /maxDecodedBytes = FIXED_TOWN_SURFACE_MAX_DECODED_BYTES/);
+    assert.match(fixedTownSurfaceSource, /const decodedByteLimit =/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS = \[350, 1200, 4000\]/);
     assert.match(fixedTownSurfaceSource, /zoom <= townMinZoom \+ FIXED_TOWN_SURFACE_LOW_ZOOM_RANGE/);
     assert.match(fixedTownSurfaceSource, /getViewportBounds\(map, retentionPad\)/);

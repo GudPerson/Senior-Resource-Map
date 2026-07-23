@@ -8,6 +8,7 @@ export default function MapDirectoryExportPanel({
     exportWidth,
     onMapReadyForCapture,
     onMapCaptureError,
+    onMapViewportSnapshot,
     printMapState = null,
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
@@ -27,6 +28,7 @@ export default function MapDirectoryExportPanel({
             footerNote={directory?.share?.isShared ? 'Open the shared link for the full interactive map.' : ''}
             onMapReadyForCapture={onMapReadyForCapture}
             onMapCaptureError={onMapCaptureError}
+            onMapViewportSnapshot={onMapViewportSnapshot}
             printMapState={printMapState}
             fixedTownSurfaceManifest={fixedTownSurfaceManifest}
             fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}

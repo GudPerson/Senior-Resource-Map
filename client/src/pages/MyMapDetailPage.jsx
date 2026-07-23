@@ -55,6 +55,9 @@ const TOWN_MAP_PROOF_ENABLED = import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED === '
 const TOWN_MAP_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_ASSET_BASE_URL || '');
 const TOWN_MAP_GRAY_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL || '');
 const TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = [1.3521, 103.846];
+const OWNER_PRINT_BASEMAP_OPTIONS = TOWN_MAP_PROOF_ENABLED
+    ? { basemapMode: 'auto' }
+    : undefined;
 const MY_MAP_DETAIL_CACHE_LIMIT = 8;
 const myMapDetailCache = new Map();
 
@@ -556,7 +559,9 @@ export default function MyMapDetailPage() {
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
-    const [printMapState, setPrintMapState] = useState(() => createOwnerPrintMapState(mapStyle));
+    const [printMapState, setPrintMapState] = useState(() => (
+        createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
+    ));
     const [printLayoutOpen, setPrintLayoutOpen] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
@@ -641,7 +646,7 @@ export default function MyMapDetailPage() {
         const wasPrintView = previousPrintViewRef.current;
         previousPrintViewRef.current = isPrintView;
         if (isPrintView && !wasPrintView) {
-            setPrintMapState(createOwnerPrintMapState(mapStyle));
+            setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
             setPrintLayoutOpen(false);
         }
     }, [isPrintView, mapStyle]);
@@ -1456,7 +1461,7 @@ export default function MyMapDetailPage() {
     }, []);
 
     function openPrintView() {
-        setPrintMapState(createOwnerPrintMapState(mapStyle));
+        setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
         setPrintLayoutOpen(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('view', 'print');

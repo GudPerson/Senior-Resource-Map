@@ -2,6 +2,8 @@ const rawApiUrl = String(process.env.VITE_API_URL || '').trim();
 const preferredApiUrl = 'https://api.carearound.sg/api';
 const preferredTownMapUrl = 'https://maps.carearound.sg/v2/native-scale-20260722/default';
 const preferredTownMapGrayUrl = 'https://maps.carearound.sg/v2/native-scale-20260722/gray';
+const preferredTownMapPrintMasterUrl = 'https://maps.carearound.sg/v2/print-master-100-20260723/default';
+const preferredTownMapGrayPrintMasterUrl = 'https://maps.carearound.sg/v2/print-master-100-20260723/gray';
 const rollbackTownMapUrls = Object.freeze([
     'https://maps.carearound.sg/v1/islandwide',
     'https://maps.carearound.sg/v1/w01',
@@ -20,7 +22,10 @@ function fail(message) {
 function normalizeUrl(value, label) {
     const rawValue = String(value || '').trim();
     if (!rawValue) {
-        fail(`Missing ${label}. Production Pages deploys must keep the owner Detailed map enabled.`);
+        const feature = label.includes('PRINT_MASTER')
+            ? 'the owner Print Master PDF action enabled'
+            : 'the owner Detailed map enabled';
+        fail(`Missing ${label}. Production Pages deploys must keep ${feature}.`);
     }
 
     let parsedUrl;
@@ -74,6 +79,14 @@ if (String(process.env.VITE_TOWN_MAP_PROOF_ENABLED || '').trim() !== 'true') {
 
 const townMapUrl = normalizeUrl(process.env.VITE_TOWN_MAP_ASSET_BASE_URL, 'VITE_TOWN_MAP_ASSET_BASE_URL');
 const townMapGrayUrl = normalizeUrl(process.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL, 'VITE_TOWN_MAP_GRAY_ASSET_BASE_URL');
+const townMapPrintMasterUrl = normalizeUrl(
+    process.env.VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL,
+    'VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL',
+);
+const townMapGrayPrintMasterUrl = normalizeUrl(
+    process.env.VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL,
+    'VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL',
+);
 const allowedTownMapUrls = allowTownMapRollback
     ? [preferredTownMapUrl, ...rollbackTownMapUrls]
     : [preferredTownMapUrl];
@@ -85,5 +98,14 @@ if (!allowedTownMapUrls.includes(townMapUrl) || !allowedTownMapGrayUrls.includes
     fail(
         `Production Pages deploys must use the islandwide Detailed map assets (${preferredTownMapUrl} and ${preferredTownMapGrayUrl}). ` +
         'Set VITE_ALLOW_TOWN_MAP_ROLLBACK=true only for a deliberate rollback to a retained v1 root.'
+    );
+}
+
+if (
+    townMapPrintMasterUrl !== preferredTownMapPrintMasterUrl
+    || townMapGrayPrintMasterUrl !== preferredTownMapGrayPrintMasterUrl
+) {
+    fail(
+        `Production Pages deploys must use the versioned Print Master assets (${preferredTownMapPrintMasterUrl} and ${preferredTownMapGrayPrintMasterUrl}).`
     );
 }

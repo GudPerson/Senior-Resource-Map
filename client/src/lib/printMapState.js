@@ -1,10 +1,30 @@
 import { normalizeCareAroundMapStyle } from './mapTheme.js';
 
 export const PRINT_MAP_CANVAS_WIDTH_PX = 1480;
+export const PRINT_MAP_PREVIEW_GUTTER_PX = 16;
+export const PRINT_MAP_PREVIEW_MIN_SCALE = 0.2;
 export const PRINT_MAP_DEFAULT_HEIGHT_PX = 360;
 export const PRINT_MAP_MIN_HEIGHT_PX = 300;
 export const PRINT_MAP_MAX_HEIGHT_PX = 720;
 export const PRINT_MAP_HEIGHT_STEP_PX = 40;
+export const PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX = 900;
+export const PRINT_MAP_FULL_PAGE_MIN_HEIGHT_PX = 720;
+export const PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX = 1080;
+
+export const PRINT_MAP_PAGE_LAYOUT_STANDARD = 'standard';
+export const PRINT_MAP_PAGE_LAYOUT_FULL = 'full-map-page';
+export const PRINT_MAP_RESOURCE_PLACEMENT_BESIDE = 'beside';
+export const PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE = 'next-page';
+export const PRINT_MAP_QUALITY_STANDARD = 'standard';
+export const PRINT_MAP_QUALITY_HIGH = 'high';
+export const PRINT_MAP_RESOURCE_LAYER_SHOW = 'show';
+export const PRINT_MAP_RESOURCE_LAYER_HIDE = 'hide';
+
+export const PRINT_MAP_EXPORT_PIXEL_RATIO = 2;
+export const PRINT_MAP_EXPORT_CANVAS_SCALE_STANDARD = 2;
+export const PRINT_MAP_EXPORT_CANVAS_SCALE_HIGH = 2.5;
+export const PRINT_MAP_EXPORT_MAX_DIMENSION_PX = 16384;
+export const PRINT_MAP_EXPORT_MAX_PIXELS = 100_000_000;
 
 export const PRINT_MAP_LAYOUT_BALANCED = 'balanced';
 export const PRINT_MAP_LAYOUT_FOCUS = 'map-focus';
@@ -16,6 +36,41 @@ export const PRINT_MAP_LABEL_DETAIL_NAMES = 'names';
 export const PRINT_MAP_LABEL_DETAIL_LOGOS = 'names-logos';
 export const PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES = 'names-addresses';
 export const PRINT_MAP_LABEL_DETAIL_FULL = 'full';
+
+export function normalizePrintMapPageLayout(value) {
+    return value === PRINT_MAP_PAGE_LAYOUT_FULL
+        ? PRINT_MAP_PAGE_LAYOUT_FULL
+        : PRINT_MAP_PAGE_LAYOUT_STANDARD;
+}
+
+export function normalizePrintMapResourcePlacement(value) {
+    return value === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+        ? PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+        : PRINT_MAP_RESOURCE_PLACEMENT_BESIDE;
+}
+
+export function shouldExportPrintMapAsSeparatePages(state = {}) {
+    return normalizePrintMapPageLayout(state.pageLayout) === PRINT_MAP_PAGE_LAYOUT_FULL
+        && normalizePrintMapResourcePlacement(state.resourcePlacement) === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE;
+}
+
+export function normalizePrintMapQuality(value) {
+    return value === PRINT_MAP_QUALITY_HIGH ? PRINT_MAP_QUALITY_HIGH : PRINT_MAP_QUALITY_STANDARD;
+}
+
+export function normalizePrintMapResourceLayer(value) {
+    return value === PRINT_MAP_RESOURCE_LAYER_HIDE
+        ? PRINT_MAP_RESOURCE_LAYER_HIDE
+        : PRINT_MAP_RESOURCE_LAYER_SHOW;
+}
+
+export function getPrintMapPreviewScale(containerWidth) {
+    const width = Number(containerWidth);
+    if (!Number.isFinite(width) || width <= 0) return 1;
+
+    const availableWidth = Math.max(1, width - (PRINT_MAP_PREVIEW_GUTTER_PX * 2));
+    return Math.max(PRINT_MAP_PREVIEW_MIN_SCALE, availableWidth / PRINT_MAP_CANVAS_WIDTH_PX);
+}
 
 export function normalizePrintMapLayoutPreset(value) {
     return value === PRINT_MAP_LAYOUT_FOCUS ? PRINT_MAP_LAYOUT_FOCUS : PRINT_MAP_LAYOUT_BALANCED;
@@ -41,8 +96,24 @@ export function normalizePrintMapLabelDetail(value) {
 }
 
 export function getOwnerPrintLayoutConfig(state = {}) {
+    const pageLayout = normalizePrintMapPageLayout(state.pageLayout);
+    const resourcePlacement = normalizePrintMapResourcePlacement(state.resourcePlacement);
     const layoutPreset = normalizePrintMapLayoutPreset(state.layoutPreset);
     const mapWidth = normalizePrintMapWidth(state.mapWidth);
+    if (
+        pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
+        && resourcePlacement === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+    ) {
+        return {
+            layoutPreset,
+            mapSide: 'center',
+            mapWidth,
+            mapMaxWidthPx: 1400,
+            gridClassName: 'grid-cols-[0px_minmax(0,1fr)_0px]',
+            resourcesBelow: true,
+        };
+    }
+
     if (layoutPreset === PRINT_MAP_LAYOUT_BALANCED) {
         const extraWide = mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE;
         return {
@@ -73,10 +144,48 @@ export function getOwnerPrintLayoutConfig(state = {}) {
     };
 }
 
-export function clampPrintMapHeight(value) {
+export function getPrintMapHeightBounds(state = {}) {
+    if (normalizePrintMapPageLayout(state.pageLayout) === PRINT_MAP_PAGE_LAYOUT_FULL) {
+        return {
+            defaultHeight: PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX,
+            minHeight: PRINT_MAP_FULL_PAGE_MIN_HEIGHT_PX,
+            maxHeight: PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX,
+        };
+    }
+    return {
+        defaultHeight: PRINT_MAP_DEFAULT_HEIGHT_PX,
+        minHeight: PRINT_MAP_MIN_HEIGHT_PX,
+        maxHeight: PRINT_MAP_MAX_HEIGHT_PX,
+    };
+}
+
+export function clampPrintMapHeight(value, state = {}) {
+    const { defaultHeight, minHeight, maxHeight } = getPrintMapHeightBounds(state);
     const height = Number(value);
-    if (!Number.isFinite(height)) return PRINT_MAP_DEFAULT_HEIGHT_PX;
-    return Math.round(Math.min(Math.max(height, PRINT_MAP_MIN_HEIGHT_PX), PRINT_MAP_MAX_HEIGHT_PX));
+    if (!Number.isFinite(height)) return defaultHeight;
+    return Math.round(Math.min(Math.max(height, minHeight), maxHeight));
+}
+
+export function getPrintMapExportConfig(state = {}, dimensions = {}) {
+    const width = Math.max(1, Number(dimensions.width) || PRINT_MAP_CANVAS_WIDTH_PX);
+    const height = Math.max(1, Number(dimensions.height) || PRINT_MAP_DEFAULT_HEIGHT_PX);
+    const requestedCanvasScale = normalizePrintMapQuality(state.mapQuality) === PRINT_MAP_QUALITY_HIGH
+        ? PRINT_MAP_EXPORT_CANVAS_SCALE_HIGH
+        : PRINT_MAP_EXPORT_CANVAS_SCALE_STANDARD;
+    const requestedOutputScale = requestedCanvasScale * PRINT_MAP_EXPORT_PIXEL_RATIO;
+    const maxOutputScaleByDimension = PRINT_MAP_EXPORT_MAX_DIMENSION_PX / Math.max(width, height);
+    const maxOutputScaleByPixels = Math.sqrt(PRINT_MAP_EXPORT_MAX_PIXELS / (width * height));
+    const outputScale = Math.max(
+        1,
+        Math.min(requestedOutputScale, maxOutputScaleByDimension, maxOutputScaleByPixels),
+    );
+
+    return {
+        pixelRatio: PRINT_MAP_EXPORT_PIXEL_RATIO,
+        canvasScale: outputScale / PRINT_MAP_EXPORT_PIXEL_RATIO,
+        outputScale,
+        isCapped: outputScale < requestedOutputScale,
+    };
 }
 
 export function normalizePrintMapViewState(value) {
@@ -87,12 +196,18 @@ export function normalizePrintMapViewState(value) {
     return { center: [lat, lng], zoom };
 }
 
-export function createOwnerPrintMapState(mapStyle) {
+export function createOwnerPrintMapState(mapStyle, {
+    basemapMode = 'live',
+} = {}) {
     return {
         mapStyle: normalizeCareAroundMapStyle(mapStyle),
-        basemapMode: 'live',
+        basemapMode: basemapMode === 'auto' ? 'auto' : 'live',
         view: null,
         height: PRINT_MAP_DEFAULT_HEIGHT_PX,
+        pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
+        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+        mapQuality: PRINT_MAP_QUALITY_STANDARD,
+        resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
         mapSide: PRINT_MAP_SIDE_LEFT,
         mapWidth: PRINT_MAP_WIDTH_WIDE,
@@ -113,9 +228,13 @@ export function buildPrintMapCaptureKey(state) {
     return [
         normalizeCareAroundMapStyle(state?.mapStyle),
         state?.basemapMode === 'auto' ? 'auto' : 'live',
-        clampPrintMapHeight(state?.height),
+        clampPrintMapHeight(state?.height, state),
         view ? view.center.map((value) => value.toFixed(7)).join(',') : 'fit',
         view ? view.zoom.toFixed(3) : 'fit',
+        normalizePrintMapPageLayout(state?.pageLayout),
+        normalizePrintMapResourcePlacement(state?.resourcePlacement),
+        normalizePrintMapQuality(state?.mapQuality),
+        normalizePrintMapResourceLayer(state?.resourceLayer),
         normalizePrintMapLayoutPreset(state?.layoutPreset),
         normalizePrintMapSide(state?.mapSide),
         normalizePrintMapWidth(state?.mapWidth),

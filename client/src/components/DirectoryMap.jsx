@@ -41,8 +41,10 @@ import {
     areWsenBoundsContained,
     isFixedTownSurfaceZoomEligible,
     normalizeFixedTownStandardZoom,
+    resolveFixedTownMinimumZoomSnap,
     resolveFixedTownBasemapMode,
     selectVisibleFixedTownChunks,
+    shouldCapFixedTownRequestedLiveTiles,
 } from '../lib/fixedTownSurface.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
@@ -1964,6 +1966,36 @@ function DirectoryMapFixedTownViewportSync({
     return null;
 }
 
+function DirectoryMapFixedTownMinZoomSnapSync({
+    enabled = false,
+    minZoom,
+    viewportEligible = null,
+}) {
+    const map = useMap();
+    const lastSnapRef = useRef('');
+
+    useEffect(() => {
+        const currentZoom = Number(map.getZoom());
+        const nextZoom = resolveFixedTownMinimumZoomSnap({
+            enabled,
+            zoom: currentZoom,
+            minZoom,
+            viewportEligible,
+        });
+        if (!Number.isFinite(nextZoom)) {
+            lastSnapRef.current = '';
+            return;
+        }
+
+        const snapKey = `${currentZoom}:${nextZoom}`;
+        if (lastSnapRef.current === snapKey) return;
+        lastSnapRef.current = snapKey;
+        map.setView(map.getCenter(), nextZoom, { animate: false });
+    }, [enabled, map, minZoom, viewportEligible]);
+
+    return null;
+}
+
 function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null }) {
     const map = useMap();
 
@@ -2153,6 +2185,7 @@ export default function DirectoryMap({
     pinCategoryIconMode = 'auto',
     clusterMarkerMode = 'bubble',
     spreadCoincidentPins = true,
+    showPins = true,
     placeNumberByKey = null,
     showPopup = true,
     showZoomControl = interactive,
@@ -2164,6 +2197,7 @@ export default function DirectoryMap({
     fitPaddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
     onMapReadyForCapture,
     onMapCaptureError,
+    onMapViewportSnapshot,
     onClusterChange,
     onFocusHandled,
     onResetView,
@@ -2180,7 +2214,9 @@ export default function DirectoryMap({
     fixedTownSurfaceMinZoom,
     fixedTownSurfaceGrayscale = false,
     fixedTownSurfaceLockMinZoom = true,
+    fixedTownSurfaceSnapToMinZoom = false,
     fixedTownSurfaceFallbackBelowMinZoom = true,
+    fixedTownSurfaceMaxDecodedBytes = null,
     fixedTownSurfaceFallbackScope = 'global',
     onBasemapModeChange,
     onFixedTownSurfaceFallback,
@@ -2205,7 +2241,7 @@ export default function DirectoryMap({
     const captureErrorRef = useRef(null);
     const mapFrameRef = useRef(null);
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, spreadCoincidentPins), [interactive, pins, spreadCoincidentPins]);
-    const shouldCluster = clusterMarkerMode !== 'none' && displayPins.length > 1;
+    const shouldCluster = showPins && clusterMarkerMode !== 'none' && displayPins.length > 1;
     const clusterGroupRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const resolvedMapStyle = normalizeCareAroundMapStyle(mapStyleOverride ?? mapStyle);
@@ -2339,6 +2375,7 @@ export default function DirectoryMap({
     const townMapZoomUnknown = fixedTownSurfaceZoom === null || fixedTownSurfaceZoom === undefined;
     const shouldSuppressTownPendingLiveTiles = townBasemapRequested
         && fixedTownSurfacePending
+        && fixedTownSurfaceViewportEligible !== false
         && (townMapZoomEligible || townMapZoomUnknown || hasFocusedMapTarget);
     const shouldSuppressTownFocusLiveTiles = townBasemapRequested
         && hasFocusedMapTarget
@@ -2355,8 +2392,12 @@ export default function DirectoryMap({
             resolvedFixedTownSurfaceAvailable
             || (fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
         );
-    const shouldCapTownRequestedLiveTiles = townBasemapRequested
-        && fixedTownSurfaceConfigured;
+    const shouldCapTownRequestedLiveTiles = shouldCapFixedTownRequestedLiveTiles({
+        townRequested: townBasemapRequested,
+        surfaceConfigured: fixedTownSurfaceConfigured,
+        viewportEligible: fixedTownSurfaceViewportEligible,
+        surfaceFaulted: Boolean(fixedTownSurfaceFaultReason),
+    });
     const shouldRenderFixedTownSurface = effectiveBasemapMode === 'town'
         || (
             shouldSuppressTownLiveTiles
@@ -2406,8 +2447,20 @@ export default function DirectoryMap({
             window.clearTimeout(readyTimeoutRef.current);
             readyTimeoutRef.current = null;
         }
+        const map = mapInstanceRef.current;
+        if (map && onMapViewportSnapshot) {
+            const bounds = map.getBounds();
+            const center = map.getCenter();
+            const size = map.getSize();
+            onMapViewportSnapshot({
+                bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
+                center: [center.lat, center.lng],
+                zoom: Number(map.getZoom()),
+                size: [Number(size.x), Number(size.y)],
+            });
+        }
         onMapReadyForCapture?.();
-    }, [onMapReadyForCapture]);
+    }, [onMapReadyForCapture, onMapViewportSnapshot]);
 
     const tryNotifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -2553,6 +2606,7 @@ export default function DirectoryMap({
     };
 
     const renderedMarkers = useMemo(() => {
+        if (!showPins) return null;
         if (shouldCluster) {
             return (
                 <MarkerClusterGroup
@@ -2711,7 +2765,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     if (!pins.length && !anchorPoint) {
         return (
@@ -2745,6 +2799,7 @@ export default function DirectoryMap({
             data-map-controlled-center={mapViewState?.center?.join(',') || undefined}
             data-map-controlled-zoom={Number.isFinite(Number(mapViewState?.zoom)) ? Number(mapViewState.zoom) : undefined}
             data-map-basemap-mode={effectiveBasemapMode}
+            data-print-export-map-frame={onMapReadyForCapture ? 'true' : undefined}
         >
             <MapContainer
                 center={DEFAULT_CENTER}
@@ -2785,6 +2840,13 @@ export default function DirectoryMap({
                     onViewportEligibleChange={setFixedTownSurfaceViewportEligible}
                     onViewportBoundsChange={onFixedTownSurfaceViewportChange}
                 />
+                <DirectoryMapFixedTownMinZoomSnapSync
+                    enabled={fixedTownSurfaceSnapToMinZoom
+                        && townBasemapRequested
+                        && fixedTownSurfaceConfigured}
+                    minZoom={resolvedFixedTownSurfaceMinZoom}
+                    viewportEligible={fixedTownSurfaceViewportEligible}
+                />
                 <DirectoryMapZoomLevelControl
                     enabled={showZoomLevelCounter && showZoomControl}
                     minZoom={resolvedMapMinZoom}
@@ -2800,6 +2862,7 @@ export default function DirectoryMap({
                         grayscale={fixedTownSurfaceGrayscale}
                         lockMinZoom={fixedTownSurfaceLockMinZoom}
                         fallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}
+                        maxDecodedBytes={fixedTownSurfaceMaxDecodedBytes}
                         onFallback={handleFixedTownSurfaceFallback}
                         onMetricsChange={handleFixedTownSurfaceMetricsChange}
                     />

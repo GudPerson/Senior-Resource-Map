@@ -71,6 +71,7 @@ export default function FixedTownSurfaceLayer({
     grayscale = false,
     lockMinZoom = true,
     fallbackBelowMinZoom = true,
+    maxDecodedBytes = FIXED_TOWN_SURFACE_MAX_DECODED_BYTES,
     onFallback,
     onMetricsChange,
 }) {
@@ -105,6 +106,11 @@ export default function FixedTownSurfaceLayer({
         const sourceZoom = Number(manifest.source?.zoom ?? 19);
         const previousMinZoom = Number(map.getMinZoom?.());
         const configuredMinZoom = Number(minZoom);
+        const configuredMaxDecodedBytes = Number(maxDecodedBytes);
+        const decodedByteLimit = Number.isFinite(configuredMaxDecodedBytes)
+            && configuredMaxDecodedBytes > 0
+            ? configuredMaxDecodedBytes
+            : FIXED_TOWN_SURFACE_MAX_DECODED_BYTES;
         const townMinZoom = Math.max(
             Number.isFinite(previousMinZoom) ? previousMinZoom : FIXED_TOWN_SURFACE_MIN_ZOOM,
             Number.isFinite(configuredMinZoom) ? configuredMinZoom : FIXED_TOWN_SURFACE_MIN_ZOOM,
@@ -219,7 +225,7 @@ export default function FixedTownSurfaceLayer({
                 return;
             }
             const visibleDecodedBytes = getDecodedBytes(visibleChunks);
-            if (visibleDecodedBytes > FIXED_TOWN_SURFACE_MAX_DECODED_BYTES) {
+            if (visibleDecodedBytes > decodedByteLimit) {
                 fallback('viewport-memory-limit', {
                     zoom,
                     visibleChunkCount: visibleChunks.length,
@@ -236,7 +242,7 @@ export default function FixedTownSurfaceLayer({
                 visibleChunks.forEach((chunk) => nextActiveChunks.set(String(chunk.id), chunk));
                 if (
                     getDecodedBytes([...nextActiveChunks.values()])
-                    > FIXED_TOWN_SURFACE_MAX_DECODED_BYTES
+                    > decodedByteLimit
                 ) {
                     [...overlays.keys()].forEach((chunkId) => {
                         if (!visibleIds.has(chunkId)) removeOverlay(chunkId);
@@ -254,7 +260,7 @@ export default function FixedTownSurfaceLayer({
                         getViewportBounds(map, retentionPad),
                     );
                 const retainedChunks = getDecodedBytes(paddedChunks)
-                    <= FIXED_TOWN_SURFACE_MAX_DECODED_BYTES
+                    <= decodedByteLimit
                     ? paddedChunks
                     : visibleChunks;
                 const retainedIds = new Set(retainedChunks.map((chunk) => String(chunk.id)));
@@ -401,7 +407,7 @@ export default function FixedTownSurfaceLayer({
             removeAttribution();
             if (lockMinZoom && Number.isFinite(previousMinZoom)) map.setMinZoom(previousMinZoom);
         };
-    }, [assetBaseUrl, fallbackBelowMinZoom, grayscale, lockMinZoom, manifest, map, minZoom]);
+    }, [assetBaseUrl, fallbackBelowMinZoom, grayscale, lockMinZoom, manifest, map, maxDecodedBytes, minZoom]);
 
     return null;
 }

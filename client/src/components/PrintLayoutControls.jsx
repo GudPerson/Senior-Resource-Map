@@ -2,18 +2,33 @@ import { X } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import {
+    PRINT_MAP_DEFAULT_HEIGHT_PX,
+    PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX,
     PRINT_MAP_LABEL_DETAIL_FULL,
     PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LABEL_DETAIL_NAMES,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
     PRINT_MAP_LAYOUT_BALANCED,
     PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_MAX_HEIGHT_PX,
+    PRINT_MAP_PAGE_LAYOUT_FULL,
+    PRINT_MAP_PAGE_LAYOUT_STANDARD,
+    PRINT_MAP_QUALITY_HIGH,
+    PRINT_MAP_QUALITY_STANDARD,
+    PRINT_MAP_RESOURCE_LAYER_HIDE,
+    PRINT_MAP_RESOURCE_LAYER_SHOW,
+    PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+    PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
     PRINT_MAP_SIDE_LEFT,
     PRINT_MAP_SIDE_RIGHT,
     PRINT_MAP_WIDTH_EXTRA_WIDE,
     PRINT_MAP_WIDTH_WIDE,
     normalizePrintMapLabelDetail,
     normalizePrintMapLayoutPreset,
+    normalizePrintMapPageLayout,
+    normalizePrintMapQuality,
+    normalizePrintMapResourceLayer,
+    normalizePrintMapResourcePlacement,
     normalizePrintMapSide,
     normalizePrintMapWidth,
 } from '../lib/printMapState.js';
@@ -43,10 +58,19 @@ function ChoiceButton({ selected, label, description = '', onClick }) {
 export default function PrintLayoutControls({ value, onChange, onClose }) {
     const { t } = useLocale();
     const layoutPreset = normalizePrintMapLayoutPreset(value?.layoutPreset);
+    const pageLayout = normalizePrintMapPageLayout(value?.pageLayout);
+    const resourcePlacement = normalizePrintMapResourcePlacement(value?.resourcePlacement);
+    const mapQuality = normalizePrintMapQuality(value?.mapQuality);
+    const resourceLayer = normalizePrintMapResourceLayer(value?.resourceLayer);
     const mapSide = normalizePrintMapSide(value?.mapSide);
     const mapWidth = normalizePrintMapWidth(value?.mapWidth);
     const labelDetail = normalizePrintMapLabelDetail(value?.labelDetail);
-    const patchState = (patch) => onChange?.((current) => ({ ...current, ...patch }));
+    const patchState = (patch) => onChange?.((current) => ({
+        ...current,
+        ...(typeof patch === 'function' ? patch(current || {}) : patch),
+    }));
+    const resourcesOnNextPage = pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
+        && resourcePlacement === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE;
 
     const labelOptions = [
         { value: PRINT_MAP_LABEL_DETAIL_NAMES, label: t('printLabelNamesOnly') },
@@ -81,57 +105,150 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                 </button>
             </div>
 
-            <fieldset className="mt-4">
-                <legend className="text-sm font-bold text-slate-800">{t('printLayoutType')}</legend>
+            <fieldset className="mt-4" data-print-page-layout-controls="true">
+                <legend className="text-sm font-bold text-slate-800">{t('printPageFormat')}</legend>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     <ChoiceButton
-                        selected={layoutPreset === PRINT_MAP_LAYOUT_BALANCED}
-                        label={t('printLayoutBalanced')}
-                        description={t('printLayoutBalancedDescription')}
-                        onClick={() => patchState({ layoutPreset: PRINT_MAP_LAYOUT_BALANCED })}
+                        selected={pageLayout === PRINT_MAP_PAGE_LAYOUT_STANDARD}
+                        label={t('printPageStandard')}
+                        description={t('printPageStandardDescription')}
+                        onClick={() => patchState((current) => ({
+                            pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
+                            resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+                            height: Math.min(Number(current.height) || PRINT_MAP_DEFAULT_HEIGHT_PX, PRINT_MAP_MAX_HEIGHT_PX),
+                        }))}
                     />
                     <ChoiceButton
-                        selected={layoutPreset === PRINT_MAP_LAYOUT_FOCUS}
-                        label={t('printLayoutMapFocus')}
-                        description={t('printLayoutMapFocusDescription')}
-                        onClick={() => patchState({ layoutPreset: PRINT_MAP_LAYOUT_FOCUS })}
+                        selected={pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL}
+                        label={t('printPageFullMap')}
+                        description={t('printPageFullMapDescription')}
+                        onClick={() => patchState((current) => ({
+                            pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
+                            resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+                            height: Math.max(Number(current.height) || 0, PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX),
+                        }))}
                     />
                 </div>
             </fieldset>
 
-            <div className={`mt-4 grid gap-4 ${layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? 'lg:grid-cols-2' : ''}`}>
-                {layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? (
-                    <fieldset>
-                        <legend className="text-sm font-bold text-slate-800">{t('printMapPosition')}</legend>
+            {pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL ? (
+                <fieldset className="mt-4" data-print-resource-placement-controls="true">
+                    <legend className="text-sm font-bold text-slate-800">{t('printResourcePlacement')}</legend>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <ChoiceButton
+                            selected={resourcePlacement === PRINT_MAP_RESOURCE_PLACEMENT_BESIDE}
+                            label={t('printResourcesBeside')}
+                            onClick={() => patchState({ resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE })}
+                        />
+                        <ChoiceButton
+                            selected={resourcePlacement === PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE}
+                            label={t('printResourcesNextPage')}
+                            onClick={() => patchState({ resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE })}
+                        />
+                    </div>
+                    <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+                        {t('printResourcePlacementHelp')}
+                    </p>
+                </fieldset>
+            ) : null}
+
+            {!resourcesOnNextPage ? (
+                <fieldset className="mt-4">
+                    <legend className="text-sm font-bold text-slate-800">{t('printLayoutType')}</legend>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <ChoiceButton
+                            selected={layoutPreset === PRINT_MAP_LAYOUT_BALANCED}
+                            label={t('printLayoutBalanced')}
+                            description={t('printLayoutBalancedDescription')}
+                            onClick={() => patchState({ layoutPreset: PRINT_MAP_LAYOUT_BALANCED })}
+                        />
+                        <ChoiceButton
+                            selected={layoutPreset === PRINT_MAP_LAYOUT_FOCUS}
+                            label={t('printLayoutMapFocus')}
+                            description={t('printLayoutMapFocusDescription')}
+                            onClick={() => patchState({ layoutPreset: PRINT_MAP_LAYOUT_FOCUS })}
+                        />
+                    </div>
+                </fieldset>
+            ) : null}
+
+            {!resourcesOnNextPage ? (
+                <div className={`mt-4 grid gap-4 ${layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? 'lg:grid-cols-2' : ''}`}>
+                    {layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? (
+                        <fieldset>
+                            <legend className="text-sm font-bold text-slate-800">{t('printMapPosition')}</legend>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <ChoiceButton
+                                    selected={mapSide === PRINT_MAP_SIDE_LEFT}
+                                    label={t('printMapOnLeft')}
+                                    onClick={() => patchState({ mapSide: PRINT_MAP_SIDE_LEFT })}
+                                />
+                                <ChoiceButton
+                                    selected={mapSide === PRINT_MAP_SIDE_RIGHT}
+                                    label={t('printMapOnRight')}
+                                    onClick={() => patchState({ mapSide: PRINT_MAP_SIDE_RIGHT })}
+                                />
+                            </div>
+                        </fieldset>
+                    ) : null}
+
+                    <fieldset data-print-map-width-controls="true">
+                        <legend className="text-sm font-bold text-slate-800">{t('printMapWidth')}</legend>
                         <div className="mt-2 grid grid-cols-2 gap-2">
                             <ChoiceButton
-                                selected={mapSide === PRINT_MAP_SIDE_LEFT}
-                                label={t('printMapOnLeft')}
-                                onClick={() => patchState({ mapSide: PRINT_MAP_SIDE_LEFT })}
+                                selected={mapWidth === PRINT_MAP_WIDTH_WIDE}
+                                label={t('printMapWidthWide')}
+                                onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_WIDE })}
                             />
                             <ChoiceButton
-                                selected={mapSide === PRINT_MAP_SIDE_RIGHT}
-                                label={t('printMapOnRight')}
-                                onClick={() => patchState({ mapSide: PRINT_MAP_SIDE_RIGHT })}
+                                selected={mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE}
+                                label={t('printMapWidthExtraWide')}
+                                onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE })}
                             />
                         </div>
                     </fieldset>
-                ) : null}
+                </div>
+            ) : null}
 
-                <fieldset data-print-map-width-controls="true">
-                    <legend className="text-sm font-bold text-slate-800">{t('printMapWidth')}</legend>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <fieldset data-print-image-quality-controls="true">
+                    <legend className="text-sm font-bold text-slate-800">{t('printImageQuality')}</legend>
                     <div className="mt-2 grid grid-cols-2 gap-2">
                         <ChoiceButton
-                            selected={mapWidth === PRINT_MAP_WIDTH_WIDE}
-                            label={t('printMapWidthWide')}
-                            onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_WIDE })}
+                            selected={mapQuality === PRINT_MAP_QUALITY_STANDARD}
+                            label={t('printImageQualityStandard')}
+                            description={t('printImageQualityStandardDescription')}
+                            onClick={() => patchState({ mapQuality: PRINT_MAP_QUALITY_STANDARD })}
                         />
                         <ChoiceButton
-                            selected={mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE}
-                            label={t('printMapWidthExtraWide')}
-                            onClick={() => patchState({ mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE })}
+                            selected={mapQuality === PRINT_MAP_QUALITY_HIGH}
+                            label={t('printImageQualityHigh')}
+                            description={t('printImageQualityHighDescription')}
+                            onClick={() => patchState({ mapQuality: PRINT_MAP_QUALITY_HIGH })}
                         />
                     </div>
+                    <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+                        {t('printImageQualityHelp')}
+                    </p>
+                </fieldset>
+
+                <fieldset data-print-resource-layer-controls="true">
+                    <legend className="text-sm font-bold text-slate-800">{t('printResourcePins')}</legend>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <ChoiceButton
+                            selected={resourceLayer === PRINT_MAP_RESOURCE_LAYER_SHOW}
+                            label={t('printResourcePinsShow')}
+                            onClick={() => patchState({ resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW })}
+                        />
+                        <ChoiceButton
+                            selected={resourceLayer === PRINT_MAP_RESOURCE_LAYER_HIDE}
+                            label={t('printResourcePinsHide')}
+                            onClick={() => patchState({ resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE })}
+                        />
+                    </div>
+                    <p className="mt-2 text-xs font-medium leading-5 text-slate-500">
+                        {t('printResourcePinsHelp')}
+                    </p>
                 </fieldset>
             </div>
 

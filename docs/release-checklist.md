@@ -82,11 +82,15 @@ VITE_API_URL=https://api.carearound.sg/api \
 VITE_TOWN_MAP_PROOF_ENABLED=true \
 VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default \
 VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray \
+VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL=https://maps.carearound.sg/v2/print-master-100-20260723/default \
+VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL=https://maps.carearound.sg/v2/print-master-100-20260723/gray \
 npm run build:client
 ```
 
-Omitting the `VITE_TOWN_MAP_*` values intentionally compiles Map detail out of
-the owner client and is a rollback action, not the normal production build.
+Omitting the interactive `VITE_TOWN_MAP_*` values intentionally compiles Map
+detail out of the owner client. Omitting either print-master root hides the
+print-only Print Master PDF action. Both are rollback actions, not the normal
+production build, and `npm run deploy:client` rejects either omission.
 For immediate asset rollback, rebuild with the retained islandwide v1 roots
 `/v1/islandwide` and `/v1/islandwide/gray` and set
 `VITE_ALLOW_TOWN_MAP_ROLLBACK=true`. The older W01-only roots `/v1/w01` and

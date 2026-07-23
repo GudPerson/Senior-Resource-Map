@@ -2600,6 +2600,8 @@ export default function SharedMapDirectoryList({
     cardBadgeMode = 'number',
     showPrintNumberBadges = false,
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
+    printResourcesBelow = false,
+    printResourcePageHeader = null,
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
@@ -2656,6 +2658,21 @@ export default function SharedMapDirectoryList({
         displayGroups.length >= 7
         || displayGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
     );
+    const printResourceColumns = useMemo(() => {
+        const totalWeight = displayGroups.reduce((total, group) => (
+            total + Math.max(1, (group?.rows || []).length) + 1
+        ), 0);
+        const targetWeight = totalWeight / 2;
+        const columns = [[], []];
+        let leftWeight = 0;
+        displayGroups.forEach((group) => {
+            const groupWeight = Math.max(1, (group?.rows || []).length) + 1;
+            const columnIndex = columns[0].length === 0 || leftWeight < targetWeight ? 0 : 1;
+            columns[columnIndex].push(group);
+            if (columnIndex === 0) leftWeight += groupWeight;
+        });
+        return columns;
+    }, [displayGroups]);
     const interactiveRowCount = displayGroups.reduce((count, group) => count + getVisibleGroupRows(group).length, 0);
     const compactInteractiveDesktop = interactive
         && resolvedLayout === 'desktop'
@@ -3142,6 +3159,85 @@ export default function SharedMapDirectoryList({
                             />
                         </div>
                     ) : null}
+                </div>
+            </DirectoryReturnPathContext.Provider>
+        );
+    }
+
+    if (resolvedLayout === 'print' && printResourcesBelow) {
+        const renderPrintResourceColumn = (groups, badgePosition) => (
+            <DirectoryGroupColumn
+                groups={groups}
+                mode={mode}
+                interactive={false}
+                compactInteractive={false}
+                fullCardLink={false}
+                onViewOnMap={handleDirectoryViewOnMap}
+                onHoverPlaceStart={onHoverPlaceStart}
+                onHoverPlaceEnd={onHoverPlaceEnd}
+                onRemoveResource={onRemoveResource}
+                onUpdateResourceNotes={onUpdateResourceNotes}
+                onOpenResourceNotes={openResourceNotes}
+                canSaveResources={canSaveResources}
+                highlightPlaceKey={flashPlaceKey}
+                highlightPlaceKeys={highlightPlaceKeys}
+                sectionRefs={sectionRefs}
+                allowPrintLinks={allowPrintLinks}
+                compactPrint={compactPrint}
+                clusterMapping={clusterMapping}
+                showDesktopHoverLogo={showDesktopHoverLogo}
+                logoRevealPlaceKeys={logoRevealPlaceKeys}
+                cardBadgeMode={cardBadgeMode}
+                showCategoryPills={showCategoryPills}
+                showPrintNumberBadges={showPrintNumberBadges}
+                printNumberBadgePosition={badgePosition}
+                printLabelDetail={printLabelDetail}
+            />
+        );
+
+        return (
+            <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+                <div className={`space-y-8 ${className}`} data-print-resources-below="true">
+                    <section
+                        ref={desktopMapWrapperRef}
+                        className={`bg-white p-10 ${desktopMapWrapperClassName}`.trim()}
+                        data-print-full-map-page="true"
+                        data-print-export-page="map"
+                    >
+                        {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
+                    </section>
+
+                    <section
+                        className="bg-white p-10 [break-before:page] [page-break-before:always]"
+                        data-print-resource-page="true"
+                        data-print-export-page="resources"
+                    >
+                        {printResourcePageHeader}
+                        <div className={`${printResourcePageHeader ? 'mt-8' : ''} grid grid-cols-2 gap-5`}>
+                            {renderPrintResourceColumn(printResourceColumns[0], 'end')}
+                            {renderPrintResourceColumn(printResourceColumns[1], 'start')}
+                        </div>
+                        {shouldRenderUnmappedSections ? (
+                            <DirectoryUnmappedSection
+                                rows={unmappedRows}
+                                interactive={false}
+                                mode={mode}
+                                canSaveResources={canSaveResources}
+                                onRemoveResource={onRemoveResource}
+                                onOpenResourceNotes={openResourceNotes}
+                            />
+                        ) : null}
+                    </section>
+                    <MapNotesOverlay
+                        open={notesPanel.open}
+                        rows={noteResourceRows}
+                        selectedKey={notesPanel.selectedKey}
+                        mode={mode}
+                        onSelectResource={selectResourceNotes}
+                        onBackToList={backToNotesList}
+                        onClose={closeResourceNotes}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
+                    />
                 </div>
             </DirectoryReturnPathContext.Provider>
         );

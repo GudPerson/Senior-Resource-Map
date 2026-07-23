@@ -19,11 +19,13 @@ import {
     parseFixedTownSurfaceManifest,
     resolveFixedTownChunkUrl,
     resolveFixedTownBasemapMode,
+    resolveFixedTownMinimumZoomSnap,
     resolveFixedTownManifestUrl,
     resolveFixedTownSurfaceAssetBaseUrl,
     resolveFixedTownSurfaceManifestPath,
     selectFixedTownSurfaceForViewport,
     selectVisibleFixedTownChunks,
+    shouldCapFixedTownRequestedLiveTiles,
     validateFixedTownSurfaceIndex,
     validateFixedTownSurfaceManifest,
 } from '../src/lib/fixedTownSurface.js';
@@ -585,6 +587,68 @@ test('Standard map normalizes only the fractional gap below Detailed', () => {
     assert.equal(normalizeFixedTownStandardZoom(15, 15), 15);
     assert.equal(normalizeFixedTownStandardZoom(14.3, null), 14.3);
     assert.equal(normalizeFixedTownStandardZoom(undefined, 15), Number.NaN);
+});
+
+test('print-only Detailed recovery snaps a rounded eligible zoom to the exact minimum', () => {
+    assert.equal(resolveFixedTownMinimumZoomSnap({
+        enabled: true,
+        zoom: 14.9,
+        minZoom: 15,
+        viewportEligible: false,
+    }), 15);
+    assert.equal(resolveFixedTownMinimumZoomSnap({
+        enabled: true,
+        zoom: 14.49,
+        minZoom: 15,
+        viewportEligible: false,
+    }), null);
+    assert.equal(resolveFixedTownMinimumZoomSnap({
+        enabled: true,
+        zoom: 14.9,
+        minZoom: 15,
+        viewportEligible: true,
+    }), null);
+    assert.equal(resolveFixedTownMinimumZoomSnap({
+        enabled: false,
+        zoom: 14.9,
+        minZoom: 15,
+        viewportEligible: false,
+    }), null);
+    assert.equal(resolveFixedTownMinimumZoomSnap({
+        enabled: true,
+        zoom: 15,
+        minZoom: 15,
+        viewportEligible: false,
+    }), null);
+});
+
+test('requested Detailed mode caps live tiles only while its viewport can be covered', () => {
+    assert.equal(shouldCapFixedTownRequestedLiveTiles({
+        townRequested: true,
+        surfaceConfigured: true,
+        viewportEligible: null,
+    }), true);
+    assert.equal(shouldCapFixedTownRequestedLiveTiles({
+        townRequested: true,
+        surfaceConfigured: true,
+        viewportEligible: true,
+    }), true);
+    assert.equal(shouldCapFixedTownRequestedLiveTiles({
+        townRequested: true,
+        surfaceConfigured: true,
+        viewportEligible: false,
+    }), false);
+    assert.equal(shouldCapFixedTownRequestedLiveTiles({
+        townRequested: true,
+        surfaceConfigured: true,
+        viewportEligible: true,
+        surfaceFaulted: true,
+    }), false);
+    assert.equal(shouldCapFixedTownRequestedLiveTiles({
+        townRequested: false,
+        surfaceConfigured: true,
+        viewportEligible: true,
+    }), false);
 });
 
 test('town map auto mode respects availability, zoom, and the Live override', () => {
