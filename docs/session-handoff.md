@@ -50,29 +50,73 @@ Last updated: 2026-07-23 (Asia/Singapore)
   the Cloudflare Pages Git build command was updated from the stale W01-only
   roots to both validated v2 roots, so later `main` builds retain this release.
 
-## Pending Full Map Print Master batch (not in production)
+## Full Map Print Master v2 release candidate (2026-07-23)
 
 - Isolated worktree:
-  `/Users/sweetbuns/CareAroundSG-print-full-map-configuration`
-- Branch: `codex/print-full-map-configuration`, still based on
-  `2a213b92a9d4a86926de83ad5bc23caab87d9416`.
-- This batch is locally implemented but remains uncommitted, unpushed, and
-  undeployed. It currently has 19 modified tracked files and seven untracked
-  implementation/test/tooling files. None of it was included in the
-  native-scale v2 release.
-- The local work covers the optional Full map page, map and resource pages as
-  separate images, high-resolution capture, a two-page A3 raster PDF, optional
-  resource-pin hiding, automatic Detailed activation, and a print-only
-  100%-retained W01 Print Master PDF proof.
-- The production gap is asset and integration completion, not just a UI switch:
-  the 100%-retained proof exists only for W01 Default locally. Islandwide
-  Default and Gray Print Master collections, immutable R2 roots, full hash and
-  memory verification, integration with the now-released native-scale v2
-  identities, and a fresh rebase/regression pass are still required.
-- Safest continuation: keep this batch isolated, rebase it onto the native-scale
-  v2 `main`, resolve only the overlapping fixed-surface validation/configuration
-  files, then validate and publish Print Master assets separately before any
-  client release. Do not merge its current dirty worktree directly.
+  `/Users/sweetbuns/CareAroundSG-print-master-v2`
+- Branch: `codex/print-master-v2-integration`; exact base
+  `6814dad8785f0981fce01e748cb88a37150ee91d` (`origin/main` when created).
+  The unrelated dirty main checkout was not switched, staged, or modified.
+- Implementation commits: `2aab61303` adds the islandwide Print Master export;
+  `2e64276e4` retries transient R2 chunk-fetch failures up to five times with
+  bounded backoff while keeping hard 4xx responses non-retriable.
+- Scope: owner Print View only. It adds an optional Full map page, a separate
+  next-page resource directory, separate map/resource PNG downloads, a two-page
+  A3 PDF, a higher-detail Print Master PDF, optional numbered-resource pins,
+  print-only automatic Detailed activation, and a 384 MiB print compositor
+  safety cap. Leaflet, owner-map interaction, Standard defaults, Discover,
+  Shared Maps, API, schema, auth, permissions, ranking, visibility, and saved
+  resources are unchanged.
+- Published production-ready Print Master roots:
+  - Default:
+    `https://maps.carearound.sg/v2/print-master-100-20260723/default`
+    (`print-master-100-8523e7775f2589f3`)
+  - Gray:
+    `https://maps.carearound.sg/v2/print-master-100-20260723/gray`
+    (`print-master-100-e46bde6437b66451`)
+  Each style contains 32 surfaces and 2,741 immutable chunks. Default totals
+  3,993,473,518 bytes; Gray totals 3,587,868,812 bytes. The complete W01 Gray
+  surface was additionally fetched as 88/88 full objects (146,757,237 bytes).
+- Browser-compositor evidence used the production manifests/chunks and the
+  released compositor. It completed all 88 W01 chunks for both styles and
+  produced complete 2,400 x 1,600 canvases with no visible gaps or seams:
+  `/Users/sweetbuns/CareAroundSG-print-assets/evidence/print-master-default-browser-compositor-w01-20260723.png`
+  and
+  `/Users/sweetbuns/CareAroundSG-print-assets/evidence/print-master-gray-browser-compositor-w01-20260723.png`.
+  Gray completed in about 24.6 seconds. Sampled remote verification covered 96
+  chunks per style; Default median/p95/max were 769/3,338/5,249 ms and Gray
+  512/1,419/2,590 ms. Production CORS and range delivery were verified.
+- Authenticated owner Print View UAT on map 87 confirmed zoom-15 automatic
+  Detailed activation, Gray selection, Full map + next-page resources, High
+  resolution, pin hide/show, QR retention, and a complete two-page A3 PDF.
+  Evidence:
+  `/Users/sweetbuns/CareAroundSG-print-assets/evidence/production-owner-print-detailed-gray-zoom15-20260723.jpg`,
+  `/Users/sweetbuns/CareAroundSG-print-assets/evidence/production-owner-print-fullpage-hires-plain-20260723.jpg`,
+  and `/Users/sweetbuns/Downloads/my-partners-print (2).pdf`. The PDF is A3
+  landscape, two pages, and 7,660,133 bytes; both rendered pages were inspected.
+- Verification completed before promotion: packaging/focused coverage 67/67,
+  town-map scripts 8/8, broader map/print 215/215, server 451/451, retry-focused
+  coverage 6/6, exact four-root production client build, and
+  `git diff --check`. Full client/source coverage passed 449/450; its sole Care
+  Calendar planning-overlap failure reproduces on the released baseline and is
+  outside this map/export release.
+- Validated release-candidate Pages deployment:
+  `https://131eb433.senior-resource-map.pages.dev`. The custom domain serves
+  `assets/index-Bj6IIhs7.js`, `assets/MyMapDetailPage-D3kaxG9r.js`, and
+  `assets/MapImageExportButton-DC5me1s8.js`; their content and SHA-256 values
+  match the validated local `client/dist`.
+- A long-running, high-memory Chrome process later failed dynamic imports for
+  both the CareAround route and an installed extension even though direct
+  navigation to the exact route module returned the correct JavaScript. Do not
+  add an application workaround for that browser-process failure. The current
+  five-attempt retry was instead verified in a fresh isolated compositor using
+  the exact production R2 objects. A fresh authenticated Print Master PDF
+  download remains the recommended first post-release UAT check.
+- Rollback: rebuild without the two Print Master roots to hide only the Print
+  Master action, or restore the native-scale v2 client bundle. The interactive
+  Detailed roots remain
+  `/v2/native-scale-20260722/default` and `/v2/native-scale-20260722/gray`, and
+  all immutable Print Master objects may remain in R2 without affecting users.
 
 ## Current release state
 

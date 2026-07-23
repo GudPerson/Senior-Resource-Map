@@ -15,6 +15,66 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 Full Map Print Master v2 release candidate
+
+- Current behavior: owner Print View retains its stable default composition and
+  can opt into a Full map page with resources on a separate page. Users can
+  save separate map/resource PNGs, a two-page A3 PDF, or (at Detailed zoom 15+
+  with a matching print surface) a higher-detail Print Master PDF. The preview
+  supports Default/Gray, Standard/Detailed, High resolution, numbered pins or a
+  plain map, map resizing, and four label-detail levels. Print View selects
+  Detailed automatically at zoom 15 when coverage is ready. Missing, invalid,
+  or failed Print Master assets disable only the Print Master action; A3 and
+  existing exports remain available.
+- Known-good reference: source commits `2aab61303` and `2e64276e4` on isolated
+  branch `codex/print-master-v2-integration`, based on production baseline
+  `6814dad8785f0981fce01e748cb88a37150ee91d`; validated Pages release candidate
+  `https://131eb433.senior-resource-map.pages.dev`; Default Print Master root
+  `https://maps.carearound.sg/v2/print-master-100-20260723/default` version
+  `print-master-100-8523e7775f2589f3`; and Gray root
+  `https://maps.carearound.sg/v2/print-master-100-20260723/gray` version
+  `print-master-100-e46bde6437b66451`.
+- Reproduction steps: build the client with the API URL, proof flag, both
+  native-scale interactive roots, and both Print Master roots in
+  `docs/release-checklist.md`; open an owner map with `?view=print`; set Full map
+  page, Next page, High resolution, and Show pins; zoom to 15; select
+  Detailed and Default/Gray; pan or resize as needed; save the two images, A3
+  PDF, and Print Master PDF; repeat with Plain map; inspect the preview,
+  downloaded pages, browser console, failed requests, attribution, and QR.
+- Acceptance criteria: the stable standard print layout remains unchanged by
+  default; map and resource pages are separate when selected; every export
+  matches the chosen color, camera, pins, label detail, and page arrangement;
+  QR and attribution remain visible; Detailed activates at zoom 15; hard 4xx
+  asset errors fail safely without retry storms; transient chunk failures retry
+  with bounded backoff; the compositor releases decoded chunks as it advances
+  and refuses work above its 384 MiB estimate; both styles contain 32 surfaces
+  and 2,741 chunks with validated identities; no live OneMap basemap tiles are
+  used for Detailed; existing owner-map, mobile, Discover, Shared Maps, API,
+  data, permissions, and saved-resource behavior remain unchanged.
+- Verification result: strict packaging and focused coverage passed 67/67,
+  town-map scripts 8/8, broader map/print coverage 215/215, server coverage
+  451/451, retry-focused coverage 6/6, the exact four-root production build,
+  and `git diff --check`. Full client/source coverage passed 449/450; the sole
+  Care Calendar planning-overlap assertion also fails on the released baseline
+  and is unrelated. Remote sampling verified 96 chunks per style plus CORS and
+  range delivery; all 88 W01 Gray chunks also passed full-object GETs. The real
+  browser compositor completed all 88 W01 chunks for Default and Gray into
+  2,400 x 1,600 canvases with no visible gaps or seams; Gray took about 24.6
+  seconds. Authenticated production UAT confirmed automatic Detailed, Gray,
+  Full map + next-page resources, High resolution, pin hide/show, QR, and a
+  complete 7,660,133-byte two-page A3 landscape PDF. The release-candidate
+  custom-domain entry and lazy chunks match local `client/dist` byte for byte.
+  A later dynamic-import failure was isolated to a long-running high-memory
+  Chrome process because it affected an extension module too and direct module
+  navigation returned valid JavaScript; no broad client workaround was added.
+- Blast radius and rollback: this is owner Print View and optional export
+  tooling plus two external asset roots. It does not alter Leaflet, Standard
+  defaults, My Map interactions, Discover, Shared Maps, Worker/API, schema,
+  auth, permissions, ranking, visibility, or saved resources. Rebuilding
+  without the two Print Master roots hides only the Print Master action; the
+  previously released native-scale v2 client and immutable R2 roots remain the
+  immediate rollback boundary.
+
 ## 2026-07-23 native-scale islandwide Detailed-map v2 production release
 
 - Current behavior: the existing fixed-surface Detailed-map architecture now
