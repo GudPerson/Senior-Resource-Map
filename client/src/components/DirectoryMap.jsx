@@ -1883,6 +1883,98 @@ function DirectoryMapFrameResizeSync({ enabled = false, frameRef }) {
     return null;
 }
 
+function DirectoryMapFixedTownResizeContainmentSync({
+    enabled = false,
+    manifest = null,
+    minZoom,
+}) {
+    const map = useMap();
+
+    useEffect(() => {
+        const surfaceBounds = manifest?.bounds?.surface || manifest?.bounds?.nominal;
+        if (
+            !enabled
+            || !Array.isArray(surfaceBounds)
+            || surfaceBounds.length !== 4
+            || !surfaceBounds.every((value) => Number.isFinite(Number(value)))
+        ) {
+            return undefined;
+        }
+
+        const [west, south, east, north] = surfaceBounds.map(Number);
+        const leafletSurfaceBounds = L.latLngBounds([south, west], [north, east]);
+        let frame = null;
+
+        const keepExpandedViewportInsideSurface = () => {
+            frame = null;
+            const currentZoom = Number(map.getZoom());
+            const normalizedMinZoom = Number(minZoom);
+            if (
+                !Number.isFinite(currentZoom)
+                || !Number.isFinite(normalizedMinZoom)
+                || !isFixedTownSurfaceZoomEligible(currentZoom, normalizedMinZoom)
+            ) {
+                return;
+            }
+
+            const currentBounds = map.getBounds();
+            const viewportBounds = [
+                currentBounds.getWest(),
+                currentBounds.getSouth(),
+                currentBounds.getEast(),
+                currentBounds.getNorth(),
+            ];
+            if (areWsenBoundsContained(viewportBounds, surfaceBounds)) return;
+
+            // A genuine pan outside the selected surface must still use the normal
+            // Standard-map fallback. Only contain a resized viewport whose camera
+            // centre remains within the active Detailed surface.
+            if (!leafletSurfaceBounds.contains(map.getCenter())) return;
+
+            const requiredZoom = Number(map.getBoundsZoom(leafletSurfaceBounds, true));
+            if (!Number.isFinite(requiredZoom)) return;
+
+            const zoomSnap = 0.1;
+            const maximumZoom = Number(map.getMaxZoom());
+            const nextZoom = Math.min(
+                Number.isFinite(maximumZoom) ? maximumZoom : requiredZoom,
+                Math.ceil(
+                    Math.max(currentZoom + zoomSnap, normalizedMinZoom, requiredZoom) / zoomSnap,
+                ) * zoomSnap,
+            );
+            const viewportHalf = map.getSize().divideBy(2);
+            const surfaceNorthWest = map.project(leafletSurfaceBounds.getNorthWest(), nextZoom);
+            const surfaceSouthEast = map.project(leafletSurfaceBounds.getSouthEast(), nextZoom);
+            const currentCenter = map.project(map.getCenter(), nextZoom);
+            const inset = 2;
+            const minimumX = surfaceNorthWest.x + viewportHalf.x + inset;
+            const maximumX = surfaceSouthEast.x - viewportHalf.x - inset;
+            const minimumY = surfaceNorthWest.y + viewportHalf.y + inset;
+            const maximumY = surfaceSouthEast.y - viewportHalf.y - inset;
+            if (minimumX > maximumX || minimumY > maximumY) return;
+
+            const nextCenter = L.point(
+                Math.min(maximumX, Math.max(minimumX, currentCenter.x)),
+                Math.min(maximumY, Math.max(minimumY, currentCenter.y)),
+            );
+            map.setView(map.unproject(nextCenter, nextZoom), nextZoom, { animate: false });
+        };
+        const scheduleContainment = () => {
+            if (frame !== null) return;
+            frame = window.requestAnimationFrame(keepExpandedViewportInsideSurface);
+        };
+
+        map.on('resize', scheduleContainment);
+        scheduleContainment();
+        return () => {
+            if (frame !== null) window.cancelAnimationFrame(frame);
+            map.off('resize', scheduleContainment);
+        };
+    }, [enabled, manifest, map, minZoom]);
+
+    return null;
+}
+
 function DirectoryMapZoomSync({ enabled = false, normalizeStandardZoomBelow = null, onZoomChange }) {
     const map = useMap();
 
@@ -2216,6 +2308,7 @@ export default function DirectoryMap({
     fixedTownSurfaceGrayscale = false,
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceSnapToMinZoom = false,
+    fixedTownSurfaceContainOnResize = false,
     fixedTownSurfaceFallbackBelowMinZoom = true,
     fixedTownSurfaceMaxDecodedBytes = null,
     fixedTownSurfaceFallbackScope = 'global',
@@ -2827,6 +2920,13 @@ export default function DirectoryMap({
                     enabled={observeFrameResize}
                     frameRef={mapFrameRef}
                 />
+                <DirectoryMapFixedTownResizeContainmentSync
+                    enabled={fixedTownSurfaceContainOnResize
+                        && townBasemapRequested
+                        && fixedTownSurfaceConfigured}
+                    manifest={fixedTownSurfaceManifest}
+                    minZoom={resolvedFixedTownSurfaceMinZoom}
+                />
                 <DirectoryMapZoomSync
                     enabled={shouldTrackFixedTownSurfaceZoom}
                     normalizeStandardZoomBelow={shouldGateTownRequestedLiveTiles
@@ -2866,7 +2966,7 @@ export default function DirectoryMap({
                             mapStyleValue={mapStyleOverride}
                             onMapStyleChange={onMapStyleOverrideChange}
                             showMapStyleControl={showMapStyleControl}
-                            triggerSize="touch"
+                            triggerSize="compactTouch"
                         />
                     ) : null}
                 />

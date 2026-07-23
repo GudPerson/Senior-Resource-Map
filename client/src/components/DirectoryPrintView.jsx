@@ -474,6 +474,7 @@ function PrintDirectoryMap({
                 fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
                 fixedTownSurfaceLockMinZoom={false}
                 fixedTownSurfaceSnapToMinZoom={Boolean(printMapState && interactive)}
+                fixedTownSurfaceContainOnResize={Boolean(printMapState && interactive)}
                 fixedTownSurfaceFallbackBelowMinZoom={false}
                 fixedTownSurfaceMaxDecodedBytes={printMapState?.pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
                     ? PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES

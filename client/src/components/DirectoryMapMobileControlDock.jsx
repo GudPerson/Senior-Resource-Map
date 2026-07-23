@@ -50,18 +50,18 @@ export default function DirectoryMapMobileControlDock({
 
     const roundedZoom = Math.round(zoomState.zoom);
     const zoomLabel = Number.isFinite(roundedZoom) ? String(roundedZoom) : '—';
-    const controlButtonClassName = 'inline-flex h-12 w-12 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white p-0 text-slate-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300';
+    const controlButtonClassName = 'inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white p-0 text-slate-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300';
 
     return createPortal(
         <div
             role="group"
             aria-label="Print map controls"
-            className="pointer-events-auto inline-flex min-h-16 items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur"
+            className="pointer-events-auto inline-flex min-h-[60px] items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur"
             data-print-mobile-map-controls="true"
         >
             {settingsControl}
             {settingsControl && showZoomControls ? (
-                <span className="mx-0.5 h-8 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                <span className="mx-0.5 h-7 w-px shrink-0 bg-slate-200" aria-hidden="true" />
             ) : null}
             {showZoomControls ? (
                 <>
@@ -72,12 +72,12 @@ export default function DirectoryMapMobileControlDock({
                         disabled={!zoomState.canZoomOut}
                         onClick={() => map.zoomOut()}
                     >
-                        <Minus size={22} strokeWidth={2.5} aria-hidden="true" />
+                        <Minus size={20} strokeWidth={2.5} aria-hidden="true" />
                     </button>
                     <output
                         aria-label={`Zoom level ${zoomLabel}`}
                         aria-live="polite"
-                        className="flex h-12 min-w-12 select-none items-center justify-center rounded-xl bg-slate-100 px-2 text-base font-black tabular-nums text-slate-700"
+                        className="flex h-11 min-w-11 select-none items-center justify-center rounded-xl bg-slate-100 px-2 text-[15px] font-black tabular-nums text-slate-700"
                     >
                         {zoomLabel}
                     </output>
@@ -88,7 +88,7 @@ export default function DirectoryMapMobileControlDock({
                         disabled={!zoomState.canZoomIn}
                         onClick={() => map.zoomIn()}
                     >
-                        <Plus size={22} strokeWidth={2.5} aria-hidden="true" />
+                        <Plus size={20} strokeWidth={2.5} aria-hidden="true" />
                     </button>
                 </>
             ) : null}

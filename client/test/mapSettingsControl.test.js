@@ -96,7 +96,7 @@ test('Directory Map and Discover share settings placement while preserving map i
     assert.match(discoveryMapSource, /key=\{`carearound-discover:\$\{mapStyle\}`\}/);
 });
 
-test('mobile owner Print View uses an unscaled accessible map-control dock', () => {
+test('mobile owner Print View uses an unscaled compact accessible map-control dock', () => {
     assert.match(printViewSource, /data-print-mobile-map-control-target="true"/);
     assert.match(printViewSource, /mobileControlPortalTarget=\{useV2OwnerPrint && variant === 'screen'/);
     assert.match(directoryMapSource, /data-external-mobile-map-controls=\{mobileControlPortalTarget \? 'true' : undefined\}/);
@@ -106,9 +106,13 @@ test('mobile owner Print View uses an unscaled accessible map-control dock', () 
     assert.match(mobilePrintControlsSource, /aria-label="Print map controls"/);
     assert.match(mobilePrintControlsSource, /aria-label="Zoom out"/);
     assert.match(mobilePrintControlsSource, /aria-label="Zoom in"/);
-    assert.match(mobilePrintControlsSource, /h-12 w-12/);
-    assert.match(mobilePrintControlsSource, /text-base font-black tabular-nums/);
+    assert.match(mobilePrintControlsSource, /h-11 w-11/);
+    assert.match(mobilePrintControlsSource, /min-h-\[60px\]/);
+    assert.match(mobilePrintControlsSource, /gap-2/);
+    assert.match(mobilePrintControlsSource, /text-\[15px\] font-black tabular-nums/);
     assert.match(mapSettingsSource, /triggerSize = 'compact'/);
     assert.match(mapSettingsSource, /triggerSize === 'touch'/);
+    assert.match(mapSettingsSource, /triggerSize === 'compactTouch'/);
+    assert.match(directoryMapSource, /triggerSize="compactTouch"/);
     assert.match(globalStylesSource, /\[data-external-mobile-map-controls="true"\] \.leaflet-control-zoom/);
 });

@@ -15,6 +15,76 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 owner Print View mobile map-control density refinement
+
+- Current behavior: the unscaled owner Print View control dock at phone and
+  tablet widths uses 44px Map settings and zoom buttons, a matching 44px zoom
+  readout, 15px bold zoom text, and 8px gaps. This keeps the controls usable
+  while returning a little more space to the print preview.
+- Known-good reference: pre-release implementation on branch
+  `codex/print-detailed-resize-coverage`, based on production `origin/main` at
+  `f68930205762826f6c594efcd248119847931529`, in isolated worktree
+  `/Users/sweetbuns/CareAroundSG-print-detailed-resize-coverage`.
+- Reproduction steps: sign in as a map owner; open `?view=print` at phone and
+  tablet widths; confirm the external dock remains easy to tap without
+  dominating the preview; use Map settings, zoom out, and zoom in; confirm the
+  zoom readout updates. Repeat at desktop width and inspect a saved PNG/PDF.
+- Acceptance criteria: every interactive mobile dock control remains at least
+  44px square with an 8px gap and visible focus state; the zoom readout matches
+  that footprint and remains legible; the existing settings sheet, Leaflet
+  camera, Standard/Detailed state, and Default/Gray state remain shared; the
+  dock is absent from desktop and saved exports; no map, asset, API, data,
+  auth, permission, ranking, filtering, or visibility behavior changes.
+- Verification result: focused map-settings, Print View, and fixed-surface
+  contracts passed 25/25; server coverage passed 451/451; the exact
+  production-configured client build passed with both native-scale styles and
+  both print-master roots, with only the existing large-chunk advisory; and
+  `git diff --check` passed. Authenticated device UAT remains pending. No
+  deployment has occurred.
+- Blast radius and rollback: one print-only mobile dock, one isolated
+  `compactTouch` settings-trigger variant, one caller, and focused regression
+  contracts. Reverting these density classes restores the prior 48px dock
+  without changing map or export state.
+
+## 2026-07-23 owner Print View expanded Detailed-map containment
+
+- Current behavior: when an owner expands the Print View map vertically while
+  Detailed is active at displayed zoom step 15, the print-only camera is kept
+  just inside the active fixed-surface bounds. If the resized frame needs extra
+  room, Leaflet may use a fractional zoom such as 15.1 while the layman-facing
+  step remains 15. A genuine pan whose camera centre leaves the active surface
+  still follows the established quiet Standard-map fallback.
+- Known-good reference: pre-release implementation on branch
+  `codex/print-detailed-resize-coverage`, based on production `origin/main` at
+  `f68930205762826f6c594efcd248119847931529`, in isolated worktree
+  `/Users/sweetbuns/CareAroundSG-print-detailed-resize-coverage`.
+- Reproduction steps: sign in as a map owner; open `?view=print`; select Full
+  map and expand the map to its maximum height; pan within the selected
+  Detailed surface near its northern or southern edge; set the displayed zoom
+  step to 15; open Map appearance and confirm Detailed remains available and
+  selected. Pan the camera centre outside the surface and confirm Standard
+  fallback still occurs.
+- Acceptance criteria: the maximum-height Print View keeps Detailed at the
+  displayed step 15 whenever the camera centre remains inside the selected
+  fixed surface; the camera moves only the minimum distance needed; the
+  fractional correction does not change the displayed integer step; fixed
+  chunks, pins, print state, exports, mobile controls, and attribution remain
+  unchanged; outside-surface fallback remains fail-safe; interactive My Map,
+  Shared Maps, Discover, API, data, auth, permissions, ranking, filtering, and
+  visibility remain unchanged.
+- Verification result: focused fixed-surface and Print View coverage passed
+  44/44; a headless Leaflet resize harness reproduced an out-of-bounds
+  maximum-height viewport and confirmed the correction restored strict W01
+  containment while retaining displayed step 15; server coverage passed
+  451/451; the exact production-configured client build passed with both
+  native-scale styles and both print-master roots, with only the existing
+  large-chunk advisory; and `git diff --check` passed. Authenticated device UAT
+  and deployment remain pending.
+- Blast radius and rollback: one optional `DirectoryMap` resize-containment
+  prop enabled only by owner Print View, one internal Leaflet camera sync, and
+  focused regression contracts. Removing that prop and sync restores the prior
+  fallback behavior without changing any map assets or shared map callers.
+
 ## 2026-07-23 owner Print View mobile map-control dock
 
 - Current behavior: owner Print View at phone and tablet widths presents one

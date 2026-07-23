@@ -41,6 +41,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /function DirectoryMapZoomSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownViewportSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownMinZoomSnapSync/);
+    assert.match(directoryMapSource, /function DirectoryMapFixedTownResizeContainmentSync/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
     assert.match(directoryMapSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
     assert.match(directoryMapSource, /areWsenBoundsContained\(viewportBounds, surfaceBounds\)/);
@@ -100,6 +101,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /<DirectoryMapZoomLevelControl/);
     assert.match(directoryMapSource, /<DirectoryMapFixedTownViewportSync/);
     assert.match(directoryMapSource, /<DirectoryMapFixedTownMinZoomSnapSync/);
+    assert.match(directoryMapSource, /<DirectoryMapFixedTownResizeContainmentSync/);
+    assert.match(directoryMapSource, /map\.getBoundsZoom\(leafletSurfaceBounds, true\)/);
+    assert.match(directoryMapSource, /map\.unproject\(nextCenter, nextZoom\)/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);
 });
 
