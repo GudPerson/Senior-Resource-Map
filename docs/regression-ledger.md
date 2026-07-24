@@ -240,6 +240,24 @@ Rules:
   locked owner-map gate passed 52/52; full server coverage passed 466/466; the
   exact four-root production-style client build passed with only the existing
   large chunk warning; and `git diff --check` passed.
+- 2026-07-24 current-location placement production release: implementation
+  commit `3fd28f1d9` was pushed to
+  `codex/current-location-personal-place` and `main`. Cloudflare Pages
+  production deployment `https://f604b534.senior-resource-map.pages.dev`
+  published the validated client; no Worker, schema, database, auth, or secret
+  deployment was performed. The custom domain served
+  `assets/index-ysBoUPpW.js` and
+  `assets/useDirectoryDistanceAnchor-K5J5dSxX.js`; both matched local
+  `client/dist` byte-for-byte with SHA-256
+  `3ddb680cc6908f1ffcd2f2c7783fd9f48e841e3cbcff9dbe8a716e9c93a0c2b2`
+  and
+  `f7c7e76787c2f2d0d9463f51c7e44a067a1791f189bedda72a2674662928ebd8`.
+  The deployed bundles retained all four locked Detailed/Print Master roots,
+  the current-location copy, and the 26 px visual shell marker. API health
+  returned OK. Production smoke initially passed 4/6 while one run crossed
+  the Pages bundle transition and the external postal search remained pending;
+  a clean focused rerun passed both affected flows 2/2, completing all six
+  production checks successfully.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code
