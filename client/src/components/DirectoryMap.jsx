@@ -535,7 +535,7 @@ function createCategoryBubbleMarker(pin = {}, {
             : item.iconKey
                 ? renderPersonalPlaceIconMarkup(item.iconKey, {
                     size: compact ? 8 : 15,
-                    color: '#ffffff',
+                    color: item.color || '#0f766e',
                     strokeWidth: 2.5,
                     className: 'directory-category-bubble-marker__icon',
                 })
@@ -2797,7 +2797,9 @@ export default function DirectoryMap({
                                 const categoryIconUrl = pinCategoryIconMode === 'none'
                                     ? null
                                     : (pin.categoryIconUrl || (pin.categoryIconKey
-                                        ? createPersonalPlaceIconDataUrl(pin.categoryIconKey)
+                                        ? createPersonalPlaceIconDataUrl(pin.categoryIconKey, {
+                                            color: pin.categoryColor || '#0F172A',
+                                        })
                                         : null));
                                 const savedPinIcon = createSavedPlacePinIcon({
                                     count: pin.curatedCount,
@@ -2877,7 +2879,9 @@ export default function DirectoryMap({
                     const categoryIconUrl = pinCategoryIconMode === 'none'
                         ? null
                         : (pin.categoryIconUrl || (pin.categoryIconKey
-                            ? createPersonalPlaceIconDataUrl(pin.categoryIconKey)
+                            ? createPersonalPlaceIconDataUrl(pin.categoryIconKey, {
+                                color: pin.categoryColor || '#0F172A',
+                            })
                             : null));
                     const savedPinIcon = createSavedPlacePinIcon({
                         count: pin.curatedCount,

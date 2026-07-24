@@ -750,7 +750,7 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
         subCategory: categoryLabel,
         iconKey: categoryKey || 'personal place',
         categoryIconUrl: categoryMeta?.iconUrl || null,
-        categoryIconKey: normalizeText(personalCategory?.iconKey) || null,
+        categoryIconKey: normalizeText(personalCategory?.iconKey) || 'map-pin',
         categoryColor: normalizeText(personalCategory?.color) || categoryMeta?.color || '#64748b',
         descriptor: normalizeText(personalPlace?.note),
         address: normalizeText(personalPlace?.address),

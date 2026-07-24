@@ -413,7 +413,7 @@ test('v2 card ordering can opt into category pills and integrated list-only card
     assert.match(sharedMapDirectorySource, /function getCategoryPillStyle/);
     assert.match(sharedMapDirectorySource, /function getCategoryIconStyle/);
     assert.match(sharedMapDirectorySource, /--directory-category-accent/);
-    assert.match(sharedMapDirectorySource, /<DirectoryCategoryIcon iconUrl=\{iconUrl\} color=\{color\} compact=\{compact\} \/>/);
+    assert.match(sharedMapDirectorySource, /<DirectoryCategoryIcon[\s\S]*iconUrl=\{iconUrl\}[\s\S]*iconKey=\{iconKey\}[\s\S]*color=\{color\}[\s\S]*compact=\{compact\}/);
     assert.match(sharedMapDirectorySource, /h-\[clamp\(28px,1\.75rem,32px\)\] w-\[clamp\(28px,1\.75rem,32px\)\]/);
     assert.match(sharedMapDirectorySource, /h-\[clamp\(34px,2\.1rem,38px\)\] w-\[clamp\(34px,2\.1rem,38px\)\]/);
     assert.match(sharedMapDirectorySource, /style=\{getCategoryIconStyle\(color\)\}/);

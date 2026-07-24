@@ -56,6 +56,7 @@ import {
 } from '../lib/adaptiveTextarea.js';
 import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
+import { PersonalPlaceCategoryIcon } from '../lib/personalPlaceCategories.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 
 const DirectoryReturnPathContext = React.createContext('');
@@ -2181,6 +2182,7 @@ function MobileMapFocusTray({
                 secondaryLabel={groupContextLabel}
                 color={categoryGroup.categoryColor}
                 iconUrl={categoryGroup.categoryIconUrl}
+                iconKey={categoryGroup.categoryIconKey}
             />
             <div className="mt-2 flex snap-x gap-2 overflow-x-auto pb-1">
                 {trayGroups.map((group) => (
@@ -2367,8 +2369,8 @@ function getCategoryIconStyle(color) {
     };
 }
 
-function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
-    if (!iconUrl) return null;
+function DirectoryCategoryIcon({ iconUrl, iconKey, color, compact = false }) {
+    if (!iconUrl && !iconKey) return null;
 
     return (
         <span
@@ -2380,7 +2382,15 @@ function DirectoryCategoryIcon({ iconUrl, color, compact = false }) {
             style={getCategoryIconStyle(color)}
             aria-hidden="true"
         >
-            <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+            {iconUrl ? (
+                <img src={iconUrl} alt="" className="h-full w-full object-contain" />
+            ) : (
+                <PersonalPlaceCategoryIcon
+                    iconKey={iconKey}
+                    size={compact ? 15 : 18}
+                    strokeWidth={2.4}
+                />
+            )}
         </span>
     );
 }
@@ -2439,13 +2449,19 @@ function DirectoryCategoryPill({
     secondaryLabel = '',
     color = null,
     iconUrl = null,
+    iconKey = null,
 }) {
     if (!label && !showUnmapped && !secondaryLabel) return null;
     const categoryPillStyle = getCategoryPillStyle(color);
 
     return (
         <div className="flex max-w-full flex-nowrap items-start gap-1.5 overflow-hidden px-1 pt-1">
-            <DirectoryCategoryIcon iconUrl={iconUrl} color={color} compact={compact} />
+            <DirectoryCategoryIcon
+                iconUrl={iconUrl}
+                iconKey={iconKey}
+                color={color}
+                compact={compact}
+            />
             <span className="flex min-w-0 flex-1 flex-col items-start gap-1.5 overflow-hidden">
                 {label ? (
                     <span className={`inline-flex w-fit max-w-full items-center overflow-hidden rounded-full border border-brand-100 bg-brand-50 font-black uppercase tracking-[0.14em] text-brand-800 ${
@@ -2524,6 +2540,7 @@ function DirectoryGroupColumn({
                                 showUnmapped={Boolean(group.isUnmappedGroup)}
                                 color={group.categoryColor}
                                 iconUrl={group.categoryIconUrl}
+                                iconKey={group.categoryIconKey}
                             />
                         ) : null}
                         <DirectoryPlaceGroupCard

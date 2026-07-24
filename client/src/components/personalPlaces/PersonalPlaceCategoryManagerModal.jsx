@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowDown, ArrowUp, Pencil, Plus, RotateCcw, X } from 'lucide-react';
 
+import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
 import {
     PERSONAL_PLACE_COLOR_OPTIONS,
     PERSONAL_PLACE_ICON_OPTIONS,
     PersonalPlaceCategoryIcon,
+    createPersonalPlaceIconDataUrl,
 } from '../../lib/personalPlaceCategories.jsx';
 
 const EMPTY_FORM = {
@@ -14,8 +16,65 @@ const EMPTY_FORM = {
     color: PERSONAL_PLACE_COLOR_OPTIONS[0],
 };
 
+function normalizePreviewColor(value) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : PERSONAL_PLACE_COLOR_OPTIONS[0];
+}
+
+function buildPersonalPlacePinPreviewHtml(category = {}) {
+    const color = normalizePreviewColor(category.color);
+    return createSavedPlacePinIcon({
+        count: 1,
+        emphasis: 'default',
+        tone: 'saved',
+        iconUrl: createPersonalPlaceIconDataUrl(category.iconKey, { color }),
+        color,
+    }).options.html;
+}
+
+function CategoryBadgePreview({
+    name,
+    iconKey,
+    color,
+    compact = false,
+}) {
+    const accent = normalizePreviewColor(color);
+    const label = String(name || '').trim() || 'Category preview';
+
+    return (
+        <div className="flex min-w-0 items-center gap-2">
+            <span
+                className={`inline-flex flex-shrink-0 items-center justify-center rounded-full border bg-white ${
+                    compact ? 'h-8 w-8' : 'h-9 w-9'
+                }`}
+                style={{
+                    borderColor: `${accent}88`,
+                    boxShadow: `0 0 0 2px ${accent}1F`,
+                    color: accent,
+                }}
+                aria-hidden="true"
+            >
+                <PersonalPlaceCategoryIcon iconKey={iconKey} size={compact ? 15 : 18} strokeWidth={2.4} />
+            </span>
+            <span
+                className={`min-w-0 truncate rounded-full border font-black uppercase text-[0.6875rem] ${
+                    compact ? 'px-2.5 py-1' : 'px-3 py-1.5'
+                }`}
+                style={{
+                    borderColor: `${accent}55`,
+                    backgroundColor: `${accent}14`,
+                    color: accent,
+                }}
+                title={label}
+            >
+                {label}
+            </span>
+        </div>
+    );
+}
+
 function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
     const [form, setForm] = useState(EMPTY_FORM);
+    const pinPreviewHtml = useMemo(() => buildPersonalPlacePinPreviewHtml(form), [form]);
 
     useEffect(() => {
         setForm(initialValue ? {
@@ -53,49 +112,87 @@ function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
                 />
             </label>
 
-            <fieldset>
-                <legend className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Icon</legend>
-                <div className="mt-2 grid grid-cols-6 gap-2">
-                    {PERSONAL_PLACE_ICON_OPTIONS.map((option) => {
-                        const selected = form.iconKey === option.key;
-                        return (
-                            <button
-                                key={option.key}
-                                type="button"
-                                onClick={() => setForm((current) => ({ ...current, iconKey: option.key }))}
-                                className={`inline-flex h-11 items-center justify-center rounded-xl border transition ${
-                                    selected
-                                        ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-100'
-                                        : 'border-slate-200 bg-white text-slate-500 hover:border-brand-200'
-                                }`}
-                                aria-label={option.label}
-                                title={option.label}
-                            >
-                                <PersonalPlaceCategoryIcon iconKey={option.key} size={18} />
-                            </button>
-                        );
-                    })}
-                </div>
-            </fieldset>
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]">
+                <div className="space-y-4">
+                    <fieldset>
+                        <legend className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Pin icon</legend>
+                        <div className="mt-2 grid grid-cols-6 gap-2">
+                            {PERSONAL_PLACE_ICON_OPTIONS.map((option) => {
+                                const selected = form.iconKey === option.key;
+                                return (
+                                    <button
+                                        key={option.key}
+                                        type="button"
+                                        onClick={() => setForm((current) => ({ ...current, iconKey: option.key }))}
+                                        className={`inline-flex h-11 items-center justify-center rounded-xl border transition ${
+                                            selected
+                                                ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-100'
+                                                : 'border-slate-200 bg-white text-slate-500 hover:border-brand-200'
+                                        }`}
+                                        aria-label={option.label}
+                                        title={option.label}
+                                    >
+                                        <PersonalPlaceCategoryIcon iconKey={option.key} size={18} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </fieldset>
 
-            <fieldset>
-                <legend className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Colour</legend>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    {PERSONAL_PLACE_COLOR_OPTIONS.map((color) => (
-                        <button
-                            key={color}
-                            type="button"
-                            onClick={() => setForm((current) => ({ ...current, color }))}
-                            className={`h-9 w-9 rounded-full border-2 border-white shadow-sm ring-offset-2 transition ${
-                                form.color === color ? 'ring-2 ring-slate-900' : 'ring-1 ring-slate-200'
-                            }`}
-                            style={{ backgroundColor: color }}
-                            aria-label={`Use colour ${color}`}
-                            title={color}
-                        />
-                    ))}
+                    <fieldset>
+                        <legend className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Badge</legend>
+                        <div className="mt-2 flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3">
+                            <input
+                                type="color"
+                                value={form.color}
+                                onChange={(event) => setForm((current) => ({ ...current, color: event.target.value.toUpperCase() }))}
+                                className="h-8 w-8 cursor-pointer overflow-hidden rounded border-0 p-0"
+                                aria-label="Badge colour"
+                            />
+                            <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: form.color }} />
+                            <span className="truncate font-mono text-xs uppercase text-slate-500">{form.color}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {PERSONAL_PLACE_COLOR_OPTIONS.map((color) => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setForm((current) => ({ ...current, color }))}
+                                    className={`h-8 w-8 rounded-full border-2 border-white shadow-sm ring-offset-2 transition ${
+                                        form.color === color ? 'ring-2 ring-slate-900' : 'ring-1 ring-slate-200'
+                                    }`}
+                                    style={{ backgroundColor: color }}
+                                    aria-label={`Use colour ${color}`}
+                                    title={color}
+                                />
+                            ))}
+                        </div>
+                    </fieldset>
                 </div>
-            </fieldset>
+
+                <div className="border-t border-slate-200 pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Preview</p>
+                    <div className="mt-3">
+                        <CategoryBadgePreview
+                            name={form.name}
+                            iconKey={form.iconKey}
+                            color={form.color}
+                        />
+                    </div>
+                    <div className="mt-4 flex items-start gap-3">
+                        <div className="relative h-16 w-12 flex-shrink-0 overflow-visible" aria-hidden="true">
+                            <div
+                                className="origin-top-left"
+                                style={{ transform: 'scale(0.78)' }}
+                                dangerouslySetInnerHTML={{ __html: pinPreviewHtml }}
+                            />
+                        </div>
+                        <p className="pt-1 text-xs font-semibold leading-5 text-slate-500">
+                            Badge and pin update on every map using this category.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             <div className="flex justify-end gap-2">
                 {initialValue ? (
@@ -151,7 +248,7 @@ export default function PersonalPlaceCategoryManagerModal({
                     </span>
                     <div className="min-w-0 flex-1">
                         <h2 className="text-base font-black text-slate-900">Personal place categories</h2>
-                        <p className="mt-0.5 text-xs font-semibold text-slate-500">Icons and colours update everywhere the category is used.</p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500">Badge colour and pin icon update everywhere the category is used.</p>
                     </div>
                     <button type="button" onClick={onClose} disabled={busy} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Close">
                         <X size={19} />
@@ -177,12 +274,16 @@ export default function PersonalPlaceCategoryManagerModal({
                     <div className="space-y-2">
                         {sortedCategories.map((category, index) => (
                             <div key={category.id} className={`flex items-center gap-3 rounded-xl border p-3 ${category.isArchived ? 'border-slate-200 bg-slate-50 opacity-65' : 'border-slate-200 bg-white'}`}>
-                                <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: category.color }}>
-                                    <PersonalPlaceCategoryIcon iconKey={category.iconKey} size={18} />
-                                </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-bold text-slate-900">{category.name}</span>
-                                    <span className="block text-xs font-semibold text-slate-500">{category.isArchived ? 'Archived' : 'Active'}</span>
+                                    <CategoryBadgePreview
+                                        name={category.name}
+                                        iconKey={category.iconKey}
+                                        color={category.color}
+                                        compact
+                                    />
+                                    <span className="mt-1.5 block pl-10 text-xs font-semibold text-slate-500">
+                                        {category.isArchived ? 'Archived' : 'Active'}
+                                    </span>
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <button type="button" onClick={() => moveCategory(category, -1)} disabled={busy || index === 0} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Move ${category.name} up`} title="Move up">

@@ -6,24 +6,24 @@ import {
     Gift,
     HandHeart,
     HeartPulse,
+    MapPin,
     ShieldPlus,
     Sparkles,
     Stethoscope,
     TicketPercent,
     Users,
 } from 'lucide-react';
-import { getPersonalPlaceIconComponent } from '../lib/personalPlaceCategories.jsx';
 
 function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
 }
 
-function resolveIcon(resourceType, bucket, subCategory, categoryIconKey) {
+function resolveIcon(resourceType, bucket, subCategory) {
     const normalizedBucket = normalizeText(bucket);
     const normalizedSubCategory = normalizeText(subCategory);
 
     if (resourceType === 'personal_place') {
-        return getPersonalPlaceIconComponent(categoryIconKey);
+        return MapPin;
     }
 
     if (resourceType === 'hard') {
@@ -53,12 +53,10 @@ export default function ResourceRowIcon({
     bucket = null,
     subCategory = null,
     logoUrl = null,
-    categoryIconKey = null,
-    categoryColor = null,
     alt = '',
     className = '',
 }) {
-    const Icon = resolveIcon(resourceType, bucket, subCategory, categoryIconKey);
+    const Icon = resolveIcon(resourceType, bucket, subCategory);
     const [logoFitMode, setLogoFitMode] = useState('cover');
     const [logoFailed, setLogoFailed] = useState(false);
     const shouldShowLogo = Boolean(logoUrl) && !logoFailed;
@@ -74,13 +72,6 @@ export default function ResourceRowIcon({
     return (
         <div
             className={`inline-flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-brand-100 bg-brand-50 text-brand-700 ${className}`}
-            style={resourceType === 'personal_place' && /^#[0-9a-f]{6}$/i.test(categoryColor || '')
-                ? {
-                    borderColor: categoryColor,
-                    backgroundColor: `${categoryColor}14`,
-                    color: categoryColor,
-                }
-                : undefined}
         >
             {shouldShowLogo ? (
                 <img

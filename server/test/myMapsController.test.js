@@ -692,6 +692,26 @@ test('personal places can be created and appear only in owner directory shape', 
     assert.equal(detail.pins.some((pin) => pin.placeKey === 'personal-place-1'), true);
 });
 
+test('uncategorized legacy personal places keep a category badge icon', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        personalPlaces: [createPersonalPlace({
+            categoryId: null,
+            legacyCategoryLabel: null,
+        })],
+        personalPlaceLinks: [createPersonalPlaceLink()],
+    });
+
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const personalRow = detail.places
+        .flatMap((place) => place.rows)
+        .find((row) => row.resourceType === 'personal_place');
+
+    assert.equal(personalRow.subCategory, 'Personal place');
+    assert.equal(personalRow.categoryIconKey, 'map-pin');
+    assert.equal(personalRow.categoryColor, '#64748b');
+});
+
 test('personal places can be updated and deleted on owned maps', async () => {
     const db = createFakeDb({
         maps: [createMap()],

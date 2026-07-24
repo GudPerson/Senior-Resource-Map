@@ -52,10 +52,21 @@ test('personal place categories expose curated icons, colours, and global editin
     const categorySource = readSource('../src/components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx');
     const presentationSource = readSource('../src/lib/directoryPresentation.js');
     const mapSource = readSource('../src/components/DirectoryMap.jsx');
+    const directoryListSource = readSource('../src/components/SharedMapDirectoryList.jsx');
+    const resourceRowIconSource = readSource('../src/components/ResourceRowIcon.jsx');
 
     assert.match(categorySource, /PERSONAL_PLACE_ICON_OPTIONS/);
     assert.match(categorySource, /PERSONAL_PLACE_COLOR_OPTIONS/);
     assert.match(categorySource, /isArchived/);
+    assert.match(categorySource, /Pin icon/);
+    assert.match(categorySource, />Badge</);
+    assert.match(categorySource, /CategoryBadgePreview/);
+    assert.match(categorySource, /buildPersonalPlacePinPreviewHtml/);
     assert.match(presentationSource, /categoryIconKey/);
     assert.match(mapSource, /renderPersonalPlaceIconMarkup/);
+    assert.match(mapSource, /color: pin\.categoryColor/);
+    assert.match(directoryListSource, /iconKey=\{group\.categoryIconKey\}/);
+    assert.match(directoryListSource, /<PersonalPlaceCategoryIcon/);
+    assert.match(resourceRowIconSource, /resourceType === 'personal_place'[\s\S]*return MapPin/);
+    assert.doesNotMatch(resourceRowIconSource, /getPersonalPlaceIconComponent/);
 });

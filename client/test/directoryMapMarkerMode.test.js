@@ -210,7 +210,8 @@ test('directory map can show V2 category colors inside the saved pin circle with
     assert.match(discoverUtilsSource, /fill="\$\{outerFill\}"/);
     assert.match(directoryMapSource, /pinCategoryIconMode = 'auto'/);
     assert.match(directoryMapSource, /const categoryIconUrl = pinCategoryIconMode === 'none'/);
-    assert.match(directoryMapSource, /createPersonalPlaceIconDataUrl\(pin\.categoryIconKey\)/);
+    assert.match(directoryMapSource, /createPersonalPlaceIconDataUrl\(pin\.categoryIconKey, \{/);
+    assert.match(directoryMapSource, /color: item\.color \|\| '#0f766e'/);
     assert.match(directoryMapSource, /iconUrl: categoryIconUrl/);
     assert.match(directoryMapSource, /color: pin\.categoryColor \|\| null/);
     assert.match(directoryMapSource, /colorSegments: pin\.categoryColorSegments \|\| \[\]/);

@@ -23,8 +23,10 @@ Rules:
   detaches that map link; deleting it from My Places removes it from every map.
   Users can create, rename, recolour, re-icon, reorder, archive, and restore
   their own categories from the curated icon and colour controls. Category
-  changes propagate to every linked owner map, card, pin, search result,
-  distance-sorted row, and owner Print/PDF/PNG export.
+  changes propagate to every linked owner map, category header badge, pin,
+  search result, distance-sorted row, and owner Print/PDF/PNG export. Personal
+  place cards keep a neutral location icon so category identity is not
+  presented as a managed-resource logo.
 - Known-good reference: implementation branch
   `codex/my-places-library-v2`, based on the sealed V1 commit `2f61b13cc` and
   local rollback tag `personal-places-v1-2026-07-24`. No V2 schema bootstrap,
@@ -42,6 +44,10 @@ Rules:
   preserves reusable library places; library deletion cascades all links;
   simultaneous first-load library and category requests seed each starter
   category once without surfacing a unique-constraint error;
+  category header badges and personal-place map pins use the selected category
+  icon and colour, while each personal-place card retains a neutral location
+  icon; legacy V1 places without a category use the gray `map-pin` category
+  fallback;
   legacy V1 rows are backfilled idempotently into one canonical place plus its
   original map link; shared-map snapshots, shared APIs, guests, Discover,
   managed Resources, imports, governance, and AI enrichment never receive
@@ -63,6 +69,15 @@ Rules:
   server coverage passes 26/26, and full server coverage passes 462/462. Local
   Chrome reload then returned two backfilled V1 places with existing map-use
   counts and no duplicate-key error.
+- 2026-07-24 category badge and pin alignment recovery: local map 258 UAT
+  confirmed the custom tree icon in the Outdoor category header and map marker,
+  with neutral location icons in personal-place cards. The Personal place
+  categories wizard now separates `Pin icon` and `Badge` controls and previews
+  both the category badge and stable map-pin presentation. Focused client and
+  server coverage passed 74/74, locked map coverage passed 77/77, full server
+  coverage passed 463/463, and the exact four-root production-style client
+  build passed. Chrome DOM evidence confirmed visible `#15803D` tree and
+  `#64748b` map-pin strokes in the two personal-place map markers.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code
