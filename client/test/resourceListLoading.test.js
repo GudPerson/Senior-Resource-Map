@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
     buildGroupMemberCandidateListParams,
@@ -13,6 +14,16 @@ import {
     shouldUseFullResourceDataset,
     withResourceListSearchParam,
 } from '../src/lib/resourceListLoading.js';
+
+const resourcesPageSource = readFileSync(new URL('../src/pages/dashboard/ResourcesPage.jsx', import.meta.url), 'utf8');
+
+function sourceBetween(source, startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start + startMarker.length);
+    assert.notEqual(start, -1, `Missing source marker: ${startMarker}`);
+    assert.notEqual(end, -1, `Missing source marker: ${endMarker}`);
+    return source.slice(start, end);
+}
 
 test('shouldUseFullResourceDataset keeps default manage-resource loads paginated', () => {
     assert.equal(shouldUseFullResourceDataset({
@@ -145,6 +156,23 @@ test('withResourceListSearchParam scopes full dataset loads to the active search
         scope: 'managed',
         regionScoped: true,
     });
+});
+
+test('server-filtered places workbook export avoids browser-side full pagination', () => {
+    const hardExportBranch = sourceBetween(
+        resourcesPageSource,
+        "if (activeTab === 'hard') {",
+        "} else if (activeTab === 'soft') {",
+    );
+    const serverFilteredBranch = sourceBetween(
+        hardExportBranch,
+        'if (!hardUsesClientOnlyFilter) {',
+        '} else {',
+    );
+
+    assert.match(serverFilteredBranch, /filters: buildServerFilteredWorkbookFilters\(hardResourceListParams, normalizedQuery\)/);
+    assert.doesNotMatch(serverFilteredBranch, /resolveHardAssetsForFilteredExport/);
+    assert.doesNotMatch(serverFilteredBranch, /fetchAllPaginatedResults/);
 });
 
 test('fetchResourceListPageWithResilience retries a transient first-page failure', async () => {

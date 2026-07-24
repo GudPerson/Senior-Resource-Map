@@ -51,8 +51,10 @@ import { syncAssetTags } from '../utils/tags.js';
 import { buildChildExternalKey, buildDeterministicExternalKey, resolveOrCreateExternalKey } from '../utils/externalKeys.js';
 import { normalizeSoftAssetBucket } from '../utils/softAssetBuckets.js';
 import { determineSoftSubregion, ensureActorCanManageLinkedHardAssets, ensureActorCanTargetSubregion, getCacheRegionId, normalizeAudienceMode } from '../utils/softAssetScope.js';
-import { positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
+import { cleanOneLineText, positiveIntListSchema, validateRequestBody } from '../utils/inputValidation.js';
 import { normalizeSocialLinks } from '../utils/socialLinks.js';
+import { buildHardAssetSearchWhere } from '../utils/hardAssetSearch.js';
+import { buildSoftAssetSearchWhere } from '../utils/softAssetSearch.js';
 import {
     buildOfferingScheduleMutation,
     buildOfferingScheduleVersionRows,
@@ -88,14 +90,31 @@ const WORKBOOK_IMPORT_MAX_ROWS = 5000;
 const WORKBOOK_IMPORT_MAX_COLUMNS = 80;
 const WORKBOOK_CELL_MAX_CHARS = 20_000;
 
+const filteredWorkbookFilterSchema = z.object({
+    scope: z.enum(['managed']).optional(),
+    regionScoped: z.boolean().optional(),
+    q: z.union([z.string(), z.number(), z.boolean(), z.null()])
+        .optional()
+        .transform((value) => cleanOneLineText(value, 160)),
+});
+
 const filteredWorkbookExportBodySchema = z.object({
-    ids: positiveIntListSchema('Filtered workbook export ids', 1000),
+    ids: positiveIntListSchema('Filtered workbook export ids', 1000).optional(),
+    filters: filteredWorkbookFilterSchema.optional(),
     format: z.preprocess(
         (value) => value === undefined || value === null || value === ''
             ? XLSX_FORMAT
             : String(value).trim().toLowerCase(),
         z.enum([XLSX_FORMAT, CSV_FORMAT]),
     ),
+}).superRefine((value, ctx) => {
+    if (!value.ids && !value.filters) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Provide ids or filters for filtered workbook export.',
+            path: ['ids'],
+        });
+    }
 });
 
 const RESOURCE_TYPES = {
@@ -348,6 +367,32 @@ function parseFilteredExportIds(value) {
     }
 
     return normalized;
+}
+
+export function normalizeFilteredExportOptions(payload, resourceType) {
+    const orderedIds = payload?.ids ? parseFilteredExportIds(payload.ids) : null;
+    const filters = payload?.filters || null;
+    const query = filters ? cleanOneLineText(filters.q, 160) : '';
+
+    if (!orderedIds && !filters) {
+        throw createHttpError(400, 'Provide ids or filters for filtered workbook export.');
+    }
+
+    if (query && !['places', 'standalone-offerings'].includes(resourceType)) {
+        throw createHttpError(400, 'Search-filtered workbook export is available for places and standalone offerings only.');
+    }
+
+    return {
+        orderedIds,
+        query,
+        filterSummary: filters
+            ? {
+                scope: filters.scope || null,
+                regionScoped: filters.regionScoped === true,
+                q: query || null,
+            }
+            : null,
+    };
 }
 
 function orderScopedRecords(records, orderedIds) {
@@ -1047,9 +1092,11 @@ function serializeRolloutExportRow(record) {
 
 async function exportRowsForPlaces(db, actor, options = {}) {
     const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
-    const where = orderedIds
-        ? and(eq(hardAssets.isDeleted, false), inArray(hardAssets.id, orderedIds))
-        : eq(hardAssets.isDeleted, false);
+    const whereClauses = [eq(hardAssets.isDeleted, false)];
+    if (orderedIds) whereClauses.push(inArray(hardAssets.id, orderedIds));
+    const searchWhere = buildHardAssetSearchWhere(options.query);
+    if (searchWhere) whereClauses.push(searchWhere);
+    const where = and(...whereClauses);
 
     const assets = await db.query.hardAssets.findMany({
         where,
@@ -1100,9 +1147,11 @@ async function exportRowsForStandaloneOfferings(db, actor, options = {}) {
     const orderedIds = Array.isArray(options.orderedIds) ? options.orderedIds : null;
     const subregionRows = await db.select({ id: subregions.id, subregionCode: subregions.subregionCode }).from(subregions);
     const subregionMap = new Map(subregionRows.map((row) => [row.id, row.subregionCode || '']));
-    const where = orderedIds
-        ? and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'), inArray(softAssets.id, orderedIds))
-        : and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'));
+    const whereClauses = [eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone')];
+    if (orderedIds) whereClauses.push(inArray(softAssets.id, orderedIds));
+    const searchWhere = buildSoftAssetSearchWhere(options.query);
+    if (searchWhere) whereClauses.push(searchWhere);
+    const where = and(...whereClauses);
     const assets = await db.query.softAssets.findMany({
         where,
         with: {
@@ -2258,17 +2307,18 @@ export async function exportFilteredWorkbookData(c) {
         const format = normalizeText(payload?.format || XLSX_FORMAT).toLowerCase() || XLSX_FORMAT;
         if (!CONTENT_TYPES[format]) return c.json({ error: 'Unsupported workbook format.' }, 400);
 
-        const orderedIds = parseFilteredExportIds(payload?.ids);
+        const exportOptions = normalizeFilteredExportOptions(payload, resourceType);
         const actor = c.get('user');
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
         const references = await buildWorkbookReferences(db, resourceType);
-        const rows = await resolveTemplateExport(resourceType, db, actor, { orderedIds });
+        const rows = await resolveTemplateExport(resourceType, db, actor, exportOptions);
         await recordExportAudit(db, actor, resourceType, 'filtered_workbook_exported', {
             format,
-            requestedCount: orderedIds.length,
+            requestedCount: exportOptions.orderedIds?.length || null,
             rowCount: rows.length,
+            filters: exportOptions.filterSummary,
         });
         const referenceRows = buildReferenceRows(resourceType, references);
         const body = format === XLSX_FORMAT

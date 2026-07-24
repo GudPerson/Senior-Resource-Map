@@ -401,10 +401,16 @@ export const api = {
     // Admin asset workbooks
     downloadWorkbookTemplate: (resourceType, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/template?format=${encodeURIComponent(format)}`),
     exportWorkbook: (resourceType, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/export?format=${encodeURIComponent(format)}`),
-    exportFilteredWorkbook: (resourceType, ids, format = 'xlsx') => requestBlob(`/admin/workbooks/${resourceType}/export-filtered`, {
-        method: 'POST',
-        body: { ids, format },
-    }),
+    exportFilteredWorkbook: (resourceType, idsOrOptions, format = 'xlsx') => {
+        const body = Array.isArray(idsOrOptions)
+            ? { ids: idsOrOptions, format }
+            : { ...(idsOrOptions || {}), format: idsOrOptions?.format || format };
+
+        return requestBlob(`/admin/workbooks/${resourceType}/export-filtered`, {
+            method: 'POST',
+            body,
+        });
+    },
     importWorkbook: (resourceType, file) => {
         const formData = new FormData();
         formData.append('file', file);

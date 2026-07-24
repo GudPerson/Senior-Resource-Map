@@ -531,6 +531,15 @@ function canOpenHardAssetEditorFromSummary(asset) {
     return asset?.editSummary === true;
 }
 
+function buildServerFilteredWorkbookFilters(params = {}, query = '') {
+    const filters = {};
+    if (params.scope === 'managed') filters.scope = 'managed';
+    if (params.regionScoped === true) filters.regionScoped = true;
+    const normalizedQuery = String(query || '').trim();
+    if (normalizedQuery) filters.q = normalizedQuery;
+    return filters;
+}
+
 function formatMembershipStatusLabel(status) {
     return String(status || 'ACTIVE')
         .toLowerCase()
@@ -1738,14 +1747,25 @@ export default function ResourcesPage() {
         try {
             const exportJobs = [];
             if (activeTab === 'hard') {
-                const exportableHardAssets = await resolveHardAssetsForFilteredExport();
-                const ids = uniqueIdsInOrder(exportableHardAssets);
-                if (ids.length > 0) {
-                    exportJobs.push({
-                        resourceType: 'places',
-                        ids,
-                        summary: `${ids.length} place${ids.length === 1 ? '' : 's'}`,
-                    });
+                if (!hardUsesClientOnlyFilter) {
+                    const rowCount = hardTabCount || filteredHardAssets.length;
+                    if (rowCount > 0) {
+                        exportJobs.push({
+                            resourceType: 'places',
+                            filters: buildServerFilteredWorkbookFilters(hardResourceListParams, normalizedQuery),
+                            summary: `${rowCount} place${rowCount === 1 ? '' : 's'}`,
+                        });
+                    }
+                } else {
+                    const exportableHardAssets = await resolveHardAssetsForFilteredExport();
+                    const ids = uniqueIdsInOrder(exportableHardAssets);
+                    if (ids.length > 0) {
+                        exportJobs.push({
+                            resourceType: 'places',
+                            ids,
+                            summary: `${ids.length} place${ids.length === 1 ? '' : 's'}`,
+                        });
+                    }
                 }
             } else if (activeTab === 'soft') {
                 const exportableSoftAssets = await resolveSoftAssetsForFilteredExport();
@@ -1786,7 +1806,8 @@ export default function ResourcesPage() {
             }
 
             for (const job of exportJobs) {
-                const { blob, fileName, contentType } = await api.exportFilteredWorkbook(job.resourceType, job.ids, 'xlsx');
+                const exportPayload = job.filters ? { filters: job.filters } : job.ids;
+                const { blob, fileName, contentType } = await api.exportFilteredWorkbook(job.resourceType, exportPayload, 'xlsx');
                 downloadFile(blob, fileName || `${job.resourceType}_filtered_export.xlsx`, contentType);
                 completedExports.push(job.summary);
             }
