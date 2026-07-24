@@ -2378,6 +2378,7 @@ export default function DirectoryMap({
     captureReadyKey = '',
     mobileControlPortalTarget = null,
     onMapClick = null,
+    surfaceStatus = null,
 }) {
     const { mapStyle } = useMapStyle();
     const hasReportedReadyRef = useRef(false);
@@ -3144,6 +3145,16 @@ export default function DirectoryMap({
                 ) : null}
                 {renderedMarkers}
             </MapContainer>
+            {surfaceStatus ? (
+                <div
+                    data-map-surface-status="true"
+                    className="pointer-events-none absolute left-3 right-16 top-3 z-[1003] flex justify-center"
+                >
+                    <div className="w-full max-w-md">
+                        {surfaceStatus}
+                    </div>
+                </div>
+            ) : null}
             {resolvedMapModeControl || showMapStyleControl ? (
                 <div className="absolute right-[13px] top-3 z-[1002] lg:right-3">
                     <MapSettingsControl

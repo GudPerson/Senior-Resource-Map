@@ -125,10 +125,10 @@ function PersonalPlaceActionStatus({ status }) {
             aria-live="polite"
             aria-atomic="true"
             data-personal-place-action-status={status.phase}
-            className={`pointer-events-none fixed inset-x-4 bottom-4 z-[1450] mx-auto flex min-h-12 max-w-md items-center gap-3 rounded-xl border px-4 py-3 text-sm font-bold shadow-xl sm:inset-x-auto sm:right-5 sm:mx-0 ${
+            className={`pointer-events-none flex min-h-12 w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm font-bold shadow-lg backdrop-blur-sm ${
                 pending
-                    ? 'border-brand-200 bg-white text-slate-800'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    ? 'border-brand-200 bg-white/95 text-slate-800'
+                    : 'border-emerald-200 bg-emerald-50/95 text-emerald-900'
             }`}
         >
             {pending ? (
@@ -2374,9 +2374,10 @@ export default function MyMapDetailPage() {
                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                     mapModeControl={mapModeControl}
                     preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
+                    mapSurfaceStatus={personalPlaceActionStatus ? (
+                        <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
+                    ) : null}
                 />
-
-                <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
 
                 <CreateMapModal
                     isOpen={addOpen}
@@ -2571,6 +2572,9 @@ export default function MyMapDetailPage() {
                                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                     mapModeControl={mapModeControl}
+                                    surfaceStatus={personalPlaceActionStatus ? (
+                                        <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
+                                    ) : null}
                                 />
                             ) : null}
                             <EmptyOwnerDirectory
@@ -2639,6 +2643,9 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
+                                        surfaceStatus={personalPlaceActionStatus ? (
+                                            <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
+                                        ) : null}
                                     />
                                 )}
                                 renderMobileMap={() => (
@@ -2681,6 +2688,9 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
+                                        surfaceStatus={personalPlaceActionStatus ? (
+                                            <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
+                                        ) : null}
                                     />
                                 )}
                                 mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
@@ -2689,8 +2699,6 @@ export default function MyMapDetailPage() {
                     )}
                 </div>
             </div>
-
-            <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
 
             <CreateMapModal
                 isOpen={addOpen}

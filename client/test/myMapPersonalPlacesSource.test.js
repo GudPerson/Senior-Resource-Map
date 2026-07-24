@@ -55,6 +55,8 @@ test('My Places library supports reusable places and delete-everywhere semantics
 
 test('personal-place map mutations keep visible progress through the map refresh', () => {
     const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
+    const mapSource = readSource('../src/components/DirectoryMap.jsx');
+    const scaffoldSource = readSource('../src/components/MyMapV2PreviewScaffold.jsx');
 
     assert.match(detailSource, /function PersonalPlaceActionStatus/);
     assert.match(detailSource, /data-personal-place-action-status/);
@@ -63,6 +65,12 @@ test('personal-place map mutations keep visible progress through the map refresh
     assert.match(detailSource, /personalPlaceRemovingFromMap/);
     assert.match(detailSource, /personalPlaceRemovedFromMap/);
     assert.match(detailSource, /const refreshed = await loadMap\(\)/);
+    assert.match(detailSource, /mapSurfaceStatus=\{personalPlaceActionStatus/);
+    assert.match(detailSource, /surfaceStatus=\{personalPlaceActionStatus/);
+    assert.doesNotMatch(detailSource, /fixed inset-x-4 bottom-4/);
+    assert.match(mapSource, /surfaceStatus = null/);
+    assert.match(mapSource, /data-map-surface-status="true"/);
+    assert.match(scaffoldSource, /surfaceStatus=\{mapSurfaceStatus\}/);
 });
 
 test('personal place categories expose curated icons, colours, and global editing', () => {

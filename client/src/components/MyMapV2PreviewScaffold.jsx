@@ -60,6 +60,7 @@ export default function MyMapV2PreviewScaffold({
     onFixedTownSurfaceViewportChange,
     mapModeControl = null,
     preserveMobileMapFrameInFlow = false,
+    mapSurfaceStatus = null,
 }) {
     const resourceCount = Number(directory?.summary?.resourceCount || 0);
 
@@ -112,6 +113,7 @@ export default function MyMapV2PreviewScaffold({
             onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
             onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
             mapModeControl={mapModeControl}
+            surfaceStatus={mapSurfaceStatus}
         />
     );
 

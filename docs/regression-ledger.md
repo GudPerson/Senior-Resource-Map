@@ -210,6 +210,18 @@ Rules:
   two reusable records. No geolocation permission, upload, save, attach,
   remove, delete, or other user-content mutation was performed during release
   verification.
+- 2026-07-24 personal-place feedback surface placement: pending and completion
+  feedback for add, attach, edit, remove, and library-refresh operations now
+  renders inside the owner `DirectoryMap` frame instead of at the bottom edge
+  of the browser viewport. The map-owned overlay stays above map content,
+  leaves the right-side map controls clear, and follows the existing desktop,
+  mobile, empty-map, and V2 map surfaces without changing mutation timing,
+  Leaflet state, resource cards, shared maps, or print/export output. Focused
+  personal-place, V2 scaffold, map-presentation, and fixed-surface coverage
+  passed 29/29; the locked owner-map gate passed 52/52; the exact four-root
+  production-style client build passed with only the existing large chunk
+  warning; and `git diff --check` passed. Source coverage explicitly rejects
+  the former fixed bottom placement.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code
