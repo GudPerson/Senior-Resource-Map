@@ -79,6 +79,7 @@ function buildPlaceQueryText(place, row) {
         row.subCategory,
         row.bucket,
         row.descriptor,
+        row.mapShortDescriptor,
         row.status === 'list_only' ? 'list only not shown on map' : '',
         row.resourceType === 'personal_place' ? 'personal place' : (row.resourceType === 'hard' ? 'place' : 'offering'),
     ]
@@ -92,6 +93,7 @@ function buildUnmappedRowQueryText(row) {
         row.subCategory,
         row.bucket,
         row.descriptor,
+        row.mapShortDescriptor,
         row.contextLabel,
         row.locationLabel,
         row.status === 'list_only' ? 'list only not shown on map' : '',

@@ -18,7 +18,8 @@ import {
 } from '../utils/inputValidation.js';
 import { normalizeRole } from '../utils/roles.js';
 
-const PERSONAL_PLACE_NOTE_MAX_LENGTH = 3000;
+const PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH = 240;
+const PERSONAL_PLACE_CATEGORY_ICON_URL_MAX_LENGTH = 2000;
 const PERSONAL_PLACE_ICON_KEYS = new Set([
     'bus',
     'map-pin',
@@ -68,7 +69,8 @@ export const personalPlaceBodySchema = z.object({
     postalCode: optionalOneLineTextSchema(20),
     lat: coordinateValueSchema('Latitude', -90, 90),
     lng: coordinateValueSchema('Longitude', -180, 180),
-    note: optionalTextSchema(PERSONAL_PLACE_NOTE_MAX_LENGTH),
+    shortDescription: optionalOneLineTextSchema(PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH),
+    note: optionalTextSchema(PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH),
 });
 
 export const attachPersonalPlaceBodySchema = z.object({
@@ -78,12 +80,14 @@ export const attachPersonalPlaceBodySchema = z.object({
 const createCategoryBodySchema = z.object({
     name: requiredOneLineTextSchema('Category name', 120),
     iconKey: categoryIconSchema,
+    iconUrl: optionalOneLineTextSchema(PERSONAL_PLACE_CATEGORY_ICON_URL_MAX_LENGTH),
     color: categoryColorSchema,
 });
 
 const updateCategoryBodySchema = z.object({
     name: requiredOneLineTextSchema('Category name', 120).optional(),
     iconKey: categoryIconSchema.optional(),
+    iconUrl: optionalOneLineTextSchema(PERSONAL_PLACE_CATEGORY_ICON_URL_MAX_LENGTH),
     color: categoryColorSchema.optional(),
     sortOrder: z.number().int().min(0).max(10000).optional(),
     isArchived: z.boolean().optional(),
@@ -133,7 +137,7 @@ function normalizePersonalPlaceInput(body = {}) {
         postalCode: normalizeOptionalText(body.postalCode),
         lat: Number(body.lat),
         lng: Number(body.lng),
-        note: normalizeOptionalText(body.note),
+        shortDescription: normalizeOptionalText(body.shortDescription ?? body.note),
     };
 }
 
@@ -142,6 +146,7 @@ export function serializePersonalPlaceCategory(category) {
         id: category.id,
         name: category.name,
         iconKey: category.iconKey || 'map-pin',
+        iconUrl: category.iconUrl || null,
         color: normalizeColor(category.color),
         sortOrder: Number(category.sortOrder || 0),
         isArchived: Boolean(category.isArchived),
@@ -165,7 +170,7 @@ export function serializePersonalPlace(place) {
         postalCode: place.postalCode || null,
         lat: Number.isFinite(lat) ? lat : null,
         lng: Number.isFinite(lng) ? lng : null,
-        note: place.note || null,
+        shortDescription: place.shortDescription || place.note || null,
         mapIds: mapLinks.map((link) => link.mapId),
         maps: mapLinks.map((link) => ({
             id: link.mapId,
@@ -205,6 +210,7 @@ async function createCategoryRecord(db, userId, values) {
         name: String(values.name).trim(),
         normalizedName: normalizeCategoryName(values.name),
         iconKey: values.iconKey || 'map-pin',
+        iconUrl: normalizeOptionalText(values.iconUrl),
         color: normalizeColor(values.color),
         sortOrder: Number(values.sortOrder || 0),
         isArchived: Boolean(values.isArchived),
@@ -313,6 +319,7 @@ export async function updatePersonalPlaceCategory(db, user, categoryId, body) {
             normalizedName: normalizeCategoryName(body.name),
         } : {}),
         ...(body.iconKey ? { iconKey: body.iconKey } : {}),
+        ...(body.iconUrl !== undefined ? { iconUrl: normalizeOptionalText(body.iconUrl) } : {}),
         ...(body.color ? { color: normalizeColor(body.color) } : {}),
         ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
         ...(body.isArchived !== undefined ? { isArchived: body.isArchived } : {}),
@@ -370,7 +377,7 @@ export async function createPersonalPlace(db, user, body) {
         postalCode: values.postalCode,
         lat: String(values.lat),
         lng: String(values.lng),
-        note: values.note,
+        shortDescription: values.shortDescription,
         createdAt: timestamp,
         updatedAt: timestamp,
     }).returning();
@@ -420,7 +427,7 @@ export async function updatePersonalPlace(db, user, personalPlaceId, body) {
         postalCode: values.postalCode,
         lat: String(values.lat),
         lng: String(values.lng),
-        note: values.note,
+        shortDescription: values.shortDescription,
         updatedAt: new Date(),
     };
     await db.update(userPersonalPlaces)

@@ -58,7 +58,7 @@ export default function PersonalPlacesSection() {
                 place.categoryLabel,
                 place.address,
                 place.postalCode,
-                place.note,
+                place.shortDescription,
             ].some((value) => normalizeText(value).includes(normalizedQuery));
         });
     }, [categoryFilter, places, query]);
@@ -236,7 +236,11 @@ export default function PersonalPlacesSection() {
                                         className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-white"
                                         style={{ backgroundColor: category?.color || '#475569' }}
                                     >
-                                        <PersonalPlaceCategoryIcon iconKey={category?.iconKey} size={19} />
+                                        <PersonalPlaceCategoryIcon
+                                            iconKey={category?.iconKey}
+                                            iconUrl={category?.iconUrl}
+                                            size={19}
+                                        />
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <h3 className="truncate text-sm font-black text-slate-900">{place.name}</h3>
@@ -244,6 +248,11 @@ export default function PersonalPlacesSection() {
                                             {place.categoryLabel || 'Personal place'}
                                             {place.address ? ` · ${place.address}` : ''}
                                         </p>
+                                        {place.shortDescription ? (
+                                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                                                {place.shortDescription}
+                                            </p>
+                                        ) : null}
                                         <p className="mt-2 text-xs font-bold text-brand-700">
                                             {mapCount === 0 ? 'Not on a map yet' : `Used in ${mapCount} ${mapCount === 1 ? 'map' : 'maps'}`}
                                         </p>

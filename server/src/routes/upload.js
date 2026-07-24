@@ -1,7 +1,14 @@
 import { Hono } from 'hono';
 import { authenticateToken, authorizeResourceOperator } from '../middleware/auth.js';
+import { assertPersonalPlacesUser } from '../controllers/personalPlacesController.js';
 
 const router = new Hono();
+const PERSONAL_CATEGORY_ICON_MAX_BYTES = 2 * 1024 * 1024;
+const PERSONAL_CATEGORY_ICON_TYPES = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+]);
 
 function resolveCloudinaryConfig(runtimeEnv = {}) {
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
@@ -70,6 +77,63 @@ const generateSignature = async (params, apiSecret) => {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+async function uploadImage(c, file, folder) {
+    const { cloudName, apiKey, apiSecret } = resolveCloudinaryConfig(c.env);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const params = {
+        timestamp: timestamp.toString(),
+        folder,
+    };
+    const signature = await generateSignature(params, apiSecret);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', apiKey);
+    formData.append('timestamp', timestamp);
+    formData.append('signature', signature);
+    formData.append('folder', folder);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+        console.error('Cloudinary upload error:', data);
+        const error = new Error(data.error?.message || 'Upload failed');
+        error.status = 500;
+        throw error;
+    }
+    return data;
+}
+
+router.post('/personal-place-category-icon', authenticateToken, async (c) => {
+    try {
+        const user = c.get('user');
+        assertPersonalPlacesUser(user);
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!(file instanceof File)) {
+            return c.json({ error: 'Choose an image to upload' }, 400);
+        }
+        if (!PERSONAL_CATEGORY_ICON_TYPES.has(file.type)) {
+            return c.json({ error: 'Use a PNG, JPEG, or WebP image' }, 400);
+        }
+        if (file.size > PERSONAL_CATEGORY_ICON_MAX_BYTES) {
+            return c.json({ error: 'Category icons must be 2 MB or smaller' }, 400);
+        }
+
+        const data = await uploadImage(
+            c,
+            file,
+            `seniorcare-connect/personal-place-category-icons/${user.id}`
+        );
+        return c.json({ secure_url: data.secure_url });
+    } catch (err) {
+        console.error('Personal place category icon upload error:', err);
+        return c.json({ error: err.message || 'Failed to upload category icon' }, err.status || 500);
+    }
+});
+
 router.post('/', authenticateToken, authorizeResourceOperator(), async (c) => {
     try {
         const body = await c.req.parseBody();
@@ -79,36 +143,7 @@ router.post('/', authenticateToken, authorizeResourceOperator(), async (c) => {
             return c.json({ error: 'No file uploaded' }, 400);
         }
 
-        const { cloudName, apiKey, apiSecret } = resolveCloudinaryConfig(c.env);
-
-        // Use direct REST call as cloudinary Node SDK relies on fs
-        const timestamp = Math.floor(Date.now() / 1000);
-        const params = {
-            timestamp: timestamp.toString(),
-            folder: 'seniorcare-connect' // Fixed to match original
-        };
-
-        const signature = await generateSignature(params, apiSecret);
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('api_key', apiKey);
-        formData.append('timestamp', timestamp);
-        formData.append('signature', signature);
-        formData.append('folder', 'seniorcare-connect');
-
-        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error('Cloudinary upload error:', data);
-            return c.json({ error: data.error?.message || 'Upload failed' }, 500);
-        }
-
+        const data = await uploadImage(c, file, 'seniorcare-connect');
         return c.json({ secure_url: data.secure_url });
     } catch (err) {
         console.error('Upload route error:', err);

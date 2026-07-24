@@ -38,6 +38,7 @@ import {
 } from '../utils/inputValidation.js';
 
 const MY_MAP_NOTE_MAX_LENGTH = 3000;
+const MY_MAP_SHORT_DESCRIPTOR_MAX_LENGTH = 240;
 const mapAssetRefBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
@@ -66,6 +67,12 @@ const updateMyMapAssetNotesBodySchema = z.object({
     notes: z.array(mapAssetNoteInputSchema).max(20).optional(),
     privateNote: optionalTextSchema(MY_MAP_NOTE_MAX_LENGTH),
     handoffNote: optionalTextSchema(MY_MAP_NOTE_MAX_LENGTH),
+});
+
+const updateMyMapAssetShortDescriptorBodySchema = z.object({
+    resourceType: z.enum(['hard', 'soft']),
+    resourceId: positiveIntValueSchema('Resource id'),
+    shortDescriptor: optionalOneLineTextSchema(MY_MAP_SHORT_DESCRIPTOR_MAX_LENGTH),
 });
 
 const shareMyMapBodySchema = z.object({
@@ -194,6 +201,7 @@ function serializeMyMapAssetRecord(mapAsset) {
         resourceId: mapAsset.resourceId,
         assetKey: `${mapAsset.resourceType}-${mapAsset.resourceId}`,
         addedAt: mapAsset.addedAt ?? null,
+        shortDescriptor: mapAsset.shortDescriptor || null,
         notes: {
             items: serializeMapAssetNoteItems(mapAsset),
             notesUpdatedAt: mapAsset.notesUpdatedAt ?? null,
@@ -256,6 +264,7 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                         resourceType: true,
                         resourceId: true,
                         snapshot: true,
+                        shortDescriptor: true,
                         privateNote: true,
                         handoffNote: true,
                         notesUpdatedAt: true,
@@ -691,6 +700,42 @@ export async function updateMyMapAssetNotes(db, user, mapId, body) {
     });
 }
 
+export async function updateMyMapAssetShortDescriptor(db, user, mapId, body) {
+    assertDirectoryUser(user);
+    const assetRef = parseAssetRef(body);
+    if (!assetRef) {
+        throw createHttpError(400, 'resourceType and resourceId are required');
+    }
+
+    await requireOwnedMap(db, user.id, mapId);
+
+    const existing = await db.query.myMapAssets.findFirst({
+        where: and(
+            eq(myMapAssets.mapId, mapId),
+            eq(myMapAssets.resourceType, assetRef.resourceType),
+            eq(myMapAssets.resourceId, assetRef.resourceId)
+        ),
+    });
+    if (!existing) {
+        throw createHttpError(404, 'Map resource not found');
+    }
+
+    const shortDescriptor = String(body.shortDescriptor || '').trim() || null;
+    await db.update(myMapAssets)
+        .set({ shortDescriptor })
+        .where(and(
+            eq(myMapAssets.mapId, mapId),
+            eq(myMapAssets.resourceType, assetRef.resourceType),
+            eq(myMapAssets.resourceId, assetRef.resourceId)
+        ));
+    await touchMap(db, mapId);
+
+    return serializeMyMapAssetRecord({
+        ...existing,
+        shortDescriptor,
+    });
+}
+
 export async function removeAssetFromMyMap(db, user, mapId, resourceType, resourceId) {
     assertDirectoryUser(user);
     await requireOwnedMap(db, user.id, mapId);
@@ -983,6 +1028,30 @@ export const patchMyMapAssetNotes = async (c) => {
     } catch (err) {
         console.error('patchMyMapAssetNotes Error:', err);
         return c.json({ error: err.message || 'Failed to update map resource notes' }, err.status || 500);
+    }
+};
+
+export const patchMyMapAssetShortDescriptor = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        const resourceType = normalizeResourceType(c.req.param('resourceType'));
+        const resourceId = parseResourceId(c.req.param('resourceId'));
+        if (!mapId || !resourceType || !resourceId) {
+            return c.json({ error: 'Map id, resourceType, and resourceId are required' }, 400);
+        }
+        const body = validateRequestBody({
+            ...(await c.req.json()),
+            resourceType,
+            resourceId,
+        }, updateMyMapAssetShortDescriptorBodySchema, 'Map resource short description');
+        const item = await updateMyMapAssetShortDescriptor(db, user, mapId, body);
+        return c.json(item);
+    } catch (err) {
+        console.error('patchMyMapAssetShortDescriptor Error:', err);
+        return c.json({ error: err.message || 'Failed to update map resource short description' }, err.status || 500);
     }
 };
 

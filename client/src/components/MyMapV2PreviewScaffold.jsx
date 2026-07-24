@@ -25,6 +25,7 @@ export default function MyMapV2PreviewScaffold({
     onViewSection,
     onRemoveResource,
     onEditPersonalPlace,
+    onEditResourceShortDescription,
     onUpdateResourceNotes,
     onHoverPlaceStart,
     onHoverPlaceEnd,
@@ -152,6 +153,7 @@ export default function MyMapV2PreviewScaffold({
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onEditPersonalPlace={onEditPersonalPlace}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         highlightPlaceKey={activePlaceKey}
                         highlightPlaceKeys={activePlaceKeys}

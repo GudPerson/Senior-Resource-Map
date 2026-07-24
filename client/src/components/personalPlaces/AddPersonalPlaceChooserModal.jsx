@@ -31,7 +31,7 @@ export default function AddPersonalPlaceChooserModal({
         return places.filter((place) => {
             if ((place.mapIds || []).some((id) => Number(id) === Number(mapId))) return false;
             if (!normalizedQuery) return true;
-            return [place.name, place.categoryLabel, place.address, place.postalCode]
+            return [place.name, place.categoryLabel, place.address, place.postalCode, place.shortDescription]
                 .some((value) => normalizeText(value).includes(normalizedQuery));
         });
     }, [mapId, places, query]);
@@ -110,13 +110,22 @@ export default function AddPersonalPlaceChooserModal({
                                         }`}
                                     >
                                         <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: category.color || '#475569' }}>
-                                            <PersonalPlaceCategoryIcon iconKey={category.iconKey} size={17} />
+                                            <PersonalPlaceCategoryIcon
+                                                iconKey={category.iconKey}
+                                                iconUrl={category.iconUrl}
+                                                size={17}
+                                            />
                                         </span>
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm font-black text-slate-900">{place.name}</span>
                                             <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">
                                                 {place.categoryLabel || 'Personal place'}{place.address ? ` · ${place.address}` : ''}
                                             </span>
+                                            {place.shortDescription ? (
+                                                <span className="mt-1 block line-clamp-2 text-xs text-slate-600">
+                                                    {place.shortDescription}
+                                                </span>
+                                            ) : null}
                                         </span>
                                         <span className={`inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border ${selected ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300 text-transparent'}`}>
                                             <Check size={15} />

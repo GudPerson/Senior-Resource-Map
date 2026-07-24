@@ -13,6 +13,7 @@ import {
     renameMyMap,
     updateMyMapPersonalPlace,
     updateMyMapAssetNotes,
+    updateMyMapAssetShortDescriptor,
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
 import {
@@ -81,6 +82,7 @@ function createMapAsset(overrides = {}) {
         mapId: 3,
         resourceType: 'hard',
         resourceId: 29,
+        shortDescriptor: null,
         privateNote: null,
         handoffNote: null,
         notesUpdatedAt: null,
@@ -101,7 +103,7 @@ function createPersonalPlace(overrides = {}) {
         postalCode: '689812',
         lat: '1.3851000',
         lng: '103.7449000',
-        note: 'Good rest stop after appointments.',
+        shortDescription: 'Good rest stop after appointments.',
         createdAt: new Date('2026-03-14T10:10:00.000Z'),
         updatedAt: new Date('2026-03-14T10:10:00.000Z'),
         ...overrides,
@@ -115,6 +117,7 @@ function createPersonalPlaceCategoryFixture(overrides = {}) {
         name: 'Shop',
         normalizedName: 'shop',
         iconKey: 'shopping-bag',
+        iconUrl: null,
         color: '#0F766E',
         sortOrder: 0,
         isArchived: false,
@@ -675,7 +678,7 @@ test('personal places can be created and appear only in owner directory shape', 
         postalCode: '689812',
         lat: 1.3851,
         lng: 103.7449,
-        note: 'Good rest stop after appointments.',
+        shortDescription: 'Good rest stop after appointments.',
     });
     const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
     const personalRow = detail.places.flatMap((place) => place.rows).find((row) => row.resourceType === 'personal_place');
@@ -688,6 +691,7 @@ test('personal places can be created and appear only in owner directory shape', 
     assert.equal(detail.assets.length, 1);
     assert.equal(detail.personalPlaces.length, 1);
     assert.equal(personalRow.name, 'Useful coffee shop');
+    assert.equal(personalRow.descriptor, 'Good rest stop after appointments.');
     assert.equal(personalRow.saveEligible, false);
     assert.equal(detail.pins.some((pin) => pin.placeKey === 'personal-place-1'), true);
 });
@@ -727,7 +731,7 @@ test('personal places can be updated and deleted on owned maps', async () => {
         postalCode: '689810',
         lat: 1.3862,
         lng: 103.7452,
-        note: 'Better shelter.',
+        shortDescription: 'Better shelter.',
     });
     const deleted = await deleteMyMapPersonalPlace(db, DEFAULT_USER, 3, 5);
 
@@ -793,17 +797,40 @@ test('custom category icon and colour update the shared library record', async (
     const created = await createPersonalPlaceCategory(db, DEFAULT_USER, {
         name: 'Pharmacy',
         iconKey: 'shopping-bag',
+        iconUrl: 'https://res.cloudinary.com/example/pharmacy.png',
         color: '#BE123C',
     });
     const updated = await updatePersonalPlaceCategory(db, DEFAULT_USER, created.id, {
         name: 'Medication',
         iconKey: 'package-check',
+        iconUrl: 'https://res.cloudinary.com/example/medication.png',
         color: '#2563EB',
     });
 
     assert.equal(updated.name, 'Medication');
     assert.equal(updated.iconKey, 'package-check');
+    assert.equal(updated.iconUrl, 'https://res.cloudinary.com/example/medication.png');
     assert.equal(updated.color, '#2563EB');
+});
+
+test('map owners can add a short descriptor without changing the source resource', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: null,
+    });
+
+    const updated = await updateMyMapAssetShortDescriptor(db, DEFAULT_USER, 3, {
+        resourceType: 'hard',
+        resourceId: 29,
+        shortDescriptor: 'Use the side entrance after 6 pm.',
+    });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    assert.equal(updated.shortDescriptor, 'Use the side entrance after 6 pm.');
+    assert.equal(detail.assets[0].shortDescriptor, 'Use the side entrance after 6 pm.');
+    assert.equal(detail.places[0].rows[0].mapShortDescriptor, 'Use the side entrance after 6 pm.');
+    assert.equal(detail.places[0].rows[0].descriptor, null);
 });
 
 test('starter personal place categories remain unique when first loads race', async () => {
@@ -955,6 +982,22 @@ test('publishMyMap excludes owner personal places from shared snapshots', async 
         snapshot.places.flatMap((place) => place.rows).some((row) => row.resourceType === 'personal_place'),
         false,
     );
+});
+
+test('publishMyMap excludes owner-only resource short descriptors', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset({
+            shortDescriptor: 'Private map context.',
+        })],
+        hardAsset: createHardAsset(),
+    });
+
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    const snapshot = db.state.shareSnapshots[0].snapshot;
+    assert.equal(snapshot.assets[0].shortDescriptor, undefined);
+    assert.equal(snapshot.places[0].rows[0].mapShortDescriptor, null);
 });
 
 test('unpublishMyMap clears the active share token', async () => {

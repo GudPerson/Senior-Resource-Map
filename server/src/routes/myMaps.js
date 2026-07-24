@@ -9,6 +9,7 @@ import {
     getMyMap,
     getMyMaps,
     patchMyMap,
+    patchMyMapAssetShortDescriptor,
     patchMyMapAssetNotes,
     patchMyMapPersonalPlace,
     postMyMap,
@@ -30,6 +31,7 @@ router.post('/:id/personal-places', authenticateToken, postMyMapPersonalPlace);
 router.patch('/:id/personal-places/:placeId', authenticateToken, patchMyMapPersonalPlace);
 router.delete('/:id/personal-places/:placeId', authenticateToken, deleteMyMapPersonalPlaceRoute);
 router.post('/:id/assets', authenticateToken, postMyMapAsset);
+router.patch('/:id/assets/:resourceType/:resourceId/short-description', authenticateToken, patchMyMapAssetShortDescriptor);
 router.patch('/:id/assets/:resourceType/:resourceId/notes', authenticateToken, patchMyMapAssetNotes);
 router.delete('/:id/assets/:resourceType/:resourceId', authenticateToken, deleteMyMapAsset);
 

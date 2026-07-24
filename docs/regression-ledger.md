@@ -78,6 +78,23 @@ Rules:
   coverage passed 463/463, and the exact four-root production-style client
   build passed. Chrome DOM evidence confirmed visible `#15803D` tree and
   `#64748b` map-pin strokes in the two personal-place map markers.
+- 2026-07-24 custom category icon and short-description follow-up: personal
+  categories can now use an uploaded PNG, JPEG, or WebP icon of up to 2 MB in
+  addition to the curated icon set. The upload reuses the stable image-upload
+  control but has a dedicated authenticated non-guest endpoint and user-scoped
+  Cloudinary folder; the existing managed-resource upload route remains
+  operator-only. Personal-place `Private note` UI is replaced by a 240-character
+  `Short description`, with legacy note text backfilled as the initial
+  description. Personal-place cards no longer repeat the place name inside the
+  card and show the short description in that space instead. Every saved hard
+  or soft resource on an owner My Map also has an optional 240-character
+  per-map short description. This metadata appears in owner cards, owner map
+  search, and owner Print/PDF/PNG output without changing the source resource
+  or Map Notes; it is excluded from shared-map snapshots and shared responses.
+  Focused personal-place, directory, marker, and i18n coverage passed 85/85;
+  full server coverage passed 466/466; locked map coverage passed 77/77; and
+  the exact four-root production-style client build passed with the existing
+  large chunk warning.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code

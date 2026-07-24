@@ -62,6 +62,9 @@ test('personal place categories expose curated icons, colours, and global editin
     assert.match(categorySource, />Badge</);
     assert.match(categorySource, /CategoryBadgePreview/);
     assert.match(categorySource, /buildPersonalPlacePinPreviewHtml/);
+    assert.match(categorySource, /<ImageUpload/);
+    assert.match(categorySource, /uploadFile=\{api\.uploadPersonalPlaceCategoryIcon\}/);
+    assert.match(categorySource, /iconUrl: form\.iconUrl \|\| null/);
     assert.match(presentationSource, /categoryIconKey/);
     assert.match(mapSource, /renderPersonalPlaceIconMarkup/);
     assert.match(mapSource, /color: pin\.categoryColor/);
@@ -69,4 +72,22 @@ test('personal place categories expose curated icons, colours, and global editin
     assert.match(directoryListSource, /<PersonalPlaceCategoryIcon/);
     assert.match(resourceRowIconSource, /resourceType === 'personal_place'[\s\S]*return MapPin/);
     assert.doesNotMatch(resourceRowIconSource, /getPersonalPlaceIconComponent/);
+});
+
+test('My Map short descriptions stay separate from Map Notes and suppress repeated card names', () => {
+    const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
+    const listSource = readSource('../src/components/SharedMapDirectoryList.jsx');
+    const editorSource = readSource('../src/components/personalPlaces/PersonalPlaceEditorModal.jsx');
+    const apiSource = readSource('../src/lib/api.js');
+
+    assert.match(detailSource, /applyResourceShortDescriptorToDirectory/);
+    assert.match(detailSource, /handleEditResourceShortDescription/);
+    assert.match(detailSource, /<MapAssetShortDescriptionModal/);
+    assert.match(listSource, /const repeatsPlaceName/);
+    assert.match(listSource, /const showResourceName = !repeatsPlaceName/);
+    assert.match(listSource, /row\.mapShortDescriptor/);
+    assert.match(listSource, /t\('addShortDescription'\)/);
+    assert.match(editorSource, /personalPlaceShortDescription/);
+    assert.doesNotMatch(editorSource, /personalPlaceNote/);
+    assert.match(apiSource, /updateMyMapAssetShortDescriptor/);
 });

@@ -515,6 +515,7 @@ function buildRow({
     categoryLookup,
     mapCategorySource = null,
     notes = null,
+    mapShortDescriptor = null,
 }) {
     const categoryKey = normalizeCategoryKey(snapshot.subCategory);
     const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
@@ -540,6 +541,7 @@ function buildRow({
             mapCategoryColor: mapCategoryMeta?.color || null,
         } : {}),
         descriptor: snapshot.descriptor || null,
+        mapShortDescriptor: normalizeText(mapShortDescriptor),
         address: place.address || null,
         logoUrl: snapshot.logoUrl || fallbackLogoUrl || null,
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
@@ -743,16 +745,17 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
             id: personalCategory.id,
             name: personalCategory.name,
             iconKey: personalCategory.iconKey || 'map-pin',
+            iconUrl: personalCategory.iconUrl || null,
             color: personalCategory.color || '#64748B',
             isArchived: Boolean(personalCategory.isArchived),
         } : null,
         bucket: 'Personal places',
         subCategory: categoryLabel,
         iconKey: categoryKey || 'personal place',
-        categoryIconUrl: categoryMeta?.iconUrl || null,
+        categoryIconUrl: normalizeText(personalCategory?.iconUrl) || categoryMeta?.iconUrl || null,
         categoryIconKey: normalizeText(personalCategory?.iconKey) || 'map-pin',
         categoryColor: normalizeText(personalCategory?.color) || categoryMeta?.color || '#64748b',
-        descriptor: normalizeText(personalPlace?.note),
+        descriptor: normalizeText(personalPlace?.shortDescription) || normalizeText(personalPlace?.note),
         address: normalizeText(personalPlace?.address),
         postalCode: normalizeText(personalPlace?.postalCode),
         lat,
@@ -892,6 +895,9 @@ export async function buildMyMapDirectory(db, {
             resourceType: mapAsset.resourceType,
             resourceId: mapAsset.resourceId,
             status: rowBaseStatus,
+            ...(mode === 'owner' ? {
+                shortDescriptor: normalizeText(mapAsset.shortDescriptor),
+            } : {}),
             ...(notes ? { notes } : {}),
         });
 
@@ -916,6 +922,7 @@ export async function buildMyMapDirectory(db, {
                 categoryLookup,
                 mapCategorySource: getSoftHostCategoryMetaForPlace(hostCategoryMetaByPlace, place),
                 notes,
+                mapShortDescriptor: mode === 'owner' ? mapAsset.shortDescriptor : null,
             });
             addRowToPlace(placeMap, place, row);
         }
@@ -939,6 +946,7 @@ export async function buildMyMapDirectory(db, {
                     id: personalPlace.category.id,
                     name: personalPlace.category.name,
                     iconKey: personalPlace.category.iconKey || 'map-pin',
+                    iconUrl: personalPlace.category.iconUrl || null,
                     color: personalPlace.category.color || '#64748B',
                     isArchived: Boolean(personalPlace.category.isArchived),
                 } : null,
@@ -946,7 +954,7 @@ export async function buildMyMapDirectory(db, {
                 postalCode: entry.row.postalCode,
                 lat: entry.place.lat,
                 lng: entry.place.lng,
-                note: entry.row.descriptor,
+                shortDescription: entry.row.descriptor,
                 addedAt: entry.row.addedAt,
                 updatedAt: entry.row.updatedAt,
             });

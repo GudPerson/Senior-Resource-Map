@@ -154,12 +154,14 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     resource_type VARCHAR(20) NOT NULL,
                     resource_id INTEGER NOT NULL,
                     snapshot JSONB,
+                    short_descriptor VARCHAR(240),
                     private_note TEXT,
                     handoff_note TEXT,
                     notes_updated_at TIMESTAMP,
                     added_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS short_descriptor VARCHAR(240)`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS private_note TEXT`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS handoff_note TEXT`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS notes_updated_at TIMESTAMP`);
@@ -196,6 +198,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     name VARCHAR(120) NOT NULL,
                     normalized_name VARCHAR(120) NOT NULL,
                     icon_key VARCHAR(40) NOT NULL DEFAULT 'map-pin',
+                    icon_url TEXT,
                     color VARCHAR(7) NOT NULL DEFAULT '#64748B',
                     sort_order INTEGER NOT NULL DEFAULT 0,
                     is_archived BOOLEAN NOT NULL DEFAULT FALSE,
@@ -214,11 +217,20 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     postal_code VARCHAR(20),
                     lat NUMERIC(10, 7) NOT NULL,
                     lng NUMERIC(10, 7) NOT NULL,
+                    short_description VARCHAR(240),
                     note TEXT,
                     legacy_map_personal_place_id INTEGER REFERENCES my_map_personal_places(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
+            `);
+            await db.execute(sql`ALTER TABLE user_personal_place_categories ADD COLUMN IF NOT EXISTS icon_url TEXT`);
+            await db.execute(sql`ALTER TABLE user_personal_places ADD COLUMN IF NOT EXISTS short_description VARCHAR(240)`);
+            await db.execute(sql`
+                UPDATE user_personal_places
+                SET short_description = LEFT(REGEXP_REPLACE(TRIM(note), '\s+', ' ', 'g'), 240)
+                WHERE short_description IS NULL
+                    AND NULLIF(TRIM(note), '') IS NOT NULL
             `);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_personal_place_links (
@@ -268,6 +280,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     postal_code,
                     lat,
                     lng,
+                    short_description,
                     note,
                     legacy_map_personal_place_id,
                     created_at,
@@ -282,6 +295,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     places.postal_code,
                     places.lat,
                     places.lng,
+                    LEFT(REGEXP_REPLACE(TRIM(places.note), '\s+', ' ', 'g'), 240),
                     places.note,
                     places.id,
                     places.created_at,

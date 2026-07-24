@@ -36,7 +36,7 @@ export default function PersonalPlaceEditorModal({
         postalCode: '',
         lat: '',
         lng: '',
-        note: '',
+        shortDescription: '',
     });
     const [lookupQuery, setLookupQuery] = useState('');
     const [lookupBusy, setLookupBusy] = useState(false);
@@ -54,7 +54,7 @@ export default function PersonalPlaceEditorModal({
             postalCode: draft?.postalCode || '',
             lat: formatCoordinate(draft?.lat),
             lng: formatCoordinate(draft?.lng),
-            note: draft?.note || '',
+            shortDescription: draft?.shortDescription || draft?.note || '',
         });
         setLookupQuery(draft?.postalCode || draft?.address || '');
         setLookupError('');
@@ -117,7 +117,7 @@ export default function PersonalPlaceEditorModal({
             postalCode: form.postalCode.trim(),
             lat: parsedLat,
             lng: parsedLng,
-            note: form.note.trim(),
+            shortDescription: form.shortDescription.trim(),
         });
     }
 
@@ -208,7 +208,11 @@ export default function PersonalPlaceEditorModal({
                                                 className="pointer-events-none absolute left-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-white"
                                                 style={{ backgroundColor: selectedCategory.color }}
                                             >
-                                                <PersonalPlaceCategoryIcon iconKey={selectedCategory.iconKey} size={15} />
+                                                <PersonalPlaceCategoryIcon
+                                                    iconKey={selectedCategory.iconKey}
+                                                    iconUrl={selectedCategory.iconUrl}
+                                                    size={15}
+                                                />
                                             </span>
                                         ) : null}
                                         <select
@@ -283,14 +287,14 @@ export default function PersonalPlaceEditorModal({
                             </label>
 
                             <label className="space-y-1.5 sm:col-span-2">
-                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceNote')}</span>
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceShortDescription')}</span>
                                 <textarea
-                                    value={form.note}
-                                    onChange={(event) => updateField('note', event.target.value)}
-                                    maxLength={3000}
-                                    rows={4}
-                                    className="input-field min-h-[110px] resize-y"
-                                    placeholder={t('personalPlaceNotePlaceholder')}
+                                    value={form.shortDescription}
+                                    onChange={(event) => updateField('shortDescription', event.target.value)}
+                                    maxLength={240}
+                                    rows={2}
+                                    className="input-field min-h-[76px] resize-y"
+                                    placeholder={t('personalPlaceShortDescriptionPlaceholder')}
                                 />
                             </label>
                         </div>

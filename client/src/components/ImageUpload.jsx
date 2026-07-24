@@ -3,7 +3,15 @@ import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X, Loader2 } from 'lucide-react';
 import { api } from '../lib/api.js';
 
-export default function ImageUpload({ label, value, onChange, className = '' }) {
+export default function ImageUpload({
+    label,
+    value,
+    onChange,
+    className = '',
+    uploadFile = api.uploadMedia,
+    accept = { 'image/*': [] },
+    maxSize,
+}) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
 
@@ -14,18 +22,25 @@ export default function ImageUpload({ label, value, onChange, className = '' }) 
         setUploading(true);
         setError('');
         try {
-            const url = await api.uploadMedia(file);
+            const url = await uploadFile(file);
             onChange(url);
         } catch (err) {
             setError(err.message || 'Failed to upload image');
         } finally {
             setUploading(false);
         }
-    }, [onChange]);
+    }, [onChange, uploadFile]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: { 'image/*': [] },
+        onDropRejected: (rejections) => {
+            const code = rejections?.[0]?.errors?.[0]?.code;
+            setError(code === 'file-too-large'
+                ? 'Image is too large'
+                : 'Choose a supported image file');
+        },
+        accept,
+        maxSize,
         maxFiles: 1,
         multiple: false
     });

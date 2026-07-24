@@ -13,6 +13,7 @@ import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
+import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
 import PrintLayoutControls from '../components/PrintLayoutControls.jsx';
 import AddPersonalPlaceChooserModal from '../components/personalPlaces/AddPersonalPlaceChooserModal.jsx';
 import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx';
@@ -375,7 +376,7 @@ function PersonalPlaceModal({
         postalCode: '',
         lat: '',
         lng: '',
-        note: '',
+        shortDescription: '',
     });
     const [lookupQuery, setLookupQuery] = useState('');
     const [lookupBusy, setLookupBusy] = useState(false);
@@ -390,7 +391,7 @@ function PersonalPlaceModal({
             postalCode: draft?.postalCode || '',
             lat: formatPersonalPlaceCoordinate(draft?.lat),
             lng: formatPersonalPlaceCoordinate(draft?.lng),
-            note: draft?.note || '',
+            shortDescription: draft?.shortDescription || draft?.note || '',
         });
         setLookupQuery(draft?.postalCode || draft?.address || '');
         setLookupError('');
@@ -450,7 +451,7 @@ function PersonalPlaceModal({
             postalCode: form.postalCode.trim(),
             lat: parsedLat,
             lng: parsedLng,
-            note: form.note.trim(),
+            shortDescription: form.shortDescription.trim(),
         });
     }
 
@@ -588,14 +589,14 @@ function PersonalPlaceModal({
                                 />
                             </label>
                             <label className="space-y-1.5 sm:col-span-2">
-                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceNote')}</span>
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceShortDescription')}</span>
                                 <textarea
-                                    value={form.note}
-                                    onChange={(event) => updateField('note', event.target.value)}
-                                    maxLength={3000}
-                                    rows={4}
-                                    className="input-field min-h-[110px] resize-y"
-                                    placeholder={t('personalPlaceNotePlaceholder')}
+                                    value={form.shortDescription}
+                                    onChange={(event) => updateField('shortDescription', event.target.value)}
+                                    maxLength={240}
+                                    rows={2}
+                                    className="input-field min-h-[76px] resize-y"
+                                    placeholder={t('personalPlaceShortDescriptionPlaceholder')}
                                 />
                             </label>
                         </div>
@@ -637,6 +638,25 @@ function applyResourceNotesToDirectory(directory, resourceType, resourceId, note
         places: (directory.places || []).map((place) => ({
             ...place,
             rows: (place.rows || []).map(patchItem),
+        })),
+    };
+}
+
+function applyResourceShortDescriptorToDirectory(directory, resourceType, resourceId, shortDescriptor) {
+    if (!directory) return directory;
+    const matchesResource = (item) => item?.resourceType === resourceType
+        && Number(item?.resourceId) === Number(resourceId);
+
+    return {
+        ...directory,
+        assets: (directory.assets || []).map((asset) => (
+            matchesResource(asset) ? { ...asset, shortDescriptor } : asset
+        )),
+        places: (directory.places || []).map((place) => ({
+            ...place,
+            rows: (place.rows || []).map((row) => (
+                matchesResource(row) ? { ...row, mapShortDescriptor: shortDescriptor } : row
+            )),
         })),
     };
 }
@@ -873,6 +893,9 @@ export default function MyMapDetailPage() {
     const [personalPlaceCategoryManagerOpen, setPersonalPlaceCategoryManagerOpen] = useState(false);
     const [personalPlaceCategoryBusy, setPersonalPlaceCategoryBusy] = useState(false);
     const [personalPlaceCategoryError, setPersonalPlaceCategoryError] = useState('');
+    const [shortDescriptionRow, setShortDescriptionRow] = useState(null);
+    const [shortDescriptionSubmitting, setShortDescriptionSubmitting] = useState(false);
+    const [shortDescriptionError, setShortDescriptionError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
     const [printMapState, setPrintMapState] = useState(() => (
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
@@ -902,7 +925,8 @@ export default function MyMapDetailPage() {
         || addOpen
         || personalPlaceModalOpen
         || personalPlaceChooserOpen
-        || personalPlaceCategoryManagerOpen;
+        || personalPlaceCategoryManagerOpen
+        || Boolean(shortDescriptionRow);
     const isPrintView = searchParams.get('view') === 'print';
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
@@ -1669,7 +1693,7 @@ export default function MyMapDetailPage() {
             postalCode: '',
             lat,
             lng,
-            note: '',
+            shortDescription: '',
         });
         setPersonalPlaceError('');
         setPersonalPlacePickerActive(false);
@@ -1690,7 +1714,7 @@ export default function MyMapDetailPage() {
             postalCode: row.postalCode || '',
             lat: row.lat ?? row.placeLat ?? null,
             lng: row.lng ?? row.placeLng ?? null,
-            note: row.descriptor || row.note || '',
+            shortDescription: row.descriptor || row.shortDescription || row.note || '',
         });
         setPersonalPlaceModalOpen(true);
     }
@@ -1813,6 +1837,44 @@ export default function MyMapDetailPage() {
         };
         setDirectory((current) => applyResourceNotesToDirectory(current, row.resourceType, row.resourceId, nextNotes));
         return updated;
+    }
+
+    function handleEditResourceShortDescription(row) {
+        if (!row || row.resourceType === 'personal_place') return;
+        setShortDescriptionError('');
+        setShortDescriptionRow(row);
+    }
+
+    function closeResourceShortDescription() {
+        if (shortDescriptionSubmitting) return;
+        setShortDescriptionRow(null);
+        setShortDescriptionError('');
+    }
+
+    async function handleSaveResourceShortDescription(shortDescriptor) {
+        if (!directory || !shortDescriptionRow) return;
+        setShortDescriptionSubmitting(true);
+        setShortDescriptionError('');
+        try {
+            await api.updateMyMapAssetShortDescriptor(
+                directory.id,
+                shortDescriptionRow.resourceType,
+                shortDescriptionRow.resourceId,
+                { shortDescriptor }
+            );
+            setDirectory((current) => applyResourceShortDescriptorToDirectory(
+                current,
+                shortDescriptionRow.resourceType,
+                shortDescriptionRow.resourceId,
+                shortDescriptor
+            ));
+            setShortDescriptionRow(null);
+        } catch (err) {
+            console.error(err);
+            setShortDescriptionError(err.message || 'Failed to update short description.');
+        } finally {
+            setShortDescriptionSubmitting(false);
+        }
     }
 
     async function handleUnpublishShare() {
@@ -2105,6 +2167,7 @@ export default function MyMapDetailPage() {
                     onViewSection={handleViewSection}
                     onRemoveResource={handleRemoveResource}
                     onEditPersonalPlace={handleEditPersonalPlace}
+                    onEditResourceShortDescription={handleEditResourceShortDescription}
                     onUpdateResourceNotes={handleUpdateResourceNotes}
                     onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                     onHoverPlaceStart={handleMapHoverStart}
@@ -2253,6 +2316,15 @@ export default function MyMapDetailPage() {
                     onSubmit={handleSavePersonalPlace}
                 />
 
+                <MapAssetShortDescriptionModal
+                    open={Boolean(shortDescriptionRow)}
+                    row={shortDescriptionRow}
+                    submitting={shortDescriptionSubmitting}
+                    error={shortDescriptionError}
+                    onClose={closeResourceShortDescription}
+                    onSubmit={handleSaveResourceShortDescription}
+                />
+
                 <PersonalPlaceCategoryManagerModal
                     open={personalPlaceCategoryManagerOpen}
                     categories={personalPlaceCategories}
@@ -2387,6 +2459,7 @@ export default function MyMapDetailPage() {
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={handleRemoveResource}
                                 onEditPersonalPlace={handleEditPersonalPlace}
+                                onEditResourceShortDescription={handleEditResourceShortDescription}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
@@ -2553,6 +2626,15 @@ export default function MyMapDetailPage() {
                 onClose={closePersonalPlaceModal}
                 onManageCategories={() => setPersonalPlaceCategoryManagerOpen(true)}
                 onSubmit={handleSavePersonalPlace}
+            />
+
+            <MapAssetShortDescriptionModal
+                open={Boolean(shortDescriptionRow)}
+                row={shortDescriptionRow}
+                submitting={shortDescriptionSubmitting}
+                error={shortDescriptionError}
+                onClose={closeResourceShortDescription}
+                onSubmit={handleSaveResourceShortDescription}
             />
 
             <PersonalPlaceCategoryManagerModal

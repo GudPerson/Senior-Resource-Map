@@ -416,6 +416,12 @@ export const api = {
         const data = await requestFormData('/upload', formData);
         return data.secure_url;
     },
+    uploadPersonalPlaceCategoryIcon: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const data = await requestFormData('/upload/personal-place-category-icon', formData);
+        return data.secure_url;
+    },
 
     // Restricted resource content
     getPrivateResourceContent: (resourceType, resourceId, options = {}) => request(
@@ -540,6 +546,7 @@ export const api = {
     publishMyMapShare: (id, body = {}) => request('POST', `/my-maps/${id}/share`, body),
     unpublishMyMapShare: (id) => request('DELETE', `/my-maps/${id}/share`),
     addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
+    updateMyMapAssetShortDescriptor: (id, resourceType, resourceId, body) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/short-description`, body),
     updateMyMapAssetNotes: (id, resourceType, resourceId, body, options = {}) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body, options),
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
     createMyMapPersonalPlace: (id, body) => request('POST', `/my-maps/${id}/personal-places`, body),

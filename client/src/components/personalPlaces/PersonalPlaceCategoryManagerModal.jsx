@@ -2,19 +2,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { Archive, ArrowDown, ArrowUp, Pencil, Plus, RotateCcw, X } from 'lucide-react';
 
 import { createSavedPlacePinIcon } from '../../features/discover/discoverUtils.js';
+import { api } from '../../lib/api.js';
 import {
     PERSONAL_PLACE_COLOR_OPTIONS,
     PERSONAL_PLACE_ICON_OPTIONS,
     PersonalPlaceCategoryIcon,
     createPersonalPlaceIconDataUrl,
 } from '../../lib/personalPlaceCategories.jsx';
+import ImageUpload from '../ImageUpload.jsx';
 
 const EMPTY_FORM = {
     id: null,
     name: '',
     iconKey: PERSONAL_PLACE_ICON_OPTIONS[0].key,
+    iconUrl: '',
     color: PERSONAL_PLACE_COLOR_OPTIONS[0],
 };
+const PERSONAL_CATEGORY_ICON_ACCEPT = {
+    'image/jpeg': [],
+    'image/png': [],
+    'image/webp': [],
+};
+const PERSONAL_CATEGORY_ICON_MAX_BYTES = 2 * 1024 * 1024;
 
 function normalizePreviewColor(value) {
     return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : PERSONAL_PLACE_COLOR_OPTIONS[0];
@@ -26,7 +35,7 @@ function buildPersonalPlacePinPreviewHtml(category = {}) {
         count: 1,
         emphasis: 'default',
         tone: 'saved',
-        iconUrl: createPersonalPlaceIconDataUrl(category.iconKey, { color }),
+        iconUrl: category.iconUrl || createPersonalPlaceIconDataUrl(category.iconKey, { color }),
         color,
     }).options.html;
 }
@@ -34,6 +43,7 @@ function buildPersonalPlacePinPreviewHtml(category = {}) {
 function CategoryBadgePreview({
     name,
     iconKey,
+    iconUrl,
     color,
     compact = false,
 }) {
@@ -53,7 +63,12 @@ function CategoryBadgePreview({
                 }}
                 aria-hidden="true"
             >
-                <PersonalPlaceCategoryIcon iconKey={iconKey} size={compact ? 15 : 18} strokeWidth={2.4} />
+                <PersonalPlaceCategoryIcon
+                    iconKey={iconKey}
+                    iconUrl={iconUrl}
+                    size={compact ? 15 : 18}
+                    strokeWidth={2.4}
+                />
             </span>
             <span
                 className={`min-w-0 truncate rounded-full border font-black uppercase text-[0.6875rem] ${
@@ -81,6 +96,7 @@ function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
             id: initialValue.id,
             name: initialValue.name || '',
             iconKey: initialValue.iconKey || 'map-pin',
+            iconUrl: initialValue.iconUrl || '',
             color: initialValue.color || PERSONAL_PLACE_COLOR_OPTIONS[0],
         } : EMPTY_FORM);
     }, [initialValue]);
@@ -95,6 +111,7 @@ function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
                     id: form.id,
                     name: form.name.trim(),
                     iconKey: form.iconKey,
+                    iconUrl: form.iconUrl || null,
                     color: form.color,
                 });
             }}
@@ -123,7 +140,11 @@ function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
                                     <button
                                         key={option.key}
                                         type="button"
-                                        onClick={() => setForm((current) => ({ ...current, iconKey: option.key }))}
+                                        onClick={() => setForm((current) => ({
+                                            ...current,
+                                            iconKey: option.key,
+                                            iconUrl: '',
+                                        }))}
                                         className={`inline-flex h-11 items-center justify-center rounded-xl border transition ${
                                             selected
                                                 ? 'border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-100'
@@ -138,6 +159,15 @@ function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
                             })}
                         </div>
                     </fieldset>
+
+                    <ImageUpload
+                        label="Upload custom icon"
+                        value={form.iconUrl}
+                        onChange={(iconUrl) => setForm((current) => ({ ...current, iconUrl }))}
+                        uploadFile={api.uploadPersonalPlaceCategoryIcon}
+                        accept={PERSONAL_CATEGORY_ICON_ACCEPT}
+                        maxSize={PERSONAL_CATEGORY_ICON_MAX_BYTES}
+                    />
 
                     <fieldset>
                         <legend className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Badge</legend>
@@ -176,6 +206,7 @@ function CategoryForm({ initialValue, busy, onCancel, onSubmit }) {
                         <CategoryBadgePreview
                             name={form.name}
                             iconKey={form.iconKey}
+                            iconUrl={form.iconUrl}
                             color={form.color}
                         />
                     </div>
@@ -255,59 +286,62 @@ export default function PersonalPlaceCategoryManagerModal({
                     </button>
                 </header>
 
-                <CategoryForm
-                    initialValue={editing}
-                    busy={busy}
-                    onCancel={() => setEditing(null)}
-                    onSubmit={async (values) => {
-                        if (values.id) {
-                            await onUpdate?.(values.id, values);
-                            setEditing(null);
-                        } else {
-                            await onCreate?.(values);
-                        }
-                    }}
-                />
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    <CategoryForm
+                        initialValue={editing}
+                        busy={busy}
+                        onCancel={() => setEditing(null)}
+                        onSubmit={async (values) => {
+                            if (values.id) {
+                                await onUpdate?.(values.id, values);
+                                setEditing(null);
+                            } else {
+                                await onCreate?.(values);
+                            }
+                        }}
+                    />
 
-                <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                    {error ? <p className="mb-3 text-sm font-semibold text-red-600">{error}</p> : null}
-                    <div className="space-y-2">
-                        {sortedCategories.map((category, index) => (
-                            <div key={category.id} className={`flex items-center gap-3 rounded-xl border p-3 ${category.isArchived ? 'border-slate-200 bg-slate-50 opacity-65' : 'border-slate-200 bg-white'}`}>
-                                <span className="min-w-0 flex-1">
-                                    <CategoryBadgePreview
-                                        name={category.name}
-                                        iconKey={category.iconKey}
-                                        color={category.color}
-                                        compact
-                                    />
-                                    <span className="mt-1.5 block pl-10 text-xs font-semibold text-slate-500">
-                                        {category.isArchived ? 'Archived' : 'Active'}
+                    <div className="p-4">
+                        {error ? <p className="mb-3 text-sm font-semibold text-red-600">{error}</p> : null}
+                        <div className="space-y-2">
+                            {sortedCategories.map((category, index) => (
+                                <div key={category.id} className={`flex items-center gap-3 rounded-xl border p-3 ${category.isArchived ? 'border-slate-200 bg-slate-50 opacity-65' : 'border-slate-200 bg-white'}`}>
+                                    <span className="min-w-0 flex-1">
+                                        <CategoryBadgePreview
+                                            name={category.name}
+                                            iconKey={category.iconKey}
+                                            iconUrl={category.iconUrl}
+                                            color={category.color}
+                                            compact
+                                        />
+                                        <span className="mt-1.5 block pl-10 text-xs font-semibold text-slate-500">
+                                            {category.isArchived ? 'Archived' : 'Active'}
+                                        </span>
                                     </span>
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <button type="button" onClick={() => moveCategory(category, -1)} disabled={busy || index === 0} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Move ${category.name} up`} title="Move up">
-                                        <ArrowUp size={16} />
-                                    </button>
-                                    <button type="button" onClick={() => moveCategory(category, 1)} disabled={busy || index === sortedCategories.length - 1} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Move ${category.name} down`} title="Move down">
-                                        <ArrowDown size={16} />
-                                    </button>
-                                    <button type="button" onClick={() => setEditing(category)} disabled={busy} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label={`Edit ${category.name}`} title="Edit">
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => onUpdate?.(category.id, { isArchived: !category.isArchived })}
-                                        disabled={busy}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                                        aria-label={`${category.isArchived ? 'Restore' : 'Archive'} ${category.name}`}
-                                        title={category.isArchived ? 'Restore' : 'Archive'}
-                                    >
-                                        {category.isArchived ? <RotateCcw size={16} /> : <Archive size={16} />}
-                                    </button>
-                                </span>
-                            </div>
-                        ))}
+                                    <span className="flex items-center gap-1">
+                                        <button type="button" onClick={() => moveCategory(category, -1)} disabled={busy || index === 0} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Move ${category.name} up`} title="Move up">
+                                            <ArrowUp size={16} />
+                                        </button>
+                                        <button type="button" onClick={() => moveCategory(category, 1)} disabled={busy || index === sortedCategories.length - 1} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30" aria-label={`Move ${category.name} down`} title="Move down">
+                                            <ArrowDown size={16} />
+                                        </button>
+                                        <button type="button" onClick={() => setEditing(category)} disabled={busy} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label={`Edit ${category.name}`} title="Edit">
+                                            <Pencil size={16} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => onUpdate?.(category.id, { isArchived: !category.isArchived })}
+                                            disabled={busy}
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                                            aria-label={`${category.isArchived ? 'Restore' : 'Archive'} ${category.name}`}
+                                            title={category.isArchived ? 'Restore' : 'Archive'}
+                                        >
+                                            {category.isArchived ? <RotateCcw size={16} /> : <Archive size={16} />}
+                                        </button>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </section>

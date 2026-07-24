@@ -1303,6 +1303,7 @@ function DirectoryResourceRow({
     canSaveResources,
     onRemoveResource,
     onEditPersonalPlace,
+    onEditResourceShortDescription,
     onOpenResourceNotes,
     allowPrintLinks = false,
     compactPrint = false,
@@ -1312,6 +1313,15 @@ function DirectoryResourceRow({
     const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const personalPlace = isPersonalPlaceRow(row);
     const canManagePersonalPlace = mode === 'owner' && personalPlace;
+    const canManageShortDescription = mode === 'owner'
+        && !personalPlace
+        && Boolean(onEditResourceShortDescription);
+    const shortDescription = String(
+        personalPlace ? (row.descriptor || '') : (row.mapShortDescriptor || '')
+    ).trim();
+    const repeatsPlaceName = String(row?.name || '').trim().toLowerCase()
+        === String(place?.name || '').trim().toLowerCase();
+    const showResourceName = !repeatsPlaceName;
     const access = row?.resourceType === 'soft' ? (row.access || OFFERING_ACCESS.GRANTED) : null;
     const isAccessRestricted = row?.resourceType === 'soft' && access !== OFFERING_ACCESS.GRANTED;
     const sharedNotes = normalizeNoteItems(row?.notes);
@@ -1320,26 +1330,32 @@ function DirectoryResourceRow({
         : (compactPrint ? 'text-[0.6875rem]' : 'text-[0.75rem]');
 
     if (!interactive) {
-        const printRowTitle = canOpenDetail && allowPrintLinks ? (
+        const printRowTitle = showResourceName && canOpenDetail && allowPrintLinks ? (
             <Link to={detailPath} reloadDocument className={`font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                 {row.name}
             </Link>
-        ) : (
+        ) : showResourceName ? (
             <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
-        );
+        ) : null;
 
         return (
             <div className="border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
-                <div className="flex items-center gap-1.5">
-                    <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        {printRowTitle}
-                        <AvailabilityCountBadge row={row} compact />
-                        {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
+                {printRowTitle || shortDescription || row.status === 'unavailable' ? (
+                    <div className="flex items-start gap-1.5">
+                        <span className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {printRowTitle}
+                                <AvailabilityCountBadge row={row} compact />
+                                {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
+                            </div>
+                            {shortDescription ? (
+                                <p className={`${printRowTitle ? 'mt-0.5' : ''} text-[0.625rem] leading-snug text-slate-500`}>
+                                    {shortDescription}
+                                </p>
+                            ) : null}
+                        </div>
                     </div>
-                </div>
-                {personalPlace && row.descriptor ? (
-                    <p className="mt-0.5 pl-2.5 text-[0.625rem] leading-snug text-slate-500">{row.descriptor}</p>
                 ) : null}
                 {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}
             </div>
@@ -1355,13 +1371,38 @@ function DirectoryResourceRow({
                         <div className="min-w-0 flex-1">
                             <div className="flex items-start gap-2">
                                 <div className="min-w-0 flex-1">
-                                    {canOpenDetail ? (
+                                    {showResourceName && canOpenDetail ? (
                                         <Link to={detailPath} className={`block font-semibold leading-snug text-slate-800 transition hover:text-brand-700 ${rowTitleClassName}`}>
                                             {row.name}
                                         </Link>
-                                    ) : (
+                                    ) : showResourceName ? (
                                         <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
-                                    )}
+                                    ) : null}
+                                    {shortDescription ? (
+                                        <div className={`flex items-start gap-1.5 ${showResourceName ? 'mt-1' : ''}`}>
+                                            <p className="min-w-0 flex-1 text-xs leading-5 text-slate-500">{shortDescription}</p>
+                                            {canManageShortDescription ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onEditResourceShortDescription(row)}
+                                                    className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                                                    aria-label={`${t('editShortDescription')}: ${row.name}`}
+                                                    title={t('editShortDescription')}
+                                                >
+                                                    <Pencil size={13} />
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    ) : canManageShortDescription ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onEditResourceShortDescription(row)}
+                                            className={`inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-brand-700 ${showResourceName ? 'mt-1' : ''}`}
+                                        >
+                                            <Plus size={13} />
+                                            {t('addShortDescription')}
+                                        </button>
+                                    ) : null}
                                 </div>
                                 {!personalPlace ? (
                                     <MapNoteIconButton
@@ -1371,9 +1412,6 @@ function DirectoryResourceRow({
                                     />
                                 ) : null}
                             </div>
-                            {personalPlace && row.descriptor ? (
-                                <p className="mt-1 text-xs leading-5 text-slate-500">{row.descriptor}</p>
-                            ) : null}
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
                                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                     <AvailabilityCountBadge row={row} compact={compactInteractive} />
@@ -1586,6 +1624,7 @@ function DirectoryNestedPlaceSection({
     canSaveResources,
     onRemoveResource,
     onEditPersonalPlace,
+    onEditResourceShortDescription,
     onOpenResourceNotes,
 }) {
     const nestedPlaceDetailPath = useDirectoryDetailPath(getGroupDetailPath(nestedPlace));
@@ -1626,6 +1665,7 @@ function DirectoryNestedPlaceSection({
                             canSaveResources={canSaveResources}
                             onRemoveResource={onRemoveResource}
                             onEditPersonalPlace={onEditPersonalPlace}
+                            onEditResourceShortDescription={onEditResourceShortDescription}
                             onOpenResourceNotes={onOpenResourceNotes}
                         />
                     ))}
@@ -1646,6 +1686,7 @@ function DirectoryPlaceGroupCard({
     onHoverPlaceEnd,
     onRemoveResource,
     onEditPersonalPlace,
+    onEditResourceShortDescription,
     onUpdateResourceNotes,
     onOpenResourceNotes,
     canSaveResources,
@@ -1902,6 +1943,7 @@ function DirectoryPlaceGroupCard({
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
                                 onEditPersonalPlace={onEditPersonalPlace}
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={onOpenResourceNotes}
                             />
                         </div>
@@ -1938,6 +1980,7 @@ function DirectoryPlaceGroupCard({
                                     canSaveResources={canSaveResources}
                                     onRemoveResource={onRemoveResource}
                                     onEditPersonalPlace={onEditPersonalPlace}
+                                    onEditResourceShortDescription={onEditResourceShortDescription}
                                     onOpenResourceNotes={onOpenResourceNotes}
                                 />
                             </div>
@@ -2029,6 +2072,7 @@ function DirectoryPlaceGroupCard({
                                     canSaveResources={canSaveResources}
                                     onRemoveResource={onRemoveResource}
                                     onEditPersonalPlace={onEditPersonalPlace}
+                                    onEditResourceShortDescription={onEditResourceShortDescription}
                                     onOpenResourceNotes={onOpenResourceNotes}
                                 />
                             ))}
@@ -2202,7 +2246,16 @@ function MobileMapFocusTray({
     );
 }
 
-function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemoveResource, onOpenResourceNotes, compact = false }) {
+function DirectoryUnmappedRow({
+    row,
+    interactive,
+    mode,
+    canSaveResources,
+    onRemoveResource,
+    onEditResourceShortDescription,
+    onOpenResourceNotes,
+    compact = false,
+}) {
     const { t } = useLocale();
     const place = useMemo(() => ({
         address: row.locationLabel || row.contextLabel || row.placeName || '',
@@ -2228,6 +2281,9 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                             <p className="text-[0.75rem] font-semibold leading-snug text-slate-800">{row.name}</p>
                         )}
                         {row.contextLabel ? <p className="mt-0.5 text-[0.625rem] text-slate-500">{row.contextLabel}</p> : null}
+                        {row.mapShortDescriptor ? (
+                            <p className="mt-0.5 text-[0.625rem] leading-snug text-slate-500">{row.mapShortDescriptor}</p>
+                        ) : null}
                         {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}
                     </div>
                 </div>
@@ -2277,6 +2333,31 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                         ) : null}
                         {row.locationLabel ? (
                             <p className={`mt-1 text-slate-400 ${compact ? 'line-clamp-1 text-xs' : 'text-sm'}`}>{row.locationLabel}</p>
+                        ) : null}
+                        {row.mapShortDescriptor ? (
+                            <div className="mt-1 flex items-start gap-1.5">
+                                <p className="min-w-0 flex-1 text-sm leading-5 text-slate-600">{row.mapShortDescriptor}</p>
+                                {mode === 'owner' && onEditResourceShortDescription ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditResourceShortDescription(row)}
+                                        className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                                        aria-label={`${t('editShortDescription')}: ${row.name}`}
+                                        title={t('editShortDescription')}
+                                    >
+                                        <Pencil size={13} />
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : mode === 'owner' && onEditResourceShortDescription ? (
+                            <button
+                                type="button"
+                                onClick={() => onEditResourceShortDescription(row)}
+                                className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-brand-700"
+                            >
+                                <Plus size={13} />
+                                {t('addShortDescription')}
+                            </button>
                         ) : null}
                         <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 font-semibold uppercase tracking-[0.08em] text-slate-400 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}>
                             <span>{getResourceKindLabel(row, t)}</span>
@@ -2494,6 +2575,7 @@ function DirectoryGroupColumn({
     onHoverPlaceEnd,
     onRemoveResource,
     onEditPersonalPlace,
+    onEditResourceShortDescription,
     onUpdateResourceNotes,
     onOpenResourceNotes,
     canSaveResources,
@@ -2554,6 +2636,7 @@ function DirectoryGroupColumn({
                             onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
                             onEditPersonalPlace={onEditPersonalPlace}
+                            onEditResourceShortDescription={onEditResourceShortDescription}
                             onUpdateResourceNotes={onUpdateResourceNotes}
                             onOpenResourceNotes={onOpenResourceNotes}
                             canSaveResources={canSaveResources}
@@ -2587,6 +2670,7 @@ function DirectoryUnmappedSection({
     mode,
     canSaveResources,
     onRemoveResource,
+    onEditResourceShortDescription,
     onOpenResourceNotes,
     compact = false,
     className = '',
@@ -2613,6 +2697,7 @@ function DirectoryUnmappedSection({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
                         onOpenResourceNotes={onOpenResourceNotes}
                         compact
                     />
@@ -2640,6 +2725,7 @@ function DirectoryUnmappedSection({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
                         onOpenResourceNotes={onOpenResourceNotes}
                         compact={false}
                     />
@@ -2660,6 +2746,7 @@ export default function SharedMapDirectoryList({
     onHoverPlaceEnd,
     onRemoveResource,
     onEditPersonalPlace,
+    onEditResourceShortDescription,
     onUpdateResourceNotes,
     highlightPlaceKey = null,
     highlightPlaceKeys = [],
@@ -3154,6 +3241,7 @@ export default function SharedMapDirectoryList({
                             onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
                             onEditPersonalPlace={onEditPersonalPlace}
+                            onEditResourceShortDescription={onEditResourceShortDescription}
                             onUpdateResourceNotes={onUpdateResourceNotes}
                             onOpenResourceNotes={openResourceNotes}
                             canSaveResources={canSaveResources}
@@ -3174,6 +3262,7 @@ export default function SharedMapDirectoryList({
                                 mode={mode}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={openResourceNotes}
                                 compact
                             />
@@ -3254,6 +3343,7 @@ export default function SharedMapDirectoryList({
                 onHoverPlaceEnd={onHoverPlaceEnd}
                 onRemoveResource={onRemoveResource}
                 onEditPersonalPlace={onEditPersonalPlace}
+                onEditResourceShortDescription={onEditResourceShortDescription}
                 onUpdateResourceNotes={onUpdateResourceNotes}
                 onOpenResourceNotes={openResourceNotes}
                 canSaveResources={canSaveResources}
@@ -3302,6 +3392,7 @@ export default function SharedMapDirectoryList({
                                 mode={mode}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={openResourceNotes}
                             />
                         ) : null}
@@ -3336,6 +3427,7 @@ export default function SharedMapDirectoryList({
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onEditPersonalPlace={onEditPersonalPlace}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}
                         canSaveResources={canSaveResources}
@@ -3360,6 +3452,7 @@ export default function SharedMapDirectoryList({
                                 mode={mode}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={openResourceNotes}
                                 compact
                             />
@@ -3392,6 +3485,7 @@ export default function SharedMapDirectoryList({
                                     onHoverPlaceEnd={onHoverPlaceEnd}
                                     onRemoveResource={onRemoveResource}
                                     onEditPersonalPlace={onEditPersonalPlace}
+                                    onEditResourceShortDescription={onEditResourceShortDescription}
                                     onUpdateResourceNotes={onUpdateResourceNotes}
                                     onOpenResourceNotes={openResourceNotes}
                                     canSaveResources={canSaveResources}
@@ -3419,6 +3513,7 @@ export default function SharedMapDirectoryList({
                                 mode={mode}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={openResourceNotes}
                                 compact
                                 className={resolvedLayout !== 'print' ? 'mt-4' : ''}
@@ -3437,6 +3532,7 @@ export default function SharedMapDirectoryList({
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
                         onEditPersonalPlace={onEditPersonalPlace}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         onOpenResourceNotes={openResourceNotes}
                         canSaveResources={canSaveResources}
@@ -3461,6 +3557,7 @@ export default function SharedMapDirectoryList({
                                 mode={mode}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={openResourceNotes}
                                 compact
                             />
@@ -3475,6 +3572,7 @@ export default function SharedMapDirectoryList({
                         mode={mode}
                         canSaveResources={canSaveResources}
                         onRemoveResource={onRemoveResource}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
                         onOpenResourceNotes={openResourceNotes}
                     />
                 ) : null}

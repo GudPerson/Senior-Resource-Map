@@ -40,9 +40,26 @@ export function getPersonalPlaceIconComponent(iconKey) {
     return ICON_COMPONENTS[iconKey] || MapPin;
 }
 
-export function PersonalPlaceCategoryIcon({ iconKey, ...props }) {
+export function PersonalPlaceCategoryIcon({
+    iconKey,
+    iconUrl = null,
+    size = 16,
+    className = '',
+    ...props
+}) {
+    if (iconUrl) {
+        return (
+            <img
+                src={iconUrl}
+                alt=""
+                className={`object-contain ${className}`.trim()}
+                style={{ width: size, height: size }}
+                aria-hidden="true"
+            />
+        );
+    }
     const Icon = getPersonalPlaceIconComponent(iconKey);
-    return <Icon {...props} />;
+    return <Icon size={size} className={className} {...props} />;
 }
 
 export function renderPersonalPlaceIconMarkup(iconKey, {
