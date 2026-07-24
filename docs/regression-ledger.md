@@ -29,8 +29,8 @@ Rules:
   presented as a managed-resource logo.
 - Known-good reference: implementation branch
   `codex/my-places-library-v2`, based on the sealed V1 commit `2f61b13cc` and
-  local rollback tag `personal-places-v1-2026-07-24`. No V2 schema bootstrap,
-  production data mutation, push, or deployment has happened.
+  local rollback tag `personal-places-v1-2026-07-24`. Release commit
+  `e026ab92c` is on both the feature branch and `main`.
 - Reproduction steps: sign in as any non-guest role; open My Directory and
   choose `My Places`; create a category with an icon and colour, then create a
   place in that category. Attach the same place to two owned maps. Confirm both
@@ -141,6 +141,31 @@ Rules:
   coverage passed 61/61; locked map/print coverage passed 80/80; and the exact
   four-root production-style client build passed with only the existing large
   chunk warning.
+- 2026-07-24 production release: the additive boundary-schema bootstrap
+  completed before runtime deployment. It retained 2 legacy place rows,
+  backfilled 2 reusable library places and 2 map links, and reported 0
+  unbackfilled legacy places and 0 duplicate category names. `main` and
+  `codex/my-places-library-v2` were pushed at `e026ab92c`. Worker version
+  `a9ae70c5-19d8-4448-b7a7-73bd9ad24714` and Pages deployment
+  `https://cc8cf910.senior-resource-map.pages.dev` were released. The custom
+  domain served `assets/index-CEvzEMXS.js`,
+  `assets/MyMapDetailPage-DZa1Qv6Q.js`,
+  `assets/MyDirectoryPage-B1f6qxXS.js`,
+  `assets/personalPlaceCategories-DJJVQ68J.js`,
+  `assets/MapImageExportButton-CXUQwO3R.js`, and
+  `assets/index-Dp7WHDGt.css`; each checked asset matched local `client/dist`
+  byte-for-byte. API health returned OK and production smoke passed 6/6.
+  Signed-in production UAT showed 2 reusable places and 8 categories in My
+  Places, both private places plus short-description actions on owner map 258,
+  and the Full-map screen/export resource pages at `6/6/4/6` with 22/22
+  left-aligned badges. PA Resident Network and Senior Citizen Fitness Corner
+  each appeared in one column, and the saved description remained visible.
+  All 3 existing shared snapshots contained 0 personal-place rows and 0
+  personal-place arrays. `CLOUDINARY_URL` remains configured as a Worker
+  secret; no category-icon upload or other user-content mutation was performed
+  during release verification. Full server coverage passed 466/466 and broad
+  client coverage passed 473/474; the sole failure is the previously recorded
+  expired Care Calendar fixture on source untouched by this release.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code

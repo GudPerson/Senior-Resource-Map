@@ -1,6 +1,6 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-23 (Asia/Singapore)
+Last updated: 2026-07-24 (Asia/Singapore)
 
 ## Map stable baseline lock (2026-07-23)
 
@@ -28,6 +28,38 @@ Last updated: 2026-07-23 (Asia/Singapore)
   `docs/regression-ledger.md`, this handoff, and
   `docs/release-checklist.md`, then running the focused map/print tests and the
   exact four-root production client build before deploy.
+
+## Private My Places Library V2 production release (2026-07-24)
+
+- Release commit `e026ab92c` is pushed on `codex/my-places-library-v2` and
+  fast-forwarded to `main`. It delivers a private reusable My Places library,
+  multi-map place links, custom categories with curated or uploaded icons and
+  colours, personal-place descriptions, per-map managed-resource descriptions,
+  and the owner Full-map 2/3/4-column print controls.
+- The additive production schema bootstrap retained 2 legacy rows and
+  backfilled 2 library places plus 2 map links. It reported 0 unbackfilled
+  legacy places and 0 duplicate category names. Keep the additive V2 tables
+  during any application rollback so library data is not discarded.
+- Production Worker version:
+  `a9ae70c5-19d8-4448-b7a7-73bd9ad24714`.
+  Production Pages deployment:
+  `https://cc8cf910.senior-resource-map.pages.dev`.
+- `https://app.carearound.sg` served the exact validated client bundle. The
+  entry, CSS, My Map, My Directory, category, export, and map chunks matched
+  local `client/dist` byte-for-byte and retained all four Detailed/Print Master
+  roots and locked map markers.
+- Full server coverage passed 466/466, locked map/print coverage passed 80/80,
+  the exact four-root production build passed, and production smoke passed
+  6/6. Broad client coverage passed 473/474; the only failure is the existing
+  expired Care Calendar planning fixture on untouched source.
+- Signed-in production UAT confirmed 2 reusable places and 8 categories in My
+  Places, both private places on owner map 258, and the Full-map screen/export
+  resource pages at `6/6/4/6` with 22/22 left-aligned badges. PA Resident
+  Network and Senior Citizen Fitness Corner each stay in one column. All 3
+  existing shared snapshots contained 0 personal-place rows and arrays.
+- Rollback application code to `personal-places-v1-2026-07-24` /
+  `2f61b13cc`, while retaining the additive V2 tables. The pre-release map
+  baseline remains `map-stable-2026-07-23`.
 
 ## Native-scale islandwide Detailed-map v2 release (2026-07-23)
 
@@ -162,20 +194,23 @@ Last updated: 2026-07-23 (Asia/Singapore)
 - Production app: `https://app.carearound.sg`
 - Stable map baseline: `map-stable-2026-07-23` at
   `97118d4919cda77f1be581b0489eaf327e2ef098`.
-- Production client bundle: `assets/index-BbMHCdJ9.js`
-- Production Care Calendar chunk: `assets/CareCalendarPage-DVenqBnM.js`
-- Production Resources chunk: `assets/ResourcesPage-DlWrhP0T.js`
-- Production My Map owner chunk: `assets/MyMapDetailPage-D1SJlYMS.js`
-- Production map-export chunk: `assets/MapImageExportButton-CHH0QFSF.js`
-- Production client CSS: `assets/index-CRSe8Nl6.css`
+- Production client bundle: `assets/index-CEvzEMXS.js`
+- Production Care Calendar chunk: `assets/CareCalendarPage-B5khzVOM.js`
+- Production Resources chunk: `assets/ResourcesPage-B_a45vRP.js`
+- Production My Directory chunk: `assets/MyDirectoryPage-B1f6qxXS.js`
+- Production My Map owner chunk: `assets/MyMapDetailPage-DZa1Qv6Q.js`
+- Production personal-category chunk:
+  `assets/personalPlaceCategories-DJJVQ68J.js`
+- Production map-export chunk: `assets/MapImageExportButton-CXUQwO3R.js`
+- Production client CSS: `assets/index-Dp7WHDGt.css`
 - Validated production Pages deployment:
-  `https://8299e8cf.senior-resource-map.pages.dev`
+  `https://cc8cf910.senior-resource-map.pages.dev`
 - Production Care Calendar preview:
   `https://5f024c97.senior-resource-map.pages.dev`
 - Production API: `https://api.carearound.sg/api/health` returned OK at
-  `2026-07-23T10:20:23.608Z`.
+  `2026-07-24T05:26:45.043Z`.
 - Production Worker version:
-  `a522111b-b161-419c-8e50-6eb0a4105976`.
+  `a9ae70c5-19d8-4448-b7a7-73bd9ad24714`.
 - Current map release markers to preserve: v2 native-scale Default and Gray
   roots, retained Print Master roots, `resize moveend zoomend` containment,
   `The regular map is still shown.`, and `Save PDF`. The deployed map bundle
