@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
     buildHardAssetPostSaveStatus,
     formatHardAssetSaveError,
+    hardAssetTranslationFieldsChanged,
     runHardAssetPostSaveTask,
+    scheduleHardAssetPostSaveTask,
 } from '../src/controllers/hardAssetsController.js';
 
 test('formatHardAssetSaveError hides Worker subrequest implementation details', () => {
@@ -38,4 +40,45 @@ test('runHardAssetPostSaveTask converts background failures into partial status'
         issues: ['mapCache'],
         message: 'Your main changes were saved, but some background updates may take a moment to refresh.',
     });
+});
+
+test('hard asset translation follow-up runs only for English text changes', () => {
+    const existing = {
+        name: 'Senior Corner',
+        subCategory: 'Active Ageing Centre',
+        address: 'Blk 1',
+        hours: 'Mon-Fri',
+        description: 'Exercises and talks.',
+        logoUrl: 'https://example.test/old.png',
+    };
+
+    assert.equal(hardAssetTranslationFieldsChanged(existing, {
+        ...existing,
+        logoUrl: 'https://example.test/new.png',
+    }), false);
+
+    assert.equal(hardAssetTranslationFieldsChanged(existing, {
+        logoUrl: 'https://example.test/new.png',
+    }), false);
+
+    assert.equal(hardAssetTranslationFieldsChanged(existing, {
+        ...existing,
+        description: 'Exercises, talks, and karaoke.',
+    }), true);
+});
+
+test('scheduleHardAssetPostSaveTask queues follow-ups through waitUntil', async () => {
+    let queuedPromise = null;
+    const status = scheduleHardAssetPostSaveTask({
+        executionCtx: {
+            waitUntil(promise) {
+                queuedPromise = promise;
+            },
+        },
+    }, 'mapCache', async () => 'done');
+
+    assert.equal(status.status, 'queued');
+    assert.equal(status.taskName, 'mapCache');
+    assert.ok(queuedPromise);
+    assert.deepEqual(await queuedPromise, { ok: true, result: 'done' });
 });

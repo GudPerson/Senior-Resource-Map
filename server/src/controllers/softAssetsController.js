@@ -91,6 +91,7 @@ import {
     syncResourceTranslations,
 } from '../utils/resourceTranslations.js';
 import {
+    cleanText,
     cleanOneLineText,
     cleanOptionalOneLineText,
     cleanOptionalText,
@@ -126,6 +127,39 @@ function clientError(message, status = 400) {
     const err = new Error(message);
     err.status = status;
     return err;
+}
+
+const SOFT_ASSET_TRANSLATION_FIELDS = [
+    ['name', (value) => cleanOneLineText(value, 255)],
+    ['bucket', (value) => cleanOneLineText(value, 40)],
+    ['subCategory', (value) => cleanOneLineText(value, 80)],
+    ['description', (value) => cleanText(value, 8000)],
+    ['schedule', (value) => cleanText(value, 5000)],
+    ['ctaLabel', (value) => cleanOneLineText(value, 255)],
+    ['venueNote', (value) => cleanText(value, 3000)],
+    ['availabilityUnit', (value) => cleanOneLineText(value, 80)],
+];
+
+function normalizeExistingSoftAssetTags(asset = {}) {
+    return (asset.tags || [])
+        .map((entry) => entry?.tag?.name || entry?.name || entry)
+        .map((tag) => String(tag || '').trim().toLowerCase())
+        .filter(Boolean)
+        .sort();
+}
+
+function softAssetTagListsChanged(existingTags = [], nextTags = []) {
+    const left = normalizeExistingSoftAssetTags({ tags: existingTags });
+    const right = normalizeExistingSoftAssetTags({ tags: nextTags });
+    if (left.length !== right.length) return true;
+    return left.some((tag, index) => tag !== right[index]);
+}
+
+export function softAssetTranslationFieldsChanged(existing = {}, updatePatch = {}) {
+    return SOFT_ASSET_TRANSLATION_FIELDS.some(([field, normalize]) => {
+        const nextValue = Object.hasOwn(updatePatch, field) ? updatePatch[field] : existing[field];
+        return normalize(existing[field]) !== normalize(nextValue);
+    });
 }
 
 function normalizeVerificationDate(value) {
@@ -873,6 +907,34 @@ async function triggerSoftAssetTranslation(db, env, asset, user) {
     }
 }
 
+function scheduleSoftAssetPostSaveTask(c, taskName, task) {
+    const taskPromise = (async () => {
+        try {
+            await task();
+            return { ok: true, taskName };
+        } catch (err) {
+            console.error(`Soft asset post-save task "${taskName}" failed:`, err);
+            return {
+                ok: false,
+                taskName,
+                message: err.message || 'Background update failed.',
+            };
+        }
+    })();
+    const waitUntil = c?.executionCtx?.waitUntil;
+    if (typeof waitUntil === 'function') {
+        waitUntil.call(c.executionCtx, taskPromise);
+    } else {
+        taskPromise.catch(() => undefined);
+    }
+
+    return {
+        status: 'queued',
+        taskName,
+        message: 'Your changes were saved. Related public views will refresh shortly.',
+    };
+}
+
 function canExposeFormattedSoftAsset(asset, formatted, viewer = null) {
     if (isGroupSoftAsset(asset)) {
         if (isDiscoverReadyGroup(asset)) return true;
@@ -1170,26 +1232,29 @@ async function updateGroupSoftAsset(c, db, user, existing, body) {
 
     await db.update(softAssets).set(updatePatch).where(eq(softAssets.id, existing.id));
 
-    if (body.newTags !== undefined) {
+    const tagsChanged = body.newTags !== undefined && softAssetTagListsChanged(existing.tags, body.newTags || []);
+    if (tagsChanged) {
         await syncAssetTags(db, existing.id, 'soft', body.newTags || []);
     }
 
     await syncSoftAssetRegionCoverages(db, existing.id, nextCoverageRegionIds, user);
 
-    const refreshed = await loadSoftAssetById(db, existing.id);
-    const translationStatus = refreshed
-        ? await triggerSoftAssetTranslation(db, c.env, refreshed, user)
-        : { status: 'skipped', message: 'Group was saved but could not be reloaded for translation.' };
+    const savedGroup = { ...existing, ...updatePatch, id: existing.id };
+    const translationStatus = softAssetTranslationFieldsChanged(existing, updatePatch)
+        ? scheduleSoftAssetPostSaveTask(c, 'translation', () => triggerSoftAssetTranslation(db, c.env, savedGroup, user))
+        : { status: 'skipped', message: 'No English translation fields changed.' };
 
-    await rebuildSoftAssetCaches([finalSubregionId, existing.subregionId, ...nextCoverageRegionIds, ...existingCoverageRegionIds, 'all'], c.env, user);
+    scheduleSoftAssetPostSaveTask(c, 'mapCache', () => (
+        rebuildSoftAssetCaches([finalSubregionId, existing.subregionId, ...nextCoverageRegionIds, ...existingCoverageRegionIds, 'all'], c.env, user)
+    ));
     const changedFields = diffAuditFieldNames(existing, updatePatch)
-        .concat(body.newTags !== undefined ? ['tags'] : [])
+        .concat(tagsChanged ? ['tags'] : [])
         .concat(coveragePatchRequested ? ['targetRegions'] : []);
     if (changedFields.length) {
         await recordSoftAssetAudit(
             db,
             user,
-            refreshed || { ...existing, ...updatePatch },
+            savedGroup,
             isResourceVisibilityAction(existing, updatePatch)
                 ? (updatePatch.isHidden ? 'hidden' : 'shown')
                 : 'updated',
@@ -1955,17 +2020,17 @@ export const updateSoftAsset = async (c) => {
         if (isChildSoftAsset(existing)) {
             const patch = buildChildEditablePatch(body, existing);
             await db.update(softAssets).set(patch).where(eq(softAssets.id, id));
-            const refreshedChild = await loadSoftAssetById(db, id);
-            const translationStatus = refreshedChild
-                ? await triggerSoftAssetTranslation(db, c.env, refreshedChild, user)
-                : { status: 'skipped', message: 'Offering was saved but could not be reloaded for translation.' };
-            await rebuildSoftAssetCaches([existing.subregionId], c.env, user);
+            const savedChild = { ...existing, ...patch, id };
+            const translationStatus = softAssetTranslationFieldsChanged(existing, patch)
+                ? scheduleSoftAssetPostSaveTask(c, 'translation', () => triggerSoftAssetTranslation(db, c.env, savedChild, user))
+                : { status: 'skipped', message: 'No English translation fields changed.' };
+            scheduleSoftAssetPostSaveTask(c, 'mapCache', () => rebuildSoftAssetCaches([existing.subregionId], c.env, user));
             const changedFields = diffAuditFieldNames(existing, patch);
             if (changedFields.length) {
                 await recordSoftAssetAudit(
                     db,
                     user,
-                    refreshedChild || existing,
+                    savedChild,
                     isResourceVisibilityAction(existing, patch)
                         ? (patch.isHidden ? 'hidden' : 'shown')
                         : 'updated',
@@ -2152,34 +2217,35 @@ export const updateSoftAsset = async (c) => {
             }
         }
 
-        if (body.newTags !== undefined) {
+        const tagsChanged = body.newTags !== undefined && softAssetTagListsChanged(existing.tags, body.newTags || []);
+        if (tagsChanged) {
             await syncAssetTags(db, id, 'soft', body.newTags || []);
         }
 
         await syncSoftAssetAudienceZones(db, id, nextAudienceZoneIds);
         await syncSoftAssetRegionCoverages(db, id, nextCoverageRegionIds, user);
 
-        const refreshed = await loadSoftAssetById(db, id);
-        const translationStatus = refreshed
-            ? await triggerSoftAssetTranslation(db, c.env, refreshed, user)
-            : { status: 'skipped', message: 'Offering was saved but could not be reloaded for translation.' };
+        const savedAsset = { ...existing, ...updatePatch, id };
+        const translationStatus = softAssetTranslationFieldsChanged(existing, updatePatch)
+            ? scheduleSoftAssetPostSaveTask(c, 'translation', () => triggerSoftAssetTranslation(db, c.env, savedAsset, user))
+            : { status: 'skipped', message: 'No English translation fields changed.' };
 
-        await rebuildSoftAssetCaches([
+        scheduleSoftAssetPostSaveTask(c, 'mapCache', () => rebuildSoftAssetCaches([
             finalSubregionId,
             existing.subregionId,
             ...nextCoverageRegionIds,
             ...existingCoverageRegionIds,
-        ], c.env, user);
+        ], c.env, user));
         const changedFields = diffAuditFieldNames(existing, updatePatch)
             .concat(body.locationIds !== undefined || body.locationId !== undefined ? ['linkedPlaces'] : [])
-            .concat(body.newTags !== undefined ? ['tags'] : [])
+            .concat(tagsChanged ? ['tags'] : [])
             .concat(coveragePatchRequested ? ['coverageRegions'] : [])
             .concat(body.audienceZoneIds !== undefined || body.audienceMode !== undefined ? ['audienceZones'] : []);
         if (changedFields.length) {
             await recordSoftAssetAudit(
                 db,
                 user,
-                refreshed || { ...existing, ...updatePatch, id },
+                savedAsset,
                 isResourceVisibilityAction(existing, updatePatch)
                     ? (updatePatch.isHidden ? 'hidden' : 'shown')
                     : 'updated',

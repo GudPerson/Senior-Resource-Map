@@ -527,6 +527,10 @@ function getLinkedHardAssetIdsForOffering(asset) {
     return ids;
 }
 
+function canOpenHardAssetEditorFromSummary(asset) {
+    return asset?.editSummary === true;
+}
+
 function formatMembershipStatusLabel(status) {
     return String(status || 'ACTIVE')
         .toLowerCase()
@@ -1377,6 +1381,11 @@ export default function ResourcesPage() {
 
     async function openEdit(asset, assetType) {
         if (assetType === 'hard') {
+            if (canOpenHardAssetEditorFromSummary(asset)) {
+                setInlineAction({ id: asset.id, type: 'edit', loading: false, asset });
+                return;
+            }
+
             setInlineAction({ id: asset.id, type: 'edit', loading: true, asset });
             try {
                 const fullAsset = await api.getHardAsset(asset.id);

@@ -47,6 +47,7 @@ import {
     syncResourceTranslations,
 } from '../utils/resourceTranslations.js';
 import {
+    cleanText,
     cleanOneLineText,
     cleanOptionalOneLineText,
     cleanOptionalText,
@@ -63,6 +64,36 @@ import {
 import { shouldGrantCreatorDefaultHardAssetOwner } from '../utils/assetCreatorOwnership.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
+
+const HARD_ASSET_TRANSLATION_FIELDS = [
+    ['name', (value) => cleanOneLineText(value, 255)],
+    ['subCategory', (value) => cleanOneLineText(value, 80)],
+    ['address', (value) => cleanOneLineText(value, 500)],
+    ['hours', (value) => cleanText(value, 2000)],
+    ['description', (value) => cleanText(value, 8000)],
+];
+
+function normalizeExistingHardAssetTags(asset = {}) {
+    return (asset.tags || [])
+        .map((entry) => entry?.tag?.name || entry?.name || entry)
+        .map((tag) => String(tag || '').trim().toLowerCase())
+        .filter(Boolean)
+        .sort();
+}
+
+function tagListsChanged(existingTags = [], nextTags = []) {
+    const left = normalizeExistingHardAssetTags({ tags: existingTags });
+    const right = normalizeExistingHardAssetTags({ tags: nextTags });
+    if (left.length !== right.length) return true;
+    return left.some((tag, index) => tag !== right[index]);
+}
+
+export function hardAssetTranslationFieldsChanged(existing = {}, updatePatch = {}) {
+    return HARD_ASSET_TRANSLATION_FIELDS.some(([field, normalize]) => {
+        const nextValue = Object.hasOwn(updatePatch, field) ? updatePatch[field] : existing[field];
+        return normalize(existing[field]) !== normalize(nextValue);
+    });
+}
 
 async function recordHardAssetAudit(db, actor, asset, action, changedFields = [], metadata = {}) {
     if (!asset?.id) return;
@@ -1108,6 +1139,22 @@ export async function runHardAssetPostSaveTask(taskName, task) {
     }
 }
 
+export function scheduleHardAssetPostSaveTask(c, taskName, task) {
+    const taskPromise = runHardAssetPostSaveTask(taskName, task);
+    const waitUntil = c?.executionCtx?.waitUntil;
+    if (typeof waitUntil === 'function') {
+        waitUntil.call(c.executionCtx, taskPromise);
+    } else {
+        taskPromise.catch(() => undefined);
+    }
+
+    return {
+        status: 'queued',
+        taskName,
+        message: 'Your changes were saved. Related public views will refresh shortly.',
+    };
+}
+
 export function buildHardAssetPostSaveStatus(issues = []) {
     const safeIssues = Array.isArray(issues) ? issues.filter((issue) => issue && !issue.ok) : [];
     if (safeIssues.length === 0) {
@@ -1899,6 +1946,7 @@ export const updateHardAsset = async (c) => {
             where: eq(hardAssets.id, id),
             with: {
                 partner: { columns: { id: true, name: true, role: true, managerUserId: true } },
+                tags: { with: { tag: true } },
             },
         });
 
@@ -1972,37 +2020,29 @@ export const updateHardAsset = async (c) => {
         await db.update(hardAssets).set(updatePatch).where(eq(hardAssets.id, id));
 
         const postSaveIssues = [];
-        if (body.newTags) {
+        const tagsChanged = body.newTags !== undefined && tagListsChanged(existing.tags, body.newTags || []);
+        if (tagsChanged) {
             const tagSyncStatus = await runHardAssetPostSaveTask('tags', () => syncAssetTags(db, id, 'hard', body.newTags));
             if (!tagSyncStatus.ok) postSaveIssues.push(tagSyncStatus);
         }
 
-        let refreshed = null;
-        const reloadStatus = await runHardAssetPostSaveTask('reload', async () => {
-            refreshed = await db.query.hardAssets.findFirst({
-                where: eq(hardAssets.id, id),
-            });
-            return refreshed;
-        });
-        if (!reloadStatus.ok) postSaveIssues.push(reloadStatus);
+        const savedAsset = { ...existing, ...updatePatch, id };
+        const translationStatus = hardAssetTranslationFieldsChanged(existing, updatePatch)
+            ? scheduleHardAssetPostSaveTask(c, 'translation', () => triggerHardAssetTranslation(db, c.env, savedAsset, user))
+            : { status: 'skipped', message: 'No English translation fields changed.' };
 
-        const translationStatus = refreshed
-            ? await triggerHardAssetTranslation(db, c.env, refreshed, user)
-            : { status: 'skipped', message: 'Asset was saved but could not be reloaded for translation.' };
-
-        const cacheStatus = await runHardAssetPostSaveTask('mapCache', () => (
+        scheduleHardAssetPostSaveTask(c, 'mapCache', () => (
             rebuildMapCache(getCacheRegionId(existing.subregionId, derivedSubregion.id), c.env)
         ));
-        if (!cacheStatus.ok) postSaveIssues.push(cacheStatus);
 
         const changedFields = diffAuditFieldNames(existing, updatePatch)
-            .concat(body.newTags !== undefined ? ['tags'] : []);
+            .concat(tagsChanged ? ['tags'] : []);
         if (changedFields.length) {
             const auditStatus = await runHardAssetPostSaveTask('audit', () => (
                 recordHardAssetAudit(
                     db,
                     user,
-                    refreshed || { ...existing, ...updatePatch, id },
+                    savedAsset,
                     isResourceVisibilityAction(existing, updatePatch)
                         ? (updatePatch.isHidden ? 'hidden' : 'shown')
                         : 'updated',

@@ -934,15 +934,32 @@ function normalizeAudienceModeValue(value) {
     return normalized;
 }
 
-async function buildWorkbookReferences(db) {
-    const [partners, allSubCategories, allSubregions, zones, places, offerings, templates] = await Promise.all([
-        db.select({ username: users.username, name: users.name, role: users.role }).from(users),
-        db.select({ name: subCategories.name, type: subCategories.type }).from(subCategories),
-        db.select({ subregionCode: subregions.subregionCode, name: subregions.name }).from(subregions),
-        db.select({ zoneCode: audienceZones.zoneCode, name: audienceZones.name }).from(audienceZones),
-        db.select({ externalKey: hardAssets.externalKey, name: hardAssets.name }).from(hardAssets).where(eq(hardAssets.isDeleted, false)),
-        db.select({ externalKey: softAssets.externalKey, name: softAssets.name }).from(softAssets).where(and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'))),
-        db.select({ externalKey: softAssetParents.externalKey, name: softAssetParents.name }).from(softAssetParents).where(eq(softAssetParents.isDeleted, false)),
+async function buildWorkbookReferences(db, resourceType = null) {
+    const needsPartners = !['template-rollouts', 'groups'].includes(resourceType);
+    const needsHardSubCategories = !resourceType || resourceType === 'places';
+    const needsSoftSubCategories = !resourceType || resourceType === 'standalone-offerings' || resourceType === 'templates';
+    const needsSubregions = !resourceType || resourceType === 'standalone-offerings' || resourceType === 'groups';
+    const needsAudienceZones = !resourceType || resourceType === 'standalone-offerings' || resourceType === 'templates';
+    const needsPlaces = !resourceType || resourceType === 'template-rollouts' || resourceType === 'groups';
+    const needsOfferings = !resourceType || resourceType === 'groups';
+    const needsTemplates = !resourceType || resourceType === 'template-rollouts';
+
+    const [
+        partners,
+        allSubCategories,
+        allSubregions,
+        zones,
+        places,
+        offerings,
+        templates,
+    ] = await Promise.all([
+        needsPartners ? db.select({ username: users.username, name: users.name, role: users.role }).from(users) : [],
+        (needsHardSubCategories || needsSoftSubCategories) ? db.select({ name: subCategories.name, type: subCategories.type }).from(subCategories) : [],
+        needsSubregions ? db.select({ subregionCode: subregions.subregionCode, name: subregions.name }).from(subregions) : [],
+        needsAudienceZones ? db.select({ zoneCode: audienceZones.zoneCode, name: audienceZones.name }).from(audienceZones) : [],
+        needsPlaces ? db.select({ externalKey: hardAssets.externalKey, name: hardAssets.name }).from(hardAssets).where(eq(hardAssets.isDeleted, false)) : [],
+        needsOfferings ? db.select({ externalKey: softAssets.externalKey, name: softAssets.name }).from(softAssets).where(and(eq(softAssets.isDeleted, false), eq(softAssets.assetMode, 'standalone'))) : [],
+        needsTemplates ? db.select({ externalKey: softAssetParents.externalKey, name: softAssetParents.name }).from(softAssetParents).where(eq(softAssetParents.isDeleted, false)) : [],
     ]);
 
     return {
@@ -2187,7 +2204,7 @@ export async function downloadWorkbookTemplate(c) {
 
     const db = getDb(c.env);
     await ensureBoundarySchema(db, c.env);
-    const references = await buildWorkbookReferences(db);
+    const references = await buildWorkbookReferences(db, resourceType);
     const referenceRows = buildReferenceRows(resourceType, references);
     const body = format === XLSX_FORMAT
         ? buildWorkbookBuffer(resourceType, [], referenceRows)
@@ -2208,7 +2225,7 @@ export async function exportWorkbookData(c) {
     const actor = c.get('user');
     const db = getDb(c.env);
     await ensureBoundarySchema(db, c.env);
-    const references = await buildWorkbookReferences(db);
+    const references = await buildWorkbookReferences(db, resourceType);
     const rows = await resolveTemplateExport(resourceType, db, actor);
     await recordExportAudit(db, actor, resourceType, 'workbook_exported', {
         format,
@@ -2246,7 +2263,7 @@ export async function exportFilteredWorkbookData(c) {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        const references = await buildWorkbookReferences(db);
+        const references = await buildWorkbookReferences(db, resourceType);
         const rows = await resolveTemplateExport(resourceType, db, actor, { orderedIds });
         await recordExportAudit(db, actor, resourceType, 'filtered_workbook_exported', {
             format,
