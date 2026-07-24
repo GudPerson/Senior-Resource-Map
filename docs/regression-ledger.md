@@ -222,6 +222,24 @@ Rules:
   production-style client build passed with only the existing large chunk
   warning; and `git diff --check` passed. Source coverage explicitly rejects
   the former fixed bottom placement.
+- 2026-07-24 current-location personal-place placement: while an owner is in
+  `Add personal place` map-placement mode, clicking or tapping the visible
+  current-location target now opens the existing personal-place editor at that
+  target's exact latitude and longitude. Its visual shell is reduced from
+  34 px to 26 px while retaining the existing 40 px interaction area. Outside
+  placement mode the target remains a session-only distance anchor, and Home
+  and temporary postal anchors retain their existing sizes and remain
+  non-placeable. This does not change geolocation permission handling, saved
+  home/postal data, map camera behavior, shared maps, print/export, APIs,
+  schema, or personal-place visibility. Reproduce by
+  enabling current location on an owned My Map, choosing `Add personal place`,
+  starting map placement, and selecting the current-location marker. The
+  editor must open at the marker coordinates; cancelling must leave the
+  location anchor unchanged. Focused personal-place, marker, and camera
+  coverage passed 27/27; broader owner/shared-map coverage passed 54/54; the
+  locked owner-map gate passed 52/52; full server coverage passed 466/466; the
+  exact four-root production-style client build passed with only the existing
+  large chunk warning; and `git diff --check` passed.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code

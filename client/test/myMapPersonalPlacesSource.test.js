@@ -21,6 +21,11 @@ test('DirectoryMap supports map-first personal-place placement', () => {
 
     assert.match(source, /function DirectoryMapClickHandler/);
     assert.match(source, /onMapClick/);
+    assert.match(source, /const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint\?\.kind === 'current'/);
+    assert.match(source, /eventHandlers=\{currentAnchorPlacementHandlers\}/);
+    assert.match(source, /onMapClick\(\{\s*lat: anchorPoint\.lat,\s*lng: anchorPoint\.lng,/);
+    assert.match(source, /const shellSize = isHome \? '36px' : isCurrent \? '26px' : '34px'/);
+    assert.match(source, /iconSize: \[40, 40\]/);
     assert.match(source, /!pins\.length && !anchorPoint && !onMapClick/);
 });
 

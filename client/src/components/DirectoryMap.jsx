@@ -308,13 +308,16 @@ function createDirectoryAnchorIcon(anchorPoint = null) {
     const shellColor = '#ffffff';
     const glyphColor = '#e11d48';
     const haloColor = isHome ? 'rgba(15,118,110,0.24)' : 'rgba(15,118,110,0.18)';
+    const haloInset = isHome ? '1px' : isCurrent ? '6px' : '2px';
+    const shellSize = isHome ? '36px' : isCurrent ? '26px' : '34px';
+    const shellBorderWidth = isCurrent ? '3px' : '4px';
     const iconSvg = isHome
         ? `
             <img src="${homeAnchorImage}" alt="" style="width:36px;height:36px;display:block;filter:drop-shadow(0 12px 20px rgba(15,118,110,0.24));" />
         `
         : isCurrent
             ? `
-                <svg viewBox="0 0 24 24" width="19" height="19" focusable="false" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="15" height="15" focusable="false" aria-hidden="true">
                     <circle cx="12" cy="12" r="4" fill="none" stroke="${ringColor}" stroke-width="2.2" />
                     <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" fill="none" stroke="${ringColor}" stroke-width="2.2" stroke-linecap="round" />
                     <circle cx="12" cy="12" r="1.5" fill="${ringColor}" />
@@ -330,8 +333,8 @@ function createDirectoryAnchorIcon(anchorPoint = null) {
         className: '',
         html: `
             <div aria-hidden="true" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
-                <div style="position:absolute;inset:${isHome ? '1px' : '2px'};border-radius:999px;background:${haloColor};"></div>
-                <div style="position:relative;z-index:1;width:${isHome ? '36px' : '34px'};height:${isHome ? '36px' : '34px'};${isHome ? '' : `border-radius:999px;background:${shellColor};border:4px solid ${ringColor};box-shadow:0 12px 24px rgba(15,118,110,0.24);`}display:flex;align-items:center;justify-content:center;overflow:visible;">
+                <div style="position:absolute;inset:${haloInset};border-radius:999px;background:${haloColor};"></div>
+                <div style="position:relative;z-index:1;width:${shellSize};height:${shellSize};${isHome ? '' : `border-radius:999px;background:${shellColor};border:${shellBorderWidth} solid ${ringColor};box-shadow:0 12px 24px rgba(15,118,110,0.24);`}display:flex;align-items:center;justify-content:center;overflow:visible;">
                     ${iconSvg}
                 </div>
             </div>
@@ -2928,6 +2931,21 @@ export default function DirectoryMap({
         });
     }, [shouldCluster, showPins, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
+    const mapClickEnabled = interactive && typeof onMapClick === 'function';
+    const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'
+        ? {
+            click: (event) => {
+                event?.originalEvent?.preventDefault?.();
+                event?.originalEvent?.stopPropagation?.();
+                onMapClick({
+                    lat: anchorPoint.lat,
+                    lng: anchorPoint.lng,
+                    originalEvent: event?.originalEvent || null,
+                });
+            },
+        }
+        : undefined;
+
     if (!pins.length && !anchorPoint && !onMapClick) {
         return (
             <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
@@ -2949,8 +2967,6 @@ export default function DirectoryMap({
     const resolvedContainerClassName = showZoomControl
         ? `${containerClassName} carearound-map-control-rail carearound-map-control-rail--${mapControlRailDepth}`
         : containerClassName;
-    const mapClickEnabled = interactive && typeof onMapClick === 'function';
-
     return (
         <div
             ref={mapFrameRef}
@@ -3129,7 +3145,12 @@ export default function DirectoryMap({
                     refreshKey={printBadgeLayoutRefreshKey}
                 />
                 {anchorPoint ? (
-                    <Marker position={[anchorPoint.lat, anchorPoint.lng]} icon={createDirectoryAnchorIcon(anchorPoint)} zIndexOffset={1200}>
+                    <Marker
+                        position={[anchorPoint.lat, anchorPoint.lng]}
+                        icon={createDirectoryAnchorIcon(anchorPoint)}
+                        zIndexOffset={1200}
+                        eventHandlers={currentAnchorPlacementHandlers}
+                    >
                         {showPopup ? (
                             <Popup>
                                 <div className="p-1 font-bold text-sm">
