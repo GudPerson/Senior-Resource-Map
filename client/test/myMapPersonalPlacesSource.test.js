@@ -86,6 +86,8 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(listSource, /const repeatsPlaceName/);
     assert.match(listSource, /const showResourceName = !repeatsPlaceName/);
     assert.match(listSource, /row\.mapShortDescriptor/);
+    assert.match(listSource, /function getPrimaryManagedPlaceRow/);
+    assert.match(listSource, /<PrimaryMapShortDescription/);
     assert.match(listSource, /t\('addShortDescription'\)/);
     assert.match(editorSource, /personalPlaceShortDescription/);
     assert.doesNotMatch(editorSource, /personalPlaceNote/);

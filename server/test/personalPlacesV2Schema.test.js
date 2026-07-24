@@ -47,5 +47,7 @@ test('personal category icon upload is scoped to authenticated non-guest users',
     assert.match(uploadSource, /assertPersonalPlacesUser\(user\)/);
     assert.match(uploadSource, /PERSONAL_CATEGORY_ICON_MAX_BYTES/);
     assert.match(uploadSource, /image\/png/);
+    assert.match(uploadSource, /Custom icon upload is unavailable in this environment/);
+    assert.match(uploadSource, /code: 'upload_not_configured'/);
     assert.match(uploadSource, /router\.post\('\/', authenticateToken, authorizeResourceOperator\(\)/);
 });

@@ -1089,6 +1089,12 @@ function getVisibleGroupRows(group) {
     return (group?.rows || []).filter((row) => !isRepeatedPrimaryRow(group, row));
 }
 
+function getPrimaryManagedPlaceRow(group) {
+    return (group?.rows || []).find((row) => (
+        row?.resourceType === 'hard' && isRepeatedPrimaryRow(group, row)
+    )) || null;
+}
+
 function isListOnlyGroupDisplayGroup(group) {
     if (!group?.isUnmappedGroup) return false;
     return (group?.rows || []).some((row) => (
@@ -1617,6 +1623,60 @@ function DirectoryPlaceBadge({
     );
 }
 
+function PrimaryMapShortDescription({
+    row,
+    mode,
+    compact = false,
+    print = false,
+    onEditResourceShortDescription,
+}) {
+    const { t } = useLocale();
+    if (!row) return null;
+
+    const shortDescription = String(row.mapShortDescriptor || '').trim();
+    const canManage = !print
+        && mode === 'owner'
+        && Boolean(onEditResourceShortDescription);
+
+    if (!shortDescription && !canManage) return null;
+
+    if (print) {
+        return shortDescription ? (
+            <p className={`mt-0.5 leading-snug text-slate-500 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}>
+                {shortDescription}
+            </p>
+        ) : null;
+    }
+
+    return shortDescription ? (
+        <div className="mt-1 flex items-start gap-1.5">
+            <p className={`min-w-0 flex-1 leading-5 text-slate-500 ${compact ? 'text-xs' : 'text-sm'}`}>
+                {shortDescription}
+            </p>
+            {canManage ? (
+                <button
+                    type="button"
+                    onClick={() => onEditResourceShortDescription(row)}
+                    className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                    aria-label={`${t('editShortDescription')}: ${row.name}`}
+                    title={t('editShortDescription')}
+                >
+                    <Pencil size={13} />
+                </button>
+            ) : null}
+        </div>
+    ) : (
+        <button
+            type="button"
+            onClick={() => onEditResourceShortDescription(row)}
+            className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-brand-700"
+        >
+            <Plus size={13} />
+            {t('addShortDescription')}
+        </button>
+    );
+}
+
 function DirectoryNestedPlaceSection({
     nestedPlace,
     mode,
@@ -1631,6 +1691,7 @@ function DirectoryNestedPlaceSection({
     const visibleRows = getVisibleGroupRows(nestedPlace);
     const titleClassName = compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(nestedPlace);
+    const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(nestedPlace);
 
     return (
         <div className={compactInteractive ? 'space-y-1.5' : 'space-y-2'}>
@@ -1650,6 +1711,13 @@ function DirectoryNestedPlaceSection({
                     compact={compactInteractive}
                 />
             </div>
+
+            <PrimaryMapShortDescription
+                row={primaryManagedPlaceRow}
+                mode={mode}
+                compact={compactInteractive}
+                onEditResourceShortDescription={onEditResourceShortDescription}
+            />
 
             {visibleRows.length ? (
                 <div className={`border-l border-slate-100 ${compactInteractive ? 'space-y-1.5 pl-2.5' : 'space-y-2.5 pl-3.5'}`}>
@@ -1722,6 +1790,7 @@ function DirectoryPlaceGroupCard({
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
+    const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
     const canFocusCardOnMap = Boolean(interactive && onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
 
     function handleCardClick(event) {
@@ -1807,6 +1876,12 @@ function DirectoryPlaceGroupCard({
                                                     {nestedPlace.shortLocationLine}
                                                 </p>
                                             ) : null}
+                                            <PrimaryMapShortDescription
+                                                row={getPrimaryManagedPlaceRow(nestedPlace)}
+                                                mode={mode}
+                                                compact={compactPrint}
+                                                print
+                                            />
                                             {showPrintResourceRows ? (
                                                 <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
                                                     {getVisibleGroupRows(nestedPlace).map((row) => (
@@ -1888,6 +1963,12 @@ function DirectoryPlaceGroupCard({
                                 </span>
                             ) : null}
                         </div> : null}
+                        <PrimaryMapShortDescription
+                            row={primaryManagedPlaceRow}
+                            mode={mode}
+                            compact={compactPrint}
+                            print
+                        />
 
                         {showPrintResourceRows && visibleRows.length ? (
                             <div className={`mt-1 ${compactPrint ? 'space-y-0.5' : 'space-y-1'}`}>
@@ -2057,6 +2138,12 @@ function DirectoryPlaceGroupCard({
                             compact={compactInteractive}
                         />
                     </div>
+                    <PrimaryMapShortDescription
+                        row={primaryManagedPlaceRow}
+                        mode={mode}
+                        compact={compactInteractive}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
+                    />
 
                     {visibleRows.length ? (
                         <div className={`border-t border-l border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pl-2.5 pt-2' : 'mt-3 space-y-2.5 pl-3.5 pt-3'}`}>
@@ -2125,6 +2212,7 @@ function MobileMapFocusTrayPlaceCard({
     const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
+    const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
     const locationLine = resolveV2CardLocationLine(group, t);
     const canFocusOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
 
@@ -2181,6 +2269,12 @@ function MobileMapFocusTrayPlaceCard({
                                 />
                             </div>
                         ) : null}
+                        <PrimaryMapShortDescription
+                            row={primaryManagedPlaceRow}
+                            mode={mode}
+                            compact
+                            print
+                        />
                     </div>
                     <MapNoteIconButton
                         row={primaryNoteRow}

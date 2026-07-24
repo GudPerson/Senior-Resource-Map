@@ -207,7 +207,9 @@ export async function requestFormDataWithBaseCandidates(path, formData, options 
         if (!res.ok) {
             if (isJson && data?.error) {
                 handleAuthJsonError(data, { suppressAuthExpired });
-                throw new Error(data.error);
+                const error = new Error(data.error);
+                if (data.code) error.code = data.code;
+                throw error;
             }
             if (!isJson && canUseFallbackBase && i < baseCandidates.length - 1) continue;
             if (!isJson) {

@@ -10,6 +10,13 @@ const PERSONAL_CATEGORY_ICON_TYPES = new Set([
     'image/webp',
 ]);
 
+function createUploadConfigurationError(message) {
+    const error = new Error(message);
+    error.code = 'UPLOAD_NOT_CONFIGURED';
+    error.status = 503;
+    return error;
+}
+
 function resolveCloudinaryConfig(runtimeEnv = {}) {
     const processEnv = typeof globalThis.process !== 'undefined' ? globalThis.process.env || {} : {};
     const runtime = runtimeEnv || {};
@@ -34,7 +41,7 @@ function resolveCloudinaryConfig(runtimeEnv = {}) {
         try {
             const parsed = new URL(cloudinaryUrl);
             if (parsed.protocol !== 'cloudinary:') {
-                throw new Error('CLOUDINARY_URL must use the cloudinary:// scheme.');
+                throw createUploadConfigurationError('CLOUDINARY_URL must use the cloudinary:// scheme.');
             }
 
             const apiKey = decodeURIComponent(parsed.username || '');
@@ -42,12 +49,13 @@ function resolveCloudinaryConfig(runtimeEnv = {}) {
             const cloudName = parsed.hostname || parsed.pathname.replace(/^\/+/, '');
 
             if (!cloudName || !apiKey || !apiSecret) {
-                throw new Error('CLOUDINARY_URL must include cloud name, API key, and API secret.');
+                throw createUploadConfigurationError('CLOUDINARY_URL must include cloud name, API key, and API secret.');
             }
 
             return { cloudName, apiKey, apiSecret };
         } catch (err) {
-            throw new Error(`Invalid CLOUDINARY_URL configuration. ${err.message}`);
+            if (err.code === 'UPLOAD_NOT_CONFIGURED') throw err;
+            throw createUploadConfigurationError(`Invalid CLOUDINARY_URL configuration. ${err.message}`);
         }
     }
 
@@ -56,7 +64,7 @@ function resolveCloudinaryConfig(runtimeEnv = {}) {
     const apiSecret = readValue('CLOUDINARY_API_SECRET');
 
     if (!cloudName || !apiKey || !apiSecret) {
-        throw new Error('Cloudinary is not configured. Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET.');
+        throw createUploadConfigurationError('Cloudinary is not configured. Set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET.');
     }
 
     return { cloudName, apiKey, apiSecret };
@@ -130,6 +138,12 @@ router.post('/personal-place-category-icon', authenticateToken, async (c) => {
         return c.json({ secure_url: data.secure_url });
     } catch (err) {
         console.error('Personal place category icon upload error:', err);
+        if (err.code === 'UPLOAD_NOT_CONFIGURED') {
+            return c.json({
+                error: 'Custom icon upload is unavailable in this environment.',
+                code: 'upload_not_configured',
+            }, 503);
+        }
         return c.json({ error: err.message || 'Failed to upload category icon' }, err.status || 500);
     }
 });

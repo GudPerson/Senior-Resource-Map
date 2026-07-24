@@ -91,10 +91,26 @@ Rules:
   per-map short description. This metadata appears in owner cards, owner map
   search, and owner Print/PDF/PNG output without changing the source resource
   or Map Notes; it is excluded from shared-map snapshots and shared responses.
-  Focused personal-place, directory, marker, and i18n coverage passed 85/85;
+  The primary managed-resource row, which is normally suppressed when it
+  repeats the card heading, now renders its description and owner edit action
+  directly under that heading in interactive, focus-tray, and print layouts.
+  Focused personal-place, directory, marker, and i18n coverage passed 100/100;
   full server coverage passed 466/466; locked map coverage passed 77/77; and
   the exact four-root production-style client build passed with the existing
   large chunk warning.
+- 2026-07-24 signed-in Chrome UAT: map 258 showed the `centre extension`
+  personal place name once, its `Onboarding in 2027` short description, and no
+  `Private note` field. Its editor exposed `Short description`. All 20 saved
+  managed hard resources exposed an `Add short description` owner action, and
+  the first resource opened the expected 240-character editor without a save.
+  The personal category wizard remained usable and scrollable with curated and
+  custom upload controls. The attempted local image transfer was correctly
+  rejected because local Wrangler has no Cloudinary secret; the production
+  Worker secret list confirms `CLOUDINARY_URL` is configured, but deployed
+  upload transport remains an explicit release-preview UAT gate. Missing local
+  upload configuration now returns a friendly 503
+  `Custom icon upload is unavailable in this environment` response while
+  retaining the diagnostic detail in server logs.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code
