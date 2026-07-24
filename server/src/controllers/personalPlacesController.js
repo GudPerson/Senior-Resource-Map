@@ -243,12 +243,26 @@ export async function ensureDefaultPersonalPlaceCategories(db, userId) {
         (category) => !names.has(normalizeCategoryName(category.name))
     );
 
-    for (let index = 0; index < missing.length; index += 1) {
-        const category = missing[index];
-        await createCategoryRecord(db, userId, {
-            ...category,
-            sortOrder: existing.length + index,
-        });
+    if (missing.length > 0) {
+        const timestamp = new Date();
+        await db.insert(userPersonalPlaceCategories)
+            .values(missing.map((category, index) => ({
+                userId,
+                name: category.name,
+                normalizedName: normalizeCategoryName(category.name),
+                iconKey: category.iconKey,
+                color: normalizeColor(category.color),
+                sortOrder: existing.length + index,
+                isArchived: false,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            })))
+            .onConflictDoNothing({
+                target: [
+                    userPersonalPlaceCategories.userId,
+                    userPersonalPlaceCategories.normalizedName,
+                ],
+            });
     }
 
     if (missing.length === 0) return existing;

@@ -19,6 +19,7 @@ import {
     attachPersonalPlaceToMap,
     createPersonalPlaceCategory,
     deletePersonalPlace,
+    ensureDefaultPersonalPlaceCategories,
     listPersonalPlaces,
     updatePersonalPlaceCategory,
 } from '../src/controllers/personalPlacesController.js';
@@ -370,15 +371,36 @@ function createFakeDb({
             if (table === userPersonalPlaceCategories) {
                 return {
                     values(value) {
-                        const row = {
-                            id: state.nextPersonalPlaceCategoryId++,
+                        const pendingRows = (Array.isArray(value) ? value : [value]).map((item) => ({
                             createdAt: new Date('2026-03-14T11:06:30.000Z'),
                             updatedAt: new Date('2026-03-14T11:06:30.000Z'),
-                            ...value,
+                            ...item,
+                        }));
+                        const insertRows = ({ ignoreConflicts = false } = {}) => {
+                            const inserted = [];
+                            for (const pendingRow of pendingRows) {
+                                const duplicate = state.personalPlaceCategories.some((category) => (
+                                    category.userId === pendingRow.userId
+                                    && category.normalizedName === pendingRow.normalizedName
+                                ));
+                                if (duplicate && ignoreConflicts) continue;
+                                if (duplicate) {
+                                    const error = new Error('duplicate personal place category');
+                                    error.code = '23505';
+                                    throw error;
+                                }
+                                const row = {
+                                    id: state.nextPersonalPlaceCategoryId++,
+                                    ...pendingRow,
+                                };
+                                state.personalPlaceCategories.push(row);
+                                inserted.push(row);
+                            }
+                            return inserted;
                         };
-                        state.personalPlaceCategories.push(row);
                         return {
-                            returning: async () => [row],
+                            returning: async () => insertRows(),
+                            onConflictDoNothing: async () => insertRows({ ignoreConflicts: true }),
                         };
                     },
                 };
@@ -762,6 +784,23 @@ test('custom category icon and colour update the shared library record', async (
     assert.equal(updated.name, 'Medication');
     assert.equal(updated.iconKey, 'package-check');
     assert.equal(updated.color, '#2563EB');
+});
+
+test('starter personal place categories remain unique when first loads race', async () => {
+    const db = createFakeDb();
+
+    const [firstLoad, secondLoad] = await Promise.all([
+        ensureDefaultPersonalPlaceCategories(db, DEFAULT_USER.id),
+        ensureDefaultPersonalPlaceCategories(db, DEFAULT_USER.id),
+    ]);
+
+    assert.equal(firstLoad.length, 6);
+    assert.equal(secondLoad.length, 6);
+    assert.equal(db.state.personalPlaceCategories.length, 6);
+    assert.equal(
+        new Set(db.state.personalPlaceCategories.map((category) => category.normalizedName)).size,
+        6
+    );
 });
 
 test('deleting a library place removes all map links but not the maps', async () => {

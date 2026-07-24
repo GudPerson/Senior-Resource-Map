@@ -40,6 +40,8 @@ Rules:
   authenticated non-guest owner; a user cannot read or mutate another user's
   places, categories, or map links; map deletion removes only its links and
   preserves reusable library places; library deletion cascades all links;
+  simultaneous first-load library and category requests seed each starter
+  category once without surfacing a unique-constraint error;
   legacy V1 rows are backfilled idempotently into one canonical place plus its
   original map link; shared-map snapshots, shared APIs, guests, Discover,
   managed Resources, imports, governance, and AI enrichment never receive
@@ -53,6 +55,14 @@ Rules:
   suite passed 469/470; its only failure is the previously recorded,
   date-sensitive Care Calendar conflict test whose fixed 2026-07-20 events are
   now expired and whose source is untouched by V2.
+- 2026-07-24 first-load category race recovery: signed-in local UAT exposed
+  concurrent `/personal-places` and `/personal-places/categories` requests
+  racing to create the same starter categories. Starter-category insertion now
+  uses the `(user_id, normalized_name)` unique index as an idempotent conflict
+  boundary. A simultaneous first-load regression test passes, focused V2
+  server coverage passes 26/26, and full server coverage passes 462/462. Local
+  Chrome reload then returned two backfilled V1 places with existing map-use
+  counts and no duplicate-key error.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code
