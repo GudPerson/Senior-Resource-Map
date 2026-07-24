@@ -21,6 +21,7 @@ import {
     getPrintMapPreviewScale,
     getPrintMapHeightBounds,
     normalizePrintMapLabelDetail,
+    normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
 } from '../lib/printMapState.js';
 
@@ -552,6 +553,7 @@ export default function DirectoryPrintView({
     });
     const printLayoutConfig = getOwnerPrintLayoutConfig(printMapState);
     const labelDetail = normalizePrintMapLabelDetail(printMapState?.labelDetail);
+    const resourceColumnCount = normalizePrintMapResourceColumnCount(printMapState?.resourceColumnCount);
     const resourceLayer = normalizePrintMapResourceLayer(printMapState?.resourceLayer);
     const showResourcePins = resourceLayer === PRINT_MAP_RESOURCE_LAYER_SHOW;
     const printResourcesBelow = Boolean(printLayoutConfig.resourcesBelow);
@@ -701,6 +703,7 @@ export default function DirectoryPrintView({
             data-print-map-side={printLayoutConfig.mapSide}
             data-print-map-width={printLayoutConfig.mapWidth}
             data-print-label-detail={labelDetail}
+            data-print-resource-columns={resourceColumnCount}
             data-print-resources-below={printResourcesBelow ? 'true' : 'false'}
             data-print-resource-layer={resourceLayer}
             className={`text-slate-900 ${paddingClass} flex-shrink-0`}
@@ -770,6 +773,7 @@ export default function DirectoryPrintView({
                 showPrintNumberBadges={useV2OwnerPrint}
                 printLabelDetail={labelDetail}
                 printResourcesBelow={printResourcesBelow}
+                printResourceColumnCount={resourceColumnCount}
                 printResourcePageHeader={printResourcesBelow ? (
                     <PrintResourcePageHeader
                         directory={directory}

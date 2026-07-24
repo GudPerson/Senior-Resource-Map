@@ -11,7 +11,10 @@ import {
     PRINT_MAP_LABEL_DETAIL_FULL,
     PRINT_MAP_LABEL_DETAIL_NAMES,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
+    PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
     normalizePrintMapLabelDetail,
+    normalizePrintMapResourceColumnCount,
+    splitPrintResourceGroups,
 } from '../lib/printMapState.js';
 import {
     ArrowLeft,
@@ -1095,6 +1098,12 @@ function getPrimaryManagedPlaceRow(group) {
     )) || null;
 }
 
+function hasRowShortDescription(row) {
+    return Boolean(String(
+        isPersonalPlaceRow(row) ? (row?.descriptor || '') : (row?.mapShortDescriptor || '')
+    ).trim());
+}
+
 function isListOnlyGroupDisplayGroup(group) {
     if (!group?.isUnmappedGroup) return false;
     return (group?.rows || []).some((row) => (
@@ -1777,6 +1786,11 @@ function DirectoryPlaceGroupCard({
     const showPrintAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showPrintResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const showPrintShortDescriptions = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
+        || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const printVisibleRows = showPrintResourceRows
+        ? visibleRows
+        : (showPrintShortDescriptions ? visibleRows.filter(hasRowShortDescription) : []);
     const useCompactNamesOnlyCard = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES;
     const showPrimaryCardBadge = cardBadgeMode !== 'none';
     const printNumberBadge = showPrintNumberBadge ? (
@@ -1858,6 +1872,12 @@ function DirectoryPlaceGroupCard({
                             <div className="space-y-3">
                                 {group.nestedPlaces.map((nestedPlace) => {
                                     const nestedPlaceDetailPath = getGroupDetailPath(nestedPlace);
+                                    const nestedVisibleRows = getVisibleGroupRows(nestedPlace);
+                                    const nestedPrintRows = showPrintResourceRows
+                                        ? nestedVisibleRows
+                                        : (showPrintShortDescriptions
+                                            ? nestedVisibleRows.filter(hasRowShortDescription)
+                                            : []);
                                     const nestedPlaceTitle = nestedPlaceDetailPath && allowPrintLinks ? (
                                         <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[0.9375rem]' : 'text-base'}`}>
                                             {nestedPlace.name}
@@ -1876,15 +1896,17 @@ function DirectoryPlaceGroupCard({
                                                     {nestedPlace.shortLocationLine}
                                                 </p>
                                             ) : null}
-                                            <PrimaryMapShortDescription
-                                                row={getPrimaryManagedPlaceRow(nestedPlace)}
-                                                mode={mode}
-                                                compact={compactPrint}
-                                                print
-                                            />
-                                            {showPrintResourceRows ? (
+                                            {showPrintShortDescriptions ? (
+                                                <PrimaryMapShortDescription
+                                                    row={getPrimaryManagedPlaceRow(nestedPlace)}
+                                                    mode={mode}
+                                                    compact={compactPrint}
+                                                    print
+                                                />
+                                            ) : null}
+                                            {nestedPrintRows.length ? (
                                                 <div className={compactPrint ? 'space-y-0.5' : 'space-y-1'}>
-                                                    {getVisibleGroupRows(nestedPlace).map((row) => (
+                                                    {nestedPrintRows.map((row) => (
                                                         <DirectoryResourceRow
                                                             key={row.rowKey}
                                                             row={row}
@@ -1963,16 +1985,18 @@ function DirectoryPlaceGroupCard({
                                 </span>
                             ) : null}
                         </div> : null}
-                        <PrimaryMapShortDescription
-                            row={primaryManagedPlaceRow}
-                            mode={mode}
-                            compact={compactPrint}
-                            print
-                        />
+                        {showPrintShortDescriptions ? (
+                            <PrimaryMapShortDescription
+                                row={primaryManagedPlaceRow}
+                                mode={mode}
+                                compact={compactPrint}
+                                print
+                            />
+                        ) : null}
 
-                        {showPrintResourceRows && visibleRows.length ? (
+                        {printVisibleRows.length ? (
                             <div className={`mt-1 ${compactPrint ? 'space-y-0.5' : 'space-y-1'}`}>
-                                {visibleRows.map((row) => (
+                                {printVisibleRows.map((row) => (
                                     <DirectoryResourceRow
                                         key={row.rowKey}
                                         row={row}
@@ -2858,6 +2882,7 @@ export default function SharedMapDirectoryList({
     showPrintNumberBadges = false,
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printResourcesBelow = false,
+    printResourceColumnCount = 2,
     printResourcePageHeader = null,
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
@@ -2915,21 +2940,11 @@ export default function SharedMapDirectoryList({
         displayGroups.length >= 7
         || displayGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
     );
-    const printResourceColumns = useMemo(() => {
-        const totalWeight = displayGroups.reduce((total, group) => (
-            total + Math.max(1, (group?.rows || []).length) + 1
-        ), 0);
-        const targetWeight = totalWeight / 2;
-        const columns = [[], []];
-        let leftWeight = 0;
-        displayGroups.forEach((group) => {
-            const groupWeight = Math.max(1, (group?.rows || []).length) + 1;
-            const columnIndex = columns[0].length === 0 || leftWeight < targetWeight ? 0 : 1;
-            columns[columnIndex].push(group);
-            if (columnIndex === 0) leftWeight += groupWeight;
-        });
-        return columns;
-    }, [displayGroups]);
+    const normalizedPrintResourceColumnCount = normalizePrintMapResourceColumnCount(printResourceColumnCount);
+    const printResourceColumns = useMemo(
+        () => splitPrintResourceGroups(displayGroups, normalizedPrintResourceColumnCount),
+        [displayGroups, normalizedPrintResourceColumnCount],
+    );
     const interactiveRowCount = displayGroups.reduce((count, group) => count + getVisibleGroupRows(group).length, 0);
     const compactInteractiveDesktop = interactive
         && resolvedLayout === 'desktop'
@@ -3475,9 +3490,16 @@ export default function SharedMapDirectoryList({
                         data-print-export-page="resources"
                     >
                         {printResourcePageHeader}
-                        <div className={`${printResourcePageHeader ? 'mt-8' : ''} grid grid-cols-2 gap-5`}>
-                            {renderPrintResourceColumn(printResourceColumns[0], 'end')}
-                            {renderPrintResourceColumn(printResourceColumns[1], 'start')}
+                        <div
+                            className={`${printResourcePageHeader ? 'mt-8' : ''} grid gap-5`}
+                            style={{ gridTemplateColumns: `repeat(${normalizedPrintResourceColumnCount}, minmax(0, 1fr))` }}
+                            data-print-resource-columns={normalizedPrintResourceColumnCount}
+                        >
+                            {printResourceColumns.map((groups, index) => (
+                                <React.Fragment key={`print-resource-column-${index}`}>
+                                    {renderPrintResourceColumn(groups, 'start')}
+                                </React.Fragment>
+                            ))}
                         </div>
                         {shouldRenderUnmappedSections ? (
                             <DirectoryUnmappedSection

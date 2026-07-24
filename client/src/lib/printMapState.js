@@ -36,7 +36,9 @@ export const PRINT_MAP_WIDTH_EXTRA_WIDE = 'extra-wide';
 export const PRINT_MAP_LABEL_DETAIL_NAMES = 'names';
 export const PRINT_MAP_LABEL_DETAIL_LOGOS = 'names-logos';
 export const PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES = 'names-addresses';
+export const PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS = 'names-descriptions';
 export const PRINT_MAP_LABEL_DETAIL_FULL = 'full';
+export const PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT = 2;
 
 export function normalizePrintMapPageLayout(value) {
     return value === PRINT_MAP_PAGE_LAYOUT_FULL
@@ -99,10 +101,52 @@ export function normalizePrintMapLabelDetail(value) {
         PRINT_MAP_LABEL_DETAIL_NAMES,
         PRINT_MAP_LABEL_DETAIL_LOGOS,
         PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
+        PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
         PRINT_MAP_LABEL_DETAIL_FULL,
     ].includes(value)
         ? value
         : PRINT_MAP_LABEL_DETAIL_FULL;
+}
+
+export function normalizePrintMapResourceColumnCount(value) {
+    const count = Number(value);
+    return [2, 3, 4].includes(count)
+        ? count
+        : PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT;
+}
+
+export function splitPrintResourceGroups(groups = [], requestedColumnCount = PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT) {
+    const columnCount = normalizePrintMapResourceColumnCount(requestedColumnCount);
+    const columns = Array.from({ length: columnCount }, () => []);
+    const weightedGroups = (groups || []).map((group) => ({
+        group,
+        weight: Math.max(1, (group?.rows || []).length) + 1,
+    }));
+    const totalWeight = weightedGroups.reduce((total, item) => total + item.weight, 0);
+    const targetWeight = totalWeight / columnCount;
+    let columnIndex = 0;
+    let assignedWeight = 0;
+
+    weightedGroups.forEach((item, itemIndex) => {
+        const remainingGroupCount = weightedGroups.length - itemIndex;
+        const remainingColumnCount = columnCount - columnIndex;
+        const mustAdvanceToKeepColumnsAvailable = remainingGroupCount <= remainingColumnCount - 1;
+        const canAdvance = columnIndex < columnCount - 1
+            && columns[columnIndex].length > 0
+            && (
+                assignedWeight >= targetWeight * (columnIndex + 1)
+                || mustAdvanceToKeepColumnsAvailable
+            );
+
+        if (canAdvance) {
+            columnIndex += 1;
+        }
+
+        columns[columnIndex].push(item.group);
+        assignedWeight += item.weight;
+    });
+
+    return columns;
 }
 
 export function getOwnerPrintLayoutConfig(state = {}) {
@@ -228,6 +272,7 @@ export function createOwnerPrintMapState(mapStyle, {
         mapSide: PRINT_MAP_SIDE_LEFT,
         mapWidth: PRINT_MAP_WIDTH_WIDE,
         labelDetail: PRINT_MAP_LABEL_DETAIL_FULL,
+        resourceColumnCount: PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT,
         resetVersion: 0,
     };
 }
@@ -255,6 +300,7 @@ export function buildPrintMapCaptureKey(state) {
         normalizePrintMapSide(state?.mapSide),
         normalizePrintMapWidth(state?.mapWidth),
         normalizePrintMapLabelDetail(state?.labelDetail),
+        normalizePrintMapResourceColumnCount(state?.resourceColumnCount),
         Number(state?.resetVersion || 0),
     ].join('|');
 }

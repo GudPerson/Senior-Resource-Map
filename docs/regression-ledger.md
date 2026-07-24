@@ -111,6 +111,22 @@ Rules:
   upload configuration now returns a friendly 503
   `Custom icon upload is unavailable in this environment` response while
   retaining the diagnostic detail in server logs.
+- 2026-07-24 owner print composition refinement: `Names + descriptions` is a
+  distinct label-detail choice that shows saved personal-place and per-map
+  resource descriptions without addresses or logos. `Names only` now excludes
+  those descriptions. Full map keeps its map-only first page and adds a
+  Full-map-only `Card columns` setting for 2, 3, or 4 ordered resource columns,
+  defaulting to 2. Every numbered badge on that resources-below page is
+  left-aligned; the locked Balanced and Side map layouts retain their
+  map-facing badge positions and do not expose the column setting. Signed-in
+  Chrome UAT on map 258 confirmed 22/22 Full-map resource badges at `start`,
+  two columns split 11/11, three split 8/7/7, and four split 6/5/6/5 with no
+  horizontal or text overflow. `Names + descriptions` showed `Onboarding in
+  2027` without its address or logo, while `Names only` showed neither the
+  description nor address. Focused print, directory, personal-place, and i18n
+  coverage passed 60/60; locked map/print coverage passed 79/79; and the exact
+  four-root production-style client build passed with only the existing large
+  chunk warning.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code

@@ -8,6 +8,7 @@ import {
     PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LABEL_DETAIL_NAMES,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
+    PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
     PRINT_MAP_LAYOUT_BALANCED,
     PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_LAYOUT_FULL,
@@ -24,6 +25,7 @@ import {
     PRINT_MAP_WIDTH_WIDE,
     normalizePrintMapLabelDetail,
     normalizePrintMapLayoutPreset,
+    normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
     normalizePrintMapSide,
     normalizePrintMapWidth,
@@ -53,6 +55,7 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
     const mapSide = normalizePrintMapSide(value?.mapSide);
     const mapWidth = normalizePrintMapWidth(value?.mapWidth);
     const labelDetail = normalizePrintMapLabelDetail(value?.labelDetail);
+    const resourceColumnCount = normalizePrintMapResourceColumnCount(value?.resourceColumnCount);
     const patchState = (patch) => onChange?.((current) => ({
         ...current,
         ...(typeof patch === 'function' ? patch(current || {}) : patch),
@@ -78,6 +81,7 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
         { value: PRINT_MAP_LABEL_DETAIL_NAMES, label: t('printLabelNamesOnly') },
         { value: PRINT_MAP_LABEL_DETAIL_LOGOS, label: t('printLabelNamesLogos') },
         { value: PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES, label: t('printLabelNamesAddresses') },
+        { value: PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS, label: t('printLabelNamesDescriptions') },
         { value: PRINT_MAP_LABEL_DETAIL_FULL, label: t('printLabelFullDetails') },
     ];
 
@@ -134,6 +138,25 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                             : t('printLayoutBalancedDescription')}
                 </p>
             </fieldset>
+
+            {layoutPreset === PRINT_MAP_LAYOUT_FULL ? (
+                <fieldset className="mt-3" data-print-resource-column-controls="true">
+                    <legend className="text-sm font-bold text-slate-800">{t('printResourceCardColumns')}</legend>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                        {[2, 3, 4].map((count) => (
+                            <ChoiceButton
+                                key={count}
+                                selected={resourceColumnCount === count}
+                                label={String(count)}
+                                onClick={() => patchState({ resourceColumnCount: count })}
+                            />
+                        ))}
+                    </div>
+                    <p className="mt-1.5 text-xs font-medium leading-4 text-slate-500">
+                        {t('printResourceCardColumnsHelp')}
+                    </p>
+                </fieldset>
+            ) : null}
 
             {layoutPreset !== PRINT_MAP_LAYOUT_FULL ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
